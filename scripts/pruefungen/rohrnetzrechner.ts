@@ -1074,18 +1074,22 @@ export function pruefeRohrnetzrechner(check: CheckFn): void {
      * hoch: 150/3,9 = 38 Zeilen je Blatt. 17 Teilstrecken passen damit auf ein
      * Blatt, 85 (fünffach) brauchen ⌈85/38⌉ = 3.
      *
-     * Der feste Rest ist: Grundriss, Deckblatt, Strangübersicht, Einstellwerte
-     * (2 Heizflächen → 1 Blatt), Quellen = 5 Blätter.
-     *   17 Teilstrecken → 5 + 1 = 6 Blätter
-     *   85 Teilstrecken → 5 + 3 = 8 Blätter
+     * Der feste Rest ist seit 1.14.0 sechs Blätter: Grundriss, Deckblatt,
+     * Strangübersicht, **Erzeugerkreis**, Einstellwerte (2 Heizflächen →
+     * 1 Blatt), Quellen. Das Erzeugerblatt ist dazugekommen, weil der
+     * Druckverlust des Erzeugerkreises seit 1.14.0 gerechnet wird statt mit
+     * null angesetzt — und ein Posten, der die Förderhöhe verdoppelt, gehört
+     * aufgeschlüsselt aufs Papier und nicht in eine Zeile des Deckblatts.
+     *   17 Teilstrecken → 6 + 1 = 7 Blätter
+     *   85 Teilstrecken → 6 + 3 = 9 Blätter
      */
-    check('17 Teilstrecken passen auf ein Tabellenblatt (6 Blätter)', druck.sheets.length, 6);
+    check('17 Teilstrecken passen auf ein Tabellenblatt (7 Blätter)', druck.sheets.length, 7);
     const fuenffach = {
       ...bericht,
       teilstrecken: [0, 1, 2, 3, 4].flatMap(() => bericht.teilstrecken),
     };
     const grosserDruck = buildPipeReportSheets(doc, fuenffach);
-    check('85 Teilstrecken brauchen drei Tabellenblätter (8 Blätter)', grosserDruck.sheets.length, 8);
+    check('85 Teilstrecken brauchen drei Tabellenblätter (9 Blätter)', grosserDruck.sheets.length, 9);
     check('Mehr Teilstrecken, mehr Blätter', grosserDruck.sheets.length > druck.sheets.length, true);
     check('Auch die zusätzlichen Blätter sind geschlossenes SVG',
       grosserDruck.sheets.every((s) => s.startsWith('<svg') && s.endsWith('</svg>')), true);

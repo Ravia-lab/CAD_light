@@ -34,6 +34,7 @@ import type { RohrnetzBericht, TeilstreckenZeile } from './pipeReport';
 import { berichtsUrteil } from './pipeReport';
 import { buildPlanSvg, type PaperFormat, type PaperOrientation } from './planPrint';
 import { PIPE_MATERIAL_LABELS } from '../types/bim';
+import type { ErzeugerUmfang, WertHerkunft } from '../types/bim';
 
 const PAPER: Record<PaperFormat, { w: number; h: number }> = {
   A4: { w: 210, h: 297 },
@@ -96,6 +97,22 @@ interface Spalte {
   /** Rechtsbündig — für alles, was gerechnet wurde. */
   rechts?: boolean;
 }
+
+/** Belastbarkeit einer Zahl im Klartext — sie steht auf jedem Nachweisblatt. */
+const HERKUNFT_LABEL: Record<WertHerkunft, string> = {
+  tabellenwert: 'Tabellenwert des Herstellers',
+  'diagramm-abgelesen': 'aus einem Herstellerdiagramm abgelesen',
+  abgeleitet: 'von diesem Programm abgeleitet',
+  annahme: 'Annahme',
+};
+
+/** Was ein veröffentlichter Gerätekennwert einschließt. */
+const UMFANG_LABEL: Record<ErzeugerUmfang, string> = {
+  'nur-waermetauscher': 'nur der Wärmeübertrager, nicht die Geräteverrohrung',
+  'gesamtes-geraet': 'das ganze Gerät',
+  'geraet-mit-abscheider': 'Gerät einschließlich Abscheider',
+  unbekannt: 'unbekannt — der Wert mittelt über verschieden abgegrenzte Herstellerangaben',
+};
 
 // ---------------------------------------------------------------------------
 // Blattgerüst
@@ -361,7 +378,11 @@ export function buildPipeReportSheets(
     }
   }
 
-  const gesamtVorschau = 5 + Math.ceil(bericht.teilstrecken.length / 55) + Math.ceil(bericht.heizflaechen.length / 55);
+  // 5 feste Blätter (Grundriss, Deckblatt, Strangübersicht, Erzeugerkreis,
+  // Quellen) plus die umbrochenen Tabellen. Seit 1.14.0 ist der Erzeugerkreis
+  // dabei — die Zahl im Blattfuß muss mitwachsen, sonst steht auf dem letzten
+  // Blatt „Blatt 7/6".
+  const gesamtVorschau = 6 + Math.ceil(bericht.teilstrecken.length / 55) + Math.ceil(bericht.heizflaechen.length / 55);
   const kopf = `${bericht.titel} · Rohrnetzberechnung · ${bericht.erstellt}`;
   const fuss = (i: number) =>
     `Blatt ${i}/${gesamtVorschau} · RaVia CAD Light · Berechnung nach anerkannten Regeln der Technik, ` +
@@ -384,6 +405,18 @@ export function buildPipeReportSheets(
 
   // --- Strangübersicht ------------------------------------------------------
   sheets.push(blatt(m, strangBlatt(m, bericht), kopf, fuss(sheets.length + 1)));
+
+  /*
+   * --- Erzeugerkreis und Pumpe ---------------------------------------------
+   *
+   * Ein eigenes Blatt und keine Zeile auf dem Deckblatt. Der Grund ist nicht
+   * der Platz, sondern die Beweislast: bis 1.13.2 stand dieser Posten mit
+   * null in der Rechnung, und die Pumpe fiel dadurch systematisch zu klein
+   * aus. Wer die Förderhöhe nachprüfen will, muss sehen, **woraus** sie
+   * besteht — Posten für Posten, jeder mit seiner Grundlage und seiner
+   * Quelle. Eine Summe allein ist wieder nur eine Behauptung.
+   */
+  sheets.push(blatt(m, erzeugerBlatt(m, bericht), kopf, fuss(sheets.length + 1)));
 
   // --- Einstellwerte --------------------------------------------------------
   for (let i = 0; i < Math.max(1, bericht.heizflaechen.length); i += proBlatt) {
@@ -661,6 +694,168 @@ function heizflaechenBlatt(
     y += ZEILE;
   }
   void b;
+  return teile.join('');
+}
+
+/**
+ * Blatt „Erzeugerkreis und Pumpe".
+ *
+ * Es beantwortet drei Fragen, die eine einzelne Förderhöhe offenlässt:
+ * **woraus** sie besteht, **woher** jede Zahl stammt und **wie belastbar**
+ * sie ist. Die letzte Spalte trennt dabei ausdrücklich den Tabellenwert des
+ * Herstellers von der abgeleiteten Typklasse dieses Programms — beide sehen
+ * auf dem Blatt gleich aus, sind aber verschieden viel wert.
+ */
+function erzeugerBlatt(m: Blattmasse, b: RohrnetzBericht): string {
+  const teile: string[] = [];
+  let y = m.feld.y + 5;
+  teile.push(zeile(m.feld.x, y, 'Erzeugerkreis und Pumpe', { size: FONT_ABSCHNITT, bold: true }));
+  y += 4;
+  for (const z of umbrich(
+    'Zum gerechneten Rohrnetz kommt, was zwischen Erzeuger und Verteiler im Fließweg liegt. Der VdZ-Leitfaden ' +
+      'nennt die Pumpenauslegung ausdrücklich als „Summe der Einzeldruckverluste, bestehend aus den Druckverlusten ' +
+      'der Rohrleitungen, des Wärmeerzeugers, der Wärmeübergabeeinrichtung, der Armaturen sowie der sonstigen ' +
+      'Einbauten wie z. B. Rückschlagklappen und Wärmemengenzähler".',
+    m.feld.w,
+    FONT_KLEIN,
+  )) {
+    teile.push(zeile(m.feld.x, y, z, { size: FONT_KLEIN, fill: GRAU }));
+    y += 3.1;
+  }
+  y += 3;
+
+  const e = b.erzeuger;
+  teile.push(
+    zeile(m.feld.x, y, `Auslegungsvolumenstrom des Erzeugerkreises: ${de(e.volumenstrom, 3)} m³/h`, { fill: GRAU }),
+  );
+  y += ZEILE + 1;
+
+  // --- Tabellenkopf ---------------------------------------------------------
+  const SP = { posten: m.feld.x, dp: m.feld.x + 62, grundlage: m.feld.x + 80, quelle: m.feld.x + 175 };
+  for (const [x, t, rechts] of [
+    [SP.posten, 'Posten', false],
+    [SP.dp, 'Δp [kPa]', true],
+    [SP.grundlage, 'Grundlage der Zahl', false],
+    [SP.quelle, 'Quelle und Belastbarkeit', false],
+  ] as [number, string, boolean][]) {
+    teile.push(zeile(rechts ? x + 12 : x, y, t, { bold: true, size: FONT_KLEIN, rechts }));
+  }
+  y += 1.4;
+  teile.push(
+    `<line x1="${n(m.feld.x)}" y1="${n(y)}" x2="${n(m.feld.x + m.feld.w)}" y2="${n(y)}" stroke="${LINIE}" stroke-width="0.25"/>`,
+  );
+  y += 3.4;
+
+  if (!e.posten.length) {
+    for (const z of umbrich(
+      'Für diese Anlage ist kein Posten im Erzeugerkreis angesetzt. Solange kein Gerät gewählt ist, ' +
+        'fehlt der Förderhöhe genau dieser Anteil — bei marktüblichen Geräten sind das im Auslegungspunkt ' +
+        'einige Kilopascal, die die Pumpe zusätzlich aufbringen muss.',
+      m.feld.w,
+      FONT_KLEIN,
+    )) {
+      teile.push(zeile(m.feld.x, y, z, { size: FONT_KLEIN, fill: GRAU }));
+      y += 3.1;
+    }
+    y += 2;
+  }
+
+  for (const p of e.posten) {
+    teile.push(zeile(SP.posten, y, kuerze(p.label, 60, FONT_KLEIN), { size: FONT_KLEIN }));
+    teile.push(zeile(SP.dp + 12, y, de(p.druck / 1000, 2), { size: FONT_KLEIN, rechts: true }));
+    teile.push(zeile(SP.grundlage, y, kuerze(p.grundlage, 93, FONT_KLEIN), { size: FONT_KLEIN, fill: GRAU }));
+    teile.push(
+      zeile(SP.quelle, y, kuerze(`${p.quelle} (${HERKUNFT_LABEL[p.herkunft]})`, m.feld.w - 175, FONT_KLEIN), {
+        size: FONT_KLEIN,
+        fill: GRAU,
+      }),
+    );
+    y += ZEILE - 0.6;
+  }
+
+  if (e.posten.length) {
+    teile.push(
+      `<line x1="${n(m.feld.x)}" y1="${n(y - 2.4)}" x2="${n(m.feld.x + m.feld.w)}" y2="${n(y - 2.4)}" stroke="${LINIE}" stroke-width="0.25"/>`,
+    );
+    teile.push(zeile(SP.posten, y, 'Summe, zum Rohrnetz addiert', { bold: true, size: FONT_KLEIN }));
+    teile.push(zeile(SP.dp + 12, y, de(e.zusatz / 1000, 2), { bold: true, size: FONT_KLEIN, rechts: true }));
+    y += ZEILE + 2;
+  }
+
+  // --- Gerätekennwert -------------------------------------------------------
+  if (e.hydraulik) {
+    const h = e.hydraulik;
+    teile.push(zeile(m.feld.x, y, 'Kennwert des Wärmeerzeugers', { size: FONT_ABSCHNITT, bold: true }));
+    y += 5;
+    const zeilen: [string, string][] = [
+      [
+        'Angabeart',
+        h.angabe === 'druckverlust'
+          ? 'Druckverlust des Geräts — wird zum Rohrnetz addiert'
+          : h.angabe === 'restfoerderhoehe'
+            ? 'Restförderhöhe — wird nicht addiert, sondern als Obergrenze geprüft'
+            : 'keine Angabe veröffentlicht',
+      ],
+      ['Wortlaut des Herstellers', h.herstellerbegriff],
+      ['Wert', `${de(h.wert / 1000, 2)} kPa bei ${de(h.bezugsvolumenstrom, 2)} m³/h`],
+      [
+        'Skalierung',
+        h.angabe === 'druckverlust'
+          ? `Δp = Δp_bezug · (V̇/V̇_bezug)^${de(h.exponent, 1)} — quadratisch und damit konservativ`
+          : 'entfällt: eine Restförderhöhe ist eine Pumpenkennlinie und fällt mit dem Volumenstrom',
+      ],
+      ['Umfang', UMFANG_LABEL[h.umfang]],
+      ['Belastbarkeit', `${HERKUNFT_LABEL[h.herkunft]} — ${h.quelle}`],
+    ];
+    for (const [k, v] of zeilen) {
+      teile.push(zeile(m.feld.x, y, k, { fill: GRAU, size: FONT_KLEIN }));
+      const umbrochen = umbrich(v, m.feld.w - 58, FONT_KLEIN);
+      umbrochen.forEach((z, i) => teile.push(zeile(m.feld.x + 56, y + i * 3.1, z, { size: FONT_KLEIN })));
+      y += Math.max(ZEILE - 0.6, umbrochen.length * 3.1 + 0.6);
+    }
+    y += 3;
+  }
+
+  // --- Pumpe ----------------------------------------------------------------
+  if (b.pumpe) {
+    teile.push(zeile(m.feld.x, y, 'Pumpenauslegung', { size: FONT_ABSCHNITT, bold: true }));
+    y += 5;
+    const p = b.pumpe;
+    const pz: [string, string][] = [
+      ['Förderstrom', `${de(p.flow, 3)} m³/h — die Summe aller Stränge, nicht der größte`],
+      ['Ungünstigster Strang', `${de(p.worstPathLoss / 1000, 2)} kPa`],
+      ['Erzeugerkreis', `${de(p.generatorLoss / 1000, 2)} kPa`],
+      ['Sicherheitszuschlag', `${de((p.safetyFactor - 1) * 100, 0)} %`],
+      ['Erforderliche Förderhöhe', `${de(p.head, 2)} m (${de(p.pressureKpa, 2)} kPa)`],
+      ['Elektrische Aufnahme', `rund ${de(p.electricPower, 0)} W bei η = ${de(p.efficiency * 100, 0)} %`],
+    ];
+    if (p.availableHead !== undefined) {
+      pz.push([
+        'Prüfung gegen Restförderhöhe',
+        `verfügbar ${de(p.availableHead, 2)} m, erforderlich ${de(p.head, 2)} m — ` +
+          (p.sufficient
+            ? `Reserve ${de(p.residualHead ?? 0, 2)} m, keine Zusatzpumpe erforderlich`
+            : `es fehlen ${de(-(p.residualHead ?? 0), 2)} m`),
+      ]);
+    }
+    for (const [k, v] of pz) {
+      teile.push(zeile(m.feld.x, y, k, { fill: GRAU, size: FONT_KLEIN }));
+      const umbrochen = umbrich(v, m.feld.w - 58, FONT_KLEIN);
+      umbrochen.forEach((z, i) => teile.push(zeile(m.feld.x + 56, y + i * 3.1, z, { size: FONT_KLEIN })));
+      y += Math.max(ZEILE - 0.6, umbrochen.length * 3.1 + 0.6);
+    }
+    y += 2;
+  }
+
+  // --- Hinweise -------------------------------------------------------------
+  for (const h of e.hinweise) {
+    for (const z of umbrich(`${h.severity === 'info' ? '·' : '!'} ${h.text}`, m.feld.w, FONT_KLEIN)) {
+      teile.push(zeile(m.feld.x, y, z, { size: FONT_KLEIN, fill: h.severity === 'info' ? GRAU : '#B45309' }));
+      y += 3.1;
+    }
+    y += 1;
+  }
+
   return teile.join('');
 }
 

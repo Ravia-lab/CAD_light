@@ -18,8 +18,21 @@
  */
 
 import { useMemo, useRef, useState } from 'react';
-import type { HeatPumpModel, HeatSourceKind, PipeMaterial, PumpForm } from '../types/bim';
-import { HEAT_SOURCE_LABELS, PIPE_MATERIAL_LABELS, PUMP_FORM_LABELS } from '../types/bim';
+import type {
+  BivalenzBetrieb,
+  HeatPumpModel,
+  HeatSourceKind,
+  PipeMaterial,
+  PumpForm,
+  SecondGenerator,
+  ZweitErzeugerArt,
+} from '../types/bim';
+import {
+  HEAT_SOURCE_LABELS,
+  PIPE_MATERIAL_LABELS,
+  PUMP_FORM_LABELS,
+  ZWEITERZEUGER_LABELS,
+} from '../types/bim';
 import { useBimStore } from '../store/useBimStore';
 import type { PipeLayoutResult } from '../lib/pipeLayout';
 import { HEAT_PUMP_SERIES, REFRIGERANTS, minimumRoomVolume } from '../lib/deviceCatalog';
@@ -531,6 +544,260 @@ export default function AnlagenPanel() {
             </select>
           </label>
         </div>
+      </Fold>
+
+      {/* ---------------------------------------------------------------- */}
+      {/* 3b — Zweiter Wärmeerzeuger, Kaskade, Kühlung                      */}
+      {/* ---------------------------------------------------------------- */}
+      {/*
+        * Bis 1.13.2 kannte das Anlagenmodell diese vier Angaben nicht — und
+        * vier Vorlagen des Schemakatalogs waren dadurch **unerreichbar**:
+        * Solar, Kessel, Festbrennstoff und Kaskade standen im Programm und
+        * konnten nie vorgeschlagen werden, weil niemand sie behaupten konnte.
+        * Was das Programm nicht weiß, behauptet es nicht; aber es muss die
+        * Möglichkeit haben, es zu erfahren.
+        */}
+      <Fold title="Zweiter Erzeuger, Kaskade, Kühlung" open={open.bivalent} onToggle={() => toggle('bivalent')}>
+        <label className="block">
+          <span className="label-xs">Zweiter Wärmeerzeuger</span>
+          <select
+            className="field mt-0.5"
+            value={plant.secondGenerator?.art ?? ''}
+            onChange={(e) => {
+              const art = e.target.value as ZweitErzeugerArt | '';
+              if (!art) {
+                updatePlant({ secondGenerator: undefined });
+                return;
+              }
+              const alt = plant.secondGenerator;
+              /*
+               * Festbrennstoff bringt eigene Zwänge mit, die der BWP-Leitfaden
+               * ausdrücklich nennt: Rücklauftemperaturanhebung, thermische
+               * Ablaufsicherung, autarke Regelung — und *alle* Heizkreise
+               * gemischt. Er wird deshalb nie parallel gefahren, sondern über
+               * den Puffer. Solarthermie speist in den Speicher, nicht in den
+               * Kreis; sie hat keinen Bivalenzpunkt im Sinne der BDH-Definition.
+               */
+              const vorbelegt: SecondGenerator =
+                art === 'solarthermie'
+                  ? { art, leistung: 0, betrieb: 'bivalent-parallel', bivalenzpunkt: 15, einbindung: 'puffer-unten', eigenePumpe: true, kollektorflaeche: 8 }
+                  : art === 'festbrennstoff' || art === 'pellet'
+                    ? { art, leistung: 15, betrieb: 'bivalent-alternativ', bivalenzpunkt: 0, abschaltpunkt: -2, einbindung: 'puffer-oben', eigenePumpe: true }
+                    : art === 'elektro-heizstab'
+                      ? { art, leistung: 6, betrieb: 'monoenergetisch', bivalenzpunkt: -5, einbindung: 'vorlauf-parallel', eigenePumpe: false }
+                      : { art, leistung: 15, betrieb: 'bivalent-parallel', bivalenzpunkt: -2, einbindung: 'ruecklauf-seriell', eigenePumpe: false };
+              updatePlant({ secondGenerator: { ...vorbelegt, ...(alt && alt.art === art ? alt : {}), art } });
+            }}
+          >
+            <option value="" className="bg-graphite-850">keiner — monovalent</option>
+            {(Object.keys(ZWEITERZEUGER_LABELS) as ZweitErzeugerArt[]).map((a) => (
+              <option key={a} value={a} className="bg-graphite-850">
+                {ZWEITERZEUGER_LABELS[a]}
+              </option>
+            ))}
+          </select>
+        </label>
+
+        {plant.secondGenerator && (
+          <>
+            <div className="mt-2 grid grid-cols-2 gap-2">
+              <Num
+                label="Leistung"
+                unit="kW"
+                value={plant.secondGenerator.leistung}
+                onChange={(v) => updatePlant({ secondGenerator: { ...plant.secondGenerator!, leistung: Math.max(0, v) } })}
+              />
+              <Num
+                label="Bivalenzpunkt"
+                unit="°C"
+                value={plant.secondGenerator.bivalenzpunkt}
+                onChange={(v) => updatePlant({ secondGenerator: { ...plant.secondGenerator!, bivalenzpunkt: v } })}
+              />
+            </div>
+            <label className="mt-2 block">
+              <span className="label-xs">Betriebsweise</span>
+              <select
+                className="field mt-0.5"
+                value={plant.secondGenerator.betrieb}
+                onChange={(e) =>
+                  updatePlant({
+                    secondGenerator: { ...plant.secondGenerator!, betrieb: e.target.value as BivalenzBetrieb },
+                  })
+                }
+              >
+                <option value="monoenergetisch" className="bg-graphite-850">monoenergetisch — Heizstab im Gerät</option>
+                <option value="bivalent-parallel" className="bg-graphite-850">bivalent parallel — beide gleichzeitig</option>
+                <option value="bivalent-alternativ" className="bg-graphite-850">bivalent alternativ — nur einer</option>
+                <option value="bivalent-teilparallel" className="bg-graphite-850">bivalent teilparallel — zwei Punkte</option>
+              </select>
+            </label>
+            {(plant.secondGenerator.betrieb === 'bivalent-alternativ' ||
+              plant.secondGenerator.betrieb === 'bivalent-teilparallel') && (
+              <div className="mt-2">
+                <Num
+                  label="Abschaltpunkt der Wärmepumpe"
+                  unit="°C"
+                  value={plant.secondGenerator.abschaltpunkt ?? plant.secondGenerator.bivalenzpunkt - 2}
+                  onChange={(v) => updatePlant({ secondGenerator: { ...plant.secondGenerator!, abschaltpunkt: v } })}
+                />
+                <p className="mt-1 text-[10px] leading-relaxed text-slate-500">
+                  Ein zweiter, anderer Temperaturpunkt als der Bivalenzpunkt. Zwischen beiden laufen bei
+                  teilparalleler Fahrweise beide Erzeuger, darunter nur noch der zweite (BDH-Infoblatt 57).
+                </p>
+              </div>
+            )}
+            <label className="mt-2 block">
+              <span className="label-xs">Einbindung in den Kreis</span>
+              <select
+                className="field mt-0.5"
+                value={plant.secondGenerator.einbindung}
+                onChange={(e) =>
+                  updatePlant({
+                    secondGenerator: {
+                      ...plant.secondGenerator!,
+                      einbindung: e.target.value as SecondGenerator['einbindung'],
+                    },
+                  })
+                }
+              >
+                <option value="ruecklauf-seriell" className="bg-graphite-850">seriell in den Rücklauf</option>
+                <option value="vorlauf-parallel" className="bg-graphite-850">parallel in den Vorlauf</option>
+                <option value="puffer-oben" className="bg-graphite-850">in den Puffer, oben</option>
+                <option value="puffer-unten" className="bg-graphite-850">in den Puffer, unten</option>
+                <option value="weiche" className="bg-graphite-850">an die hydraulische Weiche</option>
+              </select>
+            </label>
+            {plant.secondGenerator.art === 'solarthermie' && (
+              <div className="mt-2">
+                <Num
+                  label="Kollektorfläche"
+                  unit="m²"
+                  step={0.5}
+                  value={plant.secondGenerator.kollektorflaeche ?? 0}
+                  onChange={(v) => updatePlant({ secondGenerator: { ...plant.secondGenerator!, kollektorflaeche: v } })}
+                />
+              </div>
+            )}
+            {(plant.secondGenerator.art === 'festbrennstoff' || plant.secondGenerator.art === 'pellet') && (
+              <p className={`mt-2 rounded px-2.5 py-1.5 text-[10px] leading-relaxed ${SEVERITY_STYLE.warn}`}>
+                Festbrennstoff verlangt nach dem BWP-Leitfaden Hydraulik eine thermische Ablaufsicherung, eine
+                Rücklauftemperaturanhebung, eine autarke Regelung — und alle Heizkreise als gemischte Kreise.
+                Das Programm prüft diese Punkte nicht selbst; sie gehören in die Planung.
+              </p>
+            )}
+          </>
+        )}
+
+        <div className="mt-3 grid grid-cols-2 gap-2">
+          <Num
+            label="Geräte in Kaskade"
+            unit=""
+            value={plant.cascade?.geraete ?? 1}
+            onChange={(v) => {
+              const n = Math.max(1, Math.round(v));
+              updatePlant({
+                cascade:
+                  n <= 1
+                    ? undefined
+                    : {
+                        geraete: n,
+                        // Viessmann für die Pufferspeicher-Kaskade: „Die
+                        // Systemverrohrung muss nach Tichelmann erfolgen."
+                        verrohrung: plant.cascade?.verrohrung ?? 'tichelmann',
+                        pumpeJeGeraet: plant.cascade?.pumpeJeGeraet ?? true,
+                        rueckschlagklappeJeGeraet: plant.cascade?.rueckschlagklappeJeGeraet ?? true,
+                      },
+              });
+            }}
+          />
+          <label className="block">
+            <span className="label-xs">Kühlbetrieb</span>
+            <select
+              className="field mt-0.5"
+              value={plant.cooling ?? 'keine'}
+              onChange={(e) => updatePlant({ cooling: e.target.value as 'keine' | 'passiv' | 'aktiv' })}
+            >
+              <option value="keine" className="bg-graphite-850">keiner</option>
+              <option value="passiv" className="bg-graphite-850">passiv (ohne Verdichter)</option>
+              <option value="aktiv" className="bg-graphite-850">aktiv (Kreislaufumkehr)</option>
+            </select>
+          </label>
+        </div>
+        {plant.cascade && plant.cascade.geraete > 1 && (
+          <p className={`mt-2 rounded px-2.5 py-1.5 text-[10px] leading-relaxed ${SEVERITY_STYLE.warn}`}>
+            Bei einer Kaskade mit eigener Pumpe je Gerät ist der ungünstigste Fließweg nicht mehr eindeutig —
+            jedes Erzeugergerät hat seinen eigenen. Die Pumpenauslegung dieses Programms rechnet weiterhin
+            eine Pumpe für den Verteilkreis; die Erzeugerzweige sind gesondert auszulegen.
+          </p>
+        )}
+        <label className="mt-2 block">
+          <span className="label-xs">Weiterer Verbraucher am selben Erzeuger</span>
+          <select
+            className="field mt-0.5"
+            value={plant.additionalConsumer ?? 'kein'}
+            onChange={(e) => updatePlant({ additionalConsumer: e.target.value as 'kein' | 'schwimmbad' })}
+          >
+            <option value="kein" className="bg-graphite-850">keiner</option>
+            <option value="schwimmbad" className="bg-graphite-850">Schwimmbad über Wärmeübertrager</option>
+          </select>
+        </label>
+        <p className="mt-2 text-[10px] leading-relaxed text-slate-500">
+          Diese vier Angaben ändern nichts an der Rechnung, aber alles an der Auswahl: Der Schemavorschlag
+          weiter unten kann erst dann die passende Musterlösung finden — und schlägt umgekehrt kein Schema mit
+          Solareinkopplung vor, solange hier nichts steht.
+        </p>
+      </Fold>
+
+      {/* ---------------------------------------------------------------- */}
+      {/* 3c — Erzeugerkreis: was vor dem Rohrnetz liegt                    */}
+      {/* ---------------------------------------------------------------- */}
+      <Fold title="Erzeugerkreis und Pumpe" open={open.erzeuger} onToggle={() => toggle('erzeuger')}>
+        {design.generator.posten.length === 0 && !design.generator.verfuegbar ? (
+          <p className="text-[10.5px] leading-relaxed text-slate-500">
+            Noch kein Posten. Sobald ein Gerät gewählt ist, stehen hier Gerät, Umschaltventil,
+            Wärmemengenzähler und Abscheider mit ihrem Druckverlust.
+          </p>
+        ) : (
+          <>
+            <div className="space-y-1">
+              {design.generator.posten.map((p, i) => (
+                <div key={i} className="rounded-lg bg-white/[0.03] px-2.5 py-1.5">
+                  <div className="flex items-baseline justify-between gap-2">
+                    <span className="text-[11px] text-slate-200">{p.label}</span>
+                    <span className="shrink-0 font-mono text-[10px] text-accent">{fmt(p.druck / 1000, 2)} kPa</span>
+                  </div>
+                  <div className="mt-0.5 text-[9.5px] leading-relaxed text-slate-500">
+                    {p.grundlage} · {p.quelle}
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="mt-2 space-y-0.5">
+              <Readout
+                label="Summe, zum Rohrnetz addiert"
+                value={`${fmt(design.generator.zusatz / 1000, 2)} kPa`}
+                accent
+              />
+              {design.generator.verfuegbar !== undefined && (
+                <Readout
+                  label="Restförderhöhe des Geräts"
+                  value={`${fmt(design.generator.verfuegbar / 1000, 1)} kPa — wird geprüft, nicht addiert`}
+                />
+              )}
+              {design.pump && (
+                <>
+                  <Readout label="Erforderliche Förderhöhe" value={`${fmt(design.pump.head, 2)} m`} accent />
+                  <Readout label="Förderstrom" value={`${fmt(design.pump.flow, 3)} m³/h`} />
+                </>
+              )}
+            </div>
+          </>
+        )}
+        {design.generator.hinweise.map((h, i) => (
+          <p key={i} className={`mt-1.5 rounded px-2.5 py-1.5 text-[10px] leading-relaxed ${SEVERITY_STYLE[h.severity]}`}>
+            {h.text}
+          </p>
+        ))}
       </Fold>
 
       {/* ---------------------------------------------------------------- */}

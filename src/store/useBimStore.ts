@@ -500,6 +500,19 @@ interface BimState {
     design?: Partial<PlantDefinition['design']>;
     safety?: Partial<PlantDefinition['safety']>;
     dhw?: Partial<PlantDefinition['dhw']>;
+    /**
+     * Zweiter Wärmeerzeuger, Kaskade, Kühlung, weiterer Verbraucher.
+     *
+     * Die vier Angaben werden **ganz** gesetzt und nicht zusammengemischt:
+     * ein halber zweiter Wärmeerzeuger — Bivalenzpunkt ohne Betriebsweise —
+     * ist keine Anlage, sondern eine Fehlerquelle. `undefined` ausdrücklich
+     * zu übergeben löscht die Angabe wieder; deshalb wird unten mit
+     * `'x' in patch` geprüft und nicht mit `??`.
+     */
+    secondGenerator?: PlantDefinition['secondGenerator'];
+    cascade?: PlantDefinition['cascade'];
+    cooling?: PlantDefinition['cooling'];
+    additionalConsumer?: PlantDefinition['additionalConsumer'];
   }) => void;
   /** Einen vorgeschlagenen Speicher übernehmen. */
   addPlantStorage: (storage: PlantStorage) => void;
@@ -2399,6 +2412,11 @@ export const useBimStore = create<BimState>()((set, get) => {
           pumpId: patch.pumpId ?? p.pumpId,
           heatLoadOverride:
             'heatLoadOverride' in patch ? patch.heatLoadOverride : p.heatLoadOverride,
+          secondGenerator: 'secondGenerator' in patch ? patch.secondGenerator : p.secondGenerator,
+          cascade: 'cascade' in patch ? patch.cascade : p.cascade,
+          cooling: 'cooling' in patch ? patch.cooling : p.cooling,
+          additionalConsumer:
+            'additionalConsumer' in patch ? patch.additionalConsumer : p.additionalConsumer,
           design: { ...p.design, ...(patch.design ?? {}) },
           safety: { ...p.safety, ...(patch.safety ?? {}) },
           dhw: { ...p.dhw, ...(patch.dhw ?? {}) },
