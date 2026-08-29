@@ -1,0 +1,596 @@
+<section id="kap-03" class="kapitel" data-titel="3 · Die Oberfläche: Ansichten, Werkzeuge, Reiter, Tastatur">
+<h2 id="k3">3 · Die Oberfläche: Ansichten, Werkzeuge, Reiter, Tastatur</h2>
+<p class="lead">Jeder Knopf, jeder Reiter, jede Taste — zum Nachschlagen, nicht zum Durchlesen.</p>
+
+<h3 id="k3-1">3.1 Der Aufbau des Bildschirms</h3>
+
+<p>Das Fenster hat fünf Bereiche, und sie sind immer an derselben Stelle:</p>
+
+<table class="tab">
+  <caption>Die fünf Bereiche des Fensters</caption>
+  <thead><tr><th>Bereich</th><th>Wo</th><th>Was darin steht</th></tr></thead>
+  <tbody>
+    <tr><td><b>Kopfzeile</b></td><td>oben</td><td>Projektname, Projektverwaltung, Geschossleiste, Kontextleiste zum gewählten Werkzeug, Ansichtsumschalter, die Druck- und Exportknöpfe</td></tr>
+    <tr><td><b>Werkzeugleiste</b></td><td>links, schmal, senkrecht</td><td>Zeichenwerkzeuge, Fang- und Anzeigeschalter, Rückgängig, Beispiel laden, alles löschen</td></tr>
+    <tr><td><b>Zeichenfläche</b></td><td>Mitte</td><td>Grundriss, 3D-Modell oder Anlagenschema — je nach Ansicht auch zwei nebeneinander</td></tr>
+    <tr><td><b>Inspektor</b></td><td>rechts, 300 Pixel breit</td><td>die Reiter: Start, Objekt, TGA, Räume, Dach, Aufbauten, Wärmebrücken, Lüftung, Wärmepumpe, Anlage, Prüfung, Referenz, Ebenen</td></tr>
+    <tr><td><b>Statuszeile</b></td><td>unten, schmal</td><td>aktives Werkzeug, Kurzanleitung oder Meldung, Befunde, Fangzustand, Zoom, Modellumfang</td></tr>
+  </tbody>
+</table>
+
+<p>Über der Zeichenfläche steht links oben immer ein kleines Schild mit dem
+Namen der Ansicht: <b>Grundriss 2D</b>, <b>Modell 3D</b> oder
+<b>Anlagenschema</b>. Bei zwei Flächen nebeneinander trägt jede ihr eigenes.</p>
+
+<h3 id="k3-2">3.2 Die Ansichten</h3>
+
+<p>Rechts in der Kopfzeile stehen vier Umschalter. Sie ändern nur, was Sie
+sehen; am Modell ändern sie nichts.</p>
+
+<table class="tab">
+  <caption>Die vier Ansichten</caption>
+  <thead><tr><th>Umschalter</th><th>Was Sie sehen</th></tr></thead>
+  <tbody>
+    <tr><td><b>2D</b></td><td>Nur der Grundriss. Der Arbeitsplatz für alles, was gezeichnet wird.</td></tr>
+    <tr><td><b>Split</b></td><td>Grundriss und 3D-Modell nebeneinander. Das 3D-Bild folgt jeder Änderung sofort.</td></tr>
+    <tr><td><b>3D</b></td><td>Nur das Modell. Zum Prüfen: Deckenanschlüsse, Dachform, ob das Haus zu ist.</td></tr>
+    <tr><td><b>Schema</b></td><td>Das Anlagenschema auf eigenem Raster. Der Inspektor springt dabei von selbst auf den Reiter <b>Anlage</b>, denn dort entsteht das Schema und dort stehen die Zahlen dazu.</td></tr>
+  </tbody>
+</table>
+
+<div class="merke">
+  <b>Merke</b>
+  <p>Einen eigenen Umschalter für den <b>Lageplan</b> gibt es nicht. Grundstück,
+  Nachbargebäude, Bäume, Erdsonde und Wärmepumpe werden mit dem Werkzeug
+  <b>Außengelände</b> im normalen Grundriss gezeichnet; die Einstellungen dazu
+  stehen im Reiter <b>Wärmepumpe</b>. In der 3D-Ansicht lässt sich das Gelände
+  mit dem Knopf <b>Gelände</b> zuschalten.</p>
+</div>
+
+<p>Der 3D-Teil wird erst geladen, wenn Sie ihn zum ersten Mal einschalten. Beim
+Umschalten steht kurz „3D-Renderer wird geladen". Wer nur im Grundriss
+arbeitet, lädt ihn nie.</p>
+
+<h4 id="k3-2-1">3.2.1 Die 3D-Ansicht bedienen</h4>
+
+<p>Rechts oben in der 3D-Fläche sitzen fünf Knöpfe:</p>
+
+<ul>
+  <li><b>Orbit</b> — freie Drehung um das Gebäude. Ziehen dreht, Mausrad zoomt.</li>
+  <li><b>Iso</b> — feste Schrägansicht von oben, wie eine Axonometrie.</li>
+  <li><b>Top</b> — senkrecht von oben.</li>
+  <li><b>Gelände</b> — Grundstück, Wärmepumpe und Wärmequelle im Modell zeigen.</li>
+  <li><b>Einpassen</b> — Ansicht auf das Gebäude einpassen.</li>
+</ul>
+
+<p>Ist noch nichts gezeichnet, steht in der Fläche „Noch keine Geometrie" mit
+dem Hinweis, dass das Modell in Echtzeit aus dem Grundriss entsteht.</p>
+
+<h3 id="k3-3">3.3 Die Werkzeugleiste</h3>
+
+<p>Die senkrechte Leiste links ist in vier Blöcke geteilt, getrennt durch feine
+Striche. Jeder Knopf zeigt bei Mausberührung seinen Namen, sein Tastenkürzel
+und einen Satz dazu, was er tut.</p>
+
+<h4 id="k3-3-1">3.3.1 Block 1 — die Zeichenwerkzeuge</h4>
+
+<table class="tab">
+  <caption>Alle Werkzeuge in der Reihenfolge der Leiste</caption>
+  <thead><tr><th>Werkzeug</th><th>Taste</th><th>Was es tut</th><th>Einfacher Modus</th></tr></thead>
+  <tbody>
+    <tr><td><b>Auswählen &amp; Bearbeiten</b></td><td><kbd>V</kbd></td><td>Anklicken, verschieben, Eigenschaften ändern. Mit gezogenem Rahmen mehrere auf einmal.</td><td>ja</td></tr>
+    <tr><td><b>Wand zeichnen</b></td><td><kbd>W</kbd></td><td>Klick für Klick einen Zug setzen, <kbd>Esc</kbd> beendet ihn. Geschlossene Umrisse werden von selbst als Raum erkannt.</td><td>ja</td></tr>
+    <tr><td><b>Raum aufziehen</b></td><td><kbd>Z</kbd></td><td>Fertige Grundform wählen und im Plan aufziehen — die Wände entstehen von selbst und lassen sich danach einzeln ändern.</td><td>ja</td></tr>
+    <tr><td><b>Tür einsetzen</b></td><td><kbd>D</kbd></td><td>Auf eine Wand klicken — die Tür sitzt dort, wo geklickt wurde.</td><td>ja</td></tr>
+    <tr><td><b>Fenster einsetzen</b></td><td><kbd>F</kbd></td><td>Auf eine Wand klicken. Die Fensterfläche wird von der Wandfläche abgezogen.</td><td>ja</td></tr>
+    <tr><td><b>Durchgang in Wand</b></td><td><kbd>E</kbd></td><td>Wandöffnung ohne Tür — etwa zwischen Wohnen und Essen. Zählt nur als Loch, nicht als Bauteil.</td><td>ja</td></tr>
+    <tr><td><b>Heizung, Sanitär, Lüftung setzen</b></td><td><kbd>T</kbd></td><td>Symbol im Reiter <b>TGA</b> wählen, dann in den Plan klicken. Heizkörper rasten an die nächste Wand.</td><td>ja</td></tr>
+    <tr><td><b>Treppe einsetzen</b></td><td><kbd>R</kbd></td><td>Eine Treppe nimmt Grundfläche weg und lässt die Decke darüber offen — beides zählt in der Heizlast.</td><td>ja</td></tr>
+    <tr><td><b>Schacht einsetzen</b></td><td><kbd>S</kbd></td><td>Wie eine Treppe eine Fläche, die kein Raum ist — Aufzug, Installationsschacht, Luftraum.</td><td>nein</td></tr>
+    <tr><td><b>Massives Bauteil setzen</b></td><td><kbd>M</kbd></td><td>Kamin, Pfeiler, Wandversatz — Mauerwerk ohne Raumfunktion. Nimmt Fläche und Luftvolumen weg und wird von der Fußbodenheizung ausgespart.</td><td>ja</td></tr>
+    <tr><td><b>Leitung verlegen</b></td><td><kbd>L</kbd></td><td>Punkte im Plan setzen; ein Klick auf ein Symbol schließt die Leitung dort an.</td><td>nein</td></tr>
+    <tr><td><b>Maßkette &amp; Beschriftung</b></td><td><kbd>B</kbd></td><td>Freie Maße und Texte für den Ausdruck. Sie gehen nicht in die Berechnung ein.</td><td>nein</td></tr>
+    <tr><td><b>Maßstab kalibrieren</b></td><td>—</td><td>Nur bei hinterlegtem Grundriss-Bild: eine bekannte Strecke abfahren und ihre Länge eintragen.</td><td>nein</td></tr>
+    <tr><td><b>Wärmepumpe aufstellen</b></td><td><kbd>P</kbd></td><td>In den Garten klicken. Der Kreis um das Gerät zeigt, ab welchem Abstand der Nachtwert eingehalten ist.</td><td>ja</td></tr>
+    <tr><td><b>Außengelände zeichnen</b></td><td><kbd>A</kbd></td><td>Grundstücksgrenze, Nachbarhaus, Lichtschacht, Baum, Erdsonde — Art im Reiter <b>Wärmepumpe</b> wählen.</td><td>ja</td></tr>
+    <tr><td><b>Ansicht verschieben</b></td><td><kbd>Leertaste</kbd></td><td>Geht auch ohne Werkzeugwechsel: rechte Maustaste ziehen oder Leertaste halten.</td><td>ja</td></tr>
+  </tbody>
+</table>
+
+<div class="warnung">
+  <b>Achtung</b>
+  <p>Das Werkzeug <b>Maßstab kalibrieren</b> wird über die Werkzeugleiste oder
+  über den Knopf im Reiter <b>Referenz</b> gewählt. Der Kurzhinweis am Knopf
+  nennt zwar die Taste <kbd>C</kbd>, in der Zeichenfläche ist sie aber nicht
+  belegt. Ebenso ist <kbd>M</kbd> zweimal vergeben — es wählt das Werkzeug
+  <b>Massives Bauteil</b>; die Maßketten schalten Sie über den Knopf in der
+  Werkzeugleiste ein und aus.</p>
+</div>
+
+<p>Die Symbole der Werkzeuge sind Strichzeichnungen ohne Beschriftung. Was sie
+im Plan erzeugen, steht in den Symboltafeln der jeweiligen Fachkapitel — TGA in
+<a href="#k8">Kapitel 8</a>, Armaturen in <a href="#k9">Kapitel 9</a>,
+Schemabauteile in <a href="#k11">Kapitel 11</a>.</p>
+
+<h4 id="k3-3-2">3.3.2 Block 2 — Fang und Anzeige</h4>
+
+<table class="tab">
+  <caption>Die sechs Schalter</caption>
+  <thead><tr><th>Schalter</th><th>Taste</th><th>Wirkung</th><th>Ab Werk</th></tr></thead>
+  <tbody>
+    <tr><td><b>Raster-Fang</b></td><td><kbd>G</kbd></td><td>Punkte rasten auf das Raster ein. Rasterweite im Reiter <b>Ebenen</b>.</td><td>an</td></tr>
+    <tr><td><b>Ortho-Zwang</b></td><td><kbd>O</kbd></td><td>Nur 0 und 90 Grad — verhindert schräge Wände.</td><td>aus</td></tr>
+    <tr><td><b>Ausrichtungs-Hilfslinien</b></td><td><kbd>H</kbd></td><td>Magentafarbene Linien zeigen, wenn der Zeiger mit einem bestehenden Knoten fluchtet, und ziehen ihn exakt darauf.</td><td>an</td></tr>
+    <tr><td><b>Prüfung offener Wandenden</b></td><td>—</td><td>Markiert lose Wandenden orange im Plan; die Zahl steht als kleine Marke am Symbol.</td><td>an</td></tr>
+    <tr><td><b>Maßketten</b></td><td>—</td><td>Die automatischen Maße im Plan ein- und ausblenden.</td><td>an</td></tr>
+    <tr><td><b>Raumstempel</b></td><td>—</td><td>Name, Fläche und Solltemperatur in der Raummitte ein- und ausblenden.</td><td>an</td></tr>
+  </tbody>
+</table>
+
+<h4 id="k3-3-3">3.3.3 Block 3 — Rückgängig und Wiederholen</h4>
+
+<p>Zwei Pfeile. Sie sind ausgegraut, solange es nichts zurückzunehmen
+beziehungsweise nichts zu wiederholen gibt. Mehr dazu in
+<a href="#k3-11">Abschnitt 3.11</a>.</p>
+
+<h4 id="k3-3-4">3.3.4 Block 4 — ganz unten</h4>
+
+<ul>
+  <li><b>Demo-Grundriss laden</b> — das Beispielprojekt.</li>
+  <li><b>Alle Geometrie löschen</b> — mit Rückfrage. Es räumt die Geometrie ab,
+  lässt aber Geschosse, Bauteilkatalog und Anlagentechnik stehen. Wer ein
+  wirklich leeres Blatt will, legt in der Projektverwaltung ein neues Projekt
+  an.</li>
+</ul>
+
+<h3 id="k3-4">3.4 Die Kopfzeile</h3>
+
+<p>Von links nach rechts:</p>
+
+<table class="tab">
+  <caption>Die Kopfzeile</caption>
+  <thead><tr><th>Element</th><th>Zweck</th></tr></thead>
+  <tbody>
+    <tr><td><b>Marke</b> „RaVia CAD Light"</td><td>Nur Beschriftung.</td></tr>
+    <tr><td><b>Projektname</b></td><td>Direkt überschreibbares Feld. Der Name steht später im Schriftkopf jedes Ausdrucks und im Dateinamen des Exports.</td></tr>
+    <tr><td><b>Projekte</b> (Ordner)</td><td>Die Projektverwaltung: anlegen, umbenennen, duplizieren, als Datei sichern, aus Datei laden, löschen. Siehe <a href="#k1-9">Abschnitt 1.9</a>.</td></tr>
+    <tr><td><b>Geschossleiste</b></td><td>Siehe <a href="#k3-5">Abschnitt 3.5</a>.</td></tr>
+    <tr><td><b>Kontextleiste</b></td><td>Wechselt mit dem Werkzeug — siehe unten.</td></tr>
+    <tr><td><b>Ansichtsumschalter</b></td><td>2D · Split · 3D · Schema.</td></tr>
+    <tr><td><b>Öffnen</b></td><td>RaVia-Projektdatei (JSON) oder IFC4-Modell vom Architekten. Welche es ist, entscheidet der Inhalt, nicht die Dateiendung — eine umbenannte Datei funktioniert trotzdem. Beim IFC-Import wird gefragt, bevor ein vorhandenes Modell ersetzt wird.</td></tr>
+    <tr><td><b>IFC</b></td><td>Modell als IFC4 exportieren, für Architektur-CAD und Fachplanung.</td></tr>
+    <tr><td><b>Neubau / Sanierung</b> und <b>Rohrnetz auslegen</b></td><td>Der Rohrausleger. Die Wahl links bestimmt das Ergebnis vollständig und steht deshalb daneben und nicht in einem Untermenü.</td></tr>
+    <tr><td><b>Rohrnetzbericht</b></td><td>Öffnet die Rohrnetzberechnung als Blattfolge mit Nachweiskatalog.</td></tr>
+    <tr><td><b>Projektmappe</b></td><td>Grundrisse, Anlagenschema, Rohrnetz, Einstellwerte, Pumpenauslegung, Massenauszug, Anlagenbuch, Quellen und Nachweis in einem Dokument mit durchlaufender Blattnummer — die elf Kapitel aus <a href="#k14-7">Abschnitt 14.7</a>.</td></tr>
+    <tr><td><b>Drucken</b></td><td>Grundriss maßstäblich (1:20 bis 1:200), A4 oder A3, komplettes Geschoss.</td></tr>
+    <tr><td><b>RaVia JSON</b></td><td>Der Export. Er dient zugleich als Projektdatei.</td></tr>
+  </tbody>
+</table>
+
+<h4 id="k3-4-1">3.4.1 Die Kontextleiste</h4>
+
+<p>Zwischen Geschossleiste und Ansichtsumschalter steht immer das, was zum
+gerade gewählten Werkzeug gehört:</p>
+
+<table class="tab">
+  <caption>Was die Kontextleiste je Werkzeug zeigt</caption>
+  <thead><tr><th>Werkzeug</th><th>Kontextleiste</th></tr></thead>
+  <tbody>
+    <tr><td>Tür, Fenster, Durchgang</td><td>Der Typenkatalog. Bei Mausberührung stehen Breite, Höhe und Brüstungshöhe in Zentimetern.</td></tr>
+    <tr><td>Leitung</td><td>Neun Leitungsarten mit ihrer Farbe: Heizung Vorlauf, Heizung Rücklauf, Trinkwasser warm, Trinkwasser kalt, Zirkulation, Abwasser, Kältemittel, Zuluft, Abluft.</td></tr>
+    <tr><td>Treppe</td><td>Gerade, viertelgewendelt, halbgewendelt, Wendeltreppe.</td></tr>
+    <tr><td>Massives Bauteil</td><td>Kamin/Schornstein, Pfeiler, Wandversatz, Installationsblock.</td></tr>
+    <tr><td>Beschriftung</td><td>Maßkette, Beschriftung, Hinweis mit Fahne.</td></tr>
+    <tr><td>alle übrigen</td><td>Wandstärke (11,5 · 17,5 · 24 · 36,5 · 42,5 cm) und Bauteiltyp (Außenwand, Innenwand, Trennwand, Schacht).</td></tr>
+  </tbody>
+</table>
+
+<p>Beim Werkzeug <b>Raum aufziehen</b> erscheint zusätzlich eine Leiste
+unmittelbar in der Zeichenfläche mit den Grundformen und den Fertigmaßen.</p>
+
+<h3 id="k3-5">3.5 Die Geschossleiste</h3>
+
+<p>Geschosse sind keine Ebenen wie in einem Zeichenprogramm, sondern
+eigenständige Grundrisse übereinander. Deshalb sitzt der Umschalter oben in der
+Kopfzeile und nicht in der Ebenenliste: man wechselt ständig, und man muss
+jederzeit sehen, wo man ist.</p>
+
+<p>Die Geschosse stehen <b>von oben nach unten</b>, so wie ein Gebäude gedacht
+wird. Bei Mausberührung zeigt jedes seinen Namen, die Höhenlage der
+Oberkante Fertigfußboden und die Zahl seiner Wände. Daneben vier Knöpfe und ein
+Papierkorb:</p>
+
+<table class="tab">
+  <caption>Die Knöpfe der Geschossleiste</caption>
+  <thead><tr><th>Knopf</th><th>Wirkung</th></tr></thead>
+  <tbody>
+    <tr><td>Pfeil nach oben</td><td>Geschoss darüber anlegen — leer.</td></tr>
+    <tr><td>Rechteck-Paar</td><td>Geschoss darüber anlegen — Grundriss des aktuellen Geschosses übernehmen, samt Raumnamen, Nutzung und Solltemperatur.</td></tr>
+    <tr><td>Pfeil nach unten</td><td>Geschoss darunter anlegen — leer. Das erste heißt KG, jedes weitere 2. UG, 3. UG. Die Sohle steht auf Erdreich, das Geschoss darüber bekommt eine Kellerdecke.</td></tr>
+    <tr><td>Rechteck-Paar nach unten</td><td>Dasselbe mit übernommenem Grundriss.</td></tr>
+    <tr><td>Papierkorb</td><td>Aktuelles Geschoss mit allem Inhalt löschen, mit Rückfrage. Erscheint erst ab dem zweiten Geschoss.</td></tr>
+  </tbody>
+</table>
+
+<p>Ein Keller lässt sich nicht „oben anlegen und dann verschieben": mit der
+Reihenfolge hängen Höhenlage, Bodenanschluss und Deckenanschluss zusammen. Mehr
+dazu in <a href="#k5">Kapitel 5</a>.</p>
+
+<h3 id="k3-6">3.6 Die Reiter des Inspektors</h3>
+
+<p>Rechts stehen dreizehn Reiter. Im einfachen Modus sind acht davon sichtbar
+(siehe <a href="#k3-8">Abschnitt 3.8</a>).</p>
+
+<table class="tab">
+  <caption>Die Reiter der rechten Seite</caption>
+  <thead><tr><th>Reiter</th><th>Inhalt</th><th>Einfacher Modus</th><th>Kapitel</th></tr></thead>
+  <tbody>
+    <tr><td><b>Start</b></td><td>Die Liste „Was ist zu tun?" mit dreizehn Schritten, das Glossar und der Umschalter zwischen einfachem und Fachplaner-Modus.</td><td>ja</td><td><a href="#k2-4">2.4</a></td></tr>
+    <tr><td><b>Objekt</b></td><td>Die Eigenschaften des gerade Gewählten — Wand, Öffnung, Raum, TGA-Objekt, Treppe, Leitung, Beschriftung. Ohne Auswahl die Kennwerte des Gebäudes.</td><td>ja</td><td><a href="#k4">4</a>, <a href="#k7">7</a></td></tr>
+    <tr><td><b>TGA</b></td><td>Die Symbolbibliothek für Heizung, Sanitär und Lüftung. Jedes Symbol wird als echte Vorschau gezeichnet, mit derselben Routine wie im Plan.</td><td>ja</td><td><a href="#k8">8</a></td></tr>
+    <tr><td><b>Räume</b></td><td>Das Raumbuch: alle Räume aller Geschosse in einer Tabelle — Fläche, Höhe, Volumen, Umfang, Solltemperatur, Luftwechsel, Außenwand- und Fensterfläche, installierte Leistung. Ausgabe als CSV mit Semikolon und Komma-Dezimaltrenner.</td><td>ja</td><td><a href="#k7">7</a></td></tr>
+    <tr><td><b>Dach</b></td><td>Form, Neigung, Kniestock, Firstrichtung; daraus abgeleitet Firsthöhe, Dachfläche, Wohnfläche, Volumen. Dazu Gauben und Dachfenster.</td><td>nein</td><td><a href="#k6">6</a></td></tr>
+    <tr><td><b>Aufbauten</b></td><td>Der Bauteilkatalog: Außenwand, Innenwand, Decke, Boden, Fenster, Tür. Einmal gepflegt, allen zugewiesenen Bauteilen zugleich.</td><td>nein</td><td><a href="#k7">7</a></td></tr>
+    <tr><td><b>Wärmebrücken</b></td><td>Links der pauschale Zuschlag, rechts die Bilanz aus Anschlusslängen, darunter der Zuschlag, der dieselbe Bilanz ergäbe. Die Längen kommen aus der Geometrie und sind nicht änderbar; die ψ-Werte (griechisch Psi, der längenbezogene Wärmedurchgangskoeffizient einer Anschlussstelle) sind es.</td><td>nein</td><td><a href="#k7">7</a></td></tr>
+    <tr><td><b>Lüftung</b></td><td>Das Lüftungskonzept: frei, Abluft oder Zu-/Abluft, Grad der Wärmerückgewinnung, Rolle jedes Raums und die Luftbilanz des Gebäudes.</td><td>nein</td><td><a href="#k7">7</a></td></tr>
+    <tr><td><b>Wärmepumpe</b></td><td>Aufstellort, Schall am Nachbarfenster, Schutzbereich bei Propan, Abstandsflächen; dazu die Arten der Geländeobjekte.</td><td>ja</td><td><a href="#k10">10</a></td></tr>
+    <tr><td><b>Anlage</b></td><td>Das Anlagenblatt: Heizlast, Geräteauswahl, Heizkreise, Puffer, Trinkwasser, Sicherheitsausrüstung, Schemavorschläge und Schemaprüfung, Anlagenbuch.</td><td>ja</td><td><a href="#k10">10</a>, <a href="#k12">12</a></td></tr>
+    <tr><td><b>Prüfung</b></td><td>Der Prüfbericht vor der Übergabe — jeder Befund anklickbar und auf das Objekt springend. Darunter der Vergleich mit einer früheren Übergabe: was hat sich seitdem geändert.</td><td>ja</td><td><a href="#k14">14</a></td></tr>
+    <tr><td><b>Referenz</b></td><td>Der hinterlegte Grundriss: Bild oder PDF laden, Deckkraft, Sperre, Drehung, Kalibrierung, KI-Vorauswertung.</td><td>ja</td><td><a href="#k2-3">2.3</a></td></tr>
+    <tr><td><b>Ebenen</b></td><td>Acht Ebenen zum Ein- und Ausblenden (Wände, Öffnungen, Räume, Maßketten, TGA Heizung, TGA Sanitär, TGA Lüftung, Referenzbild), die vier Fangarten und die Raumliste.</td><td>nein</td><td><a href="#k3-10">3.10</a></td></tr>
+  </tbody>
+</table>
+
+<p>Der Inspektor schaltet in drei Fällen von selbst um: eine Auswahl im Plan
+öffnet <b>Objekt</b> (bei Gelände und Wärmepumpe stattdessen
+<b>Wärmepumpe</b>), das TGA-Werkzeug öffnet <b>TGA</b>, und der Wechsel in die
+Schema-Ansicht öffnet <b>Anlage</b>.</p>
+
+<div class="merke">
+  <b>Merke</b>
+  <p>Einen eigenen Reiter „Export" gibt es nicht. Der Export sitzt als Knopf
+  <b>RaVia JSON</b> in der Kopfzeile; der Vergleich zweier Exportstände steht
+  unten im Reiter <b>Prüfung</b>.</p>
+</div>
+
+<h3 id="k3-7">3.7 Die Statuszeile</h3>
+
+<p>Die schmale Zeile ganz unten meldet von links nach rechts:</p>
+
+<table class="tab">
+  <caption>Was die Statuszeile zeigt</caption>
+  <thead><tr><th>Stelle</th><th>Inhalt</th></tr></thead>
+  <tbody>
+    <tr><td>ganz links</td><td>Das <b>aktive Werkzeug</b> im Klartext, mit einem farbigen Punkt davor.</td></tr>
+    <tr><td>daneben</td><td>Solange nichts zu melden ist, die <b>Kurzanleitung zum gewählten Werkzeug</b> — etwa beim Wand-Werkzeug: „Klick setzt einen Punkt, der nächste zieht die Wand · Länge eintippen geht auch · Esc beendet". Gibt es etwas zu melden — eine Länge, ein Ergebnis, eine Warnung —, tritt der Hinweis zurück und die <b>Meldung</b> steht dort.</td></tr>
+    <tr><td>rechts, orange</td><td><b>Offene Wandenden</b> und <b>Lücken in der Umschließung</b>, getrennt gezählt. Es sind zwei verschiedene Befunde: dort endet eine Wand im Nichts, hier fehlt eine ganze Wand zwischen zwei sauberen Anschlüssen.</td></tr>
+    <tr><td>rechts, magenta</td><td><b>Auto-Trace aktiv</b> mit der Zahl der noch nicht verworfenen Vektoren.</td></tr>
+    <tr><td>rechts, cyan</td><td>Hat die Gegenstelle in dieses Modell geschrieben, steht dort dauerhaft, wer wie viele Werte geschrieben hat und wie viele abgelehnt wurden. Bei Mausberührung Zusammenfassung und Zeitpunkt; <kbd>Strg</kbd> + <kbd>Z</kbd> nimmt den Vorgang zurück.</td></tr>
+    <tr><td>rechts</td><td><b>Raster</b> mit Weite in Metern oder „aus" · <b>Winkel</b> mit Schrittweite in Grad oder „frei" · <b>Zoom</b> in Bildpunkten je Meter · Zahl der <b>Wände, Öffnungen und Räume</b> · die <b>Gesamtfläche</b> in Quadratmetern · bei vorhandenen TGA-Objekten deren <b>Zahl und die Summe der Heizleistung</b> in Watt.</td></tr>
+  </tbody>
+</table>
+
+<div class="baustelle">
+  <b>Auf der Baustelle heißt das</b>
+  <p>Die Gesamtfläche rechts unten ist die schnellste Kontrolle, die es gibt.
+  Wer eine 96-Quadratmeter-Wohnung aufmisst und dort 112 stehen sieht, hat
+  irgendwo eine Wand um einen Meter zu weit gesetzt — und findet sie schneller
+  jetzt als nach dreißig weiteren Wänden.</p>
+</div>
+
+<h3 id="k3-8">3.8 Die zwei Bedienmodi</h3>
+
+<p>Ganz unten im Reiter <b>Start</b> steht der Umschalter <b>Einfach</b> /
+<b>Fachplaner</b>. Er merkt sich seine Stellung im Browser; ab Werk steht er auf
+<b>Einfach</b>.</p>
+
+<table class="tab">
+  <caption>Was der Fachplaner-Modus zusätzlich zeigt</caption>
+  <thead><tr><th>Bereich</th><th>Nur im Fachplaner-Modus</th></tr></thead>
+  <tbody>
+    <tr><td>Werkzeuge</td><td>Schacht, Leitung verlegen, Maßkette &amp; Beschriftung, Maßstab kalibrieren</td></tr>
+    <tr><td>Reiter</td><td>Dach, Aufbauten, Wärmebrücken, Lüftung, Ebenen</td></tr>
+  </tbody>
+</table>
+
+<div class="merke">
+  <b>Merke</b>
+  <p>Der einfache Modus <b>löscht nichts</b>. Ein Dach, ein Bauteilkatalog oder
+  ein Rohrnetz, das im Fachplaner-Modus entstanden ist, bleibt vollständig
+  erhalten und wird weiter gerechnet — es wird nur nicht angezeigt. Steht der
+  gerade offene Reiter im einfachen Modus nicht zur Verfügung, landen Sie auf
+  <b>Start</b> statt vor einer leeren Fläche.</p>
+</div>
+
+<h3 id="k3-9">3.9 Maus und Zeiger</h3>
+
+<h4 id="k3-9-1">3.9.1 Zoomen</h4>
+<ul>
+  <li><b>Mausrad</b> zoomt <b>zum Zeiger</b>: der Weltpunkt unter der Maus
+  bleibt stehen. Das ist der Unterschied zwischen „hineinzoomen" und „suchen,
+  wo man gelandet ist".</li>
+  <li>Unten rechts in der Zeichenfläche sitzen drei Knöpfe: <b>+</b>, <b>−</b>
+  und <b>Einpassen</b>. Damit geht die Navigation vollständig ohne Tastatur.</li>
+  <li><kbd>0</kbd> oder <kbd>Home</kbd> passt die Ansicht auf den Inhalt ein.</li>
+</ul>
+<p>Der Zoombereich reicht von 4 bis 900 Bildpunkten je Meter. Der aktuelle Wert
+steht in der Statuszeile. Das Raster verdichtet sich beim Hineinzoomen von
+selbst und dünnt beim Herauszoomen aus, damit die Linien nie zulaufen.</p>
+
+<h4 id="k3-9-2">3.9.2 Verschieben</h4>
+<p>Schwenken geht auf vier Wegen, und alle vier führen zum selben Ergebnis:</p>
+<ul>
+  <li><b>Rechte Maustaste</b> ziehen,</li>
+  <li><b>mittlere Maustaste</b> ziehen,</li>
+  <li><kbd>Leertaste</kbd> halten und ziehen,</li>
+  <li>das Werkzeug <b>Ansicht verschieben</b>.</li>
+</ul>
+<p>Ein <b>Rechtsklick ohne Ziehen</b> ist kein Schwenk, sondern die Geste, die
+in jedem CAD „fertig" heißt: ein laufender Zug wird damit <b>übernommen</b>,
+und ist keiner offen, wird die Auswahl aufgehoben.</p>
+
+<h4 id="k3-9-3">3.9.3 Auswählen</h4>
+<ul>
+  <li><b>Klick</b> wählt das Objekt unter dem Zeiger.</li>
+  <li><b>Rahmen ziehen</b> mit dem Auswahl-Werkzeug wählt alles, was darin liegt.
+  Winzige Rahmen unter 5 cm Kantenlänge gelten als versehentlicher Klick und
+  wählen nichts.</li>
+  <li><kbd>Strg</kbd> oder <kbd>Umschalt</kbd> beim Klicken oder beim Aufziehen
+  des Rahmens <b>fügt zur Auswahl hinzu</b>, statt sie zu ersetzen. Ein bereits
+  gefasstes Objekt fällt dabei wieder heraus.</li>
+  <li><kbd>Strg</kbd> + <kbd>A</kbd> wählt alles.</li>
+</ul>
+<p>Die Statuszeile meldet nach dem Rahmen, wie viele Objekte gefasst wurden —
+oder „Nichts im Rahmen".</p>
+
+<h4 id="k3-9-4">3.9.4 Gruppenoperationen</h4>
+<p>Auf einer Mehrfachauswahl wirken:</p>
+<table class="tab">
+  <caption>Was mit mehreren Objekten zugleich geht</caption>
+  <thead><tr><th>Handlung</th><th>Bedienung</th></tr></thead>
+  <tbody>
+    <tr><td>Verschieben</td><td>Ziehen, oder <kbd>Pfeiltasten</kbd> um eine Rasterweite, mit <kbd>Umschalt</kbd> um das Vierfache</td></tr>
+    <tr><td>Kopieren und einfügen</td><td><kbd>Strg</kbd> + <kbd>C</kbd>, dann <kbd>Strg</kbd> + <kbd>V</kbd> — auch in ein anderes Geschoss</td></tr>
+    <tr><td>Duplizieren</td><td><kbd>Strg</kbd> + <kbd>D</kbd> — die Kopie sitzt um einen halben Meter versetzt</td></tr>
+    <tr><td>Spiegeln waagerecht</td><td><kbd>Strg</kbd> + <kbd>Umschalt</kbd> + <kbd>H</kbd></td></tr>
+    <tr><td>Spiegeln senkrecht</td><td><kbd>Strg</kbd> + <kbd>Umschalt</kbd> + <kbd>V</kbd></td></tr>
+    <tr><td>Löschen</td><td><kbd>Entf</kbd></td></tr>
+  </tbody>
+</table>
+<p>Kopiert wird eine <b>geschlossene</b> Teilmenge: Wände samt ihrer Knoten und
+Öffnungen, dazu freistehende TGA-Objekte. Ist ein ganzer <b>Raum</b> gefasst,
+kopiert <kbd>Strg</kbd> + <kbd>C</kbd> den Raum mit Wänden, Fenstern, Türen und
+den Objekten darin; eine Trennwand, die zu zwei Räumen gehört, kommt mit, und
+der Nachbar behält seine eigene.</p>
+
+<h3 id="k3-10">3.10 Fangen, Ortho-Zwang, Winkelraster, Längeneingabe</h3>
+
+<h4 id="k3-10-1">3.10.1 Die vier Fangarten</h4>
+
+<p>Gefangen wird auf vier Dinge; alle vier lassen sich im Reiter <b>Ebenen</b>
+einzeln ein- und ausschalten:</p>
+
+<table class="tab">
+  <caption>Fang und Raster</caption>
+  <thead><tr><th>Fang</th><th>Wirkung</th><th>Ab Werk</th></tr></thead>
+  <tbody>
+    <tr><td><b>Raster</b></td><td>Der Punkt rastet auf das Raster ein.</td><td>an, Weite 0,250 m</td></tr>
+    <tr><td><b>Knoten</b></td><td>Der Punkt springt auf einen bestehenden Wandknoten.</td><td>an</td></tr>
+    <tr><td><b>Wandachse</b></td><td>Der Punkt springt auf die Achse einer bestehenden Wand — dort teilt sich die Wand beim Anschließen von selbst.</td><td>an</td></tr>
+    <tr><td><b>Winkel</b></td><td>Die Richtung rastet auf Vielfache des Winkelschritts ein, gemessen vom Startpunkt.</td><td>an, Schritt 45°</td></tr>
+  </tbody>
+</table>
+
+<p>Wählbare Rasterweiten: 0,050 · 0,125 · 0,250 · 0,500 · 1,000 m.
+Wählbare Winkelschritte: 15 · 22,5 · 30 · 45 · 90 Grad.</p>
+
+<p>Der Fangradius wird in <b>Bildschirmpunkten</b> gemessen, nicht in Metern
+(ab Werk 12). Das ist Absicht: ein halber Meter ist bei einem eingezoomten Bad
+eine halbe Bildschirmbreite und bei einem ausgezoomten Grundstück zwei
+Bildpunkte.</p>
+
+<p>Beim Winkelfang wird zusätzlich die <b>Länge auf das Raster gerundet</b>. So
+entstehen Maße wie 3,25 m ohne Nacharbeit.</p>
+
+<h4 id="k3-10-2">3.10.2 Ortho-Zwang</h4>
+
+<p><kbd>O</kbd> schaltet den Ortho-Zwang um. Er lässt nur noch 0 und 90 Grad zu
+— schräge Wände sind dann nicht mehr möglich. Die Statuszeile meldet den
+Wechsel mit „Ortho-Zwang an — nur 0/90°" beziehungsweise „Ortho-Zwang aus".</p>
+
+<div class="baustelle">
+  <b>Auf der Baustelle heißt das</b>
+  <p>In einem rechtwinkligen Haus schalten Sie den Ortho-Zwang ein, bevor Sie
+  den ersten Strich machen. Danach kann keine Wand mehr um ein halbes Grad
+  daneben stehen — und genau das ist der Fehler, den man erst drei Räume später
+  bemerkt.</p>
+</div>
+
+<p>Gegen schräge und überstehende Wände arbeiten drei Mechanismen zusammen: der
+<b>Ortho-Zwang</b> lässt nur 0/90° zu, die <b>Hilfslinien</b> zeigen
+magentafarben, wenn der Zeiger mit einem bestehenden Knoten fluchtet, und das
+<b>automatische Teilen</b> bindet jedes Wandende topologisch an, statt es
+danebenstehen zu lassen.</p>
+
+<h4 id="k3-10-3">3.10.3 Längen eintippen statt ziehen</h4>
+
+<p>Während Sie eine Wand zeichnen, öffnet jede <b>Ziffer</b> — und ebenso Komma
+und Punkt — ein kleines Eingabefeld am Zeiger. Sie tippen die Länge in Metern,
+drücken <kbd>Enter</kbd>, und der Punkt sitzt exakt auf dieser Länge in der
+gerade eingeschlagenen Richtung. <kbd>Esc</kbd> schließt das Feld wieder.</p>
+
+<div class="merke">
+  <b>Merke</b>
+  <p>Richtung mit der Maus, Länge über die Tastatur. Das ist die schnellste Art,
+  einen aufgemessenen Grundriss einzugeben: Zeiger grob nach rechts, „4,26",
+  <kbd>Enter</kbd> — fertig.</p>
+</div>
+
+<h4 id="k3-10-4">3.10.4 Züge abschließen</h4>
+
+<p>Ein gezeichneter Zug — Wand, Leitung, Grundstücksgrenze, Kollektorfläche —
+lässt sich auf vier Wegen beenden, und alle vier <b>übernehmen</b> ihn:</p>
+<ul>
+  <li>Klick auf den Startpunkt (nur bei Flächen; ein grüner Fangring kündigt an,
+  dass der nächste Klick schließt),</li>
+  <li>Doppelklick,</li>
+  <li><kbd>Enter</kbd>,</li>
+  <li>Rechtsklick ohne Ziehen.</li>
+</ul>
+<p>Die <kbd>Rücktaste</kbd> nimmt während eines Zuges den <b>letzten Punkt</b>
+zurück, statt die Auswahl zu löschen. Ein Fehlklick beim Umfahren kostet damit
+einen Tastendruck und nicht die ganze Umfahrung. Auch <kbd>Esc</kbd> übernimmt
+einen Zug, der schon zwei Punkte hat, statt ihn wegzuwerfen.</p>
+
+<h3 id="k3-11">3.11 Rückgängig und Wiederherstellen</h3>
+
+<p><kbd>Strg</kbd> + <kbd>Z</kbd> nimmt zurück, <kbd>Strg</kbd> +
+<kbd>Umschalt</kbd> + <kbd>Z</kbd> oder <kbd>Strg</kbd> + <kbd>Y</kbd> stellt
+wieder her. In der Werkzeugleiste stehen beide auch als Knöpfe.</p>
+
+<div class="merke">
+  <b>Merke</b>
+  <p>Die Historie reicht <b>50 Schritte</b> zurück. Das gilt für beide
+  Richtungen: fünfzig zurückgenommene Schritte lassen sich wieder herstellen.
+  Was älter ist, fällt heraus.</p>
+</div>
+
+<p>Was als <b>ein</b> Schritt zählt, ist bewusst gesetzt:</p>
+
+<ul>
+  <li>Alles zwischen Drücken und Loslassen der Maustaste ist <b>eine</b>
+  Handlung. Ohne diese Klammer legte jede Mausbewegung beim Ziehen einen eigenen
+  Eintrag an, und <kbd>Strg</kbd> + <kbd>Z</kbd> holte das Objekt nicht an
+  seinen Ausgangsort zurück, sondern um einen Bewegungsschritt.</li>
+  <li>Auch ein <b>Rohrnetz, das der Rohrausleger auf Knopfdruck erzeugt</b>, ist
+  ein einziger Schritt. Ein Tastendruck nimmt ihn vollständig zurück.</li>
+  <li>Ein <b>Schreibvorgang der Gegenstelle</b> aus RaVia läuft durch dieselbe
+  Historie. Der Mensch am Bildschirm behält das letzte Wort.</li>
+</ul>
+
+<p>Zurückgesetzt wird die Historie, wenn ein anderes Dokument an ihre Stelle
+tritt: beim Laden eines Projekts, beim IFC-Import und beim Anlegen eines neuen
+Projekts. Das Zurücknehmen gilt auch in der <b>Schema-Ansicht</b>: ein dort
+gelöschtes Bauteil wäre sonst endgültig weg.</p>
+
+<div class="warnung">
+  <b>Achtung</b>
+  <p>Rückgängig wirkt auf das <b>Modell</b>, nicht auf die Ansicht. Zoom,
+  Geschosswechsel, ein- und ausgeschaltete Ebenen und der Bedienmodus stehen
+  nicht in der Historie.</p>
+</div>
+
+<h3 id="k3-12">3.12 Die Tastenkürzel</h3>
+
+<p>Alle Tastenkürzel gelten, solange der Zeiger nicht in einem Eingabefeld
+steht: sobald ein Feld den Fokus hat, geht jeder Tastendruck dorthin. Auf einem
+Mac wirkt die Befehlstaste wie <kbd>Strg</kbd>.</p>
+
+<h4 id="k3-12-1">3.12.1 Werkzeuge wählen</h4>
+
+<table class="tab">
+  <caption>Werkzeugtasten im Grundriss</caption>
+  <thead><tr><th>Taste</th><th>Werkzeug</th></tr></thead>
+  <tbody>
+    <tr><td><kbd>V</kbd></td><td>Auswählen &amp; Bearbeiten</td></tr>
+    <tr><td><kbd>W</kbd></td><td>Wand zeichnen</td></tr>
+    <tr><td><kbd>Z</kbd></td><td>Raum aufziehen</td></tr>
+    <tr><td><kbd>D</kbd></td><td>Tür einsetzen</td></tr>
+    <tr><td><kbd>F</kbd></td><td>Fenster einsetzen</td></tr>
+    <tr><td><kbd>E</kbd></td><td>Durchgang in Wand</td></tr>
+    <tr><td><kbd>T</kbd></td><td>TGA-Symbol setzen</td></tr>
+    <tr><td><kbd>R</kbd></td><td>Treppe einsetzen</td></tr>
+    <tr><td><kbd>S</kbd></td><td>Schacht einsetzen</td></tr>
+    <tr><td><kbd>M</kbd></td><td>Massives Bauteil setzen</td></tr>
+    <tr><td><kbd>L</kbd></td><td>Leitung verlegen</td></tr>
+    <tr><td><kbd>B</kbd></td><td>Maßkette &amp; Beschriftung</td></tr>
+    <tr><td><kbd>P</kbd></td><td>Wärmepumpe aufstellen</td></tr>
+    <tr><td><kbd>A</kbd></td><td>Außengelände zeichnen</td></tr>
+    <tr><td><kbd>Leertaste</kbd> halten</td><td>Ansicht verschieben, solange die Taste gedrückt ist</td></tr>
+  </tbody>
+</table>
+
+<h4 id="k3-12-2">3.12.2 Anzeige und Ansicht</h4>
+
+<table class="tab">
+  <caption>Umschalter und Navigation</caption>
+  <thead><tr><th>Taste</th><th>Wirkung</th></tr></thead>
+  <tbody>
+    <tr><td><kbd>G</kbd></td><td>Raster-Fang ein/aus</td></tr>
+    <tr><td><kbd>O</kbd></td><td>Ortho-Zwang ein/aus (nur 0/90°)</td></tr>
+    <tr><td><kbd>H</kbd></td><td>Ausrichtungs-Hilfslinien ein/aus</td></tr>
+    <tr><td><kbd>0</kbd> oder <kbd>Home</kbd></td><td>Ansicht auf den Inhalt einpassen</td></tr>
+    <tr><td><kbd>Bild↑</kbd></td><td>ein Geschoss nach oben</td></tr>
+    <tr><td><kbd>Bild↓</kbd></td><td>ein Geschoss nach unten</td></tr>
+  </tbody>
+</table>
+
+<h4 id="k3-12-3">3.12.3 Zeichnen</h4>
+
+<table class="tab">
+  <caption>Während eines Zuges</caption>
+  <thead><tr><th>Taste</th><th>Wirkung</th></tr></thead>
+  <tbody>
+    <tr><td><kbd>0</kbd> … <kbd>9</kbd>, <kbd>,</kbd>, <kbd>.</kbd></td><td>Beim Wandzeichnen: öffnet die Längeneingabe und tippt hinein</td></tr>
+    <tr><td><kbd>Enter</kbd></td><td>Zug abschließen und übernehmen; in der Längeneingabe: Länge setzen</td></tr>
+    <tr><td><kbd>Esc</kbd></td><td>Zug beenden — ein Zug mit zwei oder mehr Punkten wird dabei übernommen. Sonst: Auswahl aufheben, Statuszeile zurücksetzen</td></tr>
+    <tr><td><kbd>Rücktaste</kbd></td><td>Während eines Leitungs- oder Geländezuges: den letzten Punkt zurücknehmen</td></tr>
+  </tbody>
+</table>
+
+<h4 id="k3-12-4">3.12.4 Auswahl und Bearbeiten</h4>
+
+<table class="tab">
+  <caption>Auswahl, Zwischenablage, Historie</caption>
+  <thead><tr><th>Taste</th><th>Wirkung</th></tr></thead>
+  <tbody>
+    <tr><td><kbd>Strg</kbd> + <kbd>A</kbd></td><td>Alles auswählen</td></tr>
+    <tr><td><kbd>Strg</kbd> + <kbd>C</kbd></td><td>Auswahl kopieren; ist ein Raum gefasst, der ganze Raum</td></tr>
+    <tr><td><kbd>Strg</kbd> + <kbd>V</kbd></td><td>Einfügen — auch in einem anderen Geschoss</td></tr>
+    <tr><td><kbd>Strg</kbd> + <kbd>D</kbd></td><td>Duplizieren; ist ein Raum gefasst, den ganzen Raum</td></tr>
+    <tr><td><kbd>Strg</kbd> + <kbd>Umschalt</kbd> + <kbd>H</kbd></td><td>Auswahl waagerecht spiegeln</td></tr>
+    <tr><td><kbd>Strg</kbd> + <kbd>Umschalt</kbd> + <kbd>V</kbd></td><td>Auswahl senkrecht spiegeln</td></tr>
+    <tr><td><kbd>Pfeiltasten</kbd></td><td>Auswahl um eine Rasterweite verschieben</td></tr>
+    <tr><td><kbd>Umschalt</kbd> + <kbd>Pfeiltasten</kbd></td><td>Auswahl um die vierfache Rasterweite verschieben</td></tr>
+    <tr><td><kbd>Entf</kbd> oder <kbd>Rücktaste</kbd></td><td>Auswahl löschen. Ein gewählter KI-Vorschlag wird dabei nur verworfen und bleibt wiederherstellbar</td></tr>
+    <tr><td><kbd>Strg</kbd> + <kbd>Z</kbd></td><td>Rückgängig</td></tr>
+    <tr><td><kbd>Strg</kbd> + <kbd>Umschalt</kbd> + <kbd>Z</kbd></td><td>Wiederherstellen</td></tr>
+    <tr><td><kbd>Strg</kbd> + <kbd>Y</kbd></td><td>Wiederherstellen</td></tr>
+  </tbody>
+</table>
+
+<h4 id="k3-12-5">3.12.5 Maustasten und Sondergesten</h4>
+
+<table class="tab">
+  <caption>Maus</caption>
+  <thead><tr><th>Geste</th><th>Wirkung</th></tr></thead>
+  <tbody>
+    <tr><td>Mausrad</td><td>Zoomen zum Zeiger</td></tr>
+    <tr><td>Rechte Maustaste ziehen</td><td>Ansicht verschieben</td></tr>
+    <tr><td>Rechtsklick ohne Ziehen</td><td>Laufenden Zug übernehmen; sonst Auswahl aufheben</td></tr>
+    <tr><td>Mittlere Maustaste ziehen</td><td>Ansicht verschieben</td></tr>
+    <tr><td>Doppelklick</td><td>Zug abschließen</td></tr>
+    <tr><td>Rahmen ziehen (Auswahl-Werkzeug)</td><td>Mehrfachauswahl</td></tr>
+    <tr><td><kbd>Strg</kbd> oder <kbd>Umschalt</kbd> + Klick / Rahmen</td><td>Zur bestehenden Auswahl hinzufügen oder daraus entfernen</td></tr>
+    <tr><td><kbd>Alt</kbd> + Klick auf einen Auto-Trace-Vektor</td><td>Diesen Vektor verwerfen</td></tr>
+    <tr><td><kbd>Alt</kbd> + Klick mit dem Fußbodenheizungs-Symbol</td><td>Ein Einzelsymbol setzen statt die ganze Raumfläche zu belegen</td></tr>
+  </tbody>
+</table>
+
+<h4 id="k3-12-6">3.12.6 In der Schema-Ansicht</h4>
+
+<table class="tab">
+  <caption>Tasten im Anlagenschema</caption>
+  <thead><tr><th>Taste</th><th>Wirkung</th></tr></thead>
+  <tbody>
+    <tr><td><kbd>Esc</kbd></td><td>Verbinden abbrechen, Auswahl aufheben, zurück in den Auswahlmodus</td></tr>
+    <tr><td><kbd>Entf</kbd> oder <kbd>Rücktaste</kbd></td><td>Gewähltes Bauteil entfernen</td></tr>
+    <tr><td><kbd>Strg</kbd> + <kbd>Z</kbd></td><td>Rückgängig</td></tr>
+    <tr><td><kbd>Strg</kbd> + <kbd>Umschalt</kbd> + <kbd>Z</kbd> oder <kbd>Strg</kbd> + <kbd>Y</kbd></td><td>Wiederherstellen</td></tr>
+  </tbody>
+</table>
+
+<p>Eine gesammelte Kurzfassung dieser Tafel steht noch einmal im Anhang,
+<a href="#k18">Kapitel 18</a>.</p>
+
+</section>

@@ -1,0 +1,289 @@
+<section id="kap-11" class="kapitel" data-titel="11 · Das Anlagenschema">
+<h2 id="k11">11 · Das Anlagenschema</h2>
+<p class="lead">Ein Grundriss sagt, wo etwas steht. Ein Anlagenschema sagt, woran es hängt. Dieses Kapitel erklärt, was auf dem Schemablatt zu sehen ist, wie es entsteht, wie Sie es ändern und wie es aufs Papier kommt.</p>
+
+<p class="wo">Im Programm: Umschalter <b>3D / Schema</b> in der Kopfzeile. Erzeugt wird das Schema im Reiter <b>Anlage</b> mit dem Knopf <b>Schema erzeugen</b>.</p>
+
+<h3 id="k11-1">11.1 Was ein Prinzipschema ist — und was nicht</h3>
+
+<p>Beides in ein Bild zu zwingen ist der Fehler, den viele Werkzeuge machen. Die Leitungsführung im Technikraum ist für die Hydraulik belanglos, und die Reihenfolge der Armaturen lässt sich im Grundriss nicht ablesen. Deshalb gibt es eine eigene Ansicht auf einem eigenen Raster.</p>
+
+<table class="tab">
+<caption>Was das Anlagenschema leistet und was nicht</caption>
+<thead><tr><th>Es sagt</th><th>Es sagt nicht</th></tr></thead>
+<tbody>
+<tr><td>welche Bauteile verbaut werden</td><td>wo im Technikraum sie stehen</td></tr>
+<tr><td>in welcher Reihenfolge sie im Fließweg hängen</td><td>wie lang die Verbindungsleitungen sind</td></tr>
+<tr><td>welche Leitungsart zwischen zwei Bauteilen läuft</td><td>durch welche Wand sie geht</td></tr>
+<tr><td>an welchem Stutzen eine Leitung ankommt</td><td>in welcher Höhe der Stutzen sitzt</td></tr>
+<tr><td>welche Kennwerte zu einem Bauteil gehören</td><td>welches Fabrikat es ist, solange nur Typklassen gewählt sind</td></tr>
+</tbody>
+</table>
+
+<div class="merke"><b>Merke</b><p>Ein Prinzipschema ist <b>kein Ausführungsplan</b>. Es zeigt die Wirkzusammenhänge, nicht die Ausführung. Das steht auch so im Schriftfeld jedes Ausdrucks: „Prinzipschema – kein Ausführungsplan".</p></div>
+
+<p>Dazu kommt ein Vorbehalt, den Wolf, Viessmann und Buderus gleichlautend führen: Prinzipschemata zeigen Absperrorgane, Entlüftungen und sicherheitstechnische Maßnahmen <b>nicht vollständig</b>. Sie sind anlagenspezifisch zu ergänzen. Das gilt für die Schemata der Hersteller und ebenso für die dieses Programms.</p>
+
+<h3 id="k11-2">11.2 Der Maßstab: ein Rasterschritt = 1,00 m</h3>
+
+<p>Ein Prinzipschema hat streng genommen keinen Maßstab. Die Lage eines Bauteils ist ein Rasterplatz, kein Ort im Gebäude — das Programm rechnet in Spalten und Zeilen, nicht in Metern.</p>
+
+<p>Ein Blatt ohne Maßstabsangabe ist aber unbrauchbar, denn niemand kann dann mehr feststellen, ob der Drucker skaliert hat. Ein auf 94 % verkleinertes A3-Blatt sieht genauso aus wie ein richtiges. Deshalb gibt es eine <b>Vereinbarung</b>:</p>
+
+<div class="merke"><b>Merke</b><p>Ein Rasterschritt entspricht 1,00 m Bezugsmaß. Aus „M 1:50" werden damit 20 mm Rasterweite auf dem Papier — und die Maßstabsleiste am unteren Blattrand ist ein echtes Prüfmaß, das man mit dem Zollstock nachmessen kann.</p></div>
+
+<div class="formel">
+  <p class="worte">In Worten: die Rasterweite auf dem Papier ist ein Meter, geteilt durch den Maßstabsnenner.</p>
+  <p class="math">Rasterweite = 1000 mm / Maßstabsnenner</p>
+</div>
+
+<div class="beispiel">
+  <b>Beispiel zum Nachrechnen</b>
+  <p>M 1:50 → 1000/50 = 20,0 mm Rasterweite. Das Symbol ist 34/74 davon, also 9,2 mm groß.</p>
+  <p>M 1:100 → 10,0 mm Rasterweite, Symbol 4,6 mm.</p>
+  <p class="ergebnis">Unter 7 mm Symbolgröße meldet das Programm: „kaum noch lesbar"</p>
+</div>
+
+<p>Das Verhältnis 34 zu 74 stammt aus der Bildschirmdarstellung (Raster 74 Pixel, Symbolgröße 34 Pixel). Es ist bewusst übernommen, damit Schema am Bildschirm und Schema auf dem Blatt dasselbe Bild ergeben.</p>
+
+<p>Die Maßstabsreihe ist grob gestuft — 1:20, 1:25, 1:50, 1:75, 1:100, 1:125, 1:150, 1:200, 1:250, 1:500. Krumme Maßstäbe wie 1:37 sind auf dem Blatt nicht nachmessbar.</p>
+
+<h3 id="k11-3">11.3 Die Symbole</h3>
+
+<p>Grundlage ist die übliche Darstellung in Fließbildern nach DIN EN ISO 14617 (Graphische Symbole für Schemata) und für die wärmetechnische Anlage nach DIN 2481. Die Normen sind kostenpflichtig, ihre Symbolformen aber seit Jahrzehnten in jedem Fachbuch, in jeder Herstellerplanungsunterlage und auf jedem Schemablatt abgebildet und insofern Allgemeingut.</p>
+
+<p>Nachgezeichnet ist deshalb der <b>Typus</b>: Kreis mit Dreieck für die Pumpe, Dreieckpaar für die Armatur, gefüllter Zweig für den angesteuerten Weg, Feder für die federbelastete Sicherheitsarmatur, Kreis mit waagerechter Trennlinie für das Membranausdehnungsgefäß, Rechteck mit Schlange für den Wärmeübertrager, stehendes Gefäß mit Wendel für den Speicher.</p>
+
+<div class="warnung"><b>Achtung</b><p>Maße, Strichstärkenverhältnis und Rasterteilung der Norm sind <b>nicht</b> übernommen, weil sie nicht frei verfügbar sind. Die Symbole sind stilisiert und auf Lesbarkeit gezeichnet. Ein normgerechtes Schemablatt im Sinne einer Prüfvorlage entsteht daraus nicht — ein verständliches Anlagenschema schon.</p></div>
+
+<p>Eine Abweichung ist bewusst und deshalb ausgeschrieben: der <b>gefüllte dritte Zweig</b> an Dreiwege-, Umschalt- und Trinkwassermischventil bezeichnet hier den <em>angesteuerten</em> Weg. In vielen Fließbildern steht die geschwärzte Fläche umgekehrt für den <em>gesperrten</em> Weg. Weil die Aussage aus dem Bild allein nicht hervorgeht, steht sie in der Legende — wer das Schema für eine Prüfung braucht, legt die Legende bei.</p>
+
+<p>Ein Fließbild ist eine Strichzeichnung. Gezeichnet wird nur in der Strichfarbe. Gefüllt wird zweierlei: die wenigen Flächen, die <em>als Vollfläche</em> Bedeutung tragen — der gefüllte Zweig am Dreiwegeventil, der Knotenpunkt — und die Freistellfläche unter Kreissymbolen, damit eine durchlaufende Leitung nicht durch das Manometer hindurchscheint.</p>
+
+<p>Die folgende Tafel zeigt alle 37 Bauteilarten mit ihrem Legendentext. Sie ist aus dem Programm selbst gerendert, damit Handbuch und Bildschirm nicht auseinanderlaufen. Jeder Text beantwortet dieselbe Frage: warum sitzt das Teil an dieser Stelle, und was passiert, wenn es fehlt oder falsch eingebaut ist.</p>
+
+<p>Die Legende des Programms führt einen 38. Eintrag, der in der Tafel nicht steht: den <b>Knoten</b>. Er ist kein Bauteil, sondern der Abzweig oder Verbindungspunkt zweier Leitungen — die Stelle, an der sich das Wasser teilt oder wieder zusammenkommt. Er bekommt deshalb auch keine Beschriftung im Schema.</p>
+
+<!--SYMBOLTAFEL:schema-->
+
+<h3 id="k11-4">11.4 Wie das Schema erzeugt wird</h3>
+
+<p>Ein Anlagenschema von Hand zu zeichnen ist eine halbe Stunde Arbeit, in der man dreimal dasselbe abschreibt, was ohnehin schon berechnet wurde. Und wenn sich der Speicher ändert, stimmt es nicht mehr. Erzeugt wird es in einer Zehntelsekunde und stimmt immer.</p>
+
+<h4 id="k11-4-1">11.4.1 Die Grundregel</h4>
+
+<div class="merke"><b>Merke</b><p>Gezeichnet wird, <b>was ausgelegt wurde</b> — nicht, was der Zeichner für richtig hält. Jedes Bauteil im Bild hat seinen Ursprung in der Auslegung: die Armaturen kommen aus der Armaturenliste der Sicherheitsauslegung, die Pumpe aus der Pumpenauslegung, der Speicher aus der Speicherwahl, die Kreise aus den Heizkreisen. Ein Bauteil ohne Herkunft ist auf einem Fließbild eine Behauptung.</p></div>
+
+<p>Bis Fassung 1.8.1 traf der Zeichner eigene Entscheidungen: er setzte den Mischer an den Heizkörper statt an die Fläche, zeichnete einen namenlosen Luftabscheider in den Rücklauf, obwohl die Sicherheitsauslegung einen Mikroblasenabscheider im Vorlauf verlangt, ließ den Heizstab weg, den die Geräteauswahl einrechnet, und hängte den Reihenpuffer mit einer einzigen Leitung ins Nichts. Jede dieser Entscheidungen war eine zweite Meinung zu einer Frage, die vorher schon beantwortet war.</p>
+
+<h4 id="k11-4-2">11.4.2 Das Schema zeigt die Anlage, nicht den Vollausbau</h4>
+
+<p>Bis Fassung 1.10 zeichnete das Programm unabhängig von der Anlagengröße immer denselben Satz Bauteile. Für eine Wärmepumpe mit einem einzigen Heizkörper ist das ein Blatt voller Teile, die den Blick auf die Anlage verstellen — und der Verteilbalken behauptet dort sogar eine Verteilung, die es nicht gibt. Die Regeln lauten jetzt:</p>
+
+<table class="tab">
+<caption>Wann welches Bauteil gezeichnet wird</caption>
+<thead><tr><th>Bauteil</th><th>Bedingung</th></tr></thead>
+<tbody>
+<tr><td>Verteilbalken (Vorlauf und Rücklauf)</td><td>nur bei mehr als einem Heizkreis. Sonst läuft der Vorlauf unmittelbar zum Verbraucher.</td></tr>
+<tr><td>Luft- und Schlammabscheider, Wärmemengenzähler, Füllarmatur, Systemtrenner, Überströmventil</td><td>nur, wenn die Armaturenliste sie führt.</td></tr>
+<tr><td>Umwälzpumpe</td><td>nur, wenn eine ausgelegt ist. Ohne Heizkreis gibt es keine Pumpenauslegung — und eine Pumpe ohne Förderstrom wäre eine Zahl, die niemand gerechnet hat.</td></tr>
+<tr><td>Sicherheitsventil, Ausdehnungsgefäß, Manometer</td><td><b>immer.</b> Fehlt die Sicherheitsauslegung, gibt es einen Fehlerhinweis statt eines leeren Blattes.</td></tr>
+<tr><td>Elektro-Heizstab</td><td>wenn das Gerät einen führt. Führt es keinen, sagt das ein Hinweis.</td></tr>
+<tr><td>Volumenstromwächter</td><td>nur bei Frostschutzmittel im Kreis — und nur, wenn das Gerät keinen mitbringt.</td></tr>
+<tr><td>Temperaturwächter</td><td>an jedem <b>ungemischten</b> Flächenheizkreis. Beim gemischten Kreis übernimmt das der Mischer.</td></tr>
+<tr><td>Regulierventil am Verteiler</td><td>nur wenn mehrere Kreise an derselben Pumpe hängen und dieser Kreis keine eigene hat.</td></tr>
+</tbody>
+</table>
+
+<h4 id="k11-4-3">11.4.3 Der Weg durch das Bild</h4>
+
+<p>Spalten laufen mit der Fließrichtung: im Vorlauf von links nach rechts, im Rücklauf von rechts nach links. Deshalb steht der Schlammabscheider links, unmittelbar vor dem Erzeuger, und nicht am Anfang des Bandes. Zeilen: die Sicherheitsgruppe über dem Vorlauf, die Heizkreise darüber gestapelt, der Rücklauf darunter, das Trinkwasser ganz unten.</p>
+
+<p>Der Rücklaufstrang wird <b>von hinten</b> aufgebaut. Am Erzeuger steht die Reihenfolge fest: das letzte Bauteil vor dem Wärmetauscher ist der Schlammabscheider, davor die Pumpe, davor der Zähler, davor der Puffer. Was davor kommt, hängt an der Anlage — bei mehreren Kreisen ein Rücklaufbalken, bei einem einzigen der Verbraucher selbst.</p>
+
+<p>Der Puffer bestimmt den Weg: ohne Puffer geht der Vorlauf direkt weiter; der Reihenpuffer liegt im Rücklauf; der Trennpuffer trennt Erzeuger- und Verteilseite und bekommt <b>alle vier</b> Anschlüsse (siehe <a href="#k10-10">Abschnitt 10.10</a>).</p>
+
+<h4 id="k11-4-4">11.4.4 Systemgrenzen sind Bauteile</h4>
+
+<p>Trinkwasseranschluss, Zapfstelle, Abblaseleitung und Entwässerung stehen als benannte Knoten im Schema. Ein offenes Leitungsende, das nichts benennt, ist in einem Fließbild ein Fehler — man kann dann nicht mehr sagen, ob die Leitung geplant ist oder vergessen wurde.</p>
+
+<h4 id="k11-4-5">11.4.5 Die Übergabe hat Armaturen</h4>
+
+<p>Jeder Heizkörper bekommt sein <b>Thermostatventil</b> im Vorlauf. Das ist keine Zutat, sondern § 63 des Gebäudeenergiegesetzes: eine selbsttätig wirkende Einrichtung zur raumweisen Regelung der Raumtemperatur. Die <b>Rücklaufverschraubung</b> gehört fachlich dazu — sie sperrt ab und stellt voreinstellbar den Volumenstrom ein —, ist aber nicht normativ gefordert; das steht so auch in der technischen Angabe unter dem Symbol.</p>
+
+<p>Am <b>Flächenheizungsverteiler</b> sitzt dagegen kein Thermostatventil: der Verteiler trägt seine Ventile selbst — Durchflussmesser im Vorlauf, Stellantriebe im Rücklauf, angesteuert von der Einzelraumregelung. Was er braucht, ist die <b>Absperrung</b>; ohne sie lässt sich kein Kreis nachrüsten und kein Stellantrieb wechseln, ohne die Anlage zu entleeren.</p>
+
+<p>Damit zeigen Grundriss (<a href="#k9">Kapitel 9</a>) und Schema dieselbe Anlage — der Rohrausleger setzt im Grundriss dieselben Armaturen.</p>
+
+<h4 id="k11-4-6">11.4.6 Was das Programm nach dem Erzeugen sagt</h4>
+
+<p>Der Zeichner meldet, was er entschieden hat und warum. Diese Sätze gehören dem Anwender und nicht ins Nichts; sie stehen in der Statuszeile:</p>
+
+<ul>
+<li>„Kein Überströmventil: der Parallelpuffer trennt hydraulisch, die Erzeugerseite behält ihren Volumenstrom unabhängig von den Stellantrieben."</li>
+<li>„Der Reihenpuffer liegt in Reihe im Rücklauf: er sichert den Wasserinhalt für die Abtauung, nicht den Mindestvolumenstrom. Deshalb steht zusätzlich ein Überströmventil im Schema."</li>
+<li>„… führt keinen Elektro-Heizstab. Ohne ihn deckt das Gerät den Bivalenzpunkt allein ab — und das geforderte Mindestwasservolumen bleibt der volle Wert."</li>
+<li>„Ohne Sicherheitsauslegung fehlen dem Schema Sicherheitsventil, Ausdehnungsgefäß und Manometer. Eine Anlage darf so nicht gebaut werden."</li>
+<li>„Kein Heizkreis ausgelegt — das Schema zeigt nur den Erzeugerteil."</li>
+</ul>
+
+<p>Die Meldung nennt außerdem die Kennung der Schemavorlage, nach der das Bild gebaut ist: „Anlagenschema erzeugt nach BWP-H-03 — 34 Bauteile, 41 Verbindungen." Ohne diese Kennung wäre das erzeugte Bild anonym, und niemand könnte später sagen, nach welcher Musterlösung diese Anlage gebaut ist (siehe <a href="#k12">Kapitel 12</a>).</p>
+
+<h3 id="k11-5">11.5 Von Hand ändern</h3>
+
+<p class="wo">Im Programm: Ansicht <b>Schema</b> → Bearbeitungsleiste links oben mit den drei Modi <b>Auswählen</b>, <b>Verbinden</b>, <b>Einfügen</b></p>
+
+<table class="tab">
+<caption>Die drei Bearbeitungsmodi</caption>
+<thead><tr><th>Modus</th><th>Was ein Klick tut</th></tr></thead>
+<tbody>
+<tr><td>Auswählen</td><td>Bauteil anklicken, verschieben, mit <kbd>Entf</kbd> löschen. Unten links erscheint die Erklärung des Bauteils, dazu zwei Felder für Beschriftung und technische Angabe.</td></tr>
+<tr><td>Verbinden</td><td>Leitungsart wählen, dann das erste Bauteil anklicken, dann das zweite. Zwei gleiche Verbindungen zwischen denselben Bauteilen lässt das Programm nicht zu — sie wären im Bild nicht zu unterscheiden.</td></tr>
+<tr><td>Einfügen</td><td>Bauteilart wählen und in das Schema klicken.</td></tr>
+</tbody>
+</table>
+
+<p>Einfügen lässt sich bewusst nicht alles. Erzeuger, Speicher und Verteiler kommen aus der Auslegung und gehören dort geändert, nicht im Bild. Von Hand ergänzt werden <b>Armaturen und Messstellen</b> — das, was auf der Baustelle dazukommt: Absperrungen, Regel- und Mischventile, Rückschlagklappen, Strangregulier- und Überströmventile, Schmutz-, Schlamm- und Luftabscheider, Manometer, Thermometer, Fühler, Temperatur- und Volumenstromwächter, Pumpen, Zähler, Füllarmatur, Systemtrenner, Heizstab, Kessel, Solarkollektor, Heizkörper, Verteiler und der Knoten.</p>
+
+<p>Ein Bauteil zu löschen nimmt die daran hängenden Leitungen mit. Eine Verbindung ohne Bauteil ist keine Verbindung.</p>
+
+<h4 id="k11-5-1">11.5.1 Was „von Hand bearbeitet" bedeutet</h4>
+
+<div class="warnung"><b>Achtung</b><p>Sobald Sie irgendetwas am Schema ändern — verschieben, einfügen, löschen, umbenennen, verbinden —, wird es als <b>von Hand bearbeitet</b> gekennzeichnet. In der Bearbeitungsleiste steht dann: „Von Hand bearbeitet. ‚Schema neu erzeugen‘ im Reiter ‚Anlage‘ verwirft diese Änderungen."</p></div>
+
+<p>Das ist keine Sperre, sondern eine Rückfrage. „Schema neu erzeugen" und „Diese Anbindung übernehmen" fragen dann beide nach, bevor sie das Bild ersetzen. Wer eine halbe Stunde im Schema gearbeitet hat, soll sie nicht mit einem Klick verlieren.</p>
+
+<p>Was die Kennzeichnung <b>nicht</b> tut: sie hindert die Auslegung nicht am Weiterrechnen. Ändern Sie danach die Heizlast, rechnet das Anlagenblatt neu — nur das Bild bleibt stehen. Ab diesem Moment können Bild und Auslegung auseinanderlaufen. Genau dafür gibt es die Schemaprüfung (<a href="#k12-6">Abschnitt 12.6</a>): sie prüft das Schema, <em>das im Dokument steht</em>, nicht das, was der Zeichner gerade erzeugen würde. Wer von Hand nachgebessert hat, will wissen, ob <em>sein</em> Bild trägt.</p>
+
+<h3 id="k11-6">11.6 Stutzen: warum jede Verbindung ihren Anschluss benennt</h3>
+
+<p>Jedes Symbol hat benannte Anschlusspunkte — Stutzen. Der Trinkwasserspeicher zum Beispiel hat vier:</p>
+
+<table class="tab">
+<caption>Die Stutzen des Trinkwasserspeichers</caption>
+<thead><tr><th>Kennung</th><th>Klartext</th><th>Lage</th></tr></thead>
+<tbody>
+<tr><td>dhw</td><td>Warmwasser</td><td>oben</td></tr>
+<tr><td>cold</td><td>Kaltwasser</td><td>unten</td></tr>
+<tr><td>flow</td><td>Heizung Vorlauf</td><td>links oben</td></tr>
+<tr><td>return</td><td>Heizung Rücklauf</td><td>links unten</td></tr>
+</tbody>
+</table>
+
+<p>Der Parallelpuffer hat vier andere: <code>gen-flow</code> und <code>gen-return</code> auf der Erzeugerseite, <code>sys-flow</code> und <code>sys-return</code> auf der Verteilseite. An diesen vier Namen hängt die ganze Aussage „hydraulisch getrennt".</p>
+
+<div class="merke"><b>Merke</b><p>Der Zeichner benennt bei jeder erzeugten Leitung <b>ausnahmslos</b> beide Stutzen. Ohne Namen sucht er das geometrisch nächste Stutzenpaar — und das ist beim Speicher regelmäßig das falsche.</p></div>
+
+<div class="warnung"><b>Achtung</b><p>Ohne benannte Stutzen landete die <b>Speicherladeleitung am Kaltwasserstutzen</b>. Das ist keine Schönheitsfrage: der Speicher wird über seinen <em>Wärmetauscher</em> geladen, Heizungswasser und Trinkwasser berühren sich nicht. Eine Zeichnung, die Heizungswasser an den Kaltwasseranschluss führt, behauptet genau das, was durch die Systemtrennung ausgeschlossen sein muss. Zwei weitere Fehler derselben Art traten auf: das Ausdehnungsgefäß hing an der Abblaseleitung des Sicherheitsventils, und die Füllleitung am Abschlämmventil des Schlammabscheiders.</p></div>
+
+<p>Die Regel im Programm ist einfach: benennt eine Leitung ihre Stutzen, gilt das — auch dann, wenn ein anderes Paar näher beieinanderliegt. Ist nur eine Seite benannt, wird für die andere der nächste Stutzen zu genau diesem Punkt gesucht, nicht das global nächste Paar. Nur wenn beide Angaben fehlen, greift die Nähe-Heuristik.</p>
+
+<p>Sie greift damit noch an einer Stelle: bei <b>von Hand gezogenen</b> Verbindungen. Wer im Modus „Verbinden" zwei Bauteile anklickt, sagt nicht, an welchem Stutzen. Prüfen Sie solche Leitungen am Bild nach — und lassen Sie die Schemaprüfung darüberlaufen. Sie hat genau für diesen Fall eine Regel (Regel 10 in <a href="#k12-6">Abschnitt 12.6</a>).</p>
+
+<p>Die Auswahl des Stutzenpaares liegt an <b>einer</b> Stelle im Programm, nicht an zweien. Bildschirm und Blatt müssen dieselbe Leitung zeigen; beide hatten die Heuristik früher als eigene Kopie — mit dem bekannten Ergebnis, dass zwei Kopien irgendwann zwei verschiedene Dinge tun.</p>
+
+<h3 id="k11-7">11.7 Leitungsarten: Farbe und Strichart</h3>
+
+<p>Leitungen laufen im Schema <b>rechtwinklig</b>: senkrecht aus dem Bauteil heraus, dann waagerecht, dann wieder senkrecht hinein. Liegen beide Anschlüsse auf einer Achse, bleibt die Leitung gerade. Diagonalen wären kürzer und in einem Schema falsch — ein Fließbild liest man an den Ecken.</p>
+
+<p>Neun Leitungsarten sind unterscheidbar. Am Bildschirm über die Farbe, auf dem Papier zusätzlich über eine <b>eigene Strichart</b>:</p>
+
+<table class="tab">
+<caption>Die neun Leitungsarten</caption>
+<thead><tr><th>Leitungsart</th><th>Farbe am Bildschirm</th><th>Strichart auf dem Blatt</th></tr></thead>
+<tbody>
+<tr><td>Heizung Vorlauf</td><td>rot</td><td>durchgezogen</td></tr>
+<tr><td>Heizung Rücklauf</td><td>blau</td><td>gestrichelt</td></tr>
+<tr><td>Trinkwasser warm</td><td>orange</td><td>strichpunktiert</td></tr>
+<tr><td>Trinkwasser kalt</td><td>hellblau</td><td>gepunktet</td></tr>
+<tr><td>Zirkulation</td><td>gelb</td><td>strich-zweipunkt</td></tr>
+<tr><td>Abwasser</td><td>violett</td><td>lang gestrichelt</td></tr>
+<tr><td>Kältemittel</td><td>purpur</td><td>strich-zweipunkt kurz</td></tr>
+<tr><td>Zuluft</td><td>grün</td><td>kurz gestrichelt</td></tr>
+<tr><td>Abluft</td><td>türkis</td><td>lang-kurz gestrichelt</td></tr>
+</tbody>
+</table>
+
+<div class="merke"><b>Merke</b><p>Schwarzweiß ist kein Sonderfall. Die Leitungsfarben sind Bildschirmfarben auf dunklem Grund; auf einem Laserdrucker werden aus Hellblau und Gelb zwei kaum unterscheidbare Graus. Deshalb hat jede Leitungsart zusätzlich eine Strichart, die im Schwarzweißdruck die Farbe vollständig ersetzt. Ein Schema muss ohne Farbe lesbar bleiben.</p></div>
+
+<p>Grundlage sind die vier Strichbilder, die jeder Drucker und jede Kopie überstehen: durchgezogen, gestrichelt, strichpunktiert, gepunktet. Weil es neun Leitungsarten gibt und nur vier Grundbilder, sind fünf davon abgewandelt (länger, kürzer, zweiter Punkt). Die Zuordnung ist <b>keine Norm</b>; sie steht in der Legende und muss dort auch gelesen werden.</p>
+
+<p>Werden die Leitungen farbig gedruckt, mischt das Programm die Bildschirmfarben gegen Schwarz ab. Ein 0,35 mm breiter Strich in reinem Gelb verschwindet auf weißem Papier fast; der Farbton bleibt beim Abdunkeln erhalten, die Leitungsart bleibt erkennbar, der Strich wird aber deckend.</p>
+
+<p class="wo">Am Bildschirm zeigt eine kleine Legende rechts oben die Leitungsarten, die im Schema tatsächlich vorkommen. Sie lässt sich ausblenden.</p>
+
+<h3 id="k11-8">11.8 Der Ausdruck</h3>
+
+<p class="wo">Im Programm: Ansicht <b>Schema</b> → Knopf <b>⎙</b> unten rechts („Maßstäblich drucken oder als PDF sichern"). Daneben liegt <b>⤓</b> — das Schema als Bild sichern, für den Anhang zum Angebot.</p>
+
+<p>Ein Anlagenschema wird nicht am Bildschirm montiert. Es liegt auf der Baustelle, im Ordner des Prüfers und in der Anlagendokumentation — auf Papier, oft schwarzweiß, oft geknickt. Deshalb entsteht für den Druck dasselbe Schema noch einmal, aber in <b>Millimetern auf einem Blatt</b>.</p>
+
+<p>Die Symbole werden dabei nicht neu gezeichnet. Zwei Symbolsätze wären zwei Wahrheiten. Stattdessen nimmt ein Aufzeichner dieselben Zeichenbefehle entgegen, die auch der Bildschirm bekommt, und macht daraus die Zeichnung fürs Blatt — Strich für Strich dasselbe Symbol.</p>
+
+<h4 id="k11-8-1">11.8.1 Blattformat und Ausrichtung</h4>
+
+<table class="tab">
+<caption>Die Blattformate</caption>
+<thead><tr><th>Format</th><th>Hochformat</th><th>Querformat</th></tr></thead>
+<tbody>
+<tr><td>A4</td><td>210 × 297 mm</td><td>297 × 210 mm</td></tr>
+<tr><td>A3</td><td>297 × 420 mm</td><td>420 × 297 mm</td></tr>
+<tr><td>A2</td><td>420 × 594 mm</td><td>594 × 420 mm</td></tr>
+</tbody>
+</table>
+
+<p>Vorbelegt ist A3 quer. Der Rand beträgt oben, links und rechts 12 mm; unten sind es 36 mm, weil dort Schriftfeld und Maßstabsleiste stehen.</p>
+
+<h4 id="k11-8-2">11.8.2 Rahmen und Schriftfeld</h4>
+
+<p>Das Blatt trägt einen Rahmen um das Zeichenfeld und unten rechts ein Schriftfeld von 96 × 30 mm. Darin stehen:</p>
+
+<table class="tab">
+<caption>Der Inhalt des Schriftfelds</caption>
+<thead><tr><th>Feld</th><th>Inhalt</th></tr></thead>
+<tbody>
+<tr><td>Projekt</td><td>der Projektname aus dem Modell, in großer Schrift</td></tr>
+<tr><td>Anlage</td><td>die Anlagenbezeichnung</td></tr>
+<tr><td>Maßstab</td><td>M 1:xx — der tatsächlich verwendete Nenner, nicht der gewünschte</td></tr>
+<tr><td>Blatt</td><td>Format und Ausrichtung, bei mehreren Blättern zusätzlich „Blatt 1/3"</td></tr>
+<tr><td>Datum</td><td>als fertige Zeichenkette übergeben — das Rechenmodul liest keine Uhr, sonst wäre derselbe Plan zweimal nicht derselbe</td></tr>
+<tr><td>Ersteller</td><td>wer den Plan erstellt hat</td></tr>
+<tr><td>Vorbehalt</td><td>„Prinzipschema – kein Ausführungsplan", rechts unten</td></tr>
+</tbody>
+</table>
+
+<p>Unter dem Rahmen läuft die Maßstabsleiste, daneben der Satz „Prüfmaß · 1 Rasterschritt = 1,00 m Bezugsmaß". Wer nachmisst, sieht, ob der Drucker skaliert hat.</p>
+
+<h4 id="k11-8-3">11.8.3 Die Legende</h4>
+
+<p>Die Legende zeigt nur, was im Schema tatsächlich vorkommt — jede benutzte Bauteilart mit ihrem Symbol und ihrem Namen, jede benutzte Leitungsart mit Farbe, Strichart und der Benennung der Strichart im Klartext.</p>
+
+<p>Sie steht als 62 mm breite Spalte am rechten Blattrand, wenn sie dort hinpasst. Passt sie nicht — weil die Spalte höher wäre als das Zeichenfeld oder weil vom Zeichenfeld weniger als die Hälfte übrig bliebe —, bekommt sie ein <b>eigenes Blatt</b>. Das Programm sagt das dazu: „Die Legende passt neben dem Schema nicht auf das Blatt und steht deshalb auf einem eigenen Blatt."</p>
+
+<h4 id="k11-8-4">11.8.4 Die Stückliste</h4>
+
+<p>Auf Wunsch hängt das Programm eine Stückliste als eigenes Blatt an. Zusammengezählt wird nach Bauteilart <b>und</b> technischer Angabe: zwei Absperrungen DN 25 sind eine Position, eine DN 25 und eine DN 32 sind zwei. Wer bestellt, braucht diese Trennung.</p>
+
+<p>Die Anlagenkennzeichen der zusammengefassten Bauteile bleiben einzeln erhalten, damit sich jede Position im Schema wiederfinden lässt. Die Spalten sind: Position, Anzahl, Bezeichnung, technische Angabe, Anlagenkennzeichen.</p>
+
+<p>Dieselbe Liste lässt sich als CSV-Datei sichern — mit Semikolon als Trennzeichen, weil das deutsche Excel Kommas als Dezimaltrenner liest und an einer kommagetrennten Datei scheitert.</p>
+
+<h4 id="k11-8-5">11.8.5 Die Prüfung „passt es aufs Blatt"</h4>
+
+<p>Ein abgeschnittenes Schema fällt sonst erst auf dem Papier auf. Deshalb wird vor dem Druck gerechnet, ob der Inhalt in das Zeichenfeld passt — und wenn nicht, welcher Maßstab nötig wäre.</p>
+
+<p>Steht der Maßstab auf „automatisch", sucht das Programm den ersten Nenner der Reihe, bei dem es passt. Der Dialog zeigt das Ergebnis in einer Zeile: „Maßstab 1:50 · 2 Blatt · 27 Positionen". Darunter stehen die Hinweise, falls es welche gibt:</p>
+
+<ul>
+<li>„Das Schema ist in M 1:50 größer als das Zeichenfeld; es passt ab M 1:75."</li>
+<li>„Bei M 1:200 ist ein Symbol nur 2,3 mm groß und kaum noch lesbar."</li>
+<li>„Die Legende passt neben dem Schema nicht auf das Blatt und steht deshalb auf einem eigenen Blatt."</li>
+</ul>
+
+<div class="baustelle"><b>Auf der Baustelle heißt das</b><p>Wird das Symbol zu klein, hilft nicht ein kleinerer Maßstab, sondern ein größeres Blatt. Ein A3-Schema, das erst bei 1:200 aufs Blatt passt, gehört auf A2. Der Dialog zeigt beide Größen nebeneinander, bevor gedruckt wird.</p></div>
+
+<p>Beim Messen der benötigten Fläche zählen die <b>Beschriftungen mit</b>, nicht nur die Symbole. Ein „Monoblock Luft/Wasser R290 6 kW" am linken Rand wäre sonst angeschnitten. Dasselbe gilt am Bildschirm: die Einpassung lässt zwei Rasterfelder Rand.</p>
+
+<p>Gedruckt wird über den Druckdialog des Browsers; mehrere Blätter kommen untereinander in dasselbe Dokument und werden dort einzeln umbrochen. Der Weg zur PDF-Datei führt über „Als PDF sichern" im selben Dialog.</p>
+
+</section>

@@ -1,0 +1,306 @@
+<section id="kap-07" class="kapitel" data-titel="7 · Räume, Bauteilaufbauten, U-Werte">
+<h2 id="k7">7 · Räume, Bauteilaufbauten, U-Werte</h2>
+<p class="lead">Die Geometrie steht. Jetzt bekommt sie Eigenschaften: was ein Raum ist, wie warm er werden soll, was hinter jedem Bauteil liegt und wie gut es dämmt. Das sind die Angaben, aus denen später die Heizlast entsteht.</p>
+
+<h3 id="k7-1">7.1 Das Raumbuch</h3>
+
+<p>Das Raumbuch zeigt alle Räume in einer Tabelle, statt sie einzeln durchzuklicken. Es ist die Ansicht, in der Datenlücken auffallen: eine leere Nutzungsspalte oder eine Null bei der Heizleistung sieht man hier auf einen Blick, im Inspektor erst nach zehn Klicks.</p>
+
+<p class="wo">Im Programm: Reiter <b>Raumbuch</b>. Umschaltbar zwischen allen Geschossen und dem aktuellen; sortierbar nach Name, Fläche, Volumen, Solltemperatur, Heizleistung und Geschoss. Ein Klick auf eine Zeile springt in den Raum, notfalls über den Geschosswechsel.</p>
+
+<h4 id="k7-1-1">7.1.1 Was Sie je Raum eintragen</h4>
+
+<table class="tab">
+<caption>Die Eingaben am Raum</caption>
+<thead><tr><th>Angabe</th><th>Bedeutung</th></tr></thead>
+<tbody>
+<tr><td>Bezeichnung</td><td>Frei. Sie überlebt jede Änderung an den Wänden.</td></tr>
+<tr><td>Nutzung</td><td>Wohnen, Schlafen, Küche, Bad, WC, Flur, Arbeiten, Abstellen, Technik. Setzt Solltemperatur, Luftwechsel und die Rolle im Lüftungskonzept vor.</td></tr>
+<tr><td>Solltemperatur</td><td>Die Innentemperatur, auf die ausgelegt wird [°C].</td></tr>
+<tr><td>Luftwechsel n</td><td>Wie oft die Raumluft je Stunde ausgetauscht wird [1/h].</td></tr>
+<tr><td>Beheizt / unbeheizt</td><td>Ein unbeheizter Raum bekommt keine Heizlast, geht aber als Nachbarbereich in die Rechnung seiner Nachbarn ein.</td></tr>
+<tr><td>Boden und Decke</td><td>U-Wert und Randbedingung, raumweise. Ohne eigene Angabe gilt, was am Geschoss steht.</td></tr>
+</tbody>
+</table>
+
+<p>Die Voreinstellungen je Nutzung sind:</p>
+
+<table class="tab">
+<caption>Vorbelegung nach Nutzung</caption>
+<thead><tr><th>Nutzung</th><th>Solltemperatur</th><th>Luftwechsel</th><th>Rolle in der Lüftung</th></tr></thead>
+<tbody>
+<tr><td>Wohnen, Schlafen, Arbeiten</td><td>20 °C</td><td>0,5 1/h</td><td>Zuluft</td></tr>
+<tr><td>Küche</td><td>20 °C</td><td>1,5 1/h</td><td>Abluft</td></tr>
+<tr><td>Bad</td><td>24 °C</td><td>1,5 1/h</td><td>Abluft</td></tr>
+<tr><td>WC</td><td>20 °C</td><td>1,5 1/h</td><td>Abluft</td></tr>
+<tr><td>Flur</td><td>15 °C</td><td>0,5 1/h</td><td>Überströmen</td></tr>
+<tr><td>Abstellen</td><td>15 °C</td><td>0,5 1/h</td><td>Überströmen</td></tr>
+<tr><td>Technik</td><td>15 °C</td><td>0,5 1/h</td><td>keine</td></tr>
+</tbody>
+</table>
+
+<p>Die Rollen im Lüftungskonzept sind die Grundordnung jeder Wohnungslüftung und keine Norm-Zahl: Aufenthaltsräume bekommen Zuluft, Feuchte- und Geruchsräume sind Ablufträume, Flure verbinden beides durch Überströmen. Die Volumenströme setzen Sie an den Ventilen selbst — siehe <a href="#k8">Kapitel 8</a>.</p>
+
+<h4 id="k7-1-2">7.1.2 Was das Programm daraus ableitet</h4>
+
+<p>Neben den Eingaben stehen sofort die Zahlen, die aus der Geometrie folgen: Fläche, Volumen, Umfang, Höhe, die Summe der Öffnungsflächen und die Zahl der Wandabschnitte. Dazu drei Kennwerte, die eine Heizlastrechnung direkt braucht:</p>
+
+<ul>
+<li><b>Umfang mit Erdkontakt</b> — die Länge der Außenwandabschnitte dieses Raums.</li>
+<li><b>Charakteristisches Bodenmaß B′</b> — es beschreibt, wie kompakt eine erdberührte Fläche ist; ein langgestreckter Raum verliert über den Boden anders als ein quadratischer. Die Formel steht in <a href="#k13">Kapitel 13</a>.</li>
+<li><b>Zahl der Außenfassaden</b> — wie viele verschieden orientierte Außenseiten der Raum hat. Sie geht in die Abschirmung des Lüftungsanteils ein.</li>
+<li><b>Mindestluftstrom</b> — Volumen mal Luftwechsel, in Kubikmetern je Stunde.</li>
+</ul>
+
+<p>Für jeden Wandabschnitt führt das Programm außerdem Länge, Brutto- und Nettofläche, Öffnungsfläche, Himmelsrichtung, Azimut, U-Wert und die Randbedingung mit. Das ist der eigentliche Inhalt des Exports; siehe <a href="#k17">Kapitel 17</a>.</p>
+
+<p>Das Raumbuch lässt sich als CSV-Datei (durch Zeichen getrennte Werte) ausgeben. Getrennt wird mit Semikolon, Dezimaltrennzeichen ist das Komma — so öffnet ein Tabellenprogramm in deutscher Einstellung die Datei ohne Importdialog. Die Dachkennwerte stehen bewusst am Ende: bei Geschossen ohne Dach bleiben diese Spalten leer, statt die vorderen zu verschieben.</p>
+
+<h3 id="k7-2">7.2 Die Nachbartemperatur — die wichtigste Zahl an einer Innenwand</h3>
+
+<p>Ein Bauteil verliert Wärme nach dem Temperaturunterschied, der über ihm steht. Nicht nach seinem U-Wert allein, nicht nach seiner Fläche allein. Und der Temperaturunterschied hängt daran, was auf der anderen Seite liegt.</p>
+
+<div class="merke"><b>Merke</b><p>Ein Raum über einem unbeheizten Keller verliert über denselben Boden ein Vielfaches dessen, was er über einer Wohnung verliert. Das Bauteil ist dasselbe. Die Nachbartemperatur ist eine andere.</p></div>
+
+<h4 id="k7-2-1">7.2.1 Die fünf Randbedingungen</h4>
+
+<table class="tab">
+<caption>Randbedingungen und die Temperatur dahinter</caption>
+<thead><tr><th>Randbedingung</th><th>Temperatur dahinter</th><th>Voreinstellung</th></tr></thead>
+<tbody>
+<tr><td>Außenluft</td><td>Norm-Außentemperatur des Standorts</td><td>−12 °C</td></tr>
+<tr><td>Erdreich</td><td>Erdreichtemperatur bzw. Jahresmittel der Außentemperatur</td><td>10 °C</td></tr>
+<tr><td>Unbeheizt</td><td>Temperatur unbeheizter angrenzender Bereiche</td><td>10 °C</td></tr>
+<tr><td>Nachbarraum</td><td>Die Solltemperatur des Raums auf der anderen Seite</td><td>ergibt sich</td></tr>
+<tr><td>Adiabat</td><td>Kein Wärmedurchgang — dieselbe Temperatur auf beiden Seiten</td><td>—</td></tr>
+</tbody>
+</table>
+
+<h4 id="k7-2-2">7.2.2 Wie die Randbedingung bestimmt wird</h4>
+
+<p>Das Programm ermittelt sie selbst, und zwar in dieser Reihenfolge:</p>
+
+<ol>
+<li>Steht an der Wand eine <b>ausdrückliche Angabe</b>, gilt sie. Das ist für Fälle gedacht, die aus der Geometrie nicht hervorgehen — etwa eine Innenwand zur unbeheizten Garage.</li>
+<li>Ist die Wand als <b>Außenwand</b> geführt, ist die Randbedingung Außenluft.</li>
+<li>Wurde hinter der Wand ein <b>Raum erkannt</b>, ist es ein Nachbarraum, und die Temperatur ist dessen Solltemperatur.</li>
+<li>Sonst gilt <b>unbeheizt</b>.</li>
+</ol>
+
+<p>Punkt vier ist die stille Falle. Eine Innenwand, hinter der eigentlich ein Zimmer liegt, das aber nicht erkannt wurde — weil dort ein Wandende offen steht —, wird gegen 10 °C gerechnet statt gegen 20 °C. Der Raum bekommt damit eine Heizlast, die es nicht gibt, und niemand sieht es an einer Zahl. Deshalb meldet die Modellprüfung genau diesen Fall als Warnung: „Innenwand-Abschnitt ohne erkannten Nachbarraum“.</p>
+
+<p>Gesucht wird der Nachbar mit einem Sondierpunkt: von der Mitte des Wandabschnitts aus geht das Programm um die halbe Wandstärke plus 12 cm nach außen und schaut, in welchem Raum es landet.</p>
+
+<div class="beispiel">
+<b>Beispiel zum Nachrechnen</b>
+<p>Bad im Erdgeschoss, 12,00 m² Grundfläche, Solltemperatur 24 °C. Der Boden ist eine Geschossdecke mit U = 0,9 W/(m²·K).</p>
+<p>Fall A — darunter ein <b>unbeheizter Keller</b> mit 10 °C: Temperaturunterschied 24 − 10 = 14 K. Verlust = 0,9 · 12,00 · 14 = 151 W.</p>
+<p>Fall B — darunter ein <b>beheiztes Wohnzimmer</b> mit 20 °C: Temperaturunterschied 24 − 20 = 4 K. Verlust = 0,9 · 12,00 · 4 = 43 W.</p>
+<p class="ergebnis">Dasselbe Bauteil, derselbe U-Wert: 151 W gegen 43 W</p>
+</div>
+
+<div class="baustelle"><b>Auf der Baustelle heißt das</b><p>Legen Sie einen unbeheizten Keller an, prüfen Sie zwei Häkchen: Die Kellerdecke muss „an beheizten Raum“ grenzen, und der Boden des Geschosses darüber darf <b>nicht</b> mehr auf Erdreich stehen. Sonst liegt die dämmende Schicht im Modell in der Bodenplatte statt in der Kellerdecke — und der Verlust wandert an die falsche Stelle. Die Modellprüfung sucht genau diesen Fall.</p></div>
+
+<h3 id="k7-3">7.3 Bauteilaufbauten und U-Werte</h3>
+
+<p>Der <b>U-Wert</b> (Wärmedurchgangskoeffizient) sagt, wie viel Watt durch einen Quadratmeter Bauteil fließen, wenn innen und außen ein Kelvin Temperaturunterschied herrscht. Je kleiner, desto besser. Eine gedämmte Außenwand liegt bei 0,15 bis 0,30, eine ungedämmte Altbauwand bei etwa 1,4.</p>
+
+<h4 id="k7-3-1">7.3.1 Der Katalog</h4>
+
+<p class="wo">Im Programm: Reiter <b>Bauteile</b>. Getrennt nach Wänden, Böden, Decken, Fenstern und Türen.</p>
+
+<p>Der Katalog löst ein einfaches Problem: Ohne ihn hinge der U-Wert an jeder einzelnen Wand, und eine Änderung am Aufbau müsste an dreißig Stellen nachgetragen werden. Mit ihm weisen Sie einen benannten Aufbau zu — und wenn sich der Aufbau ändert, ändern sich alle zugewiesenen Bauteile mit.</p>
+
+<p>Jeder Aufbau trägt einen Namen, den U-Wert, die Gesamtdicke (bei Wänden zugleich die Vorgabe für die Wandstärke), eine Schichtenbeschreibung, bei transparenten Bauteilen den g-Wert und wahlweise einen eigenen Wärmebrückenzuschlag. Neben dem Namen steht, wie oft der Aufbau im Modell verwendet wird — beim Löschen fragt das Programm nach, wenn er noch zugewiesen ist.</p>
+
+<div class="baustelle"><b>Auf der Baustelle heißt das</b><p>Wählen Sie mehrere Wände aus und klicken Sie dann im Katalog auf einen Aufbau — er wird auf alle ausgewählten Bauteile gelegt. Der Name des Aufbaus wandert in den Export. Damit bleibt in der Gegenstelle nachvollziehbar, <i>warum</i> dort 0,21 steht und nicht nur, dass es dort steht.</p></div>
+
+<h4 id="k7-3-2">7.3.2 Schichten, Wärmeleitfähigkeit und der Wärmedurchlasswiderstand</h4>
+
+<p>Ein Bauteil besteht aus Schichten, und jede Schicht setzt dem Wärmestrom einen Widerstand entgegen — den <b>Wärmedurchlasswiderstand</b>. Er hängt an zwei Größen:</p>
+
+<ul>
+<li>der <b>Schichtdicke</b>. Doppelt so dick heißt doppelter Widerstand.</li>
+<li>der <b>Wärmeleitfähigkeit λ</b> (griechisch Lambda) des Baustoffs. Sie sagt, wie gut ein Material Wärme leitet. Je kleiner λ, desto besser dämmt es — und desto größer wird der Widerstand.</li>
+</ul>
+
+<div class="merke"><b>Merke</b><p>Widerstände in Reihe addieren sich, wie bei Rohrleitungen hintereinander. Der Widerstand des ganzen Aufbaus ist die Summe der Widerstände seiner Schichten, dazu kommen zwei kleine Beiträge für den Wärmeübergang an der Innen- und an der Außenoberfläche. Der U-Wert ist dann nichts anderes als der Kehrwert dieser Summe: viel Widerstand heißt kleiner U-Wert.</p></div>
+
+<p>Die Formel dazu — Wärmedurchlasswiderstand aus Dicke und λ, Summenbildung und Kehrwert samt der beiden Übergangswiderstände — steht in <a href="#k13-2">Abschnitt 13.2</a>.</p>
+
+<div class="beispiel">
+<b>Beispiel zum Nachrechnen</b>
+<p>Zwei Aufbauten aus dem mitgelieferten Katalog, beide 36,5 cm Ziegel:</p>
+<p>„AW 36,5 + WDVS 14“ (Wärmedämm-Verbundsystem), U = 0,21 W/(m²·K). Gesamtwiderstand = 1 / 0,21 = 4,76 m²·K/W.</p>
+<p>„AW 36,5 Bestand ungedämmt“, U = 1,4 W/(m²·K). Gesamtwiderstand = 1 / 1,4 = 0,71 m²·K/W.</p>
+<p>Für 10 m² Wandfläche bei 20 °C innen und −12 °C außen, also 32 K Unterschied:</p>
+<p>gedämmt: 0,21 · 10 · 32 = 67 W. Ungedämmt: 1,4 · 10 · 32 = 448 W.</p>
+<p class="ergebnis">Die 14 cm Dämmung machen aus 448 W einen Verlust von 67 W — weniger als ein Sechstel</p>
+</div>
+
+<div class="warnung"><b>Achtung — eine Grenze des Programms</b><p>RaVia CAD Light rechnet den U-Wert <b>nicht</b> aus den Schichten aus. Sie tragen ihn ein, und das Feld „Schichten“ ist ein Freitext zur Dokumentation, etwa „36,5 Ziegel + 14 cm WDVS“. Es gibt hier auch keine Stofftabelle mit λ-Werten. Woher der U-Wert kommt — aus dem Datenblatt des Herstellers, aus einer Nachweisrechnung, aus dem Energieausweis —, müssen Sie selbst wissen und sollten es im Namen des Aufbaus vermerken.</p></div>
+
+<p>Der mitgelieferte Katalog ist ein Startpunkt mit fünfzehn gängigen Aufbauten, von der monolithischen Außenwand über die Geschossdecke bis zum Fenster in drei Güten. Er ist im Projekt frei erweiterbar und ersetzbar.</p>
+
+<h3 id="k7-4">7.4 Wärmebrücken</h3>
+
+<p>Eine Wärmebrücke ist eine Stelle, an der mehr Wärme abfließt als durch die Fläche daneben: eine Gebäudeecke, eine Fensterlaibung, ein Deckenauflager, ein Sockel, eine Traufe. Der Zuschlag dafür hängt nicht an der Fläche — er hängt an <b>Kanten</b>.</p>
+
+<p class="wo">Im Programm: Reiter <b>Wärmebrücken</b>. Ganz oben die Entscheidung: pauschal oder längenbezogen.</p>
+
+<h4 id="k7-4-1">7.4.1 Der pauschale Zuschlag</h4>
+
+<p>Beim pauschalen Verfahren wird auf jeden U-Wert der wärmeübertragenden Hülle ein fester Betrag aufgeschlagen. Er heißt ΔU<sub>WB</sub> und wird in W/(m²·K) angegeben, genau wie ein U-Wert. Nach DIN 4108 Beiblatt 2 gibt es drei Stufen:</p>
+
+<table class="tab">
+<caption>Pauschale Zuschläge</caption>
+<thead><tr><th>Fall</th><th>ΔU<sub>WB</sub></th></tr></thead>
+<tbody>
+<tr><td>ohne Nachweis</td><td>0,10 W/(m²·K)</td></tr>
+<tr><td>Planungsbeispiele Kategorie A</td><td>0,05 W/(m²·K)</td></tr>
+<tr><td>Planungsbeispiele Kategorie B</td><td>0,03 W/(m²·K)</td></tr>
+</tbody>
+</table>
+
+<p>Voreingestellt sind 0,10 W/(m²·K) — die sichere Seite, solange niemand die Anschlüsse betrachtet hat. Bezugsfläche ist die wärmeübertragende Hüllfläche: die Außenwände netto samt Giebeln und Fenstern, dazu Boden und Decke.</p>
+
+<p>Das Verfahren ist zulässig und bequem, aber grob. Bei einem kompakten Neubau liegen 0,10 W/(m²·K) weit auf der sicheren Seite; bei einem zerklüfteten Altbau mit vielen Fenstern können sie zu niedrig sein.</p>
+
+<h4 id="k7-4-2">7.4.2 Der längenbezogene Nachweis</h4>
+
+<p>Beim längenbezogenen Verfahren wird jede Anschlussart einzeln bilanziert. Jede bekommt einen <b>ψ-Wert</b> (griechisch Psi, längenbezogener Wärmedurchgangskoeffizient) in W/(m·K) — also Watt je Meter Anschlusslänge und Kelvin.</p>
+
+<div class="formel">
+  <p class="worte">In Worten: Man multipliziert jede Anschlusslänge mit dem ψ-Wert ihrer Art und zählt alles zusammen. Das Ergebnis ist der Wärmebrücken-Leitwert in Watt je Kelvin — dieselbe Einheit, in der auch der Verlust über die Flächen ankommt, und damit direkt vergleichbar.</p>
+  <p class="math">H_WB = Σ ψ · l</p>
+  <dl class="zeichen">
+    <dt>H_WB</dt><dd>Wärmebrücken-Leitwert [W/K]</dd>
+    <dt>ψ</dt><dd>längenbezogener Wärmedurchgangskoeffizient der Anschlussart [W/(m·K)]</dd>
+    <dt>l</dt><dd>Länge dieses Anschlusses [m]</dd>
+  </dl>
+</div>
+
+<div class="merke"><b>Merke</b><p>Pauschal <b>oder</b> längenbezogen — nicht beides. Der pauschale Zuschlag und die ψ-Bilanz beschreiben denselben Sachverhalt; zusammen wären sie doppelt gezählt. Deshalb ist es im Programm eine Entscheidung und kein Nebeneinander.</p></div>
+
+<h4 id="k7-4-3">7.4.3 Woher die Anschlusslängen kommen</h4>
+
+<p>Und hier liegt der eigentliche Gewinn: <b>Die Längen werden nicht geschätzt.</b> Sie stehen bereits im Modell und müssen nur gezählt werden. Deshalb sind sie im Programm auch nicht editierbar — wer sie ändern will, ändert den Grundriss. Editierbar sind nur die ψ-Werte, denn die hängen an der Konstruktion und nicht am Modell.</p>
+
+<table class="tab">
+<caption>Der ψ-Katalog und die Herkunft jeder Länge</caption>
+<thead><tr><th>Anschluss</th><th>ψ [W/(m·K)]</th><th>Länge folgt aus</th></tr></thead>
+<tbody>
+<tr><td>Gebäudekante (Außenwandecke)</td><td>−0,05</td><td>Ecke zweier Außenwände × Raumhöhe</td></tr>
+<tr><td>Innenwand-Einbindung</td><td>0,05</td><td>Innenwand trifft Außenwand × Raumhöhe</td></tr>
+<tr><td>Fenster-/Türlaibung</td><td>0,10</td><td>2 × Höhe je Öffnung in der Außenwand</td></tr>
+<tr><td>Sturz</td><td>0,18</td><td>Breite je Öffnung in der Außenwand</td></tr>
+<tr><td>Brüstung</td><td>0,10</td><td>Breite je Fenster in der Außenwand</td></tr>
+<tr><td>Sockel / Bodenplatte</td><td>0,22</td><td>Umfang mit Erdkontakt</td></tr>
+<tr><td>Geschossdecke an Außenwand</td><td>0,08</td><td>Außenwandlänge, wenn ein Geschoss darüber liegt</td></tr>
+<tr><td>Traufe</td><td>−0,02</td><td>Außenwandlänge unter der Dachschräge</td></tr>
+<tr><td>Ortgang</td><td>0,06</td><td>Giebellänge geteilt durch cos(Neigung)</td></tr>
+</tbody>
+</table>
+
+<p>Die negativen Werte sind kein Vorzeichenfehler. An einer Außenwandecke ist die wärmeabgebende Außenfläche größer als die Innenfläche, über die gerechnet wird — der Anschluss korrigiert eine Übertreibung der Flächenrechnung nach unten. Dasselbe gilt für die Traufe.</p>
+
+<p>Zwei Feinheiten sind erwähnenswert. Erstens: Eine Innenwand-Einbindung sehen <b>beide</b> angrenzenden Räume, jeder von seiner Seite. Ungeteilt gezählt stünde die Wärmebrücke doppelt in der Bilanz; trennt die Innenwand zwei erkannte Räume, bekommt deshalb jeder die Hälfte. Zweitens: Die Geschossdecke an der Außenwand zählt auch dann, wenn der Raum darüber beheizt und die Decke deswegen adiabat gerechnet wird — die Platte durchdringt die Außenwand trotzdem, und die Wärmebrücke bleibt.</p>
+
+<div class="warnung"><b>Achtung</b><p>Die Vorgabewerte stammen der Größenordnung nach aus den Planungsbeispielen zu DIN 4108 Beiblatt 2 und liegen bewusst auf der sicheren Seite. Ein realer Nachweis nimmt die Werte aus dem Wärmebrückenkatalog des Herstellers oder aus einer eigenen Berechnung. Deshalb trägt jeder Wert im Programm seine Herkunft mit — ein geerbter Vorgabewert darf nicht wie ein gerechneter aussehen.</p></div>
+
+<h4 id="k7-4-4">7.4.4 Die Gegenprobe</h4>
+
+<p>Der eigentliche Nutzen der Rechnerei ist nicht die Bilanz selbst, sondern der Vergleich. Das Programm stellt nebeneinander: den pauschalen Zuschlag mal der Hüllfläche, die Summe aus ψ mal Länge, und drittens den <b>gleichwertigen Zuschlag</b> — also den Betrag, der dieselbe Bilanz ergäbe, wenn man ihn pauschal ansetzte.</p>
+
+<div class="formel">
+  <p class="worte">In Worten: Man teilt den längenbezogen ermittelten Leitwert durch die Hüllfläche. Heraus kommt ein Zuschlag je Quadratmeter, den man unmittelbar gegen 0,10, 0,05 und 0,03 halten kann.</p>
+  <p class="math">ΔU_WB,äq = Σ ψ · l / A_Hülle</p>
+  <dl class="zeichen">
+    <dt>ΔU_WB,äq</dt><dd>gleichwertiger pauschaler Zuschlag [W/(m²·K)]</dd>
+    <dt>A_Hülle</dt><dd>wärmeübertragende Hüllfläche [m²]</dd>
+  </dl>
+</div>
+
+<div class="beispiel">
+<b>Beispiel zum Nachrechnen</b>
+<p>Eckzimmer im Erdgeschoss eines Einfamilienhauses. Zwei Außenwände von je 4,00 m Achslänge, Raumhöhe 2,50 m, lichte Fläche 14,14 m², ein Fenster 1,26 × 1,385 in einer der beiden Außenwände, ein Geschoss darüber, zwei Innenwände zu Nachbarräumen.</p>
+<p>Gebäudekante: 2,50 m · (−0,05) = −0,13 W/K</p>
+<p>Geschossdecke an Außenwand: 8,00 m · 0,08 = +0,64 W/K</p>
+<p>Fensterlaibung: 2 · 1,385 = 2,77 m · 0,10 = +0,28 W/K</p>
+<p>Sturz: 1,26 m · 0,18 = +0,23 W/K</p>
+<p>Brüstung: 1,26 m · 0,10 = +0,13 W/K</p>
+<p>Innenwand-Einbindung, je zur Hälfte: 2 · 1,25 m = 2,50 m · 0,05 = +0,13 W/K</p>
+<p>Summe Σ ψ · l = 1,27 W/K</p>
+<p>Hüllfläche = 2 · 4,00 · 2,50 (Außenwände) + 2 · 14,14 (Boden und Decke) = 48,28 m²</p>
+<p>Gleichwertiger Zuschlag = 1,27 / 48,28 = 0,026 W/(m²·K). Pauschal ohne Nachweis wären es 0,10 · 48,28 = 4,83 W/K.</p>
+<p class="ergebnis">1,27 W/K gegen 4,83 W/K — der pauschale Ansatz liegt hier um das Vierfache darüber</p>
+</div>
+
+<p>Ohne diesen Vergleich bliebe die Wahl zwischen 0,10 und 0,05 ein Bauchgefühl. Mit ihm sehen Sie, ob der pauschale Zuschlag für <i>dieses</i> Gebäude zu groß oder zu klein aussieht.</p>
+
+<div class="baustelle"><b>Auf der Baustelle heißt das</b><p>Rechnen Sie einmal längenbezogen, auch wenn Sie am Ende pauschal abgeben. Fünf Minuten Umschalten sagen Ihnen, ob Sie mit 0,10 W/(m²·K) Geld verschenken oder ob Sie damit gerade noch hinkommen. Und wenn der gleichwertige Zuschlag unter 0,02 W/(m²·K) fällt, warnt das Programm — das wäre besser als Kategorie B und bei einem Katalog aus Vorgabewerten unwahrscheinlich.</p></div>
+
+<p><b>Was das Programm hier nicht tut:</b> Es rechnet keine Heizlast. Es liefert Längen, ψ-Werte und ihre Herkunft. Die Norm-Heizlast nach DIN EN 12831-1 entsteht in RaVia; siehe dazu <a href="#k13">Kapitel 13</a> und <a href="#k15">Kapitel 15</a>. Für die Anlagenauslegung führt das Programm daneben einen ausdrücklich gekennzeichneten Überschlag mit — er ist als Überschlag markiert und wird nie mit der gerechneten Zahl vermischt.</p>
+
+<h3 id="k7-5">7.5 Die Modellprüfung</h3>
+
+<p>Eine Heizlastrechnung ist nur so gut wie die Daten, die sie bekommt. Fehlt ein U-Wert, wird stillschweigend ein Standardwert gerechnet. Ist ein Raum nicht geschlossen, fehlt er ganz. Steht ein Fenster in einer zu kurzen Wand, stimmt die Nettofläche nicht. Solche Lücken fallen in der Gegenstelle erst auf, wenn das Ergebnis schon falsch ist.</p>
+
+<p class="wo">Im Programm: Reiter <b>Prüfung</b>. Ganz oben eine Ampel, darunter die Befunde nach Schwere gruppiert.</p>
+
+<h4 id="k7-5-1">7.5.1 Die drei Stufen</h4>
+
+<table class="tab">
+<caption>Was die Stufen bedeuten</caption>
+<thead><tr><th>Stufe</th><th>Bedeutung</th><th>Ampel</th></tr></thead>
+<tbody>
+<tr><td>Fehler</td><td>Die Rechnung wäre nachweislich falsch. Das Modell gilt als nicht rechenfähig.</td><td>rot</td></tr>
+<tr><td>Warnung</td><td>Es wird gerechnet, aber mit einer Annahme statt mit Ihrer Angabe.</td><td>orange</td></tr>
+<tr><td>Hinweis</td><td>Unvollständigkeit ohne Rechenfolgen.</td><td>grün</td></tr>
+</tbody>
+</table>
+
+<p>Als vollständig gilt das Modell, wenn es keine Fehler gibt <b>und</b> mindestens ein Raum erkannt wurde. Der Befund wandert mit in den Export: Die Gegenstelle sieht damit sofort, worauf sie sich verlassen kann.</p>
+
+<h4 id="k7-5-2">7.5.2 Was geprüft wird</h4>
+
+<table class="tab">
+<caption>Die Prüfbereiche</caption>
+<thead><tr><th>Bereich</th><th>Beispiele für Befunde</th></tr></thead>
+<tbody>
+<tr><td>Topologie</td><td>Offenes Wandende (Fehler), keine Räume trotz Wänden (Fehler), Lücke in der Umschließung, Wandenden knapp nebeneinander, Wandende neben der Achse, übereinanderliegende Wände</td></tr>
+<tr><td>Wände</td><td>Wand ohne Knoten, Wand unter 5 cm Länge, fehlender U-Wert, unplausibler U-Wert einer Außenwand über 1,2, Wandhöhe außerhalb von 2,00 bis 6,00 m</td></tr>
+<tr><td>Öffnungen</td><td>Öffnung breiter als ihre Wand, Öffnung höher als die Wand, zwei überlappende Öffnungen, fehlender U-Wert, Fenster-U-Wert außerhalb von 0,4 bis 3,5, fehlender g-Wert</td></tr>
+<tr><td>Räume</td><td>Raum unter 1,00 m², fehlende Nutzung, Raumhöhe außerhalb von 2,00 bis 6,00 m, Raum ohne Außenwand, Innenwand ohne erkannten Nachbarraum</td></tr>
+<tr><td>Geschoss und Gelände</td><td>Fehlender U-Wert für Boden oder Decke, Geschoss unter Bezugsniveau ohne Geländeoberkante, Einbindetiefe größer als die Geschosshöhe, unbeheizter Keller ohne geführte Kellerdecke, Fensterbrüstung unter Gelände</td></tr>
+<tr><td>Projekt</td><td>Norm-Außentemperatur über 0 °C, unplausibles n50, Wärmebrückenzuschlag auf null, längenbezogenes Verfahren ohne gefundene Anschlüsse</td></tr>
+<tr><td>Dach</td><td>Unübliche Neigung, unplausibler U-Wert (Fehler), Kehlbalken unter dem Kniestock (Fehler), Wandhöhe passt nicht zum Kniestock, Raum überwiegend unter 2,00 m</td></tr>
+<tr><td>TGA, Lüftung, Rohrnetz, Wärmepumpe</td><td>siehe <a href="#k8">Kapitel 8</a>, <a href="#k9">Kapitel 9</a> und <a href="#k10">Kapitel 10</a></td></tr>
+</tbody>
+</table>
+
+<p>Die Plausibilitätsgrenzen sind bewusst weit gesetzt. Sie sollen Ausreißer fangen, nicht den Planer bevormunden.</p>
+
+<h4 id="k7-5-3">7.5.3 Die Abhilfe zu jedem Befund</h4>
+
+<p>Ein Prüfbericht, der nur sagt, was falsch ist, hilft dem nicht weiter, der es nicht ohnehin schon weiß. Deshalb trägt jeder Befund neben der Meldung einen zweiten Satz: <b>den Handgriff</b>. Welches Werkzeug, welcher Reiter, welche Eingabe.</p>
+
+<table class="tab">
+<caption>Beispiele für Meldung und Abhilfe</caption>
+<thead><tr><th>Befund</th><th>Abhilfe</th></tr></thead>
+<tbody>
+<tr><td>Offenes Wandende</td><td>Mit dem Wandwerkzeug vom orangefarbenen Punkt aus bis an die nächste Wand ziehen — sie verbindet sich dort von selbst.</td></tr>
+<tr><td>Lücke in der Umschließung</td><td>Zwischen den beiden genannten Punkten eine Wand ziehen. Ist die Öffnung gewollt — eine Loggia, ein offener Übergang —, kann der Befund stehen bleiben: die Fläche zählt dann bewusst nicht als Raum.</td></tr>
+<tr><td>Wand ohne U-Wert</td><td>Wand anklicken und im Reiter „Objekt“ den U-Wert eintragen oder einen Aufbau aus dem Katalog zuweisen.</td></tr>
+<tr><td>Fenster ohne U-Wert</td><td>U-Wert eintragen. Auf dem Aufkleber am Rahmen steht er meist; sonst: Zweifachverglasung rund 1,3, Dreifachverglasung rund 0,9.</td></tr>
+<tr><td>Geschoss unter Bezugsniveau ohne Geländeoberkante</td><td>Geländeoberkante im Projektkopf eintragen — dieselbe Bezugshöhe wie die Fußbodenhöhe der Geschosse. Bis dahin wird das ganze Geschoss gegen Außenluft gerechnet.</td></tr>
+<tr><td>Innenwand ohne erkannten Nachbarraum</td><td>Meist steht dort ein offenes Wandende. Gerechnet wird solange gegen „unbeheizt“.</td></tr>
+<tr><td>Wärmebrückenzuschlag auf null</td><td>Im Reiter „Wärmebrücken“ den Zuschlag setzen — ohne Nachweis sind 0,10 W/(m²·K) vorgesehen.</td></tr>
+</tbody>
+</table>
+
+<p>Jeder Befund ist anklickbar und springt auf das betroffene Objekt. Das ist der Unterschied zwischen einer Fehlerliste und einem Werkzeug: Sie lesen nicht „irgendeine Wand hat keinen U-Wert“, sondern klicken und stehen davor. Auch Befunde ohne Objekt sind anspringbar — eine fehlende Wand hat keine Kennung, nur einen Ort; dann rückt die Ansicht dorthin und blendet die Diagnoseanzeige ein.</p>
+
+<div class="merke"><b>Merke</b><p>Arbeiten Sie die Liste von oben nach unten ab. Die Fehler zuerst, denn sie hängen oft zusammen: Ein einziges offenes Wandende erzeugt einen fehlenden Raum, mehrere Innenwände ohne Nachbarraum und ein halbes Dutzend Folgewarnungen. Ist es geschlossen, sind sie alle weg.</p></div>
+
+</section>

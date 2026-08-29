@@ -1,0 +1,473 @@
+<section id="kap-12" class="kapitel" data-titel="12 · Hydraulikschemata: Katalog, Vorschlag, Prüfung">
+<h2 id="k12">12 · Hydraulikschemata: Katalog, Vorschlag, Prüfung</h2>
+<p class="lead">Die meisten Wärmepumpenanlagen sind Standardfälle. Dieses Kapitel zeigt den Katalog der benannten Musterlösungen, wie das Programm daraus die passende vorschlägt — und vor allem, warum es sagt, welches Schema <em>nicht</em> passt und woran es liegt.</p>
+
+<p class="wo">Im Programm: Reiter <b>Anlage</b> → Abschnitt <b>Anlagenschema</b>. Die Vorschlagsliste steht <em>über</em> dem Knopf „Schema erzeugen", weil sie die Frage davor beantwortet: nicht „wie sieht mein Schema aus", sondern „welches Schema ist das eigentlich".</p>
+
+<h3 id="k12-1">12.1 Woher die Vorlagen kommen</h3>
+
+<p>Elf der fünfzehn Vorlagen stammen aus dem <b>Leitfaden Hydraulik des Bundesverbandes Wärmepumpe (BWP), Ausgabe August 2023</b>. Der Leitfaden hält ausdrücklich fest, dass seine Hydraulikpläne „als firmenübergreifende Standards in der Branche" erarbeitet wurden; mitgewirkt haben Buderus, Glen Dimplex, Nibe, Stiebel Eltron, Vaillant und Viessmann.</p>
+
+<div class="merke"><b>Merke</b><p>Das ist die einzige frei verfügbare, vollständig auswertbare und zugleich <b>herstellerneutrale</b> Schemabibliothek mit Auslegungstabellen. Alles andere ist entweder kostenpflichtig (VDI 4645 Anhang F, ZVSHK-Musterhydrauliken, DIN EN 12828) oder herstellergebunden.</p></div>
+
+<p>Die vier übrigen Vorlagen stützen sich auf Herstellerunterlagen, weil der Leitfaden den Fall nicht oder nicht so eng führt: der pufferlose Heizkörperkreis (Bosch), das Turmgerät, der Hydrosplit (beide aus der Bauformen-Recherche) und die Zwei-Kreis-Ausprägung des Parallelpufferschemas, deren Einengung ausdrücklich eine Annahme dieses Katalogs ist. Sie sind als solche gekennzeichnet — bei jeder steht die Bedingung „Dieses Schema ist herstellergestützt und nicht durch den BWP-Leitfaden belegt" beziehungsweise „Die Einengung auf genau zwei Heizkreise stammt nicht aus dem Leitfaden".</p>
+
+<p>Jede Vorlage trägt eine Belastbarkeitsstufe:</p>
+
+<table class="tab">
+<caption>Wie belastbar eine Vorlage ist</caption>
+<thead><tr><th>Stufe</th><th>Bedeutung</th><th>Im Katalog</th></tr></thead>
+<tbody>
+<tr><td>primär</td><td>Herstellerdatenblatt oder Planungsunterlage im Volltext eingesehen.</td><td>HERST-H-01, -02, -03</td></tr>
+<tr><td>sekundär</td><td>Verbandsleitfaden (BWP, VdZ); der Normtext ist kostenpflichtig und wurde nicht eingesehen.</td><td>alle elf BWP-Schemata</td></tr>
+<tr><td>Annahme</td><td>Von diesem Programm gesetzt, weil eine Abgrenzung gebraucht wurde. Steht so auch im Text der Vorlage.</td><td>BWP-H-03-2HK</td></tr>
+</tbody>
+</table>
+
+<p>Die Herstellernamen an jeder Vorlage sind <b>keine Quelle für den Inhalt</b>, sondern eine Zuordnung. Sie sagen, wie Viessmann, Vaillant, Bosch, Buderus, Wolf, Stiebel Eltron, Weishaupt, Ochsner, NIBE, Panasonic, Mitsubishi, LG, Daikin oder Hoval dieselbe Konstellation nennen. Wer im Katalog eines Herstellers sucht, findet die Vorlage darüber wieder. Ein Herstellername begründet nie eine Zahl.</p>
+
+<div class="warnung"><b>Achtung</b><p>Der BWP-Leitfaden sagt über sich selbst: er gibt nur Hinweise zur „überschlägigen Dimensionierung der Grundkomponenten"; „für die Feinplanung sind die Vorgaben der Hersteller bindend". Dieser Satz steht als Bedingung an <em>jeder</em> Vorlage des Katalogs und als Hinweis unter jeder Vorschlagsliste. Kommt ein Datenblatt hinzu, schlägt es jede Zahl aus dem Katalog.</p></div>
+
+<h4 id="k12-1-1">12.1.1 Zwei Dinge, die für alle Schemata gelten</h4>
+
+<ul>
+<li>Die <b>Elektro-Zusatzheizung</b> ist in jedem der elf BWP-Schemata als graue, also wahlweise verwendbare Baugruppe eingezeichnet — im Vorlauf der Wärmepumpe und alternativ im Speicher. Sie ist deshalb im Katalog durchgängig optional und nicht als eigene bivalente Ausprägung geführt.</li>
+<li>Das <b>Membran-Ausdehnungsgefäß</b> sitzt immer im Rücklauf und immer mit Kappenventil. Jeder Erzeuger- und Heizkreiszweig führt die Kombination Umwälzpumpe plus Rückschlagklappe und beidseitige Absperrventile.</li>
+</ul>
+
+<h3 id="k12-2">12.2 Die fünfzehn Vorlagen</h3>
+
+<table class="tab">
+<caption>Der Schemakatalog</caption>
+<thead><tr><th>Kennung</th><th>Name</th><th>Der Fall, für den es gedacht ist</th></tr></thead>
+<tbody>
+<tr>
+<td>BWP-H-01</td>
+<td>Wärmepumpe, ein ungemischter Heizkreis und Trinkwassererwärmung</td>
+<td>Ein einziger ungemischter Flächenheizkreis <b>ohne</b> Pufferspeicher; das Mindestvolumen stellt das Heizsystem selbst bereit (3 bis 5 l je kW — der einzige Zahlenwert im Katalog, weil es das einzige Schema ohne Puffer ist). Heizkörper sind ausdrücklich nicht zugelassen; eine Luft-Wärmepumpe nur mehrstufig oder mit leistungsgeregeltem Verdichter.</td>
+</tr>
+<tr>
+<td>BWP-H-02</td>
+<td>… mit Pufferspeicher in Reihe geschaltet</td>
+<td>Derselbe eine ungemischte Kreis, aber mit Reihenpuffer im Rücklauf, der das Mindestvolumen sicherstellt. Der erste Fall, in dem <b>Heizkörper</b> zugelassen sind. Zum Reihenpuffer gehört ein Überströmventil.</td>
+</tr>
+<tr>
+<td>BWP-H-03</td>
+<td>… mehrere Heizkreise, mit parallelem Pufferspeicher</td>
+<td>Das <b>Referenzschema für die Sanierung</b>: mehrere Heizkreise, gemischt und ungemischt, hydraulisch entkoppelt über einen Parallelpuffer mit vier Anschlüssen und eigener Pufferladepumpe. Die Kreiszahl ist offen, ein Überströmventil entfällt.</td>
+</tr>
+<tr>
+<td>BWP-H-04</td>
+<td>… mit parallelem Pufferspeicher und solarer Einkoppelung</td>
+<td>Wie Schema 3, zusätzlich mit einem Solarkreis, der über einen eigenen Wärmeübertrager in den <b>unteren</b> Speicherbereich einkoppelt. Das Solarvolumen ist eine Eingabe; den Solarkreis bemaßt der Leitfaden nicht.</td>
+</tr>
+<tr>
+<td>BWP-H-05</td>
+<td>… im bivalenten System mit Gas- oder Ölkessel</td>
+<td>Hybridanlage aus Wärmepumpe und fossilem Kessel, zwei Heizkreise. Der Puffer hängt <b>allein am Wärmepumpenzweig</b>; der Kessel speist dahinter in den Vorlauf ein und hat sein eigenes Ausdehnungsgefäß.</td>
+</tr>
+<tr>
+<td>BWP-H-06</td>
+<td>… im bivalenten System mit Festbrennstoff</td>
+<td>Wärmepumpe zusammen mit einem Festbrennstoffkessel. <b>Alle</b> Heizkreise sind gemischt; der Kessel braucht Rücklauftemperaturanhebung, thermische Ablaufsicherung, autarke Regelung und einen nicht absperrbaren Verteilkreis. Ein Kaminofen mit Wassertasche wird nur mittelbar über den Puffer eingebunden.</td>
+</tr>
+<tr>
+<td>BWP-H-07</td>
+<td>… mit parallelem Kombipufferspeicher</td>
+<td>Ein geschichteter Kombispeicher übernimmt Heizung und Trinkwasserbereitschaft; das Trinkwasser wird über eine <b>Frischwasserstation</b> im Durchfluss erwärmt, ein separater Trinkwasserspeicher entfällt. Das Heizungswasservolumen für die Trinkwassererwärmung ist rund 10 % größer als der gleichwertige Trinkwasserspeicher, dazu kommt der Heizungspufferanteil.</td>
+</tr>
+<tr>
+<td>BWP-H-08</td>
+<td>… mit parallelem Pufferspeicher und natürlicher Kühlung</td>
+<td><b>Passive Kühlung</b>: der Verdichter läuft im Kühlbetrieb nicht mit, die Kälte kommt über einen Kühlwärmeübertrager aus dem Solekreis. Ein gemischter Flächenheizkreis.</td>
+</tr>
+<tr>
+<td>BWP-H-09</td>
+<td>… mit parallelem Pufferspeicher und aktiver Kühlung mit separatem Kühlkreis</td>
+<td><b>Aktive Kühlung</b> durch Prozessumkehr der Wärmepumpe, mit eigenem Kühlpufferspeicher und separatem Kühlkreis.</td>
+</tr>
+<tr>
+<td>BWP-H-10</td>
+<td>… mit parallelem Pufferspeicher und Schwimmbad</td>
+<td>Wie Schema 3, zusätzlich mit einem dritten Verbraucherkreis Schwimmbad, der über einen Wärmeübertrager vom Beckenwasser <b>getrennt</b> ist.</td>
+</tr>
+<tr>
+<td>BWP-H-11</td>
+<td>Wärmepumpen als Kaskadenlösung</td>
+<td>Zwei oder mehr Wärmepumpen auf einen gemeinsamen Verteiler und einen parallelen Pufferspeicher; in der Zeichnung des Leitfadens sind vier Geräte dargestellt.</td>
+</tr>
+<tr>
+<td>BWP-H-03-2HK</td>
+<td>Wärmepumpe auf Parallelpuffer mit zwei Heizkreisen</td>
+<td>Die engere Ausprägung von Schema 3 für den <b>häufigsten Sanierungsfall</b>: ein Erzeuger, ein Parallelpuffer, genau zwei Heizkreise, Trinkwasser über Umschaltventil. Fahren die Kreise auf unterschiedlichem Temperaturniveau, ist der wärmere ungemischt und der kältere gemischt auszuführen. <em>Die Einengung auf zwei Kreise ist eine Annahme dieses Katalogs</em> — der Leitfaden kennt nur „mehrere Heizkreise"; acht Hersteller führen die Zwei-Kreis-Variante als eigenes Schema.</td>
+</tr>
+<tr>
+<td>HERST-H-01</td>
+<td>Wärmepumpe direkt an Heizkörper, ohne Pufferspeicher</td>
+<td>Ein reiner Heizkörperkreis ohne Mischer und ohne Puffer. <b>Herstellergestützt, nicht BWP-belegt</b> — der BWP lässt die pufferlose Direktanbindung nur für Flächenheizungen zu. Bosch ersetzt das Liter-je-Kilowatt-Kriterium durch ein Wärmeübergabeflächen-Kriterium: mindestens vier Heizkörper mit je etwa 500 W, dauerhaft durchströmt bei voll geöffneten Thermostatventilen. Ohne dauerhaft offenen Führungsraum ist der Mindestvolumenstrom über ein Überströmventil sicherzustellen.</td>
+</tr>
+<tr>
+<td>HERST-H-02</td>
+<td>Turmgerät mit integriertem Trinkwasserspeicher</td>
+<td>Kompaktgerät, das Trinkwasserspeicher, Umschaltventil, Pumpe, Ausdehnungsgefäß und meist einen kleinen Puffer schon enthält — im Schema erscheint deshalb <b>kein zweiter Speicher</b>, kein zweites Umschaltventil und keine Speicherladepumpe. Die Sicherheitsgruppe Trinkwasser bleibt bauseits; der integrierte Puffer von 16 bis 70 l ersetzt die Prüfung des Mindestwasserinhalts nicht. Nur für die Bauform Turmgerät.</td>
+</tr>
+<tr>
+<td>HERST-H-03</td>
+<td>Hydrosplit mit Hydraulikstation</td>
+<td>Kältekreis vollständig im Außengerät, Wasserhydraulik in einer Hydraulikstation im Haus. Was in der Station sitzt, wird nicht ein zweites Mal gezeichnet — die dokumentierten Fehlerbilder sind das doppelte Ausdehnungsgefäß und das doppelte Umschaltventil. Die <b>Pumpenlage ist geräteweise zu prüfen</b>, nie aus der Bauform abzuleiten. Die Verbindungsleitungen führen Wasser, brauchen Frostschutz und sind in der Länge begrenzt. Nur für die Bauform Hydrosplit.</td>
+</tr>
+</tbody>
+</table>
+
+<div class="baustelle"><b>Auf der Baustelle heißt das</b><p>Jede Vorlage bringt außer dem Bild drei Dinge mit, die auf dem Blatt stehen: die <b>Bauteilkette</b> in Fließrichtung (Erzeugerkreis, Heizkreis, Trinkwasserzweig), die <b>Vorbedingungen</b> mit ihrem Beleg, und die <b>Auslegungswerte</b> mit ihrer Quelle. Die wiederkehrenden Auslegungswerte des Leitfadens sind: 3 bis 5 K Spreizung primärseitig bei maximaler Kälteleistung, 5 bis 7 K heizungsseitig (bei statischen Heizflächen bis 10 K), höchstens 10 K bei der Trinkwassererwärmung, mindestens 0,25 m² Wärmeübertragerfläche je kW im Trinkwassererwärmer und 20 bis 25 l Puffer je kW zur Laufzeitoptimierung beziehungsweise 30 bis 40 l je kW zur Überbrückung von Sperrzeiten.</p></div>
+
+<h3 id="k12-3">12.3 Wie der Vorschlag entsteht</h3>
+
+<p>Bis Fassung 1.12.0 gab es genau einen Weg zu einem Anlagenschema: einen Knopf, der eines erzeugte. Was dabei herauskam, war das Ergebnis von einem Dutzend Verzweigungen tief im Zeichner — richtig, aber ohne Namen und ohne Alternative. Der Anwender konnte nicht sehen, dass seine Anlage ein Standardfall ist, und schon gar nicht, welcher.</p>
+
+<p>Der Vorschlag dreht die Richtung um: er <b>wählt aus</b> statt zu erzeugen. Gerechnet wird gegen das <em>Auslegungsergebnis</em>, nicht gegen das gezeichnete Schema — der Vorschlag soll sagen, was zur Anlage passt, und nicht, was gerade auf dem Blatt steht.</p>
+
+<h4 id="k12-3-1">12.3.1 Was verglichen wird</h4>
+
+<p>Zuerst liest das Programm die Merkmale der ausgelegten Anlage ab. Sie laufen aus zwei Quellen zusammen — dem Auslegungsergebnis und dem Anlagenblatt:</p>
+
+<table class="tab">
+<caption>Die Merkmale der Anlage und woher sie kommen</caption>
+<thead><tr><th>Merkmal</th><th>Woraus es abgelesen wird</th></tr></thead>
+<tbody>
+<tr><td>Anbindung</td><td>Aus dem Speicher, in dieser Reihenfolge der Bestimmtheit: ausgelegter Puffer, dann von Hand eingetragener Speicher, sonst „direkt". Reihenpuffer, Parallelpuffer, hydraulische Weiche, Kombispeicher.</td></tr>
+<tr><td>Trinkwasser</td><td>Ein Gerät mit eingebautem Speicher heißt „integriert". Sonst: Frischwasserstation, Kombispeicher, Speicher — oder „keine", wenn keine Wohneinheit gepflegt ist.</td></tr>
+<tr><td>Zahl der Heizkreise</td><td>Aus den ausgelegten Kreisen.</td></tr>
+<tr><td>Mischer</td><td>Ist mindestens ein Kreis gemischt?</td></tr>
+<tr><td>Übergabeart</td><td>Fläche, Heizkörper oder beides — aus den Kreisen.</td></tr>
+<tr><td>Bauform</td><td>Aus dem gewählten Gerät.</td></tr>
+<tr><td>Zweiter Wärmeerzeuger</td><td>Aus dem Anlagenblatt (<a href="#k10-7">Abschnitt 10.7</a>), zusammengefasst nach dem, was <em>hydraulisch</em> verschieden ist: Solar, Kessel (Gas, Öl, Fernwärme), Festbrennstoff (auch Pellet), Heizstab. Ohne Eintrag gilt der Elektro-Heizstab des Geräts als Rückfall.</td></tr>
+<tr><td>Kaskade, Kühlung, weiterer Verbraucher</td><td>Aus dem Anlagenblatt.</td></tr>
+<tr><td>Wasserinhalt und Mindestwasserinhalt</td><td>Aus der Auslegung und dem Gerätedatensatz — für einen eigenen Hinweis.</td></tr>
+</tbody>
+</table>
+
+<h4 id="k12-3-2">12.3.2 Die Gewichte</h4>
+
+<p>Sechs Merkmale werden bewertet. Die Gewichte sind keine Messwerte, sondern eine <b>Rangfolge</b>, und sie stehen offen im Programm statt verstreut im Vergleich:</p>
+
+<table class="tab">
+<caption>Womit welches Merkmal zu Buche schlägt</caption>
+<thead><tr><th>Merkmal</th><th>Gewicht</th><th>Warum so</th></tr></thead>
+<tbody>
+<tr><td>Anbindung</td><td>0,35</td><td>Das schwerste Merkmal: es entscheidet über die ganze Hydraulik. Ein Reihenpuffer und ein Parallelpuffer sind zwei verschiedene Anlagen.</td></tr>
+<tr><td>Trinkwassererwärmung</td><td>0,20</td><td>Speicher, Kombispeicher, Frischwasserstation und Gerätespeicher sind vier verschiedene Anlagen.</td></tr>
+<tr><td>Zahl der Heizkreise</td><td>0,15</td><td>Das Merkmal, das die meisten Schemata voneinander unterscheidet.</td></tr>
+<tr><td>Mischer</td><td>0,10</td><td></td></tr>
+<tr><td>Übergabeart</td><td>0,10</td><td>Das leichteste: ein Schema für Flächenheizung lässt sich ohne Eingriff auch mit Heizkörpern bauen, sobald die Temperaturen passen.</td></tr>
+<tr><td>Bauform</td><td>0,10</td><td>Nur die beiden bauformgebundenen Vorlagen führen überhaupt eine Einschränkung.</td></tr>
+</tbody>
+</table>
+
+<p>Trifft ein Merkmal, kommt sein Gewicht auf den Rangwert. Aus der Summe entsteht eine Zahl zwischen 0 und 1. Sie ordnet aber nur <b>innerhalb</b> derselben Passung; zwischen „passt" und „baubar, weicht ab" entscheidet die Passung, nicht die Zahl.</p>
+
+<h4 id="k12-3-3">12.3.3 Hart und weich</h4>
+
+<div class="merke"><b>Merke</b><p>Eine <b>harte</b> Abweichung schließt die Vorlage aus — die Passung wird „passt nicht", unabhängig von allem anderen. Eine <b>weiche</b> Abweichung kostet nur Rangpunkte: die Anlage lässt sich damit bauen, das Schema weicht aber in Nebenmerkmalen ab.</p></div>
+
+<table class="tab">
+<caption>Welche Abweichung hart ist und warum</caption>
+<thead><tr><th>Merkmal</th><th>Hart, wenn …</th><th>Begründung</th></tr></thead>
+<tbody>
+<tr><td>Anbindung</td><td>immer</td><td>Ein Schema mit Parallelpuffer beschreibt eine andere Anlage als eines ohne. Das ist kein Detail, das man beim Bauen zurechtrückt.</td></tr>
+<tr><td>Trinkwasser</td><td>sobald eine der beiden Seiten „keine" oder „integriert" sagt</td><td>Ein Gerät mit eingebautem Speicher bekommt keinen zweiten daneben, und ein Schema ohne Trinkwasser zeigt eine andere Anlage.</td></tr>
+<tr><td>Kreiszahl</td><td>die Anlage hat <em>mehr</em> Kreise als das Schema zeigt</td><td>Ein Verteiler mit zwei Abgängen trägt vier Kreise nicht, nur weil die Zeichnung sonst passt — und ein Einkreisschema hat gar keinen Verteiler. Umgekehrt weich: ein Schema für mehr Kreise trägt auch weniger, der Verteiler bekommt einen Abgang weniger.</td></tr>
+<tr><td>Mischer</td><td>die Anlage braucht einen, das Schema zeigt keinen</td><td>Umgekehrt weich: ein gezeichneter Mischer, den die Anlage nicht braucht, ist ein Bauteil zu viel — ärgerlich, aber baubar. Der VdZ-Leitfaden führt „unnötiger Einbau von Mischern" ausdrücklich als Fehler.</td></tr>
+<tr><td>Übergabeart</td><td>immer</td><td>BWP-Schema 1 ist ausdrücklich nur für Flächenheizsysteme zugelassen. Ein Heizkörper daran ist keine Variante, sondern ein anderer Fall.</td></tr>
+<tr><td>Bauform</td><td>immer</td><td>Das Turmgeräteschema gilt für Turmgeräte, das Hydrosplitschema für Hydrosplitgeräte.</td></tr>
+<tr><td>Zusatzmerkmale</td><td>nie</td><td>Siehe <a href="#k12-4">Abschnitt 12.4</a>.</td></tr>
+</tbody>
+</table>
+
+<p>Ein Sonderfall: sind <b>gar keine Heizkreise</b> ausgelegt, zählt das nicht als Übereinstimmung. Bis zu einer Prüfung galt „Kreiszahl beliebig" als Treffer, und eine leere Anlage bekam zwei Vorlagen mit Rangwert 0,85 vorgeschlagen. Eine Maschine, die für eine ungeplante Anlage etwas vorschlägt, ist schlechter als eine, die nichts findet: der Vorschlag sieht aus wie ein Ergebnis.</p>
+
+<h4 id="k12-3-4">12.3.4 Warum das Programm sagt, warum ein Schema nicht passt</h4>
+
+<div class="merke"><b>Merke</b><p>Eine Liste passender Schemata ist bequem. Eine Liste, die zu jedem verworfenen Schema den Satz mitliefert „passt nicht, weil dieses Gerät einen Speicher mitbringt", ist eine <b>Begründung</b>. Das ist der eigentliche Ertrag dieses Abschnitts.</p></div>
+
+<p>Zu jedem Vorschlag steht ein Satz, der aus der Bewertung selbst entsteht:</p>
+
+<table class="tab">
+<caption>Die drei Formen der Begründung</caption>
+<thead><tr><th>Passung</th><th>Satzform</th><th>Beispiel</th></tr></thead>
+<tbody>
+<tr><td>passt</td><td>Stimmt in allen Merkmalen überein: …</td><td>„Stimmt in allen Merkmalen überein: Anbindung parallelpuffer, Trinkwasser speicher, 2 Heizkreise, mit Mischer, Flächenheizung und Heizkörper."</td></tr>
+<tr><td>baubar, weicht ab</td><td>Baubar, weicht aber ab: Merkmal — Schema x, Anlage y.</td><td>„Baubar, weicht aber ab: Zahl der Heizkreise — Schema 2 Kreise, Anlage 1 Kreis."</td></tr>
+<tr><td>passt nicht</td><td>Passt nicht: Merkmal — das Schema zeigt x, die Anlage hat y.</td><td>„Passt nicht: Trinkwassererwärmung — das Schema zeigt speicher, die Anlage hat integriert."</td></tr>
+</tbody>
+</table>
+
+<p>Die Liste zeigt zunächst nur die passenden. Der Knopf darunter blendet die nicht passenden ein — jede mit ihrer Begründung. Darunter stehen zusätzlich Hinweise zur Lage insgesamt:</p>
+
+<ul>
+<li>„Es ist kein Wärmeerzeuger gewählt. Bauform und Ausstattung bleiben damit offen — Schemata für Turmgeräte und Hydrosplit lassen sich nicht ausschließen."</li>
+<li>„Es ist kein Heizkreis ausgelegt. Was hier vorgeschlagen wird, ist deshalb keine Zuordnung, sondern eine Vorauswahl."</li>
+<li>„Keine Vorlage passt zu dieser Anlage. Das ist kein Fehler: der Katalog hält Musterlösungen, nicht alle Anlagen."</li>
+<li>„Der Wasserinhalt der Anlage liegt mit 96 l unter dem geforderten Mindestinhalt von 150 l. Jedes Schema ohne Puffer scheidet damit aus, unabhängig von seinen übrigen Merkmalen."</li>
+</ul>
+
+<p>Sortiert wird zuerst nach Passung, dann nach Rangwert, dann nach Kennung. Die letzte Stufe ist nur dafür da, dass zwei Läufe dieselbe Reihenfolge liefern — ein Vorschlagsfenster, das bei jedem Öffnen anders sortiert ist, ist unbrauchbar.</p>
+
+<h3 id="k12-4">12.4 Der Vergleich in beide Richtungen</h3>
+
+<p>Vier Merkmale liegen quer zu den sechs gewichteten: zweiter Wärmeerzeuger, Kühlung, Kaskade und weiterer Verbraucher. Sie beschreiben, ob eine Anlage <b>größer</b> ist als das Grundschema.</p>
+
+<p>Bis Fassung 1.13.2 kostete nur eine Richtung: „das Schema zeigt mehr, als die Anlage hat". Ohne diese Prüfung schnitten die Vorlagen mit Solar, Festbrennstoff, Schwimmbad und Kaskade genauso gut ab wie das Grundschema BWP-H-03, weil sie in allen Grundmerkmalen übereinstimmen — und der Anwender bekäme fünf gleichwertige Vorschläge, von denen vier Bauteile enthalten, die er nicht hat.</p>
+
+<div class="merke"><b>Merke</b><p>Seit Fassung 1.14.0 wird <b>in beide Richtungen</b> verglichen. Ein Schema, das ein vorhandenes Bauteil <em>verschweigt</em>, ist genauso falsch wie eines, das ein fehlendes <em>zeichnet</em>.</p></div>
+
+<p>Vorher bekam, wer eine Solaranlage plante, BWP-H-04 (mit Solar) und BWP-H-03 (ohne) gleichwertig vorgeschlagen. Das Schema ohne Solareinkopplung hatte keinen Nachteil, obwohl es die Anlage nicht zeigt.</p>
+
+<p>Jedes zutreffende Zusatzmerkmal kostet so viel wie das leichteste Grundmerkmal, also 0,10. Damit fällt ein Schema mit einem überzähligen oder fehlenden Zusatz hinter das Grundschema zurück, bleibt aber vor jedem, das in einem Grundmerkmal abweicht. Hart ist die Abweichung nicht: wer eine Solaranlage plant, findet das Schema in der Liste und sieht die Begründung daneben.</p>
+
+<h4 id="k12-4-1">12.4.1 Die Ausnahme Elektro-Heizstab</h4>
+
+<div class="merke"><b>Merke</b><p>Der Elektro-Heizstab ist vom Vergleich <b>ausgenommen</b>. Drei Gründe: er sitzt im Gerät, er ändert die Hydraulik nicht, und er steht in keinem der Schemata als eigenes Bauteil — im BWP-Leitfaden ist er in allen elf Zeichnungen grau, also wahlweise verwendbar, eingezeichnet.</p></div>
+
+<p>Praktisch heißt das: fast jede Wärmepumpe bringt einen Heizstab mit, und das Programm setzt ihn als Rückfallwert für „zweiter Wärmeerzeuger". Würde er wie ein Kessel behandelt, bekäme jedes Grundschema einen Abzug, den es nicht verdient — und die bivalenten Schemata rückten grundlos nach vorn. Als „echter" zweiter Erzeuger zählen deshalb nur Solar, Kessel und Festbrennstoff.</p>
+
+<h3 id="k12-5">12.5 Eine Vorlage übernehmen</h3>
+
+<p class="wo">Im Programm: Knopf <b>Diese Anbindung übernehmen</b> unter jedem passenden Vorschlag.</p>
+
+<p>Der Knopf setzt nicht nur ein Bild. Er ändert <b>zuerst die Anlage, dann das Bild</b>:</p>
+
+<table class="tab">
+<caption>Was beim Übernehmen geschieht</caption>
+<thead><tr><th>Schritt</th><th>Was passiert</th></tr></thead>
+<tbody>
+<tr><td>1</td><td>Puffer, Weichen und Kombispeicher im Anlagenblatt werden entfernt. Der Trinkwasserspeicher bleibt — über ihn sagt die Anbindung nichts.</td></tr>
+<tr><td>2</td><td>Aus der Anbindung der Vorlage wird der passende Speicher eingetragen: Reihenpuffer, Parallelpuffer, hydraulische Weiche oder Kombispeicher. Bei „direkt" wird keiner eingetragen.</td></tr>
+<tr><td>3</td><td>Die Kennung der Vorlage wird am Schema vermerkt, und die Kennzeichnung „von Hand bearbeitet" wird zurückgenommen.</td></tr>
+</tbody>
+</table>
+
+<div class="merke"><b>Merke</b><p>Die Vorlage sagt, wie der Erzeuger an die Kreise kommt. Diese Aussage gehört ins <b>Anlagenblatt</b>, nicht ins Fließbild: die Auslegung rechnet daraus Puffervolumen, Pumpenförderstrom und die Frage, ob ein Überströmventil nötig ist. Zeichnete man erst und trüge den Speicher nicht nach, zeigte das Schema einen Puffer, den die Auslegung nicht kennt — und die Materialliste bestellte ihn nicht.</p></div>
+
+<p>Das <b>Volumen</b> des eingetragenen Speichers bleibt offen. Es kommt aus der Puffervolumenrechnung (<a href="#k10-10">Abschnitt 10.10</a>) und hängt an der Geräteleistung, nicht am Schema. Der Eintrag ist deshalb als Vorschlag markiert, bis die Auslegung ihn füllt. Als Bezeichnung steht dort etwa „Parallelpuffer nach BWP-H-03".</p>
+
+<p>War das Schema von Hand bearbeitet, fragt das Programm nach, bevor es die Änderungen verwirft. Das erzeugte Bild trägt danach die Kennung der Vorlage — die Antwort auf die Frage, die jeder stellt, der ein fremdes Fließbild in die Hand bekommt: <b>welches Schema ist das?</b></p>
+
+<h3 id="k12-6">12.6 Die Schemaprüfung</h3>
+
+<p class="wo">Im Programm: Reiter <b>Anlage</b> → unter dem Knopf „Schema erzeugen"</p>
+
+<p>Die Prüfung bekommt ein fertiges Fließbild — die Bauteile und Leitungen, dazu das Auslegungsergebnis und das Anlagenblatt — und sucht darin nach den Fehlern, die in den Leitfäden von BWP und VdZ, in den Planungsunterlagen der Hersteller und in DIN EN 12828 <b>namentlich als Fehler benannt</b> sind. Sie liefert eine Liste von Befunden, jeder mit Quelle im Klartext. Sie ändert nichts.</p>
+
+<h4 id="k12-6-1">12.6.1 Warum die Prüfung vom Erzeugen getrennt ist</h4>
+
+<p>Der Zeichner hält seine eigenen Regeln naturgemäß ein. Ein Generator, der sich selbst prüft, prüft nur, ob er tut, was er tut — er findet genau die Fehler nicht, die er selbst macht. Dazu kommt der zweite Fall: das Schema ist von Hand bearbeitet, und dann steht auf dem Blatt, was ein Mensch gezeichnet hat, nicht was das Programm gerechnet hat.</p>
+
+<p>Beides prüft nur eine Instanz, die <em>nach</em> dem Zeichnen auf das fertige Bild schaut und dabei nichts anderes benutzt als das Bild selbst. Deshalb enthält die Prüfung keine einzige Zeile, die etwas erzeugt oder ergänzt.</p>
+
+<h4 id="k12-6-2">12.6.2 Was eine leere Befundliste bedeutet — und was nicht</h4>
+
+<div class="warnung"><b>Achtung</b><p>Eine leere Liste bedeutet: keine der hinterlegten Regeln hat angeschlagen. Sie bedeutet <b>nicht</b>, dass die Anlage richtig geplant ist, und sie ist <b>keine Freigabe</b>. Die Regeln decken einen kleinen, gut belegbaren Ausschnitt ab — was sich aus Bauteilart, Stutzen, Leitungsart, Speicherart und den gerechneten Zahlen ablesen lässt. Alles, was Betriebsweise, Einstellung, Montageort, Fühlersitz, Regelparameter, Schall, Kondensat oder Wasserqualität betrifft, sieht die Prüfung überhaupt nicht.</p></div>
+
+<p>Die Befunde tragen drei Grade:</p>
+
+<table class="tab">
+<caption>Die drei Grade eines Befundes</caption>
+<thead><tr><th>Grad</th><th>Bedeutung</th></tr></thead>
+<tbody>
+<tr><td>Fehler</td><td>Die Anlage darf so nicht gebaut werden oder wird nicht funktionieren — ein Verstoß gegen eine Norm oder eine ausdrückliche Herstellervorgabe.</td></tr>
+<tr><td>Warnung</td><td>Nach der Fachliteratur falsch oder überflüssig; die Anlage läuft aber.</td></tr>
+<tr><td>Hinweis</td><td>Eine Angabe zum Prüfen, weil das Programm den maßgeblichen Sachverhalt nicht kennt.</td></tr>
+</tbody>
+</table>
+
+<p>Die Reihenfolge ist festgelegt und hängt nicht von der Reihenfolge der Bauteile ab: erst Fehler, dann Warnungen, dann Hinweise, innerhalb der Grade aufsteigend nach Kennung. Damit ergibt derselbe Anlagenstand immer dieselbe Liste — sonst wäre ein Vergleich zweier Stände wertlos.</p>
+
+<h4 id="k12-6-3">12.6.3 Gruppe A — Sicherheit und Pflichtarmaturen</h4>
+
+<table class="tab">
+<caption>Regeln 11 bis 16: was am Erzeuger stehen muss</caption>
+<thead><tr><th>Nr.</th><th>Regel</th><th>Was schiefgeht, wenn man sie verletzt</th><th>Grad</th></tr></thead>
+<tbody>
+<tr>
+<td>11</td>
+<td><b>Sicherheitsgruppe am Wärmeerzeuger vollständig.</b> Gefordert sind Sicherheitsventil im Erzeugerkreis, Manometer und Füll- beziehungsweise Entleerungsarmatur.</td>
+<td>Ohne Sicherheitsventil begrenzt nichts den Druck; im Störfall zerreißt das schwächste Bauteil. Ohne Manometer bleibt ein schleichender Wasserverlust unbemerkt. Das Ventil gehört am höchsten Punkt des Erzeugers oder unmittelbar in die Vorlaufleitung, senkrecht, mit eigener steigender Zuleitung von höchstens 1 m und eigener, nicht absperrbarer Ausblaseleitung. Die Sicherheitsleitung darf keine Schmutzfänger und keine Formstücke enthalten. Das Sicherheitsventil des Trinkwassererwärmers zählt hier nicht mit — es wird daran erkannt, dass keine Heizungsleitung daran hängt.</td>
+<td>Fehler</td>
+</tr>
+<tr>
+<td>12</td>
+<td><b>Ausdehnungsgefäß vorhanden.</b></td>
+<td>Ohne Gefäß steigt der Druck beim Aufheizen bis zum Ansprechdruck, das Sicherheitsventil bläst ab, die Anlage verliert Wasser und zieht beim Abkühlen Luft. Vor dem Gefäß gehört eine gegen unbeabsichtigtes Schließen gesicherte Absperrung — ein Kappenventil mit Entleerung. Zwischen Erzeuger und Gefäß darf keine absperrbare Armatur liegen. Der Befund nennt die Zahlen aus der Auslegung, also Baugröße und Vordruck.</td>
+<td>Fehler</td>
+</tr>
+<tr>
+<td>13</td>
+<td><b>Schmutzfänger oder Magnetitabscheider vorhanden.</b></td>
+<td>Der Verflüssiger der Wärmepumpe ist ein gelöteter Plattenwärmetauscher mit Spaltweiten im Zehntelmillimeterbereich. Der Schlamm aus Stahlheizkörpern und Stahlrohr ist überwiegend Magnetit — ferromagnetisch, feinkörnig und für einen rein gravimetrischen Abscheider zu leicht. Er setzt außerdem den Permanentmagneten der Hocheffizienzpumpe zu, bis diese blockiert.</td>
+<td>Fehler</td>
+</tr>
+<tr>
+<td>14</td>
+<td><b>Der Abscheider sitzt im Rücklauf.</b> Anschlag, wenn er ausschließlich an Vorlaufleitungen hängt.</td>
+<td>Im Vorlauf schützt er den Erzeuger nicht, sondern erst die Verbraucher dahinter. Alles, was zwischen Abscheider und Erzeuger anfällt, läuft ungefiltert in den Wärmetauscher. Er gehört bauseits immer in den Rücklauf und ist dort das letzte Bauteil vor dem Erzeuger. Ein Bauteil ohne Anschluss wird nicht bewertet.</td>
+<td>Warnung</td>
+</tr>
+<tr>
+<td>15</td>
+<td><b>Absperrung am Wärmeerzeuger.</b> Geprüft wird je ausbaubares Gerät — Inneneinheit beziehungsweise Hydraulikstation, ersatzweise die Außeneinheit, dazu jeder gezeichnete Kessel.</td>
+<td>Ohne Absperrung lässt sich der Erzeuger nicht ausbauen, ohne die Anlage zu entleeren. Richtig ist je eine Absperrung in Vor- und Rücklauf, damit auch die dazwischenliegende Umwälzpumpe abgetrennt werden kann; in den Verbindungsleitungen zur Außeneinheit mit Entleerungsfunktion. Zwischen Erzeuger und Sicherheitsventil beziehungsweise Ausdehnungsgefäß darf dagegen keine absperrbare Armatur liegen. Nur Warnung, weil dieselben Quellen ausdrücklich sagen, dass Absperrorgane in Prinzipschemata nicht vollständig eingezeichnet sind.</td>
+<td>Warnung</td>
+</tr>
+<tr>
+<td>16</td>
+<td><b>Mikroblasen- oder Luftabscheider vorhanden.</b></td>
+<td>Luft im System bedeutet Geräusche, schlechten Wärmeübergang und Korrosion. Gelöstes Gas perlt an der heißesten Stelle aus, deshalb gehört der Abscheider in den Vorlauf unmittelbar hinter den Erzeuger; zusätzlich ein automatischer Entlüfter am höchsten Punkt. Keine Pflichtarmatur, aber in den Montagechecklisten der Hersteller — deshalb nur ein Hinweis.</td>
+<td>Hinweis</td>
+</tr>
+</tbody>
+</table>
+
+<p>Die Kreispumpe wird bei Regel 15 <b>nicht</b> geprüft. Der BWP-Leitfaden zeichnet den gemischten Heizkreis ausdrücklich als „Absperrventil → 3-Wege-Mischer → Umwälzpumpe → Rückschlagklappe"; die Kreispumpe hat dort also keine unmittelbar benachbarte Absperrung, und zwar in allen elf Schemata. Eine Regel, die bei der maßgeblichen Musterzeichnung anschlägt, meldet keinen Mangel, sondern sich selbst.</p>
+
+<h4 id="k12-6-4">12.6.4 Gruppe B — Trinkwasser</h4>
+
+<table class="tab">
+<caption>Regel 10: die Systemgrenze</caption>
+<thead><tr><th>Nr.</th><th>Regel</th><th>Was schiefgeht, wenn man sie verletzt</th><th>Grad</th></tr></thead>
+<tbody>
+<tr>
+<td>10</td>
+<td><b>Heiz- und Trinkwasserseite nicht vermischen.</b> Anschlag, wenn eine Heizungsleitung an einem Trinkwasserstutzen (<code>cold</code>, <code>dhw</code>) hängt oder eine Trinkwasserleitung an einem Heizungsstutzen (<code>flow</code>, <code>return</code>).</td>
+<td>Der Speicher wird über seinen Wärmeübertrager geladen — Heizungswasser und Trinkwasser berühren sich nicht. Die Ladeleitung gehört an die Heizungsstutzen, die Trinkwasserseite ausschließlich an Kalt- und Warmwasseranschluss, abgesichert über die Kaltwasser-Sicherheitsgruppe aus Absperrung, Rückflussverhinderer, Sicherheitsventil, Manometer und gegebenenfalls Trinkwasser-Ausdehnungsgefäß. Ein Fließbild, das diese Verbindung zeichnet, behauptet genau das, was durch Systemtrennung ausgeschlossen sein muss. Der Befund nennt Bauteil und Stutzen im Klartext.</td>
+<td>Fehler</td>
+</tr>
+</tbody>
+</table>
+
+<div class="merke"><b>Merke</b><p>Diese Regel ist ausdrücklich als <b>logische Ableitung</b> gekennzeichnet, nicht als belegter Fehlerbefund aus der Literatur. Die Herstellerschemata definieren Heiz- und Trinkwasserseite als getrennte Anschlussgruppen; für den konkreten Ausführungsfehler „Heizungsvorlauf am Kaltwasseranschluss" ließ sich in der Recherche keine belastbare Fachquelle finden. Die Regel prüft also die Verletzung der getrennten Anschlussgruppen.</p></div>
+
+<p>Sie ist die Regel, die von Hand gezogene Leitungen abfängt — dort benennt niemand die Stutzen, und der Zeichner sucht das geometrisch nächste Paar (siehe <a href="#k11-6">Abschnitt 11.6</a>).</p>
+
+<h4 id="k12-6-5">12.6.5 Gruppe C — Hydraulik: Überströmventil, Speicher, Volumen</h4>
+
+<table class="tab">
+<caption>Regeln 1 bis 6</caption>
+<thead><tr><th>Nr.</th><th>Regel</th><th>Was schiefgeht, wenn man sie verletzt</th><th>Grad</th></tr></thead>
+<tbody>
+<tr>
+<td>1</td>
+<td><b>Kein Überströmventil ohne Speicher.</b> Anschlag, wenn ein Überströmventil im Bild steht, aber kein Puffer- oder Trennspeicher.</td>
+<td>Ein Überströmventil sichert den Mindest<b>volumenstrom</b>, es schafft kein Anlagen<b>volumen</b>. Beim Abtauen entnimmt die Wärmepumpe die Energie dem Wasserinhalt, und der ist dann nicht vorhanden. Das Ventil verdeckt den Mangel, statt ihn zu beheben. Richtig ist eines von beiden: Anlagenvolumen über einen Reihenpuffer im Rücklauf nachweisen (Richtwert 3 bis 5 l/kW; der Befund rechnet den Bereich aus) oder hydraulisch trennen.</td>
+<td>Fehler</td>
+</tr>
+<tr>
+<td>2</td>
+<td><b>Kein Überströmventil neben einer hydraulischen Trennung.</b></td>
+<td>Hinter einer Trennung fördert die Erzeugerpumpe ohnehin unabhängig davon, wie viele Stellantriebe zufahren. Das Ventil hat dort keine Funktion; was bleibt, ist ein Kurzschluss zwischen Vor- und Rücklauf, der Vorlauftemperatur in den Rücklauf gibt. Trennspeicher <em>oder</em> Reihenspeicher mit Überströmventil — beides zusammen nicht.</td>
+<td>Warnung</td>
+</tr>
+<tr>
+<td>3</td>
+<td><b>Pumpenkennlinie zum Überströmventil prüfen.</b> Anschlag, sobald überhaupt ein Überströmventil im Bild steht.</td>
+<td>Zum Überströmventil gehört eine Pumpe mit Konstant- oder Δp-konstant-Kennlinie. Δp-variabel und Autoadapt sind unzulässig: die Pumpe senkt bei zufahrenden Ventilen den Differenzdruck, das Überströmventil schließt daraufhin, und der Mindestvolumenstrom bricht genau dann weg, wenn er gebraucht wird. Welche Kennlinie eingestellt ist, steht nicht im Modell — deshalb nur ein Hinweis. Zum Einbauort: möglichst dicht an der Wärmeübergabe, sonst wird der lange Verteilweg nicht mehr durchströmt.</td>
+<td>Hinweis</td>
+</tr>
+<tr>
+<td>4</td>
+<td><b>Mindestanlagenvolumen eingehalten.</b> Gefordert ist der größere Wert aus Gerätedatenblatt und der Faustregel 3 l je kW.</td>
+<td>Ohne genügend Wasserinhalt bricht beim Abtauen die Vorlauftemperatur ein, und der Verdichter taktet. Der Befund nennt die fehlende Menge in Litern. Wichtig: das Mindestvolumen darf <b>nicht hinter Absperrvorrichtungen</b> liegen — Heizkreise mit Thermostatventilen bleiben bei der Rechnung unberücksichtigt, der Inhalt muss auch dann verfügbar sein, wenn alle Ventile geschlossen sind. Ohne Speicher ist es ein Fehler, mit einem zu kleinen Speicher eine Warnung.</td>
+<td>Fehler / Warnung</td>
+</tr>
+<tr>
+<td>5</td>
+<td><b>Keine hydraulische Trennung bei einem zweiten Erzeuger ohne eigene Pumpe.</b> Geprüft wird topologisch: hängt an dem gezeichneten Kessel eine Pumpe?</td>
+<td>Der zweite Erzeuger wird dann nicht durchströmt, seine Wärme kommt nicht in den Speicher. Bosch schreibt ausdrücklich: „Wenn der zweite Wärmeerzeuger keine eigene Heizungspumpe hat, dürfen keine hydraulische Weiche und kein paralleler Pufferspeicher verwendet werden." Richtig ist entweder eine eigene Pumpe am zweiten Erzeuger oder die Beimischung über ein Dreiwege-Mischventil in der Erzeugerleitung statt der Trennung.</td>
+<td>Fehler</td>
+</tr>
+<tr>
+<td>6</td>
+<td><b>Reihenpuffer nicht wie ein Trennspeicher beschalten.</b> Anschlag, wenn ein als Reihenpuffer ausgelegter Speicher an einem Vorlaufstutzen (<code>gen-flow</code>, <code>sys-flow</code>) oder an einer Vorlaufleitung hängt.</td>
+<td>Der Reihenpuffer liegt in Reihe im <b>Rücklauf</b> und hat dort genau zwei Anschlüsse. Er liefert Wasserinhalt für die Abtauung und Laufzeitverlängerung; er entkoppelt keine Volumenströme und ersetzt kein Überströmventil. So gezeichnet behauptet das Blatt eine hydraulische Trennung, die es nicht gibt: es bleibt bei einer Pumpe und einem Strang. Entweder den Puffer in den Rücklauf legen oder ihn als Trennspeicher auslegen — dann aber mit eigener Pumpe je Verbraucherkreis.</td>
+<td>Fehler</td>
+</tr>
+</tbody>
+</table>
+
+<h4 id="k12-6-6">12.6.6 Gruppe D — Regelung, Mischer, Verteilung</h4>
+
+<table class="tab">
+<caption>Regeln 7 bis 9</caption>
+<thead><tr><th>Nr.</th><th>Regel</th><th>Was schiefgeht, wenn man sie verletzt</th><th>Grad</th></tr></thead>
+<tbody>
+<tr>
+<td>7</td>
+<td><b>Kein Mischer ohne Notwendigkeit.</b> Anschlag, wenn ein Kreis als gemischt geführt ist und zugleich die höchste Vorlauftemperatur der Anlage fährt.</td>
+<td>Dann ist nichts herunterzumischen. Der Mischer erhöht nur die Vorlauftemperatur der Wärmepumpe und kostet Effizienz — jedes Grad schlägt mit rund 2 bis 2,5 % zu Buche. Der VdZ führt „unnötiger Einbau von Mischern" ausdrücklich als Fehler. Zwingend ist ein Mischer nur bei zwei Kreisen mit unterschiedlichem Temperaturniveau, bei Kühlbetrieb mit taupunktkritischem Vorlauf und bei Puffern mit Übertemperatur aus Fremdwärme. Ein Solarkollektor oder Kessel im Schema schaltet die Regel deshalb ab — dann kann Fremdwärme im Spiel sein.</td>
+<td>Warnung</td>
+</tr>
+<tr>
+<td>8</td>
+<td><b>Ungemischte Flächenheizung braucht einen Temperaturwächter.</b> Erkannt wird er am Namen des Bauteils (Temperaturwächter, Maximalthermostat, Sicherheitstemperaturbegrenzer und Ähnliches).</td>
+<td>Ohne Mischer steht zwischen der Vorlauftemperatur des Erzeugers und dem Estrich nichts. Im Störfall — Warmwasserladung, Legionellenschaltung, Reglerfehler — läuft die volle Temperatur in den Boden. Richtig: Temperaturwächter im Vorlauf jedes Flächenheizkreises, verdrahtet auf die Abschaltung von Wärmeerzeuger und Heizkreispumpe; mehrere Wächter in Reihe.</td>
+<td>Fehler</td>
+</tr>
+<tr>
+<td>9</td>
+<td><b>Mehrere Heizkreise brauchen einen Verteilbalken.</b> Erkannt wird er an Knoten oder Verteilern, deren Name „Balken", „Sammler" oder „Verteiler" enthält.</td>
+<td>Ohne ihn ist nicht dargestellt, an welcher Stelle sich der Volumenstrom teilt und woran die Kreise hängen — und damit auch nicht, wo abgeglichen wird. Richtig: Vor- und Rücklaufbalken mit je einer Absperrung pro Kreis, damit ein Kreis ohne Entleeren der Anlage abgesperrt werden kann, und mit der Möglichkeit, die Aufteilung einzuregulieren. Ohne das nimmt der kurze Weg das Wasser und der lange bleibt kalt.</td>
+<td>Warnung</td>
+</tr>
+</tbody>
+</table>
+
+<h4 id="k12-6-7">12.6.7 Gruppe E — Nachweis und Frostschutz</h4>
+
+<table class="tab">
+<caption>Regeln 17 bis 19</caption>
+<thead><tr><th>Nr.</th><th>Regel</th><th>Was schiefgeht, wenn man sie verletzt</th><th>Grad</th></tr></thead>
+<tbody>
+<tr>
+<td>17</td>
+<td><b>Verbrauchserfassung im Schema.</b> Anschlag, wenn kein Wärmemengenzähler gezeichnet ist.</td>
+<td>Hier geht es weniger um einen Fehler als um eine oft verkürzte Rechtslage, und der Befund stellt sie richtig: § 71 des Gebäudeenergiegesetzes enthält <b>keine</b> Zähler- oder Messeinrichtungspflicht. Die BEG-Förderung verlangt, dass Energieverbräuche und erzeugte Wärmemengen erfasst werden — einschließlich der Hilfsstrommengen für Heizstab und Quellenpumpen —, stellt aber ausdrücklich keine Genauigkeitsanforderungen: die Technik muss nicht geeicht sein, und eine geräteintegrierte Bilanzierung über die Regelung des Wärmeerzeugers genügt. Viele Wärmepumpen bringen Durchflusssensor und Wärmemengenerfassung mit; dann ist nichts nachzurüsten, es gehört nur in den Nachweis. Eine echte Zählerpflicht folgt allein aus der Heizkostenverordnung und nur in Mehrparteiengebäuden. Sind mehr als zwei Wohneinheiten gepflegt, weist der Befund darauf hin.</td>
+<td>Hinweis</td>
+</tr>
+<tr>
+<td>18</td>
+<td><b>Frostschutzmittel gegen die Herstellervorgabe.</b> Anschlag bei jedem Glykolanteil über null. Nennt der Gerätedatensatz einen Hersteller, der Glykol ausschließt, wird daraus ein Fehler.</td>
+<td>Bosch: „Der Einsatz von Frostschutzmitteln ist nicht freigegeben. Frostschutzmittel reduzieren die System-Effizienz um 10 bis 15 %." Wolf: „Keine Frostschutzmittel oder Inhibitoren verwenden." Daikin lässt Glykol dagegen mit Auflagen zu. <b>Die Hersteller widersprechen sich — der Befund benennt den Konflikt, er löst ihn nicht auf.</b> In jedem Fall gilt: die Effizienz sinkt um rund 10 bis 15 %, das zulässige Wasservolumen sinkt bei manchen Geräten deutlich, die Flüssigkeitskategorie der Füllleitung steigt nach DIN EN 1717 auf 4 (Systemtrenner Typ BA statt CA), und die Konzentration ist jährlich zu prüfen. Zugelassenes Glykol nur mit Korrosionshemmern, kein Automobil-Glykol, keine verzinkten Rohre. Ethylenglykol ist giftig und in Anlagenteilen mit möglicher Verbindung zum Trinkwasser unzulässig. Alternativen sind Frostschutzventile am tiefsten Punkt und die Frostschutzfunktion der Regelung — letztere wirkt nur bei anliegender Spannung.</td>
+<td>Fehler / Warnung</td>
+</tr>
+<tr>
+<td>19</td>
+<td><b>Volumenstromwächter bei Glykolbetrieb.</b> Erkannt wird er am Namen des Bauteils (Flussschalter, Strömungswächter, Volumenstromwächter, Durchflusssensor und Ähnliches).</td>
+<td>Der geräteinterne Durchflussmesser zeigt bei Glykol und tiefen Temperaturen keinen Wert an. Der Erzeuger merkt dann nicht, wenn der Volumenstrom ausbleibt, und der Plattenwärmetauscher friert beim Abtauen ein. Richtig: externen Flussschalter einbauen und in der Regelung aktivieren.</td>
+<td>Warnung</td>
+</tr>
+</tbody>
+</table>
+
+<h4 id="k12-6-8">12.6.8 Die Belege</h4>
+
+<p>Jeder Befund nennt seine Quelle im Klartext und meist mit Verweis. Die Belege stehen an <b>einer</b> Stelle im Programm, damit dieselbe Quelle in mehreren Regeln buchstabengleich zitiert wird — ein Beleg, der je nach Regel anders lautet, ist beim Gegenlesen nicht wiederzufinden.</p>
+
+<table class="tab">
+<caption>Die Quellen der Schemaprüfung</caption>
+<thead><tr><th>Kurzform</th><th>Quelle</th></tr></thead>
+<tbody>
+<tr><td>BWP</td><td>Bundesverband Wärmepumpe e. V., Leitfaden Hydraulik, Schema 1/2 („Überströmventil")</td></tr>
+<tr><td>VdZ</td><td>VdZ, „Umsteigen auf die Wärmepumpe – Leitfaden für den Fachhandwerker", S. 8 und Fehlertabelle T5</td></tr>
+<tr><td>Wolf</td><td>Wolf CHA-16/20 Monoblock, Planungsinformation</td></tr>
+<tr><td>Bosch</td><td>Bosch/Junkers Compress 7000i AW, Planungsunterlage, Kap. 4.2 und 4.13</td></tr>
+<tr><td>Viessmann</td><td>Anlagenschema Vitocal 250-A (Heizkreis ohne Mischer) und Vitocal-Planungsanleitung S. 154 f. („Hydraulische Bedingungen für den Sekundärkreis")</td></tr>
+<tr><td>Daikin</td><td>Daikin Altherma 3 M, Referenzhandbuch für den Monteur, Kap. 8.1.3 (Wassermenge, Glykol, Flussschalter)</td></tr>
+<tr><td>DIN EN 12828</td><td>Tabelle der sicherheitstechnischen Einrichtungen</td></tr>
+<tr><td>BEG</td><td>KfW/BAFA, Liste der technischen FAQ BEG EM, Nr. 8.01/8.02</td></tr>
+<tr><td>§ 71 GEG</td><td>Volltext — er enthält keine Zähler- oder Messeinrichtungspflicht</td></tr>
+</tbody>
+</table>
+
+<p>Zu jedem Befund gehört außerdem ein Themenschlüssel, über den sich der zugehörige Eintrag in der Wissensbasis öffnen lässt (<a href="#k16">Kapitel 16</a>): Überströmventil, Mindestanlagenvolumen, Reihenpuffer, Mischer, Temperaturwächter, Verteiler, Systemtrennung, Sicherheitseinrichtungen, Ausdehnungsgefäß, Schlammabscheider, Absperrarmaturen, Luftabscheider, Wärmemengenzähler, Frostschutz, Volumenstromwächter, Bivalenz.</p>
+
+</section>

@@ -1,0 +1,396 @@
+<section id="kap-02" class="kapitel" data-titel="2 · Loslegen: die ersten dreißig Minuten">
+<h2 id="k2">2 · Loslegen: die ersten dreißig Minuten</h2>
+<p class="lead">Vom leeren Bildschirm bis zum ersten Ausdruck — der Weg, den das Programm selbst vorschlägt.</p>
+
+<h3 id="k2-1">2.1 Der erste Start</h3>
+
+<p>Beim allerersten Start steht eine Karte auf dem Bildschirm. Sie sagt in drei
+Sätzen, was das Werkzeug tut und wo die Grenze verläuft, und bietet drei Wege
+hinein:</p>
+
+<table class="tab">
+  <caption>Die drei Wege beim ersten Start</caption>
+  <thead><tr><th>Weg</th><th>Was passiert</th><th>Wann sinnvoll</th></tr></thead>
+  <tbody>
+    <tr><td><b>Beispiel ansehen</b></td><td>Ein fertiges Projekt wird geladen. Es lässt sich jederzeit löschen.</td><td>Wenn Sie erst sehen wollen, wie das Ergebnis aussieht.</td></tr>
+    <tr><td><b>Leer anfangen</b></td><td>Leere Zeichenfläche, Wand-Werkzeug bereit.</td><td>Wenn Sie den Grundriss von Hand aufnehmen.</td></tr>
+    <tr><td><b>Grundriss laden</b></td><td>Der Reiter <b>Referenz</b> öffnet sich; Sie ziehen ein Foto, ein PDF oder eine IFC-Datei hinein.</td><td>Wenn eine Zeichnung schon vorliegt.</td></tr>
+  </tbody>
+</table>
+
+<p>Die Karte erscheint einmal. Danach merkt sich der Browser, dass Sie sie
+gesehen haben. Kommt beim nächsten Start eine automatische Sicherung zum
+Vorschein, fragt das Programm stattdessen, ob Sie den letzten Stand fortsetzen
+wollen — siehe <a href="#k1-9">Abschnitt 1.9</a>.</p>
+
+<div class="baustelle">
+  <b>Auf der Baustelle heißt das</b>
+  <p>Nehmen Sie beim ersten Mal den Demo-Grundriss. Fünf Minuten damit
+  herumklicken, den 3D-Knopf drücken, den Reiter <b>Räume</b> aufmachen — danach
+  wissen Sie, wohin die Reise geht. Löschen können Sie ihn mit dem
+  Papierkorb-Symbol unten in der Werkzeugleiste.</p>
+</div>
+
+<h3 id="k2-2">2.2 Der schnelle Einstieg über den Demo-Grundriss</h3>
+
+<p>Der Demo-Grundriss ist ein kleines, vollständiges Projekt: Wände, Räume,
+Fenster und Türen, ein Geschoss. Er liegt hinter zwei Schaltflächen — der Karte
+beim ersten Start und dem Symbol mit dem geteilten Rechteck unten in der
+Werkzeugleiste. Im Reiter <b>Start</b> erscheint zusätzlich ein Hinweis mit dem
+Knopf <b>Beispiel laden</b>, solange noch keine Wand gezeichnet ist.</p>
+
+<p>Der Sinn ist nicht die Vorführung, sondern das Anfassen. Ein leerer
+Bildschirm beantwortet keine Frage; an einem fertigen Grundriss sieht man in
+zwei Minuten, was ein Raumstempel ist, wie eine Maßkette aussieht und was
+passiert, wenn man eine Wand verschiebt.</p>
+
+<h3 id="k2-3">2.3 Ein Bild oder ein PDF als Vorlage</h3>
+
+<p>Der zweite schnelle Weg: Sie haben eine Zeichnung — als Foto, als
+eingescanntes PDF, als Ausdruck vom Architekten. Der Reiter <b>Referenz</b>
+hinterlegt sie unter dem Plan, und Sie zeichnen darüber.</p>
+
+<h4 id="k2-3-1">2.3.1 Bild hinterlegen</h4>
+
+<p>Ziehen Sie die Datei in das gestrichelte Feld im Reiter <b>Referenz</b> oder
+klicken Sie hinein. Erlaubt sind PNG, JPG, WebP und PDF; von einem PDF wird die
+<b>erste Seite</b> in doppelter Auflösung gerastert. Danach steuern Sie:</p>
+
+<ul>
+  <li><b>Deckkraft</b> — wie stark das Bild durchscheint. Zum Nachzeichnen sind
+  30 bis 50 Prozent angenehm.</li>
+  <li><b>Sichtbar / Ausgeblendet</b> — das Bild kurz wegschalten, ohne es zu
+  verlieren.</li>
+  <li><b>Gesperrt / Beweglich</b> — gesperrt kann das Bild beim Zeichnen nicht
+  versehentlich verschoben werden. Nach dem Ausrichten sperren.</li>
+  <li><b>Drehung</b> in Grad und <b>Pixel je Meter</b> für die Feinjustage.</li>
+</ul>
+
+<h4 id="k2-3-2">2.3.2 Maßstab kalibrieren</h4>
+
+<p>Ein Bild hat keinen Maßstab, es hat Pixel. Damit aus einer gezeichneten
+Linie ein Maß in Metern wird, muss das Programm wissen, wie viele Bildpunkte
+ein Meter sind. Das ist die Kalibrierung, und sie ist der wichtigste Handgriff
+beim Bildimport.</p>
+
+<ol>
+  <li>Im Reiter <b>Referenz</b> auf <b>Maßstab kalibrieren (2-Punkt)</b>.</li>
+  <li>Im Plan eine <b>bekannte Strecke</b> abfahren — eine bemaßte Wand, ein
+  Türsturz, ein eingetragenes Maß. Je länger die Strecke, desto genauer.</li>
+  <li>Die wahre Länge in Metern eintippen und mit <kbd>Enter</kbd> bestätigen.
+  <kbd>Esc</kbd> bricht ab.</li>
+</ol>
+
+<div class="formel">
+  <p class="worte">In Worten: Der Maßstab ist die Zahl der gezogenen Bildpunkte
+  geteilt durch die Länge, die Sie eingetragen haben.</p>
+  <p class="math">ppm = gezogene Bildpunkte / eingegebene Reallänge</p>
+  <dl class="zeichen">
+    <dt>ppm</dt><dd>Pixel pro Meter [px/m] — wie viele Bildpunkte ein Meter im Bild lang ist</dd>
+  </dl>
+</div>
+
+<div class="beispiel">
+  <b>Beispiel zum Nachrechnen</b>
+  <p>Sie fahren im gescannten Plan die Außenwand des Wohnzimmers ab, von
+  Außenkante zu Außenkante. Der Zug ist 512 Bildpunkte lang. In der Zeichnung
+  steht daneben das Maß 6,40 m. Sie tragen 6,40 ein.</p>
+  <p>512 px / 6,40 m</p>
+  <p class="ergebnis">= 80,0 px/m</p>
+  <p>Ab jetzt ist jede im Bild abgegriffene Länge in Metern richtig. Der Reiter
+  zeigt darunter „kalibriert auf 6,40 m".</p>
+</div>
+
+<div class="warnung">
+  <b>Achtung</b>
+  <p>Ein Foto einer Zeichnung ist fast nie verzerrungsfrei. Wer schräg
+  fotografiert, bekommt in der einen Bildrichtung einen anderen Maßstab als in
+  der anderen, und die Kalibrierung kann davon nur einen fangen. Nehmen Sie
+  einen Scan oder ein PDF, wenn Sie eines bekommen können — und prüfen Sie nach
+  der Kalibrierung ein zweites, quer liegendes Maß nach.</p>
+</div>
+
+<h4 id="k2-3-3">2.3.3 Auto-Trace — ein Vorschlag, kein Ergebnis</h4>
+
+<p>Der Knopf <b>Grundriss automatisch erkennen</b> schickt das Bild durch eine
+Bilderkennung und legt das Erkannte als <b>magenta gestrichelte Vorschau</b>
+über den Plan. Nichts davon ist im Modell, solange Sie es nicht übernehmen.</p>
+
+<p>Unten am Bild erscheint die Kontrollleiste mit:</p>
+
+<ul>
+  <li><b>Zahl der erkannten Wände und Öffnungen</b> und wie viele davon Sie
+  verworfen haben.</li>
+  <li><b>Konfidenz-Schwelle</b> als Schieberegler, ab Werk bei 40 Prozent. Alles
+  darunter wird ausgeblendet. Hochziehen zeigt nur die sicheren Treffer,
+  herunterziehen auch die zweifelhaften.</li>
+  <li><b>Sichtbar / Ausgeblendet</b> für die ganze Vorschauebene.</li>
+  <li><b>Verwerfen</b> — die ganze Vorschau wegwerfen — und <b>Vorschlag
+  übernehmen</b>.</li>
+</ul>
+
+<p>Einen einzelnen falschen Vektor wählen Sie mit einem Klick; er lässt sich mit
+<kbd>Alt</kbd> + Klick oder mit <kbd>Entf</kbd> verwerfen und danach
+wiederherstellen. Erkennt die Auswertung eine Maßkette im Bild, bietet sie
+zusätzlich an, den Maßstab daraus zu übernehmen.</p>
+
+<div class="merke">
+  <b>Merke</b>
+  <p>Auto-Trace ist ein <b>Vorschlag</b>. Die Bilderkennung sieht Striche, nicht
+  Wände: ein Schraffurrand wird zur Wand, eine Möbelkante zum Fenster, eine
+  Bemaßungslinie zur Trennwand. Gehen Sie die Vorschau durch, bevor Sie
+  übernehmen. Was übernommen ist, ist ganz normale Geometrie und muss von da an
+  wie von Hand gezeichnet behandelt werden.</p>
+</div>
+
+<p>Ist kein Erkennungsdienst erreichbar — und aus der Einzeldatei heraus ist er
+das nie —, schaltet das Programm sichtbar auf eine örtliche Simulation um. Die
+Kontrollleiste nennt dann das benutzte Modell mit dem Zusatz „(Fallback)".
+Halten Sie ein solches Ergebnis nicht für eine echte Erkennung; es ist eine
+Vorführung des Ablaufs.</p>
+
+<p>Der Rest der Arbeit ist Handarbeit über der Vorlage, und dafür ist das
+Fangen da: siehe <a href="#k3-10">Abschnitt 3.10</a> und
+<a href="#k4">Kapitel 4</a>.</p>
+
+<h3 id="k2-4">2.4 Der rote Faden: „Was ist zu tun?"</h3>
+
+<p>Ein CAD-Fenster beantwortet die Frage „und was jetzt?" nicht von selbst. Wer
+zum ersten Mal davorsitzt, sieht Werkzeuge und Reiter, aber keine Reihenfolge —
+und merkt erst beim Export, dass die Hälfte fehlt.</p>
+
+<p>Deshalb gibt es den Reiter <b>Start</b> auf der rechten Seite. Er liest den
+Stand des Modells und sagt in Alltagssprache, was schon steht und was noch
+fehlt. Seit der Fassung 1.14.0 sind es <b>dreizehn Schritte</b> — vom ersten
+Wandzug bis zur Übergabe an RaVia.</p>
+
+<p class="wo">Im Programm: rechte Seite, Reiter <b>Start</b></p>
+
+<h4 id="k2-4-0">2.4.0 Die drei Zustände</h4>
+
+<p>Jeder Schritt trägt einen von drei Zuständen, und der dritte ist der
+wichtigste:</p>
+
+<table class="tab">
+  <caption>Was die Zeichen vor einem Schritt bedeuten</caption>
+  <thead><tr><th>Zustand</th><th>Bedeutung</th><th>Schaltfläche</th></tr></thead>
+  <tbody>
+    <tr><td><b>erledigt</b> (Haken)</td><td>Der Schritt ist getan.</td><td>meist keine</td></tr>
+    <tr><td><b>offen</b> (heller Ring)</td><td>Der Schritt ist dran.</td><td>springt genau dorthin</td></tr>
+    <tr><td><b>noch nicht möglich</b> (grau)</td><td>Die Voraussetzung fehlt. Der Satz darunter sagt, was zuerst fehlt.</td><td><b>keine</b> — was noch nicht geht, soll nicht zum Klicken einladen</td></tr>
+    <tr><td><b>freigestellt</b> (Punkt)</td><td>Für dieses Projekt vielleicht gar nicht nötig.</td><td>vorhanden</td></tr>
+  </tbody>
+</table>
+
+<p>Der Fortschrittsbalken oben zählt nur, was gerade auf dem Tisch liegt:
+erledigte und offene Schritte. Gesperrte Schritte stehen als eigene Zeile
+darunter („3 Schritte sind noch nicht möglich"). Der Grund ist praktisch: ein
+reines Erfassungsprojekt ohne Anlagentechnik hinge sonst dauerhaft bei der
+Hälfte fest, obwohl alles erledigt ist, was für dieses Projekt zu tun war.</p>
+
+<div class="merke">
+  <b>Merke</b>
+  <p>Die Liste ist kein Assistent, der Sie durch Schritte zwingt. Ein Bestand
+  wird selten in der Reihenfolge aufgenommen, in der ein Programm sie gern
+  hätte. Sie können jederzeit springen; die Liste rechnet den Stand jedes Mal
+  neu aus.</p>
+</div>
+
+<h4 id="k2-4-1">2.4.1 Schritt 1 — Grundriss zeichnen</h4>
+<p>Mit dem Wand-Werkzeug einen geschlossenen Umriss zeichnen. Jeder Klick setzt
+einen Punkt, <kbd>Esc</kbd> beendet den Zug. Sobald der Umriss zu ist, erkennt
+das Programm den Raum von selbst. Der Zähler rechts zeigt die Zahl der Wände.
+Erledigt ist der Schritt, sobald mindestens ein Raum erkannt wurde.</p>
+<p class="wo">Schaltfläche: <b>Wand zeichnen</b> · Ausführlich in <a href="#k4">Kapitel 4</a></p>
+
+<h4 id="k2-4-2">2.4.2 Schritt 2 — Alle Räume geschlossen</h4>
+<p>Das Programm prüft zwei verschiedene Befunde und zählt sie getrennt:</p>
+<ul>
+  <li><b>Offene Wandenden.</b> An den orangefarbenen Punkten im Plan hört eine
+  Wand auf, ohne die nächste zu berühren. Dort wird kein Raum erkannt. Ziehen
+  Sie die Wand bis an die nächste heran — sie verbindet sich dann von selbst.</li>
+  <li><b>Lücken.</b> Zwischen zwei sauber angeschlossenen Wandenden fehlt ein
+  ganzes Wandstück. Das ist der häufigste Fall aus der Praxis, und er hat kein
+  loses Ende: an einer vergessenen Wand zwischen zwei T-Stößen hat jedes Ende
+  einen Anschluss, und der Umriss ist trotzdem offen. Der Plan zeichnet die
+  fehlende Wand gestrichelt.</li>
+</ul>
+<p class="wo">Schaltfläche: <b>Wand verlängern</b> beziehungsweise <b>Wand ergänzen</b></p>
+
+<h4 id="k2-4-3">2.4.3 Schritt 3 — Fenster und Türen setzen</h4>
+<p>Fenster-Werkzeug wählen und auf die Wand klicken. Die Öffnung sitzt dort, wo
+Sie geklickt haben, und ihre Fläche wird von der Wandfläche abgezogen.</p>
+<div class="warnung">
+  <b>Achtung</b>
+  <p>Ohne Fenster rechnet die Heizlast mit einer geschlossenen Wand — und fällt
+  zu klein aus. Der Bauteilkatalog des Programms führt ein Dreifachfenster mit
+  einem U-Wert von 0,9 W/(m²·K) und eine monolithische Außenwand mit 0,24; über
+  dieselbe Fläche verliert das Fenster also knapp das Vierfache. Ein
+  Bestandsfenster mit 2,7 gegen eine ungedämmte Ziegelwand mit 1,4 liegt beim
+  knapp Doppelten.</p>
+</div>
+
+<h4 id="k2-4-4">2.4.4 Schritt 4 — Räume benennen und Nutzung wählen</h4>
+<p>Raum im Plan anklicken und im Reiter <b>Objekt</b> die Nutzung wählen —
+Wohnen, Bad, Schlafen, Küche, Flur. Daraus ergeben sich Solltemperatur und
+Luftwechsel von selbst; im Bad sind 24 °C üblich, im Flur 15 °C. Der Zähler
+zeigt, wie viele Räume noch ohne Nutzung sind.</p>
+<p class="wo">Schaltfläche: <b>Räume ansehen</b> — öffnet das Raumbuch, siehe <a href="#k7">Kapitel 7</a></p>
+
+<h4 id="k2-4-5">2.4.5 Schritt 5 — Heizkörper eintragen</h4>
+<p>Dieser Schritt ist <b>nur für den Bestand</b> nötig. Wer erfassen will, was
+heute schon hängt, setzt die Heizkörper mit ihrer Leistung; die vorhandene
+Leistung steht danach je Raum im Export, und die Gegenstelle sieht sofort, wo es
+knapp wird. Für eine reine Neuplanung kann der Schritt entfallen. Der Zähler
+zeigt die Summe der eingetragenen Leistung in Watt.</p>
+<p class="wo">Schaltfläche: <b>Heizkörper setzen</b> · Ausführlich in <a href="#k8">Kapitel 8</a></p>
+
+<h4 id="k2-4-6">2.4.6 Schritt 6 — Anlage auslegen</h4>
+<p>Nur nötig, wenn die Anlage mitgeplant werden soll. Im Reiter <b>Anlage</b>
+schlägt das Programm ein Gerät zur Heizlast vor und rechnet daraus Speicher,
+Rohrgrößen, Ausdehnungsgefäß und Sicherheitsventil. Der Zähler zeigt die Zahl
+der Bauteile im Anlagenschema. Für die reine Datenerfassung kann der Schritt
+entfallen.</p>
+<p class="wo">Schaltfläche: <b>Anlage auslegen</b> · Ausführlich in <a href="#k10">Kapitel 10</a></p>
+
+<h4 id="k2-4-7">2.4.7 Schritt 7 — Rohrnetz auslegen</h4>
+<p>Das Programm führt die Trasse vom Erzeuger zu jeder Heizfläche und bestimmt
+daraus Nennweiten, Dämmung und Armaturen. Es gibt zwei Schaltflächen, weil die
+Wahl das Ergebnis vollständig bestimmt:</p>
+<ul>
+  <li><b>Für Neubau auslegen</b> — Leitungen auf der Rohdecke im
+  Fußbodenaufbau; der Weg darf quer durch den Raum.</li>
+  <li><b>Für Sanierung auslegen</b> — Leitungen sichtbar an der Wand im
+  Sockelleistenkanal; die Trasse folgt den Wänden.</li>
+</ul>
+<p>Der Schritt arbeitet <b>geschossweise</b>. Er ist gesperrt, solange auf dem
+aktiven Geschoss kein Ausgangspunkt steht — ein Wärmeerzeuger oder ein
+Heizkreisverteiler; einen Standort rät das Programm nicht. Er ist ebenfalls
+gesperrt, solange nichts am Netz hängt, was anzuschließen wäre. Eine erneute
+Auslegung ersetzt nur das selbst Erzeugte; von Hand gezogene Leitungen bleiben
+stehen.</p>
+<p class="wo">Ausführlich in <a href="#k9">Kapitel 9</a></p>
+
+<h4 id="k2-4-8">2.4.8 Schritt 8 — Rohrnetzbericht prüfen</h4>
+<p>Der Bericht rechnet das gezeichnete Netz nach: Teilstrecken, Fließwege,
+Einstellwerte, Nachweis. Der Zustand des Schritts sagt Ihnen in einem Satz, wo
+Sie stehen:</p>
+<ul>
+  <li><b>Fehler.</b> Die Rechnung meldet einen oder mehrere Fehler; der erste
+  steht wörtlich im Hinweistext.</li>
+  <li><b>Läuft durch, aber nicht nachweisfähig.</b> Der erste offene Punkt wird
+  benannt. Solange das offen ist, ist der Bericht eine Rechnung und kein
+  Nachweis (siehe <a href="#k1-2">Abschnitt 1.2</a>).</li>
+  <li><b>Erledigt.</b> Jede Teilstrecke ist gerechnet, jede Heizfläche hat einen
+  darstellbaren Einstellwert, der Nachweis ist vollständig. Verbleibende
+  Hinweise werden gezählt.</li>
+</ul>
+<p class="wo">Schaltfläche: <b>Bericht öffnen</b> · Ausführlich in <a href="#k14">Kapitel 14</a></p>
+
+<h4 id="k2-4-9">2.4.9 Schritt 9 — Schema vorschlagen lassen</h4>
+<p>Im Reiter <b>Anlage</b> hält das Programm jede Vorlage seines Katalogs gegen
+die ausgelegte Anlage und nennt zu jeder, was übereinstimmt und was nicht. Ohne
+übernommene Vorlage bleibt das Fließbild anonym: es zeigt eine Anlage, aber
+nicht, welche. Ist eine Vorlage übernommen, steht ihre Kennung als Zähler
+rechts, etwa <code>BWP-H-03</code>.</p>
+<p>Gesperrt bleibt der Schritt, solange kein Gerät gewählt ist — erst dann
+stehen Anbindung, Trinkwassererwärmung und Zahl der Kreise fest, und nur
+dagegen lassen sich die Vorlagen halten.</p>
+<p class="wo">Ausführlich in <a href="#k12">Kapitel 12</a></p>
+
+<h4 id="k2-4-10">2.4.10 Schritt 10 — Schemaprüfung lesen</h4>
+<p>Geprüft wird das Fließbild, das im Modell steht — auch ein von Hand
+nachgebessertes. Die Befunde haben drei Gewichte:</p>
+<ul>
+  <li><b>Fehler</b> — so darf die Anlage nicht gebaut werden: der Befund
+  verstößt gegen eine Norm oder eine ausdrückliche Herstellervorgabe.</li>
+  <li><b>Warnung</b> — nachsehen lohnt sich.</li>
+  <li><b>Hinweis</b> — zur Kenntnis.</li>
+</ul>
+<p>Zu jedem Befund steht die Quelle im Klartext daneben.</p>
+<p class="wo">Schaltfläche: <b>Befunde ansehen</b> · Ausführlich in <a href="#k12">Kapitel 12</a></p>
+
+<h4 id="k2-4-11">2.4.11 Schritt 11 — Prüfung ohne Fehler</h4>
+<p>Das ist die Modellprüfung, nicht die Schemaprüfung. Sie sieht sich das
+Gebäudemodell an:</p>
+<ul>
+  <li><b>Fehler</b> sind Stellen, an denen die Rechnung nachweislich falsch
+  würde. Der Reiter <b>Prüfung</b> nennt jede einzeln, mit einem Satz dazu, wie
+  sie zu beheben ist — und ein Klick auf den Befund springt auf das betroffene
+  Objekt.</li>
+  <li><b>Warnungen</b> heißen: hier wird mit einer Standardannahme gerechnet
+  statt mit Ihrer Angabe. Ansehen lohnt sich, nötig ist es nicht.</li>
+  <li><b>Keines von beidem</b> heißt: alles vollständig, nichts wird
+  angenommen.</li>
+</ul>
+<p class="wo">Schaltfläche: <b>Prüfung öffnen</b></p>
+
+<h4 id="k2-4-12">2.4.12 Schritt 12 — Mappe drucken</h4>
+<p>Vier Blattfolgen, die an vier Stellen entstehen: der maßstäbliche Grundriss,
+der Rohrnetzbericht mit Teilstrecken und Einstellwerten, das Anlagenschema und
+das Anlagenbuch mit Auslegung, Raumbuch und Inbetriebnahme. Der Zähler zeigt,
+wie viele davon es gerade wirklich gibt — „2 von 4". Was fehlt, wird beim Namen
+genannt, und für einen Weg, hinter dem noch nichts liegt, gibt es keine
+Schaltfläche.</p>
+<p>Dieser Schritt hakt sich <b>nie von selbst ab</b>: ob gedruckt wurde, kann
+das Programm nicht wissen.</p>
+<p class="wo">Ausführlich in <a href="#k14">Kapitel 14</a></p>
+
+<h4 id="k2-4-13">2.4.13 Schritt 13 — An RaVia übergeben</h4>
+<p>Sobald die Prüfung keine Fehler mehr zeigt und mindestens ein Raum da ist,
+steht die Übergabe bereit: oben rechts der Knopf <b>RaVia JSON</b>. Die Datei
+enthält alles, was für die Heizlast gebraucht wird, samt Prüfbericht — und sie
+ist zugleich Ihre Projektdatei.</p>
+<p class="wo">Ausführlich in <a href="#k17">Kapitel 17</a></p>
+
+<h3 id="k2-5">2.5 Begriffe nachschlagen</h3>
+
+<p>Unter der Schrittliste sitzt der Bereich <b>Begriffe nachschlagen</b>: das
+Glossar des Programms mit 16 Einträgen — U-Wert, g-Wert, ΔU<sub>WB</sub>,
+B-Strich, n<sub>min</sub>, Nordabweichung, Überströmen, F<sub>RH</sub>,
+Nennweite, Schrittmaß, Heizlast, Norm-Außentemperatur, Abschirmung,
+Wohnfläche, Hüllfläche und TA Lärm. Zu jedem steht ein Satz in Alltagssprache,
+eine längere Erklärung und, wo es sie gibt, der übliche Wertebereich.</p>
+
+<p>Gesucht wird auch im Erklärtext, nicht nur im Begriff. Wer wissen will,
+warum das Bad wärmer sein soll als der Flur, findet über das Wort „Bad" die
+Solltemperatur.</p>
+
+<p>Dieselben Erklärungen stecken hinter jedem kleinen Fragezeichen im Programm.
+Es ist anklickbar und nicht nur auf Mausberührung ausgelegt — auf einem Tablet
+auf der Baustelle gibt es kein Hover.</p>
+
+<h3 id="k2-6">2.6 Die dreißig Minuten am Stück</h3>
+
+<p>Zum Schluss der Ablauf ohne Zwischentexte, so wie er tatsächlich läuft, wenn
+Sie eine Wohnung aufmessen und bis zum ersten Ausdruck kommen wollen.</p>
+
+<table class="tab">
+  <caption>Vom leeren Bildschirm zum ersten Blatt</caption>
+  <thead><tr><th>Min.</th><th>Was Sie tun</th><th>Wo</th></tr></thead>
+  <tbody>
+    <tr><td>0–2</td><td>Projekt anlegen und benennen. Falls vorhanden: Plan als Bild oder PDF hinterlegen und kalibrieren.</td><td>Kopfzeile, Reiter <b>Referenz</b></td></tr>
+    <tr><td>2–12</td><td>Außenwände als geschlossenen Zug zeichnen, dann die Innenwände. Ortho-Zwang an, Längen eintippen statt ziehen.</td><td>Werkzeug <kbd>W</kbd></td></tr>
+    <tr><td>12–15</td><td>Offene Enden und Lücken schließen, bis Schritt 2 den Haken bekommt.</td><td>Reiter <b>Start</b>, Statuszeile</td></tr>
+    <tr><td>15–20</td><td>Fenster und Türen setzen. Typ vorher in der Kontextleiste wählen.</td><td>Werkzeuge <kbd>F</kbd> und <kbd>D</kbd></td></tr>
+    <tr><td>20–25</td><td>Räume benennen, Nutzung wählen, im Raumbuch die Zeilen durchgehen.</td><td>Reiter <b>Objekt</b> und <b>Räume</b></td></tr>
+    <tr><td>25–27</td><td>Reiter <b>Prüfung</b>: Fehler abarbeiten, Warnungen lesen.</td><td>Reiter <b>Prüfung</b></td></tr>
+    <tr><td>27–30</td><td>Grundriss maßstäblich drucken (1:50 oder 1:100) oder <b>RaVia JSON</b> exportieren.</td><td>Kopfzeile</td></tr>
+  </tbody>
+</table>
+
+<div class="baustelle">
+  <b>Auf der Baustelle heißt das</b>
+  <p>Zeichnen Sie zuerst die Außenkontur in einem Zug und schließen Sie sie.
+  Erst dann die Innenwände. In dieser Reihenfolge erkennt das Programm nach
+  jedem geschlossenen Bereich sofort einen Raum, und Sie sehen an den
+  Raumflächen in der Statuszeile, ob Ihre Maße stimmen — bevor Sie zwanzig
+  weitere Wände darauf setzen.</p>
+</div>
+
+<p>Anlage, Rohrnetz, Schema und Projektmappe kommen danach. Sie brauchen sie
+für die Erfassung nicht, und die Schrittliste hält sie deshalb aus dem
+Fortschrittsbalken heraus, solange in Ihrem Projekt keine Anlagentechnik
+vorkommt.</p>
+
+</section>

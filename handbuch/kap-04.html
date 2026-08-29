@@ -1,0 +1,327 @@
+<section id="kap-04" class="kapitel" data-titel="4 · Zeichnen: Wände, Öffnungen, Räume">
+<h2 id="k4">4 · Zeichnen: Wände, Öffnungen, Räume</h2>
+<p class="lead">Wie das Programm aus Strichen ein Gebäude macht: die Wandachse als Rückgrat, Öffnungen als echte Löcher, und Räume, die sich von selbst ergeben, sobald ein Wandzug geschlossen ist.</p>
+
+<h3 id="k4-1">4.1 Achsen statt Kanten</h3>
+
+<p>Wenn Sie in diesem Programm eine Wand ziehen, zeichnen Sie nicht ihre Innenkante und nicht ihre Außenkante. Sie zeichnen ihre <b>Achse</b> — die gedachte Mittellinie. Die Wandstärke wird danach symmetrisch nach beiden Seiten aufgetragen, je die Hälfte links und rechts.</p>
+
+<p>Das ist dieselbe Konvention, nach der ein Architekt von Hand zeichnet, und sie hat einen handfesten Grund: eine Wand ändert im Laufe einer Planung ihre Stärke, aber selten ihre Lage. Wer auf der Achse zeichnet, kann aus einer 24er eine 36,5er machen, ohne dass der halbe Grundriss verrutscht. Wer auf der Kante zeichnet, muss jedes Mal nachziehen.</p>
+
+<div class="merke"><b>Merke</b><p>Was Sie ziehen, ist die Wandmitte. Ein Rechteck von 4,00 × 5,00 ist ein Achsmaß, kein lichtes Maß. Bei 24 cm Wandstärke bleiben davon innen 3,76 × 4,76 übrig.</p></div>
+
+<p>Aus der Achse leitet das Programm alles Weitere ab. Für jede Wand entstehen aus den beiden Endknoten:</p>
+
+<ul>
+<li>die <b>Richtung</b> der Achse als Einheitsvektor,</li>
+<li>die <b>Normale</b>, also die Querrichtung, in der die Dicke aufgetragen wird,</li>
+<li>die <b>Länge</b> zwischen den Knoten,</li>
+<li>der <b>Achswinkel</b> und der <b>Mittelpunkt</b>,</li>
+<li>die <b>halbe Wandstärke</b> — das Maß, um das die Wandfläche nach jeder Seite von der Achse absteht.</li>
+</ul>
+
+<p class="wo">Im Programm: Werkzeug <b>Wand zeichnen</b> (Taste <kbd>W</kbd>). Voreingestellt sind 24 cm Stärke, 2,75 m lichte Höhe, Bauteilart Außenwand, U-Wert 0,24 W/(m²·K). Alles davon ändern Sie im Reiter <b>Objekt</b>, bevor oder nachdem Sie gezeichnet haben.</p>
+
+<div class="beispiel">
+<b>Beispiel zum Nachrechnen</b>
+<p>Sie ziehen ein Rechteck 4,00 × 5,00 auf, alle vier Wände 24 cm stark. Das Programm zeigt Ihnen zwei Flächen: die <b>Achsfläche</b> 4,00 × 5,00 = 20,00 m² und die <b>lichte Fläche</b> (4,00 − 0,24) × (5,00 − 0,24) = 3,76 × 4,76.</p>
+<p class="ergebnis">= 17,90 m² licht, 20,00 m² Achsfläche — 2,10 m² Unterschied</p>
+</div>
+
+<p>Warum das für die Heizlast entscheidend ist: Die Fläche geht in das Luftvolumen ein, das Luftvolumen in den Lüftungswärmeverlust. Zwei Quadratmeter zuviel bei 2,50 m Höhe sind fünf Kubikmeter Luft, die es nicht gibt. Über ein ganzes Haus summiert sich das auf eine Größenordnung, die man nicht mehr wegdiskutiert. Deshalb rechnet dieses Programm alle Raumkennwerte auf dem <b>lichten</b> Polygon und führt die Achsfläche nur als zweite Zahl daneben.</p>
+
+<h3 id="k4-2">4.2 Wandanschlüsse und geschlossene Ecken</h3>
+
+<p>Eine Wand endet an ihrem Knoten. Wenn zwei Wände rechtwinklig aufeinandertreffen, endet damit jede von ihnen auf der Achse der anderen — und genau dort fehlt Material. Der Bereich zwischen der Achse und der Außenkante der Nachbarwand bleibt leer. Im Plan sieht das aus wie eine offene Ecke, im Ausdruck ist es eine weiße Kerbe, und im 3D-Modell schauen Sie durch das Loch nach draußen.</p>
+
+<p>Deshalb verlängert das Programm jede Wand an einem Anschlussknoten über den Knoten hinaus. Das Maß der Verlängerung heißt im Quelltext <code>junctionExtension</code> und ist einfach zu merken:</p>
+
+<div class="merke"><b>Merke</b><p>An einem Knoten wird eine Wand um die <b>halbe Stärke der dicksten anderen</b> dort ankommenden Wand verlängert. Steht dort nur diese eine Wand, wird nichts verlängert — ein freies Wandende bleibt ein freies Wandende.</p></div>
+
+<div class="beispiel">
+<b>Beispiel zum Nachrechnen</b>
+<p>Eine Außenwand von 36,5 cm trifft im rechten Winkel auf eine Innenwand von 24 cm.</p>
+<p>Die Innenwand wird über den Knoten hinaus verlängert um 36,5 / 2 = 18,25 cm. Die Außenwand wird verlängert um 24 / 2 = 12 cm.</p>
+<p class="ergebnis">Beide Überstände liegen unter der Füllung der jeweils anderen Wand — die Ecke ist dicht, ohne dass etwas übersteht.</p>
+</div>
+
+<p>Bei schiefen Winkeln geht die Rechnung nicht mehr exakt auf. Der Überstand steht dann innerhalb der anderen Wand, ist unter deren Füllung aber nicht zu sehen. Das Verfahren ist also ein Gehrungsersatz, keine echte Gehrung. Für den Grundriss und für die 3D-Ansicht reicht das; für eine Schalungszeichnung wäre es zu grob, und dafür ist dieses Programm auch nicht gemacht.</p>
+
+<div class="baustelle"><b>Auf der Baustelle heißt das</b><p>Wenn eine Ecke im Plan offen aussieht, liegt es fast nie an der Darstellung, sondern daran, dass die beiden Wandenden nicht denselben Knoten teilen. Ziehen Sie das eine Ende auf das andere, bis der Fang einrastet. Erst dann rechnet das Programm die Verlängerung — vorher weiß es nichts von einer Ecke.</p></div>
+
+<p>Beim Zerlegen einer Wand in ihre massiven Teilstücke merkt sich das Programm zu jedem Stück, <i>warum</i> es dort endet: an einem Anschluss oder an einer Öffnung. Der Unterschied ist zeichnerisch. An der Öffnung gehört eine Laibungskante hin, am Anschluss nicht. Bildschirm und Ausdruck benutzen dieselbe Zerlegung; das ist keine Selbstverständlichkeit, sondern die Lehre aus einem Fehler früherer Fassungen, bei dem nur der Bildschirm über den Knoten hinaus verlängerte und auf dem Papier alle Ecken offen standen.</p>
+
+<h3 id="k4-3">4.3 Öffnungen sind echte Aussparungen</h3>
+
+<p>Ein Fenster ist in diesem Programm kein Symbol, das auf die Wand gemalt wird. Es ist ein <b>Loch</b>. Die Wand wird an der Stelle in Teilquader zerlegt, und was nicht Brüstung und nicht Sturz ist, gibt es schlicht nicht.</p>
+
+<h4 id="k4-3-1">4.3.1 Wie die Zerlegung arbeitet</h4>
+
+<p>Für jede Öffnung ermittelt das Programm zwei Zahlen auf der Wandachse: den Anfang und das Ende der Laibung. Sie ergeben sich aus der Öffnungsmitte plus und minus der halben Breite. Liegt die Mitte so nah am Wandende, dass die Öffnung herausragen würde, wird sie so weit hineingeschoben, dass sie gerade noch vollständig in der Wand sitzt.</p>
+
+<p>Danach entstehen aus der Wand diese Teile:</p>
+
+<ul>
+<li>das volle Wandstück <b>vor</b> der Öffnung, von der letzten Kante bis zur Laibung,</li>
+<li>die <b>Brüstung</b> unter der Öffnung, von Fußbodenoberkante bis Brüstungshöhe — bei einer Tür entfällt sie, weil ihre Brüstungshöhe null ist,</li>
+<li>der <b>Sturz</b> über der Öffnung, von Brüstungshöhe plus Öffnungshöhe bis zur Wandoberkante,</li>
+<li>das volle Wandstück <b>nach</b> der Öffnung.</li>
+</ul>
+
+<div class="beispiel">
+<b>Beispiel zum Nachrechnen</b>
+<p>Wand 4,00 m lang, 2,75 m hoch. Darin ein Dreh-Kipp-Fenster 1,26 × 1,385 mit 0,90 m Brüstung, Mitte bei 2,00 m.</p>
+<p>Laibung von 2,00 − 0,63 = 1,37 m bis 2,00 + 0,63 = 2,63 m. Sturzunterkante bei 0,90 + 1,385 = 2,285 m.</p>
+<p>Es entstehen vier Quader: 0,00–1,37 m über die volle Höhe; 1,37–2,63 m von 0,00 bis 0,90 m (Brüstung); 1,37–2,63 m von 2,285 bis 2,75 m (Sturz); 2,63–4,00 m über die volle Höhe.</p>
+<p class="ergebnis">Öffnungsfläche 1,26 × 1,385 = 1,745 m² — genau diese Fläche fehlt der Wandscheibe im Aufmaß und in der Heizlast</p>
+</div>
+
+<p>Das Programm benutzt bewusst <b>keine</b> booleschen Operationen auf Volumenkörpern, wie ein großes CAD-System (rechnergestütztes Zeichnen) sie einsetzt. Solche Verschneidungen kosten pro Wand Millisekunden und erzeugen instabile Geometrie. Die Zerlegung in achsparallele Quader ist dagegen exakt, wiederholbar und praktisch gratis. Sie ist außerdem <b>dieselbe</b> Zerlegung für den Grundriss und für die 3D-Ansicht. Damit kann die Aussparung im Plan gar nicht von der Aussparung im Modell abweichen — der klassische Fehler, wenn beide Wege getrennt programmiert werden.</p>
+
+<h4 id="k4-3-2">4.3.2 Was Sie an einer Öffnung einstellen</h4>
+
+<table class="tab">
+<caption>Die Eingaben einer Öffnung</caption>
+<thead><tr><th>Angabe</th><th>Bedeutung</th></tr></thead>
+<tbody>
+<tr><td>Art</td><td>Fenster, Tür oder Durchgang. Bestimmt das Symbol und die Zerlegung.</td></tr>
+<tr><td>Abstand</td><td>Von Wandanfang bis zur <b>Mitte</b> der Öffnung, gemessen auf der Achse. Wird die Wand verschoben oder gedreht, wandert die Öffnung korrekt mit.</td></tr>
+<tr><td>Breite / Höhe</td><td>Rohbaumaße, nicht Flügelmaße.</td></tr>
+<tr><td>Brüstungshöhe</td><td>Über Fertigfußboden. Türen und Fenstertüren: 0.</td></tr>
+<tr><td>Anschlagseite</td><td>Links oder rechts — an welchem Ende der Öffnung das Band sitzt.</td></tr>
+<tr><td>Öffnungsrichtung</td><td>Nach welcher Wandseite das Blatt aufschlägt. Ein Klick spiegelt sie.</td></tr>
+<tr><td>U-Wert, g-Wert</td><td>Wärmedurchgangskoeffizient des Bauteils und Gesamtenergiedurchlassgrad. Der g-Wert wirkt nur auf die solaren Gewinne, nicht auf die Heizlast.</td></tr>
+</tbody>
+</table>
+
+<p>Anschlagseite und Öffnungsrichtung wirken sich auf keine Rechnung aus. Sie sind reine Darstellung — und trotzdem wichtig, weil ein Grundriss, in dem die Türen falsch herum aufschlagen, auf der Baustelle Rückfragen erzeugt. Bei Schiebetüren gibt es keinen Schwenkbogen, sondern ein Blatt vor der Wand und einen Pfeil in Fahrtrichtung. Bei zweiflügeligen Türen entstehen zwei gegenläufige Blätter halber Breite.</p>
+
+<p>Für die gängigen Maße gibt es einen Katalog. Die Türmaße folgen den Rohbaumaßen nach DIN 18100: 76 × 201, 88,5 × 201, 101 × 213,5 sowie zweiflügelig 176 × 213,5. Bei den Fenstern sind übliche Rastermaße hinterlegt, von der Festverglasung 126 × 138,5 über Dreh-Kipp 113,5 × 138,5 bis zum Bandfenster 350 × 113,5 mit drei Feldern. Die Durchgänge gibt es mit Sturz, raumhoch, als breiten Wanddurchbruch und als Rundbogen.</p>
+
+<p>Beschriftet wird eine Öffnung nach Bauzeichnungsgebrauch: oben Rohbaubreite durch Rohbauhöhe, beim Fenster darunter die Brüstungshöhe mit vorangestelltem <b>B</b>. Aus dem Beispiel oben wird also <code>1,26/1,385</code> und darunter <code>B 0,90</code>.</p>
+
+<!--SYMBOLTAFEL:oeffnungen-->
+
+<div class="warnung"><b>Achtung</b><p>Eine Öffnung, die breiter ist als ihre Wand, ist ein Fehler und kein Rundungsproblem — die Modellprüfung meldet ihn und der Export ist gesperrt. Dasselbe gilt, wenn Brüstungshöhe plus Öffnungshöhe über die Wandhöhe hinausreichen, und wenn sich zwei Öffnungen in derselben Wand überlappen.</p></div>
+
+<h3 id="k4-4">4.4 Raumerkennung: wie aus Wänden Räume werden</h3>
+
+<p>Sie zeichnen keine Räume. Sie zeichnen Wände, und sobald diese einen geschlossenen Ring bilden, ist der Raum da — mit Fläche, Umfang, Volumen, Höhe, allen Wandabschnitten, deren Himmelsrichtung und den zugehörigen Fensterflächen.</p>
+
+<h4 id="k4-4-1">4.4.1 Der Weg von der Wand zur Fläche</h4>
+
+<p>Das Programm arbeitet dabei nicht mit einem Farbeimer, der eine Fläche vollläuft. Ein solches Verfahren wäre von der Bildschirmauflösung abhängig, lieferte gezackte Ränder und würde beim Zoomen andere Ergebnisse liefern. Stattdessen rechnet es exakt auf den Wandachsen:</p>
+
+<ol>
+<li><b>Planarisieren.</b> Alle Achsen werden an ihren echten Schnittpunkten aufgeteilt. Aus zwei sich kreuzenden Wänden werden vier Teilstücke mit einem gemeinsamen Punkt.</li>
+<li><b>Halbkanten bilden.</b> Jede Teilkante bekommt zwei Laufrichtungen. An jedem Knoten werden die abgehenden Kanten nach ihrem Winkel sortiert.</li>
+<li><b>Facetten umlaufen.</b> Man läuft eine Kante entlang und biegt am Ende immer <i>scharf rechts</i> ab. Damit wird jede eingeschlossene Fläche genau einmal umrundet.</li>
+<li><b>Außen verwerfen.</b> Die Fläche, die den ganzen Grundriss von außen umschließt, läuft dabei andersherum und fällt heraus.</li>
+<li><b>Nach innen versetzen.</b> Jede Kante des Achspolygons wird um die halbe Stärke <i>ihrer</i> Wand nach innen geschoben. So bekommen Sie auch dann richtige lichte Maße, wenn ein Raum aus 36,5er Außenwänden und 11,5er Innenwänden besteht.</li>
+</ol>
+
+<p>Das Verfahren ist schnell: bei den üblichen Grundrissen mit weniger als 300 Wänden läuft es deutlich unter einer Millisekunde durch. Deshalb kann es nach jeder Änderung neu laufen, und deshalb sehen Sie das Ergebnis, während Sie ziehen.</p>
+
+<p>Flächen unter <b>0,40 m²</b> werden verworfen. Das sind die Zwickel, die an Wandkreuzungen entstehen, keine Räume.</p>
+
+<h4 id="k4-4-2">4.4.2 Das offene Wandende — der häufigste Grund für „Raum nicht erkannt“</h4>
+
+<p>Ein <b>offenes Wandende</b> ist ein Punkt, an dem genau eine Wand endet und an dem auch keine fremde Wandachse vorbeiläuft. Fachlich gesagt: ein Ende mit Grad 1. Praktisch gesagt: eine Wand, die ins Leere zeigt.</p>
+
+<p>Solange irgendwo im Ring ein solches Ende steht, ist der Ring offen. Die Fläche dahinter hängt mit dem Außenbereich zusammen und wird deshalb nicht als Raum geführt. Sie sehen dann nichts — keinen Raum, keine Fläche, keine Zahl. Genau das ist die Falle: das Programm schweigt, und man sucht den Fehler dort, wo man zuletzt gezeichnet hat, statt dort, wo die Umschließung aufreißt.</p>
+
+<p>Deshalb blendet der Grundriss offene Wandenden als orangefarbene Punkte ein, und die Modellprüfung meldet jedes einzelne als <b>Fehler</b> mit Koordinate und dem Abstand zur nächsten Wand.</p>
+
+<div class="baustelle"><b>Auf der Baustelle heißt das</b><p>Fehlt ein Raum, schauen Sie zuerst auf die orangefarbenen Punkte. Mit dem Wandwerkzeug vom Punkt aus bis an die nächste Wand ziehen — dort verbindet sie sich von selbst.</p></div>
+
+<h4 id="k4-4-3">4.4.3 Die Topologie-Heilung und ihre Grenze</h4>
+
+<p>Beim freien Zeichnen entstehen Fugen, die kein Mensch sieht: zwei Wandenden liegen drei Millimeter auseinander, oder ein Wandende endet knapp <i>neben</i> statt exakt <i>auf</i> einer anderen Achse. Für das Auge ist der Grundriss geschlossen, für die Rechnung nicht.</p>
+
+<p>Vor der Raumerkennung läuft deshalb eine <b>Heilung</b> über eine Kopie des Modells. Sie tut zweierlei:</p>
+
+<ul>
+<li><b>Schweißen.</b> Alle Wandenden, die enger als 5 cm beieinanderliegen, werden auf eine gemeinsame Position gezogen — den Mittelwert der beteiligten Punkte.</li>
+<li><b>Projizieren.</b> Ein Ende, das knapp neben einer fremden Achse liegt, wird exakt auf diese Achse gezogen. Erst dadurch wird aus einem Beinahe-T-Stoß ein echter, der die andere Wand teilt.</li>
+</ul>
+
+<p>Die Toleranz von <b>5 cm</b> ist bewusst gewählt und bleibt so. Nach oben verbietet sie sich: in einem 11,5-cm-Ständerwerk liegen zwei verschiedene Wandachsen 11,5 cm auseinander, und eine Toleranz jenseits der halben Wandstärke zöge sie zusammen. Nach unten bringt sie nichts, weil die Fugen, um die es geht, im Millimeterbereich liegen.</p>
+
+<div class="warnung"><b>Achtung</b><p>Die Heilung arbeitet nur auf einer Kopie. Ihre Wände bleiben genau dort, wo Sie sie gezeichnet haben. Eine geheilte Fuge ist damit eine <b>verschwiegene</b> Fuge: der Raum wird erkannt, aber im Aufmaß, in der Wandliste und im Export bleibt die Fuge stehen. Deshalb protokolliert die Heilung, was sie zurechtgerückt hat, und die Modellprüfung gibt es als Warnung weiter.</p></div>
+
+<p>Wo die Heilung aufhört, fängt die zweite Prüfung an — und die ist die wichtigere. Fehlt zwischen zwei Bauteilen ein <b>ganzes Wandstück</b>, hat dort jedes Ende ordentlich Anschluss. Es gibt kein offenes Ende, nichts leuchtet orange, und trotzdem zählt der Flur dahinter zum Außenbereich. Das Programm sucht deshalb nicht nach losen Enden, sondern nach dem Außenbereich selbst: Wo die äußere Facette in den Grundriss hineingreift, liegt die Lücke. Die Sehne zwischen zwei Punkten dieser Facette, die keine Wand kreuzt, ist die fehlende Wand — und die Fläche, die sie abtrennt, ist der Raum, der Ihnen dadurch fehlt.</p>
+
+<table class="tab">
+<caption>Die Befunde der Umschließungsprüfung, nach Schwere sortiert</caption>
+<thead><tr><th>Befund</th><th>Was er bedeutet</th><th>Stufe</th></tr></thead>
+<tbody>
+<tr><td>Lücke</td><td>Zwischen zwei Wandenden fehlt ein Wandstück. Gemeldet werden Ort, Weite und die Fläche dahinter, die dadurch kein Raum ist.</td><td>Warnung</td></tr>
+<tr><td>Offenes Ende</td><td>Ein Wandende ohne jeden Anschluss, mit Angabe, wie weit die nächste Wand entfernt ist.</td><td>Fehler</td></tr>
+<tr><td>Neben der Achse</td><td>Ein Wandende endet neben der Achse der Wand, auf die es stößt. Der T-Stoß teilt sie nicht; für die Raumerkennung wird es daraufgezogen.</td><td>Warnung</td></tr>
+<tr><td>Knapp daneben</td><td>Zwei Wandenden liegen wenige Millimeter auseinander. Die Raumerkennung rechnet sie zusammen, im Modell bleibt die Fuge.</td><td>Warnung</td></tr>
+<tr><td>Überlappung</td><td>Zwei Wände liegen auf einer Länge übereinander. Aufmaß und Hüllfläche zählen diese Länge doppelt.</td><td>Warnung</td></tr>
+</tbody>
+</table>
+
+<p>Als Lücke gilt nur, was <b>höchstens 2,50 m</b> weit offen steht. Diese Grenze trennt nicht richtig von falsch, sondern Versehen von Absicht. Eine zweiflügelige Tür mit Laibungen misst rund 2,00 m; darunter liegt alles, was ein vergessenes Wandstück sein könnte. Was breiter offen steht, hat der Planer so gewollt — eine Loggia, ein offener Übergang, ein Carport. Das zu melden wäre Lärm, und Lärm führt dazu, dass auch die berechtigten Meldungen weggeklickt werden.</p>
+
+<p>Und deshalb ist die Lücke eine <b>Warnung</b> und kein Fehler: eine vergessene Wand und eine gewollte Nische sehen in der Geometrie gleich aus. Nur Sie wissen, was gemeint war.</p>
+
+<h4 id="k4-4-4">4.4.4 Achsfläche, lichte Fläche, Nettogrundfläche</h4>
+
+<p>Das Programm führt drei Flächen je Raum, und sie beantworten drei verschiedene Fragen.</p>
+
+<table class="tab">
+<caption>Die drei Flächen eines Raums</caption>
+<thead><tr><th>Fläche</th><th>Bezug</th><th>Wofür</th></tr></thead>
+<tbody>
+<tr><td>Achsfläche</td><td>Polygon auf den Wandmitten</td><td>Grobe Massenermittlung, Deckenumriss</td></tr>
+<tr><td>Lichte Fläche</td><td>Jede Kante um die halbe Stärke ihrer eigenen Wand nach innen versetzt</td><td>Die Raumfläche. Grundlage von Volumen, Heizlast, Fußbodenheizung</td></tr>
+<tr><td>Nettogrundfläche</td><td>Lichte Fläche minus Treppen, Schächte und massive Bauteile</td><td>Was tatsächlich begehbar ist; geht so in den Export</td></tr>
+</tbody>
+</table>
+
+<p>Die Raumhöhe folgt der <b>kleinsten</b> beteiligten Wandhöhe — im Zweifel gewinnt also das niedrigere lichte Maß. Eine von Ihnen gesetzte Raumhöhe schlägt das; bei einer abgehängten Decke ist die Wandhöhe nicht die maßgebliche Höhe. Unter einer Dachschräge tritt an ihre Stelle die mittlere lichte Höhe, und das Volumen kommt dann aus der Integration statt aus Fläche mal Höhe — dazu <a href="#k6-2">Abschnitt 6.2</a>.</p>
+
+<h4 id="k4-4-5">4.4.5 Treppen, Schächte und massive Bauteile abziehen</h4>
+
+<p>Eine offene Treppe nimmt dem Raum zweierlei: Grundfläche und Luft. Beides falsch zu rechnen kostet in einem Reihenhaus mit offener Treppe schnell 10 % der Heizlast.</p>
+
+<p>An jedem vertikalen Bauteil stehen deshalb zwei Schalter:</p>
+
+<ul>
+<li><b>Grundfläche abziehen.</b> Bei einer offenen Treppe ja. Ein eingehauster Treppenraum ist dagegen ein eigener Raum mit eigenen Wänden — dort aus.</li>
+<li><b>Decke darüber fehlt.</b> Der Luftraum reicht ins nächste Geschoss. Über dieser Fläche gibt es kein Bauteil, also auch keinen Wärmedurchgang.</li>
+</ul>
+
+<p>Ein Bauteil wirkt dabei nicht nur in seinem eigenen Geschoss. Eine Treppe vom Erdgeschoss ins Obergeschoss durchstößt die Decke des Erdgeschosses <i>und</i> den Boden des Obergeschosses — im oberen Geschoss fehlt an dieser Stelle die Fläche genauso. Ein Schornstein, der als durchgehend gekennzeichnet ist, steht in jedem Geschoss darüber.</p>
+
+<div class="beispiel">
+<b>Beispiel zum Nachrechnen</b>
+<p>Wohnzimmer 20,00 m² licht, Raumhöhe 2,50 m. Darin eine offene Treppe 1,00 × 3,00 m mit gesetztem Häkchen „Grundfläche abziehen“.</p>
+<p>Abgezogene Fläche: 1,00 × 3,00 = 3,00 m². Nettogrundfläche 17,00 m².</p>
+<p>Volumen vorher 20,00 × 2,50 = 50,00 m³, abgezogen 3,00 × 2,50 = 7,50 m³.</p>
+<p class="ergebnis">= 42,50 m³ Luftvolumen statt 50,00 m³</p>
+</div>
+
+<p>Massive Bauteile — Kamin, Pfeiler, Wandversatz, Installationsblock — werden in derselben Rechnung behandelt, obwohl sie das Gegenteil eines Lochs sind. Für Fläche und Volumen wirken sie identisch: ein Kamin von 0,50 × 0,40 m nimmt dem Raum dieselben 0,20 m² wie ein Schacht derselben Größe. Was er <b>nicht</b> tut, ist die Decke öffnen — dort ist Mauerwerk. Die Deckenfläche des Raums bleibt deshalb ungeschmälert. Sie fällt damit um die Kaminfläche zu groß aus, was den Wärmeverlust um Bruchteile eines Watts nach oben schiebt und auf der sicheren Seite liegt.</p>
+
+<p>Ein Sonderfall verdient eine eigene Erwähnung. Zwischen vier Wandstücken erkennt das Programm manchmal eine Fläche und nennt sie „Raum 3, 3,16 m²“ — tatsächlich steht dort der Kaminzug. Sie erklären die Fläche dann im Eigenschaftsfenster zum massiven Bauteil. Sobald mindestens <b>80 %</b> der Fläche als massiv geführt sind, hört sie auf, ein Raum zu sein: keine Heizlast, kein Luftvolumen, keine Fußbodenheizung, kein Raumstempel. Die 80 statt 100 Prozent, weil der Umriss auf Millimeter gerundet wird und ein Kaminzug selten exakt am Putz endet.</p>
+
+<h4 id="k4-4-6">4.4.6 Was ein Raum über einen Umbau hinweg behält</h4>
+
+<p>Räume sind abgeleitet. Sie werden nach jeder Änderung neu erkannt — und trotzdem behalten sie ihren Namen, ihre Nutzung, ihre Solltemperatur und eine bereits gerechnete Heizlast. Dafür ordnet das Programm jeder neu erkannten Fläche höchstens einen Vorgängerraum zu, und jedem Vorgänger höchstens eine Fläche.</p>
+
+<p>Der zweite Teil des Satzes ist der entscheidende. Ziehen Sie eine Wand quer durch ein Zimmer, liegen die Schwerpunkte <i>beider</i> Teilflächen im selben alten Raum. Ohne diese Regel erbten beide dieselbe Kennung, und da das Dokument Räume nach Kennung ablegt, bliebe nur einer übrig. An einem sauber gezeichneten Raster aus sechs Räumen kostete das früher drei davon.</p>
+
+<p>Wer von mehreren Anwärtern gewinnt: die Fläche mit der kleinsten Flächendifferenz zum alten Raum. Beim Teilen ist das die größere Hälfte. Name, Nutzung und Solltemperatur bleiben also an dem Stück, das der alte Raum im Wesentlichen noch ist; der abgetrennte Teil ist der neue.</p>
+
+<h3 id="k4-5">4.5 Raumvorlagen und Fertigmaße</h3>
+
+<p>Wände einzeln zu ziehen ist der ehrliche Weg und der langsamste. Die allermeisten Räume sind rechteckig, und die meisten der übrigen sind ein Rechteck mit einer ausgeschnittenen Ecke.</p>
+
+<p class="wo">Im Programm: Werkzeug <b>Raum aufziehen</b> (Taste <kbd>Z</kbd>). Sie wählen eine Grundform, ziehen ein Rechteck auf, das Programm setzt die Wände.</p>
+
+<table class="tab">
+<caption>Die acht Grundformen</caption>
+<thead><tr><th>Form</th><th>Wände</th><th>Wofür</th></tr></thead>
+<tbody>
+<tr><td>Rechteck</td><td>4</td><td>Der Regelfall. Aufziehen, fertig.</td></tr>
+<tr><td>L-Form</td><td>6</td><td>Rechteck mit ausgeschnittener Ecke — Wohnraum um einen Schacht oder eine Treppe herum.</td></tr>
+<tr><td>U-Form</td><td>8</td><td>Zwei Schenkel um einen Einschnitt — Grundrisse mit Innenhof oder Erker.</td></tr>
+<tr><td>T-Form</td><td>8</td><td>Breiter Kopf mit schmalem Fuß — Flure mit Abgang, Anbauten.</td></tr>
+<tr><td>Trapez</td><td>4</td><td>Eine Seite eingezogen — Räume an schrägen Grundstücksgrenzen.</td></tr>
+<tr><td>Achteck</td><td>8</td><td>Rechteck mit abgeschrägten Ecken — Wintergärten, Erker.</td></tr>
+<tr><td>Sechseck</td><td>6</td><td>Erker mit drei Fensterachsen.</td></tr>
+<tr><td>Rund</td><td>16</td><td>Als Vieleck angenähert — Turmzimmer. Mehr Segmente heißt runder und mehr Wände; einstellbar von 6 bis 48.</td></tr>
+</tbody>
+</table>
+
+<p>Bei den Formen mit Einschnitt stellen Sie dessen Größe als Anteil der Seitenlänge ein, zwischen 10 % und 85 %. Weiter lässt das Programm nicht zu, sonst zerfiele der Raum. Mit Vierteldrehungen dreht sich der Einschnitt in eine andere Ecke. Unter 0,50 m Kantenlänge wird gar nichts erzeugt — dort entstünden Wände, die kürzer sind als ihre eigene Dicke.</p>
+
+<div class="merke"><b>Merke</b><p>Was aus einer Vorlage entsteht, ist kein Sonderobjekt, sondern sind ganz normale Wände. Jede einzeln verschiebbar, in der Dicke änderbar, löschbar. Die Vorlage ist eine Eingabehilfe, keine Datenstruktur.</p></div>
+
+<p>Dazu kommen zwölf Fertigmaße für die üblichen Räume des Wohnungsbaus. Es sind Erfahrungswerte, keine Normmaße — mit zwei Ausnahmen, die im Programm vermerkt sind.</p>
+
+<table class="tab">
+<caption>Die zwölf Fertigmaße (Breite × Tiefe in Metern, Achsmaß)</caption>
+<thead><tr><th>Raum</th><th>Maß</th><th>Anmerkung</th></tr></thead>
+<tbody>
+<tr><td>Gäste-WC</td><td>1,60 × 1,20</td><td>Kleinstmaß; für einen Rollstuhl reicht es nicht.</td></tr>
+<tr><td>Bad</td><td>2,60 × 2,20</td><td></td></tr>
+<tr><td>Bad, barrierefrei</td><td>2,60 × 2,60</td><td>Bewegungsfläche 1,50 × 1,50 m nach DIN 18040-2 (R-Anforderung).</td></tr>
+<tr><td>Schlafzimmer</td><td>4,00 × 3,50</td><td></td></tr>
+<tr><td>Kinderzimmer</td><td>3,50 × 3,00</td><td></td></tr>
+<tr><td>Wohnzimmer</td><td>5,50 × 4,50</td><td></td></tr>
+<tr><td>Küche</td><td>3,50 × 3,00</td><td></td></tr>
+<tr><td>Flur</td><td>4,00 × 1,40</td><td></td></tr>
+<tr><td>Hauswirtschaftsraum</td><td>2,50 × 2,00</td><td></td></tr>
+<tr><td>Technikraum</td><td>2,50 × 2,50</td><td>Für Wärmepumpe mit Speicher eher knapp — Kippmaß des Speichers prüfen.</td></tr>
+<tr><td>Abstellraum</td><td>2,00 × 1,50</td><td></td></tr>
+<tr><td>Büro</td><td>4,00 × 3,00</td><td></td></tr>
+</tbody>
+</table>
+
+<h3 id="k4-6">4.6 Zeichenhilfen</h3>
+
+<p>Ohne Hilfen zeichnet niemand maßhaltig mit der Maus. Fünf Hilfen greifen ineinander:</p>
+
+<table class="tab">
+<caption>Die Zeichenhilfen und ihre Voreinstellung</caption>
+<thead><tr><th>Hilfe</th><th>Was sie tut</th><th>Voreinstellung</th></tr></thead>
+<tbody>
+<tr><td>Raster</td><td>Der Punkt rastet auf ein festes Maß ein.</td><td>an, 0,25 m</td></tr>
+<tr><td>Knotenfang</td><td>Der Punkt springt auf ein bestehendes Wandende.</td><td>an</td></tr>
+<tr><td>Achsfang</td><td>Der Punkt springt auf eine Wandachse — so entsteht ein sauberer T-Stoß.</td><td>an</td></tr>
+<tr><td>Winkelraster</td><td>Die Richtung rastet in Stufen ein, bezogen auf den Startpunkt.</td><td>an, 45°</td></tr>
+<tr><td>Ortho-Zwang</td><td>Nur 0° und 90° — verhindert versehentlich schräge Wände.</td><td>aus</td></tr>
+</tbody>
+</table>
+
+<p>Der Fangradius liegt bei 12 Bildschirmpunkten und ist damit unabhängig vom Zoom: weiter herausgezoomt fängt das Programm über eine größere Strecke im Modell, hineingezoomt entsprechend feiner. Jedes Fangergebnis trägt seine eigene Begründung mit — frei, Raster, Knoten, Achse, Winkel oder Verlängerung —, und die Statuszeile sagt Ihnen, welche gerade gegriffen hat.</p>
+
+<h4 id="k4-6-1">4.6.1 Die Längeneingabe</h4>
+
+<p>Der schnellste und genaueste Weg zu einer Wand mit bestimmtem Maß führt nicht über die Maus.</p>
+
+<div class="baustelle"><b>Auf der Baustelle heißt das</b><p>Wand beginnen, Richtung mit der Maus grob vorgeben, dann einfach die Zahl tippen. Es öffnet sich ein Feld am Zeiger. <kbd>Enter</kbd> setzt den Endpunkt exakt auf diese Länge in der gerade gefangenen Richtung, <kbd>Esc</kbd> verwirft. Der Endpunkt wird sofort zum Anfang der nächsten Wand — Sie können also einen ganzen Wandzug nur über Richtung und Zahl abarbeiten.</p></div>
+
+<p>Eingegeben wird in Metern; ein Komma wird wie ein Punkt gelesen. Steht noch keine Richtung fest, geht die Wand nach Osten — das ist die Konvention beim Zeichnen.</p>
+
+<h4 id="k4-6-2">4.6.2 Raum kopieren und Gruppenoperationen</h4>
+
+<p>Ein Raum ist im Modell kein eigenes Objekt, sondern das Ergebnis seiner Wände. „Raum kopieren“ heißt deshalb konkret: seine Begrenzungswände, die Öffnungen darin und die TGA-Objekte (Technische Gebäudeausrüstung), deren Standort im lichten Polygon liegt. Eine Trennwand zwischen zwei Räumen gehört zu beiden und kommt mit — der Nachbar behält seine eigene.</p>
+
+<table class="tab">
+<caption>Gruppenoperationen</caption>
+<thead><tr><th>Operation</th><th>Was passiert</th></tr></thead>
+<tbody>
+<tr><td>Raum duplizieren</td><td>Legt die Kopie um die eigene Breite plus 0,50 m nach rechts versetzt daneben. So überlappt sie nicht und klebt trotzdem nicht am Original.</td></tr>
+<tr><td>Raum in die Zwischenablage</td><td>Legt ihn ab, ohne ihn einzufügen — auch für ein anderes Geschoss.</td></tr>
+<tr><td>Auswahl kopieren und einfügen</td><td>Ausgewählte Wände samt Knoten und Öffnungen sowie ausgewählte TGA-Objekte. Bezugspunkt ist die linke untere Ecke der Auswahl.</td></tr>
+<tr><td>Spiegeln</td><td>An der Mittelachse der Auswahl selbst, waagerecht oder senkrecht. Symbole werden mitgedreht — sonst zeigte ein Heizkörper nach dem Spiegeln in die Wand statt in den Raum.</td></tr>
+<tr><td>In Reihe legen</td><td>Setzt die Auswahl mehrfach mit gleichbleibendem Versatz — für Reihenhäuser, Hotelzimmer, Bürozellen.</td></tr>
+</tbody>
+</table>
+
+<p>Alles davon liegt in der Historie. <kbd>Strg</kbd> + <kbd>Z</kbd> nimmt es zurück, und zwar als <i>eine</i> Bewegung: ein Zug mit der Maus über den halben Plan ist ein Schritt und nicht zwei Dutzend.</p>
+
+<h3 id="k4-7">4.7 Maßketten, Texte und Hinweisfahnen</h3>
+
+<p>Die automatischen Wandmaße nehmen Ihnen die Fleißarbeit ab, aber sie beantworten nicht jede Frage: den Abstand zweier Fenster, die lichte Weite einer Nische, die Achse eines Schachts. Dafür gibt es Beschriftungen, die Sie bewusst setzen und die stehen bleiben, wo Sie sie gesetzt haben.</p>
+
+<p class="wo">Im Programm: Werkzeug <b>Maßkette &amp; Beschriftung</b> (Taste <kbd>B</kbd>).</p>
+
+<p>Es gibt drei Arten, und sie liegen absichtlich in derselben Objektart, weil sie dieselbe Rolle haben: Grafik auf dem Plan, <b>ohne jede Wirkung auf die Berechnung</b>.</p>
+
+<ul>
+<li><b>Maßkette.</b> Zwei Punkte plus ein Versatz. Der Versatz steht senkrecht auf der Messrichtung, damit sich die Kette vom Bauteil wegziehen lässt, ohne dass die Maßhilfslinien schief werden. Ohne eigenen Text steht dort das gemessene Maß in Metern mit drei Nachkommastellen. Begrenzt wird die Maßlinie mit 45°-Schrägen statt mit Pfeilspitzen — so ist es in der Bauzeichnung üblich.</li>
+<li><b>Text.</b> Ein freier Eintrag an einer Stelle im Plan, mit hinterlegtem Kästchen, damit er auch über einer Schraffur lesbar bleibt.</li>
+<li><b>Hinweisfahne.</b> Ein Punkt, eine Zugstrecke und eine waagerechte Fahne unter dem Text. Die Fahne bleibt waagerecht, auch wenn die Zugrichtung schräg verläuft — sonst ließe sich der Hinweis nicht lesen.</li>
+</ul>
+
+<!--SYMBOLTAFEL:beschriftung-->
+
+<div class="merke"><b>Merke</b><p>Eine Maßkette misst, was Sie angeklickt haben, nicht was gemeint war. Sie ist eine Zeichnung, kein Nachweis. Was in die Heizlast geht, sind ausschließlich die Maße der Bauteile selbst.</p></div>
+
+</section>

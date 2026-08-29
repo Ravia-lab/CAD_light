@@ -1,0 +1,932 @@
+<h3 id="k13-8">13.8 Druckverlust im Rohr</h3>
+
+<p>Wasser durch ein Rohr zu schieben kostet Druck. Wie viel, hängt an vier Dingen: wie viel Wasser läuft, wie eng das Rohr ist, wie zäh das Wasser bei seiner Temperatur ist und wie rau die Rohrwand innen ist. Alles Weitere in diesem Abschnitt ist die Ausbuchstabierung dieses einen Satzes.</p>
+
+<p>Der Rechenweg heißt <b>Teilstreckenverfahren</b> und ist in Deutschland durchgängig derselbe: das Netz wird in Abschnitte zerlegt, in denen Volumenstrom und Nennweite konstant sind; jeder Abschnitt bekommt seinen Reibungsanteil und seinen Anteil aus Formstücken; beides wird addiert und über den Strang aufsummiert.</p>
+
+<div class="formel">
+  <p class="worte">In Worten: Der Druckverlust einer Teilstrecke ist das Druckgefälle mal der Länge, plus dem, was die Formstücke und Armaturen darin schlucken.</p>
+  <p class="math">Δp = R · l + Z</p>
+  <dl class="zeichen">
+    <dt>Δp</dt><dd>Druckverlust der Teilstrecke [Pa]</dd>
+    <dt>R</dt><dd>Druckgefälle, also Druckverlust je Meter Rohr [Pa/m]</dd>
+    <dt>l</dt><dd>abgerechnete Länge [m] — <b>Vor- und Rücklauf zusammen</b></dd>
+    <dt>Z</dt><dd>Druckverlust der Einzelwiderstände in dieser Teilstrecke [Pa]</dd>
+  </dl>
+</div>
+
+<div class="merke"><b>Merke</b><p>Die Länge zählt <b>doppelt</b>. Eine Trasse von 12 m Luftlinie ist hydraulisch 24 m, weil das Wasser hin und zurück muss. Im Programm heißt das Feld deshalb „abgerechnete Länge"; wer die Trassenlänge einträgt, halbiert seinen Druckverlust.</p></div>
+
+<p class="quelle">Quelle: Verfahren und Grundformel Δp = Σ(R·l) + ΣZ — SHKwissen/HaustechnikDialog „Rohrnetzberechnung"; SAENA, Broschüre „Hydraulischer Abgleich für Heizungssysteme", Gleichungen (7) und (8); normativ gleichlautend für Trinkwasser in DIN 1988-300. Für die Heizung schreibt <b>keine</b> DIN-Norm das Rechenverfahren vor — Darcy-Weisbach mit Colebrook-White und Σζ ist allgemein anerkannte Regel der Technik.</p>
+
+<h4 id="k13-8-1">13.8.1 Schritt 1: die Fließgeschwindigkeit</h4>
+
+<p>Wie schnell das Wasser läuft, ergibt sich aus der Menge und dem freien Querschnitt. Mehr ist es nicht — das ist reine Buchhaltung, keine Physik mit Annahmen.</p>
+
+<div class="formel">
+  <p class="worte">In Worten: Volumenstrom geteilt durch Querschnittsfläche. Halber Durchmesser heißt viertel Fläche, also vierfache Geschwindigkeit.</p>
+  <p class="math">w = V̇ / A     mit     A = π/4 · d_i²</p>
+  <dl class="zeichen">
+    <dt>w</dt><dd>Fließgeschwindigkeit [m/s]</dd>
+    <dt>V̇</dt><dd>Volumenstrom [m³/h] — im Programm die übliche Einheit; für die Rechnung durch 3600 geteilt</dd>
+    <dt>A</dt><dd>lichter Querschnitt [m²]</dd>
+    <dt>d_i</dt><dd>lichter <b>Innen</b>durchmesser [mm] — nicht der Außendurchmesser und nicht die Nennweite</dd>
+  </dl>
+</div>
+
+<div class="beispiel">
+  <b>Beispiel zum Nachrechnen</b>
+  <p>Kupferrohr 28 × 1,5, also 28 mm außen und 1,5 mm Wand: d_i = 28 − 2 · 1,5 = 25,0 mm. Durch dieses Rohr laufen 1,0 m³/h.</p>
+  <p>A = π/4 · 0,025² = 4,909 · 10⁻⁴ m²</p>
+  <p>V̇ = 1,0 / 3600 = 2,778 · 10⁻⁴ m³/s</p>
+  <p class="ergebnis">w = 2,778 · 10⁻⁴ / 4,909 · 10⁻⁴ = 0,566 m/s</p>
+</div>
+
+<h4 id="k13-8-2">13.8.2 Schritt 2: die Reynoldszahl</h4>
+
+<p>Die <b>Reynoldszahl Re</b> (nach Osborne Reynolds, dem Mann, der es 1883 sichtbar gemacht hat) ist eine reine Verhältniszahl ohne Einheit. Sie sagt, ob das Wasser geordnet in Schichten fließt oder ob es sich verwirbelt. Sie ist das Verhältnis der Kräfte, die das Wasser vorwärtstreiben, zu den Kräften, mit denen es an sich selbst klebt.</p>
+
+<div class="formel">
+  <p class="worte">In Worten: schnell und in einem weiten Rohr heißt verwirbelt; langsam, eng und zäh heißt geordnet.</p>
+  <p class="math">Re = w · d_i / ν</p>
+  <dl class="zeichen">
+    <dt>Re</dt><dd>Reynoldszahl [-], eine Zahl ohne Einheit</dd>
+    <dt>w</dt><dd>Fließgeschwindigkeit [m/s]</dd>
+    <dt>d_i</dt><dd>Innendurchmesser [m]</dd>
+    <dt>ν</dt><dd>kinematische Viskosität [m²/s] — „Zähigkeit", stark temperaturabhängig</dd>
+  </dl>
+</div>
+
+<p>Warum das überhaupt jemanden interessiert: <b>es entscheidet, welche Reibungsformel gilt.</b> Es gibt keine Formel, die beides kann.</p>
+
+<ul>
+<li><b>Laminar, unter Re = 2320.</b> Das Wasser fließt in Schichten, die aneinander vorbeigleiten wie Spielkarten im Stapel. Die Reibung ist berechenbar und hängt <em>nicht</em> von der Rauheit ab — die Wandschicht steht praktisch still und merkt von den Unebenheiten nichts.</li>
+<li><b>Turbulent, über Re = 4000.</b> Das Wasser verwirbelt, die Schichten mischen sich, die Wandrauheit greift durch. Die Reibung ist deutlich höher und nur noch empirisch beschreibbar.</li>
+<li><b>Dazwischen.</b> Ob die Strömung umschlägt, hängt von Störungen, Einlauflänge und Vorgeschichte ab — nicht von einer Kennzahl. Es gibt dort <b>keine gültige Formel</b>.</li>
+</ul>
+
+<p class="quelle">Quelle: delta-q / Datenpool IfHK, FH Wolfenbüttel, „Druckverluste in geraden Rohrstrecken" — dort ist die kritische Reynoldszahl mit 2320 angegeben. Andere Quellen nennen 2300; für die Praxis ohne Belang, für ein Programm nicht: es muss einen festen Umschaltpunkt haben und ihn im Ausdruck nennen.</p>
+
+<div class="beispiel">
+  <b>Beispiel zum Nachrechnen</b>
+  <p>Dasselbe Kupferrohr 28 × 1,5, Wasser bei 50 °C. Die Viskosität von Wasser bei 50 °C beträgt ν = 0,553 · 10⁻⁶ m²/s.</p>
+  <p>Re = 0,566 · 0,025 / 0,553 · 10⁻⁶ = 0,01415 / 0,000000553</p>
+  <p class="ergebnis">Re = 25 582 — weit über 4000, also voll turbulent</p>
+</div>
+
+<p><b>Stimmt es, dass in einer Heizung praktisch alles turbulent ist?</b> In den Verteil- und Steigleitungen ja — das Beispiel oben liegt um den Faktor sechs über der Turbulenzgrenze. In den <em>Ausläufern</em> stimmt es nicht, und das ist wichtig:</p>
+
+<table class="tab">
+<caption>Reynoldszahlen im selben Haus, alle mit diesem Modul nachgerechnet</caption>
+<thead><tr><th>Stelle</th><th>Rohr</th><th>Volumenstrom</th><th>Re</th><th>Bereich</th></tr></thead>
+<tbody>
+<tr><td>Verteilleitung im Keller</td><td>Kupfer 28 × 1,5, 50 °C</td><td>1,00 m³/h</td><td>25 582</td><td>voll turbulent</td></tr>
+<tr><td>Anbindung eines Heizkörpers</td><td>Kupfer 15 × 1, 50 °C</td><td>0,17 m³/h</td><td>8 363</td><td>turbulent</td></tr>
+<tr><td>kleiner Heizkörper</td><td>Kupfer 15 × 1, 50 °C</td><td>0,10 m³/h</td><td>4 920</td><td>gerade noch turbulent</td></tr>
+<tr><td>Fußbodenheizkreis</td><td>Verbund 16 × 2, 31,5 °C</td><td>0,111 m³/h</td><td>4 197</td><td>knapp über der Grenze</td></tr>
+</tbody>
+</table>
+
+<div class="warnung"><b>Achtung</b><p>Bei Wärmepumpen mit kleiner Spreizung im Teillastbetrieb rutschen Heizkreise unter Re = 4000 und teilweise unter 2320. Das Programm meldet das: „Re = 3 100 liegt im Umschlagbereich. Dort gibt es keine gültige Reibungsformel; das Ergebnis ist eine Interpolation und kann in beide Richtungen um ein Drittel danebenliegen." Und bei echter laminarer Strömung zusätzlich: „Der Wärmeübergang bricht dabei ein — bei Heizflächen und Wärmetauschern ist das ein Auslegungsfehler, in reinen Transportleitungen nicht."</p></div>
+
+<h4 id="k13-8-3">13.8.3 Schritt 3: die Rohrreibungszahl λ</h4>
+
+<p>Die <b>Rohrreibungszahl λ</b> (griechisch <i>lambda</i>) ist eine Zahl ohne Einheit zwischen etwa 0,015 und 0,08. Sie beschreibt, wie stark die Wand bremst. Sie ist die einzige Größe der ganzen Rechnung, die nicht direkt gemessen oder abgezählt werden kann.</p>
+
+<p><b>Laminar: eine exakte Formel</b></p>
+
+<div class="formel">
+  <p class="worte">In Worten: Bei geordneter Strömung ist die Reibung genau umgekehrt proportional zur Reynoldszahl — und von der Rauheit unabhängig.</p>
+  <p class="math">λ = 64 / Re</p>
+</div>
+
+<p>Das ist keine Anpassung an Messwerte, sondern eine Herleitung (Hagen-Poiseuille). Dass die Rauheit nicht vorkommt, ist bemerkenswert und richtig: bei laminarer Strömung liegt über der Wand eine ruhende Schicht, die von den Erhebungen nichts merkt.</p>
+
+<p><b>Turbulent: Colebrook-White, und warum es nicht anders geht</b></p>
+
+<div class="formel">
+  <p class="worte">In Worten: Die Reibung hängt sowohl von der Reynoldszahl als auch von der relativen Rauheit ab — und die Gleichung enthält λ auf beiden Seiten. Sie lässt sich nicht nach λ auflösen.</p>
+  <p class="math">1 / √λ = −2 · log₁₀ ( 2,51 / (Re · √λ) + (k/d_i) / 3,71 )</p>
+  <dl class="zeichen">
+    <dt>λ</dt><dd>Rohrreibungszahl [-]</dd>
+    <dt>Re</dt><dd>Reynoldszahl [-]</dd>
+    <dt>k</dt><dd>absolute Rauheit der Rohrinnenwand [mm]</dd>
+    <dt>k/d_i</dt><dd>relative Rauheit [-] — die Unebenheit im Verhältnis zur Rohrweite</dd>
+  </dl>
+</div>
+
+<p>Das ist der Punkt, an dem eine Rohrnetzrechnung aufhört, Kopfrechnen zu sein. Die Gleichung ist <b>implizit</b>: um λ auszurechnen, müsste man λ schon kennen. Der Ausweg ist eine <b>Iteration</b> — man setzt einen Startwert ein, bekommt einen besseren heraus, setzt den wieder ein, und so weiter, bis sich nichts mehr ändert.</p>
+
+<p>Praktisch heißt das dreierlei:</p>
+
+<ol>
+<li><b>Es geht schnell.</b> Das Programm startet mit der expliziten Näherungsformel von Swamee-Jain und braucht dann typisch drei bis fünf Durchläufe, bis sich die zehnte Nachkommastelle nicht mehr rührt. Die eingebaute Obergrenze von 40 Durchläufen ist reine Absicherung gegen unsinnige Eingaben, nicht der Normalfall.</li>
+<li><b>Von Hand ist es zumutbar, aber lästig.</b> Deshalb rechnete man früher mit Tabellen und Nomogrammen. Das Rohrbuch mit den Druckverlusttabellen ist nichts anderes als eine ausgedruckte Colebrook-Iteration.</li>
+<li><b>Der Zahlenwert lässt sich nicht im Kopf gegenprüfen.</b> Das Programm prüft deshalb im eigenen Prüfblock nicht den Zahlenwert, sondern den <em>Bereich</em>: bei turbulenter Strömung muss λ zwischen 0,015 und 0,08 liegen. Ein Wert außerhalb bedeutet, dass die Iteration nicht konvergiert ist oder mit falschen Stoffwerten gerechnet wurde.</li>
+</ol>
+
+<div class="beispiel">
+  <b>Beispiel zum Nachrechnen — die Iteration Schritt für Schritt</b>
+  <p>Kupferrohr 28 × 1,5, Re = 25 582, k = 0,0015 mm, d_i = 25 mm, also k/d_i = 0,00006.</p>
+  <p>Startwert nach Swamee-Jain: λ = 0,024460</p>
+  <p>1. Durchlauf: λ = 0,024545</p>
+  <p>2. Durchlauf: λ = 0,024534</p>
+  <p>3. Durchlauf: λ = 0,0245355</p>
+  <p>4. Durchlauf: λ = 0,0245353</p>
+  <p class="ergebnis">λ = 0,02454 — nach vier Durchläufen steht die fünfte Stelle</p>
+</div>
+
+<p><b>Swamee-Jain: die Formel für den Taschenrechner</b></p>
+
+<div class="formel">
+  <p class="worte">In Worten: dieselbe Aussage ohne Iteration, dafür mit einem kleinen Fehler.</p>
+  <p class="math">λ = 0,25 / [ log₁₀ ( (k/d_i)/3,7 + 5,74 / Re^0,9 ) ]²</p>
+</div>
+
+<p>Diese Formel ist im Programm als Alternative eingebaut und liefert den Startwert der Iteration. Häufig wird für sie „unter 1 % Fehler" zitiert. Der Abgleich gegen Colebrook-White über den ganzen Gültigkeitsbereich ergibt jedoch <b>bis zu 2,9 %</b>, und zwar bei rauem Rohr knapp oberhalb des Umschlagbereichs (Re = 5 · 10³ bei k/d = 10⁻²). Im Fenster der Hausinstallation — glatte Rohre, Re zwischen 5 · 10³ und 2 · 10⁵ — bleibt die Abweichung unter 0,5 %. Das ist deutlich kleiner als die Unsicherheit der Rauheit selbst und um Größenordnungen kleiner als die Unsicherheit der ζ-Werte.</p>
+
+<p class="quelle">Quelle: Colebrook, C. F. (1939), J. Inst. Civ. Eng. 11, 133–156. Swamee, P. K. / Jain, A. K. (1976), J. Hydraul. Div. ASCE 102, 657–664. Die Fehlerspanne 2,9 % ist mit diesem Modul über das Gültigkeitsfeld nachgerechnet, nicht zitiert.</p>
+
+<p><b>Der Umschlagbereich zwischen 2320 und 4000</b></p>
+
+<p>Hier gibt es keine gültige Formel. Das Programm blendet linear zwischen dem laminaren Wert bei Re = 2320 und dem turbulenten Wert bei Re = 4000, damit die Funktion keinen Sprung macht und keine Sprünge in die Dimensionierung trägt. <b>Das Ergebnis ist in diesem Fenster eine Konvention, kein Messwert</b> — und der Bericht sagt das an jeder betroffenen Teilstrecke.</p>
+
+<h4 id="k13-8-4">13.8.4 Schritt 4: Darcy-Weisbach — das Druckgefälle R</h4>
+
+<div class="formel">
+  <p class="worte">In Worten: Je länger das Rohr, je enger es ist und je schneller das Wasser darin läuft, desto mehr Druck kostet es. <b>Doppelte Geschwindigkeit kostet den vierfachen Druck</b>, weil die Geschwindigkeit im Quadrat steht.</p>
+  <p class="math">R = λ / d_i · ρ/2 · w²</p>
+  <dl class="zeichen">
+    <dt>R</dt><dd>Druckgefälle [Pa/m]</dd>
+    <dt>λ</dt><dd>Rohrreibungszahl [-]</dd>
+    <dt>d_i</dt><dd>Innendurchmesser [m]</dd>
+    <dt>ρ</dt><dd>Dichte des Heizmittels [kg/m³]</dd>
+    <dt>w</dt><dd>Fließgeschwindigkeit [m/s]</dd>
+    <dt>ρ/2 · w²</dt><dd>der <b>Staudruck</b> [Pa] — die Bezugsgröße, auf die sich auch alle ζ-Werte beziehen</dd>
+  </dl>
+</div>
+
+<p>Warum in Pascal je Meter und nicht gleich in Pascal: weil das Druckgefälle unabhängig von der Länge ist. „155 Pa/m" sagt sofort, was ein zusätzlicher Meter kostet, und lässt zwei Rohre unterschiedlicher Länge vergleichen. Der Gesamtverlust folgt daraus durch Multiplikation mit der Länge.</p>
+
+<div class="beispiel">
+  <b>Beispiel zum Nachrechnen</b>
+  <p>Kupferrohr 28 × 1,5, 1,0 m³/h, Wasser 50 °C. Aus den Schritten vorher: w = 0,566 m/s, λ = 0,02454, ρ = 988,04 kg/m³.</p>
+  <p>Staudruck: 988,04 / 2 · 0,566² = 494,02 · 0,3202 = 158,2 Pa</p>
+  <p>R = 0,02454 / 0,025 · 158,2 = 0,9816 · 158,2</p>
+  <p class="ergebnis">R = 155,3 Pa/m</p>
+</div>
+
+<div class="merke"><b>Merke</b><p>Der Innendurchmesser geht bei festem Volumenstrom mit rund der fünften Potenz ein: R ist ungefähr proportional zu d⁻⁴·⁷⁵. Ein Rohr, das 5 % enger ist, kostet rund 27 % mehr Druck. Deshalb ist es kein Detail, ob eine „28er" Leitung 1,5 mm oder 1,2 mm Wand hat.</p></div>
+
+<h4 id="k13-8-5">13.8.5 Schritt 5: die Einzelwiderstände Z</h4>
+
+<p>Jeder Bogen, jedes T-Stück, jede Armatur zwingt das Wasser zu einer Richtungsänderung oder einer Querschnittsänderung. Das kostet Druck, und zwar unabhängig davon, wie lang das Rohr ist. Beschrieben wird das mit dem <b>Widerstandsbeiwert ζ</b> (griechisch <i>zeta</i>) — einer Zahl ohne Einheit, die sagt, wie viele Staudrücke das Bauteil verschluckt.</p>
+
+<div class="formel">
+  <p class="worte">In Worten: Alle ζ-Werte einer Teilstrecke addieren und mit demselben Staudruck multiplizieren, mit dem auch die Rohrreibung gerechnet wurde.</p>
+  <p class="math">Z = Σζ · ρ/2 · w²</p>
+  <dl class="zeichen">
+    <dt>Z</dt><dd>Druckverlust der Einzelwiderstände [Pa]</dd>
+    <dt>Σζ</dt><dd>Summe der Widerstandsbeiwerte der Teilstrecke [-]</dd>
+    <dt>ρ/2 · w²</dt><dd>Staudruck [Pa], derselbe wie bei R</dd>
+  </dl>
+</div>
+
+<p>Weil R und Z denselben Staudruck als Bezug haben, sind die beiden Zahlen im Ergebnis <b>direkt vergleichbar</b>. Das ist nützlich: überwiegt Z deutlich, ist die Leitung zu kurz oder zu groß gewählt, und eine Dimension weniger bringt nichts. Das Programm meldet das ausdrücklich, sobald die Einzelwiderstände die Rohrreibung um mehr als das Dreifache übersteigen.</p>
+
+<p>Der Bezug ist die Geschwindigkeit <b>in dem Abschnitt, in dem das Formstück gezählt wird</b>. Bei Reduzierungen und Abzweigen ist die Bezugsgeschwindigkeit sonst mehrdeutig; das Programm legt sie so fest und weicht davon nirgends ab. Die ζ-Werte selbst stehen in <a href="#k9-5-4">Abschnitt 9.5.4</a>.</p>
+
+<div class="warnung"><b>Achtung</b><p>ζ-Werte sind <b>keine Normwerte.</b> Sie streuen bei Armaturen um den Faktor drei und mehr: ein Schrägsitzventil DN 25 kann 2,0 oder 6,0 haben, beides sind reale Katalogwerte verschiedener Hersteller. Bei Bögen hängt ζ am Krümmungsradius — ein gepresster Winkel 90° ist doppelt so teuer wie ein weit gebogener. Und streng genommen ist ζ von der Reynoldszahl abhängig; im turbulenten Bereich schwach, im laminaren nicht. Die Tabelle im Programm ist für die Phase gedacht, in der noch kein Fabrikat feststeht.</p></div>
+
+<p><b>Wenn der kvs-Wert vorliegt, ist er vorzuziehen</b></p>
+
+<p>Der kvs-Wert einer Armatur ist eine <b>Messgröße des Herstellers</b> und damit besser als jeder Tabellenwert. Er ist definiert als der Volumenstrom in m³/h, der bei 1 bar Druckdifferenz durch die voll geöffnete Armatur läuft. Das Programm rechnet ihn in ein ζ um:</p>
+
+<div class="formel">
+  <p class="worte">In Worten: Aus dem kvs-Wert und dem Querschnitt des Anschlussrohres lässt sich ein ζ machen, das genau denselben Druckverlust liefert.</p>
+  <p class="math">ζ = 2 · 10⁵ Pa · (3600 · A)² / (ρ · kvs²)</p>
+</div>
+
+<p>Diese Umrechnung ist <b>exakt und nicht genähert</b>, und der Grund ist hübsch: sowohl Δp = (V̇/kvs)² · 1 bar als auch Δp = ζ · ρ/2 · w² sind quadratisch im Volumenstrom. Setzt man beide gleich, fällt der Volumenstrom heraus.</p>
+
+<div class="beispiel">
+  <b>Beispiel zum Nachrechnen</b>
+  <p>3-Wege-Umschaltventil DN 25 mit kvs 5,7 m³/h, angeschlossen an ein Rohr mit 27,2 mm licht, Wasser 50 °C (ρ = 988,04 kg/m³).</p>
+  <p>A = π/4 · 0,0272² = 5,811 · 10⁻⁴ m², also 3600 · A = 2,092</p>
+  <p>ζ = 200 000 · 2,092² / (988,04 · 5,7²)</p>
+  <p class="ergebnis">ζ = 27,3 — dieses eine Ventil kostet so viel wie rund 55 Bögen 90°</p>
+</div>
+
+<h4 id="k13-8-6">13.8.6 Die Summe: Druckverlust einer Teilstrecke</h4>
+
+<div class="beispiel">
+  <b>Vollständiges Beispiel zum Nachrechnen</b>
+  <p><b>Aufgabe:</b> Verteilleitung im Keller, Kupfer 28 × 1,5, Trassenlänge 12 m, Volumenstrom 1,0 m³/h, Wasser 50 °C. Im Abschnitt liegen vier Bögen 90° (ζ = 0,5) und zwei Kugelhähne (ζ = 0,3).</p>
+  <p><b>1. Länge:</b> Vor- und Rücklauf, also l = 2 · 12 = 24 m</p>
+  <p><b>2. Geschwindigkeit:</b> w = 0,566 m/s (siehe 13.8.1)</p>
+  <p><b>3. Reynoldszahl:</b> Re = 25 582 — turbulent (siehe 13.8.2)</p>
+  <p><b>4. Rohrreibungszahl:</b> λ = 0,02454 (siehe 13.8.3)</p>
+  <p><b>5. Staudruck:</b> ρ/2 · w² = 158,2 Pa</p>
+  <p><b>6. Druckgefälle:</b> R = 155,3 Pa/m</p>
+  <p><b>7. Reibungsanteil:</b> R · l = 155,26 · 24 = 3 726 Pa</p>
+  <p><b>8. Summe ζ:</b> 4 · 0,5 + 2 · 0,3 = 2,6</p>
+  <p><b>9. Einzelwiderstände:</b> Z = 2,6 · 158,2 = 411 Pa</p>
+  <p class="ergebnis">Δp = 3 726 + 411 = 4 138 Pa = 41,4 mbar</p>
+</div>
+
+<p>Die Formstücke machen hier rund 10 % aus. Bei einer kurzen, gut bestückten Kesselanbindung kehrt sich das Verhältnis um — dort steckt der Druckverlust fast ganz in den Armaturen.</p>
+
+<p>Neben R·l und Z kennt das Programm einen dritten Posten: einen <b>festen Zusatzverlust</b> in Pascal. Er ist für Bauteile gedacht, für die eine Herstellerkennlinie vorliegt — einen Wärmetauscher etwa. Er wird unverändert addiert und nicht mit dem Volumenstrom skaliert, weil die Kennlinie bereits für den Betriebspunkt gilt.</p>
+
+<h4 id="k13-8-7">13.8.7 Die Rauheit: woher die Werte kommen</h4>
+
+<p>Die <b>absolute Rauheit k</b> ist die mittlere Höhe der Unebenheiten der Rohrinnenwand in Millimetern. Sie geht über die relative Rauheit k/d_i in die Colebrook-Gleichung ein.</p>
+
+<table class="tab">
+<caption>Rauheit k im Neuzustand, wie das Programm sie ansetzt</caption>
+<thead><tr><th>Werkstoff</th><th>k [mm]</th><th>Was das heißt</th></tr></thead>
+<tbody>
+<tr><td>Kupfer (EN 1057)</td><td>0,0015</td><td>„hydraulisch glatt" — die Rauheit verschwindet unter der zähen Wandschicht</td></tr>
+<tr><td>Edelstahl</td><td>0,0015</td><td>dito</td></tr>
+<tr><td>PE-Xa</td><td>0,0015</td><td>dito</td></tr>
+<tr><td>Mehrschichtverbund</td><td>0,0015</td><td>dito</td></tr>
+<tr><td>PP-R</td><td>0,0015</td><td>dito</td></tr>
+<tr><td>Stahl, neu und nahtlos</td><td>0,045</td><td>Walzhaut</td></tr>
+<tr><td>Stahl, betrieblich gealtert</td><td>0,1</td><td>Zunder, Magnetitschlamm, Ablagerungen an den Nähten</td></tr>
+<tr><td>Stahl, alt, angerostet oder versintert</td><td>0,2</td><td>der ehrliche Wert für eine Bestandsanlage</td></tr>
+</tbody>
+</table>
+
+<p class="quelle">Quelle: delta-q / IfHK FH Wolfenbüttel, Tabelle 2 („Gewinderohr DIN EN 10255: 0,045; Kupferrohr DIN EN 1057: 0,0015; Kunststoffrohr: 0,0015"); bestätigt in den frei zugänglichen Druckverlusttabellen von bosy-online und in den Rohrbüchern (Moody-Diagramm, Recknagel/Sprenger). Für Edelstahl nennt DIN 1988-300 dieselbe Betriebsrauheit 0,0015 mm.</p>
+
+<p>Der Zustand wirkt nur bei unlegiertem Stahl. Kupfer, Edelstahl und Kunststoff altern hydraulisch nicht messbar, solange das Anlagenwasser nach VDI 2035 gefahren wird.</p>
+
+<div class="beispiel">
+  <b>Beispiel: wie viel die Rauheit ausmacht</b>
+  <p>DN 25 mit 27,2 mm licht, 0,8 m/s, Wasser 50 °C — einmal glatt, einmal Stahl:</p>
+  <p>k = 0,0015 mm: λ = 0,02223, R = 258 Pa/m</p>
+  <p>k = 0,045 mm: λ = 0,02641, R = 307 Pa/m</p>
+  <p class="ergebnis">rund 19 % Unterschied allein durch den Werkstoff</p>
+</div>
+
+<div class="warnung"><b>Achtung</b><p>Das ist eine Lücke, die benannt gehört: Für Mehrschichtverbundrohr gibt es eine <b>Herstellerangabe von 0,007 mm</b> „nach Prandtl-Colebrook" (multipipe, Technisches Handbuch 12-2022), also fast das Fünffache des Wertes, mit dem das Programm rechnet. Nachgerechnet ist der Unterschied klein: im Fußbodenheizkreis 16 × 2 bei 111 l/h und 31,5 °C 121,7 gegenüber 123,1 Pa/m (1,2 %), in einer Verteilleitung 32 × 3 bei 1,5 m³/h und 50 °C 263,9 gegenüber 271,2 Pa/m (2,8 %). Klein, aber vorhanden — und in die ungünstige Richtung. Wer den Herstellerwert hat, setzt ihn über den Rauheitsparameter ein.</p></div>
+
+<h4 id="k13-8-8">13.8.8 Die Werkstofftabellen und die Nennweite</h4>
+
+<p>Damit die Rechnung einen Innendurchmesser bekommt, braucht sie eine Rohrtabelle. Das Programm führt sechs, jede mit ihrer Norm:</p>
+
+<table class="tab">
+<caption>Die Werkstofftabellen im Programm</caption>
+<thead><tr><th>Werkstoff</th><th>Norm / Reihe</th><th>Abmessungen</th></tr></thead>
+<tbody>
+<tr><td>Kupfer</td><td>EN 1057, Lieferprogramm der Halbzeugwerke</td><td>15 × 1 bis 88,9 × 2 (zehn Größen)</td></tr>
+<tr><td>Stahl</td><td>EN 10255, mittlere Reihe (früher DIN 2440)</td><td>DN 10 (17,2 × 2,35) bis DN 100 (114,3 × 4,5)</td></tr>
+<tr><td>Edelstahl</td><td>EN 10312 Reihe 2, Pressrohr 1.4401/1.4521</td><td>15 × 1,0 bis 54 × 1,5</td></tr>
+<tr><td>PE-Xa</td><td>EN ISO 15875, Reihe SDR 7,4</td><td>16 × 2,2 bis 63 × 8,6</td></tr>
+<tr><td>Mehrschichtverbund</td><td>EN ISO 21003, PE-RT/Al/PE-RT</td><td>16 × 2 bis 63 × 4,5</td></tr>
+<tr><td>PP-R</td><td>EN ISO 15874, Reihe SDR 7,4</td><td>20 × 2,8 bis 63 × 8,6</td></tr>
+</tbody>
+</table>
+
+<p>Aus Außendurchmesser und Wanddicke folgt alles Weitere: d_i = d_a − 2 · s, und der Wasserinhalt je Meter aus V = π/4 · d_i² · 1 m. Für Kupfer 28 × 1,5 sind das 0,491 l je Meter — die Zahl, die später für das Anlagenvolumen und das Ausdehnungsgefäß gebraucht wird.</p>
+
+<div class="merke"><b>Merke</b><p>Die <b>Nennweite DN</b> ist keine Abmessung, sondern eine Sortiernummer: sie sagt, welcher Kugelhahn auf welches Rohr passt. Bei Stahl steht sie in der Norm und ist Teil der Bestellbezeichnung. Bei Kupfer und Kunststoff steht sie nirgends — dort ordnet das Programm sie zu, und zwar nach der offengelegten Regel: <b>die Nennweite mit dem geringsten Abstand zum lichten Innendurchmesser</b>. Das trifft die Praxis (Cu 22 → DN 20, Cu 28 → DN 25, Verbund 32 → DN 25) und ist an keiner Stelle geraten.</p></div>
+
+<p>Warum die Werkstoffwahl nicht neutral ist, zeigt derselbe Außendurchmesser in zwei Reihen. Edelstahl 28 × 1,2 hat 25,6 mm licht, Kupfer 28 × 1,5 nur 25,0 mm. Das sind 2,4 % im Durchmesser, aber <b>rund 11 % im Druckgefälle</b>: nachgerechnet bei 1 m³/h und 50 °C ergeben sich 155,3 Pa/m in Kupfer gegenüber 138,7 Pa/m in Edelstahl. Beim Umschwenken des Werkstoffs ist das der Betrag, um den die Dimensionierung kippen kann.</p>
+
+<p>Wer eine bestimmte Abmessung meint, sucht sie über Werkstoff und Bestellbezeichnung — im Programm heißt das „Verbund, 16 × 2". Die Schreibweise ist dabei nachsichtig: „16x2", „16 × 2" und „16 X 2" finden dieselbe Zeile.</p>
+
+<h4 id="k13-8-9">13.8.9 Wie das Programm eine Dimension wählt</h4>
+
+<p>Die Dimensionierung sucht die <b>kleinste Dimension, die zwei Grenzen gleichzeitig einhält</b>. Sie geht die Tabelle von klein nach groß durch und nimmt die erste, die passt — nicht die sicherste, sondern die billigste zulässige.</p>
+
+<table class="tab">
+<caption>Die beiden Grenzen und ihre Vorbelegung</caption>
+<thead><tr><th>Grenze</th><th>Vorbelegung</th><th>Was sie begrenzt</th></tr></thead>
+<tbody>
+<tr><td>Höchste Fließgeschwindigkeit w_max</td><td>1,0 m/s</td><td><b>den Schall.</b> Ab etwa 1 m/s wird Strömung in Kupfer- und Stahlrohren in ruhigen Räumen hörbar, ab 1,5 m/s auch in Steigsträngen.</td></tr>
+<tr><td>Höchstes Druckgefälle R_max</td><td>150 Pa/m</td><td><b>die Pumpenleistung</b> und damit die Betriebskosten.</td></tr>
+</tbody>
+</table>
+
+<div class="warnung"><b>Achtung</b><p>Beide Werte sind <b>keine Normwerte.</b> Für Heizungsleitungen gibt es keine verbindliche Geschwindigkeits- oder Druckgefällegrenze. Die Fachliteratur nennt 50 bis 300 Pa/m für die vorläufige Rohrweitenfestlegung, 100 Pa/m als Auslegungswert (IKZ/Resideo; im Rechenbeispiel des VdZ-Leitfadens ebenfalls 100 Pa/m). Für die Geschwindigkeit werden 0,4 bis 1,0 m/s in Kellerverteilungen, 0,2 bis 0,5 m/s in bewohnten Räumen und 0,1 bis 0,4 m/s an Heizkörperanschlüssen genannt. Beide Grenzen gehören zur Planungsentscheidung, nicht zur Physik — sie sind deshalb Eingabefelder und keine Konstanten.</p></div>
+
+<p><b>Welche Grenze zuerst greift.</b> In der Hausinstallation fast immer das Druckgefälle. Mit den Vorbelegungen 1,0 m/s und 150 Pa/m nachgerechnet, liegt die Geschwindigkeit bei R = 150 Pa/m in der Kupferreihe durchgehend unter 1 m/s — bis hinauf zu 54 × 2 (0,90 m/s bei 6,3 m³/h). Erst ab 64 × 2 (1,01 m/s bei 10,3 m³/h) wird die Geschwindigkeit maßgebend. Für ein Ein- oder Zweifamilienhaus heißt das: <b>es ist die Wirtschaftlichkeit, die die Rohre groß macht, nicht der Schall.</b></p>
+
+<p>Das Ergebnis nennt immer, welches Kriterium den Ausschlag gab — das ist die Information, die gebraucht wird, wenn eine Größe von Hand geändert werden soll:</p>
+
+<table class="tab">
+<caption>Die vier Begründungen der Dimensionswahl</caption>
+<thead><tr><th>Begründung</th><th>Was sie bedeutet</th><th>Was dann hilft</th></tr></thead>
+<tbody>
+<tr><td>Druckgefälle</td><td>Die nächstkleinere Dimension hätte R_max gerissen.</td><td>Eine höhere Spreizung kann die Sache lösen — sie senkt den Volumenstrom.</td></tr>
+<tr><td>Geschwindigkeit</td><td>Die nächstkleinere Dimension wäre zu laut.</td><td>Ein anderer Werkstoff hilft nicht; nur ein größerer Querschnitt.</td></tr>
+<tr><td>kleinste</td><td>Schon das kleinste Rohr der Reihe hält beide Grenzen ein.</td><td>Die Dimensionierung ist nicht hydraulisch bestimmt, sondern durch das Sortiment.</td></tr>
+<tr><td>größte</td><td>Keine Dimension der Reihe reicht aus.</td><td>Zwei parallele Leitungen legen oder die Spreizung erhöhen.</td></tr>
+</tbody>
+</table>
+
+<p>Reißen beide Grenzen gleichzeitig, gewinnt die mit der <b>größeren relativen Überschreitung</b>. Zusätzlich lässt sich eine kleinste zulässige Nennweite vorgeben — etwa wegen des Anschlussmaßes am Gerät — und eine eigene Dimensionsreihe, zum Beispiel nur die im Lager vorhandenen Größen.</p>
+
+<div class="beispiel">
+  <b>Beispiel zum Nachrechnen</b>
+  <p>Kupfer, Wasser 50 °C, Vorbelegungen 1,0 m/s und 150 Pa/m.</p>
+  <p>1,0 m³/h → 22 × 1 hätte 0,88 m/s und 451 Pa/m: Geschwindigkeit gehalten, Druckgefälle gerissen. 28 × 1,5 hätte 0,57 m/s und 155 Pa/m: immer noch fünf Pascal zu viel. Gewählt wird <b>35 × 1,5</b> mit 0,35 m/s und 48 Pa/m.</p>
+  <p class="ergebnis">„Maßgebend war das Höchstdruckgefälle von 150 Pa/m — die nächstkleinere Dimension würde die Pumpe kosten."</p>
+  <p>Dieselbe Aufgabe mit R_max = 500 Pa/m und 2,0 m³/h: 28 × 1,5 hätte 1,13 m/s (13 % über der Grenze) und 532 Pa/m (6 % über der Grenze). Die Geschwindigkeit ist stärker überschritten, also gewinnt sie. Gewählt wird 35 × 1,5.</p>
+  <p class="ergebnis">„Maßgebend war die Höchstgeschwindigkeit von 1 m/s — die nächstkleinere Dimension wäre zu laut."</p>
+</div>
+
+<h3 id="k13-9">13.9 Der Erzeugerkreis: Druckverlust gegen Restförderhöhe</h3>
+
+<p>Bis Fassung 1.13.2 rechnete der Rohrnetzbericht diesen Posten mit null. Das war ehrlich gemeint — der Erzeugerdruckverlust ist eine Herstellerkennlinie, und eine geratene Zahl wäre schlimmer als keine. Nur war die Wirkung nicht neutral: <b>eine fehlende Zahl macht die Pumpe systematisch zu klein</b>, und zwar nicht um ein paar Prozent, sondern um etwa die Hälfte der erforderlichen Förderhöhe. Dieser Abschnitt beschreibt, was das Programm seit 1.14.0 stattdessen rechnet. Die Bedienseite dazu steht in <a href="#k10-8">Abschnitt 10.8</a>.</p>
+
+<h4 id="k13-9-1">13.9.1 Warum ein Wärmeerzeuger Druck kostet</h4>
+
+<p>Eine Wärmepumpe ist heizungsseitig ein Wärmetauscher, meist ein Plattenwärmetauscher. Das Wasser läuft durch einen Stapel gewellter Bleche mit sehr kleinem Querschnitt und ständiger Umlenkung — genau die Bauform, die viel Wärme überträgt und viel Druck kostet. Dazu kommen, je nach Gerät, Rohrbögen im Gehäuse, ein Durchflusssensor, manchmal ein Schlammabscheider.</p>
+
+<p>Das Gerät ist damit ein Widerstand wie jedes andere Bauteil im Fließweg. Der VdZ-Leitfaden nennt die Pumpenauslegung ausdrücklich als Summe <em>einschließlich</em> Erzeuger:</p>
+
+<p class="quelle">„Summe der Einzeldruckverluste, bestehend aus den Druckverlusten der Rohrleitungen, <b>des Wärmeerzeugers</b>, der Wärmeübergabeeinrichtung, der Armaturen sowie der sonstigen Einbauten wie z. B. <b>Rückschlagklappen und Wärmemengenzähler</b>" — VdZ, Leitfaden für Fachleute: Hydraulischer Abgleich in Heizungsanlagen. Gleichlautend BWP, Leitfaden Hydraulik: „Berücksichtigung von Rohrleitungen, Wärmepumpendruckverlusten, Einzelwiderständen und Ventilen".</p>
+
+<h4 id="k13-9-2">13.9.2 Die zwei Angabearten, die sich gegenseitig ausschließen</h4>
+
+<p>Hier liegt der eigentliche Stolperstein, und er ist kein Rechenfehler, sondern ein Lesefehler. Der Markt liefert <b>zwei fachlich verschiedene Angaben</b>, die im Datenblatt oft nur eine Zeile weit auseinanderstehen.</p>
+
+<table class="tab">
+<caption>Angabeart A gegen Angabeart B</caption>
+<thead><tr><th></th><th>A — Druckverlust des Geräts</th><th>B — Restförderhöhe</th></tr></thead>
+<tbody>
+<tr><td>Was gemessen wurde</td><td>Wie viel Druck das Gerät dem Wasser wegnimmt</td><td>Wie viel Druck die <b>eingebaute Pumpe</b> für die Anlage übrig lässt</td></tr>
+<tr><td>Wann es diese Angabe gibt</td><td>Gerät ohne eingebaute Pumpe — und bei einigen mit</td><td>nur bei Gerät mit eingebauter Pumpe</td></tr>
+<tr><td>In der Rechnung</td><td><b>wird addiert</b></td><td><b>wird nie addiert</b> — sie ist eine Obergrenze</td></tr>
+<tr><td>Über dem Volumenstrom</td><td><b>steigt</b>, etwa quadratisch</td><td><b>fällt</b> — es ist eine Pumpenkennlinie</td></tr>
+<tr><td>Was zu tun ist</td><td>Pumpe auslegen: Rohrnetz + Erzeuger + Armaturen</td><td>Prüfen: Rohrnetz + Armaturen ≤ Restförderhöhe</td></tr>
+</tbody>
+</table>
+
+<p><b>Die Herstellerworte für beides.</b> Sie sind der einzige Anhaltspunkt im Datenblatt, deshalb stehen sie im Programm im Originalwortlaut mit dabei:</p>
+
+<ul>
+<li><b>Angabeart A:</b> „Interne Druckabnahme" (Bosch), „Interner Druckverlust Heizung" (Stiebel Eltron), „Durchflusswiderstand Verflüssiger" (Viessmann), „Druckabfall Klimatisierungssystem" (NIBE), „product pressure drop" (LG).</li>
+<li><b>Angabeart B:</b> „Restförderhöhe (RFH)" (Viessmann, Wolf), „Max. externer Druckverlust" (Viessmann), „verfügbare Förderhöhe", „verfügbarer Restförderdruck", „available head" (LG), „externe Pressung".</li>
+</ul>
+
+<div class="warnung"><b>Achtung</b><p>Wer die beiden verwechselt, rechnet um typisch <b>40 bis 70 kPa falsch — und zwar in beide Richtungen.</b> Eine Restförderhöhe von 52 kPa als Widerstand zu addieren, macht die Pumpe absurd groß. Einen Gerätedruckverlust von 10 kPa als verfügbare Förderhöhe zu lesen, lässt jede Anlage durchfallen. Deshalb gibt es im Datensatz eines Geräts <b>kein</b> Zahlenfeld „Druckverlust", in das mal das eine und mal das andere geriete, sondern eine ausdrückliche Unterscheidungsmarke.</p></div>
+
+<p><b>Die Marke hängt nicht an der Bauform, sondern an der eingebauten Pumpe</b> — und auch das nur in eine Richtung. Nur ein Gerät mit eingebauter Umwälzpumpe kann überhaupt eine Restförderhöhe haben. Der Umkehrschluss gilt nicht: Stiebel Eltron baut bei der WPL-A-Reihe die Pumpe ein und veröffentlicht trotzdem nur ein Δp. Deshalb ist der Pumpenstatus im Programm eine eigene Angabe und keine Ableitung aus der Bauform.</p>
+
+<h4 id="k13-9-3">13.9.3 Woher die Zahl der Typklasse kommt</h4>
+
+<p>Die Typklassen des Gerätekatalogs sind keine Produkte und können deshalb auch keinen Herstellerwert tragen. Im Programm steht stattdessen eine <b>Markttabelle</b>: 18 veröffentlichte Δp-Werte und 14 veröffentlichte Restförderhöhen von Bosch, Stiebel Eltron, Viessmann, LG und Wolf — jede Zeile mit Hersteller, Typ, Originalwortlaut, Bezugsvolumenstrom und Quelle. Die Zahl der Typklasse wird daraus <b>gerechnet, nicht gesetzt.</b> Sie wandert, wenn die Tabelle wächst.</p>
+
+<div class="formel">
+  <p class="worte">In Worten: Ein Δp allein sagt nichts. Erst geteilt durch das Quadrat des zugehörigen Volumenstroms wird daraus eine Kennzahl, mit der sich Geräte vergleichen lassen — der spezifische Widerstand.</p>
+  <p class="math">R_spez = Δp / V̇²     [Pa je (m³/h)²]</p>
+</div>
+
+<div class="beispiel">
+  <b>Beispiel zum Nachrechnen</b>
+  <p>Bosch Compress 7001i AW 9 OR-S: 10 500 Pa bei 1,55 m³/h.</p>
+  <p>R_spez = 10 500 / 1,55² = 10 500 / 2,4025</p>
+  <p class="ergebnis">R_spez = 4 370 Pa je (m³/h)²</p>
+</div>
+
+<p><b>Für den Druckverlust gilt der Median, nicht der Mittelwert.</b> Die Reihe ist schief: zwei Stiebel-Zeilen liegen über 12 000, sechs LG-Zeilen unter 2 100 Pa je (m³/h)². Ein Mittelwert folgt den Ausreißern, der Median beschreibt das mittlere Gerät. Er liegt bei <b>3 509 Pa je (m³/h)²</b>, das sind bei 1,5 m³/h rund 7,9 kPa.</p>
+
+<p><b>Für die Restförderhöhe gilt das untere Quartil.</b> Hier wäre der Median die falsche Wahl, weil der Fehler nicht symmetrisch ist: ein zu klein angesetztes Δp macht die Pumpe zu klein und die Anlage laut — ärgerlich, aber sichtbar. Eine zu groß angesetzte Restförderhöhe dagegen lässt eine Prüfung <em>bestehen, die durchfallen müsste</em>; der Anwender bekommt ein grünes Ergebnis für ein Netz, das das Gerät nicht fördern kann. Die Typklasse behauptet deshalb nur, was das schwächere Viertel des Marktes noch schafft: <b>52,5 kPa bei 1,48 m³/h</b>.</p>
+
+<div class="warnung"><b>Achtung</b><p>Die spezifischen Widerstände der Markttabelle streuen über den <b>Faktor sieben</b>. Der Grund ist nicht die Bauart, sondern der <b>Umfang</b> der Angabe: Viessmann nennt ausdrücklich nur den Verflüssiger, Bosch die „interne Druckabnahme" des ganzen Geräts. Wer eine dieser Zahlen ohne ihren Umfang übernimmt, vergleicht Verschiedenes. Weil die Typklasse über beide Lesarten mittelt, steht ihr Umfang auf „unbekannt" — und der Schlammabscheider wird sicherheitshalber gesondert angesetzt, mit einem Hinweis, dass er bei manchen Geräten schon drinsteckt.</p></div>
+
+<h4 id="k13-9-4">13.9.4 Die Skalierung Δp ∝ V̇² und der Exponent 2,0</h4>
+
+<p>Ein Datenblattwert gilt für genau einen Volumenstrom. Der Auslegungsvolumenstrom der Anlage ist ein anderer. Also muss umgerechnet werden.</p>
+
+<div class="formel">
+  <p class="worte">In Worten: Der Druckverlust wächst ungefähr mit dem Quadrat des Volumenstroms. <b>Doppelter Volumenstrom heißt vierfacher Druckverlust.</b></p>
+  <p class="math">Δp = Δp_Bezug · (V̇ / V̇_Bezug)^n     mit n = 2,0</p>
+  <dl class="zeichen">
+    <dt>Δp_Bezug</dt><dd>der veröffentlichte Wert [Pa]</dd>
+    <dt>V̇_Bezug</dt><dd>der Volumenstrom, für den er gilt [m³/h]</dd>
+    <dt>n</dt><dd>Skalierungsexponent [-]</dd>
+  </dl>
+</div>
+
+<p><b>Warum ausgerechnet 2,0?</b> Zwei Gründe, und der zweite ist der wichtigere:</p>
+
+<ol>
+<li><b>Er ist der in der deutschen TGA-Praxis übliche und belegte Wert.</b> „Der Volumenstrom geht quadratisch in die Berechnung ein. Das bedeutet beispielsweise, dass man, um einen doppelten Volumenstrom zu erreichen, den vierfachen Differenzdruck aufbauen muss." (Haustec, „Darstellung einer Anlagenkennlinie")</li>
+<li><b>Er ist die konservative Wahl.</b> An Plattenwärmetauschern gemessen liegt der Exponent niedriger: aus dem Reibungsbeiwert der Wellungszone f = 0,4305 / Re^0,2228 folgt n ≈ 1,78 (Gusew/Stuke et al., Int. J. Chem. Eng. 2019); der Blasius-Ansatz für glatte Rohre ergibt n = 1,75. Oberhalb des Bezugspunktes liefert n = 2 also <b>mehr</b> Δp als die Messung. Genau der Fehler, der behoben werden soll — die zu kleine Pumpe —, wird damit nicht wiederholt.</li>
+</ol>
+
+<p>Der Exponent ist ein Feld je Gerätedatensatz. Wer eine Herstellerkennlinie hat, aus der sich der Exponent bestimmen lässt, trägt ihn ein.</p>
+
+<div class="merke"><b>Merke</b><p>Auf eine <b>Restförderhöhe wird der Exponent nicht angewendet.</b> Sie ist eine Pumpenkennlinie und <em>fällt</em> mit steigendem Volumenstrom, statt zu steigen. Ein quadratischer Ansatz darauf wäre grob falsch — und der Fehler sähe aus wie eine besonders leistungsfähige Pumpe. Das Programm lässt den Wert deshalb unverändert stehen.</p></div>
+
+<div class="warnung"><b>Achtung — eine Grenze des Programms</b><p>„Unverändert stehen lassen" ist der ehrliche, aber nicht der genaue Weg. Die Restförderhöhe wird beim <em>Bezugsvolumenstrom des Herstellers</em> geprüft, nicht beim tatsächlichen Auslegungsvolumenstrom. Liegt der Auslegungsvolumenstrom deutlich darüber, ist die wirklich verfügbare Förderhöhe kleiner als die geprüfte. Belastbar wäre nur eine Kennlinie mit Stützstellen — und die veröffentlichen die meisten Hersteller nur als Diagramm. Bei Vaillant, Viessmann Vitocal 250-A, NIBE, Weishaupt, Wolf CHA-16/20 und Daikin liegt genau dieser Fall vor: das Programm führt für sie <b>keine</b> abgelesene Zahl, weil eine aus einem Diagramm abgelesene Zahl ohne Kennzeichnung ein erfundener Wert wäre.</p></div>
+
+<p>Zusätzlich führt jeder Datensatz seine <b>Gültigkeitsgrenzen</b> — Mindest- und Höchstvolumenstrom des Geräts. Darunter meldet das Programm: „Der Auslegungsvolumenstrom liegt unter dem Mindestvolumenstrom des Geräts. Die Anlage ist damit unzulässig — der hochgerechnete Druckverlust ist die kleinere Sorge." Darüber: „… der Erzeugerdruckverlust ist über den belegten Bereich hinaus hochgerechnet."</p>
+
+<h4 id="k13-9-5">13.9.5 Warum der Bezugsvolumenstrom Pflichtangabe ist</h4>
+
+<p>Eine Restförderhöhe oder ein Δp <b>ohne</b> zugehörigen Volumenstrom ist keine Zahl, sondern eine Behauptung. Das ist keine Theorie, sondern ein belegter Vorfall:</p>
+
+<div class="beispiel">
+  <b>Die Wolf-Halbierung</b>
+  <p>Wolf CHA-07 Monoblock, Restförderhöhe laut technischer Broschüre:</p>
+  <p>Ausgabe 2018: <b>610 mbar</b> bei 22 l/min Bezugsvolumenstrom</p>
+  <p>Ausgabe 2024: <b>420 mbar</b> bei 27 l/min Bezugsvolumenstrom</p>
+  <p class="ergebnis">Das Gerät hat sich nicht geändert. Geändert hat sich der Punkt, an dem gemessen wurde — und die Zahl fiel um ein Drittel.</p>
+</div>
+
+<p>Die Schwesterausführung CHA-10 macht denselben Sprung: 530 mbar bei 25 l/min in der Ausgabe 2018, 400 mbar bei 27 l/min in der Ausgabe 2024. Wer die Zahl ohne den Bezugspunkt übernimmt, übernimmt einen Zufall.</p>
+
+<div class="merke"><b>Merke</b><p>Im Programm darf <b>keine einzige Zeile der Markttabelle</b> ohne Bezugsvolumenstrom stehen; der Prüfblock scheitert sonst. Restförderhöhen gehören immer mit Bezugsvolumenstrom <em>und</em> Dokumentversion gespeichert.</p></div>
+
+<h4 id="k13-9-6">13.9.6 Die Einbauten über den kv-Wert — und die Kamstrup-Falle</h4>
+
+<p>Umschaltventil, Wärmemengenzähler und Schlammabscheider werden nicht über ζ gerechnet, sondern über den <b>kvs-Wert</b>. Der ist eine Herstellermessgröße und damit die bessere Angabe.</p>
+
+<div class="formel">
+  <p class="worte">In Worten: Der kvs-Wert ist der Volumenstrom in m³/h, der durch die voll geöffnete Armatur läuft, wenn 1 bar Druckdifferenz anliegt. Läuft nur ein Bruchteil davon, fällt der Druck mit dem Quadrat dieses Bruchteils.</p>
+  <p class="math">Δp = (V̇ / kvs)² · 1 bar</p>
+  <dl class="zeichen">
+    <dt>Δp</dt><dd>Druckverlust der Armatur [bar; 1 bar = 100 000 Pa = 100 kPa]</dd>
+    <dt>V̇</dt><dd>tatsächlicher Volumenstrom [m³/h]</dd>
+    <dt>kvs</dt><dd>Kennwert der Armatur bei voller Öffnung [m³/h]</dd>
+  </dl>
+</div>
+
+<div class="beispiel">
+  <b>Beispiel zum Nachrechnen</b>
+  <p>3-Wege-Umschaltventil DN 25, kvs 5,7 m³/h (ESBE ZRS230/234), Auslegungsvolumenstrom 1,5 m³/h.</p>
+  <p>1,50 / 5,70 = 0,2632</p>
+  <p>0,2632² = 0,06925 bar</p>
+  <p class="ergebnis">Δp = 6,93 kPa — mehr als der Δp mancher Wärmepumpe, und im Heizbetrieb dauerhaft im Fließweg</p>
+</div>
+
+<p><b>Die Kamstrup-Falle</b></p>
+
+<p>Kamstrup führt im Datenblatt der MULTICAL 303/403 eine Spalte mit der Überschrift <b>„kv q@ 0,25 bar"</b>. Das ist der Durchfluss bei 0,25 bar — <b>nicht</b> der kvs bei 1 bar. Wer die Zahl blind übernimmt, rechnet mit einem halb so großen Kennwert.</p>
+
+<div class="formel">
+  <p class="worte">In Worten: Ein kv-Wert, der bei einem anderen Druck angegeben ist, wird durch die Wurzel dieses Drucks geteilt, um auf 1 bar zu kommen.</p>
+  <p class="math">kvs (bei 1 bar) = kv (bei p) / √(p in bar)</p>
+</div>
+
+<div class="beispiel">
+  <b>Beispiel zum Nachrechnen</b>
+  <p>Kamstrup MULTICAL 403, qp 6: Spaltenwert 12,3 bei 0,25 bar.</p>
+  <p>√0,25 = 0,5, also kvs = 12,3 / 0,5 = <b>24,6 m³/h</b></p>
+  <p>Gegenprobe aus der Δp-Spalte desselben Datenblatts (0,06 bar bei 6 m³/h): 6 / √0,06 = 24,49 — die Probe geht auf.</p>
+  <p>Und die Wirkung bei 6 m³/h:</p>
+  <p>richtig, mit kvs 24,6: (6 / 24,6)² = 0,0595 bar = <b>5,95 kPa</b></p>
+  <p>falsch, mit 12,3 als kvs: (6 / 12,3)² = 0,2379 bar = <b>23,8 kPa</b></p>
+  <p class="ergebnis">Faktor 2 im kv-Wert bedeutet Faktor 4 im Druck</p>
+</div>
+
+<div class="merke"><b>Merke</b><p>Jedes Einbauteil im Programm trägt seinen <b>Bezugsdruck</b> mit. Steht im Datenblatt ein anderer Druck als 1 bar in der Spaltenüberschrift, gehört er eingetragen — nicht der Wert umgerechnet in ein Feld, das behauptet, es stünde 1 bar dahinter.</p></div>
+
+<p><b>Zwei weitere Feinheiten aus derselben Ecke</b></p>
+
+<ul>
+<li><b>Baugruppe oder nacktes Bauteil.</b> Der Caleffi DIRTMAG DN 25 hat allein einen Kv von 10,5, <b>mit Absperrkugelhähnen</b> nur 7,5 — rund 28 % weniger und damit knapp der doppelte Druckverlust. Das Programm setzt die Baugruppe an, weil sie so eingebaut wird: ohne Absperrung lässt sich der Schmutzfänger nicht reinigen, ohne die Anlage zu entleeren.</li>
+<li><b>Die Zählerreihe ist nicht monoton.</b> Beim Diehl Sharky 775 hat qp 3,5 <em>weniger</em> Druckverlust als qp 2,5 (kvs 16,69 gegenüber 7,91), weil diese Variante eine größere Baunennweite hat. Das ist real und wird nicht geglättet. Der Prüfblock hält es ausdrücklich fest, damit niemand es für einen Übertragungsfehler hält.</li>
+<li><b>Der Verteiler-Durchflussmesser gehört nicht hierher.</b> Er sitzt im ungünstigsten Heizkreis, nicht im Erzeugerkreis. Das Programm führt seinen Kennwert (Oventrop Multidis SF, kvs 0,90 je Kreis), addiert ihn aber nicht in die Erzeugerbilanz — sonst stünde er zweimal im Strang. Bei 100 l/h kostet er 1,23 kPa, bei 200 l/h bereits 4,94 kPa.</li>
+</ul>
+
+<h4 id="k13-9-7">13.9.7 Die Bilanz des Erzeugerkreises</h4>
+
+<p>Die Bauteilliste dieser Bilanz kommt <b>nicht</b> aus einer eigenen Annahme, sondern aus der Anlagenauslegung: das Umschaltventil gibt es, wenn ein Trinkwasserspeicher über den Erzeuger geladen wird; den Zähler, wenn die Armaturenliste ihn führt; den Abscheider ebenso. Damit zeigen Bild, Materialliste und Rechnung dieselbe Anlage.</p>
+
+<div class="beispiel">
+  <b>Vollständiges Beispiel zum Nachrechnen</b>
+  <p><b>Aufgabe:</b> Einfamilienhaus, Monoblock-Wärmepumpe R290 rund 8 kW, Auslegungsvolumenstrom 1,5 m³/h, Erzeugeranbindung DN 25, mit Trinkwasserumschaltung, Wärmemengenzähler und Magnetitabscheider.</p>
+  <p><b>Wärmeerzeuger.</b> Der Typklassenwert beträgt 2 595 Pa bei 0,86 m³/h. Skaliert auf 1,5 m³/h mit n = 2:<br>
+  (1,50 / 0,86)² = 1,7442² = 3,0422<br>
+  2 595 · 3,0422 = <b>7 894 Pa = 7,89 kPa</b></p>
+  <p><b>3-Wege-Umschaltventil DN 25</b>, kvs 5,7: (1,50 / 5,70)² = 0,06925 bar = <b>6,93 kPa</b></p>
+  <p><b>Magnetitabscheider DN 25 mit Absperrung</b>, Kv 7,5: (1,50 / 7,50)² = 0,0400 bar = <b>4,00 kPa</b></p>
+  <p><b>Wärmemengenzähler qp 2,5</b>, kvs 7,91: (1,50 / 7,91)² = 0,03596 bar = <b>3,60 kPa</b></p>
+  <p class="ergebnis">Summe des Erzeugerkreises: 22,42 kPa — davon 14,52 kPa allein die drei Armaturen</p>
+</div>
+
+<p>Warum ausgerechnet qp 2,5 und nicht qp 1,5: Das Programm wählt die kleinste Baugröße, deren Nenndurchfluss <b>über</b> dem Auslegungsvolumenstrom liegt, nicht die erste, die ihn gerade noch erreicht. qp ist der Dauerdurchfluss; ein Zähler, der im Heizbetrieb genau auf qp läuft, hat für die Speicherladung keinen Spielraum mehr — und die liegt bei jeder Wärmepumpe über dem Heizvolumenstrom.</p>
+
+<p><b>Zum Vergleich mit einem belegten Gerätewert.</b> Setzt man statt der Typklasse die veröffentlichte Zahl der Bosch Compress 7001i AW 9 OR-S ein — 10,5 kPa —, ergibt dieselbe Anlage 10,5 + 14,52 = <b>25,0 kPa</b>. Das ist die Zahl, mit der der Recherchebericht die Lücke aufgemacht hat, und die Typklasse landet in derselben Größenordnung.</p>
+
+<p><b>Derselbe Fall mit einem Gerät, das eine Restförderhöhe führt</b></p>
+
+<p>Hydrosplit-Gerät mit eingebauter Umwälzpumpe, sonst dieselbe Anlage. Das Programm legt jetzt <b>keine Pumpe aus, sondern prüft</b>:</p>
+
+<ul>
+<li>Der Gerätewert von 52,5 kPa steht <b>nicht</b> in der Summe — er ist eine Pumpenkennlinie, kein Widerstand.</li>
+<li>Die drei Armaturen zählen weiterhin, denn sie liegen außerhalb des Geräts: 14,52 kPa.</li>
+<li>Die Bedingung lautet: Rohrnetz + Armaturen ≤ 52,5 kPa. Es bleiben also 37,98 kPa für das gezeichnete Rohrnetz.</li>
+</ul>
+
+<p>Das Blatt schreibt dazu: „Das Gerät hat eine eingebaute Umwälzpumpe. Statt einer Pumpenauslegung wird geprüft: Rohrnetz und Armaturen müssen unter der Restförderhöhe von 52,5 kPa bei 1,48 m³/h bleiben. Der Wert wird nicht addiert — er ist eine Pumpenkennlinie, kein Widerstand."</p>
+
+<p><b>Wenn gar nichts hinterlegt ist</b></p>
+
+<p>Fehlt für ein Gerät heizungsseitig jede Angabe, schreibt das Blatt <b>nicht</b> „0 kPa". Es schreibt den bezifferten Fehlbetrag: „Die Förderhöhe ist um genau diesen Betrag zu klein; bei 1,5 m³/h liegen vergleichbare Geräte zwischen 3,6 und 28,0 kPa." Die Spanne ist der kleinste und der größte spezifische Widerstand der Markttabelle, auf den gefragten Volumenstrom gerechnet. Wo ein Wert fehlt, gehört die <b>Größenordnung des fehlenden Betrags</b> dazu — sonst liest sich eine Null wie ein Messergebnis.</p>
+
+<h4 id="k13-9-8">13.9.8 Warum das wichtig ist</h4>
+
+<p>Ohne diesen Abschnitt fehlten einer typischen Einfamilienhausanlage rund <b>25 kPa</b>. Umgerechnet in Förderhöhe sind das <b>rund 2,5 m</b>. Ein Einfamilienhaus-Rohrnetz braucht 1,5 bis 3 m.</p>
+
+<div class="merke"><b>Merke</b><p>Der fehlende Posten ist keine Korrektur, sondern eine <b>Verdopplung</b> der erforderlichen Förderhöhe. Eine Pumpe, die für 2 m ausgelegt wurde und 4,5 m braucht, fördert nicht zu wenig — sie fördert den ungünstigsten Strang gar nicht mehr. Der Raum am Ende bleibt kalt, und niemand findet den Grund im Rohrnetz, weil dort alles stimmt.</p></div>
+
+<p class="quelle">Quelle der Größenordnung: eigener Recherchebericht „Druckverlust des Wärmeerzeugers und der übrigen Bauteile im Fließweg", Abschnitt 3.8, mit den Einzelbelegen Bosch (Installationsanleitung CS7001iAW), ESBE ZRS230/234, Diehl Sharky 775 und Caleffi DIRTMAG 5453. Alle vier Datenblätter im Volltext eingesehen.</p>
+
+<h3 id="k13-10">13.10 Die Pumpe</h3>
+
+<p>Eine Umwälzpumpe wird durch zwei Zahlen bestimmt: wie viel Wasser sie fördern muss (den <b>Förderstrom</b>) und gegen wie viel Widerstand (die <b>Förderhöhe</b>). Beide kommen aus derselben Rechnung, aber <b>aus verschiedenen Teilen davon</b> — und genau hier liegt der Fehler, der Pumpen halbiert.</p>
+
+<h4 id="k13-10-1">13.10.1 Der ungünstigste Strang bestimmt die Höhe, die Summe den Strom</h4>
+
+<p>Alle Stränge einer Verteilung liegen <b>parallel</b> zwischen denselben zwei Punkten: dem Vorlaufanschluss und dem Rücklaufanschluss des Verteilers. Für eine Parallelschaltung gelten zwei Aussagen, und sie sind verschieden:</p>
+
+<ul>
+<li><b>Über allen parallelen Zweigen liegt dieselbe Druckdifferenz.</b> Die Pumpe muss deshalb genau den einen Strang bedienen können, der am meisten verlangt — den ungünstigsten. Alle übrigen bekommen automatisch zu viel und werden abgedrosselt; das ist der hydraulische Abgleich (<a href="#k13-11">Abschnitt 13.11</a>).</li>
+<li><b>Durch die Pumpe fließt alles, was in die Zweige abzweigt.</b> Der Förderstrom ist deshalb die <b>Summe</b> aller Strangvolumenströme, nicht der größte davon.</li>
+</ul>
+
+<div class="warnung"><b>Achtung — der Fehler, der Pumpen halbiert</b><p>Bis Fassung 1.8.1 stand im Programm an dieser Stelle das <b>Maximum</b> statt der Summe. Bei zwei gleich großen Kreisen war die Pumpe damit um die Hälfte zu klein, und der Fehler wächst mit jedem weiteren Kreis. Er fällt bei einer Sichtprüfung nicht auf, weil die Förderhöhe stimmt und nur der Förderstrom falsch ist — die Pumpenkennlinie sieht dann bloß so aus, als wäre der Betriebspunkt gut getroffen.</p></div>
+
+<div class="beispiel">
+  <b>Beispiel zum Nachrechnen</b>
+  <p>Ein Verteiler, drei Heizkörperstränge in Kupfer 15 × 1, Wasser 50 °C, je Strang vier Bögen 90° und zwei Kugelhähne, Heizfläche mit Ventilunterteil je 10 kPa.</p>
+  <table class="tab">
+  <thead><tr><th>Strang</th><th>V̇ [m³/h]</th><th>Trasse [m]</th><th>Rohr + Formstücke</th><th>Heizfläche</th><th>gesamt</th></tr></thead>
+  <tbody>
+  <tr><td>Wohnzimmer</td><td>0,17</td><td>12</td><td>3 921 Pa</td><td>10 000 Pa</td><td><b>13 921 Pa</b></td></tr>
+  <tr><td>Bad oben</td><td>0,12</td><td>18</td><td>3 170 Pa</td><td>10 000 Pa</td><td>13 170 Pa</td></tr>
+  <tr><td>Küche</td><td>0,10</td><td>5</td><td>684 Pa</td><td>10 000 Pa</td><td>10 684 Pa</td></tr>
+  </tbody>
+  </table>
+  <p><b>Förderhöhe</b> bestimmt der ungünstigste Strang: 13 921 Pa. Das ist das Wohnzimmer — nicht das Bad, obwohl dessen Trasse anderthalbmal so lang ist. Der größere Volumenstrom schlägt die größere Länge.</p>
+  <p class="ergebnis"><b>Förderstrom</b> ist die Summe: 0,17 + 0,12 + 0,10 = 0,39 m³/h. Mit dem Maximum wären es 0,17 m³/h gewesen — 44 % des richtigen Werts.</p>
+</div>
+
+<p>Ein Zusatz, der bei mehreren Verteilern greift: Stränge <em>verschiedener</em> Quellen liegen nicht parallel. Das Programm rechnet den Abgleich deshalb je Quelle und bezieht die Pumpenauslegung auf die Quelle mit dem größten Volumenstrom — mit dem Hinweis, dass für die übrigen eine eigene Pumpe zu betrachten ist.</p>
+
+<h4 id="k13-10-2">13.10.2 Der Sicherheitszuschlag</h4>
+
+<div class="formel">
+  <p class="worte">In Worten: Der ungünstigste Strang plus alles, was im Erzeugerkreis liegt, mal einem Zuschlag für das, was die Rechnung nicht kennt.</p>
+  <p class="math">Δp_Pumpe = (Δp_ungünstigster Strang + Δp_Erzeugerkreis) · f</p>
+  <dl class="zeichen">
+    <dt>f</dt><dd>Sicherheitszuschlag [-]; Vorbelegung 1,15, also 15 %</dd>
+  </dl>
+</div>
+
+<p>Die 15 % decken ab, was in keiner Zeichnung steht: die Streuung der ζ-Werte, nicht gezeichnete Formstücke, die Alterung des Netzes. Der Wert ist ein <b>Erfahrungswert und keine Norm</b>; er ist als Parameter geführt.</p>
+
+<div class="merke"><b>Merke</b><p>Ein größerer Zuschlag ist <b>keine Sicherheit, sondern eine zu große Pumpe.</b> Eine zu große Pumpe kostet dauerhaft Strom, macht Strömungsgeräusche an den Ventilen und drückt die Ventilautorität in den Keller — der Abgleich wird dadurch schlechter, nicht besser.</p></div>
+
+<div class="beispiel">
+  <b>Beispiel zum Nachrechnen — was der Zuschlag kostet</b>
+  <p>Dieselben drei Stränge, dazu der Erzeugerkreis aus <a href="#k13-9-7">Abschnitt 13.9.7</a> mit 22 416 Pa.</p>
+  <p>Mit f = 1,15: (13 921 + 22 416) · 1,15 = 36 337 · 1,15 = 41 788 Pa → 4,31 m, 20,6 W elektrisch</p>
+  <p>Mit f = 1,50: 36 337 · 1,50 = 54 506 Pa → 5,63 m, 26,8 W elektrisch</p>
+  <p class="ergebnis">Ein Zuschlag von 50 % statt 15 % kostet 30 % mehr Strom — jede Stunde, jeden Tag der Heizperiode</p>
+</div>
+
+<h4 id="k13-10-3">13.10.3 Von Pascal zu Metern</h4>
+
+<p>Pumpenkennlinien werden in Metern gelesen, Rohrnetzrechnungen in Pascal. Die Umrechnung ist einfach, hat aber einen Haken.</p>
+
+<div class="formel">
+  <p class="worte">In Worten: Die Förderhöhe ist die Höhe der Wassersäule, die denselben Druck erzeugt. Ein schwereres Medium ergibt bei gleichem Druck eine kleinere Säule.</p>
+  <p class="math">H = Δp / (ρ · g)</p>
+  <dl class="zeichen">
+    <dt>H</dt><dd>Förderhöhe [m]</dd>
+    <dt>Δp</dt><dd>Druckdifferenz [Pa]</dd>
+    <dt>ρ</dt><dd>Dichte des Mediums [kg/m³]</dd>
+    <dt>g</dt><dd>Erdbeschleunigung, 9,80665 m/s² (Normwert nach ISO 80000-3)</dd>
+  </dl>
+</div>
+
+<p>Die geläufige Merkregel des VdZ-Leitfadens lautet: <b>100 mbar entspricht 10 kPa entspricht 1 m.</b> Sie unterstellt ρ = 1000 kg/m³ und ist damit für Wasser genau genug.</p>
+
+<div class="beispiel">
+  <b>Beispiel zum Nachrechnen — warum die Förderhöhe vom Medium abhängt</b>
+  <p>Derselbe Druck von 30 000 Pa, zwei verschiedene Medien:</p>
+  <p>Wasser bei 50 °C, ρ = 988,04 kg/m³: H = 30 000 / (988,04 · 9,80665) = <b>3,10 m</b></p>
+  <p>Sole, 30 Vol-% Ethylenglykol bei 0 °C, ρ = 1044,23 kg/m³: H = 30 000 / (1044,23 · 9,80665) = <b>2,93 m</b></p>
+  <p class="ergebnis">Dieselbe Pumpe schafft in Sole rund 5 % weniger Meter — sie muss ein schwereres Medium heben</p>
+</div>
+
+<div class="warnung"><b>Achtung</b><p>Der Dichteeffekt ist der <em>kleinere</em> Teil des Glykolproblems. Der größere: das Gemisch trägt weniger Wärme je Liter, also muss mehr Wasser umgewälzt werden. Bei 30 Vol-% Ethylenglykol bei 0 °C steigt der Volumenstrom für dieselbe Leistung um den Faktor <b>1,117</b> — und der Druckverlust wächst quadratisch mit. Dazu kommt die höhere Zähigkeit. Wer eine Pumpe für Wasser auslegt und dann Frostschutz einfüllt, hat zwei Effekte gegen sich.</p></div>
+
+<h4 id="k13-10-4">13.10.4 Hydraulische und elektrische Leistung</h4>
+
+<div class="formel">
+  <p class="worte">In Worten: Die hydraulische Leistung ist das, was tatsächlich am Wasser ankommt — Druck mal Volumenstrom. Die elektrische Aufnahme ist mehr, weil eine Pumpe kein perfekter Wandler ist.</p>
+  <p class="math">P_hyd = Δp · V̇ / 3600          P_el = P_hyd / η</p>
+  <dl class="zeichen">
+    <dt>P_hyd</dt><dd>hydraulische Leistung [W]</dd>
+    <dt>Δp</dt><dd>Förderdruck [Pa]</dd>
+    <dt>V̇</dt><dd>Förderstrom [m³/h]; die 3600 rechnet auf Sekunden um</dd>
+    <dt>η</dt><dd>Gesamtwirkungsgrad [-]; Vorbelegung 0,22</dd>
+    <dt>P_el</dt><dd>elektrische Leistungsaufnahme [W]</dd>
+  </dl>
+</div>
+
+<p><b>Zum Wirkungsgrad.</b> Eine Nassläuferpumpe ist ein schlechter Motor mit einem mäßigen Laufrad: das Spaltrohr sitzt im Luftspalt, das Fördermedium schmiert und bremst den Rotor gleichzeitig. Der Gesamtwirkungsgrad — Strom hinein, hydraulische Leistung heraus — liegt bei Heizungspumpen der Baugröße bis 1 m³/h bei 10 bis 20 %, bei größeren Hocheffizienzpumpen bei 25 bis 40 %.</p>
+
+<div class="warnung"><b>Achtung</b><p>Der Vorgabewert 0,22 ist ein <b>Erfahrungswert für eine Einfamilienhaus-Hocheffizienzpumpe im Auslegungspunkt.</b> Er ist <b>keine Herstellerangabe</b> und dient allein dazu, die Größenordnung des Stromverbrauchs zu zeigen. Er ist auch <b>nicht</b> der Energieeffizienzindex EEI nach VO (EG) Nr. 641/2009 in der Fassung der VO (EU) Nr. 622/2012 — der EEI ist ein Vergleichswert über ein Lastprofil und kein Wirkungsgrad. Die beiden Zahlen dürfen nicht verwechselt werden.</p></div>
+
+<p>Nach unten ist die Rechnung begrenzt: unterhalb weniger Watt dominieren Elektronik- und Lagerverluste, und P_el = P_hyd/η liefert dort Zahlen, die kein Gerät unterbietet. Das Programm setzt deshalb <b>3 W</b> als kleinste sinnvolle Aufnahme an; moderne Hocheffizienzpumpen liegen im kleinsten Betriebspunkt bei 3 bis 5 W.</p>
+
+<div class="beispiel">
+  <b>Beispiel zum Nachrechnen</b>
+  <p>Aus dem Beispiel oben: Δp = 41 788 Pa, V̇ = 0,39 m³/h.</p>
+  <p>P_hyd = 41 788 · 0,39 / 3600 = 16 297 / 3600 = <b>4,53 W</b></p>
+  <p>P_el = 4,53 / 0,22 = <b>20,6 W</b></p>
+  <p class="ergebnis">Rund 21 W — bei 5 000 Betriebsstunden im Jahr etwa 103 kWh</p>
+</div>
+
+<p>Zwei Meldungen gehören noch dazu. Bei einer erforderlichen Förderhöhe über <b>6 m</b> warnt das Programm: „Das ist für ein Einfamilienhaus viel — Dimensionen und Armaturen prüfen, bevor eine größere Pumpe gewählt wird." Und wenn der günstigste Strang unter 35 % des ungünstigsten liegt, meldet es, wie weit die Stränge auseinanderliegen und wie viel dort abzudrosseln ist.</p>
+
+<h4 id="k13-10-5">13.10.5 Prüfung statt Auslegung</h4>
+
+<p>Hat das Gerät eine eingebaute Pumpe, gibt es nichts auszulegen. Dann wird geprüft, und die Rechnung läuft in die andere Richtung.</p>
+
+<div class="formel">
+  <p class="worte">In Worten: Was das Gerät an Förderhöhe übrig lässt, minus was die Anlage braucht. Bleibt etwas übrig, reicht es; ist die Zahl negativ, fehlt genau dieser Betrag.</p>
+  <p class="math">H_Rest = H_verfügbar − H_erforderlich</p>
+</div>
+
+<div class="beispiel">
+  <b>Beispiel zum Nachrechnen</b>
+  <p>Dieselbe Anlage, erforderlich sind 4,31 m. Das Gerät hat laut Datenblatt 5,25 m verfügbar.</p>
+  <p>H_Rest = 5,25 − 4,31 = 0,94 m</p>
+  <p class="ergebnis">„Restförderhöhe 0,94 m bei 0,39 m³/h — die vorhandene Pumpe reicht."</p>
+  <p>Wäre die Anlage 1 m schlechter, hieße es stattdessen: „Die vorhandene Pumpe fehlt 0,06 m Förderhöhe. Der ungünstigste Strang wird nicht versorgt."</p>
+</div>
+
+<div class="merke"><b>Merke</b><p>Der Satz „Der ungünstigste Strang wird nicht versorgt" ist wörtlich gemeint. Bei zu kleiner Pumpe fehlt nicht überall ein bisschen Wärme — das Wasser sucht sich die kurzen Wege, und der letzte Raum bekommt nichts.</p></div>
+
+<h3 id="k13-11">13.11 Der hydraulische Abgleich</h3>
+
+<h4 id="k13-11-1">13.11.1 Was Abgleich überhaupt heißt</h4>
+
+<p>Wasser ist bequem. Von zwei parallelen Wegen zwischen denselben zwei Punkten nimmt es überwiegend den kürzeren — und zwar nicht ein bisschen mehr, sondern <b>quadratisch</b> mehr, weil der Widerstand mit dem Quadrat des Volumenstroms steigt.</p>
+
+<p>Das ist der ganze Grund für den hydraulischen Abgleich. Über allen Strängen einer Verteilung liegt dieselbe Druckdifferenz. Der Strang mit dem kleinsten Widerstand bekommt deshalb ohne Zutun zu viel, der ungünstigste zu wenig. Behoben wird das <b>nicht durch mehr Pumpe</b>, sondern durch Vernichtung: die günstigen Stränge bekommen künstlichen Widerstand dazu, bis alle gleich schwer zu durchströmen sind.</p>
+
+<div class="formel">
+  <p class="worte">In Worten: Jeder Strang wird um genau den Betrag gedrosselt, um den er günstiger ist als der ungünstigste. Der ungünstigste selbst wird nicht gedrosselt — er ist das Maß, nicht das Ziel.</p>
+  <p class="math">Δp_Drossel = Δp_ungünstigster Strang − Δp_eigener Strang</p>
+</div>
+
+<div class="merke"><b>Merke</b><p>Gedrosselt wird nur <b>innerhalb einer Quelle.</b> Stränge, die an verschiedenen Verteilern hängen, liegen nicht parallel; sie miteinander zu vergleichen ergäbe Drosselwerte, die keine Armatur einstellen kann. Das Programm rechnet den Abgleich deshalb je Quelle.</p></div>
+
+<p><b>Woher die Σζ der gezeichneten Abschnitte kommen</b></p>
+
+<p>Ein Abschnitt im Strangschema ist die gerade Strecke zwischen zwei Stützpunkten der gezeichneten Polylinie. Jeder <em>innere</em> Stützpunkt ist ein Richtungswechsel, im gebauten Zustand also ein Bogen. Das Programm setzt deshalb je Abschnitt genau <b>einen Bogen 90° mit ζ = 0,5</b> an. Das ist keine Pauschale ins Blaue, sondern die Übersetzung dessen, was gezeichnet wurde. Trägt der Abschnitt dagegen ausdrückliche Angaben — gezählte Bögen, gesetzte Armaturen —, wird gezählt statt pauschaliert, und die Angabe <b>ersetzt</b> die Pauschale, sie kommt nicht dazu.</p>
+
+<div class="beispiel">
+  <b>Beispiel aus dem Prüfblock</b>
+  <p>Ein Abschnitt mit zwei Bögen 90° und einer Absperrung (angesetzt als Kugelhahn, ζ = 0,3):</p>
+  <p>2 · 0,5 + 1 · 0,3 = <b>Σζ = 1,3</b> — mehr als der pauschale Zuschlag von 0,5</p>
+  <p>Nur zwei Bögen, keine Armatur: 2 · 0,5 = <b>1,0</b></p>
+  <p class="ergebnis">Nur die Absperrung, kein Bogen: <b>0,3</b> — weniger als die Pauschale. Die Angabe ersetzt sie.</p>
+</div>
+
+<div class="warnung"><b>Achtung — die schwächste Stelle dieses Moduls</b><p>Die Zeichnung kennt nur eine <b>Nennweite</b>, die Rechnung braucht einen <b>lichten Innendurchmesser</b>. Diese Zuordnung ist eine Annahme, keine Messung. Drei Folgen: <b>(1)</b> Der Werkstoff ist eine Eingabe, keine Eigenschaft der Zeichnung — wer „DN 20" zeichnet, hat nicht gesagt, ob das Kupfer, Verbund oder PE-Xa wird. <b>(2)</b> Nicht jede Nennweite kommt in jeder Reihe vor; dann wird auf die nächstgrößere Dimension aufgerundet, und der Druckverlust fällt <em>zu günstig</em> aus. Der Bericht zählt diese Abschnitte und meldet ihre Zahl. <b>(3)</b> Nennweiten sind nicht eindeutig — in der Kupferreihe tragen 64 × 2 und 76,1 × 2 beide DN 65; gewählt wird die kleinere lichte Weite, weil sie die ungünstigere und damit sichere Rechnung liefert.</p></div>
+
+<h4 id="k13-11-2">13.11.2 Der kv-Wert</h4>
+
+<p>Wie viel eine Armatur drosselt, wird mit dem <b>kv-Wert</b> beschrieben. Er ist keine Näherung und keine Schätzung, sondern eine <b>Festlegung</b>: der kv-Wert ist der Volumenstrom in m³/h, der bei genau 1 bar Druckabfall durch die Armatur läuft. Ein kleiner kv-Wert heißt starke Drosselung.</p>
+
+<div class="formel">
+  <p class="worte">In Worten: Aus dem gewünschten Volumenstrom und dem zu vernichtenden Druck folgt, wie eng die Armatur sein muss. Und umgekehrt: aus dem kv-Wert und dem Volumenstrom folgt, welcher Druck tatsächlich abfällt.</p>
+  <p class="math">kv = V̇ · √( Δp₀/Δp · ρ/ρ₀ )          Δp = (V̇/kv)² · (ρ/ρ₀) · Δp₀</p>
+  <dl class="zeichen">
+    <dt>kv</dt><dd>Kennwert der Armatur [m³/h]</dd>
+    <dt>V̇</dt><dd>Volumenstrom durch die Armatur [m³/h]</dd>
+    <dt>Δp</dt><dd>Druckabfall über der Armatur [Pa]</dd>
+    <dt>Δp₀</dt><dd>Referenzdruck der Definition: 1 bar = 100 000 Pa</dd>
+    <dt>ρ</dt><dd>Dichte des Heizmittels [kg/m³]</dd>
+    <dt>ρ₀</dt><dd>Referenzdichte der Definition: 1000 kg/m³</dd>
+  </dl>
+</div>
+
+<p>Beide Formeln sind dieselbe Gleichung, einmal nach kv und einmal nach Δp aufgelöst. Sie müssen deshalb <b>exakt</b> ineinander übergehen, nicht nur ungefähr — der Prüfblock des Programms prüft genau das auf ein Millionstel Pascal.</p>
+
+<div class="beispiel">
+  <b>Beispiel zum Nachrechnen — das Zahlenbeispiel des VdZ-Leitfadens</b>
+  <p>Ein Heizkörper mit 0,050 m³/h (= 50 l/h), an dem 2 400 Pa abzudrosseln sind. Heizmittel Wasser, also ρ = ρ₀.</p>
+  <p>100 000 / 2 400 = 41,66667</p>
+  <p>√41,66667 = 6,45497</p>
+  <p>0,050 · 6,45497 = 0,3227486</p>
+  <p class="ergebnis">kv = 0,32 — genau die Zahl, die im Leitfaden steht</p>
+</div>
+
+<p><b>Warum die Kurzformel bei Frostschutz danebenliegt</b></p>
+
+<p>Die im Alltag benutzte Kurzform lautet kv ≈ V̇ / √(Δp in bar). Sie ist die obige Formel <em>ohne</em> den Dichteterm — sie unterstellt stillschweigend Wasser mit 1000 kg/m³. Die Dichte geht als √(ρ/ρ₀) ein, sie fällt also nicht heraus.</p>
+
+<div class="beispiel">
+  <b>Beispiel zum Nachrechnen — was die Dichte ausmacht</b>
+  <p>Dasselbe Beispiel, 0,050 m³/h bei 2 400 Pa, mit drei Dichten:</p>
+  <p>ρ = 1000 kg/m³: kv = 0,32275</p>
+  <p>ρ = 900 kg/m³: √0,9 = 0,94868 → kv = <b>0,30619</b></p>
+  <p>ρ = 1100 kg/m³: √1,1 = 1,04881 → kv = <b>0,33850</b></p>
+  <p class="ergebnis">Zwischen den beiden Rändern liegen 10,6 % — ein Modul, das die Dichte verschluckt, liefert dreimal denselben Wert</p>
+</div>
+
+<div class="warnung"><b>Achtung — die Größenordnung genau genommen</b><p>Die 10 % gelten zwischen 900 und 1100 kg/m³. Für die Frostschutzgemische, die das Programm selbst rechnet, ist der Effekt kleiner: 30 Vol-% Ethylenglykol bei 35 °C ergeben ρ = 1032,85 kg/m³ und damit +1,6 %; 50 Vol-% Ethylenglykol bei −5 °C ergeben ρ = 1072,55 kg/m³ und damit <b>+3,6 %</b>. Über 10 % kommt man mit einem üblichen Heizungs- oder Solegemisch <b>nicht</b>. Der Punkt bleibt trotzdem gültig: der Term steht in der Definition, er ist im Programm drin, und wer ihn wegwirft, rechnet systematisch in eine Richtung falsch. Nur ist die Größenordnung ein paar Prozent, keine zehn.</p></div>
+
+<h4 id="k13-11-3">13.11.3 Die Voreinstellung: warum die nächstgrößere Stufe</h4>
+
+<p>Der Abgleich rechnet bis zum erforderlichen kv-Wert und hört dort auf. Genau da lässt jede Software den Monteur allein: <b>„kv = 0,31" steht an keinem Ventil.</b> Am Ventil steht eine Zahl von 1 bis 8 oder eine Umdrehungszahl, und welche das ist, sagt die Herstellertabelle.</p>
+
+<p>Die Stufen sind diskret. Der erforderliche kv-Wert liegt fast nie genau auf einer Stufe, also muss gerundet werden — und zwar in eine bestimmte Richtung:</p>
+
+<div class="merke"><b>Merke</b><p>Gewählt wird die Stufe mit dem <b>kleinsten kv-Wert, der noch mindestens den erforderlichen Durchfluss liefert</b> — also die nächst<b>größere</b>. Die Begründung ist keine Rechnung, sondern eine Abwägung: zu viel Durchfluss kostet Energie, zu wenig kostet Behaglichkeit. <b>Im Zweifel gewinnt der warme Raum.</b></p></div>
+
+<table class="tab">
+<caption>IMI Heimeier V-exact II bei x_p = 2 K — die Vorgabebaureihe des Programms</caption>
+<thead><tr><th>Voreinstellung</th><th>1</th><th>2</th><th>3</th><th>4</th><th>5</th><th>6</th><th>7</th><th>8</th></tr></thead>
+<tbody>
+<tr><td>kv [m³/h]</td><td>0,049</td><td>0,090</td><td>0,150</td><td>0,265</td><td>0,330</td><td>0,470</td><td>0,590</td><td>0,670</td></tr>
+</tbody>
+</table>
+
+<p class="quelle">Quelle: IMI Heimeier, Datenblatt V-exact II Thermostat-Ventilunterteile. Der kvs-Wert bei voller Öffnung beträgt 0,86 m³/h.</p>
+
+<div class="beispiel">
+  <b>Beispiele zum Nachrechnen aus dem Prüfblock</b>
+  <p>erf. kv = 0,10: 0,049 zu klein, 0,090 zu klein, 0,150 reicht → <b>Stufe 3</b>. Abweichung (0,150 − 0,100)/0,100 = 50 %</p>
+  <p>erf. kv = 0,15: liegt genau auf der Stufe → <b>Stufe 3</b>, Abweichung null</p>
+  <p>erf. kv = 0,16: 0,150 reicht nicht mehr, 0,265 reicht → <b>Stufe 4</b>. Abweichung 0,105/0,16 = 65,6 %</p>
+  <p class="ergebnis">0,15 gegen 0,16 ist das entscheidende Paar: nur dort trennt sich „nächstgrößere" von „nächstkleinere"</p>
+</div>
+
+<p><b>Warum ein Abgleich nie exakt aufgeht.</b> Die gewählte Stufe liefert einen anderen Druck als den geforderten. Genau diese Differenz ist der Grund, warum eine abgeglichene Anlage nie ganz das tut, was auf dem Papier steht:</p>
+
+<div class="beispiel">
+  <b>Beispiel zum Nachrechnen — der tatsächliche Druck je Stufe</b>
+  <p>Volumenstrom 0,100 m³/h, Δp = (V̇/kv)² · 1 bar:</p>
+  <p>Stufe 3, kv 0,150: (0,100/0,150)² · 100 000 = 0,66667² · 100 000 = <b>44 444 Pa</b></p>
+  <p>Stufe 4, kv 0,265: (0,100/0,265)² · 100 000 = 0,37736² · 100 000 = <b>14 240 Pa</b></p>
+  <p class="ergebnis">Stufe 8, kv 0,670: (0,100/0,670)² · 100 000 = 0,14925² · 100 000 = <b>2 228 Pa</b></p>
+</div>
+
+<div class="warnung"><b>Achtung</b><p>Der <b>Proportionalbereich x_p</b> gehört zu jeder kv-Angabe eines Thermostatventils dazu: dasselbe Ventil hat bei x_p = 1 K einen anderen kv als bei x_p = 2 K. Bei der V-exact II liegt Stufe 8 bei x_p = 2 K auf 0,670, bei x_p = 1 K nur auf 0,343 — das ist die Hälfte. Wer die Spalte nicht mitführt, vergleicht Zahlen, die nicht zueinander gehören. Ausgelegt wird nach delta-q/IfHK mit x_p = 2 K: „nicht kleiner als 1 K, ca. 2 K am günstigsten".</p></div>
+
+<h4 id="k13-11-4">13.11.4 Die Ventilautorität</h4>
+
+<p>Ein Thermostatventil regelt, indem es seinen Widerstand ändert. Damit sich das auf den Volumenstrom auswirkt, muss das Ventil einen nennenswerten Anteil am Gesamtwiderstand des Kreises haben. Ist der Rest des Kreises viel größer als das Ventil, ändert sich beim Zudrehen fast nichts — bis das Ventil fast zu ist und dann alles auf einmal passiert.</p>
+
+<div class="formel">
+  <p class="worte">In Worten: Die Ventilautorität ist der Anteil des Ventils am gesamten Widerstand seines Kreises. 0,5 heißt: die Hälfte des Drucks fällt am Ventil ab.</p>
+  <p class="math">a_V = Δp_Ventil / (Δp_Ventil + Δp_Netz)</p>
+  <dl class="zeichen">
+    <dt>a_V</dt><dd>Ventilautorität [-], eine Zahl zwischen 0 und 1</dd>
+    <dt>Δp_Ventil</dt><dd>Druckabfall am Ventil im Auslegungspunkt [Pa]</dd>
+    <dt>Δp_Netz</dt><dd>Druckabfall des übrigen Kreises [Pa] — Rohre, Formstücke, Heizfläche, ohne das Ventil</dd>
+  </dl>
+</div>
+
+<div class="beispiel">
+  <b>Beispiele zum Nachrechnen</b>
+  <p>10 kPa Ventil gegen 10 kPa Netz: 10 000 / 20 000 = <b>0,50</b></p>
+  <p>3 kPa Ventil gegen 7 kPa Netz: 3 000 / 10 000 = <b>0,30</b></p>
+  <p>12 kPa Ventil gegen 8 kPa Netz: 12 000 / 20 000 = <b>0,60</b></p>
+  <p class="ergebnis">2 kPa Ventil gegen 18 kPa Netz: 2 000 / 20 000 = <b>0,10</b> — dieses Ventil regelt praktisch nicht mehr</p>
+</div>
+
+<table class="tab">
+<caption>Was das Programm zu einer Autorität sagt</caption>
+<thead><tr><th>a_V</th><th>Urteil</th><th>Was das bedeutet</th></tr></thead>
+<tbody>
+<tr><td>unter 0,30</td><td>zu klein</td><td>Die Grundkennlinie verformt sich so stark, dass der Regelkreis in den Auf-Zu-Betrieb kippen kann. Der Raum pendelt statt zu regeln.</td></tr>
+<tr><td>0,30 bis unter 0,50</td><td>grenzwertig</td><td>Es funktioniert, aber die Regelung ist träge und ungenau.</td></tr>
+<tr><td>0,50 bis 0,60</td><td>gut</td><td>0,50 ist das Auslegungsziel.</td></tr>
+<tr><td>über 0,60</td><td>unwirtschaftlich</td><td>Anlagendruckverlust und Pumpenstrom steigen, ohne dass die Regelgüte noch nennenswert besser wird.</td></tr>
+</tbody>
+</table>
+
+<p class="quelle">Quelle: Mindestautorität 0,30 — hydraulischer-abgleich.de, Wissensbox „Ventilautorität"; gleichlautend Haustec und IKZ/Resideo. Auslegungsziel 0,50 — IKZ/Resideo. Obergrenze 0,60 — win-ing.de. <b>Ein normativ verbindlicher Wert existiert nicht</b> — das sind Erfahrungswerte der Fachliteratur.</p>
+
+<p><b>Was hilft, wenn die Autorität zu klein ist.</b> Nicht eine größere Pumpe — die macht es schlimmer, weil sie den Netzanteil mit erhöht. Sondern ein Ventil mit kleinerem Grund-kv, damit sich rechnerisch eine größere Voreinstellung ergibt und mehr Druck am Ventil abfällt. Genau diesen Hinweis gibt das Programm aus.</p>
+
+<h4 id="k13-11-5">13.11.5 Die Geräuschgrenze und die Einstellgrenzen</h4>
+
+<p>Nach oben ist der Druck am Thermostatventil nicht beliebig. Wo Wasser durch einen engen Spalt gepresst wird, rauscht es — und man hört es im Raum, nicht im Keller.</p>
+
+<p class="quelle">Quelle: VdZ, Leitfaden „Hydraulischer Abgleich in Heizungsanlagen", S. 32: „Zur Vermeidung von Strömungsgeräuschen dürfen Thermostatventile nur bis zu einem max. Differenzdruck von <b>15 kPa</b> betrieben werden (Betrachtung bei Teillast)." SAENA nennt 20 kPa als schalltechnische Obergrenze. Auslegungsdifferenzdruck: VdZ S. 25 nennt 8 bis 10 kPa, IKZ 10 bis 15 kPa; das Programm setzt <b>10 kPa</b> an.</p>
+
+<div class="warnung"><b>Achtung — der Zusatz „bei Teillast" ist der eigentliche Punkt</b><p>Im Teillastfall schließen die Ventile, der Volumenstrom sinkt, und damit sinkt auch der Druckverlust in Rohren und festen Widerständen. Der Druck, den die Pumpe aufbaut, muss aber irgendwo bleiben — <b>er wandert auf das Ventil.</b> Eine Auslegung mit 10 kPa kann bei halbem Volumenstrom auf über 20 kPa laufen. Deshalb ist 15 kPa im Auslegungspunkt schon die Grenze und nicht die Reserve.</p></div>
+
+<p>Nach unten gibt es ebenfalls eine Grenze, und sie ist praktischer Natur. Voreinstellbare Thermostatventileinsätze arbeiten in ihren unteren Stufen mit sehr kleinen Spaltquerschnitten; dort streuen Fertigungstoleranz, Verschmutzung und Ventilautorität so stark, dass eine gerechnete Drosselung von wenigen Kilopascal am Gerät nicht wiederzufinden ist.</p>
+
+<table class="tab">
+<caption>Die beiden Einstellgrenzen — Erfahrungswerte, keine Normwerte</caption>
+<thead><tr><th>Grenze</th><th>Wert</th><th>Begründung</th><th>Was zu tun ist</th></tr></thead>
+<tbody>
+<tr><td>kleinster einstellbarer Drosseldruck</td><td>3 kPa</td><td>Darunter ist die Einstellung nicht mehr sicher darstellbar.</td><td>Wer belastbarer rechnen will, liest die Grenze aus dem kv-Diagramm des Ventils ab und trägt sie ein.</td></tr>
+<tr><td>größter darstellbarer Drosseldruck</td><td>25 kPa</td><td>Übliche voreinstellbare Ventile decken über ihre Stufen etwa 2 bis 25 kPa ab. Darüber ist die kleinste Stufe erreicht und das Ventil arbeitet als Blende — die Regelung stirbt, weil der Hub keinen Einfluss mehr hat.</td><td>Strangregulierventil, kleinere Rohrdimension im kurzen Ast oder eine Pumpe mit kleinerer Förderhöhe.</td></tr>
+</tbody>
+</table>
+
+<h4 id="k13-11-6">13.11.6 Die Ventilbaureihen im Katalog</h4>
+
+<p>Der Katalog enthält <b>nur Baureihen, deren kv-Werte als Tabelle veröffentlicht sind.</b></p>
+
+<table class="tab">
+<caption>Die hinterlegten Baureihen</caption>
+<thead><tr><th>Baureihe</th><th>Rolle</th><th>Nennweiten</th><th>Stufen</th><th>Quelle</th></tr></thead>
+<tbody>
+<tr><td>IMI Heimeier V-exact II (x_p = 2 K)</td><td>Thermostatventil</td><td>DN 10, 15, 20</td><td>1 bis 8; kvs 0,86</td><td>IMI Heimeier, Datenblatt V-exact II</td></tr>
+<tr><td>IMI Heimeier V-exact II (x_p = 1 K)</td><td>Thermostatventil</td><td>DN 10, 15, 20</td><td>1 bis 8; kvs 0,86</td><td>dieselbe Quelle, zweite Tabelle</td></tr>
+<tr><td>Danfoss RA-N 10</td><td>Thermostatventil</td><td>DN 10</td><td>1 bis 7 und N; kvs 0,65</td><td>Danfoss, Datenblatt RA-N</td></tr>
+<tr><td>Danfoss RA-N 15</td><td>Thermostatventil</td><td>DN 15</td><td>1 bis 7 und N; kvs 0,90</td><td>dito</td></tr>
+<tr><td>Danfoss RA-N 20/25</td><td>Thermostatventil</td><td>DN 20, 25</td><td>1 bis 7 und N; kvs 1,40</td><td>dito</td></tr>
+<tr><td>IMI Heimeier Regulux</td><td>Rücklaufverschraubung</td><td>DN 10, 15, 20</td><td>0 bis 4 Umdrehungen; kvs 1,31</td><td>IMI Heimeier, Datenblatt Regulux</td></tr>
+<tr><td>IMI TA STAD</td><td>Strangregulierventil</td><td>je eigene Tabelle für DN 10, 15, 20, 25, 32, 40, 50</td><td>0,5 bis 4,0 Handradumdrehungen (bei DN 10 erst ab 1,0)</td><td>IMI TA, Datenblatt STAD DN 15–50</td></tr>
+</tbody>
+</table>
+
+<div class="merke"><b>Merke</b><p>Oventrop AV6 und AV9 <b>fehlen bewusst.</b> Oventrop veröffentlicht ausschließlich Auslegungsdiagramme, und eine aus einem Diagramm abgelesene Zahl ohne Kennzeichnung wäre genau die Sorte erfundener Wert, die dieses Programm nicht produziert.</p></div>
+
+<p>Zwei Feinheiten der Auswahl:</p>
+
+<ul>
+<li><b>Strangregulierventile gibt es je Nennweite.</b> Gibt es für die gefragte Nennweite keine eigene Tabelle, nimmt das Programm die <b>nächstkleinere</b> — DN 65 fällt auf die DN-50-Tabelle. Das ist die konservative Richtung: sie drosselt eher zu viel als zu wenig.</li>
+<li><b>Thermostatventile gibt es nicht je Nennweite.</b> Dort greift die Vorgabebaureihe, also die V-exact II bei x_p = 2 K. Der Proportionalbereich wird nur bei Thermostatventilen mitgeführt; bei Regulier- und Absperrarmaturen hat er keine Bedeutung und bleibt leer, statt mit einer Zahl gefüllt zu werden, die nichts bedeutet.</li>
+</ul>
+
+<h4 id="k13-11-7">13.11.7 Vollständiges Beispiel: zwei Stränge, ein Verteiler</h4>
+
+<div class="beispiel">
+  <b>Vollständiges Beispiel zum Nachrechnen</b>
+  <p><b>Aufgabe:</b> Zwei Heizkörper an einem Verteiler, beide mit 0,12 m³/h. Strang A (der lange) hat 12,0 kPa Netzwiderstand, Strang B (der kurze) 6,0 kPa. Auslegungsdruck am Thermostatventil: 10 kPa. Ventilbaureihe V-exact II bei x_p = 2 K.</p>
+
+  <p><b>Schritt 1 — ungünstigster Strang.</b> Das ist A mit 12,0 kPa. A wird nicht gedrosselt; er ist das Maß.</p>
+
+  <p><b>Schritt 2 — Drosselbedarf von B.</b> 12,0 − 6,0 = <b>6,0 kPa</b></p>
+
+  <p><b>Schritt 3 — was am Ventil ansteht.</b> Am Ventil liegt der Auslegungsdruck <em>plus</em> dem Drosselbedarf:<br>
+  Strang A: 10,0 + 0,0 = <b>10,0 kPa</b><br>
+  Strang B: 10,0 + 6,0 = <b>16,0 kPa</b></p>
+
+  <p><b>Schritt 4 — erforderlicher kv.</b><br>
+  A: 0,12 · √(100 000/10 000) = 0,12 · 3,1623 = <b>0,379</b><br>
+  B: 0,12 · √(100 000/16 000) = 0,12 · 2,5000 = <b>0,300</b></p>
+
+  <p><b>Schritt 5 — Voreinstellung, nächstgrößere Stufe.</b><br>
+  A: 0,330 reicht nicht für 0,379, 0,470 reicht → <b>Stufe 6</b><br>
+  B: 0,265 reicht nicht für 0,300, 0,330 reicht → <b>Stufe 5</b>, Abweichung 10,0 %</p>
+
+  <p><b>Schritt 6 — was wirklich ansteht.</b> Mit der gewählten Stufe 5 fällt an B ab:<br>
+  (0,12/0,33)² · 100 000 = 0,36364² · 100 000 = <b>13 223 Pa = 13,2 kPa</b> statt der geforderten 16,0 kPa. Strang B bekommt also etwas mehr Wasser als gerechnet — das ist die unvermeidliche Ungenauigkeit diskreter Stufen.</p>
+
+  <p><b>Schritt 7 — Ventilautorität.</b><br>
+  A: 10,0 / (10,0 + 12,0) = <b>0,45</b> → grenzwertig<br>
+  B: 16,0 / (16,0 + 6,0) = <b>0,73</b> → unwirtschaftlich</p>
+
+  <p class="ergebnis"><b>Schritt 8 — Geräuschgrenze.</b> An Strang B stehen 16,0 kPa an, die Grenze liegt bei 15 kPa. Das Programm meldet: „Der VdZ-Leitfaden nennt 15 kPa als Grenze zur Vermeidung von Strömungsgeräuschen — und zwar im Teillastfall, in dem der Wert noch steigt. Hier gehört ein Strangregulierventil oder ein Differenzdruckregler davor."</p>
+</div>
+
+<p>Das Beispiel zeigt das typische Muster: nicht die Rechnung geht schief, sondern die Anlage ist ungünstig gebaut. Zwei Stränge, die um den Faktor zwei auseinanderliegen, lassen sich mit dem Thermostatventil allein nicht sauber abgleichen — die Autorität am kurzen Strang wird zu hoch, und der Druck reißt die Geräuschgrenze.</p>
+
+<h4 id="k13-11-8">13.11.8 Was der Bericht sagt — und was dann zu tun ist</h4>
+
+<p>Jeder Strang bekommt im Bericht ein Urteil. Es gibt fünf, und jedes bedeutet etwas anderes:</p>
+
+<table class="tab">
+<caption>Die Urteile zur Voreinstellung</caption>
+<thead><tr><th>Urteil im Bericht</th><th>Was passiert ist</th><th>Was zu tun ist</th></tr></thead>
+<tbody>
+<tr><td>ungünstigster Strang, keine Drosselung</td><td>Dieser Strang ist das Maß. Sein Ventil bleibt offen.</td><td>Nichts. Wenn allerdings <em>alle</em> Stränge dicht beieinanderliegen, ist die Anlage von sich aus abgeglichen.</td></tr>
+<tr><td>einstellbar</td><td>Der Drosselbedarf liegt zwischen 3 und 25 kPa.</td><td>Die genannte Stufe einstellen.</td></tr>
+<tr><td><b>Drosselbedarf zu gering für eine sichere Einstellung</b></td><td>Weniger als 3 kPa zu drosseln. So wenig lässt sich an einem Thermostatventil nicht sicher darstellen — der Strang läuft praktisch ungedrosselt.</td><td>Meist nichts: wenn alle Stränge so eng beieinanderliegen, wären Voreinstellwerte kleiner als die Streuung der Ventile. Das Programm sagt das dann ausdrücklich.</td></tr>
+<tr><td><b>Drosselbedarf übersteigt den Voreinstellbereich</b></td><td>Mehr als 25 kPa zu drosseln. Die Voreinstellung allein reicht nicht; ein Ventil, das nur noch als Blende arbeitet, regelt die Raumtemperatur nicht mehr.</td><td>Strangregulierventil setzen, die Nennweite im kurzen Ast verkleinern oder die Förderhöhe der Pumpe senken. Diese Meldung ist im Bericht als <b>Fehler</b> geführt, nicht als Hinweis.</td></tr>
+<tr><td>ohne Volumenstrom nicht einstellbar</td><td>Der Verbraucher führt keinen Volumenstrom — meist fehlt die Leistung oder die Spreizung ist null.</td><td>Leistung am Objekt nachtragen. Ohne Volumenstrom gibt es weder Druckverlust noch Voreinstellwert.</td></tr>
+</tbody>
+</table>
+
+<p>Zusätzlich beurteilt der Katalog, ob der erforderliche kv-Wert überhaupt in die Stufenreihe der gewählten Baureihe fällt:</p>
+
+<ul>
+<li><b>„über dem Bereich"</b> — der erforderliche kv ist größer als die größte Stufe. Das Ventil ist zu klein und lässt selbst voll offen zu wenig durch. Gewählt wird trotzdem die größte Stufe, damit eine Zahl dasteht; der Bericht schreibt dazu: „Erforderlich ist kv = 0,75; die größte Stufe liefert nur 0,67. Das Ventil ist zu klein — eine Nennweite größer wählen."</li>
+<li><b>„unter dem Bereich"</b> — der erforderliche kv ist kleiner als die kleinste Stufe. Das Ventil kann nicht so weit drosseln. Gewählt wird die kleinste Stufe; der Bericht schreibt: „Die kleinste Stufe liefert bereits 0,049. Das Ventil kann nicht so weit drosseln." Hier hilft nur ein Ventil mit kleinerem Grund-kv oder eine zusätzliche Drosselstelle.</li>
+</ul>
+
+<div class="merke"><b>Merke</b><p>Eine <b>0</b> ist eine Aussage; eine <b>leere Zelle</b> ist das Eingeständnis, keine zu haben. Wird kein Auslegungsdruck für das Thermostatventil übergeben, bleiben Ventildruck, Autorität und Voreinstellstufe im Bericht <b>leer</b> — nicht null. Der Unterschied entscheidet darüber, ob im Nachweis eine Lücke steht oder eine erfundene Zahl.</p></div>
+
+<h4 id="k13-11-9">13.11.9 Was in der Teilstreckentabelle steht</h4>
+
+<p>Der Bericht führt für jede Teilstrecke fünfzehn Spalten, und jede davon ist entweder eine Eingabe oder ein Zwischenergebnis der Abschnitte 13.8 bis 13.11 — nichts davon ist ein Zusatzwert ohne Rechenweg:</p>
+
+<p>Laufende Nummer · Strang · Bezeichnung · Volumenstrom [m³/h] · abgerechnete Länge [m] · Werkstoff · Rauheit [mm] · Abmessung · Innendurchmesser [mm] · Nennweite · Fließgeschwindigkeit [m/s] · Reynoldszahl · Rohrreibungszahl λ · Druckgefälle R [Pa/m] · Reibungsanteil R·l [Pa] · Summe ζ · Einzelwiderstände Z [Pa] · Gesamtdruckverlust Δp [Pa] · die Formstücke im Klartext · Dämmstärke nach GEG Anlage 8.</p>
+
+<p>Die Spalte mit den Formstücken im Klartext ist kein Beiwerk: <b>ohne sie ist Σζ nicht nachvollziehbar.</b> Wer im Bericht „Σζ = 0,8" liest, muss daneben „1× Bogen 90°, 1× Kugelhahn" finden, sonst ist die Zahl nur eine Behauptung.</p>
+
+<p>Der Prüfblock rechnet drei Beziehungen auf jeder Zeile nach, weil sie gelten <em>müssen</em>: Δp = R·l + Z, R·l passt zu R und l, und die Summe der Teilstreckenlängen eines Strangs ist die Stranglänge. Eine Prüfung, die stattdessen den Prüfling nach dem Sollwert fragt, prüft nichts.</p>

@@ -1,0 +1,474 @@
+<section id="kap-01" class="kapitel" data-titel="1 · Was dieses Programm ist und was nicht">
+<h2 id="k1">1 · Was dieses Programm ist und was nicht</h2>
+<p class="lead">RaVia CAD Light nimmt ein Gebäude auf und legt die Anlagentechnik dazu aus. Die Heizlast nach Norm rechnet es nicht — das macht RaVia.</p>
+
+<h3 id="k1-1">1.1 Der wichtigste Satz des Handbuchs</h3>
+
+<div class="merke">
+  <b>Merke</b>
+  <p>RaVia CAD Light ist ein <b>Erfassungswerkzeug</b>. Hier entsteht das Gebäudemodell und die Anlagentechnik dazu — sauber genug, dass RaVia damit rechnen kann. Die Heizlastberechnung nach DIN EN 12831-1 findet in RaVia statt, nicht hier.</p>
+</div>
+
+<p>Das ist keine Bescheidenheit, sondern eine Entscheidung. Im Quelltext des
+Programms steht sie in einem Satz, der an mehreren Stellen wiederkehrt: „Zwei
+Programme, die dieselbe Zahl unterschiedlich ermitteln, sind schlimmer als
+eines." Wenn dieses Werkzeug eine eigene Norm-Heizlast rechnete und RaVia eine
+zweite, dann gäbe es zwei Zahlen für dasselbe Haus — und niemand könnte sagen,
+welche gilt. Also rechnet nur eines von beiden, und das ist RaVia.</p>
+
+<p>Was dieses Programm liefert, sind die <b>Eingangsdaten</b>: Flächen,
+Rauminhalte, U-Werte, Himmelsrichtungen, Wärmebrücken, Lüftung, angrenzende
+Räume und Temperaturen — alles, was die Heizlastberechnung braucht und was
+normalerweise mit Zollstock, Karopapier und Taschenrechner zusammengetragen
+wird. Und darüber hinaus, wenn Sie wollen, die komplette Auslegung der
+Anlage: Gerät, Heizkreise, Rohrnetz, Speicher, Sicherheitsarmaturen,
+Trinkwassererwärmung und das Anlagenschema.</p>
+
+<div class="baustelle">
+  <b>Auf der Baustelle heißt das</b>
+  <p>Sie messen die Wohnung auf und zeichnen sie hier. Was Sie am Ende
+  übergeben, ist eine Datei, mit der RaVia rechnet — plus einen Satz Blätter,
+  den Sie dem Bauherrn, dem Monteur oder der Förderstelle in die Hand geben
+  können.</p>
+</div>
+
+<h3 id="k1-2">1.2 Vorbemessung und Nachweis</h3>
+
+<p>Dieser Unterschied zieht sich durch das ganze Programm, und wer ihn einmal
+verstanden hat, versteht die Hälfte der Meldungen, die das Programm ausgibt.</p>
+
+<p>Eine <b>Vorbemessung</b> ist eine Rechnung, die in der richtigen
+Größenordnung liegt. Sie sagt Ihnen, ob das Gerät 8 oder 16 Kilowatt haben
+muss, ob das Rohr DN 20 oder DN 32 wird (DN heißt Nennweite: der
+ungefähre lichte Durchmesser des Rohrs in Millimetern). Damit können Sie planen, bestellen,
+kalkulieren. Was Sie damit nicht können: sie unterschreiben.</p>
+
+<p>Ein <b>Nachweis</b> ist eine Rechnung, die vollständig auf belastbaren
+Eingangswerten steht und die deshalb Dritten gegenüber gilt — der
+Förderstelle, dem Bauherrn, dem Sachverständigen. Für den hydraulischen
+Abgleich verlangt § 60c Absatz 2 des Gebäudemodernisierungsgesetzes (GModG,
+vormals Gebäudeenergiegesetz GEG) ausdrücklich eine <b>raumweise
+Heizlastberechnung</b>. Ein Überschlag genügt dafür nicht.</p>
+
+<h4 id="k1-2-1">1.2.1 Woher die Heizlast stammt — die drei Wege</h4>
+
+<p>Für die Anlagenauslegung braucht das Programm eine Leistungszahl, und zwar
+oft, bevor die Heizlastberechnung fertig ist. Deshalb kennt es drei Wege, an
+diese Zahl zu kommen, und es merkt sich immer, welcher gegriffen hat. Im
+Quelltext heißt dieses Merkmal <code>heatLoadProvenance</code>, auf Deutsch:
+die Herkunft der Heizlast.</p>
+
+<table class="tab">
+  <caption>Die drei Herkünfte der Gebäudeheizlast</caption>
+  <thead>
+    <tr><th>Herkunft</th><th>Woher die Zahl kommt</th><th>Reicht für</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><b>Vorgabe</b></td>
+      <td>Jemand hat sie im Anlagenblatt eingetragen, oder RaVia hat sie über
+      die Einbettung hereingeschrieben.</td>
+      <td>Nachweis — wenn die Zahl selbst eine Norm-Heizlast ist</td>
+    </tr>
+    <tr>
+      <td><b>raumweise</b></td>
+      <td>Summe der gerechneten Norm-Heizlasten aller beheizten Räume. Gilt nur,
+      wenn <b>jeder</b> beheizte Raum eine trägt.</td>
+      <td>Nachweis</td>
+    </tr>
+    <tr>
+      <td><b>Überschlag</b></td>
+      <td>Die eigene überschlägige Rechnung des Programms aus Flächen,
+      U-Werten und Temperaturen.</td>
+      <td>Vorbemessung</td>
+    </tr>
+  </tbody>
+</table>
+
+<p>Der entscheidende Punkt steht in der Mitte: <b>Teildeckung fällt auf den
+Überschlag zurück, statt zu mischen.</b> Wenn von zwölf beheizten Räumen neun
+eine gerechnete Norm-Heizlast tragen und drei nicht, dann addiert das Programm
+nicht neun gerechnete und drei geschätzte Räume zu einer Gebäudeheizlast. Eine
+solche Summe wäre weder Norm noch Überschlag, sie ließe sich gegen keine
+Kennzahl prüfen — die Einordnung in Watt je Quadratmeter setzt ein
+durchgehendes Verfahren voraus —, und „teilweise Norm" ist kein Nachweis. Das
+Programm nimmt dann den Überschlag für das ganze Gebäude, nennt die Zahl der
+fehlenden Räume und schreibt deren Namen dazu. Raumweise bleibt die gerechnete
+Last trotzdem maßgebend: dort steht sie für ihren Raum allein und mischt sich
+mit nichts.</p>
+
+<div class="warnung">
+  <b>Achtung</b>
+  <p>Solange die Heizlast ein Überschlag ist, ist der Rohrnetzbericht eine
+  <b>Rechnung</b> und kein <b>Nachweis</b>. Das Programm schreibt das als
+  Warnung auf das Blatt, und es verschweigt es auch dann nicht, wenn sonst
+  alles stimmt. Wer die Norm-Heizlast aus RaVia bekommt, trägt sie im
+  Anlagenblatt ein — dann rechnen sich alle Folgegrößen neu.</p>
+</div>
+
+<h4 id="k1-2-2">1.2.2 Das Urteil des Berichts</h4>
+
+<p>Der Rohrnetzbericht fällt am Ende ein Urteil über sich selbst. Im Quelltext
+heißt die Funktion <code>berichtsUrteil</code>; sie beantwortet genau eine
+Frage: <b>nachweisfähig oder nicht.</b> Nachweisfähig ist der Bericht nur,
+wenn drei Bedingungen zugleich erfüllt sind:</p>
+
+<ol>
+  <li>Jeder der sieben Pflichtpunkte nach § 60c Absatz 4 GModG ist beantwortet.</li>
+  <li>Jede Heizfläche hat einen darstellbaren Einstellwert am Ventil — außer
+  der des ungünstigsten Strangs, die bleibt planmäßig offen.</li>
+  <li>Kein Ventil hat eine zu kleine Ventilautorität. (Die Ventilautorität sagt,
+  wie viel von dem Druck, der über einem Heizkörperkreis liegt, tatsächlich am
+  Thermostatventil abfällt — siehe <a href="#k13">Kapitel 13</a>.)</li>
+</ol>
+
+<p>Ist eine davon verletzt, sagt der Bericht nicht „fertig", sondern zählt auf,
+was offen ist. Einer der sieben Punkte ist dabei <b>nie</b> erfüllt, und zwar
+mit Absicht: die Einstellung der Regelung — Heizkurve, Absenkzeiten,
+Regelparameter — wird am Gerät vorgenommen und gehört in die
+Anlagendokumentation des Errichters. Das Programm trägt dort keinen Wert ein,
+den es nicht kennt.</p>
+
+<h4 id="k1-2-3">1.2.3 Der Grundsatz: nichts erfinden</h4>
+
+<p>Jede Zahl im Programm trägt ihre Herkunft mit sich. Das ist kein
+Schmuckwerk, sondern die Bedingung dafür, dass eine Vorbemessung nicht
+unbemerkt als Nachweis durchgeht. Sie sehen diesen Grundsatz an vier Stellen:</p>
+
+<ul>
+  <li>Die <b>Heizlast</b> sagt, ob sie Vorgabe, raumweise Summe oder Überschlag
+  ist.</li>
+  <li>Der <b>Druckverlust des Wärmeerzeugers</b> sagt, ob er aus dem
+  Herstellerdatenblatt stammt oder aus einer abgeleiteten Typklasse.</li>
+  <li>Jeder Wert in der <b>Wissensbasis</b> nennt seine Quelle im Klartext —
+  Norm, Leitfaden, Herstellerangabe (siehe <a href="#k16">Kapitel 16</a>).</li>
+  <li>Der <b>Prüfbericht</b> unterscheidet zwischen Fehlern (die Rechnung würde
+  nachweislich falsch) und Warnungen (es wird mit einer Standardannahme
+  gerechnet statt mit Ihrer Angabe).</li>
+</ul>
+
+<p>Wo dem Programm eine Angabe fehlt, sagt es das, statt eine plausible Zahl
+hinzuschreiben. Eine Lücke, die man sieht, ist harmlos. Eine Zahl, die
+aussieht wie ein Messwert und keiner ist, ist es nicht.</p>
+
+<h3 id="k1-3">1.3 Was das Programm kann</h3>
+
+<table class="tab">
+  <caption>Der Leistungsumfang in der Fassung 1.14.0</caption>
+  <thead><tr><th>Bereich</th><th>Was entsteht</th><th>Kapitel</th></tr></thead>
+  <tbody>
+    <tr><td>Grundriss</td><td>Wände, Fenster, Türen, Durchgänge, Treppen, Schächte, massive Bauteile; Räume werden von selbst erkannt</td><td><a href="#k4">4</a></td></tr>
+    <tr><td>Geschosse</td><td>Beliebig viele Grundrisse übereinander, Keller nach unten, Höhenlage, Deckenanschlüsse</td><td><a href="#k5">5</a></td></tr>
+    <tr><td>Dach</td><td>Flach, Sattel, Pult, Walm; Kniestock, Gauben, Dachfenster; Raumhöhe unter der Schräge</td><td><a href="#k6">6</a></td></tr>
+    <tr><td>Räume und Bauteile</td><td>Nutzung, Solltemperatur, Luftwechsel, Bauteilkatalog mit U-Werten, Wärmebrücken, Lüftungskonzept</td><td><a href="#k7">7</a></td></tr>
+    <tr><td>TGA-Objekte</td><td>Heizkörper, Fußbodenheizung, Verteiler, Sanitärobjekte, Luftdurchlässe — 22 Symbole im Grundriss</td><td><a href="#k8">8</a></td></tr>
+    <tr><td>Rohrnetz</td><td>Trasse zeichnen oder auf Knopfdruck auslegen lassen; Nennweiten, Dämmstärken, Armaturen, hydraulischer Abgleich</td><td><a href="#k9">9</a></td></tr>
+    <tr><td>Anlage</td><td>Geräteauswahl aus dem Katalog, Heizkreise, Puffer, Trinkwasserspeicher, Ausdehnungsgefäß, Sicherheitsventil</td><td><a href="#k10">10</a></td></tr>
+    <tr><td>Anlagenschema</td><td>Fließbild mit Symbolen nach DIN EN ISO 14617, aus der Auslegung erzeugt und von Hand nachbesserbar</td><td><a href="#k11">11</a></td></tr>
+    <tr><td>Hydraulikschemata</td><td>Katalog benannter Musterlösungen, Vorschlag mit Begründung, Prüfung des gezeichneten Schemas</td><td><a href="#k12">12</a></td></tr>
+    <tr><td>Berichte</td><td>Maßstäblicher Plandruck, Rohrnetzbericht, Anlagenbuch, Massenauszug, Projektmappe mit durchlaufender Blattnummer</td><td><a href="#k14">14</a></td></tr>
+    <tr><td>Schnittstellen</td><td>RaVia-JSON (Übergabeformat <code>ravia.bim.light v2.0.0</code>), IFC4 im Ex- und Import, Einbettung in RaVia</td><td><a href="#k17">17</a></td></tr>
+  </tbody>
+</table>
+
+<h3 id="k1-4">1.4 Was das Programm nicht kann</h3>
+
+<p>Diese Liste ist genauso wichtig wie die vorige, und sie ist bewusst
+kurz und deutlich.</p>
+
+<h4 id="k1-4-1">1.4.1 Keine Norm-Heizlast</h4>
+<p>Die Berechnung nach DIN EN 12831-1 findet in RaVia statt. Dieses Programm
+rechnet einen Überschlag aus Transmissions- und Lüftungsverlusten, und es sagt
+selbst, was diesem Überschlag fehlt: kein Wiederaufheizzuschlag, keine
+raumweise Infiltration über die Gebäudedichtheit (angesetzt wird der
+Mindestluftwechsel, nicht der größere Wert aus der Dichtheitsmessung), keine
+Zonierung, keine Nachbarraumbilanz über Geschossgrenzen hinweg.</p>
+
+<h4 id="k1-4-2">1.4.2 Keine Statik</h4>
+<p>Das Programm kennt Wände, Stützen, Unterzüge und Podeste als Geometrie —
+sie nehmen Fläche und Luftvolumen weg und werden von der Fußbodenheizung
+ausgespart. Ob eine Wand tragend ist, ob sie einen Durchbruch verträgt, ob ein
+Unterzug ausreicht: dazu sagt das Programm nichts, und es hat auch keine Daten
+dafür.</p>
+
+<h4 id="k1-4-3">1.4.3 Keine Elektroplanung</h4>
+<p>Es gibt eine Ebene „Elektro" im Datenmodell und einen Elektro-Heizstab in
+der Anlagentechnik. Eine Elektroinstallation — Stromkreise, Leitungsquerschnitte,
+Verteilung, Absicherung — wird weder gezeichnet noch gerechnet.</p>
+
+<h4 id="k1-4-4">1.4.4 Keine Lüftungsauslegung</h4>
+<p>Erfasst wird das <b>Lüftungskonzept</b>: freie Lüftung, Abluftanlage oder
+Zu-/Abluftanlage, der Grad der Wärmerückgewinnung, die Rolle jedes Raums
+(Zuluft, Abluft, Überströmung) und die Luftbilanz des Gebäudes. Das braucht die
+Heizlastberechnung, und ohne diese Angabe müsste die Gegenstelle um den Faktor
+fünf raten. Eine <b>Auslegung der Lüftungsanlage</b> — Luftmengen je Raum nach
+Norm, Kanalnetz, Ventilatorkennlinien, Schalldämpfer — leistet das Programm
+nicht; die dafür einschlägige DIN 1946-6 ist im Programm nirgends hinterlegt.</p>
+
+<h4 id="k1-4-5">1.4.5 Kein Schallgutachten</h4>
+<p>Der Schallnachweis für die Aufstellung einer Luft-Wärmepumpe wird
+überschlägig nach dem vereinfachten Verfahren der TA Lärm (Technische
+Anleitung zum Schutz gegen Lärm) geführt. Das Verfahren liegt bei etwa
+±3 dB (Dezibel). Im Grenzfall ist die ausführliche Prognose zu rechnen, und
+das Programm sagt das im Reiter selbst.</p>
+
+<h4 id="k1-4-6">1.4.6 Keine Feinplanung der Hydraulik</h4>
+<p>Der Katalog der Hydraulikschemata sortiert Musterlösungen nach ihrer
+Passung zur ausgelegten Anlage. Der Leitfaden, aus dem elf der fünfzehn
+Schemata stammen, schreibt über sich selbst: „Für die Feinplanung sind die
+Vorgaben der Hersteller bindend." Ein Vorschlag ist ein Vorschlag.</p>
+
+<h3 id="k1-5">1.5 Wo die Grenzen verlaufen</h3>
+
+<p>Das Programm führt eine Liste offener Punkte. Sie steht in der
+Entwicklungsdokumentation, und sie ist ehrlich geführt — was dort steht, ist
+noch nicht da. Die für die tägliche Arbeit wichtigsten davon, in Klartext:</p>
+
+<h4 id="k1-5-1">1.5.1 Am Rohrnetz</h4>
+<ul>
+  <li><b>Vor- und Rücklauf laufen als eine Trasse.</b> Das Programm zeichnet
+  einen Weg vom Erzeuger zur Heizfläche und rechnet die doppelte Länge; es
+  zeichnet nicht zwei getrennte Stränge. Für die Rechnung stimmt das, für einen
+  Verlegeplan reicht es nicht.</li>
+  <li><b>Strangregulierventile werden bemessen, aber nicht gesetzt.</b> Der
+  Rohrausleger legt sie nicht selbst in den Plan.</li>
+  <li><b>Leitungen mit der Länge null verschwinden still</b> aus dem
+  Massenauszug — ein bekannter Mangel derselben Art wie eine übersehene
+  Kanaltrasse.</li>
+  <li>Ein <b>Kombiabscheider</b>, der Luft und Schlamm in einem Gehäuse
+  abscheidet, fehlt als Bauteilart.</li>
+</ul>
+
+<h4 id="k1-5-2">1.5.2 An der Pumpe und am Erzeuger</h4>
+<ul>
+  <li>Die <b>Druckverlustkennlinie des Wärmeerzeugers</b> ist seit 1.14.0 als
+  Typklasse hinterlegt und aus 32 belegten Marktwerten abgeleitet. Eine echte
+  Herstellerkennlinie mit Stützstellen ersetzt sie nicht.</li>
+  <li>Die <b>Restförderhöhe</b> wird als <b>ein</b> Wert geführt, nicht als
+  Kennlinie. Für eine Anlagenkennlinie mit Schnittpunkt fehlen die Stützstellen;
+  es gibt heute nur den Auslegungspunkt, keine Δp-c- oder Δp-v-Charakteristik.</li>
+  <li>Bei einer <b>Kaskade mit eigener Pumpe je Gerät</b> ist der ungünstigste
+  Fließweg nicht mehr eindeutig. Das Programm legt weiterhin <b>eine</b> Pumpe
+  für den Verteilkreis aus — und sagt es.</li>
+  <li>Der <b>zweite Wärmeerzeuger</b> steht im Anlagenmodell und wird für den
+  Schemavorschlag gelesen, aber noch nicht gezeichnet und nicht in die
+  Deckungsanteilrechnung geführt.</li>
+</ul>
+
+<h4 id="k1-5-3">1.5.3 Am Anlagenschema</h4>
+<ul>
+  <li>Der <b>hydraulische Abgleich</b> steht im Rohrnetzbericht, aber noch nicht
+  im Anlagenschema.</li>
+  <li>Ein Schema aus <b>mehreren Erzeugern</b> — bivalent, mit Solarthermie —
+  wird nicht gezeichnet.</li>
+  <li>Das <b>Fühlerpaar des Wärmemengenzählers</b> ist im Schema nicht
+  dargestellt.</li>
+</ul>
+
+<h4 id="k1-5-4">1.5.4 Am Druck</h4>
+<ul>
+  <li>Der <b>Grundrissdruck ist einseitig.</b> Passt der Plan im gewählten
+  Maßstab nicht auf das Blatt, hilft nur ein kleinerer Maßstab. Die Mechanik für
+  mehrere Seiten gibt es im Schemadruck bereits, im Plandruck noch nicht.</li>
+  <li>Der <b>Schriftkopf des Plandrucks liest das heutige Datum</b> beim
+  Drucken. Ein Plandruck ist damit nicht bitgenau reproduzierbar; Schema,
+  Anlagenbuch und Projektmappe bekommen ihr Datum dagegen von außen.</li>
+  <li>Es gibt <b>vier getrennte Blattzählungen</b>: der Fuß der Berichtsblätter
+  zählt eigenständig weiter, während die Projektmappe am Heftrand durchzählt.</li>
+</ul>
+
+<h4 id="k1-5-5">1.5.5 An der Geometrie und am Export</h4>
+<ul>
+  <li>Der <b>IFC-Export und der Massenauszug kennen massive Bauteile noch
+  nicht</b> — der Plandruck zeigt sie längst.</li>
+  <li>Der <b>IFC-Import überlagert nicht.</b> Mehrere Dateien räumlich
+  zusammenzuführen ist offen.</li>
+  <li>Im Treppenpodest gibt es einen <b>rechtwinkligen Wechsel statt gewendelter
+  Stufen</b>.</li>
+  <li><b>Gaubenanschlüsse</b> — Wange, Front, Kehle — fehlen in der
+  Wärmebrückenbilanz.</li>
+  <li><b>Abstandsflächen</b> nach Landesbauordnung werden erfasst, aber nicht je
+  Bundesland geprüft; die <b>Schallabschirmung durch das eigene Gebäude</b> wird
+  konservativ nicht angesetzt.</li>
+  <li>Eine <b>Öffnungsbeschriftung weicht Symbolen noch nicht aus</b>, sie
+  überdeckt sie mit weißem Rand.</li>
+</ul>
+
+<h3 id="k1-6">1.6 Die drei Auslieferungsformen</h3>
+
+<p>Es gibt das Programm in drei Formen. Welche die richtige ist, hängt davon ab,
+was Sie damit vorhaben.</p>
+
+<h4 id="k1-6-1">1.6.1 Die Einzeldatei — zum Doppelklicken</h4>
+
+<p><code>RaVia-CAD-Light-1.14.0-Einzeldatei.html</code> ist das ganze Programm in
+<b>einer</b> Datei: Rechenkern, Oberfläche, Symbole, Beispielprojekt. Keine
+Installation, kein Node.js, kein Server, kein Netz. Doppelklick genügt, sie
+läuft aus dem Dateisystem heraus in jedem aktuellen Browser und lässt sich auf
+einem USB-Stick weitergeben.</p>
+
+<p>Der Preis ist ehrlich zu nennen: die Datei ist einige Megabyte groß, und der
+Browser lädt sie ohne Zwischenspeicher jedes Mal neu. Für den täglichen
+Arbeitsplatz ist das Setup der bessere Weg; die Einzeldatei ist für Weitergabe,
+für den Zweitrechner und für das Archiv.</p>
+
+<h4 id="k1-6-2">1.6.2 Das Setup — für den Arbeitsplatz</h4>
+
+<p><code>RaVia-CAD-Light-Setup.bat</code> ist ein selbstentpackendes
+Windows-Setup mit dem vollständigen Projekt im Anhang. Ein Doppelklick, und es
+läuft in vier Schritten:</p>
+
+<ol>
+  <li>Node.js prüfen. Benötigt wird Version 18 oder neuer; fehlt es oder ist es
+  zu alt, sagt das Setup das und bricht ab.</li>
+  <li>Das Projekt neben sich entpacken.</li>
+  <li>Die Abhängigkeiten installieren — einmalig, ein bis zwei Minuten.</li>
+  <li>Den Entwicklungsserver auf <code>http://localhost:5173</code> starten und
+  den Browser öffnen.</li>
+</ol>
+
+<p>Beim nächsten Mal genügt die dabei angelegte Datei <code>Start.bat</code>.
+Beendet wird mit <kbd>Strg</kbd> + <kbd>C</kbd> oder durch Schließen des
+Fensters.</p>
+
+<h4 id="k1-6-3">1.6.3 Das Komplettarchiv — für die Ablage</h4>
+
+<p><code>RaVia-CAD-Light-1.14.0-Komplett.zip</code> enthält alles: die
+Einzeldatei, das Setup, den gesamten Quelltext, die Dokumentation, den
+Rechenkern als eigenes Paket und 87 Bildschirmfotos aus den Prüfläufen. Das ist
+die Fassung für das Archiv und für die Übergabe an eine Entwicklungsabteilung.</p>
+
+<h3 id="k1-7">1.7 Systemvoraussetzungen</h3>
+
+<table class="tab">
+  <caption>Was der Rechner mitbringen muss</caption>
+  <thead><tr><th>Form</th><th>Voraussetzung</th></tr></thead>
+  <tbody>
+    <tr><td>Einzeldatei</td><td>Ein aktueller Browser. Sonst nichts — kein Node.js, keine Installation, keine Administratorrechte, kein Netz.</td></tr>
+    <tr><td>Setup</td><td>Windows, ein aktueller Browser, Node.js in Version 18 oder neuer. Für die einmalige Installation der Abhängigkeiten wird eine Internetverbindung gebraucht; danach nicht mehr.</td></tr>
+    <tr><td>Quelltext</td><td>Node.js 18 oder neuer, <code>npm install</code>, <code>npm run dev</code>.</td></tr>
+  </tbody>
+</table>
+
+<p>Die 3D-Ansicht wird erst geladen, wenn Sie sie zum ersten Mal einschalten.
+Wer nur im Grundriss arbeitet, lädt sie nie und braucht dafür auch keine
+Grafikleistung.</p>
+
+<h3 id="k1-8">1.8 Ohne Internet — und ohne Datenabfluss</h3>
+
+<div class="merke">
+  <b>Merke</b>
+  <p>Die Einzeldatei enthält keinen einzigen Verweis nach außen. Sie lädt
+  nichts nach, sie meldet nichts, sie schickt kein Projekt irgendwohin. Alles,
+  was Sie zeichnen, bleibt auf Ihrem Rechner.</p>
+</div>
+
+<p>Das ist keine Behauptung, sondern eine geprüfte Eigenschaft. Der Generator,
+der die Einzeldatei baut, öffnet sie anschließend wieder und prüft unter
+anderem, dass sie keinen Verweis ins Netz enthält — die Prüfung schlägt fehl
+und der Bau bricht ab, wenn doch einer darin steht. Schriften, Symbole und
+Beispieldaten liegen in der Datei selbst.</p>
+
+<p>Eine Einschränkung gehört dazu, damit die Aussage sauber bleibt: die
+<b>KI-Vorauswertung eines eingelesenen Grundrissbilds</b> (Auto-Trace) kann
+einen Server ansprechen. Das Programm spricht dafür nie einen fremden Dienst
+direkt an, sondern einen Vermittler unter der eigenen Adresse
+(<code>/api/vision/floorplan</code>) — Zugangsschlüssel gehören nach dem
+Grundsatz dieses Programms nicht in den Browser. Aus der Einzeldatei heraus gibt
+es diesen Vermittler nicht; das Programm merkt das, meldet „Vermittler nicht
+erreichbar" und schaltet auf die eingebaute örtliche Simulation um. Deren
+Ergebnisse sind ausdrücklich als solche gekennzeichnet, damit niemand sie für
+eine echte Erkennung hält. Mehr dazu in <a href="#k2-3">Abschnitt 2.3</a>.</p>
+
+<h3 id="k1-9">1.9 Wo die Daten liegen</h3>
+
+<p>Das Programm hat keine Datenbank und keinen Server. Alles liegt in zwei
+Ablagen, und beide leben im Speicher des Browsers auf Ihrem Rechner.</p>
+
+<h4 id="k1-9-1">1.9.1 Die Sitzungssicherung</h4>
+
+<p>Jede Änderung am Modell wird <b>entprellt</b> gesichert: 1,5 Sekunden nach
+dem letzten Handgriff schreibt das Programm den Stand in den lokalen Speicher
+des Browsers. Das ist der Schutz gegen das versehentliche Neuladen der Seite
+und gegen den Absturz.</p>
+
+<p>Beim nächsten Start <b>fragt</b> das Programm, ob Sie den gefundenen Stand
+fortsetzen wollen — es lädt ihn nicht stillschweigend. Sie sehen im Dialog den
+Projektnamen, die Zahl der Wände und der Räume und wie alt die Sicherung ist.
+Automatisches Überschreiben dessen, was jemand gerade öffnen wollte, ist keine
+Rettung.</p>
+
+<h4 id="k1-9-2">1.9.2 Die Projektverwaltung</h4>
+
+<p>Die Sitzungssicherung kennt genau einen Stand: den letzten. Wer eine Wohnung
+über mehrere Abende aufmisst und nebenher noch den Anbau der Eltern zeichnet,
+braucht eine Ablage mit Namen. Das ist die Projektverwaltung: der
+Ordner-Knopf neben dem Projektnamen in der Kopfzeile. Dort legen Sie Projekte
+an, benennen sie um, duplizieren sie, sichern sie als Datei und löschen sie —
+jedes mit Rückfrage.</p>
+
+<p>Ist ein Projekt geöffnet, schreibt die Sitzungssicherung in <b>dessen</b>
+Eintrag; im Sicherungsschlüssel bleibt nur ein Zeiger darauf, welches Projekt
+gemeint ist. Damit kann beim Start nie die Sicherung eines anderen Projekts
+über dem gerade geöffneten landen.</p>
+
+<h4 id="k1-9-3">1.9.3 Der Platz ist knapp — und das Programm sagt es</h4>
+
+<p>Browser geben je Herkunft üblicherweise rund 5 Megabyte für diesen Speicher
+frei. Wie sie zählen, ist nicht einheitlich: Chromium nahm in der Messung dieses
+Projekts 5 177 344 reine ASCII-Zeichen auf, dort kostet ein solches Zeichen
+also ein Byte; Firefox rechnet zwei Byte je Zeichen, und ein Umlaut in einem
+Raumnamen kostet auch in Chromium zwei. Das Programm rechnet durchgehend
+pessimistisch mit <b>zwei Byte je Zeichen</b> — wer sich verschätzt, soll sich
+zugunsten des Anwenders verschätzen.</p>
+
+<table class="tab">
+  <caption>Größenordnungen aus der Messung (Zeichen des gespeicherten JSON)</caption>
+  <thead><tr><th>Inhalt</th><th>Zeichen</th></tr></thead>
+  <tbody>
+    <tr><td>Demo-Grundriss, ein Geschoss, 10 Wände, 3 Räume</td><td>15 000</td></tr>
+    <tr><td>Referenzhaus, drei Geschosse mit TGA und Anlagentechnik</td><td>20 100</td></tr>
+    <tr><td>Derselbe Grundriss über drei Geschosse, 30 Wände</td><td>31 900</td></tr>
+    <tr><td>Dazu ein A4-Plan als hinterlegtes Bild (1190 × 1684 px, PNG)</td><td>99 100</td></tr>
+  </tbody>
+</table>
+
+<div class="warnung">
+  <b>Achtung</b>
+  <p>Ein Handyfoto statt einer Strichzeichnung liegt bei mehreren Millionen
+  Zeichen und sprengt den Speicher im Alleingang. Läuft er über, erscheint ein
+  Hinweisband über allem, das nicht von selbst verschwindet — denn ab dann
+  bleibt jeder weitere Strich ungesichert. Der Ausweg steht daneben: Projekte
+  öffnen, eines als Datei sichern, aus dem Speicher nehmen.</p>
+</div>
+
+<h4 id="k1-9-4">1.9.4 Wie Sie ein Projekt richtig sichern</h4>
+
+<p>Der Browser-Speicher ist bequem, aber er ist an diesen Browser auf diesem
+Rechner gebunden. Wer ein Projekt weitergeben, mitnehmen oder wirklich
+archivieren will, nimmt den Dateiweg:</p>
+
+<ol>
+  <li><b>Projekte öffnen</b> (der Ordner-Knopf neben dem Projektnamen).</li>
+  <li>Beim gewünschten Projekt auf <b>Als Datei sichern</b>. Es entsteht eine
+  JSON-Datei.</li>
+  <li>Diese Datei irgendwohin legen, wo sie gesichert wird — Netzlaufwerk,
+  Projektordner, Stick.</li>
+</ol>
+
+<p>Zurück geht es über <b>Projekt aus Datei laden</b> im selben Fenster oder über
+den Öffnen-Knopf in der Kopfzeile.</p>
+
+<div class="merke">
+  <b>Merke</b>
+  <p>Die Projektdatei ist zugleich die Übergabedatei an RaVia. Es ist derselbe
+  Export, dasselbe Format (<code>ravia.bim.light v2.0.0</code>). Sie brauchen
+  also nicht zweierlei zu sichern — was Sie übergeben, ist auch Ihr
+  Sicherungsstand.</p>
+</div>
+
+<p>Beim vollen Speicher gibt es zusätzlich den Knopf, der beides in einem Zug
+tut: als Datei sichern und danach aus dem Browser-Speicher nehmen. Nichts geht
+dabei verloren, und es wird wieder Platz.</p>
+
+</section>

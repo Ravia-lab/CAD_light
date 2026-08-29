@@ -1,0 +1,201 @@
+<section id="kap-16" class="kapitel" data-titel="16 · Die Wissensbasis: nachschlagen im Programm">
+<h2 id="k16">16 · Die Wissensbasis: nachschlagen im Programm</h2>
+<p class="lead">Das Programm trifft Entscheidungen, die begründet werden müssen: warum DN 20 und nicht DN 16, warum 15 kPa am Thermostatventil, warum überhaupt ein Überströmventil. Die Begründungen stehen nicht im Handbuch allein, sondern durchsuchbar im Programm — ohne Internetverbindung.</p>
+
+<h3 id="k16-1">16.1 Was drinsteht</h3>
+
+<p class="wo">Im Programm: Werkzeugleiste oben → <b>Rohrnetzberechnung</b> → Reiter <b>Wissen</b>.</p>
+
+<p>Bis Fassung 1.11.0 standen die Begründungen als Kommentar im Quelltext — dort, wo sie beim Bauen helfen, aber nicht dort, wo der Anwender sie braucht. Seither liegen sie als durchsuchbare Einträge im Programm selbst.</p>
+
+<table class="tab">
+<caption>Umfang der Wissensbasis, Stand August 2026</caption>
+<thead><tr><th>Sammlung</th><th>Einträge</th><th>Was darin steht</th></tr></thead>
+<tbody>
+<tr><td><b>Normen und Recht</b></td><td>101</td><td>Gesetzestexte (§§ 60a bis 60c GModG, Anlage 8, § 69), die BAFA-Checkliste, die Fachregeln zum hydraulischen Abgleich, die einschlägigen DIN- und VDI-Regelwerke mit dem, was frei belegbar ist.</td></tr>
+<tr><td><b>Tabellenwerte</b></td><td>52</td><td>Rohr-, Armaturen- und Werkstofftabellen: Abmessungen und Innendurchmesser der Werkstoffe, Rauheiten, Widerstandsbeiwerte der Formstücke, k<sub>v</sub>-Reihen der Ventilbaureihen.</td></tr>
+<tr><td><b>Hydraulikschemata</b></td><td>156</td><td>Die Musterhydrauliken der Verbände und Hersteller, ihre Anwendungsgrenzen, die Regeln für Puffer, Mischer, Überströmventil und Trinkwasser, und die belegten Widersprüche zwischen den Quellen.</td></tr>
+<tr><td><b>Programmentscheidungen</b></td><td>14</td><td>Was dieses Programm selbst gesetzt hat, weil eine Zahl gebraucht wurde und keine Quelle sie hergab.</td></tr>
+<tr><td><b>zusammen</b></td><td><b>323</b></td><td></td></tr>
+</tbody>
+</table>
+
+<p>Ein Eintrag besteht immer aus denselben Teilen: Titel, ein bis fünf Sätze Text, zusätzliche Suchbegriffe, die Quelle im Klartext, gegebenenfalls eine Netzadresse, die Einstufung der Belastbarkeit und die Themenschlüssel, über die der Rechenkern gezielt zitiert.</p>
+
+<div class="merke"><b>Merke</b><p>Die Wissensbasis arbeitet <b>vollständig offline</b> — sie steckt im Programm. Kein Server wird gefragt, kein Suchdienst, kein Sprachmodell. Das gilt auch für die Einzeldatei auf dem USB-Stick.</p></div>
+
+<h4 id="k16-1-1">16.1.1 Woher der Inhalt stammt</h4>
+
+<p>Der Inhalt stammt aus sieben Rechercheberichten mit Stand August 2026. Die eiserne Regel dieser Datei: <b>jede Zahl in einem Eintrag muss in einem der Berichte belegt sein.</b> Nichts wird geschätzt, nichts wird „aus Erfahrung" ergänzt, nichts wird aus einer anderen Quelle nachgetragen, ohne dass die Quelle im Eintrag steht. Werte, die die Berichte ausdrücklich als „nicht belegbar" führen, sind entweder gar nicht enthalten oder ausdrücklich als Annahme gekennzeichnet.</p>
+
+<h3 id="k16-2">16.2 Wie Sie suchen</h3>
+
+<p>Im Reiter <b>Wissen</b> steht oben ein Eingabefeld. Der Platzhalter nennt drei Beispiele: „Ventilautorität", „Dämmung 22 mm", „Überströmventil Puffer". Ab zwei Zeichen wird gesucht, und zwar bei jedem Tastendruck neu — es gibt keinen Suchknopf.</p>
+
+<p>Jeder Treffer zeigt: Titel, welcher Sammlung er entstammt, den vollständigen Text, die Quelle, die Belastbarkeit farbig hervorgehoben und, wo vorhanden, den Verweis ins Netz. Gezeigt werden bis zu zwölf Treffer.</p>
+
+<p>Findet sich nichts, steht dort: „Kein Treffer. Andere Begriffe versuchen; die Suche kennt Abkürzungen wie THV, FBH, WP."</p>
+
+<h4 id="k16-2-1">16.2.1 Abkürzungen greifen</h4>
+
+<p>Der Anwender fragt nach „Abgleich", im Text steht „hydraulischer Abgleich" — das trifft ohnehin. Er fragt nach „Pumpe", im Text steht „Umwälzpumpe" — das trifft nur, weil im Programm hinterlegt ist, dass beides dasselbe meint. Diese Liste ersetzt kein Sprachverständnis; sie deckt die Handvoll Wortpaare ab, die im Gewerk tatsächlich auseinanderfallen.</p>
+
+<table class="tab">
+<caption>Wörter, die dasselbe finden</caption>
+<thead><tr><th>Wenn Sie eintippen …</th><th>… wird zusätzlich gesucht nach</th></tr></thead>
+<tbody>
+<tr><td>Abgleich</td><td>Einregulierung, Einregulieren, balancing</td></tr>
+<tr><td>Pumpe</td><td>Umwälzpumpe, Heizungspumpe, Förderhöhe</td></tr>
+<tr><td>Puffer</td><td>Pufferspeicher, Speicher, Trennspeicher</td></tr>
+<tr><td>WP</td><td>Wärmepumpe — und umgekehrt</td></tr>
+<tr><td>FBH</td><td>Fußbodenheizung, Flächenheizung — und umgekehrt</td></tr>
+<tr><td>HK</td><td>Heizkörper, Heizfläche — und umgekehrt</td></tr>
+<tr><td>THV</td><td>Thermostatventil, Ventil</td></tr>
+<tr><td>Ventil</td><td>Armatur, Thermostatventil, THV</td></tr>
+<tr><td>Voreinstellung</td><td>Einstellwert, Stufe, kv</td></tr>
+<tr><td>Dämmung</td><td>Isolierung, Dämmstärke</td></tr>
+<tr><td>Druckverlust</td><td>Druckgefälle, Widerstand</td></tr>
+<tr><td>Rohr</td><td>Leitung, Teilstrecke, Strang</td></tr>
+<tr><td>GEG</td><td>GModG, Gebäudeenergiegesetz, Gebäudemodernisierungsgesetz — und umgekehrt</td></tr>
+<tr><td>Überströmventil</td><td>ÜV, Bypass</td></tr>
+<tr><td>Warmwasser</td><td>Trinkwasser, TWW, Brauchwasser</td></tr>
+<tr><td>Volumenstrom</td><td>Durchfluss, Massenstrom</td></tr>
+</tbody>
+</table>
+
+<div class="baustelle"><b>Auf der Baustelle heißt das</b><p><b>MAG</b> und <b>WMZ</b> stehen nicht in dieser Liste — sie sind aber als zusätzliche Suchbegriffe an den Einträgen selbst hinterlegt, ebenso wie Dutzende weiterer Kürzel. Wer „MAG" eintippt, findet die Einträge zum Membran-Ausdehnungsgefäß; wer „WMZ" eintippt, findet den Wärmemengenzähler. Der Unterschied ist technisch, für den Anwender nicht.</p></div>
+
+<h4 id="k16-2-2">16.2.2 Umlaute, Umschreibungen und Wortformen</h4>
+
+<p>Drei Dinge fallen in der Suche zusammen, ohne dass Sie darauf achten müssen:</p>
+
+<table class="tab">
+<caption>Was die Suche gleich behandelt</caption>
+<thead><tr><th>Fall</th><th>Beispiel</th><th>Warum</th></tr></thead>
+<tbody>
+<tr><td><b>Umlaut und Ersatzschreibweise</b></td><td>„Wärmepumpe" und „Waermepumpe" finden dasselbe; ebenso „Überströmventil" und „Ueberstroemventil"</td><td>Jede Herstellerdatei, die keine Umlaute verträgt, schreibt die zweite Form. Beide werden auf den Grundbuchstaben zurückgeführt.</td></tr>
+<tr><td><b>Umlaut und Grundform</b></td><td>„Bögen" und „Bogen" finden dasselbe</td><td>Es ist derselbe Begriff. Würde ö auf „oe" abgebildet, wäre „boegen" sechs Zeichen lang und würde anders gekürzt als das fünf Zeichen lange „bogen" — die beiden träfen sich nie mehr.</td></tr>
+<tr><td><b>Endungen</b></td><td>„Rohr", „Rohre", „Rohres" finden dasselbe</td><td>Die Endungen werden abgeschnitten — aber nur bei ausreichend langen Wörtern, damit aus „Bogen" nicht „Bog" wird.</td></tr>
+</tbody>
+</table>
+
+<div class="merke"><b>Merke</b><p>Die Umlautregel ist bewusst vorsichtig: „ae", „oe" und „ue" werden nur dann als umschriebener Umlaut behandelt, wenn davor kein Vokal steht. Sonst würde aus „Bauer" ein „Bar" und aus „Steuerung" ein „Sterung" — dort gehört das u zum Doppellaut und das e zur nächsten Silbe.</p></div>
+
+<p>Füllwörter wie der, die, das, und, ist, mit, von werden übergangen. <b>Nicht</b> übergangen werden „nicht" und „ohne" — sie tragen im Fachtext Bedeutung. „Anlagen ohne Puffer" ist eine andere Frage als „Anlagen mit Puffer".</p>
+
+<p>Zahlen bleiben stehen, wie sie sind. Wer „15 kPa" sucht, findet die Einträge, in denen diese Zahl steht; wer „22 mm" sucht, findet die Dämmstärkenstufe.</p>
+
+<h4 id="k16-2-3">16.2.3 Warum getrennte Sammlungen — und was das für die Suche bedeutet</h4>
+
+<p>Die vier Sammlungen sind kein Ordnungsfimmel. Sie sind getrennt, weil sie sonst einander verdrängen würden.</p>
+
+<div class="beispiel">
+  <b>Das Problem an einem Beispiel</b>
+  <p>Die Sammlung mit den Rohrtabellen enthält Dutzende Einträge, in denen das Wort „Rohr" vorkommt. Die Sammlung mit den Rechtssätzen ist viel kleiner, und dort kommt „Rohr" fast nie vor.</p>
+  <p>Würden alle Einträge in einem Topf durchsucht, entschiede die schiere Menge: die Frage „muss ich abgleichen?" bekäme Rohrdurchmesser als Antwort, weil die große Sammlung die kleine überstimmt.</p>
+  <p class="ergebnis">Deshalb wird jede Sammlung <b>für sich</b> durchsucht</p>
+</div>
+
+<p>Jede Sammlung bildet ihre eigene Trefferliste und sortiert sie von gut nach schlecht. Erst danach werden die vier Listen zusammengeführt — und zwar nicht nach Punktzahl, sondern <b>nach Platzierung</b>. Der beste Treffer der Rechtssammlung ist damit ebenso viel wert wie der beste Treffer der Rohrtabellen, egal wie groß die Sammlungen sind. Ein Eintrag, der in mehreren Sammlungen ganz vorn stünde, rutscht nach oben.</p>
+
+<div class="merke"><b>Merke</b><p>Praktisch heißt das: <b>aus jeder Sammlung kommt ihr bester Treffer nach oben</b>, nicht nur aus der größten. Eine Frage, die Recht und Technik zugleich berührt — „Dämmung Keller" etwa — liefert deshalb den Gesetzestext <em>und</em> die Tabelle, nicht dreimal dieselbe Tabelle.</p></div>
+
+<p>Unter dem Suchfeld steht die Zahl der durchsuchten Einträge und darunter jede Sammlung mit ihrer Größe. Diese Zahlen sind nicht Zierde: sie sagen Ihnen, wie tief die Antwort in dem Bereich verwurzelt ist, aus dem sie kommt.</p>
+
+<h4 id="k16-2-4">16.2.4 Warum keine Suche mit künstlicher Intelligenz</h4>
+
+<p>Eine Suche, die Bedeutung statt Wörter vergleicht, bräuchte entweder ein Sprachmodell im Programm — das wären zweistellige Megabyte für ein paar hundert Sätze — oder einen Server. Beides widerspricht dem Grundsatz dieses Programms: eine Datei, Doppelklick, kein Netz.</p>
+
+<p>Der zweite Grund wiegt schwerer: bei einem Bestand dieser Größe trifft eine gut gemachte Wortsuche mit deutscher Wortnormalisierung und einer fachlichen Synonymliste genauso gut — und <b>man kann jedem Treffer ansehen, warum er getroffen hat</b>. Bei einem Nachweisdokument ist das kein Nebenaspekt.</p>
+
+<h3 id="k16-3">16.3 Belastbarkeit: Primärquelle, Sekundärquelle, Annahme</h3>
+
+<p>Das ist der Kern des Ganzen. An jedem Eintrag steht, wie belastbar er ist — im Programm farbig neben der Quelle, im Handbuch und im Quellenverzeichnis der Projektmappe als eigene Spalte.</p>
+
+<table class="tab">
+<caption>Die drei Stufen der Belastbarkeit</caption>
+<thead><tr><th>Stufe</th><th>Heißt</th><th>Bedeutet</th><th>Anzahl</th></tr></thead>
+<tbody>
+<tr><td><b>Primärquelle</b></td><td>im Volltext nachgelesen</td><td>Gesetzes- oder Behördentext, Herstellerdatenblatt, amtliches Inhaltsverzeichnis — die Quelle selbst lag vor.</td><td>174</td></tr>
+<tr><td><b>Sekundärquelle</b></td><td>aus Fachliteratur übernommen</td><td>Norminhalt aus Fachartikel, Verbandsleitfaden oder Hochschulmaterial. <b>Der Normtext selbst ist kostenpflichtig und wurde nicht eingesehen.</b></td><td>134</td></tr>
+<tr><td><b>Annahme dieses Programms</b></td><td>selbst gesetzt</td><td>Von diesem Programm festgelegt, weil eine Zahl gebraucht wurde und keine Quelle sie hergab. Das steht so auch im Text des Eintrags.</td><td>15</td></tr>
+</tbody>
+</table>
+
+<div class="warnung"><b>Achtung</b><p>Wer den Unterschied verwischt, verkauft eine Annahme als Norm. Genau deshalb steht die Einstufung an jedem einzelnen Eintrag und nicht als Sammelvermerk am Ende. Ein Blatt, auf dem eine Annahme und ein Gesetzestext gleich aussehen, ist gefährlicher als eines ohne Quellenangabe — denn dort weiß man wenigstens, dass man nachschlagen muss.</p></div>
+
+<h4 id="k16-3-1">16.3.1 Warum überhaupt Sekundärquellen</h4>
+
+<p>Die deutschen und europäischen Normtexte sind kostenpflichtig. Eine einzelne DIN kostet einen dreistelligen Betrag, und ihr Wortlaut darf nicht frei wiedergegeben werden. Ein Programm, das sie im Volltext zitierte, wäre nicht verbreitbar.</p>
+
+<p>Verwendet wird deshalb ausschließlich, was in Fachliteratur, Verbandsleitfäden, Herstellerunterlagen und Hochschulmaterial <b>durchgängig frei zitiert</b> wird: die Formelstruktur, die Grenzwerte, die Größenordnungen. Wo eine Norm eine Tabelle enthält, die nirgends frei steht, steht sie auch nicht im Programm — an ihrer Stelle steht ein hergeleiteter oder ein überschreibbarer Wert, und daneben der Vermerk, dass er das ist.</p>
+
+<div class="beispiel">
+  <b>Zwei Beispiele, an denen man das sieht</b>
+  <p><b>VDI 4645</b>, Anhang F, enthält auf 32 Seiten Schaltungsvorschläge. Das amtliche Inhaltsverzeichnis ist frei und belegt, <em>dass</em> es sie gibt — die Schaltungen selbst nicht. Der Eintrag dazu heißt deshalb wörtlich: „VDI 4645 Anhang F — 32 Seiten Schaltungen, Inhalt nicht belegbar."</p>
+  <p><b>DIN 94679</b> zum hydraulischen Abgleich: gesichert sind die Existenz der Normenreihe und der Verweis der BAFA auf Teil 4. Die Inhalte der Teile 1 bis 4 sind im freien Netz nicht belegbar, und der Eintrag sagt das.</p>
+  <p class="ergebnis">Eine benannte Lücke ist mehr wert als eine gefüllte Behauptung</p>
+</div>
+
+<h4 id="k16-3-2">16.3.2 Wo die Belastbarkeit sonst noch auftaucht</h4>
+
+<ul>
+<li>Im Blatt <b>Erzeugerkreis und Pumpe</b> trägt jeder Posten in der letzten Spalte seine Herkunft: Tabellenwert des Herstellers, aus einem Herstellerdiagramm abgelesen, von diesem Programm abgeleitet, oder Annahme. Beide sehen auf dem Blatt gleich aus und sind verschieden viel wert.</li>
+<li>Im <b>Quellenverzeichnis der Projektmappe</b> als eigene Spalte neben Titel, Quelle und Sammlung.</li>
+<li>In der <b>Kurzform für Fußnoten</b>: eine Primärquelle steht nur mit ihrer Quellenangabe da, bei allem anderen folgt die Einstufung in Klammern.</li>
+</ul>
+
+<h3 id="k16-4">16.4 Belege statt Suche: wie der Bericht zitiert</h3>
+
+<p>Wenn der Rechenkern eine Zahl belegt, sucht er nicht. Er weiß, welches Thema er gerade begründet, und holt genau die Einträge dazu — <b>vollständig und in stabiler Reihenfolge</b>. Das ist der Unterschied, der einen gedruckten Bericht zweimal gleich aussehen lässt.</p>
+
+<p>Sortiert wird dabei nach Belastbarkeit: die Primärquellen zuerst, dann die Sekundärquellen, zuletzt die Annahmen. Bei gleicher Stufe entscheidet die Kennung des Eintrags, damit die Reihenfolge auch dann festliegt.</p>
+
+<p>Der Rohrnetzbericht zieht seine Quellen über fünf Themenschlüssel — Dokumentation, Abgleich und Recht, Ventilautorität, Druckverlust, Rohrdämmung — und nimmt je Thema die drei belastbarsten. Die Projektmappe zieht über <b>28 Themen</b>, weil sie mehr Blätter zu belegen hat: dazu kommen Abgleichverfahren, Voreinstellung, Rohrdimension, Rohrreibung, Einzelwiderstand, Druckgefälle, Geschwindigkeit, Rauigkeit, Stoffwerte, Pumpe, Überströmventil und Wärmemengenzähler — und aus Anlagenbuch, Schema und Massenauszug Wärmepumpe, Puffer, Mischer, Heizkörper, Fußbodenheizung, Trinkwasser, Sicherheit, Ausdehnungsgefäß, Wasserqualität, Schemafehler und die Annahmen des Programms selbst.</p>
+
+<div class="merke"><b>Merke</b><p>Was der Rohrnetzbericht bereits zitiert, steht im Quellenverzeichnis der Mappe nur einmal — mit dem Vermerk „auch im Rohrnetzbericht zitiert". Und was der Bericht zitiert, aber über kein Thema der Mappenliste hereinkäme, wird trotzdem aufgeführt: sonst führte die Mappe eine Quelle nicht auf, die auf einem ihrer eigenen Blätter steht.</p></div>
+
+<h3 id="k16-5">16.5 Das Glossar und das Fragezeichen</h3>
+
+<p>Die Wissensbasis beantwortet die Frage „woher kommt das?". Das Glossar beantwortet die andere, häufigere: <b>„was trage ich denn da ein?"</b></p>
+
+<h4 id="k16-5-1">16.5.1 Das kleine Fragezeichen neben dem Feld</h4>
+
+<p class="wo">Im Programm: überall dort, wo ein Eingabefeld einen Fachbegriff trägt — im Inspektor, im Reiter <b>Anlage</b>, im Reiter <b>Wärmepumpe</b>, im Dachpanel.</p>
+
+<p>Neben der Feldbezeichnung steht ein kleines Fragezeichen. Ein Klick öffnet ein Kärtchen mit drei Angaben:</p>
+
+<ol>
+<li><b>Wie der Begriff ausgeschrieben heißt</b> — „ΔU_WB — Wärmebrückenzuschlag", „MAG — Membran-Ausdehnungsgefäß".</li>
+<li><b>Eine Zeile, die im Vorbeigehen reicht</b> — „Aufschlag für die Ecken und Anschlüsse, die mehr Wärme verlieren."</li>
+<li><b>Was er bedeutet, in Alltagssprache</b>, und wo es einen gibt: <b>der übliche Wertebereich</b>. Das ist die eigentliche Antwort auf „was trage ich da ein".</li>
+</ol>
+
+<div class="merke"><b>Merke</b><p>Regel für die ausführliche Erklärung: <b>kein Begriff darf durch einen anderen Fachbegriff erklärt werden.</b> Wer „Transmissionswärmeverlust" nachschlägt, weiß nichts mit „Wärmedurchgangskoeffizient" anzufangen.</p></div>
+
+<p>Das Kärtchen ist <b>anklickbar</b>, nicht nur bei Mausberührung — auf einem Tablet auf der Baustelle gibt es kein Überfahren mit der Maus. Es hängt am Fenster und nicht im Bedienfeld, damit es nicht am Rand des scrollenden Inspektors abgeschnitten wird. Ein Klick daneben oder <kbd>Esc</kbd> schließt es; beim Scrollen schließt es von selbst, weil sein Bezugspunkt wegwandert.</p>
+
+<h4 id="k16-5-2">16.5.2 Warum kein einfacher Tooltip</h4>
+
+<p>Ein Tooltip über das Titelattribut des Browsers kommt spät, verschwindet beim Weiterbewegen und kann keine zwei Sätze fassen. Ein Wertebereich mit drei Angaben — „Außenwand 0,15–1,4 · Fenster 0,8–3,0 · Dach 0,14–0,5" — hat darin keinen Platz.</p>
+
+<h4 id="k16-5-3">16.5.3 Der Umfang</h4>
+
+<p>Das Glossar führt <b>39 Begriffe</b> aus allen Bereichen des Programms: Bauphysik (U-Wert, g-Wert, ΔU_WB, ψ, B′, Hüllfläche), Lüftung (n50, n_min, Wärmerückgewinnung, Überströmen, Abschirmung), Dach und Aufmaß (Kniestock, Traufe, Ortgang, Azimut, Nordabweichung, Wohnfläche nach WoFlV, Schrittmaß), Wärmepumpe (COP, Bivalenzpunkt, Schallleistungspegel, TA Lärm, Schutzbereich, spezifische Entzugsleistung) und Anlagentechnik (Spreizung, Volumenstrom, MAG, Vordruck, Pufferspeicher, Legionellen, Zirkulation, Typklasse, Überströmventil, Systemtrenner, DN, Heizlast, Norm-Außentemperatur, adiabat, f_RH).</p>
+
+<p>Die vollständige Liste mit Erklärung und Wertebereich steht im Anhang, <a href="#k18-1">Abschnitt 18.1</a>.</p>
+
+<h4 id="k16-5-4">16.5.4 Glossar und Wissensbasis — wann welches</h4>
+
+<table class="tab">
+<caption>Zwei Nachschlagewerke, zwei Fragen</caption>
+<thead><tr><th></th><th>Glossar (Fragezeichen)</th><th>Wissensbasis (Reiter „Wissen")</th></tr></thead>
+<tbody>
+<tr><td>Beantwortet</td><td>„Was ist das, und was trage ich ein?"</td><td>„Woher kommt diese Zahl, und wie belastbar ist sie?"</td></tr>
+<tr><td>Umfang</td><td>39 Begriffe</td><td>323 Einträge</td></tr>
+<tr><td>Sprache</td><td>Alltagssprache, ohne Fachbegriffe in der Erklärung</td><td>Fachtext mit Zahlen und Quellenangabe</td></tr>
+<tr><td>Quellenangabe</td><td>keine — es ist eine Erklärung, kein Beleg</td><td>immer, mit Belastbarkeit</td></tr>
+<tr><td>Wo</td><td>am Eingabefeld</td><td>im Rohrnetzdialog, und als Quellenverzeichnis in Bericht und Mappe</td></tr>
+</tbody>
+</table>
+</section>

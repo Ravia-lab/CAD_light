@@ -1,0 +1,215 @@
+<section id="kap-06" class="kapitel" data-titel="6 · Dach, Gauben, Dachfenster">
+<h2 id="k6">6 · Dach, Gauben, Dachfenster</h2>
+<p class="lead">Im Dachgeschoss stimmt nichts mehr, was im Regelgeschoss selbstverständlich ist. Dieses Kapitel zeigt, wie das Programm die Höhe unter der Schräge bestimmt und was daraus für Fläche, Volumen und Bauteile folgt.</p>
+
+<h3 id="k6-1">6.1 Dachform, Neigung, Kniestock</h3>
+
+<p>Ein Dach gehört im Programm nicht zum Gebäude, sondern zu <b>einem Geschoss</b> — dem, über dem es liegt. Solange kein Dach gesetzt ist, bleibt die Decke waagerecht; das ist der Regelfall in jedem Geschoss außer dem obersten.</p>
+
+<p class="wo">Im Programm: Reiter <b>Dach</b>. Bewusst wenige Eingaben: Form, Neigung, Kniestock, Firstrichtung. Alles andere — Firsthöhe, Dachfläche, Wohnfläche, Volumen — wird daraus abgeleitet und sofort daneben angezeigt.</p>
+
+<h4 id="k6-1-1">6.1.1 Die vier Formen</h4>
+
+<table class="tab">
+<caption>Dachformen</caption>
+<thead><tr><th>Form</th><th>Wie das Programm sie versteht</th></tr></thead>
+<tbody>
+<tr><td>Flachdach / horizontale Decke</td><td>Keine Schräge. Die Decke bleibt waagerecht, alles rechnet wie im Regelgeschoss.</td></tr>
+<tr><td>Satteldach</td><td>Zwei Flächen gleicher Neigung, der First dazwischen. Der First kann aus der Mitte versetzt werden.</td></tr>
+<tr><td>Pultdach</td><td>Eine Fläche. Der First sitzt an der oberen Kante, das Dach fällt bis zur gegenüberliegenden Traufe durch.</td></tr>
+<tr><td>Walmdach</td><td>Von allen vier Seiten geneigt. Der First liegt mittig, seine Höhe folgt der <b>kürzeren</b> Gebäudeseite — dort treffen sich die Walme.</td></tr>
+</tbody>
+</table>
+
+<h4 id="k6-1-2">6.1.2 Die vier Eingaben</h4>
+
+<p><b>Neigung.</b> Der Winkel gegen die Waagerechte, einstellbar von 5° bis 75°. Die Modellprüfung meldet alles außerhalb von 5° bis 70° als unüblich.</p>
+
+<p><b>Kniestock.</b> Die lichte Höhe an der Traufe, gemessen über Rohfußboden. Das ist die Höhe, auf der die Schräge ansetzt — und die Zahl, die im Dachgeschoss über nutzbar und unnutzbar entscheidet. Einstellbar von 0 bis 2,50 m.</p>
+
+<p><b>Dach fällt nach.</b> Die Himmelsrichtung, in die die Dachfläche zeigt, in acht Stufen von Nord bis Nordwest. <b>Der First steht senkrecht zu dieser Richtung.</b> Beim Pultdach ist es die Fallrichtung.</p>
+
+<p><b>First versetzt.</b> Verschiebt die Firstachse aus der Grundrissmitte, in Fallrichtung positiv, um bis zu 8 m in 25-cm-Schritten. Damit bilden Sie ein unsymmetrisches Satteldach ab.</p>
+
+<p>Dazu kommt als Schalter die <b>Kehlbalkenlage</b>: ab dieser Höhe geht die Schräge in eine waagerechte Decke über. Voreingestellt sind 2,60 m, einstellbar von 2,00 bis 5,00 m. Sie muss über dem Kniestock liegen — sonst bliebe zwischen beiden keine Schräge, und die Modellprüfung meldet das als Fehler.</p>
+
+<h4 id="k6-1-3">6.1.3 Wie die Firsthöhe entsteht</h4>
+
+<div class="formel">
+  <p class="worte">In Worten: Der First liegt so hoch über der Traufe, wie das Dach von der Traufe bis zum First waagerecht weit ist, multipliziert mit der Steigung. Die Steigung ist der Tangens der Neigung — bei 45° also genau eins, bei 30° rund 0,58. Dazu kommt der Kniestock, denn die Traufe liegt ja nicht auf dem Fußboden.</p>
+  <p class="math">Firsthöhe = Kniestock + waagerechter Abstand zum First · tan(Neigung)</p>
+  <dl class="zeichen">
+    <dt>Kniestock</dt><dd>lichte Höhe an der Traufe über Rohfußboden [m]</dd>
+    <dt>Neigung</dt><dd>Dachneigung gegen die Waagerechte [°]</dd>
+  </dl>
+</div>
+
+<p>Welcher Abstand maßgebend ist, hängt von der Form ab. Beim <b>Satteldach</b> ist es die größere der beiden Hälften — beide Flächen haben dieselbe Neigung, also bestimmt die weitere Spannweite den First, und die kürzere Seite endet dann entsprechend höher als der Kniestock. Beim <b>Pultdach</b> ist es die volle Gebäudetiefe. Beim <b>Walmdach</b> ist es die halbe <i>kürzere</i> Gebäudeseite.</p>
+
+<div class="beispiel">
+<b>Beispiel zum Nachrechnen</b>
+<p>Einfamilienhaus, Satteldach, First mittig. Gebäudetiefe 10,00 m, also 5,00 m von der Traufe bis unter den First. Neigung 30°, Kniestock 0,50 m.</p>
+<p>tan(30°) = 0,577. Höhenzuwachs = 5,00 · 0,577 = 2,89 m.</p>
+<p>Firsthöhe = 0,50 + 2,89</p>
+<p class="ergebnis">= 3,39 m lichte Höhe unter dem First</p>
+</div>
+
+<div class="merke"><b>Merke</b><p>Alle Höhenangaben des Dachs sind <b>lichte Höhen über Rohfußboden des Dachgeschosses</b> — nicht Höhen über Gelände und nicht Rohbaumaße. Für die Traufhöhe über Gelände müssen Sie die Höhenlagen der Geschosse hinzurechnen.</p></div>
+
+<h3 id="k6-2">6.2 Die Raumhöhe unter der Schräge</h3>
+
+<p>Unter einem Dach ist die Raumhöhe keine Zahl mehr, sondern eine Fläche voller verschiedener Zahlen. An jedem Punkt des Grundrisses gibt es eine eigene lichte Höhe. Daraus folgt: das Luftvolumen ist nicht Fläche mal Höhe, eine Außenwand ist nicht Länge mal Geschosshöhe, und die Decke ist keine waagerechte Fläche, sondern eine geneigte mit Giebeln an den Enden.</p>
+
+<div class="warnung"><b>Achtung</b><p>Wer ein Dachgeschoss wie ein Regelgeschoss rechnet, bekommt <b>zu viel</b> Volumen — also einen zu hohen Lüftungsverlust — und <b>zu viel</b> Wandfläche bei gleichzeitig <b>fehlender</b> Dachfläche. Die Dachfläche ist im Dachgeschoss der größte Verlustweg überhaupt.</p></div>
+
+<h4 id="k6-2-1">6.2.1 Wie das Programm rechnet</h4>
+
+<p>Alles wird aus einer einzigen Größe abgeleitet: der lichten Höhe an einem Punkt. Volumen, Dachfläche, Wandflächen und Wohnfläche sind Summen über diese Höhe, gebildet auf einem <b>Raster von 5 cm</b>. Das Programm legt also ein Fünf-Zentimeter-Netz über den Raum, misst in jeder Masche die Höhe und zählt zusammen.</p>
+
+<p>Warum gerastert und nicht geschlossen gerechnet? Weil eine geschlossene Lösung das Raumpolygon an jeder Höhenlinie zerschneiden müsste — viel Aufwand für Fälle, die in der Praxis nie auftreten. Das Raster ist bei 5 cm auf zwei Nachkommastellen genau und bleibt bei beliebig verwinkelten Räumen richtig. Das Ergebnis wird anschließend auf die exakte Polygonfläche skaliert, damit Volumen und Teilflächen zur Grundfläche passen.</p>
+
+<p>Nach unten wird die Höhe immer beim Kniestock gekappt: unter der Traufe ist die Wand, nicht das Dach. Nach oben kappt sie die Kehlbalkenlage, falls eine gesetzt ist.</p>
+
+<h4 id="k6-2-2">6.2.2 Warum 1,00 m und 2,00 m die entscheidenden Marken sind</h4>
+
+<p>Für die Wohnfläche gilt die Wohnflächenverordnung (WoFlV). Ihr § 4 teilt die Grundfläche in drei Bänder:</p>
+
+<table class="tab">
+<caption>Anrechnung nach WoFlV § 4</caption>
+<thead><tr><th>Lichte Höhe</th><th>Zählt</th></tr></thead>
+<tbody>
+<tr><td>2,00 m und mehr</td><td>voll</td></tr>
+<tr><td>1,00 bis unter 2,00 m</td><td>zur Hälfte</td></tr>
+<tr><td>unter 1,00 m</td><td>gar nicht</td></tr>
+</tbody>
+</table>
+
+<p>Das Programm zählt genau so: jede Rastermasche wird nach ihrer Höhe einem der drei Bänder zugeschlagen. Ausgewiesen werden die Wohnfläche nach WoFlV und, getrennt davon, die Fläche unter 1,00 m — die Zahl, die einem sagt, wie viel Raum dort im Grunde nur Stauraum ist.</p>
+
+<div class="beispiel">
+<b>Beispiel zum Nachrechnen</b>
+<p>Dachgeschoss aus dem Beispiel oben: Satteldach 30°, First mittig, Gebäudetiefe 10,00 m, Kniestock 0,50 m, Firsthöhe 3,39 m. Der Raum ist 5,00 m lang längs des Firsts, Grundfläche also 50,00 m².</p>
+<p>Die Höhe fällt vom First aus mit 0,577 m je Meter. Bis 2,00 m Höhe: (3,39 − 2,00) / 0,577 = 2,41 m vom First. Bis 1,00 m Höhe: (3,39 − 1,00) / 0,577 = 4,14 m vom First.</p>
+<p>Über 2,00 m: 2 · 2,41 · 5,00 = 24,10 m² — zählt voll.</p>
+<p>Zwischen 1,00 und 2,00 m: 2 · (4,14 − 2,41) · 5,00 = 17,30 m² — zählt zur Hälfte, also 8,65 m².</p>
+<p>Unter 1,00 m: 2 · (5,00 − 4,14) · 5,00 = 8,60 m² — zählt nicht.</p>
+<p class="ergebnis">Grundfläche 50,00 m², Wohnfläche nach WoFlV 32,75 m²</p>
+</div>
+
+<div class="merke"><b>Merke</b><p>Die Wohnfläche steht <b>neben</b> der Grundfläche und ersetzt sie nicht. Die Heizlast rechnet weiter mit Grundfläche und Volumen — geheizt wird auch der Teil unter 1,00 m. Die Wohnfläche brauchen Sie für Miete, Kaufvertrag und Förderanträge, nicht für die Anlagenauslegung.</p></div>
+
+<h4 id="k6-2-3">6.2.3 Volumen, Dachfläche, mittlere Höhe</h4>
+
+<p>Das Luftvolumen ist die Summe aller Höhen über alle Rastermaschen. Die mittlere lichte Höhe ist dieses Volumen geteilt durch die Grundfläche; sie tritt im Raumbuch an die Stelle der Geschosshöhe.</p>
+
+<div class="beispiel">
+<b>Beispiel zum Nachrechnen</b>
+<p>Derselbe Raum. Die Höhe läuft geradlinig von 3,39 m unter dem First bis 0,50 m an beiden Traufen. Ihr Mittelwert ist damit (3,39 + 0,50) / 2 = 1,95 m.</p>
+<p>Volumen = 50,00 · 1,95 = 97,50 m³. Als Regelgeschoss mit 2,75 m gerechnet wären es 50,00 · 2,75 = 137,50 m³.</p>
+<p class="ergebnis">40 m³ Unterschied — der Lüftungswärmeverlust dieses Raums wäre sonst um rund 40 % zu hoch angesetzt (Formel in <a href="#k13">Kapitel 13</a>)</p>
+</div>
+
+<p>Die Dachfläche ist die <b>echte</b> geneigte Fläche, nicht ihr Schatten im Grundriss. Sie ergibt sich aus der überdeckten Grundfläche geteilt durch den Kosinus der Neigung — je steiler das Dach, desto mehr Fläche steckt über derselben Grundfläche.</p>
+
+<div class="beispiel">
+<b>Beispiel zum Nachrechnen</b>
+<p>50,00 m² Grundfläche unter 30° Neigung. cos(30°) = 0,866.</p>
+<p>Dachfläche = 50,00 / 0,866</p>
+<p class="ergebnis">= 57,74 m² geneigte Dachfläche</p>
+</div>
+
+<p>Getrennt ausgewiesen wird die Dachfläche zusätzlich <b>nach Himmelsrichtung</b>. Ein Satteldach liefert zwei Einträge, ein Walmdach bis zu vier. Das ist keine Spielerei: Himmelsrichtung und Neigung entscheiden über die solaren Gewinne und über die Abschirmung. Liegt eine Kehlbalkenlage vor, wird ihre waagerechte Fläche separat geführt — sie ist ein anderes Bauteil mit einem anderen Aufbau.</p>
+
+<h4 id="k6-2-4">6.2.4 Die Wandfläche unter der Schräge und der Giebel</h4>
+
+<p>Unter einem Dach ist eine Wandscheibe kein Rechteck mehr. Das Programm integriert deshalb die Höhe entlang jedes Wandabschnitts — dieselbe Rasterung, nur eindimensional.</p>
+
+<p>Dabei fällt eine zweite Zahl ab, die man braucht: der Anteil <b>oberhalb des Kniestocks</b>. Das ist der Giebel. Er ist in der Praxis oft anders aufgebaut als die Wand darunter — Holz statt Mauerwerk, Vorhangfassade statt Putz — und bekommt deshalb einen eigenen U-Wert.</p>
+
+<div class="beispiel">
+<b>Beispiel zum Nachrechnen</b>
+<p>Derselbe Raum. Die <b>Giebelwand</b> läuft quer zum First, ist 10,00 m lang und läuft von 0,50 m an beiden Enden auf 3,39 m in der Mitte zu.</p>
+<p>Anteil bis Kniestock: 10,00 · 0,50 = 5,00 m². Giebeldreieck darüber: ½ · 10,00 · (3,39 − 0,50) = 14,45 m².</p>
+<p class="ergebnis">Gesamte Wandfläche 19,45 m², davon 14,45 m² Giebel</p>
+<p>Die <b>Traufwand</b> längs des Firsts ist dagegen 5,00 m lang bei durchgehend 0,50 m Höhe: 2,50 m² Wandfläche, kein Giebel.</p>
+</div>
+
+<div class="warnung"><b>Achtung</b><p>Steht an einer Wand eine Höhe von 2,75 m, während der Kniestock bei 0,50 m liegt, meldet die Modellprüfung das als Hinweis. Es ist kein Fehler — unter der Schräge zählt ohnehin die tatsächliche, integrierte Höhe, und die eingetragene Wandhöhe wirkt dort nur noch als Obergrenze. Aber es lohnt der Blick, ob die Wand wirklich so gemeint war.</p></div>
+
+<h4 id="k6-2-5">6.2.5 Die Höhenlinien im Plan</h4>
+
+<p class="wo">Im Programm: Reiter <b>Dach</b>, Schalter <b>Linien</b>. Blendet First, Traufe und die Höhenlinien für 1,00 m und 2,00 m im Grundriss ein.</p>
+
+<p>Diese beiden Linien zeigen auf einen Blick, wo ein Dachraum noch nutzbar ist — und sie sind die schnellste Kontrolle, ob Kniestock und Neigung zusammenpassen. Beim Satteldach entstehen je Höhe zwei Linien, beim Pultdach eine, beim Walmdach vier ringsum.</p>
+
+<h3 id="k6-3">6.3 Gauben und Dachflächenfenster</h3>
+
+<p>Beides sind Löcher in der Dachfläche, aber mit gegensätzlicher Wirkung.</p>
+
+<p class="wo">Im Programm: Reiter <b>Dach</b>, Abschnitt <b>Dachöffnungen</b>. Drei Knöpfe setzen das Bauteil in die Raummitte, danach schieben Sie es an seine Stelle.</p>
+
+<h4 id="k6-3-1">6.3.1 Das Dachflächenfenster</h4>
+
+<p>Ein Dachflächenfenster ersetzt ein Stück Dach durch Glas: dieselbe Neigung, dieselbe Himmelsrichtung, nur ein anderer U-Wert und ein g-Wert (Gesamtenergiedurchlassgrad) dazu. An der Hülle ändert es nichts — es tauscht nur Material aus.</p>
+
+<p>Seine Maße sind Breite und Höhe <b>in der Dachebene</b>, so wie sie auf dem Typenschild stehen. Deshalb wird die Fläche nicht über den Kosinus der Neigung umgerechnet. Und deshalb wird sie von der Dachfläche <b>abgezogen</b> und nicht dazugezählt: Wo Glas ist, ist kein Dach.</p>
+
+<h4 id="k6-3-2">6.3.2 Die Gaube</h4>
+
+<p>Eine Gaube tut das Gegenteil: Sie <b>hebt den Raum an</b>. Sie schafft Volumen und Stehhöhe, wo vorher die Schräge war, und bringt drei neue Bauteile mit — die senkrechte Front, zwei Wangen und ein eigenes kleines Dach.</p>
+
+<p>Modelliert wird sie über dieselbe Höhenfunktion wie alles andere: innerhalb ihrer Grundfläche liegt die lichte Höhe höher. Damit stimmen Volumen und Wohnfläche automatisch, ohne dass irgendwo ein Sonderfall gerechnet wird. Die Decke läuft von der Frontkante — dort so hoch wie die Gaube — geradlinig zurück, bis sie hinten wieder auf das Hauptdach trifft.</p>
+
+<table class="tab">
+<caption>Die beiden Gaubenarten</caption>
+<thead><tr><th>Art</th><th>Front</th><th>Dach</th></tr></thead>
+<tbody>
+<tr><td>Schleppgaube</td><td>Waagerechte Oberkante, ein Rechteck.</td><td>Eine Fläche, flacher geneigt als das Hauptdach.</td></tr>
+<tr><td>Giebelgaube</td><td>Läuft in der Mitte spitz zu: Rechteck plus Dreieck darüber.</td><td>Zwei Flächen — ein kleines Satteldach quer zum Hauptdach.</td></tr>
+</tbody>
+</table>
+
+<p>Sie geben Breite, Tiefe und die lichte Höhe der Gaubenfront an, dazu den verglasten Anteil der Front. Bei der Giebelgaube kommt die Höhe der Giebelspitze über der Gaubentraufe hinzu; ohne Angabe leitet das Programm sie aus der Breite ab, mit rund 35° Neigung.</p>
+
+<div class="beispiel">
+<b>Beispiel zum Nachrechnen</b>
+<p>Giebelgaube, 2,00 m breit. Ohne eigene Angabe der Giebelhöhe:</p>
+<p>Giebelhöhe = (2,00 / 2) · tan(35°) = 1,00 · 0,700 = 0,70 m</p>
+<p>Zusätzliche Frontfläche durch das Giebeldreieck = ½ · 2,00 · 0,70</p>
+<p class="ergebnis">= 0,70 m² mehr Front als bei einer Schleppgaube gleicher Breite und Höhe</p>
+</div>
+
+<p>Die Bauteilflächen der Gaube kommen nicht aus dem Raster, sondern aus ihrer Geometrie: Sie stehen am Rand der Grundfläche und wären im Raster nur ungenau zu treffen.</p>
+
+<ul>
+<li><b>Front:</b> Breite mal der Höhe, um die die Gaube über die Dachfläche an ihrer Vorderkante hinausragt — bei der Giebelgaube plus das Dreieck.</li>
+<li><b>Wangen:</b> zweimal das Dreieck zwischen Gaubendecke und Hauptdach. Bei der Schleppgaube ist das exakt, bei der Giebelgaube etwas auf der sicheren Seite.</li>
+<li><b>Gaubendach:</b> die geneigte Fläche von der Front nach hinten bis zum Anschluss an das Hauptdach.</li>
+</ul>
+
+<div class="merke"><b>Merke</b><p>Eine Gaube wird nur dem Raum zugerechnet, in dem ihr <b>Mittelpunkt</b> liegt. Sonst bekämen zwei Räume dieselbe Gaubenfront angerechnet. Wenn Sie eine Gaube genau über eine Trennwand setzen, prüfen Sie also, welchem Raum sie zugefallen ist.</p></div>
+
+<div class="baustelle"><b>Auf der Baustelle heißt das</b><p>Die Gaube ist selten die günstigste Lösung für Stehhöhe. Ein halber Meter mehr Kniestock bringt über den ganzen Grundriss dasselbe wie eine Gaube an einer Stelle — und kostet keine drei zusätzlichen Bauteile in der Hülle. Wechseln Sie am Regler einmal zwischen 0,50 m und 1,00 m Kniestock hin und her und lesen Sie die Wohnfläche daneben ab.</p></div>
+
+<h3 id="k6-4">6.4 Was davon in den Export geht</h3>
+
+<p>Für die Gegenstelle wird die Dachgeometrie in Bauteilflächen aufgelöst. Aus einem Dachgeschoss werden also nicht „ein Dach“, sondern mehrere Hüllflächen mit je eigener Neigung, Himmelsrichtung und eigenem U-Wert.</p>
+
+<table class="tab">
+<caption>Die Hüllflächen eines Raums unter dem Dach</caption>
+<thead><tr><th>Fläche</th><th>Was übergeben wird</th></tr></thead>
+<tbody>
+<tr><td>Dachfläche, je Himmelsrichtung</td><td>Brutto- und Nettofläche, Neigung, Azimut, U-Wert und Name des Aufbaus, Randbedingung Außenluft. Dachflächenfenster hängen als Öffnungen daran und werden von der Nettofläche abgezogen.</td></tr>
+<tr><td>Giebel</td><td>Als eigene senkrechte Wandfläche mit dem Giebel-U-Wert — nicht als Teil der Wand darunter.</td></tr>
+<tr><td>Kehlbalkendecke</td><td>Als waagerechte Deckenfläche mit eigenem Aufbau, falls eine Kehlbalkenlage gesetzt ist.</td></tr>
+<tr><td>Gaubenfront</td><td>Senkrechte Wandfläche in Fallrichtung des Hauptdachs, mit dem verglasten Anteil als Öffnung darin.</td></tr>
+<tr><td>Gaubenwangen</td><td>Senkrechte Wandfläche, quer zur Front gestellt.</td></tr>
+<tr><td>Gaubendach</td><td>Eigene Dachfläche; ihre Neigung folgt aus Tiefe und Höhenunterschied.</td></tr>
+</tbody>
+</table>
+
+<p>Zusätzlich trägt jeder Raum unter dem Dach einen eigenen Kennwertblock: Neigung, Kniestock, kleinste und größte lichte Höhe, mittlere Höhe, geneigte Dachfläche, waagerechte Deckenfläche, Wohnfläche nach WoFlV, Fläche unter 1,00 m, Dachfensterfläche und das durch Gauben gewonnene Volumen.</p>
+
+<p>Die Modellprüfung sieht sich dieselben Zahlen an und meldet unter anderem einen unplausiblen U-Wert der Dachfläche, eine Kehlbalkenlage unter dem Kniestock, Wandhöhen, die nicht zum Kniestock passen — und den Fall, in dem nach WoFlV weniger als die Hälfte der Grundfläche eines Raums zählt. Das ist kein Fehler, aber meistens ein Hinweis darauf, dass Kniestock oder Neigung noch nicht stimmen. Mehr dazu in <a href="#k7-5">Abschnitt 7.5</a>.</p>
+
+</section>

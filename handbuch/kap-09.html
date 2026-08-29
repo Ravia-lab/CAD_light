@@ -1,0 +1,510 @@
+<section id="kap-09" class="kapitel" data-titel="9 · Das Rohrnetz: zeichnen, auslegen, Armaturen">
+<h2 id="k9">9 · Das Rohrnetz: zeichnen, auslegen, Armaturen</h2>
+<p class="lead">Die Geräte stehen im Plan. Jetzt kommen die Leitungen dazwischen — von Hand gezogen oder auf Knopfdruck ausgelegt, mit Nennweite, Dämmung und den Armaturen, die dazugehören. Aus diesem Netz entsteht später der Rohrnetzbericht.</p>
+
+<p>Die Rohrlänge ist die Größe, an der die halbe Auslegung hängt: sie bestimmt den Druckverlust, damit die Pumpe, damit die Dimension, damit die Wärmeabgabe der Leitung und am Ende die Kosten. In der Praxis wird sie geschätzt — „Luftlinie mal 1,3“ —, und der Schätzfehler wandert unbemerkt durch die ganze Rechnung. Dieses Kapitel beschreibt, wie das Programm die Schätzung durch eine Trasse ersetzt, die man auf dem Plan nachmessen kann.</p>
+
+<h3 id="k9-1">9.1 Trasse und Abschnitt — der Unterschied, auf dem alles aufbaut</h3>
+
+<p>Zwei Wörter, die leicht durcheinandergehen und die im ganzen Bericht auseinandergehalten werden müssen.</p>
+
+<p><b>Eine Trasse</b> ist das, was Sie zeichnen: ein Streckenzug aus Stützpunkten im Grundriss, mit <i>einer</i> Leitungsart, <i>einer</i> Nennweite, <i>einer</i> Dämmstärke und <i>einer</i> Verlegehöhe. Sie ist ein Gegenstand des Modells — Sie können sie anklicken, verschieben, ändern und löschen. Aus den Trassen entsteht der <b>Längenauszug</b>: wie viele Meter DN 20 gedämmt, wie viele Meter DN 15 blank. Das ist die Zahl, die der Einkauf braucht.</p>
+
+<p><b>Ein Abschnitt</b> — in der Fachsprache und im Bericht: eine <b>Teilstrecke</b> — ist etwas anderes. Er ist ein Stück des <i>Fließwegs</i> von der Quelle zu einem Verbraucher, gemessen zwischen zwei Punkten, an denen sich etwas ändert: eine Nennweite, ein Abzweig, ein Richtungswechsel. Ein Abschnitt existiert nicht als gezeichnetes Objekt; er entsteht erst, wenn das Programm das gezeichnete Netz als Graph liest (<a href="#k9-7">Abschnitt 9.7</a>).</p>
+
+<div class="merke"><b>Merke</b><p>Die Trasse ist das, was Sie zeichnen. Die Teilstrecke ist das, was gerechnet wird. Eine Trasse kann viele Teilstrecken tragen — und eine Teilstrecke kann über mehrere Trassen laufen, wenn das Wasser sie hintereinander durchströmt.</p></div>
+
+<p>Der Unterschied ist die Grundlage des ganzen Rohrnetzberichts. Der Längenauszug summiert <b>Trassen</b>. Die Teilstreckentabelle, aus der Druckverlust, Voreinstellwerte und Pumpenauslegung folgen, führt <b>Abschnitte</b> — jeder mit Volumenstrom, Länge, Werkstoff, Abmessung, Geschwindigkeit, Bögen und Armaturen. Wer beide Zahlen nebeneinander sieht und sich wundert, dass sie nicht übereinstimmen, hat gerade den Unterschied gefunden: der Längenauszug zählt jeden Meter einmal, die Teilstreckentabelle zählt einen Stamm, über den fünf Heizkörper versorgt werden, in fünf Wegen mit.</p>
+
+<p>Eine weitere Zahl, die dazugehört: die <b>Kreislänge</b>. Sie ist die doppelte Weglänge von der Quelle zum Verbraucher, weil das Wasser hin und zurück muss. Über sie entsteht der Druckverlust. Ein Heizkörper, der 18 m von der Quelle entfernt hängt, hat eine Kreislänge von 36 m.</p>
+
+<h3 id="k9-2">9.2 Die Leitungsarten: Farbe und Strichart</h3>
+
+<p>Das Programm kennt neun Leitungsarten. Jede hat eine Farbe für den Bildschirm und eine <b>Strichart</b> für das Blatt.</p>
+
+<table class="tab">
+<caption>Die neun Leitungsarten</caption>
+<thead><tr><th>Leitungsart</th><th>Farbe</th><th>Strichart auf dem Blatt</th></tr></thead>
+<tbody>
+<tr><td>Heizung Vorlauf</td><td>Rot</td><td>durchgezogen</td></tr>
+<tr><td>Heizung Rücklauf</td><td>Blau</td><td>gestrichelt</td></tr>
+<tr><td>Trinkwasser warm</td><td>Orange</td><td>strichpunktiert</td></tr>
+<tr><td>Trinkwasser kalt</td><td>Hellblau</td><td>gepunktet</td></tr>
+<tr><td>Zirkulation</td><td>Gelb</td><td>strich-zweipunkt</td></tr>
+<tr><td>Abwasser</td><td>Violett</td><td>lang gestrichelt</td></tr>
+<tr><td>Kältemittel</td><td>Purpur</td><td>strich-zweipunkt kurz</td></tr>
+<tr><td>Zuluft</td><td>Grün</td><td>kurz gestrichelt</td></tr>
+<tr><td>Abluft</td><td>Türkis</td><td>lang-kurz gestrichelt</td></tr>
+</tbody>
+</table>
+
+<!--SYMBOLTAFEL:leitungen-->
+
+<p><b>Warum die Strichart überhaupt existiert.</b> Ein Plan wird kopiert, gefaxt, ausgedruckt und in der Baustellenbude an die Wand geheftet. Spätestens beim zweiten Schwarzweißdruck sind aus Rot, Orange und Purpur drei gleiche Grautöne geworden. Die Strichart überlebt das: durchgezogen, gestrichelt, strichpunktiert und gepunktet sind die vier Strichbilder, die jeder Drucker und jede Kopie überstehen. Weil es neun Leitungsarten gibt und nur vier Grundbilder, sind fünf davon abgewandelt — länger, kürzer, mit einem zweiten Punkt.</p>
+
+<div class="warnung"><b>Achtung</b><p>Diese Zuordnung ist <b>keine Norm</b>. Sie steht in der Legende jedes gedruckten Blattes, und dort muss sie auch gelesen werden. Wer das Blatt an einen Dritten gibt, gibt die Legende mit.</p></div>
+
+<p><b>Auf dem Bildschirm</b> ist es einfacher: dort trägt die Farbe die Unterscheidung. Nur eine Strichart wird auch am Bildschirm gezeigt — der <b>Heizungsrücklauf ist gestrichelt</b>. Der Grund ist praktisch: Vor- und Rücklauf laufen fast immer 5 cm nebeneinander und wären sonst nicht auseinanderzuhalten.</p>
+
+<p>Zwei weitere Darstellungsregeln:</p>
+
+<ul>
+<li><b>Gedämmte Leitungen</b> bekommen einen breiten, blassen Mantel in ihrer Farbe. Man sieht auf einen Blick, was gedämmt ist und was nicht.</li>
+<li><b>Die Nennweite</b> steht als kleines Schild an der Trasse — aber <b>nur am Vorlauf</b>. Vor- und Rücklauf tragen dieselbe Nennweite; beide zu beschriften hieße, bei jedem Abschnitt „DN 20“ zweimal übereinanderzusetzen, und bei kleinem Maßstab wird daraus ein unlesbarer Fleck. Leitungen ohne Gegenstück — Trinkwasser, Zirkulation, Lüftung, Kältemittel — tragen ihre eigene Beschriftung. Das Schild erscheint ab 24 Bildpunkten je Meter, und wenn kein freier Platz gefunden wird, <b>fehlt es</b>: die Nennweite steht vollständig in der Rohrnetzberechnung, und ein Loch im Plan sieht man, einen Fleck hält man für eine Angabe.</li>
+</ul>
+
+<h3 id="k9-3">9.3 Von Hand zeichnen</h3>
+
+<p class="wo">Im Programm: Werkzeug <b>Leitung</b> mit <kbd>L</kbd>, oder Reiter <b>TGA</b> → Abschnitt <b>Rohrnetz</b> → Knopf <b>Verlegen</b>. Die Leitungsart wählen Sie in der Werkzeugleiste darüber; die Farbe im Plan folgt der Auswahl.</p>
+
+<p>Gezeichnet wird durch Klicken: jeder Klick setzt einen Stützpunkt. Beendet wird der Zug auf drei Wegen, und alle drei tun dasselbe — <b>übernehmen</b>:</p>
+
+<ul>
+<li><kbd>Esc</kbd> beendet den Zug.</li>
+<li>Ein zweiter Klick auf denselben Punkt beendet ihn.</li>
+<li><b>Ein Klick auf ein TGA-Objekt</b> schließt die Leitung dort an und beendet den Zug.</li>
+</ul>
+
+<p>Der dritte Weg ist der wichtige. Anfang und Ende rasten auf TGA-Objekte im Umkreis von 45 cm ein, und die Leitung merkt sich, an welchem Objekt sie hängt. Damit ist der Heizkörper <i>angeschlossen</i> — nicht „liegt daneben“, sondern angeschlossen. Diese ausdrückliche Anbindung ist eine Aussage des Planers und wird später von keiner Näherung überstimmt.</p>
+
+<p>Ein Zug mit nur einem Punkt wird verworfen; das Programm sagt es in der Statuszeile.</p>
+
+<p>Beim Anlegen bekommt jede Trasse Vorbelegungen, die Sie im Reiter <b>Objekt</b> ändern:</p>
+
+<table class="tab">
+<caption>Vorbelegungen einer von Hand gezogenen Leitung</caption>
+<thead><tr><th>Leitungsart</th><th>Nennweite</th><th>Dämmung</th><th>Verlegehöhe</th></tr></thead>
+<tbody>
+<tr><td>Zuluft, Abluft</td><td>DN 125</td><td>0 mm</td><td>0,05 m</td></tr>
+<tr><td>Abwasser</td><td>DN 100</td><td>0 mm</td><td>−0,10 m</td></tr>
+<tr><td>Heizung Vorlauf und Rücklauf, Trinkwasser warm</td><td>DN 20</td><td>20 mm</td><td>0,05 m</td></tr>
+<tr><td>alle übrigen</td><td>DN 20</td><td>0 mm</td><td>0,05 m</td></tr>
+</tbody>
+</table>
+
+<p>Die negative Verlegehöhe beim Abwasser ist kein Fehler: eine Grundleitung liegt unter dem Fertigfußboden.</p>
+
+<p>Im Reiter <b>TGA</b> steht unter <b>Rohrnetz</b> der laufende Längenauszug — Meter je Leitungsart, Nennweite und Dämmstärke, dazu die Gesamtsumme. Ein Klick auf eine Zeile wählt die erste Leitung dieser Gruppe im Plan aus. Der Auszug steht bewusst dort und nicht in einem eigenen Reiter: wer Heizkörper setzt, verlegt gleich danach die Leitungen dorthin, und die Frage „wie viele Meter DN 20“ stellt sich genau in diesem Moment.</p>
+
+<h3 id="k9-4">9.4 Automatisch auslegen</h3>
+
+<p class="wo">Im Programm: In der Kopfzeile stehen die beiden Umschalter <b>Neubau</b> und <b>Sanierung</b> und daneben der Knopf <b>Rohrnetz automatisch auslegen</b>. Dieselbe Funktion finden Sie im Reiter <b>Anlage</b> unter <b>Rohrnetz auslegen</b>, dort mit Ergebnisbericht.</p>
+
+<div class="merke"><b>Merke</b><p>Der Ausleger ersetzt <b>nur</b> die von ihm selbst erzeugten Leitungen und Armaturen des aktiven Geschosses. Von Hand gezogene Leitungen bleiben stehen. Wer eine Trasse selbst gelegt hat, hat sich etwas dabei gedacht — das darf ein Knopf nicht wegwischen.</p></div>
+
+<h4 id="k9-4-1">9.4.1 Neubau gegen Sanierung</h4>
+
+<p>Die Wahl steht am Anfang und bestimmt alles Weitere: Trassenführung, Verlegehöhe, zulässige Rohrdurchmesser, Dämmpflicht und die Bauteile, die in den Massenauszug gehen. Es sind <b>nicht zwei Einstellungen desselben Problems, sondern zwei verschiedene Probleme.</b></p>
+
+<table class="tab">
+<caption>Die beiden Verlegearten im Vergleich</caption>
+<thead><tr><th></th><th>Neubau</th><th>Sanierung</th></tr></thead>
+<tbody>
+<tr><td>Wo liegt die Leitung</td><td>auf der Rohdecke im Fußbodenaufbau</td><td>sichtbar an der Wand im Sockelleistenkanal</td></tr>
+<tr><td>Weg</td><td>darf quer durch den Raum, wo das der kürzere Weg ist</td><td>folgt zwangsläufig den Wänden</td></tr>
+<tr><td>Verlegehöhe</td><td>0,02 m über Fertigfußboden</td><td>0,04 m über Fertigfußboden</td></tr>
+<tr><td>Abstand der Rohrachse zur Wandfläche</td><td>50 mm</td><td>50 mm</td></tr>
+<tr><td>Größter Rohraußendurchmesser</td><td>keine Schranke aus der Verlegeart</td><td><b>20 mm</b> — der Kanal misst 40 × 105 mm</td></tr>
+<tr><td>Türöffnungen</td><td>unkritisch, die Leitung läuft unter der Schwelle durch</td><td>der Kanal kann sie nicht durchlaufen — Anwenderentscheidung</td></tr>
+<tr><td>Dämmpflicht: Lage des Abschnitts</td><td>„im Fußbodenaufbau“</td><td>„beheizt“ oder „unbeheizt“, je nach Raum</td></tr>
+<tr><td>Zuschlag je Richtungswechsel</td><td>0,35 m Ersatzweg</td><td>0,10 m Ersatzweg</td></tr>
+</tbody>
+</table>
+
+<p>Zu den 50 mm Wandabstand im <b>Neubau</b>: DIN EN 1264-4 nennt für Flächenheizrohre 50 mm Abstand zu senkrechten Bauteilen, damit das Rohr nicht in der Randfuge und nicht im Randdämmstreifen liegt. Das ist <b>kein unmittelbar einschlägiger Wert</b> — die Norm regelt Flächenheizungen, nicht Anbindeleitungen. Sie ist der nächstliegende belegbare Anhalt; für Anbindeleitungen im Fußbodenaufbau gibt es keinen normierten Mindestabstand.</p>
+
+<p>Zu den 50 mm in der <b>Sanierung</b>: Der handelsübliche Sockelleistenkanal misst 40 × 105 mm. Welche der beiden Kanten im Grundriss erscheint, hängt an der Montage — hochkant ragt er 40 mm in den Raum, flach liegend 105 mm. Der Plan braucht eine Zahl, und gewählt sind 50 mm: das ist die halbe der beiden Kanten, auf 5 mm gerundet, und mit dem Paarabstand von 50 mm liegen Vor- und Rücklauf bei 25 mm und 75 mm — beide innerhalb der 105 mm. Herkunft also: Produktmaß plus Anwendervorgabe, <b>keine Norm.</b></p>
+
+<h4 id="k9-4-2">9.4.2 Was der Ausleger tut — die fünf Schritte</h4>
+
+<p>Die Reihenfolge ist zwingend, denn jeder Schritt braucht das Ergebnis des vorigen: die Dämmdicke hängt am Innendurchmesser, der Innendurchmesser an der Dimension, die Dimension am Volumenstrom, der Volumenstrom an der Frage, wer über diesen Abschnitt versorgt wird. Wer die Reihenfolge dreht, dämmt ein Rohr, das er noch nicht kennt.</p>
+
+<ol>
+<li><b>Quelle und Verbraucher bestimmen.</b> Quelle ist der Wärmeerzeuger, sonst der Verteiler. Verbraucher sind Heizkörper, Röhrenradiator, Unterflurkonvektor und Verteiler.</li>
+<li><b>Die Trasse suchen</b> — von der Quelle zu jedem Verbraucher, mit gemeinsamem Stamm.</li>
+<li><b>Den Volumenstrom je Abschnitt aufsummieren</b> — jeder Abschnitt trägt die Summe der Verbraucher, die über ihn versorgt werden.</li>
+<li><b>Die Dimension wählen</b> — nach zulässiger Geschwindigkeit und Druckgefälle.</li>
+<li><b>Dämmung bestimmen und Armaturen setzen.</b></li>
+</ol>
+
+<p>Am Ende steht ein Bericht: wie viele Verbraucher versorgt sind, wie viele Meter Trasse, wie viele Meter Rohr (Vor- und Rücklauf zusammen) und wie viele Armaturen gesetzt wurden — dazu jede Warnung im Klartext.</p>
+
+<h4 id="k9-4-3">9.4.3 Wie die Trasse gefunden wird</h4>
+
+<p>Das Programm sucht keinen kürzesten Weg — es sucht den <b>verlegbaren</b> Weg. Das ist ein Unterschied: die Güte einer Trasse hängt am Wandabstand und an der Zahl der Bögen, nicht nur an der Länge.</p>
+
+<p><b>Das Raster.</b> Über den begehbaren Bereich — die lichten Raumflächen — wird ein Raster von <b>10 cm</b> gelegt und darauf der beste Weg gesucht. Warum 10 cm und nicht 25 cm: ein feineres Raster findet Wege durch enge Stellen, die ein grobes gar nicht sieht. Eine Tür von 88,5 cm lichter Breite hat bei 25 cm Raster drei Zellen, bei 10 cm neun. Warum nicht 1 cm: ein Zentimeterraster über 20 × 10 m wären zwei Millionen Zellen je Suchlauf — Rechenzeit ohne Gegenwert. Bei sehr großen Grundrissen geht das Programm selbsttätig auf ein gröberes Raster zurück und meldet den Eingriff.</p>
+
+<p><b>Das gedrehte Raster.</b> Das Raster liegt nicht nach Norden, sondern nach der <b>dominanten Wandrichtung</b> des Geschosses. Bei einem Haus, das um 7° gegen die Nordrichtung steht, ist auch das Raster um 7° gedreht. Der Grund ist einfach: eine wandparallele Trasse soll wandparallel <i>sein</i> und nicht in Zehn-Zentimeter-Stufen an der Wand entlangtreppen. Steht das Gebäude weniger als ein halbes Grad schief, wird nicht gedreht — das wäre nur Rundungsrauschen.</p>
+
+<p><b>Die Feinjustierung.</b> Das Raster beantwortet die Frage „wo entlang“. Die Frage „wie genau“ kann es nicht beantworten — eine Rasterzelle ist zehn Zentimeter groß, ein Wandabstand wird in Millimetern gemessen. Deshalb zieht das Programm anschließend jedes wandparallele Trassenstück auf seinen exakten Sollabstand von 50 mm zur Wandfläche und setzt die Enden genau auf Verteiler und Verbraucher. Alle Koordinaten werden auf den <b>Millimeter</b> gerundet — die Einheit, in der auf der Baustelle gemessen wird. Ein Stück, das beim Nachziehen aus dem begehbaren Bereich liefe, bleibt ungezogen: die Feinjustierung schiebt keine Leitung in eine Wand.</p>
+
+<p><b>Der gemeinsame Stamm.</b> Fünfzehn Heizkörper einzeln von der Quelle aus zu versorgen ergäbe einen Stern — fünfzehn Leitungen, die nebeneinander durch denselben Flur laufen. Gebaut wird aber ein Baum: ein dicker Stamm, von dem Stiche abgehen. Das Programm erreicht das mit einem einfachen Griff: <b>eine Kante, die schon von einer anderen Leitung benutzt wird, kostet nur noch 15 % ihres Preises.</b> Die zweite Leitung schmiegt sich damit an die erste an, statt einen eigenen Weg zu suchen. Die Verbraucher werden dabei vom weitesten zum nächsten abgearbeitet: der weiteste legt den Stamm, die näheren hängen sich daran.</p>
+
+<div class="warnung"><b>Achtung</b><p>Das ist eine <b>Heuristik</b> und kein exakt minimaler Baum. Der wäre mathematisch schwer zu finden (ein sogenanntes Steiner-Baum-Problem) und für die Auslegung nicht nötig. Das Programm sagt das in seinen Hinweisen — es behauptet nicht, das Optimum gefunden zu haben, sondern eine gute, nachvollziehbare Trasse.</p></div>
+
+<p><b>Türöffnungen in der Sanierung.</b> Ein Sockelleistenkanal kann eine Türöffnung nicht durchlaufen; dort ist keine Wand, an der er sitzen könnte. In der Praxis wird entweder unter der Schwelle durchgebohrt oder die Zarge umfahren. Es gibt dazu <b>keine Fachregel</b>, aus der sich die Wahl ableiten ließe — sie hängt an Bodenaufbau, Zargenart und Optik und fällt vor Ort.</p>
+
+<p>Das Programm entscheidet sie deshalb nicht. Es macht die Stelle <i>teuer</i>: ein Durchgang wird mit einem Ersatzweg von <b>30 m</b> bewertet. Diese Zahl ist an dem bemessen, was sie schlagen soll — dem üblichen Umweg:</p>
+
+<table class="tab">
+<caption>Warum 30 Meter</caption>
+<thead><tr><th>Umweg statt Durchgang</th><th>Mehrweg</th></tr></thead>
+<tbody>
+<tr><td>um einen Wohnraum 5 × 4 m herum (Umfang 18 m gegen 5 m Durchquerung)</td><td>bis rund 13 m</td></tr>
+<tr><td>um zwei solche Räume herum</td><td>bis rund 26 m</td></tr>
+<tr><td>einmal um ein Einfamilienhaus 12 × 10 m herum (Umfang 44 m)</td><td>bis rund 32 m</td></tr>
+</tbody>
+</table>
+
+<p>30 m liegt über dem Umweg um ein, zwei Räume und noch unter dem Umweg um das ganze Geschoss. Der Durchgang wird also genommen, wenn es <i>keinen</i> vernünftigen anderen Weg gibt, und sonst nicht. Wird er genommen, dann <b>quer</b> auf kürzestem Weg und mindestens 40 mm von der Laibung entfernt — dort sitzt die Zarge. Längs in der Öffnung, also in Schwelle oder Zarge, liegt kein Rohr. Jeder verbleibende Durchgang wird namentlich gemeldet, mit der lichten Breite und den Verbrauchern, die ihn nutzen.</p>
+
+<p>Im <b>Neubau</b> sind Türöffnungen unkritisch — die Leitung läuft unter der Schwelle durch. Sie werden trotzdem aufgeführt, weil dort die Aufbauhöhe und die Bewegungsfuge des Estrichs zu prüfen sind.</p>
+
+<h4 id="k9-4-4">9.4.4 Der Volumenstrom je Abschnitt</h4>
+
+<p>Der Volumenstrom ist die eine Größe, an der alles hängt. Er entsteht nicht am Rohr, sondern am Verbraucher, und wandert von dort rückwärts durch den Baum: <b>jeder Abschnitt trägt die Summe der Verbraucher, die über ihn versorgt werden.</b> Genau dafür liefert die Trassensuche zu jedem Abschnitt die Liste seiner Verbraucher — ohne sie müsste man den Stamm raten.</p>
+
+<div class="formel">
+  <p class="worte">In Worten: Wie viel Wasser durch ein Rohr laufen muss, hängt an zwei Dingen — wie viel Wärme es transportieren soll und wie stark es dabei abkühlen darf. Doppelte Leistung heißt doppelter Volumenstrom. Doppelte Spreizung heißt halber Volumenstrom.</p>
+  <p class="math">V̇ = Q / (ρ · c<sub>p</sub> · Δϑ)</p>
+  <dl class="zeichen">
+    <dt>V̇</dt><dd>Volumenstrom in Kubikmetern je Stunde [m³/h]</dd>
+    <dt>Q</dt><dd>Wärmeleistung [kW]</dd>
+    <dt>ρ</dt><dd>Dichte des Mediums [kg/m³] — griechisch <i>rho</i></dd>
+    <dt>c<sub>p</sub></dt><dd>spezifische Wärmekapazität [kJ/(kg·K)]</dd>
+    <dt>Δϑ</dt><dd>Spreizung, also Vorlauf minus Rücklauf [K] — Delta Theta</dd>
+  </dl>
+</div>
+
+<p>Für Wasser fasst man Dichte und Wärmekapazität zur bekannten Kurzformel zusammen: <b>V̇ [m³/h] = Q [kW] · 0,86 / Δϑ [K]</b>. Die 0,86 ist nicht gegriffen, sondern ausgerechnet — 3600 Sekunden je Stunde geteilt durch die volumetrische Wärmekapazität von Wasser. Das Programm rechnet nicht mit der Faustzahl, sondern mit den Stoffwerten bei der mittleren Systemtemperatur; das Ergebnis liegt nah beieinander.</p>
+
+<div class="beispiel">
+<b>Beispiel zum Nachrechnen</b>
+<p>Zwei Heizkörper hängen am selben Stamm: 1400 W und 900 W. Spreizung 10 K.</p>
+<p>Der Stich zum kleineren trägt nur ihn: 0,9 kW · 0,86 / 10 = <b>0,077 m³/h</b>.</p>
+<p>Der Stamm trägt beide: (1,4 + 0,9) kW · 0,86 / 10 = 2,3 · 0,086 = <b>0,198 m³/h</b>.</p>
+<p>Das Programm rechnet mit den Stoffwerten bei Systemtemperatur und kommt auf 0,078 und 0,199 m³/h.</p>
+<p class="ergebnis">Der Stamm trägt die Summe, der Stich nur seinen eigenen Heizkörper</p>
+</div>
+
+<p><b>Nichts erfinden, auch hier.</b> Ein Heizkörper ohne Normwärmeleistung bekommt keine ausgedachte, sondern fällt mit einer Meldung heraus: „Ohne Leistungsangabe und damit ohne Volumenstrom: …“. Er bleibt unversorgt, bis die Leistung eingetragen ist.</p>
+
+<p>Ein <b>Verteiler</b> hat keine eigene Leistungsangabe. Was er trägt, sagt die Fußbodenheizung: jeder Raum mit Flächenbelegung auf diesem Geschoss hängt an ihm, und seine Last ist die Summe der Raumheizlasten. Vorrang hat die gerechnete Norm-Heizlast; liegt sie nicht vor, rechnet das Programm einen Überschlag und sagt das.</p>
+
+<h4 id="k9-4-5">9.4.5 Die Dimension wählen</h4>
+
+<p>Aus dem Volumenstrom folgt die Nennweite — und zwar über <b>zwei</b> Grenzen zugleich: die Fließgeschwindigkeit und das Druckgefälle. Beide müssen eingehalten werden; maßgebend ist die schärfere.</p>
+
+<p>Die zulässige Geschwindigkeit hängt an der <b>Rolle</b> des Abschnitts im Netz. Ein Rohr im Keller darf schneller strömen als eines an der Wohnzimmerwand, weil dort niemand das Strömungsgeräusch hört.</p>
+
+<table class="tab">
+<caption>Grenzwerte der Dimensionierung</caption>
+<thead><tr><th>Rolle</th><th>Wann</th><th>Größte Geschwindigkeit</th><th>Herkunft</th></tr></thead>
+<tbody>
+<tr><td>Verteilleitung</td><td>versorgt mehr als einen Verbraucher, liegt nicht im beheizten Raum</td><td>1,0 m/s</td><td>SHKwissen: Verteilung im Kellergeschoss 0,4–1,0 m/s</td></tr>
+<tr><td>Verteilleitung im Wohnraum</td><td>versorgt mehr als einen Verbraucher, liegt in einem beheizten Raum</td><td>0,5 m/s</td><td>SHKwissen: Rohrverteilung in bewohnten Räumen 0,2–0,5 m/s</td></tr>
+<tr><td>Anbindeleitung</td><td>versorgt genau einen Verbraucher</td><td>0,4 m/s</td><td>SHKwissen: Heizkörperanschlüsse 0,1–0,4 m/s</td></tr>
+</tbody>
+</table>
+
+<p>Dazu kommt das <b>spezifische Druckgefälle</b> — der Druckverlust je Meter Rohr. Zielwert ist 100 Pa/m, Obergrenze 150 Pa/m. Auch das ist Fachliteratur: BauNetz Wissen nennt 50–100 Pa/m, der VdZ-Leitfaden rechnet sein Beispiel mit 100 Pa/m.</p>
+
+<div class="warnung"><b>Achtung</b><p>Für diese Zahlen gibt es <b>keine Norm.</b> DIN EN 12828 regelt die Wärmeverteilung nur qualitativ. Die Fachliteratur widerspricht sich deutlich — 0,5 gegen 0,8 gegen 1,5 m/s als „Obergrenze Wohnbereich“. Das Programm führt die Werte deshalb als Vorbelegung <i>mit Herkunft</i> und nicht als Konstante, die eine Norm behauptet.</p></div>
+
+<p>Der Werkstoff kommt aus dem Anlagenblatt; ohne Angabe legt das Programm in <b>Mehrschichtverbundrohr</b> aus. Das ist keine Nebensache: bei gleichem Außenmaß hat ein PE-Xa-Rohr 16 × 2,2 nur 11,6 mm licht, ein Verbundrohr 16 × 2 dagegen 12,0 mm. Und der Druckverlust geht mit ungefähr der 4,75-ten Potenz des Durchmessers ein — kleine Unterschiede im Innendurchmesser schlagen groß durch.</p>
+
+<p><b>Die harte Grenze der Sanierung.</b> Der Sockelleistenkanal trägt Rohre bis 20 mm Außendurchmesser. Braucht ein Abschnitt mehr, meldet das Programm einen <b>Fehler</b> und nennt die Zahl der betroffenen Abschnitte: „Für diese Abschnitte einen größeren Aufputzkanal oder eine andere Trasse wählen.“ Es rechnet nicht heimlich kleiner.</p>
+
+<h4 id="k9-4-6">9.4.6 Vorlauf und Rücklauf</h4>
+
+<p>Die Trassensuche liefert <b>einen</b> Weg — die Achse des Rohrpaars. Daraus macht der Ausleger zwei Leitungen, seitlich um je 25 mm versetzt, damit man im Plan zwei Rohre sieht und nicht eines. Der Versatz ist eine reine Parallelverschiebung; er ändert die Länge nicht. Deshalb gilt weiterhin: <b>Rohrlänge = 2 × Trassenlänge.</b></p>
+
+<h3 id="k9-5">9.5 Die zwölf Armaturen und Formstücke</h3>
+
+<p>Eine Armatur sitzt auf einem Abschnitt an einer Stelle, die aus der Trasse folgt: das T-Stück am Abzweig, der Bogen am Richtungswechsel, die Entlüftung am Hochpunkt, die Entleerung am Tiefpunkt. Anders als die Bauteile des Anlagenschemas (<a href="#k11">Kapitel 11</a>) hat sie eine <b>Lage im Grundriss</b>.</p>
+
+<!--SYMBOLTAFEL:armaturen-->
+
+<table class="tab">
+<caption>Die zwölf Armaturen und Formstücke</caption>
+<thead><tr><th>Bauteil</th><th>Wozu</th><th>Wo es sitzt</th></tr></thead>
+<tbody>
+<tr><td>Absperrarmatur (Kugelhahn)</td><td>Trennt einen Anlagenteil vom Netz, damit er ohne Entleerung der ganzen Anlage gewartet werden kann.</td><td>Am Verteiler, in Vor- und Rücklauf</td></tr>
+<tr><td>Thermostatventil</td><td>Regelt die Raumtemperatur selbsttätig.</td><td>Im Vorlaufanschluss jedes Heizkörpers</td></tr>
+<tr><td>Rücklaufverschraubung</td><td>Absperrt und voreinstellt den Heizkörperrücklauf; sie trägt den Einstellwert des hydraulischen Abgleichs.</td><td>Am Heizkörperrücklauf, 12 cm neben dem Thermostatventil</td></tr>
+<tr><td>Strangregulierventil</td><td>Drosselt einen Strang auf seinen Sollvolumenstrom.</td><td>Am Strangfuß</td></tr>
+<tr><td>Differenzdruckregler</td><td>Hält den Differenzdruck im Strang konstant.</td><td>Am Strangfuß, statt des Regulierventils</td></tr>
+<tr><td>Entlüftung</td><td>Dort sammelt sich die Luft, die im Wasser gelöst war.</td><td>Am höchsten Punkt des Netzes</td></tr>
+<tr><td>Entleerung</td><td>Nur dort läuft die Anlage vollständig leer.</td><td>Am tiefsten Punkt des Netzes</td></tr>
+<tr><td>Festpunkt</td><td>Begrenzt die Strecke, über die sich das Rohr ausdehnen darf.</td><td>In der Mitte gerader Strecken über 10 m</td></tr>
+<tr><td>Dehnungsbogen</td><td>Nimmt die Längenänderung des Rohres auf, ohne sie an die Befestigung weiterzugeben.</td><td>Zwischen zwei Festpunkten</td></tr>
+<tr><td>T-Stück</td><td>Abzweig — hier teilt sich der Volumenstrom.</td><td>Wo mehr als zwei Abschnitte zusammentreffen</td></tr>
+<tr><td>Bogen</td><td>Richtungswechsel der Trasse.</td><td>An jedem Knick</td></tr>
+<tr><td>Schmutzfänger</td><td>Hält Partikel zurück, bevor sie in Pumpe, Ventil oder Wärmetauscher gelangen.</td><td>Vor Pumpe, Regelventil oder Wärmetauscher</td></tr>
+</tbody>
+</table>
+
+<h4 id="k9-5-1">9.5.1 Welche der Ausleger von selbst setzt</h4>
+
+<table class="tab">
+<caption>Was der Rohrausleger setzt und mit welcher Begründung</caption>
+<thead><tr><th>Bauteil</th><th>Stelle</th><th>Begründung im Programm</th></tr></thead>
+<tbody>
+<tr><td>Absperrung</td><td>am Verteiler</td><td>Vor- und Rücklauf des Verteilers absperrbar — anerkannte Regel der Technik, keine Normpflicht belegt.</td></tr>
+<tr><td>Thermostatventil</td><td>an jedem Heizkörper</td><td>§ 63 GEG/GModG — selbsttätig wirkende Einrichtung zur raumweisen Regelung der Raumtemperatur.</td></tr>
+<tr><td>Rücklaufverschraubung</td><td>12 cm daneben</td><td>Absperrung und Voreinstellung am Heizkörperrücklauf — Fachgebrauch, keine Normpflicht belegt.</td></tr>
+<tr><td>T-Stück</td><td>an jedem Abzweig</td><td>Abzweig der Trasse — an dieser Stelle teilt sich der Volumenstrom.</td></tr>
+<tr><td>Entlüftung</td><td>am höchsten Punkt</td><td>Luft sammelt sich dort. Anerkannte Regel der Technik.</td></tr>
+<tr><td>Entleerung</td><td>an der Quelle</td><td>Tiefster Punkt des Netzes. Anerkannte Regel der Technik.</td></tr>
+<tr><td>Festpunkt</td><td>Mitte jeder geraden Strecke über 10 m</td><td>Über zehn Meter ohne Richtungswechsel: Dehnungsausgleich nötig.</td></tr>
+</tbody>
+</table>
+
+<p>Zwei Sätze dazu, die man ernst nehmen sollte:</p>
+
+<p><b>Zur Entlüftung und Entleerung:</b> Beides ist anerkannte Regel der Technik. Der Wortlaut der DIN EN 12828 dazu ist kostenpflichtig und wurde nicht überprüft — deshalb steht in der Begründung „Regel der Technik“ und keine Fundstelle. Das Programm gibt vor, was es belegen kann, und nicht mehr.</p>
+
+<p><b>Zum Festpunkt:</b> Das Programm meldet die <i>Stelle</i>, es bemisst den Dehnungsausgleich <b>nicht</b>. Die Materialkonstante der Biegeschenkelformel ist herstellerspezifisch und für die meisten Werkstoffe nicht öffentlich normiert. Wie lang der Schenkel sein muss, entscheiden Sie mit den Unterlagen des Systemherstellers.</p>
+
+<p><b>Strangregulierventil, Differenzdruckregler, Dehnungsbogen, Schmutzfänger und Bogen</b> setzt der Ausleger nicht von selbst. Sie gehören ins Netz, wenn die Anlage sie braucht — ein Strangregulierventil etwa an jedem Strangfuß eines Mehrfamilienhauses —, und diese Entscheidung trifft der Planer.</p>
+
+<h4 id="k9-5-2">9.5.2 Warum zwei Armaturen nie aufeinander sitzen</h4>
+
+<p>Bis zu einer früheren Fassung setzte der Ausleger Thermostatventil und Entlüftung auf <i>denselben</i> Punkt — beide auf den Anschlusspunkt des Heizkörpers. Rechnerisch war das folgenlos; im Grundriss lagen zwei Symbole exakt aufeinander und ergaben ein Zeichen, das es nicht gibt.</p>
+
+<p>Heute halten zwei Armaturen mindestens <b>12 cm</b> Abstand. Ausgewichen wird <b>entlang der eigenen Leitung</b> und nicht quer dazu — eine Armatur sitzt <i>auf</i> dem Rohr, und seitlich versetzt läge sie daneben. Jeder Ausweichpunkt wird geprüft: Bleibt dieselbe Leitung die nächste? Bleibt der Abstand unter 40 cm? Hält er das nicht, wird er verworfen. Findet sich gar kein Punkt, bleibt die Armatur, wo sie ist.</p>
+
+<div class="merke"><b>Merke</b><p>Zwei Symbole übereinander sind ein Schönheitsfehler. Eine Armatur an der falschen Leitung ist eine falsche Rechnung. Deshalb entscheidet die Zuordnung und nicht die Optik.</p></div>
+
+<h4 id="k9-5-3">9.5.3 Jede Armatur muss ihre Leitung kennen</h4>
+
+<p>Das ist der wichtigste Absatz dieses Abschnitts. Jede Armatur trägt eine Kennung, die sagt, zu welcher Leitung sie gehört. Der hydraulische Abgleich findet sie <b>ausschließlich</b> über diese Kennung.</p>
+
+<p>Fehlt sie, kommt die Armatur in der Rechnung schlicht nicht vor. Ein Netz mit acht Absperrungen, zwei Schmutzfängern und einem Abzweig wird dann gerechnet, als gäbe es sie nicht — und der ungünstigste Strang fällt <b>zu günstig</b> aus. Das ist die tückischste Art von Fehler: die Anlage sieht auf dem Papier besser aus, als sie ist, und niemand sucht nach einem Fehler, der die Zahlen schöner macht. Genau das war der Befund einer früheren Fassung.</p>
+
+<p>Der Ausleger ordnet deshalb jede erzeugte Armatur der nächstliegenden <b>Vorlaufleitung</b> zu, wenn sie höchstens 50 cm entfernt ist. Warum ausgerechnet dem Vorlauf: Vor- und Rücklauf liegen 5 cm nebeneinander, und eine Armatur, die je nach Rundung mal dem einen und mal dem anderen zufällt, wäre keine stabile Angabe.</p>
+
+<p>Beim Rechnen wird die Armatur dann noch dem <i>Abschnitt</i> zugeordnet, dessen Achse ihr am nächsten liegt — mit einer Schranke von 40 cm, damit ein Ventil an einer langen Leitung nicht einem Abschnitt am anderen Ende zufällt.</p>
+
+<div class="warnung"><b>Achtung</b><p>Eine Armatur, die Sie von Hand weit von der Leitung wegziehen, verliert ihre Zuordnung. Sie steht dann als Symbol im Plan, geht aber in keinen Druckverlust ein. Wenn Ihnen der ungünstigste Strang verdächtig günstig vorkommt, ist das die erste Stelle zum Nachsehen.</p></div>
+
+<h4 id="k9-5-4">9.5.4 Was eine Armatur an Widerstand kostet</h4>
+
+<p>Jedes Einbauteil im Strömungsweg kostet Druck. Beschrieben wird das mit dem <b>Widerstandsbeiwert ζ</b> (griechisch <i>zeta</i>) — einer dimensionslosen Zahl, die sagt, wie viele „Geschwindigkeitshöhen“ das Bauteil verschluckt. Die Rechnung selbst steht in <a href="#k13">Kapitel 13</a>; hier die Werte, mit denen das Programm die gezeichneten Armaturen ansetzt:</p>
+
+<table class="tab">
+<caption>Widerstandsbeiwerte der gesetzten Armaturen</caption>
+<thead><tr><th>Bauteil</th><th>Angesetzt als</th><th>ζ</th><th>Anmerkung</th></tr></thead>
+<tbody>
+<tr><td>Absperrarmatur</td><td>Kugelhahn, voller Durchgang</td><td>0,3</td><td>Bei vollem Durchgang praktisch ein Rohrstück. Das alte Geradsitzventil hätte ζ = 4 — für einen Neubau die falsche Annahme.</td></tr>
+<tr><td>Strangregulierventil</td><td>voll offen</td><td>3,0</td><td>Voreingestellt ist der Wert bewusst höher — das ist der Zweck der Armatur.</td></tr>
+<tr><td>Schmutzfänger</td><td>sauberes Sieb</td><td>3,0</td><td>Ein zugesetztes Sieb ist der häufigste Grund für eine Anlage, die plötzlich nicht mehr fördert.</td></tr>
+<tr><td>T-Stück</td><td>Abzweig</td><td>1,3</td><td>Die abzweigende Teilströmung muss um 90° umgelenkt werden.</td></tr>
+<tr><td>Bogen</td><td>Bogen 90°</td><td>0,5</td><td>Gepresst oder eng gebogen. Ein weiter Bogen liegt bei rund 0,3.</td></tr>
+<tr><td>Dehnungsbogen</td><td>Pauschalwert</td><td>1,0</td><td>Der Lyra-Bogen liegt je nach Verhältnis Radius zu Durchmesser zwischen 0,6 und 1,6.</td></tr>
+<tr><td>Entlüftung</td><td>Entlüfter am Hochpunkt</td><td>0,1</td><td>Sitzt im Nebenschluss; im Hauptstrom bleibt praktisch nur die Abzweigstelle.</td></tr>
+<tr><td>Festpunkt</td><td>Halterung</td><td>0,0</td><td>Eine Halterung, kein Einbauteil im Strömungsweg.</td></tr>
+<tr><td>Entleerung</td><td>—</td><td>—</td><td>Sitzt im Nebenschluss und hat im Hauptstrom keinen nennenswerten Widerstand.</td></tr>
+</tbody>
+</table>
+
+<p><b>Drei Armaturen stehen bewusst nicht in dieser Tabelle:</b> Thermostatventil, Rücklaufverschraubung und Differenzdruckregler. Das sind die <b>Abgleichorgane</b> selbst. Ihr Druckverlust ist nicht fest, sondern genau das, was der Abgleich ausrechnet — sie hier mitzuzählen hieße, den Drosseldruck zweimal anzusetzen.</p>
+
+<p>Für das Thermostatventil gelten stattdessen zwei Grenzen aus der Fachliteratur, die im Bericht geprüft werden: der Auslegungsdifferenzdruck von 10 kPa (VdZ-Leitfaden nennt 8–10 kPa, IKZ 10–15 kPa) und die Geräuschgrenze von 15 kPa — „zur Vermeidung von Strömungsgeräuschen dürfen Thermostatventile nur bis zu einem maximalen Differenzdruck von 15 kPa betrieben werden“ (VdZ-Leitfaden, S. 32). Der Zusatz „bei Teillast“ ist dabei der eigentliche Punkt: im Teillastfall wandert Druck aus Rohren und festen Widerständen auf das Ventil, und eine Auslegung mit 10 kPa kann bei halbem Volumenstrom auf über 20 kPa laufen.</p>
+
+<h3 id="k9-6">9.6 Die Rohrdämmung nach Anlage 8 GEG</h3>
+
+<p>Eine warme Leitung, die durch einen kalten Raum läuft, heizt den kalten Raum. Deshalb schreibt das Gebäudeenergiegesetz (GEG, in der Fassung des Gebäudemodernisierungsgesetzes GModG) Mindestdicken für die Dämmung vor. Sie stehen in <b>Anlage 8</b>.</p>
+
+<h4 id="k9-6-1">9.6.1 Die Grundtabelle</h4>
+
+<p>Die Grundtabelle hat vier Zeilen. Der maßgebliche Wert ist der <b>lichte Innendurchmesser</b> — nicht die Nennweite und nicht der Außendurchmesser.</p>
+
+<table class="tab">
+<caption>GEG Anlage 8 Nr. 1 a) — Mindestdicke bei λ = 0,035 W/(m·K)</caption>
+<thead><tr><th>Buchstabe</th><th>Innendurchmesser</th><th>Mindestdicke</th></tr></thead>
+<tbody>
+<tr><td>aa)</td><td>bis 22 mm</td><td>20 mm</td></tr>
+<tr><td>bb)</td><td>über 22 bis 35 mm</td><td>30 mm</td></tr>
+<tr><td>cc)</td><td>über 35 bis 100 mm</td><td>gleich dem Innendurchmesser</td></tr>
+<tr><td>dd)</td><td>über 100 mm</td><td>100 mm</td></tr>
+</tbody>
+</table>
+
+<p><b>Was „gleich dem Innendurchmesser“ heißt</b> — in der Praxis oft „100 % der Nennweite“ genannt: Die Dämmschale ist so dick, wie das Rohr innen weit ist. Ein Rohr mit 60 mm licht bekommt 60 mm Dämmung — <b>ringsum</b>, also 60 mm links und 60 mm rechts. Aus einem Rohr von rund 65 mm Außendurchmesser wird damit ein Paket von 185 mm. Wer das beim Einbau nicht bedacht hat, bekommt es in der Schachtplanung zurück.</p>
+
+<div class="warnung"><b>Achtung</b><p>„100 % der Nennweite“ ist die Redewendung, nicht der Gesetzestext. Das Gesetz stellt auf den <b>Innendurchmesser</b> ab, und der weicht je nach Werkstoff um mehrere Millimeter von der Nennweite ab. Das Programm rechnet deshalb nie mit der Nennweite. Ein Beispiel: ein Mehrschichtverbundrohr 26 × 3 hat 20 mm licht und fällt unter aa) — 20 mm Dämmung. Ein Stahlrohr DN 20 hat 21,6 mm licht und fällt gerade noch unter aa). Ein Kupferrohr 28 × 1,5 hat 25 mm licht und fällt schon unter bb) — 30 mm. Dieselbe Ecke des Katalogs, anderthalb Mal so dicke Schale.</p></div>
+
+<h4 id="k9-6-2">9.6.2 Die Abweichungen</h4>
+
+<p>Die Grundtabelle ist der Regelfall. Sechs Buchstaben weichen davon ab, jeder mit eigenen Voraussetzungen:</p>
+
+<table class="tab">
+<caption>Die Abweichungen der Anlage 8</caption>
+<thead><tr><th>Buchstabe</th><th>Fall</th><th>Dicke</th></tr></thead>
+<tbody>
+<tr><td>ee)</td><td>Wand- und Deckendurchbrüche, Kreuzungen, Verbindungsstellen, zentrale Leitungsnetzverteiler</td><td>die <b>Hälfte</b> der Grundtabelle</td></tr>
+<tr><td>ff)</td><td>Bauteil zwischen beheizten Räumen <b>verschiedener</b> Nutzer, nach dem 31.01.2002 verlegt</td><td>die <b>Hälfte</b></td></tr>
+<tr><td>gg)</td><td>Leitungen nach ff) im Fußbodenaufbau</td><td>fest <b>6 mm</b></td></tr>
+<tr><td>hh)</td><td>an Außenluft grenzend, bei Neueinbau oder Ersatz nach § 69 Abs. 1</td><td>das <b>Doppelte</b></td></tr>
+<tr><td>1 b)</td><td>in beheizten Räumen oder zwischen beheizten Räumen desselben Nutzers, <b>und</b> die Wärmeabgabe ist durch frei liegende Absperreinrichtungen beeinflussbar</td><td><b>keine</b> Anforderung</td></tr>
+<tr><td>1 c)</td><td>Warmwasser-Stichleitung bis 3 l Inhalt, ohne Zirkulation und ohne Begleitheizung, in einem beheizten Raum</td><td><b>keine</b> Anforderung</td></tr>
+</tbody>
+</table>
+
+<p>Warum ee) die Hälfte zulässt, ist baupraktisch: an diesen Stellen ist für die volle Schale schlicht kein Platz, und die betroffene Länge ist kurz.</p>
+
+<h4 id="k9-6-3">9.6.3 Die drei Fallen</h4>
+
+<p>An drei Stellen verfehlen Programme und Faustregeln diese Anlage regelmäßig. Jede hat im Rechenkern eine eigene Verzweigung, und jede wird im Klartext gemeldet.</p>
+
+<p><b>Falle 1: „Rohr im Fußboden, also 6 mm.“ Falsch.</b> Die 6 mm nach gg) gelten <i>nur</i> für Leitungen nach ff) — also für Wärmeverteilungsleitungen zwischen beheizten Räumen <b>verschiedener Nutzer</b>, die dort im Fußbodenaufbau liegen. Der Fall ist das Mehrfamilienhaus: die Steigleitung, die durch den Estrich der fremden Wohnung läuft. Eine Anbindeleitung im Estrich einer Einfamilienwohnung ist keine solche Leitung — für sie gilt die <b>volle</b> Dicke nach aa) bis dd).</p>
+
+<p><b>Falle 2: „Unbeheizter Raum, also halbe Dicke.“ Falsch.</b> Für unbeheizte Räume gibt es <b>keine</b> Ermäßigung. Im Gegenteil: § 69 Abs. 2 macht daraus im Bestand eine <b>Nachrüstpflicht</b> — zugängliche Wärmeverteilungs- und Warmwasserleitungen in unbeheizten Räumen sind nachträglich zu dämmen. Der Fall, in dem die Dämmung am meisten bringt, ist ausgerechnet der, in dem am häufigsten fälschlich halbiert wird.</p>
+
+<p><b>Falle 3: „Zwischen beheizten Räumen, also halbe Dicke.“ Nur bei verschiedenen Nutzern.</b> Beim selben Nutzer greift ff) nicht. Dort gilt entweder die volle Dicke — oder die Leitung ist nach 1 b) sogar ganz frei, aber ausschließlich dann, wenn die Wärmeabgabe durch frei liegende Absperreinrichtungen beeinflussbar ist.</p>
+
+<h4 id="k9-6-4">9.6.4 Was das Programm nicht wissen kann</h4>
+
+<p>Ob zwei Räume verschiedenen Nutzern gehören, ob eine Absperreinrichtung frei liegt, ob eine Stichleitung an der Zirkulation hängt — das steht in keiner Geometrie. Das sind Eingaben.</p>
+
+<p><b>Fehlen sie, wird nicht geraten.</b> Es wird auf der sicheren Seite gerechnet — volle Dicke, keine Befreiung — und die Lücke im Klartext gemeldet. Zum Beispiel: „Ob die Wärmeabgabe dieser Leitung durch frei liegende Absperreinrichtungen beeinflussbar ist, ist nicht angegeben. GEG Anlage 8 Nr. 1 b) würde sie sonst von der Dämmpflicht freistellen; gerechnet wird auf der sicheren Seite mit der vollen Dämmdicke.“</p>
+
+<p><b>Was Anlage 8 gar nicht regelt.</b> Für drei Leitungsarten gibt das Programm ausdrücklich <i>keine</i> Dicke aus, weil eine Zahl hier schlimmer wäre als keine:</p>
+
+<ul>
+<li><b>Trinkwasser kalt</b> — hier geht es nicht um Wärmeverlust, sondern um den Schutz gegen Erwärmung nach DIN 1988-200. Diese Anforderung bestimmt das Programm nicht.</li>
+<li><b>Abwasser</b> — eine Dämmung dient dort dem Schall- und Tauwasserschutz.</li>
+<li><b>Luftkanäle</b> — ihre Dämmung folgt anderen Regeln.</li>
+</ul>
+
+<p><b>Kältemittelleitungen</b> fallen unter § 70 mit Anlage 8 Nr. 2 und haben eine eigene, viel kürzere Tabelle: bis 22 mm innen 9 mm, darüber 19 mm. Die Ermäßigungen der Nummer 1 gelten dort <b>nicht</b> — auch im Durchbruch bleibt es bei der vollen Dicke. Der Tauwasserschutz ist damit nicht nachgewiesen; er ist gesondert zu führen.</p>
+
+<h4 id="k9-6-5">9.6.5 Andere Dämmstoffe: die λ-Umrechnung</h4>
+
+<p>Alle Dicken der Anlage 8 gelten für einen Dämmstoff mit einer Wärmeleitfähigkeit λ (griechisch <i>lambda</i>) von 0,035 W/(m·K). Wer einen besseren oder schlechteren Dämmstoff einsetzt, darf umrechnen — Anlage 8 Nr. 3 ordnet das an.</p>
+
+<div class="formel">
+  <p class="worte">In Worten: Gleichwertig ist nicht die Dicke, sondern der Widerstand, den die Dämmschale dem Wärmestrom entgegensetzt. Ein schlechterer Dämmstoff braucht mehr Dicke, um denselben Widerstand zu erreichen — und weil die Schale ein Ring und keine Platte ist, wächst die nötige Dicke schneller als linear.</p>
+  <p class="math">D<sub>x</sub> = d · (D<sub>35</sub> / d)<sup>λ<sub>x</sub> / 0,035</sup>,  Dicke s = (D − d) / 2</p>
+  <dl class="zeichen">
+    <dt>d</dt><dd>Rohraußendurchmesser [mm]</dd>
+    <dt>D<sub>35</sub></dt><dd>Außendurchmesser der gedämmten Leitung bei λ = 0,035 [mm]</dd>
+    <dt>D<sub>x</sub></dt><dd>derselbe Wert für den tatsächlichen Dämmstoff [mm]</dd>
+    <dt>λ<sub>x</sub></dt><dd>Wärmeleitfähigkeit des tatsächlichen Dämmstoffs [W/(m·K)]</dd>
+  </dl>
+</div>
+
+<div class="beispiel">
+<b>Beispiel zum Nachrechnen</b>
+<p>Kupferrohr 22 × 1: Außendurchmesser 22 mm, innen 20 mm. Nach aa) sind das 20 mm Dämmung, also D<sub>35</sub> = 22 + 2 · 20 = 62 mm.</p>
+<p><b>Schlechterer Dämmstoff, λ = 0,040:</b> Exponent 0,040/0,035 = 1,142857. ln(62/22) = 1,0360919; mal 1,142857 = 1,1841051. D<sub>x</sub> = 22 · e<sup>1,1841051</sup> = 71,89 mm. Dicke = (71,89 − 22)/2 = 24,95 mm.</p>
+<p><b>Besserer Dämmstoff, λ = 0,030:</b> Exponent 0,857143. 1,0360919 · 0,857143 = 0,8880788. D<sub>x</sub> = 22 · e<sup>0,8880788</sup> = 53,47 mm. Dicke = (53,47 − 22)/2 = 15,74 mm.</p>
+<p class="ergebnis">Statt 20 mm: aufgerundet 25 mm bei λ = 0,040 · aufgerundet 16 mm bei λ = 0,030</p>
+</div>
+
+<p><b>Aufgerundet wird immer</b>, und zwar auf ganze Millimeter. Eine <i>Mindest</i>dicke darf nicht unterschritten werden; kaufmännisches Runden würde aus 24,95 mm eine 24er-Schale machen und die Anforderung verfehlen.</p>
+
+<div class="warnung"><b>Achtung</b><p>Anlage 8 Nr. 3 ordnet die Umrechnung an, <b>nennt aber keine Formel</b> und verweist auf die anerkannten Regeln der Technik. Welche Norm ein Prüfer ansetzt, ließ sich nicht belegen — DIN EN ISO 12241 und VDI 2055-1 kommen beide in Frage. Das Programm rechnet mit der üblichen Zylinderformel und kennzeichnet jedes umgerechnete Ergebnis als solches. Stimmen Sie den Weg mit dem Prüfenden ab.</p></div>
+
+<p>Umgekehrt gibt es die <b>Öffnungsklausel</b> nach Nr. 4: Eine geringere Dicke ist zulässig, wenn die Gleichwertigkeit nachgewiesen ist — etwa bei asymmetrischen Kompakt-Dämmhülsen mit allgemeiner bauaufsichtlicher Zulassung. Das Programm kann eine Gleichwertigkeit nicht prüfen. Es übernimmt die Angabe, führt den Nachweis im Bericht mit und meldet dazu: der Nachweis ist beizubringen und den Bauunterlagen beizufügen.</p>
+
+<h3 id="k9-7">9.7 Das Netz als Graph</h3>
+
+<p>Bis hierher ist das Rohrnetz eine Sammlung von Polylinien — gut für den Längenauszug, wertlos für alles andere. Für den hydraulischen Abgleich zählt aber nicht die Summe der Meter, sondern <b>welcher Verbraucher wie weit von seiner Quelle entfernt hängt</b>. Der ungünstigste Strang bestimmt die Pumpe, und jeder Voreinstellwert folgt aus Länge und Nennweite bis dorthin.</p>
+
+<p>Diese Angaben stecken bereits in der Zeichnung. Sie müssen nur als <b>Graph</b> gelesen werden statt als Striche — als ein Netz aus Knoten und Kanten. Das geschieht in drei Schritten.</p>
+
+<h4 id="k9-7-1">9.7.1 Schritt 1: Punkte verschmelzen</h4>
+
+<p>Alle Stützpunkte aller Leitungen werden zu einem Knoten zusammengefasst, wenn sie näher als <b>6 cm</b> beieinander liegen. Beim Zeichnen wird zwar gefangen, aber exakt gleiche Koordinaten sind trotzdem die Ausnahme — und zwei Leitungen, die im Plan zusammenstoßen, im Modell aber 3 mm auseinanderliegen, sind hydraulisch getrennt.</p>
+
+<p>Wichtig: <b>Gemessen wird an den gezeichneten Punkten, nicht an den verschmolzenen Knoten.</b> Sonst wichen Strangschema und Längenauszug um genau den Fangabstand voneinander ab — zwei Zahlen im selben Dokument, die sich widersprechen.</p>
+
+<p>TGA-Objekte werden auf zwei Wegen angebunden. <b>Zuerst</b> gelten die ausdrücklichen Anbindungen aus dem Zeichnen — wer beim Verlegen auf ein Symbol geklickt hat, hat eine Aussage getroffen, und die wird von keiner Näherung überstimmt. <b>Danach</b> wird über die Nähe zugeordnet: ein Symbol, das im Umkreis von <b>30 cm</b> sichtbar an der Leitung klebt, gilt als angeschlossen, auch wenn beim Zeichnen nicht gefangen wurde.</p>
+
+<h4 id="k9-7-2">9.7.2 Schritt 2: Steigstränge verbinden Geschosse</h4>
+
+<p>Ein <b>Steigstrang</b> ist die senkrechte Verbindung zwischen zwei Geschossen — die Leitung, die im Schacht nach oben läuft. Im Grundriss ist er ein Punkt, und deshalb braucht er ein eigenes Symbol.</p>
+
+<p>Liegen zwei Steigstrangsymbole in zwei verschiedenen Geschossen im Umkreis von <b>35 cm</b> übereinander, ist es dieselbe Leitung. Das Programm verbindet sie; die Länge der Verbindung ist der Höhenunterschied der beiden Geschosse. Ohne diesen Schritt endete jeder Strang an der Geschossdecke, und ein Heizkörper im Obergeschoss wäre „nicht angeschlossen“, obwohl der Plan das Gegenteil zeigt.</p>
+
+<p>Es gibt zwei Arten: den <b>Steigstrang Heizung</b> und den <b>Fallstrang</b> (Sanitär). Sie werden getrennt geführt, weil ein Abwasserfallrohr und eine Heizungssteigleitung nicht dasselbe Netz sind.</p>
+
+<h4 id="k9-7-3">9.7.3 Schritt 3: Der Weg von der Quelle</h4>
+
+<p>Von allen Quellen zugleich läuft eine Wegsuche los — ein Verfahren, das den kürzesten Weg zu jedem Punkt eines Netzes findet (nach seinem Erfinder Dijkstra benannt). Weil alle Quellen gleichzeitig starten, bekommt jeder Verbraucher die <b>nächstgelegene</b> Quelle. Das ist genau die Zuordnung, die ein Installateur auch treffen würde.</p>
+
+<table class="tab">
+<caption>Wer Quelle ist und wer Verbraucher</caption>
+<thead><tr><th>Rolle</th><th>Objekte</th></tr></thead>
+<tbody>
+<tr><td>Quelle</td><td>Heizkreisverteiler, Wärmeerzeuger, Warmwasserbereiter, Lüftungsgerät</td></tr>
+<tr><td>Verbraucher</td><td>Heizkörper, Röhrenradiator, Unterflurkonvektor, Fußbodenheizkreis, WC, Waschtisch, Dusche, Badewanne, Spüle, Zuluftventil, Abluftventil</td></tr>
+<tr><td>Verbindung zwischen Geschossen</td><td>Steigstrang Heizung, Fallstrang</td></tr>
+</tbody>
+</table>
+
+<p>Zu jedem Verbraucher steht danach fest: über welche Quelle er versorgt wird, die einfache Weglänge, die Kreislänge (hin und zurück), der Höhenversatz zur Quelle mit Geschosslage, die <b>kleinste Nennweite auf dem Weg</b> — das ist der Engpass — und die Folge der Abschnitte in Fließrichtung, jeder mit Länge, Nennweite, Dämmung, Werkstoff, Bögen und Armaturen.</p>
+
+<h4 id="k9-7-4">9.7.4 Wie Bögen gezählt werden</h4>
+
+<p>Ein Bogen entsteht dort, wo das Wasser die Richtung wechselt. Das ist eine Eigenschaft des <b>Fließwegs</b> und nicht der gezeichneten Polylinie — und der Unterschied ist folgenreich: der Rohrausleger legt jede Trassenstrecke als eigene Leitung mit genau zwei Stützpunkten an. Zählte man nur innere Stützpunkte, hätte ein Netz mit zehn Richtungswechseln null Bögen. Genau dieser Fehler hat eine frühere Fassung günstiger rechnen lassen als ihre Vorgängerin, obwohl mehr Physik im Spiel war.</p>
+
+<p>Gezählt wird deshalb am Weg: Ein Abschnitt bekommt einen Bogen, wenn seine Richtung um mehr als <b>15°</b> von der des vorigen abweicht. Die Schranke trennt den Bogen vom Zeichenrauschen — ein millimeterweise versetzter Stützpunkt auf einer geraden Strecke schließt Bruchteile eines Grades ein und ist kein Formstück.</p>
+
+<p>Zwei Sonderfälle:</p>
+<ul>
+<li><b>Der erste Abschnitt</b> eines Wegs bekommt keinen Bogen — davor ist ein Anschluss und nichts, was die Richtung wechseln könnte. Der Anschlusswiderstand steckt im Verbraucher selbst.</li>
+<li><b>Ein Steigstrang</b> bekommt <b>zwei</b> Bögen: unten aus der Waagerechten in die Senkrechte, oben zurück. Seine beiden Knoten liegen im Grundriss übereinander; aus ihrer Lage ließe sich keine Richtung ableiten.</li>
+</ul>
+
+<h4 id="k9-7-5">9.7.5 Die Strangliste</h4>
+
+<p class="wo">Im Programm: Reiter <b>TGA</b> → Abschnitt <b>Stränge</b>.</p>
+
+<p>Der Längenauszug darüber beantwortet die Frage des Einkaufs; diese Liste beantwortet die des Hydraulikers. Sie zeigt je Verbraucher die Kreislänge und die kleinste Nennweite auf dem Weg, sortiert nach Kreislänge. <b>Die oberste Zeile ist der ungünstigste Strang, und der bestimmt die Pumpe.</b> Sie ist mit einem Dreieck gekennzeichnet.</p>
+
+<p>Darunter stehen die Verbraucher, die an <b>keinem</b> Strang hängen — rot, mit Grund. Das ist der häufigste Planungsfehler und die eigentliche Auskunft dieser Liste.</p>
+
+<p>In der Kopfzeile steht, wie viele Quellen es gibt und wie viele Steigstränge Geschosse verbinden.</p>
+
+<div class="merke"><b>Merke</b><p>Angegeben ist die <b>Kreislänge</b> — hin und zurück. Über sie entsteht der Druckverlust. Die eigentliche Rechnung — Reynoldszahl, Rohrreibungszahl, Einzelwiderstände, Voreinstellwerte, Pumpenauslegung — steht in <a href="#k13">Kapitel 13</a>, der Nachweis daraus in <a href="#k14">Kapitel 14</a> und <a href="#k15">Kapitel 15</a>.</p></div>
+
+<h3 id="k9-8">9.8 Häufige Fehler und ihre Meldungen</h3>
+
+<p>Das Programm meldet in drei Stufen: <b>Fehler</b> (rot) heißt, es kam kein Ergebnis zustande. <b>Warnung</b> (orange) heißt, es gibt ein Ergebnis, aber etwas stimmt nicht oder eine Angabe fehlt. <b>Hinweis</b> ist die Begründung dessen, was gerechnet wurde — Verlegeart, Raster, Sollabstand, Dämmregel. Hinweise sind keine Beanstandungen; sie sind der Beleg.</p>
+
+<table class="tab">
+<caption>Meldungen des Rohrauslegers und was zu tun ist</caption>
+<thead><tr><th>Meldung</th><th>Ursache</th><th>Abhilfe</th></tr></thead>
+<tbody>
+<tr><td>Kein Wärmeerzeuger und kein Verteiler auf diesem Geschoss.</td><td>Es gibt keinen Ausgangspunkt.</td><td>Wärmeerzeuger oder Heizkreisverteiler setzen. Ein Standort wird nicht geraten.</td></tr>
+<tr><td>Keine Verbraucher auf diesem Geschoss.</td><td>Keine Heizkörper, kein weiterer Verteiler.</td><td>Heizkörper setzen oder Fußbodenheizung anlegen und einen Verteiler setzen.</td></tr>
+<tr><td>Keine Räume im Geschoss — ohne lichte Raumflächen gibt es keine begehbare Fläche.</td><td>Die Raumerkennung hat nichts gefunden.</td><td>Wände schließen; siehe <a href="#k4">Kapitel 4</a>.</td></tr>
+<tr><td>Ohne Leistungsangabe und damit ohne Volumenstrom: …</td><td>Heizkörper ohne Normwärmeleistung.</td><td>Leistung am Objekt eintragen. Bis dahin bleibt er unversorgt.</td></tr>
+<tr><td>Der Verteiler liegt in keinem Raum und auch nicht innerhalb von 1,50 m einer Raumfläche.</td><td>Die Quelle steht außerhalb des Grundrisses.</td><td>Verteiler in einen erkannten Raum rücken.</td></tr>
+<tr><td>Verbraucher „…“ ist vom Verteiler aus nicht erreichbar. Der Raum hat keine Tür- oder Durchgangsverbindung.</td><td>Der Raum ist im Modell abgeschlossen.</td><td>Tür oder Durchgang setzen. Ein Fenster ist keine Verbindung.</td></tr>
+<tr><td>Kein Türdurchgang und kein Durchgang im Geschoss gefunden.</td><td>Mehrere Räume ohne jede Verbindung.</td><td>Türen und Durchgänge nachtragen.</td></tr>
+<tr><td>… Abschnitte überschreiten den Sockelleistenkanal (bis 20 mm Außendurchmesser).</td><td>Der Volumenstrom verlangt ein größeres Rohr, als der Kanal trägt.</td><td>Größeren Aufputzkanal wählen, die Trasse anders führen oder auf Neubau-Verlegung umstellen.</td></tr>
+<tr><td>Türdurchgang — Bodendurchführung oder Zargenumfahrung vor Ort entscheiden.</td><td>Die Sanierungstrasse muss durch eine Öffnung.</td><td>Nichts im Programm — das ist ausdrücklich Ihre Entscheidung. Der Hinweis nennt Öffnung, lichte Breite und betroffene Verbraucher.</td></tr>
+<tr><td>Der Leitung fehlt der lichte Innendurchmesser.</td><td>Die Dämmregel kann ohne ihn keine Zeile finden.</td><td>Werkstoff und Abmessung am Abschnitt setzen — die Nennweite reicht nicht.</td></tr>
+</tbody>
+</table>
+
+<p>Dazu die Meldungen der Modellprüfung, die auch ohne Auslegung laufen — sie greifen, sobald überhaupt Leitungen gezeichnet sind. Wer das Rohrnetz gar nicht erfasst, bekommt sie nicht.</p>
+
+<table class="tab">
+<caption>Befunde der Modellprüfung zum Rohrnetz</caption>
+<thead><tr><th>Befund</th><th>Bedeutung</th><th>Abhilfe</th></tr></thead>
+<tbody>
+<tr><td>Es sind Leitungen verlegt, aber kein Verteiler und kein Erzeuger.</td><td>Ohne Quelle lässt sich kein Strang zuordnen.</td><td>Verteiler oder Erzeuger setzen und die Leitungen daran anschließen.</td></tr>
+<tr><td>… hängt an keinem Strang (keine Leitung angeschlossen).</td><td>Das Symbol steht weiter als 30 cm von jeder Leitung entfernt.</td><td>Beim Verlegen auf das Symbol klicken, oder die Leitung bis an das Symbol heranziehen.</td></tr>
+<tr><td>… hängt an keinem Strang (kein Weg zu einer Quelle).</td><td>Die Leitung ist da, aber das Netz ist unterbrochen.</td><td>Die Lücke suchen — meist zwei Enden, die weiter als 6 cm auseinanderliegen, oder ein fehlender Steigstrang.</td></tr>
+<tr><td>… versorgt keinen einzigen Verbraucher.</td><td>Eine Quelle ohne Abnehmer.</td><td>Eine Leitung anschließen oder die Quelle entfernen.</td></tr>
+</tbody>
+</table>
+
+<div class="baustelle"><b>Auf der Baustelle heißt das</b><p>Wenn ein Heizkörper trotz sichtbar angeschlossener Leitung als „nicht angeschlossen“ gemeldet wird, prüfen Sie zwei Dinge: Liegt das Leitungsende wirklich innerhalb von 30 cm am Symbol? Und stoßen die beiden Leitungsenden am Abzweig wirklich zusammen — 6 cm sind die Grenze. Beides sehen Sie im Plan erst, wenn Sie weit genug hineinzoomen. Der zuverlässigste Weg ist, beim Verlegen den letzten Klick auf das Symbol zu setzen; dann steht die Anbindung ausdrücklich im Modell und wird von keiner Näherung mehr in Frage gestellt.</p></div>
+</section>

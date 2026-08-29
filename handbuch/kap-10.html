@@ -1,0 +1,1008 @@
+<section id="kap-10" class="kapitel" data-titel="10 · Die Anlage: Gerät, Speicher, Heizkreise, Trinkwasser, Sicherheit">
+<h2 id="k10">10 · Die Anlage: Gerät, Speicher, Heizkreise, Trinkwasser, Sicherheit</h2>
+<p class="lead">Das Anlagenblatt macht aus einem gezeichneten Haus eine Heizungsanlage: Heizlast, Gerät, Kreise, Puffer, Trinkwasser, Absicherung. Es rechnet in einer festen Reihenfolge, und diese Reihenfolge ist der rote Faden dieses Kapitels.</p>
+
+<p class="wo">Im Programm: Reiter <b>Anlage</b>. Das Blatt hat zwei Betriebsarten. Im einfachen Modus endet es nach der Geräteauswahl mit einer Zusammenfassung in ganzen Sätzen; im Modus <b>Fachplaner</b> stehen alle Abschnitte mit ihren Zwischenwerten da. Dieses Kapitel beschreibt den Fachplaner-Modus.</p>
+
+<h3 id="k10-1">10.1 Die acht Schritte</h3>
+
+<p>Die einzelnen Rechenkerne des Programms wissen nichts voneinander. Der eine rechnet die Heizlast, der nächste sucht ein Gerät, der dritte legt den Speicher aus, der vierte die Rohre, der fünfte die Absicherung. Das ist Absicht — jeder Kern soll für sich prüfbar bleiben. Was sie nicht wissen, ist die <b>Reihenfolge</b>, und die ist nicht beliebig:</p>
+
+<table class="tab">
+<caption>Die acht Schritte der Anlagenauslegung</caption>
+<thead><tr><th>Nr.</th><th>Schritt</th><th>Warum an dieser Stelle</th></tr></thead>
+<tbody>
+<tr><td>1</td><td>Heizlast</td><td>Ohne sie ist alles Weitere eine Vermutung.</td></tr>
+<tr><td>2</td><td>Warmwasserzuschlag und Sperrzeitfaktor</td><td>Beide erhöhen die Leistung, die das Gerät können muss — <em>bevor</em> ein Gerät gewählt wird.</td></tr>
+<tr><td>3</td><td>Gerät</td><td>Ausgewählt wird nach der Leistung im Auslegungspunkt, nicht nach der Nennleistung.</td></tr>
+<tr><td>4</td><td>Heizkreise</td><td>Sie bestimmen Volumenstrom und Wasserinhalt.</td></tr>
+<tr><td>5</td><td>Puffer</td><td>Er folgt aus dem Gerät (Abtauung, Mindestlaufzeit) und aus dem Wasser, das ohnehin schon in der Anlage steht.</td></tr>
+<tr><td>6</td><td>Trinkwasser</td><td>Das Legionellenregime setzt die Speichertemperatur — und die entscheidet, ob das Gerät sie überhaupt erreicht.</td></tr>
+<tr><td>7</td><td>Rohrnetz und Pumpe</td><td>Aus den Volumenströmen der Kreise.</td></tr>
+<tr><td>8</td><td>Sicherheitsausrüstung</td><td>Sie braucht den fertigen Wasserinhalt, also auch den Puffer aus Schritt 5.</td></tr>
+</tbody>
+</table>
+
+<div class="merke"><b>Merke</b><p>Wer die Reihenfolge dreht, bekommt Ergebnisse, die einzeln stimmen und zusammen nicht: einen Wärmetauscher, der für 50 °C ausgelegt wurde, während die Anlage 60 °C fahren muss. Oder ein Ausdehnungsgefäß ohne den Puffer, den der Schritt danach hinzugefügt hat.</p></div>
+
+<p>Das Anlagenblatt rechnet die ganze Kette bei jeder Eingabe neu. Sie tippen eine Vorlauftemperatur um ein Grad herunter und sehen sofort, ob das Gerät noch passt, ob der Puffer kleiner wird und ob das Ausdehnungsgefäß eine Baugröße springt.</p>
+
+<h3 id="k10-2">10.2 Heizlast: drei Quellen, eine Zahl</h3>
+
+<p>Die Heizlast ist die erste Zeile des Blattes. Sie kann aus drei Quellen kommen, und das Programm zeigt oben rechts, welche gegriffen hat:</p>
+
+<table class="tab">
+<caption>Woher die Gebäudeheizlast kommt</caption>
+<thead><tr><th>Anzeige</th><th>Quelle</th><th>Rang</th></tr></thead>
+<tbody>
+<tr><td>eingetragen</td><td>Sie haben die Zahl in das Feld geschrieben, oder RaVia hat sie in das Modell geschrieben.</td><td>schlägt alles andere</td></tr>
+<tr><td>aus RaVia übernommen</td><td>Die Summe der gerechneten Raum-Heizlasten — aber nur, wenn <em>jeder</em> beheizte Raum eine trägt.</td><td>schlägt den Überschlag</td></tr>
+<tr><td>überschlägig</td><td>Der eigene Überschlag aus Fläche, U-Wert und Mindestluftwechsel (siehe <a href="#k7">Kapitel 7</a>).</td><td>der Rückfall</td></tr>
+</tbody>
+</table>
+
+<h4 id="k10-2-1">10.2.1 Warum eine eingetragene Zahl alles abschaltet</h4>
+
+<p>Tragen Sie die Norm-Heizlast ein, rechnen ab diesem Moment <b>alle</b> Folgegrößen mit ihr: der Warmwasserzuschlag, die Geräteauswahl, die Volumenströme der Kreise, das Puffervolumen, die Ausdehnungsrechnung. Der Überschlag ist damit vollständig aus dem Blatt heraus.</p>
+
+<p>Der Grund ist keine Bequemlichkeit, sondern die Vermeidung einer Mischung. Eine Anlage, bei der die Geräteauswahl auf der gerechneten Zahl steht und der Puffer auf dem Überschlag, ist gegen keinen Nachweis mehr zu halten — man kann nicht sagen, welche Zahl gilt. Deshalb schaltet das Feld nicht einen Wert um, sondern ein Verfahren.</p>
+
+<div class="baustelle"><b>Auf der Baustelle heißt das</b><p>Solange keine Norm-Heizlast vorliegt, ist die Auslegung eine Vordimensionierung. Sie taugt für das Angebot, für die Platzreservierung im Technikraum und für die Frage, ob eine 8er oder eine 12er Wärmepumpe hinkommt. Für die Bestellung tragen Sie die gerechnete Zahl ein — der Knopf „zurück zum Überschlag" beziehungsweise „zurück zu den Raumlasten" macht die Eintragung jederzeit rückgängig.</p></div>
+
+<h4 id="k10-2-2">10.2.2 Teildeckung: warum nicht gemischt wird</h4>
+
+<p>Der häufigste Fall in der Praxis ist der halbe: neun von zwölf Räumen tragen eine gerechnete Norm-Heizlast, drei nicht. Das Programm summiert dann <b>nicht</b>. Es fällt für die Gebäudeheizlast auf den Überschlag zurück und sagt, welche Räume fehlen.</p>
+
+<p>Die Begründung steht im Hinweistext des Blattes: eine Summe aus gerechneten und überschlagenen Räumen wäre weder Norm-Heizlast noch Überschlag. Sie ließe sich gegen keine Kennzahl prüfen — die Einordnung in Watt je Quadratmeter setzt ein durchgehendes Verfahren voraus —, und sie wäre im Anlagenbuch nicht redlich zu benennen. „Teilweise Norm" ist kein Nachweis.</p>
+
+<p><b>Raumweise</b> gilt das nicht. Jeder Raum wird mit der besten Zahl ausgelegt, die für ihn vorliegt: hat er eine gerechnete Last, wird der Verlegeabstand seiner Fußbodenheizung danach bestimmt. Dort steht die Zahl für ihren Raum allein und mischt sich mit nichts. Am Heizkreis steht dann als Herkunft „gemischt" — das ist der ehrliche Fall, nicht der verbotene.</p>
+
+<div class="warnung"><b>Achtung</b><p>Steht eine eingetragene Heizlast gegen die Summe der gerechneten Raumlasten und weichen beide um mehr als 5 % voneinander ab, meldet das Blatt beide Zahlen nebeneinander. Gerechnet wird mit der Eintragung. Welche der beiden gilt, entscheidet nicht das Programm — das ist der häufigste Fehler überhaupt: eine stehen gebliebene Vorgabe aus einem früheren Stand, während die Raumlasten längst neu gerechnet sind.</p></div>
+
+<p>Ein zweiter Hinweis erscheint, wenn Räume eine Heizlast tragen, die für einen <b>früheren Modellstand</b> gerechnet wurde. Sie wird weiter verwendet: eine verschobene Innenwand macht die Heizlast des Nachbarraums fraglich, nicht ungültig. Vor der Ausführung gehört sie neu gerechnet.</p>
+
+<h3 id="k10-3">10.3 Die beiden Zuschläge</h3>
+
+<h4 id="k10-3-1">10.3.1 Warmwasserzuschlag</h4>
+
+<p>Eine Wärmepumpe, die nebenbei einen Trinkwasserspeicher lädt, muss dafür Leistung übrig haben. Der Zuschlag dafür ist einfach gehalten:</p>
+
+<div class="formel">
+  <p class="worte">In Worten: je Person im Haus ein fester Leistungsbetrag, abhängig vom Komfortanspruch.</p>
+  <p class="math">Q_WW = Personen · q_P</p>
+  <dl class="zeichen">
+    <dt>Q_WW</dt><dd>Warmwasserzuschlag [kW]</dd>
+    <dt>q_P</dt><dd>0,15 kW/Person bei „sparsam", 0,20 bei „normal", 0,30 bei „komfort"</dd>
+  </dl>
+</div>
+
+<p>Die 0,2 kW je Person sind der Richtwert, mit dem im Ein- und Zweifamilienhaus gerechnet wird. Er stammt aus dem Tagesbedarf, verteilt über den ganzen Tag, und <b>nicht</b> aus einer Norm. Bei kurzer Aufheizzeit oder hohem Komfortanspruch ist er zu klein; dann bestimmt nicht dieser Zuschlag die Gerätegröße, sondern die Speicherladeleistung aus <a href="#k10-11">Abschnitt 10.11</a>.</p>
+
+<p>Gibt es überhaupt kein Warmwasser — null Wohneinheiten oder eine Wärmepumpe, an der die Trinkwasserbereitung abgewählt ist —, entfällt der Zuschlag ganz, und mit ihm der Speicher, das Umschaltventil und der ganze Trinkwasserzweig im Schema. Übrig bleibt eine reine Heizungsanlage.</p>
+
+<h4 id="k10-3-2">10.3.2 Sperrzeitfaktor</h4>
+
+<p>Sperrt der Netzbetreiber die Wärmepumpe, muss sie die ausgefallene Zeit in der verbleibenden nachholen.</p>
+
+<div class="formel">
+  <p class="worte">In Worten: die Leistung wächst im Verhältnis der Tagesstunden zu den nutzbaren Stunden. Bei zweimal zwei Stunden Sperre am Tag bleiben von 24 Stunden 20 — die Leistung steigt um ein Fünftel.</p>
+  <p class="math">f = 24 / (24 − t)</p>
+  <dl class="zeichen">
+    <dt>f</dt><dd>Sperrzeitfaktor [-]</dd>
+    <dt>t</dt><dd>gesperrte Stunden je Tag [h], im Programm auf 0 bis 8 begrenzt</dd>
+  </dl>
+</div>
+
+<p>Der Faktor greift nur, wenn an der aufgestellten Wärmepumpe die Netzregelung „EVU-Sperre 3 × 2 h" gepflegt ist (EVU steht für Energieversorgungsunternehmen) (<a href="#k8">Kapitel 8</a>). Das Programm setzt dann einen Hinweis dazu: seit § 14a des Energiewirtschaftsgesetzes (EnWG) ist statt der vollständigen Sperrung meist eine Leistungsreduzierung auf 4,2 kW vorgesehen — dann entfällt der Faktor.</p>
+
+<div class="beispiel">
+  <b>Beispiel zum Nachrechnen</b>
+  <p>Einfamilienhaus, Norm-Heizlast 8,00 kW, vier Personen, Komfort „normal", keine Sperrzeit.</p>
+  <p>Warmwasserzuschlag: 4 × 0,20 = 0,80 kW. Sperrzeitfaktor: 1,00.</p>
+  <p class="ergebnis">Das Gerät muss können: (8,00 + 0,80) × 1,00 = 8,80 kW</p>
+  <p>Mit zweimal zwei Stunden Sperre wären es f = 24/(24 − 4) = 1,20 und damit 10,56 kW — eine Gerätegröße mehr.</p>
+</div>
+
+<h3 id="k10-4">10.4 Geräteauswahl</h3>
+
+<h4 id="k10-4-1">10.4.1 Typklassen statt Produkte</h4>
+
+<p>Es gibt keine öffentliche, vollständige, maschinenlesbare Datenbank aller Wärmepumpen des deutschen Marktes. Was es gibt, sind Herstellerdatenblätter und Prüfergebnisse einzelner Institute — beides nicht in einer Form, die man ungefragt in ein Programm gießen darf, und beides veraltet mit jeder Baureihenpflege.</p>
+
+<p>Der Katalog dieses Programms enthält deshalb <b>Typklassen statt Produkte</b>. „Monoblock Luft/Wasser R290 8 kW" ist kein Gerät, das man bestellen kann. Es ist die Beschreibung dessen, was ein Gerät dieser Bauart und Größe üblicherweise leistet.</p>
+
+<p>Jede Typklasse trägt die Herkunft „generisch". Sobald ein Datenblatt eingelesen wird, steht dort „hersteller". Damit lässt sich alles tun, was vor der Geräteauswahl kommt — Leistung abschätzen, Platz reservieren, Speicher, Rohre und Pumpe vordimensionieren. Nicht damit tun lässt sich: bestellen, den Schallnachweis führen, die Elektroanmeldung beim Netzbetreiber ausfüllen, eine Gewährleistung darauf stützen.</p>
+
+<div class="warnung"><b>Achtung</b><p>Solange eine Typklasse gewählt ist, steht auf dem Blatt der Satz: „Typklasse, kein Produkt." Er verschwindet erst, wenn ein echtes Datenblatt eingelesen ist. Verschwindet er nicht, gehört keine Bestellnummer und kein Schallgutachten auf diese Auslegung.</p></div>
+
+<p>Jede Zahl im Katalog ist aus einer offengelegten Beziehung <em>abgeleitet</em>, nicht abgeschrieben. Die Leistungskurven folgen den Betriebspunkten nach EN 14511 (A-7/W35, A2/W35, A7/W35, B0/W35, W10/W35), die Jahreseffizienz SCOP — Seasonal Coefficient of Performance, also die jahreszeitbedingte Raumheizungs-Effizienz — folgt EN 14825 für mittleres Klima. Die Kältemitteleigenschaften stammen aus DIN EN 378-1 und der EU-Verordnung 2024/573. Wo eine Beziehung nur ein Erfahrungswert ist, steht das im Katalog dabei.</p>
+
+<h4 id="k10-4-2">10.4.2 Die acht Baureihen</h4>
+
+<p>Der Katalog führt acht Baureihen mit zusammen 45 Baugrößen. Über der Geräteliste sitzt ein Filter „alle Bauarten"; wählen Sie dort eine Baureihe, werden nur deren Größen bewertet.</p>
+
+<table class="tab">
+<caption>Die Baureihen des Katalogs</caption>
+<thead><tr><th>Baureihe</th><th>Baugrößen [kW]</th><th>Kältemittel</th><th>max. Vorlauf</th><th>Was sie ausmacht</th></tr></thead>
+<tbody>
+<tr><td>Monoblock Luft/Wasser R290</td><td>4 · 6 · 8 · 10 · 12 · 14 · 16 · 20 · 25</td><td>R290</td><td>70 °C</td><td>Kältekreis vollständig außen. Kein Kältemittel im Gebäude, dafür Frostschutz oder Entleerung in der Außenleitung.</td></tr>
+<tr><td>Monoblock Luft/Wasser R32</td><td>4 · 6 · 8 · 11 · 14 · 16</td><td>R32</td><td>60 °C</td><td>Die verbreitetste Bauart. Vorlauftemperatur begrenzt — im unsanierten Bestand prüfen.</td></tr>
+<tr><td>Split Luft/Wasser R32</td><td>4 · 6 · 8 · 11 · 14 · 16</td><td>R32</td><td>60 °C</td><td>Kältemittelleitungen ins Gebäude. Kälte-Sachkunde erforderlich, Aufstellraum des Innengeräts nach EN 378 prüfen.</td></tr>
+<tr><td>Hydrosplit Luft/Wasser R290</td><td>5 · 7 · 9 · 12 · 16</td><td>R290</td><td>70 °C</td><td>Kältekreis außen, ins Haus geht Heizungswasser; die Hydraulik sitzt in einer Inneneinheit ohne Verdichter.</td></tr>
+<tr><td>Kompaktgerät R290 mit Trinkwasserspeicher</td><td>5 · 7 · 9 · 12</td><td>R290</td><td>70 °C</td><td>Turmgerät: Inneneinheit mit 190 l Speicher im Sockel. Spart den zweiten Speicher — legt die Speichergröße aber fest.</td></tr>
+<tr><td>Innenaufstellung mit Luftkanälen R290</td><td>6 · 8 · 10 · 12</td><td>R290</td><td>70 °C</td><td>Nach außen fast lautlos, dafür zwei Kanaldurchbrüche à 600 bis 800 mm und ein Aufstellraum nach EN 378.</td></tr>
+<tr><td>Sole/Wasser</td><td>6 · 8 · 10 · 12 · 15 · 17 · 22</td><td>R410A</td><td>62 °C</td><td>Höchste Effizienz, teuerste Quelle. Schall spielt außen keine Rolle, im Technikraum schon.</td></tr>
+<tr><td>Wasser/Wasser</td><td>10 · 15 · 20 · 30</td><td>R410A</td><td>60 °C</td><td>Braucht eine wasserrechtliche Erlaubnis und eine Wasseranalyse. Eisen und Mangan sind der häufigste Ausschlussgrund.</td></tr>
+</tbody>
+</table>
+
+<p>Eine Baureihe fehlt bewusst: „Split Luft/Wasser R290" stand bis Fassung 1.8.1 im Katalog und wurde entfernt. Propan gibt es über den ganzen Markt praktisch nur als Monoblock außen oder als Hydrosplit; ein echter Kältemittel-Split mit Propanleitungen in den Keller wird so gut wie nicht gebaut. Schlimmer war die Wirkung: die Typklasse trug die besten Kennwerte des ganzen Katalogs und gewann die Geräteauswahl regelmäßig — das Programm schlug also bevorzugt ein Gerät vor, das es nicht zu kaufen gibt.</p>
+
+<h4 id="k10-4-3">10.4.3 Die sechs Bauformen</h4>
+
+<p>Die Baureihe sagt, welche Technik im Gerät steckt. Die <b>Bauform</b> sagt, wie sie sich auf Außen- und Innenteil verteilt — und genau daran hängt, was das Anlagenschema zeichnet:</p>
+
+<table class="tab">
+<caption>Bauformen und was draußen steht</caption>
+<thead><tr><th>Bauform</th><th>Außen</th><th>Ins Haus geht</th><th>Innen</th></tr></thead>
+<tbody>
+<tr><td>Monoblock, Außenaufstellung</td><td>vollständiger Kältekreis</td><td>Heizungswasser</td><td>Hydraulikstation</td></tr>
+<tr><td>Split, Außen- und Innengerät</td><td>Verdichter, Verdampfer</td><td>Kältemittel</td><td>Inneneinheit mit Verflüssiger</td></tr>
+<tr><td>Hydrosplit</td><td>vollständiger Kältekreis</td><td>Heizungswasser</td><td>Hydraulikstation ohne Verdichter</td></tr>
+<tr><td>Kompaktgerät mit eingebautem Trinkwasserspeicher</td><td>vollständiger Kältekreis</td><td>Heizungswasser</td><td>Turmgerät mit Speicher im Sockel</td></tr>
+<tr><td>Monoblock, Innenaufstellung mit Luftkanälen</td><td>nichts</td><td>—</td><td>komplettes Gerät, Luft über Kanäle</td></tr>
+<tr><td>Innenaufstellung (Sole/Wasser)</td><td>nichts</td><td>—</td><td>komplettes Gerät, Wärme aus Sonde oder Kollektor</td></tr>
+</tbody>
+</table>
+
+<div class="merke"><b>Merke</b><p>Zu <em>jedem</em> Gerät mit Außeneinheit gehört ein Innenteil. Über den ganzen Markt liefert jeder Hersteller zum Monoblock außen eine Hydraulikstation oder einen Turm mit Pumpe, Umschaltventil, Sicherheitsgruppe, Heizstab und Regelung. Ein Monoblock ohne Innenteil ist kein Regelfall, sondern eine Ausnahme, die man benennen muss.</p></div>
+
+<p>Zwei verschiedene Innenteile bekommen deshalb zwei verschiedene Symbole: beim Splitgerät steht drinnen der Verflüssiger, also ein Kältekreis. Bei Hydrosplit, Monoblock und Turmgerät steht drinnen eine <b>Hydraulikstation ohne Verdichter</b>. Trügen beide dasselbe Symbol mit Verdichterkreis, suchte der Leser einen zweiten Erzeuger.</p>
+
+<h4 id="k10-4-4">10.4.4 Kältemittel, A3 und A2L, Aufstellraum</h4>
+
+<p>Kältemittel werden nach DIN EN 378-1 in Sicherheitsgruppen eingeteilt. Der erste Buchstabe steht für die Giftigkeit (A = geringe), die Ziffer für die Brennbarkeit: <b>A1</b> nicht brennbar, <b>A2L</b> schwer entflammbar (brennbar mit geringer Flammenausbreitung), <b>A3</b> brennbar. GWP heißt Global Warming Potential, zu Deutsch Treibhauspotenzial, bezogen auf Kohlendioxid mit dem Wert 1: ein Kilogramm R410A wirkt in der Atmosphäre wie 2088 kg CO₂, ein Kilogramm Propan wie drei.</p>
+
+<table class="tab">
+<caption>Die Kältemittel im Katalog</caption>
+<thead><tr><th>Kältemittel</th><th>Gruppe</th><th>GWP</th><th>Praktischer Grenzwert</th><th>Anmerkung</th></tr></thead>
+<tbody>
+<tr><td>R290 (Propan)</td><td>A3</td><td>3</td><td>0,008 kg/m³</td><td>Brennbar, dichter als Luft — sammelt sich in Schächten und Kellerabgängen.</td></tr>
+<tr><td>R32</td><td>A2L</td><td>675</td><td>0,061 kg/m³</td><td>Schwer entflammbar. Bei Split-Geräten liegt Kältemittel im Aufstellraum des Innengeräts.</td></tr>
+<tr><td>R410A</td><td>A1</td><td>2088</td><td>0,44 kg/m³</td><td>Nicht brennbar, hoher GWP. Neuanlagen werden durch die F-Gas-Verordnung verdrängt.</td></tr>
+<tr><td>R454C</td><td>A2L</td><td>148</td><td>0,058 kg/m³</td><td>Gemisch mit niedrigem GWP, Verhalten wie R32 in der Aufstellung.</td></tr>
+<tr><td>R744 (CO₂)</td><td>A1</td><td>1</td><td>0,1 kg/m³</td><td>Nicht brennbar, aber erstickend — der Grenzwert kommt aus der Atemluft, nicht aus dem Brandschutz.</td></tr>
+<tr><td>R1234ze</td><td>A2L</td><td>7</td><td>0,061 kg/m³</td><td>Vor allem in Großanlagen und Hochtemperatur-Wärmepumpen.</td></tr>
+</tbody>
+</table>
+
+<p>Für die Aufstellung im Gebäude zählt der <b>praktische Grenzwert</b> nach DIN EN 378-1 Anhang C. Er beantwortet die Frage, wie groß ein Aufstellraum mindestens sein muss:</p>
+
+<div class="formel">
+  <p class="worte">In Worten: die Füllmenge des Geräts geteilt durch den praktischen Grenzwert ergibt das Mindestvolumen des Raumes, in dem das Gerät stehen darf. Je brennbarer das Mittel, desto kleiner der Grenzwert und desto größer der Raum.</p>
+  <p class="math">V_min = m / c_prakt</p>
+  <dl class="zeichen">
+    <dt>V_min</dt><dd>Mindestvolumen des Aufstellraums [m³]</dd>
+    <dt>m</dt><dd>Kältemittelfüllmenge des Geräts [kg]</dd>
+    <dt>c_prakt</dt><dd>praktischer Grenzwert des Kältemittels [kg/m³]</dd>
+  </dl>
+</div>
+
+<div class="beispiel">
+  <b>Beispiel zum Nachrechnen</b>
+  <p>Ein Gerät mit 1,5 kg R290: 1,5 kg / 0,008 kg/m³ = 187,5 m³.</p>
+  <p class="ergebnis">rund 190 m³ Aufstellraum — bei 2,50 m Raumhöhe eine Grundfläche von 75 m²</p>
+  <p>Genau deshalb steht Propan praktisch nie im Keller, sondern draußen. Dasselbe Gerät mit 1,5 kg R32 käme auf 1,5 / 0,061 = 24,6 m³ und passt damit in einen normalen Technikraum.</p>
+</div>
+
+<p>Das Anlagenblatt rechnet diesen Wert selbst und blendet ihn als Warnung ein, sobald ein brennbares Kältemittel bei einer Bauform gewählt ist, die es ins Gebäude bringt. Beim Monoblock außen erscheint die Warnung nicht — dort ist im Haus kein Kältemittel.</p>
+
+<p class="quelle">Grundlage: DIN EN 378-1 (Sicherheitsgruppen, Anhang C praktische Grenzwerte); GWP-Werte nach VO (EU) 2024/573.</p>
+
+<h4 id="k10-4-5">10.4.5 Schall</h4>
+
+<p>Das Blatt zeigt je Gerät die <b>Schallleistung außen</b> in dB(A). Sie wächst mit der Baugröße:</p>
+
+<div class="formel">
+  <p class="worte">In Worten: ein doppelt so großes Gerät bewegt etwa doppelt so viel Luft und wird um rund 3 dB lauter. Weil größere Geräte langsamer drehende Ventilatoren haben, wächst der Pegel in der Praxis schwächer als der reine Verdopplungsansatz.</p>
+  <p class="math">L_WA = L_6 + 10 · lg(P / 6 kW)</p>
+  <dl class="zeichen">
+    <dt>L_WA</dt><dd>Schallleistungspegel [dB(A)]</dd>
+    <dt>L_6</dt><dd>Bezugspegel der Baureihe bei 6 kW [dB(A)], im Katalog 51 bis 53 für Luftgeräte</dd>
+    <dt>P</dt><dd>Nennleistung des Geräts [kW]</dd>
+  </dl>
+</div>
+
+<p>Das ist ein Erfahrungswert, kein Normzusammenhang, und er steht so im Katalog. Geräte ohne Außeneinheit tragen an dieser Stelle <em>nichts</em> statt einer Null — eine Null hieße „gemessen und lautlos"; auf dem Blatt steht „entfällt — keine Außeneinheit".</p>
+
+<p>Der eigentliche Schallnachweis gehört in den Lageplan: dort wird der Beurteilungspegel am maßgeblichen Immissionsort gegen die Immissionsrichtwerte der TA Lärm gerechnet (<a href="#k8">Kapitel 8</a>). Dafür brauchen Sie das Datenblatt des tatsächlichen Geräts.</p>
+
+<h4 id="k10-4-6">10.4.6 Warum nach der Leistung im Auslegungspunkt</h4>
+
+<p>Das ist der Punkt, an dem die meisten Auslegungen schiefgehen. Auf dem Prospekt steht eine <b>Nennleistung</b>, und daneben steht klein der Betriebspunkt, für den sie gilt — meistens A-7/W35: Außenluft −7 °C, Vorlauf 35 °C. Wird das Haus für −12 °C Norm-Außentemperatur ausgelegt und fährt es 45 °C Vorlauf, dann liefert dasselbe Gerät dort deutlich weniger.</p>
+
+<div class="merke"><b>Merke</b><p>Eine „8-kW-Wärmepumpe" liefert 8 kW bei −7 °C. Bei −15 °C sind es nach der Katalogkurve noch 6,9 kW, und bei 55 °C Vorlauf statt 35 °C fallen zusätzlich rund 8 % weg. Ausgewählt wird deshalb nach der Leistung <em>im Auslegungspunkt</em> — nicht nach der Zahl im Produktnamen.</p></div>
+
+<p>Das Programm nimmt dazu die Betriebspunkte des Geräts, sucht die zur geforderten Vorlauftemperatur passende Kurve (unter 45 °C die W35-Kurve, ab 45 °C die W55-Kurve) und interpoliert linear auf die Norm-Außentemperatur des Projekts. Außerhalb der Stützpunkte wird der Randgradient fortgeführt. Für die Vordimensionierung reicht das; die echte Kurve eines Inverters ist abschnittsweise gekrümmt.</p>
+
+<div class="beispiel">
+  <b>Beispiel zum Nachrechnen</b>
+  <p>Typklasse „Monoblock Luft/Wasser R290 8 kW", Norm-Außentemperatur −12 °C, Vorlauf 35 °C.</p>
+  <p>Die Kurve gibt bei A-15/W35 6,9 kW und bei A-7/W35 8,0 kW. Zwischen −15 und −7 °C liegen 8 K, gesucht ist −12 °C, also 3 K über dem unteren Punkt:</p>
+  <p>6,9 + (8,0 − 6,9) · 3/8 = 6,9 + 0,41 = 7,31 kW</p>
+  <p class="ergebnis">7,3 kW im Auslegungspunkt gegenüber 8,80 kW Bedarf — Deckung 83 %</p>
+  <p>Das Blatt schreibt dazu: „knapp — die Restleistung von 1,5 kW muss der Heizstab liefern."</p>
+</div>
+
+<p>Aus der Deckung folgt das Urteil in der Liste:</p>
+
+<table class="tab">
+<caption>Die vier Urteile der Geräteauswahl</caption>
+<thead><tr><th>Urteil</th><th>Bedingung</th><th>Bedeutung</th></tr></thead>
+<tbody>
+<tr><td>passt</td><td>Deckung 98 % bis 145 %</td><td>Das Gerät trägt die Last am kältesten Tag allein.</td></tr>
+<tr><td>überdimensioniert</td><td>Deckung über 145 %</td><td>Es taktet im Teillastbetrieb — jeder Start kostet Arbeitszahl.</td></tr>
+<tr><td>knapp</td><td>Deckung 75 % bis 98 %</td><td>Baubar, aber die Fehlmenge liefert der Heizstab; das Blatt nennt sie in kW.</td></tr>
+<tr><td>zu klein</td><td>Deckung unter 75 %, oder die Vorlauftemperatur wird nicht erreicht</td><td>Scheidet aus.</td></tr>
+</tbody>
+</table>
+
+<p>Die Reihenfolge der Liste folgt einer Bewertung, die auf eine Deckung von rund 110 % zielt: genug Leistung am kältesten Tag, ohne den Verdichter im Winter dauernd in die Taktung zu treiben. Die Bewertung ist bewusst <b>unsymmetrisch</b> — zu wenig Leistung wird doppelt so hart bestraft wie zu viel. Ein zu großes Gerät taktet und kostet Arbeitszahl; ein zu kleines lässt das Haus kalt und heizt die Fehlmenge mit Strom zum Preis von Wärme geteilt durch eins. Ohne diese Gewichtung gewänne bei knappen Verhältnissen regelmäßig das kleinere Gerät um Haaresbreite.</p>
+
+<h4 id="k10-4-7">10.4.7 Die Vorlauftemperatur am kalten Tag</h4>
+
+<p>Die maximale Vorlauftemperatur ist keine einzelne Zahl. Der Prospektwert gilt bei Nennbedingungen; am kalten Tag liegt er bei mehreren Herstellern rund 10 K niedriger — Buderus schreibt etwa „75 °C (65 °C bei −10 °C)". Ausgerechnet am Auslegungspunkt zählt der niedrigere Wert.</p>
+
+<p>Führt ein eingelesenes Datenblatt diesen zweiten Wert, wird damit gerechnet. Tut es das nicht und verlangt die Anlage mehr als 45 °C Vorlauf, setzt das Blatt eine Warnung: die Prospektangabe gilt bei Nennbedingungen, für den Auslegungsvorlauf ist im Datenblatt nachzusehen. Reicht die Temperatur nachweislich nicht, wird daraus ein Fehler: „Das Gerät erreicht 60 °C, der wärmste Kreis verlangt 65 °C."</p>
+
+<h4 id="k10-4-8">10.4.8 Datenblatt einlesen</h4>
+
+<p class="wo">Im Programm: Reiter <b>Anlage</b> → Abschnitt <b>Gerät</b> → Knopf <b>Datenblatt einlesen</b>. Daneben liegt <b>Vorlage</b>: eine leere CSV-Datei mit allen erkannten Spalten und einer Beispielzeile.</p>
+
+<p>Der Import liest CSV- und JSON-Dateien so, wie sie in der Praxis entstehen: aus einem Prospekt in Excel übertragen, aus einem Konfigurator exportiert, aus einer Ausschreibungsliste kopiert. Solche Dateien sind nie sauber — Semikolon oder Komma als Trennzeichen, deutsche oder englische Zahlen, Einheiten mitten in den Zellen, Umlaute als „ae" geschrieben, doppelte Spalten, eine Zeile mit einer Spalte zu viel.</p>
+
+<div class="merke"><b>Merke</b><p>Der Import übernimmt <b>nichts still</b>. Sein Ergebnis ist ein Bericht: je Zeile steht darin, welches Feld aus welcher Spalte kam, wie sicher die Zuordnung war, welche Pflichtangabe fehlt und welcher Wert unplausibel ist. Erst eine saubere Zeile gilt als übernehmbar.</p></div>
+
+<p>Der Grund für die Strenge ist der Kennzeichnungswechsel: eine Typklasse ist ungenau, aber als ungenau gekennzeichnet — ein eingelesenes Datenblatt mit einem Zahlendreher trägt dagegen die Herkunft „hersteller" und sieht belastbarer aus, als es ist. Nach dem Einlesen steht auf dem Blatt „x von y übernommen" mit den Beanstandungen darunter; die übernommenen Geräte stehen ab sofort in der Auswahlliste neben den Typklassen und werden mit demselben Verfahren bewertet.</p>
+
+<h3 id="k10-5">10.5 Was im Gerät schon drin ist</h3>
+
+<p>Dieselbe Bauform kann die Umwälzpumpe drinnen oder draußen haben: Vaillants aroTHERM plus hat sie in der Außeneinheit, Buderus' WLW176i in der Inneneinheit. Wer die Pumpenlage aus der Bauform ableitet, zeichnet bei der Hälfte des Marktes eine Pumpe zu viel oder zu wenig. Deshalb hängt die Angabe im Katalog an der <b>Baureihe</b> und nicht an der Bauform.</p>
+
+<table class="tab">
+<caption>Baugruppen, die ein Gerät mitbringen kann</caption>
+<thead><tr><th>Baugruppe</th><th>Angabe</th><th>Folge im Schema</th></tr></thead>
+<tbody>
+<tr><td>Umwälzpumpe</td><td>ja / nein</td><td>Keine eigene Pumpe im Erzeugerkreis; stattdessen wird die Restförderhöhe geprüft.</td></tr>
+<tr><td>Dreiwege-Umschaltventil Heizung/Warmwasser</td><td>ja / nein</td><td>Kein eigenes Umschaltventil im Bild und keiner in der Druckverlustbilanz.</td></tr>
+<tr><td>Sicherheitsgruppe</td><td>ja / nein</td><td>Sicherheitsventil, Manometer und Füllhahn sind Bestandteil des Geräts.</td></tr>
+<tr><td>Membran-Ausdehnungsgefäß</td><td>Volumen [l]</td><td>Kein zweites Gefäß daneben — der bekannteste Zeichenfehler bei Hydraulikstationen.</td></tr>
+<tr><td>Elektro-Heizstab</td><td>Leistung [kW]</td><td>Wird als eigenes Symbol im Vorlauf gezeichnet und in die Deckungsrechnung eingerechnet.</td></tr>
+<tr><td>Trinkwasserspeicher</td><td>Volumen [l]</td><td>Kein zweiter Speicher im Schema; die Speichergröße ist damit festgelegt.</td></tr>
+<tr><td>Pufferanteil</td><td>Volumen [l]</td><td>Zählt zum Anlagenwasserinhalt.</td></tr>
+<tr><td>Volumenstromwächter</td><td>ja / nein</td><td>Kein zweiter Wächter, auch nicht bei Frostschutzbetrieb.</td></tr>
+<tr><td>Schlamm- oder Magnetitabscheider</td><td>ja / nein</td><td>Nicht noch einmal gezeichnet und nicht noch einmal in der Druckverlustbilanz gezählt.</td></tr>
+</tbody>
+</table>
+
+<div class="merke"><b>Merke</b><p>Jede dieser Baugruppen darf im Anlagenschema <b>nicht als eigenes Bauteil</b> erscheinen. Sie wird innerhalb des Gerätesymbols geführt. Ein doppelt gezeichnetes Ausdehnungsgefäß ist nicht nur unschön — es wird bestellt, geliefert und montiert.</p></div>
+
+<p>Im Katalog tragen die Hydrosplit-Baureihe und das Turmgerät eine solche Liste. Belegt ist sie für sechs Hersteller (LG, Daikin, Panasonic, Viessmann, Bosch, Buderus); die Zusammenstellung unterscheidet sich im Detail, der Kern ist überall derselbe. Der Grenzfall steht im Katalogtext: Vaillants Hydraulikstation VWZ MEH enthält Ausdehnungsgefäß, Dreiwegeventil, Sicherheitsventil und Heizstab, aber <b>keine Pumpe</b> — die sitzt dort in der Außeneinheit. Wer diese Typklasse für ein solches Gerät benutzt, muss die Angabe am eingelesenen Datensatz berichtigen.</p>
+
+<h3 id="k10-6">10.6 Verteilung</h3>
+
+<p class="wo">Im Programm: Reiter <b>Anlage</b> → Abschnitt <b>Verteilung</b></p>
+
+<p>Hier stehen die sechs Randbedingungen, aus denen sich die Rohrdimensionen der Verteilleitungen ergeben. Die Rechenwege dazu stehen in <a href="#k13">Kapitel 13</a>, die gezeichnete Trasse in <a href="#k9">Kapitel 9</a>.</p>
+
+<table class="tab">
+<caption>Die Eingaben der Verteilung</caption>
+<thead><tr><th>Angabe</th><th>Vorbelegung</th><th>Was daran hängt</th></tr></thead>
+<tbody>
+<tr><td>Vorlauf</td><td>35 °C</td><td>Der Erzeuger fährt die höchste Temperatur, die ein Kreis verlangt. Jedes Grad kostet rund 2 bis 2,5 % Arbeitszahl.</td></tr>
+<tr><td>Rücklauf</td><td>28 °C</td><td>Die Differenz zum Vorlauf ist die Spreizung — hier 7 K.</td></tr>
+<tr><td>v max</td><td>1,0 m/s</td><td>Höchstzulässige Fließgeschwindigkeit. Darüber werden Strömungsgeräusche in Wohnräumen hörbar.</td></tr>
+<tr><td>R max</td><td>150 Pa/m</td><td>Höchstzulässiges Druckgefälle — die übliche Wirtschaftlichkeitsgrenze.</td></tr>
+<tr><td>Werkstoff</td><td>Kupfer</td><td>Bestimmt die Rohrtabelle, aus der die Dimensionen kommen.</td></tr>
+<tr><td>Frostschutz</td><td>0 Vol-%, Ethylenglykol</td><td>Erhöht Volumenstrom, Druckverlust und Ausdehnungsvolumen.</td></tr>
+</tbody>
+</table>
+
+<h4 id="k10-6-1">10.6.1 Die Spreizung</h4>
+
+<p>Die Spreizung ist die Differenz zwischen Vorlauf- und Rücklauftemperatur. Sie bestimmt, wie viel Wasser für eine gegebene Leistung umgewälzt werden muss:</p>
+
+<div class="formel">
+  <p class="worte">In Worten: dieselbe Wärmemenge lässt sich mit viel Wasser bei kleiner Temperaturdifferenz oder mit wenig Wasser bei großer transportieren. Halbe Spreizung heißt doppelter Volumenstrom — und doppelter Volumenstrom heißt vierfacher Druckverlust im Rohr.</p>
+  <p class="math">V̇ = Q / (1,163 · Δϑ)</p>
+  <dl class="zeichen">
+    <dt>V̇</dt><dd>Volumenstrom [m³/h]</dd>
+    <dt>Q</dt><dd>Wärmeleistung [kW]</dd>
+    <dt>1,163</dt><dd>volumenbezogene Wärmekapazität des Wassers [Wh/(l·K)]</dd>
+    <dt>Δϑ</dt><dd>Spreizung [K]</dd>
+  </dl>
+</div>
+
+<p>Wärmepumpen fahren kleine Spreizungen — 5 bis 7 K bei Flächenheizung, bis 10 K bei Heizkörpern. Der Grund ist der Verdichter: eine große Spreizung verlangt einen hohen Vorlauf bei gleichem Rücklauf, und der Vorlauf kostet Arbeitszahl. Der Preis dafür sind größere Rohre und eine stärkere Pumpe.</p>
+
+<h4 id="k10-6-2">10.6.2 Frostschutz</h4>
+
+<p>Frostschutzmittel im Heizkreis ändern vier Dinge auf einmal, und das Blatt sagt alle vier:</p>
+
+<ul>
+<li>Der <b>Volumenstrom</b> steigt, weil die Wärmekapazität des Gemisches kleiner ist als die des Wassers.</li>
+<li>Der <b>Druckverlust</b> steigt, weil das Gemisch zäher ist. Bei 30 Vol-% Ethylenglykol liegt die Viskosität beim 2,1-fachen, bei Propylenglykol beim 2,8-fachen des Wassers — und in der Kälte deutlich darüber.</li>
+<li>Das <b>Ausdehnungsvolumen</b> steigt, weil Glykole sich etwa doppelt so stark ausdehnen wie Wasser. Das Ausdehnungsgefäß wird entsprechend größer.</li>
+<li>Die <b>Flüssigkeitskategorie</b> der Füllleitung steigt nach DIN EN 1717 von 3 auf 4. Statt eines Systemtrenners Typ CA ist dann Typ BA gefordert.</li>
+</ul>
+
+<div class="warnung"><b>Achtung</b><p>Solange die Materialfreigabe des Geräteherstellers nicht quittiert ist, warnt das Blatt: Glykol greift Dichtungen und Weichlot an, senkt die Leistung des Plattenwärmetauschers und kann bei Übertemperatur Säure bilden. Bosch und Wolf schließen Frostschutzmittel im Heizkreis ausdrücklich aus, Daikin lässt es mit Auflagen zu. Die Hersteller widersprechen sich — das Programm löst den Widerspruch nicht auf, es benennt ihn.</p></div>
+
+<p><b>Ethylenglykol ist giftig.</b> In Anlagenteilen mit möglicher Verbindung zum Trinkwasser — Kombispeicher, Frischwasserstation — ist es unzulässig; dort gehört Propylenglykol hinein. Das Blatt sagt das als eigene Warnung, sobald Ethylenglykol gewählt ist.</p>
+
+<h3 id="k10-7">10.7 Zweiter Wärmeerzeuger, Kaskade, Kühlung, weiterer Verbraucher</h3>
+
+<p class="wo">Im Programm: Reiter <b>Anlage</b> → Abschnitt <b>Zweiter Erzeuger, Kaskade, Kühlung</b> — neu in Fassung 1.14.0</p>
+
+<p>Bis Fassung 1.13.2 kannte das Anlagenmodell diese vier Angaben nicht. Die Folge war unangenehm: vier Vorlagen des Schemakatalogs — Solar, Kessel, Festbrennstoff und Kaskade — standen im Programm und konnten <b>nie</b> vorgeschlagen werden, weil niemand sie behaupten konnte. Was das Programm nicht weiß, behauptet es nicht; aber es muss die Möglichkeit haben, es zu erfahren.</p>
+
+<div class="merke"><b>Merke</b><p>Diese vier Angaben ändern nichts an der Rechnung — kein Volumenstrom, kein Puffervolumen, kein Ausdehnungsgefäß. Sie ändern alles an der <b>Auswahl</b>: erst mit ihnen findet der Schemavorschlag (<a href="#k12">Kapitel 12</a>) die passende Musterlösung, und umgekehrt schlägt er kein Schema mit Solareinkopplung vor, solange hier nichts steht.</p></div>
+
+<h4 id="k10-7-1">10.7.1 Die Arten des zweiten Erzeugers</h4>
+
+<table class="tab">
+<caption>Zweite Wärmeerzeuger und ihre Vorbelegung</caption>
+<thead><tr><th>Art</th><th>Vorbelegte Betriebsweise</th><th>Vorbelegte Einbindung</th><th>Besonderheit</th></tr></thead>
+<tbody>
+<tr><td>Gaskessel, Ölkessel, Fernwärme-Übergabestation</td><td>bivalent parallel, Bivalenzpunkt −2 °C</td><td>seriell in den Rücklauf</td><td>15 kW vorbelegt.</td></tr>
+<tr><td>Festbrennstoffkessel (Scheitholz), Pelletkessel</td><td>bivalent alternativ, Bivalenzpunkt 0 °C, Abschaltpunkt −2 °C</td><td>in den Puffer, oben</td><td>Bringt eigene Zwänge mit — siehe unten.</td></tr>
+<tr><td>Solarthermie</td><td>—</td><td>in den Puffer, unten</td><td>8 m² Kollektorfläche vorbelegt; speist in den Speicher, nicht in den Kreis, und hat keinen Bivalenzpunkt im Sinne der BDH-Definition.</td></tr>
+<tr><td>Elektro-Heizstab</td><td>monoenergetisch, Punkt −5 °C</td><td>parallel in den Vorlauf</td><td>6 kW vorbelegt; kein eigener hydraulischer Kreis.</td></tr>
+</tbody>
+</table>
+
+<h4 id="k10-7-2">10.7.2 Die drei bivalenten Betriebsweisen</h4>
+
+<p>Die Betriebsweisen sind im Infoblatt Nr. 57 des Bundesverbandes der Deutschen Heizungsindustrie (BDH) definiert. Der Unterschied ist <b>hydraulisch</b>, nicht regelungstechnisch: er entscheidet, ob beide Erzeuger gleichzeitig durchströmt werden — und damit, ob sich die Volumenströme addieren.</p>
+
+<table class="tab">
+<caption>Die Betriebsweisen in einfachen Worten</caption>
+<thead><tr><th>Betriebsweise</th><th>In einem Satz</th><th>Temperaturpunkte</th></tr></thead>
+<tbody>
+<tr><td>monoenergetisch</td><td>Der zweite Erzeuger ist der Elektro-Heizstab im Gerät. Er ist kein eigener Kreis.</td><td>einer</td></tr>
+<tr><td>bivalent parallel</td><td>Unterhalb des Bivalenzpunktes laufen <b>beide gleichzeitig</b>.</td><td>einer</td></tr>
+<tr><td>bivalent alternativ</td><td>Unterhalb des Abschaltpunktes läuft <b>ausschließlich</b> der zweite Erzeuger; die Wärmepumpe steht.</td><td>zwei</td></tr>
+<tr><td>bivalent teilparallel</td><td>Zwischen Bivalenz- und Abschaltpunkt laufen <b>beide</b>, darunter nur noch der zweite.</td><td>zwei</td></tr>
+</tbody>
+</table>
+
+<h4 id="k10-7-3">10.7.3 Bivalenzpunkt gegen Abschaltpunkt</h4>
+
+<p>Das sind zwei verschiedene Temperaturen, und ein einzelnes Feld reicht dafür nicht:</p>
+
+<ul>
+<li><b>Bivalenzpunkt</b> — die Außentemperatur, ab der der zweite Erzeuger <em>zugeschaltet</em> wird.</li>
+<li><b>Abschaltpunkt</b> — die Außentemperatur, ab der die Wärmepumpe <em>abschaltet</em>.</li>
+</ul>
+
+<p>Bei paralleler Fahrweise gibt es nur den Bivalenzpunkt; das Feld für den Abschaltpunkt bleibt leer. Bei alternativer und teilparalleler Fahrweise blendet das Blatt ein zweites Feld ein und erklärt daneben, was dazwischen geschieht.</p>
+
+<div class="beispiel">
+  <b>Beispiel zum Nachrechnen</b>
+  <p>Teilparallele Anlage: Bivalenzpunkt 0 °C, Abschaltpunkt −2 °C.</p>
+  <p>Über 0 °C: nur die Wärmepumpe. Zwischen 0 und −2 °C: beide gemeinsam — die Volumenströme addieren sich, und die Erzeugerleitung muss beide tragen. Unter −2 °C: nur noch der Kessel.</p>
+  <p class="ergebnis">Zwei Punkte, drei Betriebszustände — und drei verschiedene Volumenströme im Erzeugerkreis</p>
+</div>
+
+<h4 id="k10-7-4">10.7.4 Die Einbindung</h4>
+
+<p>Die Einbindung ist die auslegungsrelevante Angabe. Bei <b>serieller Einbindung in den Rücklauf</b> liegt der zweite Erzeuger im selben Fließweg wie die Wärmepumpe und braucht weder eine Entladepumpe noch eine Regelung dafür. Bei <b>paralleler Einbindung</b> über eine Weiche ist es ein eigener Kreis mit eigener Pumpe. Zur Wahl stehen: seriell in den Rücklauf, parallel in den Vorlauf, in den Puffer oben, in den Puffer unten, an die hydraulische Weiche.</p>
+
+<h4 id="k10-7-5">10.7.5 Was Festbrennstoff zwingend mitbringt</h4>
+
+<div class="warnung"><b>Achtung</b><p>Ein Festbrennstoff- oder Pelletkessel verlangt nach dem BWP-Leitfaden Hydraulik vier Dinge, die keine Option sind:</p>
+<ul>
+<li>eine <b>thermische Ablaufsicherung</b> — der Kessel lässt sich nicht abschalten, die Restwärme muss weg,</li>
+<li>eine <b>Rücklauftemperaturanhebung</b> — sonst kondensiert Rauchgas im Kessel und zerstört ihn,</li>
+<li>eine <b>autarke Regelung</b> — der Kessel muss auch ohne die Wärmepumpenregelung sicher arbeiten,</li>
+<li><b>alle</b> Heizkreise als gemischte Kreise — die Puffertemperatur ist beim Nachlegen unkontrolliert hoch.</li>
+</ul>
+<p>Deshalb wird ein Festbrennstoffkessel nie parallel gefahren, sondern über den Puffer. Das Programm <b>prüft diese Punkte nicht selbst</b>; sie gehören in die Planung. Der Hinweis erscheint, sobald Sie Festbrennstoff oder Pellet wählen.</p></div>
+
+<h4 id="k10-7-6">10.7.6 Kaskade</h4>
+
+<p>Mehrere gleichartige Wärmepumpen an einem Verteiler sind rechnerisch die unangenehmste Anlagenform: bei einer eigenen Pumpe je Gerät ist der <b>ungünstigste Fließweg nicht mehr eindeutig</b> — jedes Gerät hat seinen eigenen.</p>
+
+<p>Tragen Sie mehr als ein Gerät ein, legt das Blatt drei Angaben mit an: Verrohrung nach Tichelmann (Vorbelegung) oder als Stich, eine Sekundärpumpe je Gerät, eine Rückschlagklappe je Gerät gegen das Rückströmen durch das abgeschaltete Gerät. Viessmann schreibt für die Pufferspeicher-Kaskade ausdrücklich: „Die Systemverrohrung muss nach Tichelmann erfolgen." Bei Stichverrohrung sind die Zweige unterschiedlich lang und müssen abgeglichen werden.</p>
+
+<div class="warnung"><b>Achtung</b><p>Die Pumpenauslegung dieses Programms rechnet weiterhin <em>eine</em> Pumpe für den Verteilkreis. Die Erzeugerzweige einer Kaskade sind gesondert auszulegen. Das Blatt sagt das als Warnung — es ist eine ausgewiesene Grenze, keine stille Vereinfachung.</p></div>
+
+<h4 id="k10-7-7">10.7.7 Kühlung und weiterer Verbraucher</h4>
+
+<p><b>Passive Kühlung</b> ist die Soleumkehr über einen Wärmeübertrager ohne Verdichter — die Kälte kommt aus dem Erdreich. <b>Aktive Kühlung</b> ist die Kreislaufumkehr der Wärmepumpe, der Verdichter läuft mit. Beide verlangen Taupunktüberwachung und dampfdiffusionsdichte Dämmung, und beide haben eigene Schemavorlagen.</p>
+
+<p>Unter <b>weiterer Verbraucher am selben Erzeuger</b> steht bisher nur ein Fall: das Schwimmbad über einen Wärmeübertrager. Er ist kein Zierrat — ohne dieses Merkmal schnitt die Schwimmbadvorlage genauso gut ab wie das Grundschema, und man bekam ein Schema mit Wärmeübertrager und Systemtrennung zum Becken vorgeschlagen, ohne ein Becken zu haben.</p>
+
+<h3 id="k10-8">10.8 Erzeugerkreis und Pumpe</h3>
+
+<p class="wo">Im Programm: Reiter <b>Anlage</b> → Abschnitt <b>Erzeugerkreis und Pumpe</b> — neu in Fassung 1.14.0</p>
+
+<p>Dieser Abschnitt zeigt, was zwischen dem Rohrnetz und der Pumpe sonst noch im Weg liegt. Bis Fassung 1.13.2 rechnete der Rohrnetzbericht hier mit null. Das war ehrlich gemeint — der Erzeugerdruckverlust ist eine Herstellerkennlinie, und eine geratene Zahl wäre schlimmer als keine. Nur war die Wirkung nicht neutral: <b>eine fehlende Zahl macht die Pumpe systematisch zu klein</b>, und zwar nicht um ein paar Prozent.</p>
+
+<table class="tab">
+<caption>Was ohne diesen Abschnitt mit null angesetzt wurde — Einfamilienhaus, Monoblock rund 8 kW, 1,5 m³/h</caption>
+<thead><tr><th>Bauteil</th><th>Δp bei 1,5 m³/h</th></tr></thead>
+<tbody>
+<tr><td>Wärmepumpe</td><td>rund 10,5 kPa</td></tr>
+<tr><td>3-Wege-Umschaltventil DN 25</td><td>rund 6,9 kPa</td></tr>
+<tr><td>Wärmemengenzähler qp 2,5</td><td>rund 3,6 kPa</td></tr>
+<tr><td>Magnetitabscheider DN 25 mit Absperrung</td><td>rund 4,0 kPa</td></tr>
+<tr><td><b>Summe</b></td><td><b>rund 25 kPa, also 2,5 m</b></td></tr>
+</tbody>
+</table>
+
+<p>Ein Einfamilienhaus-Rohrnetz braucht 1,5 bis 3 m Förderhöhe. Der fehlende Posten war also keine Korrektur, sondern eine <b>Verdopplung</b>.</p>
+
+<h4 id="k10-8-1">10.8.1 Druckverlust und Restförderhöhe sind zwei verschiedene Dinge</h4>
+
+<p>Der Markt liefert zwei fachlich verschiedene, einander ausschließende Angaben. Sie haben entgegengesetztes Vorzeichen in der Rechnung und entgegengesetzte Steigung über dem Volumenstrom:</p>
+
+<table class="tab">
+<caption>Die beiden Angabearten</caption>
+<thead><tr><th></th><th>Druckverlust des Geräts</th><th>Restförderhöhe</th></tr></thead>
+<tbody>
+<tr><td>Was es beschreibt</td><td>Was das Gerät dem Wasser an Widerstand entgegensetzt</td><td>Was die eingebaute Pumpe an Förderhöhe für die Anlage übrig hat</td></tr>
+<tr><td>Wann es diese Angabe gibt</td><td>Gerät ohne eingebaute Pumpe (und einige mit)</td><td>nur bei Gerät mit eingebauter Pumpe</td></tr>
+<tr><td>In der Rechnung</td><td><b>wird addiert</b> — zum Rohrnetz dazu</td><td><b>wird geprüft, nie addiert</b> — Rohrnetz und Armaturen müssen darunter bleiben</td></tr>
+<tr><td>Über dem Volumenstrom</td><td>steigt, etwa quadratisch</td><td>fällt — es ist eine Pumpenkennlinie</td></tr>
+<tr><td>Auf dem Blatt</td><td>Posten in der Liste, geht in die Summe</td><td>eigene Zeile: „wird geprüft, nicht addiert"</td></tr>
+</tbody>
+</table>
+
+<div class="merke"><b>Merke</b><p>Wer die beiden verwechselt, rechnet um 40 bis 70 kPa falsch — und zwar in beide Richtungen. Deshalb gibt es im Datensatz eines Geräts <b>kein</b> Zahlenfeld „Druckverlust", in das mal das eine und mal das andere geriete, sondern eine ausdrückliche Unterscheidungsmarke.</p></div>
+
+<p>Der Rechenweg dazu — wie der Wert auf den Auslegungsvolumenstrom skaliert wird und wie die Prüfung gegen die Restförderhöhe aussieht — steht in <a href="#k13-9">Abschnitt 13.9</a>. Hier genügt der Satz: auf eine Restförderhöhe wird der Skalierungsexponent <b>nicht</b> angewendet. Sie ist eine Pumpenkennlinie und fällt mit steigendem Volumenstrom, statt zu steigen; ein quadratischer Ansatz darauf wäre grob falsch.</p>
+
+<h4 id="k10-8-2">10.8.2 Woher die Zahlen der Typklassen kommen</h4>
+
+<p>Eine Typklasse ist kein Produkt und kann deshalb auch keinen Herstellerwert tragen. Im Programm steht stattdessen eine <b>Markttabelle</b>: 18 veröffentlichte Δp-Werte und 14 veröffentlichte Restförderhöhen von Bosch, Stiebel Eltron, Viessmann, LG und Wolf, jede Zeile mit Hersteller, Typ, Originalwortlaut, Bezugsvolumenstrom und Quelle. Die Zahl der Typklasse wird daraus <b>gerechnet</b>, nicht gesetzt — sie ändert sich, wenn die Tabelle wächst.</p>
+
+<p>Zwei verschiedene Kennzahlen, aus einem guten Grund:</p>
+
+<ul>
+<li>Für den <b>Druckverlust</b> gilt der <b>Median</b> der Tabelle, nicht der Mittelwert. Die Reihe ist schief: zwei Stiebel-Zeilen liegen bei über 12 000 Pa je (m³/h)², sechs LG-Zeilen unter 2 100. Ein Mittelwert folgt den Ausreißern, der Median beschreibt das mittlere Gerät. Er liegt bei rund 3 509 Pa/(m³/h)², was bei 1,5 m³/h rund 7,9 kPa ergibt.</li>
+<li>Für die <b>Restförderhöhe</b> gilt das <b>untere Quartil</b>, also rund 52,5 kPa. Hier wäre der Median die falsche Wahl, denn der Fehler ist nicht symmetrisch: ein zu klein angesetzter Druckverlust macht die Pumpe zu klein und die Anlage laut. Eine zu groß angesetzte Restförderhöhe dagegen lässt eine Prüfung <em>bestehen, die durchfallen müsste</em> — der Anwender bekommt ein grünes Ergebnis für ein Netz, das das Gerät nicht fördern kann. Die Typklasse behauptet deshalb nur, was das schwächere Viertel des Marktes noch schafft.</li>
+</ul>
+
+<p>Auffällig und deshalb festgehalten: die spezifischen Widerstände streuen über den Faktor sieben. Der Grund ist nicht die Bauart, sondern der <b>Umfang</b> der Angabe — Viessmann nennt ausdrücklich nur den Verflüssiger, Bosch die „interne Druckabnahme" des ganzen Geräts. Wer eine dieser Zahlen ohne ihren Umfang übernimmt, vergleicht Verschiedenes. Weil die Typklasse über beide Lesarten mittelt, steht ihr Umfang auf „unbekannt", und der Schlammabscheider wird sicherheitshalber gesondert angesetzt.</p>
+
+<h4 id="k10-8-3">10.8.3 Die Posten auf dem Blatt</h4>
+
+<p>Die Bauteilliste dieses Abschnitts entsteht <b>nicht</b> aus einer eigenen Annahme, sondern aus der Anlagenauslegung: das Umschaltventil gibt es, wenn ein Trinkwasserspeicher über den Erzeuger geladen wird; den Wärmemengenzähler, wenn die Armaturenliste ihn führt; den Abscheider ebenso. Damit zeigen Bild, Materialliste und Rechnung dieselbe Anlage.</p>
+
+<p>Eine Abkürzung vorweg: Der <b>k<sub>v</sub>-Wert</b> einer Armatur ist der Volumenstrom in m³/h, der durch sie hindurchfließt, wenn 1 bar Druckdifferenz anliegt; der <b>k<sub>vs</sub>-Wert</b> ist derselbe Wert bei ganz geöffneter Armatur. Je größer er ist, desto weniger Druck kostet das Bauteil.</p>
+
+<p>Zu jedem Posten stehen drei Angaben: der Druckverlust in kPa, die Grundlage („kvs 5,7 m³/h bei 1,0 bar → Δp = (V̇/kvs)² · 1 bar") und die Quelle. Die Posten stehen absteigend nach Druckverlust — der größte zuerst.</p>
+
+<div class="beispiel">
+  <b>Beispiel zum Nachrechnen</b>
+  <p>Monoblock R290 8 kW, 1,5 m³/h, Anschluss DN 25, mit Trinkwasserumschaltung, Wärmemengenzähler und Magnetitabscheider. Der kv-Wert ist der Volumenstrom in m³/h, der durch die Armatur fließt, wenn 1 bar Druckdifferenz anliegt.</p>
+  <p>Umschaltventil DN 25, kvs 5,7: (1,50/5,70)² = 0,0693 bar = 6,93 kPa</p>
+  <p>Wärmemengenzähler qp 2,5, kvs 7,91: (1,50/7,91)² = 0,0360 bar = 3,60 kPa</p>
+  <p>Magnetitabscheider DN 25 mit Absperrung, kv 7,5: (1,50/7,50)² = 0,0400 bar = 4,00 kPa</p>
+  <p class="ergebnis">Die drei Armaturen zusammen: 14,52 kPa — plus der Gerätewert</p>
+</div>
+
+<p>Zwei Feinheiten, die im Programm ausdrücklich behandelt sind. Erstens: manche Datenblätter nennen den kv-Wert nicht bei 1 bar, sondern bei 0,25 bar (Kamstrup führt eine Spalte „kv q@ 0,25 bar"). Ein blind übernommener Wert wäre um den Faktor 2 falsch, der daraus gerechnete Druckverlust um den Faktor 4. Deshalb trägt jedes Einbauteil seinen Bezugsdruck mit. Zweitens: die Reihe der Wärmemengenzähler ist absichtlich <b>nicht</b> monoton — qp 3,5 hat weniger Druckverlust als qp 2,5, weil diese Variante eine größere Baunennweite hat. Das ist real und wird nicht geglättet.</p>
+
+<p>Der Verteiler-Durchflussmesser der Fußbodenheizung steht als Kennwert im Programm, wird aber <b>nicht</b> in die Erzeugerbilanz addiert: er sitzt im ungünstigsten Heizkreis, nicht im Erzeugerkreis. Bei 100 l/h kostet er rund 1,2 kPa, bei 200 l/h bereits 4,9 kPa.</p>
+
+<h4 id="k10-8-4">10.8.4 Was das Blatt sagt, wenn nichts hinterlegt ist</h4>
+
+<p>Führt ein Gerät heizungsseitig weder Druckverlust noch Restförderhöhe, schreibt das Blatt nicht „0 kPa". Es schreibt: „Die Förderhöhe ist um genau diesen Betrag zu klein; bei 1,5 m³/h liegen vergleichbare Geräte zwischen 3,6 und 28,0 kPa." Wo ein Wert fehlt, gehört die <b>Größenordnung des fehlenden Betrags</b> dazu, damit der Planer weiß, wie groß der Fehler ist.</p>
+
+<p>Liegt der Auslegungsvolumenstrom unter dem Mindestvolumenstrom des Geräts, warnt das Blatt zusätzlich — und benennt die Rangfolge: „Die Anlage ist damit unzulässig; der hochgerechnete Druckverlust ist die kleinere Sorge."</p>
+
+<h3 id="k10-9">10.9 Heizkreise</h3>
+
+<p class="wo">Im Programm: Reiter <b>Anlage</b> → Abschnitt <b>Heizkreise</b></p>
+
+<h4 id="k10-9-1">10.9.1 Wie die Kreise aus den Räumen entstehen</h4>
+
+<p>Sind im Anlagenblatt keine Kreise gepflegt, leitet das Programm sie aus dem Modell ab. Es sieht dazu je Raum nach, welche TGA-Objekte darin stehen: ein Verteiler oder eine Fläche spricht für Fußbodenheizung, ein Heizkörper für Radiatoren. Eine Fläche schlägt dabei den Heizkörper — wo beides steht, ist der Heizkörper in aller Regel die Ergänzung im Bad, nicht der Kreis. Steht in einem Raum gar nichts, gilt Fußbodenheizung: die meisten Wärmepumpenanlagen sind Flächenheizungen, und wer es anders hat, sagt es.</p>
+
+<p>Daraus entsteht <b>ein Kreis je Wärmeübergabeart und Geschoss</b> — die Aufteilung, die in einem Einfamilienhaus tatsächlich gebaut wird: ein Verteiler je Etage. Wer es anders will, legt die Kreise selbst an; dann leitet das Programm nichts mehr ab. Der Knopf „Kreise ins Projekt übernehmen" schreibt die abgeleiteten Kreise in das Modell, damit sie dort bearbeitet werden können.</p>
+
+<h4 id="k10-9-2">10.9.2 Gemischt oder ungemischt</h4>
+
+<div class="merke"><b>Merke</b><p>Gemischt wird die <b>Fläche</b>, nicht der Heizkörper. Der Erzeuger kann nur eine Vorlauftemperatur liefern, und sie muss den höchsten Bedarf decken. Bei Heizkörpern mit 50 °C und Fußbodenheizung mit 35 °C fährt der Erzeuger also 50 °C. Hinaufmischen kann kein Mischer. Der Heizkörperkreis hängt deshalb <b>direkt</b> am Erzeuger, und die Fläche wird über einen Mischer mit eigener Pumpe auf ihre 35 °C heruntergemischt.</p></div>
+
+<p>Bis Fassung 1.8.1 stand im Programm genau die seitenverkehrte Regel. Im Schema war der Mischer damit am Heizkörper gezeichnet und die Fußbodenheizung hing ungemischt am Erzeuger; auf 55 °C Vorlauftemperatur im Estrich folgt im besten Fall ein Estrichschaden.</p>
+
+<p>Die Regel im Programm lautet: gemischt ist jeder Kreis, der mehr als 2 K unter der höchsten Vorlauftemperatur der Anlage liegt. Die 2 K Toleranz sind kein Zufall — zwei Kreise mit 35 und 34 °C sind derselbe Kreis, und ein Mischer für 1 K ist ein Bauteil, das nur Geld kostet. Ein einzelner Kreis ist nie gemischt: er <em>ist</em> die Erzeugertemperatur.</p>
+
+<div class="warnung"><b>Achtung</b><p>Ist ein gepflegter Kreis kälter ausgelegt als der Erzeuger fährt und trotzdem nicht als gemischt geführt, meldet das Blatt einen <b>Fehler</b>, keinen Hinweis: „Ohne Mischer mit eigener Pumpe kommt die volle Vorlauftemperatur im Kreis an."</p></div>
+
+<h4 id="k10-9-3">10.9.3 Was je Kreis auf dem Blatt steht</h4>
+
+<p>Zu jedem Kreis zeigt das Blatt: Wärmebedarf in kW, Vor- und Rücklauftemperatur, Volumenstrom in m³/h, die gewählte Anbindeleitung mit ihrer Begründung, Geschwindigkeit und Druckgefälle — und die Herkunft der Last (norm, überschlägig, gemischt, Vorgabe). Bei Flächenheizung kommt eine zweite Zeile dazu: Zahl der Kreise, Länge je Kreis, Verlegeabstand, Durchflussmenge je Kreis in l/h, Druckverlust in mbar und die Wärmestromdichte in W/m².</p>
+
+<p>Die Fußbodenheizung wird <b>raumweise</b> ausgelegt, nicht geschossweise. Ein Bad mit 90 W/m² und ein Schlafzimmer mit 45 brauchen unterschiedliche Verlegeabstände; über das Geschoss gemittelt bekäme das Bad zu wenig und das Schlafzimmer zu viel. Genau die raumweise Tabelle braucht der Monteur beim Einregulieren — eine Summe über das Geschoss hilft ihm nicht. Gerechnet wird mit 85 % der Raumfläche als belegbarer Fläche; der Rest geht für Einbauten und Randstreifen ab.</p>
+
+<p>Für die Pumpe ist der <b>längste</b> Kreis maßgebend, nicht der mittlere. Das Blatt führt deshalb je Heizkreis die größte Kreislänge und den größten Kreisdruckverlust seiner Räume, nicht deren Durchschnitt.</p>
+
+<div class="warnung"><b>Achtung</b><p>Bei einem Heizkörperkreis über 55 °C Vorlauf warnt das Blatt: „Jedes Grad kostet rund 2,5 % Arbeitszahl — vor der Geräteauswahl prüfen, ob die Heizkörper nicht doch mit weniger auskommen." Das ist der wirksamste Hebel der ganzen Auslegung, und er liegt vor der Gerätewahl, nicht danach.</p></div>
+
+<h3 id="k10-10">10.10 Speicher und Puffer</h3>
+
+<p class="wo">Im Programm: Reiter <b>Anlage</b> → Abschnitt <b>Speicher</b></p>
+
+<h4 id="k10-10-1">10.10.1 Reihenpuffer gegen Parallelpuffer</h4>
+
+<p>Das ist der wichtigste Unterschied dieses ganzen Kapitels, und er ist keine Nuance:</p>
+
+<table class="tab">
+<caption>Die beiden Pufferarten</caption>
+<thead><tr><th></th><th>Reihenpuffer</th><th>Parallelpuffer (Trennpuffer)</th></tr></thead>
+<tbody>
+<tr><td>Lage</td><td>im Rücklauf, in Reihe im selben Strang</td><td>zwischen Erzeuger- und Verteilseite</td></tr>
+<tr><td>Anschlüsse</td><td>zwei</td><td>vier — Erzeugervorlauf und -rücklauf, Verteilvorlauf und -rücklauf</td></tr>
+<tr><td>Was er liefert</td><td>Wasserinhalt</td><td>Wasserinhalt <b>und</b> hydraulische Trennung</td></tr>
+<tr><td>Volumenströme</td><td>genau einer — den fördert die Erzeugerpumpe</td><td>zwei getrennte, jede Seite mit eigener Pumpe</td></tr>
+<tr><td>Überströmventil</td><td>weiterhin nötig</td><td>entfällt</td></tr>
+<tr><td>Zulässig bei</td><td>genau einem ungemischten Kreis</td><td>mehreren Kreisen oder mindestens einem Mischer</td></tr>
+</tbody>
+</table>
+
+<div class="merke"><b>Merke</b><p>Ein Reihenpuffer im Rücklauf <b>trennt nicht hydraulisch</b>. Er liefert Wasserinhalt, keinen Volumenstrom. Läuft eine Anlage mit mehreren Kreisen oder mit Mischern auf einem Reihenpuffer, arbeiten Kreispumpen und Erzeugerpumpe gegeneinander; jede Kreispumpe fördert dann durch den Wärmetauscher des Erzeugers mit.</p></div>
+
+<p>Genau diese Anlage hat das Programm bis Fassung 1.12.0 vorgeschlagen — es wählte immer einen Reihenpuffer. Die Regel lautet jetzt: <b>hydraulisch trennen, sobald mehr als ein Kreis fördert oder ein Kreis gemischt ist.</b> Beides folgt aus der Zuordnung des BWP-Leitfadens Hydraulik (Schema 2 gegen Schema 3); der Bosch-Zusatz „bestehen alle Heizkreise aus gemischten Kreisen, ist ein Pufferspeicher zwingend" zeigt in dieselbe Richtung.</p>
+
+<p>Das Blatt begründet seine Wahl in einem Satz — entweder „Parallelpuffer statt Reihenpuffer: drei Heizkreise brauchen eigene Pumpen, und die dürfen nicht gegen die Erzeugerpumpe arbeiten" oder „Reihenpuffer im Rücklauf: ein ungemischter Kreis braucht keine hydraulische Trennung, nur Volumen".</p>
+
+<h4 id="k10-10-2">10.10.2 Wann überhaupt ein Puffer nötig ist</h4>
+
+<p>Zwei Anforderungen stehen nebeneinander, die größere gewinnt:</p>
+
+<div class="formel">
+  <p class="worte">In Worten (Abtauung): beim Abtauen holt sich die Wärmepumpe die Wärme aus dem Anlagenwasser. Reicht der Inhalt nicht, bricht die Vorlauftemperatur ein. Der Richtwert ist 12 Liter je Kilowatt — abzüglich des Wassers, das ohnehin schon in Heizflächen und Leitungen steht.</p>
+  <p class="math">V_Abtau = P · 12 l/kW − V_vorhanden</p>
+</div>
+
+<div class="formel">
+  <p class="worte">In Worten (Taktung): der Verdichter soll je Start einige Minuten laufen. Wie viel Wasser er dafür braucht, folgt aus Leistung, Laufzeit und Spreizung.</p>
+  <p class="math">V_Takt = P · t / (1,163 · Δϑ) · 1000 − V_vorhanden</p>
+  <dl class="zeichen">
+    <dt>P</dt><dd>Leistung im Auslegungspunkt [kW]</dd>
+    <dt>t</dt><dd>Mindestlaufzeit [h], Vorbelegung 6 min = 0,1 h</dd>
+    <dt>Δϑ</dt><dd>Spreizung [K], Vorbelegung 5 K</dd>
+  </dl>
+</div>
+
+<div class="beispiel">
+  <b>Beispiel zum Nachrechnen</b>
+  <p>Luft-Wärmepumpe mit 8 kW im Auslegungspunkt, Anlageninhalt 150 l.</p>
+  <p>Abtauung: 8 · 12 = 96 l gefordert, 150 l vorhanden → 0 l.</p>
+  <p>Taktung: 8 · 0,1 / (1,163 · 5) · 1000 = 0,8 / 5,815 · 1000 = 137,6 l gefordert, 150 l vorhanden → 0 l.</p>
+  <p class="ergebnis">Kein Puffer erforderlich — der Anlageninhalt reicht bereits</p>
+  <p>Bei nur 60 l Anlageninhalt wären es 36 l aus der Abtauung und 78 l aus der Taktung; maßgebend wären die 78 l und gewählt würde die nächste Baugröße, also 80 l.</p>
+</div>
+
+<p>Bei einer Fußbodenheizung ohne Einzelraumregelung ist beides oft schon durch den Estrich erfüllt — dann braucht es gar keinen Puffer, und das Blatt schreibt das auch hin. Bei Sole- und Wasser-Wärmepumpen entfällt die Abtauung ganz; dort setzt das Programm 0 l/kW als Abtaubedarf an. Das ist etwas anderes als der Mindestwasserinhalt, den der Gerätekatalog für dieselben Geräte führt (4 l/kW, siehe <a href="#k13-14-2">Abschnitt 13.14.2</a>): der eine Wert bemisst den Puffer, der andere beschreibt das Gerät.</p>
+
+<div class="baustelle"><b>Auf der Baustelle heißt das</b><p>Der eingeschaltete Elektro-Heizstab senkt den geforderten Mindestwasserinhalt erheblich: bei Vaillant fällt die Forderung von 150 l auf 45 l, sobald der Zusatzheizer freigegeben ist — der Heizstab liefert die Abtauenergie, die sonst aus dem Wasserinhalt kommen muss. Das Programm führt diesen zweiten Wert je Gerät mit (4 l/kW statt 12 l/kW bei Luftgeräten), als Erfahrungswert gekennzeichnet. Er ist der Grund, warum Puffer regelmäßig zu groß ausgelegt werden.</p></div>
+
+<h4 id="k10-10-3">10.10.3 Der Wasserinhalt der Anlage</h4>
+
+<p>Der Anlagenwasserinhalt geht zweimal in die Auslegung ein: direkt in das Ausdehnungsvolumen und mit 0,5 % in die Wasservorlage. Zu klein geschätzt heißt zu kleines Gefäß heißt abblasendes Sicherheitsventil — der häufigste Fehler in der Praxis und der teuerste, weil er sich erst nach der ersten kalten Woche zeigt.</p>
+
+<p>Das Programm setzt ihn aus fünf Posten zusammen, die unter „Wasserinhalt im Einzelnen" aufgeklappt einzeln dastehen:</p>
+
+<table class="tab">
+<caption>Woraus der Anlagenwasserinhalt entsteht</caption>
+<thead><tr><th>Posten</th><th>Ansatz</th></tr></thead>
+<tbody>
+<tr><td>Wärmeerzeuger</td><td>5 l (Richtwert; aus dem Datenblatt ersetzbar)</td></tr>
+<tr><td>Anbindeleitungen der Kreise</td><td>Rohrinhalt aus der Werkstofftabelle × Länge; ohne gezeichnete Trasse 25 m je Kreis</td></tr>
+<tr><td>Fußbodenheizkreise</td><td>Rohrinhalt × Gesamtrohrlänge aus der raumweisen Auslegung</td></tr>
+<tr><td>Heizkörper</td><td>8 l je kW (Richtwert für Wärmepumpen-Temperaturen; Gussradiatoren liegen bei 12 bis 14, Konvektoren bei 2 bis 3)</td></tr>
+<tr><td>Speicher</td><td>Puffer voll; Trinkwasserspeicher nur mit 6 % — dort steht kein Heizungswasser im Behälter, nur im Wärmetauscher</td></tr>
+</tbody>
+</table>
+
+<p>Die 25 m je Kreis sind ein Richtwert, der im Einfamilienhaus meist zu hoch statt zu niedrig liegt und damit auf der sicheren Seite ist. Sobald die Trasse gezeichnet ist (<a href="#k9">Kapitel 9</a>), rechnet das Programm mit der tatsächlichen Länge. Der Estrich über der Fußbodenheizung enthält kein Wasser und zählt hier nicht mit — für die Mindestlaufzeit des Verdichters ist er trotzdem von Belang.</p>
+
+<h4 id="k10-10-4">10.10.4 Der Speicherkatalog</h4>
+
+<p>Der Katalog führt 30 Speicher in fünf Arten. Wie beim Gerätekatalog sind es Typklassen: Abmessungen, Wärmetauscherfläche und Bereitschaftsverlust sind aus offengelegten Beziehungen gerechnet.</p>
+
+<table class="tab">
+<caption>Speicherarten im Katalog</caption>
+<thead><tr><th>Art</th><th>Baugrößen [l]</th><th>Wozu</th></tr></thead>
+<tbody>
+<tr><td>Trinkwasserspeicher</td><td>120 · 150 · 200 · 250 · 300 · 400 · 500 · 750 · 1000</td><td>Warmwasser aus dem Speicher, geladen über eine Glattrohrwendel.</td></tr>
+<tr><td>Reihenpuffer</td><td>25 · 50 · 80 · 100 · 200 · 300 · 500 · 800 · 1000</td><td>Im Rücklauf: erhöht den Wasserinhalt für die Abtauung, ohne die Schichtung im Vorlauf zu stören.</td></tr>
+<tr><td>Parallelpuffer</td><td>100 · 200 · 300 · 500 · 800 · 1000</td><td>Trennt Erzeuger- und Verbraucherkreis; erst damit dürfen Kreise eigene Pumpen haben.</td></tr>
+<tr><td>Kombispeicher</td><td>600 · 800 · 1000</td><td>Heizungspuffer mit eingebautem Trinkwasserteil (30 % des Volumens).</td></tr>
+<tr><td>Hydraulische Weiche</td><td>50 · 100 · 200</td><td>Entkoppelt Erzeuger- und Verbraucherkreis. <b>Kein Speicher</b> — sie erhöht den Anlageninhalt kaum.</td></tr>
+</tbody>
+</table>
+
+<p>Zwei Kennwerte des Trinkwasserspeichers sind für Wärmepumpen entscheidend und stehen deshalb im Katalog:</p>
+
+<div class="formel">
+  <p class="worte">In Worten: ein Speicher für einen Gaskessel kommt mit wenig Wärmetauscherfläche aus, weil das Heizwasser 80 °C hat. Eine Wärmepumpe liefert 50 bis 55 °C; damit die Übertragung trotzdem funktioniert, braucht sie etwa die zehnfache Fläche. Der Richtwert der Praxis ist 1,4 m² je 100 Liter.</p>
+  <p class="math">A = V / 100 l · 1,4 m²</p>
+</div>
+
+<p>Daraus folgt die Dauerleistung des Wärmetauschers: mit einem Wärmedurchgangskoeffizienten von rund 700 W/(m²·K) für ein Glattrohr in Wasser und einer logarithmischen Temperaturdifferenz von rund 14 K ergeben sich theoretisch 9,8 kW je m²; real erreicht werden 60 bis 70 % davon. Das Programm rechnet mit 65 %.</p>
+
+<p>Das <b>Kippmaß</b> — die Raumdiagonale des gedämmten Behälters — steht ebenfalls im Katalog. Daran scheitert der Einbau öfter als am Platzbedarf.</p>
+
+<h4 id="k10-10-5">10.10.5 Was das Programm selbst wählt und was nicht</h4>
+
+<div class="merke"><b>Merke</b><p>Von sich aus schlägt das Programm nur zwei Speicher vor: einen <b>Trinkwasserspeicher</b> und einen <b>Puffer</b> (Reihe oder parallel, nach der Regel aus 10.10.1). Kombispeicher, hydraulische Weiche und Frischwasserstation wählt es <b>nicht</b> selbst — sie kommen entweder von Ihnen oder aus einer übernommenen Schemavorlage (<a href="#k12">Kapitel 12</a>).</p></div>
+
+<p>Das ist eine bewusste Grenze. Ob eine Frischwasserstation die richtige Lösung ist, hängt an Zapfleistung, Puffergröße und Schichtung — Fragen, die das Modell nicht beantworten kann. Und der Katalog führt für die Frischwasserstation überhaupt keine Baugrößen; sie ist als Speicherart bekannt, aber nicht bemaßt.</p>
+
+<p>Vorgeschlagene Speicher sind auf dem Blatt als Vorschlag markiert. Erst der Knopf daneben übernimmt sie in das Projekt; ab dann sind sie Ihre Entscheidung und werden nicht mehr überschrieben.</p>
+
+<h4 id="k10-10-6">10.10.6 Kombispeicher und Frischwasserstation</h4>
+
+<p>Beide lösen dasselbe Problem auf zwei Wegen. Ein <b>Kombispeicher</b> ist ein Heizungspuffer mit einem eingebauten Trinkwasserteil — im Katalog 30 % des Volumens. Er spart einen Behälter und einen Aufstellplatz.</p>
+
+<p>Eine <b>Frischwasserstation</b> erwärmt das Trinkwasser erst beim Zapfen im Plattenwärmeübertrager. Es steht kein warmes Trinkwasser bevorratet; der Puffer dahinter ist kein Trinkwasserspeicher, und die 400-Liter-Grenze der DVGW W 551 greift damit nicht mehr (siehe <a href="#k10-11">Abschnitt 10.11</a>). Der Preis: die Station muss die volle Zapfleistung liefern. Bei einer Wannenfüllung sind das schnell 40 bis 60 kW für wenige Minuten — womit der Puffer und dessen Schichtung zur eigentlichen Auslegungsaufgabe werden.</p>
+
+<h3 id="k10-11">10.11 Trinkwasser</h3>
+
+<p class="wo">Im Programm: Reiter <b>Anlage</b> → Abschnitt <b>Trinkwarmwasser</b></p>
+
+<p>Die Trinkwasserseite ist bei einer Wärmepumpenanlage der Punkt, an dem Hygiene und Effizienz direkt gegeneinander stehen. Der Hygieniker will hohe Temperaturen und keine Stagnation, die Arbeitszahl will das Gegenteil. Diese Abwägung lässt sich nicht wegrechnen — aber sichtbar machen. Deshalb liefert das Programm hier nicht nur Zahlen, sondern die Rechenschritte und die Begründung, welcher Weg maßgebend geworden ist.</p>
+
+<h4 id="k10-11-1">10.11.1 Was Sie eintragen</h4>
+
+<table class="tab">
+<caption>Die Eingaben der Trinkwasserseite</caption>
+<thead><tr><th>Angabe</th><th>Vorbelegung</th><th>Wirkung</th></tr></thead>
+<tbody>
+<tr><td>Wohneinheiten</td><td>1</td><td>Bis 2 gilt die Anlage nach DVGW W 551 als Kleinanlage. Ab 3 wird die Bedarfsspitze nicht mehr vorbelegt.</td></tr>
+<tr><td>Personen je Wohneinheit</td><td>4</td><td>Geht in Bedarfskennzahl, Tagesbedarf und Warmwasserzuschlag ein.</td></tr>
+<tr><td>Speicher</td><td>55 °C</td><td>Kann vom Legionellenregime angehoben werden.</td></tr>
+<tr><td>Zapfung</td><td>45 °C</td><td>Mischwassertemperatur an der Entnahmestelle.</td></tr>
+<tr><td>Aufheizzeit</td><td>2 h</td><td>Kürzere Zeit heißt größere Aufheizleistung — und die kann der Wärmetauscher begrenzen.</td></tr>
+<tr><td>längste Leitung</td><td>2,5 l</td><td>Inhalt der Leitung vom Erwärmer bis zur entferntesten Entnahmestelle. Entscheidet über die Zirkulationspflicht.</td></tr>
+<tr><td>Komfort</td><td>normal</td><td>sparsam 25, normal 40, komfortabel 60 Liter je Person und Tag bei 45 °C.</td></tr>
+</tbody>
+</table>
+
+<h4 id="k10-11-2">10.11.2 Bedarfskennzahl N nach DIN 4708</h4>
+
+<p>Die Bedarfskennzahl beschreibt den Bedarf des Gebäudes, nicht das Gerät. Sie ist <b>keine</b> Literangabe. Bezug ist die Einheitswohnung: 3,5 Personen mit einer Normalbadewanne, deren Wärmebedarf mit 5820 Wh angesetzt wird. N = 1 heißt: das Gebäude verlangt so viel wie eine solche Wohnung.</p>
+
+<div class="formel">
+  <p class="worte">In Worten: für jede Wohnung wird verglichen, wie viele Personen sie gegenüber der Einheitswohnung hat und wie viel Wärme ihre Zapfstellen gegenüber der Normalbadewanne verlangen. Beides multipliziert und über alle Wohnungen aufsummiert ergibt N.</p>
+  <p class="math">N = Σ n · (p / p_E) · Σ (w / w_E · v / v_E)</p>
+  <dl class="zeichen">
+    <dt>n</dt><dd>Anzahl gleichartiger Wohnungen [-]</dd>
+    <dt>p, p_E</dt><dd>Personen je Wohnung bzw. je Einheitswohnung (3,5) [-]</dd>
+    <dt>w, w_E</dt><dd>Wärmebedarf der Zapfstelle bzw. der Bezugszapfstelle (5820 Wh) [Wh]</dd>
+    <dt>v, v_E</dt><dd>Benutzungshäufigkeit der Zapfstelle bzw. der Bezugszapfstelle (1) [-]</dd>
+  </dl>
+</div>
+
+<div class="beispiel">
+  <b>Beispiel zum Nachrechnen</b>
+  <p>Eine Wohnung, vier Personen, Komfort „normal". Vorbelegt sind dann Normalbadewanne, Brause, Waschtisch und Spüle.</p>
+  <p>Personenfaktor: 4 / 3,5 = 1,143</p>
+  <p>Normalbadewanne 5820 Wh → 5820/5820 = 1,000</p>
+  <p>Brause (40 l bei 40 °C aus 10 °C): 40 · 1,163 · 30 = 1396 Wh → 0,240</p>
+  <p>Waschtisch (10 l bei 40 °C): 10 · 1,163 · 30 = 349 Wh → 0,060</p>
+  <p>Spüle (12 l bei 45 °C): 12 · 1,163 · 35 = 488 Wh → 0,084</p>
+  <p>Summe der Wärmefaktoren: 1,384</p>
+  <p class="ergebnis">N = 1 × 1,143 × 1,384 = 1,58</p>
+</div>
+
+<div class="warnung"><b>Achtung</b><p>Die Wärmebedarfe der Zapfstellen sind im Programm aus Zapfmenge und Temperaturhub <b>hergeleitet</b> (w = V · 1,163 Wh/(l·K) · Δϑ), nicht der Tabelle DIN 4708-2 entnommen — deren Volltext ist nicht frei. Nur die Normalbadewanne trägt den frei zitierten Bezugswert 5820 Wh. Für die Ausführungsplanung sind die Normwerte einzutragen; die Struktur der Rechnung bleibt dieselbe. Das Programm sagt das bei jeder Auswertung.</p></div>
+
+<p>Wofür braucht man N? Der Hersteller misst für seinen Speicher eine <b>Leistungskennzahl N_L</b>. Ein Speicher passt, wenn sein N_L die Bedarfskennzahl erreicht. Die Volumenrechnung im nächsten Abschnitt ist ein zweiter, unabhängiger Weg; beide gehören nebeneinander auf den Tisch.</p>
+
+<h4 id="k10-11-3">10.11.3 Speichervolumen über zwei Wege</h4>
+
+<p>Der Tagesbedarf beschreibt die Energiemenge, die Bedarfsspitze die Gleichzeitigkeit. In einem Einfamilienhaus mit vier Personen gewinnt fast immer der Tagesbedarf; in einer Wohnung mit zwei Personen und zwei Bädern gewinnt die Spitze. Ein Verfahren allein würde die jeweils andere Situation still falsch machen. Deshalb rechnet das Programm beide, nennt beide Zahlen und benennt den maßgebenden Weg.</p>
+
+<p>Beide Wege rechnen zuerst in Zapfmenge und dann über die Mischungsregel auf die Speichertemperatur zurück:</p>
+
+<div class="formel">
+  <p class="worte">In Worten: dieselbe Wärmemenge steckt in weniger Litern, wenn der Speicher heißer ist. Nicht das Volumen zählt, sondern der Temperaturhub über dem Kaltwasser.</p>
+  <p class="math">V₂ = V₁ · (ϑ₁ − ϑ_K) / (ϑ₂ − ϑ_K)</p>
+  <dl class="zeichen">
+    <dt>V₁, ϑ₁</dt><dd>Volumen und Temperatur der Zapfmenge</dd>
+    <dt>V₂, ϑ₂</dt><dd>Volumen und Temperatur im Speicher</dd>
+    <dt>ϑ_K</dt><dd>Kaltwassertemperatur [°C], Rechenwert 10</dd>
+  </dl>
+</div>
+
+<p>Zum Schluss wird durch den <b>nutzbaren Anteil</b> geteilt. Unter dem Wärmetauscher steht kaltes Wasser, und die Schichtung ist nie ideal; das Programm rechnet mit 0,85 für stehende Speicher mit Glattrohr.</p>
+
+<div class="beispiel">
+  <b>Beispiel zum Nachrechnen</b>
+  <p>Vier Personen, Komfort „normal" (40 l je Person und Tag bei 45 °C), Speicher 55 °C, Kaltwasser 10 °C, Gerät 8 kW.</p>
+  <p><b>Weg a — Tagesbedarf:</b> 4 × 40 = 160 l bei 45 °C. Auf 55 °C: 160 · (45 − 10)/(55 − 10) = 124,4 l. Geteilt durch 0,85 → <b>146 l</b>.</p>
+  <p><b>Weg b — Bedarfsspitze:</b> vorbelegt sind zwei Duschen à 40 l und eine Wannenfüllung à 140 l, alle bei 40 °C, über eine Stunde. Auf 55 °C: 80 · 30/45 = 53,3 l und 140 · 30/45 = 93,3 l, zusammen 146,7 l. Während der Stunde heizt das Gerät nach: 8 kW · 1 h / (1,163 · 45 K) = 152,9 l. Angerechnet werden davon aber nur 53,3 l, denn die größte einzelne Entnahme — die Wanne mit 93,3 l — läuft in wenigen Minuten durch und muss bevorratet sein. Bleiben 93,3 l, geteilt durch 0,85 → <b>110 l</b>.</p>
+  <p class="ergebnis">Maßgebend ist der Tagesbedarf mit 146 l; gewählt wird die nächste Kataloggröße: 150 l</p>
+</div>
+
+<p>Die Anrechnung der Nachheizung ist der Punkt, an dem sich sonst ein ausreichend starker Erzeuger den Speicher wegrechnet. Der Vorrat darf nie unter die größte einzelne Entnahme fallen. Das Programm sagt, wenn es weniger anrechnet als möglich wäre, und warum.</p>
+
+<p>Bei <b>drei und mehr Wohneinheiten</b> belegt das Programm keine Bedarfsspitze vor. Der Abendfall „jeder duscht, einmal wird gebadet" ist im Einfamilienhaus realistisch; im Geschosswohnungsbau wäre dieselbe Annahme eine erfundene Gleichzeitigkeit. Maßgebend ist dort der Vergleich von N mit dem N_L des Speichers aus dem Herstellerdatenblatt.</p>
+
+<h4 id="k10-11-4">10.11.4 Aufheizzeit und Aufheizleistung</h4>
+
+<div class="formel">
+  <p class="worte">In Worten: die Wärme, die den ganzen Speicherinhalt vom Kaltwasser auf Speichertemperatur bringt, geteilt durch die Zeit, in der das geschehen soll.</p>
+  <p class="math">Q = V · ρ · c · Δϑ / t</p>
+  <dl class="zeichen">
+    <dt>Q</dt><dd>Aufheizleistung [kW]</dd>
+    <dt>V</dt><dd>Speicherinhalt [m³]</dd>
+    <dt>ρ, c</dt><dd>Dichte und Wärmekapazität des Wassers bei mittlerer Temperatur</dd>
+    <dt>Δϑ</dt><dd>Temperaturhub Kaltwasser → Speicher [K]</dd>
+    <dt>t</dt><dd>Aufheizzeit [h]</dd>
+  </dl>
+</div>
+
+<div class="beispiel">
+  <b>Beispiel zum Nachrechnen</b>
+  <p>150 l von 10 auf 55 °C in 2 Stunden. Kurzform mit 1,163 Wh/(l·K):</p>
+  <p>150 · 1,163 · 45 / 2 = 3925 W</p>
+  <p class="ergebnis">rund 3,9 kW Aufheizleistung</p>
+  <p>Das Programm rechnet mit den temperaturabhängigen Stoffwerten und kommt auf 3,90 kW; die Kurzformel liegt rund 1 % darüber. Beide Zahlen stehen in den Rechenschritten nebeneinander — die Kurzformel als Kontrollzeile, weil die Branche mit ihr rechnet.</p>
+</div>
+
+<div class="warnung"><b>Achtung</b><p>Hier scheitern Wärmepumpenanlagen: der Speicher kann die Leistung oft gar nicht aufnehmen, weil die Glattrohrfläche für 55 °C Heizwasser zu klein ist. Dann springt der Heizstab ein, und die Jahresarbeitszahl bricht ein, ohne dass jemand einen Fehler bemerkt. Das Programm vergleicht deshalb die erforderliche Leistung mit zwei Grenzen — der Dauerleistung des Speicher-Wärmetauschers und der Erzeugerleistung im Warmwasserbetrieb — und nennt die erreichbare Aufheizzeit, wenn eine davon nicht reicht.</p></div>
+
+<h4 id="k10-11-5">10.11.5 Legionellen: Klein- oder Großanlage</h4>
+
+<p>Die Regel nach DVGW W 551 lautet: <b>Großanlage</b> ist eine Anlage mit mehr als 400 l Speicherinhalt <em>oder</em> mehr als 3 l Inhalt in einer Leitung zwischen Erwärmer und Entnahmestelle. Der Inhalt der Zirkulationsleitung wird nicht mitgerechnet. Anlagen in Ein- und Zweifamilienhäusern gelten <b>unabhängig davon</b> als Kleinanlagen.</p>
+
+<table class="tab">
+<caption>Was aus der Einstufung folgt</caption>
+<thead><tr><th></th><th>Kleinanlage</th><th>Großanlage</th></tr></thead>
+<tbody>
+<tr><td>Temperatur am Speicheraustritt</td><td>keine Forderung aus W 551; 50 °C sind eine Empfehlung</td><td><b>60 °C</b>, gefordert</td></tr>
+<tr><td>Zirkulationsrücklauf</td><td>—</td><td>mindestens 55 °C, höchstens 5 K Abkühlung im System</td></tr>
+<tr><td>Untersuchungspflicht nach Trinkwasserverordnung</td><td>nein</td><td>bei Vermietung oder gewerblicher Abgabe: ja</td></tr>
+</tbody>
+</table>
+
+<div class="merke"><b>Merke</b><p>Die 50 °C der Kleinanlage sind eine <b>Empfehlung</b>, keine Forderung. Unterhalb davon wächst Legionella pneumophila, oberhalb 55 °C stirbt sie ab. Wer den Wert als Grenzwert weitergibt, gibt eine Empfehlung als Norm aus. Das Programm unterscheidet die beiden Fälle ausdrücklich.</p></div>
+
+<p>Beurteilt wird der Speicher, der <b>tatsächlich aufgestellt</b> wird — also die Kataloggröße, nicht der rechnerische Zwischenwert. Zwischen 400 l Bedarf und einem 500-Liter-Behälter liegt die Grenze der W 551.</p>
+
+<p>Ergibt sich eine Großanlage, hebt das Programm die Speichertemperatur auf 60 °C an und rechnet <b>Volumen und Aufheizleistung neu</b>. Beides, nicht nur die Leistung: wer nur die Leistung nachzieht, legt einen Speicher aus, der für 60 °C um ein Viertel zu groß ist. Die Einstufung selbst bleibt dabei stehen, auch wenn der Speicher dadurch kleiner wird — sonst schwänge die Rechnung zwischen zwei Zuständen hin und her.</p>
+
+<h4 id="k10-11-6">10.11.6 Der Konflikt mit der Wärmepumpe</h4>
+
+<p>Jedes Grad Speichertemperatur kostet Arbeitszahl: die Verdichtungsarbeit steigt mit der Temperaturspreizung zwischen Quelle und Senke, grob 2 bis 2,5 % je Kelvin. Zwischen 50 und 60 °C liegen damit rund <b>20 bis 25 % Mehrverbrauch</b> für das Warmwasser. Viele Geräte erreichen 60 °C überhaupt nur mit dem Heizstab — dort fällt die Arbeitszahl auf 1.</p>
+
+<p>Der Ausweg ist nicht, die Temperatur zu senken, sondern das <b>stehende Warmwasser zu vermeiden</b>. Eine Frischwasserstation erwärmt im Durchfluss aus einem Heizungspuffer. Trinkwasser steht dann nur noch im Plattenwärmetauscher und in den Anbindeleitungen; der Puffer ist kein Trinkwasserspeicher, und die 400-Liter-Grenze greift nicht. Die 3-Liter-Regel für die Leitungen bleibt bestehen.</p>
+
+<p>Erreicht das gewählte Gerät die geforderte Speichertemperatur nicht, meldet das Blatt einen Fehler: „Der Speicher muss auf 60 °C gehalten werden, das Gerät erreicht 55 °C. Ohne Heizstab oder Frischwasserstation geht das nicht auf."</p>
+
+<h4 id="k10-11-7">10.11.7 Zirkulation und die 3-Liter-Regel</h4>
+
+<p>Nach DIN 1988-200 gilt: überschreitet der Inhalt der Leitung vom Trinkwassererwärmer bis zur entferntesten Entnahmestelle <b>drei Liter</b>, ist die Leitung mit einer Zirkulation oder einer Begleitheizung auszustatten. Der Inhalt der Zirkulationsleitung selbst zählt nicht mit.</p>
+
+<div class="beispiel">
+  <b>Beispiel zum Nachrechnen</b>
+  <p>Drei Liter sind wenig. Ein Rohr DN 20 (26,9 × 2,65) hat 21,6 mm lichte Weite und damit einen Inhalt von</p>
+  <p>π/4 · (2,16 cm)² · 100 cm = 0,37 l je Meter</p>
+  <p class="ergebnis">drei Liter sind rund acht Meter Leitung</p>
+  <p>Die Regel entscheidet damit faktisch die Grundrissfrage, ob das Bad neben dem Technikraum liegt oder nicht.</p>
+</div>
+
+<p>Ist eine Zirkulation erforderlich, rechnet das Programm den Wärmeverlust des zirkulierenden Netzes und daraus den Zirkulationsvolumenstrom — vorausgesetzt, Länge, Rohraußendurchmesser und Dämmdicke sind angegeben. Fehlen sie, sagt es das, statt zu raten.</p>
+
+<div class="formel">
+  <p class="worte">In Worten: der Volumenstrom muss so groß sein, dass der Wärmeverlust der Leitung die zulässige Abkühlung nicht überschreitet. Aus Verlustleistung und Abkühlung folgt der Umlauf.</p>
+  <p class="math">V̇ = Q / (1,163 · Δϑ)</p>
+  <dl class="zeichen">
+    <dt>V̇</dt><dd>Zirkulationsvolumenstrom [l/h]</dd>
+    <dt>Q</dt><dd>Wärmeverlust des zirkulierenden Netzes [W]</dd>
+    <dt>Δϑ</dt><dd>zulässige Abkühlung [K]; bei Großanlagen höchstens 5</dd>
+  </dl>
+</div>
+
+<div class="warnung"><b>Achtung</b><p>Eine Zirkulation ist kein kostenloser Komfort. Sie hält das Netz rund um die Uhr warm. Das Programm rechnet den Jahresverlust aus und stellt ihn daneben: der Nutzwärmebedarf für Warmwasser liegt bei vier Personen und 40 l je Person und Tag bei etwa 2400 kWh im Jahr — eine Zirkulation in einem Einfamilienhaus erreicht diese Größenordnung ohne Weiteres. Bei einer Wärmepumpe verlangt sie obendrein Vorlauftemperatur, sobald der Rücklauf 55 °C halten muss.</p></div>
+
+<p>Zirkulationsleitungen sind hydraulisch abzugleichen, mit thermostatischen Zirkulationsventilen. Sonst kommt der kürzeste Strang warm zurück und der längste kalt — genau dort, wo die Temperatur hygienisch gebraucht wird.</p>
+
+<p>Ohne Zirkulation entfallen Verlust, Pumpe und Regelung. Dafür gilt: die Leitung muss regelmäßig durchströmt werden. Eine selten benutzte Entnahmestelle wird zur Stagnationsstelle.</p>
+
+<p>Ab 60 °C Speichertemperatur ist ein thermostatischer <b>Verbrühschutz</b> vorzusehen — als Zentralmischer oder je Wohnung. Er senkt die Zapftemperatur, ohne die Hygienetemperatur im Speicher anzutasten. Das Programm setzt ihn im Schema als eigenes Bauteil.</p>
+
+<h3 id="k10-12">10.12 Sicherheitstechnik</h3>
+
+<p class="wo">Im Programm: Reiter <b>Anlage</b> → Abschnitt <b>Sicherheitstechnik</b></p>
+
+<p>Die Sicherheitsausrüstung ist der Teil der Anlage, der niemals gebraucht wird — bis er gebraucht wird. Sie wird deshalb in der Praxis oft nach Gefühl gesetzt: „nehmen wir das 50er Gefäß, das reicht schon." Reicht es nicht, geht das Sicherheitsventil im Winter ab, die Anlage verliert Wasser, beim Nachfüllen kommt Sauerstoff hinein, und zwei Jahre später steht der Plattenwärmetauscher voll Magnetit. Die Auslegung ist einfach genug, um sie zu rechnen: sie besteht aus vier Drücken und zwei Volumina.</p>
+
+<h4 id="k10-12-1">10.12.1 Die vier Eingaben</h4>
+
+<table class="tab">
+<caption>Randbedingungen der Sicherheitstechnik</caption>
+<thead><tr><th>Angabe</th><th>Vorbelegung</th><th>Bedeutung</th></tr></thead>
+<tbody>
+<tr><td>statische Höhe</td><td>7 m</td><td>Höhe des höchsten Anlagenpunktes über dem Ausdehnungsgefäß.</td></tr>
+<tr><td>Ansprechdruck</td><td>3,0 bar</td><td>Ansprechdruck des Sicherheitsventils.</td></tr>
+<tr><td>max. Temperatur</td><td>70 °C</td><td>Höchste Mediumtemperatur im Störfall. 70 °C deckt eine Wärmepumpe mit Heizstab ab; bei Kesseln sind 100 °C anzusetzen — dann wächst das Gefäß deutlich.</td></tr>
+<tr><td>vorhandenes Gefäß</td><td>0 l</td><td>0 heißt: neu auslegen. Mit Eintrag wird geprüft, ob das Bestandsgefäß reicht.</td></tr>
+</tbody>
+</table>
+
+<h4 id="k10-12-2">10.12.2 Die vier Drücke</h4>
+
+<p>Der Rechengang ist der aus jeder Herstellerbroschüre. Alle Drücke sind Überdrücke.</p>
+
+<div class="formel">
+  <p class="worte">In Worten (Vordruck): das Gefäß muss so vorgespannt sein, dass am höchsten Punkt der Anlage kein Unterdruck entsteht und im Erzeuger nichts siedet. Zehn Meter Wassersäule sind rund ein Bar; dazu kommt ein Sicherheitszuschlag von 0,2 bar. Unter 0,5 bar geht es nie.</p>
+  <p class="math">p₀ = max(h_st/10 + p_D + 0,2 ; 0,5)</p>
+  <dl class="zeichen">
+    <dt>p₀</dt><dd>Vordruck [bar ü]</dd>
+    <dt>h_st</dt><dd>statische Höhe [m]</dd>
+    <dt>p_D</dt><dd>Dampfdruckanteil [bar]; unter 100 °C null</dd>
+  </dl>
+</div>
+
+<p>Die 0,2 bar haben zwei Aufgaben, die zufällig auf denselben Zahlenwert führen: <b>Verdampfungsschutz</b> am heißesten Punkt und <b>Unterdruckvermeidung</b> am höchsten. Fällt der Druck oben unter den Atmosphärendruck, zieht die Anlage über jede Verschraubung und jeden Entlüfter Luft. Sauerstoff im Heizwasser heißt Korrosion, und Korrosion heißt Magnetit im Wärmetauscher. Die Untergrenze von 0,5 bar kommt von der Pumpe: darunter arbeitet keine Umwälzpumpe mehr kavitationsfrei.</p>
+
+<p>Der Vordruck wird auf 0,1 bar aufgerundet — feiner lässt sich ein Gefäß am Manometer der Füllpumpe ohnehin nicht einstellen.</p>
+
+<div class="formel">
+  <p class="worte">In Worten (Fülldruck): er liegt 0,3 bar über dem Vordruck, damit im kalten Zustand die Wasservorlage sicher im Gefäß steht.</p>
+  <p class="math">p_F = p₀ + 0,3</p>
+</div>
+
+<p>Ohne Wasservorlage sitzt die Membran im kalten Zustand auf dem Anschlag; jeder Wasserverlust führt dann sofort zu Unterdruck, und die Anlage merkt es erst, wenn sie Luft zieht.</p>
+
+<div class="formel">
+  <p class="worte">In Worten (Enddruck): ein Sicherheitsventil schließt nicht am Ansprechdruck, sondern erst spürbar darunter. Der Enddruck der Gefäßrechnung muss deshalb unter dem Ansprechdruck bleiben, sonst tropft das Ventil im Betrieb.</p>
+  <p class="math">p_e = p_SV − Δp_Schließ</p>
+  <dl class="zeichen">
+    <dt>p_SV</dt><dd>Ansprechdruck des Sicherheitsventils [bar ü]</dd>
+    <dt>Δp_Schließ</dt><dd>Schließdruckdifferenz: bis 5 bar pauschal 0,5 bar, darüber 10 % des Ansprechdrucks</dd>
+  </dl>
+</div>
+
+<p>Die Staffelung ist eine <b>Vorbelegung, kein Normzitat</b>. Maßgeblich ist das Datenblatt des eingebauten Ventils, das die Schließdruckdifferenz ausweist.</p>
+
+<h4 id="k10-12-3">10.12.3 Die beiden Volumina</h4>
+
+<div class="formel">
+  <p class="worte">In Worten (Ausdehnungsvolumen): Wasser wird beim Erwärmen größer. Wie viel größer, sagt der Ausdehnungskoeffizient — er wird im Programm aus der Dichte des Wassers <em>gerechnet</em>, nicht aus einer Tabelle abgelesen.</p>
+  <p class="math">V_e = V_A · n(ϑ_max)   mit   n = ρ(10 °C)/ρ(ϑ) − 1</p>
+  <dl class="zeichen">
+    <dt>V_A</dt><dd>Anlagenwasserinhalt [l]</dd>
+    <dt>n</dt><dd>Ausdehnungskoeffizient [-]</dd>
+    <dt>ϑ_max</dt><dd>höchste Mediumtemperatur im Störfall [°C]</dd>
+  </dl>
+</div>
+
+<p>Bezugstemperatur ist 10 °C — die übliche Annahme für Füllwasser aus dem Trinkwassernetz. Wer im Sommer mit 15 °C füllt, liegt mit dem gerechneten Gefäß auf der sicheren Seite. Für die Dichte verwendet das Programm die Zustandsgleichung von Kell (1975), die im Bereich 0 bis 150 °C auf besser als 0,01 kg/m³ mit den Dampftafeln übereinstimmt.</p>
+
+<div class="formel">
+  <p class="worte">In Worten (Wasservorlage): ein Rest Wasser bleibt immer im Gefäß, damit kleine Leckverluste und die Wasseraufnahme beim Entlüften nicht sofort zum Nachspeisen zwingen.</p>
+  <p class="math">V_WV = max(0,005 · V_A ; 3 l)</p>
+</div>
+
+<p>Jedes Nachspeisen bringt Sauerstoff und Härtebildner ein — deshalb ist die Vorlage keine Bequemlichkeit, sondern Korrosionsschutz (VDI 2035 Blatt 1). Auch dieser Ansatz stammt aus den Planungsunterlagen der Gefäßhersteller und ist im Programm überschreibbar.</p>
+
+<div class="formel">
+  <p class="worte">In Worten (Nennvolumen): das Gefäß muss so groß sein, dass Ausdehnungsvolumen und Wasservorlage hineinpassen — und zwar in dem Anteil des Gefäßes, den der Druckhub zwischen Vordruck und Enddruck freigibt. Weil das Gasgesetz mit Absolutdrücken rechnet, steht in Zähler und Nenner überall ein „+ 1".</p>
+  <p class="math">V_n = (V_e + V_WV) · (p_e + 1) / (p_e − p₀)</p>
+</div>
+
+<div class="beispiel">
+  <b>Beispiel zum Nachrechnen</b>
+  <p>Einfamilienhaus: Anlageninhalt 300 l, statische Höhe 7 m, Sicherheitsventil 3,0 bar, Störfalltemperatur 70 °C, kein Frostschutz.</p>
+  <p>Vordruck: 7/10 + 0 + 0,2 = 0,90 bar (über dem Mindestwert 0,5)</p>
+  <p>Fülldruck: 0,90 + 0,30 = 1,20 bar</p>
+  <p>Enddruck: 3,00 − 0,50 = 2,50 bar</p>
+  <p>Ausdehnungskoeffizient bei 70 °C: 999,700/977,770 − 1 = 0,02243, also 2,24 %</p>
+  <p>Ausdehnungsvolumen: 300 · 0,02243 = 6,73 l</p>
+  <p>Wasservorlage: max(1,5 ; 3) = 3,00 l</p>
+  <p>Nennvolumen: (6,73 + 3,00) · (2,50 + 1) / (2,50 − 0,90) = 9,73 · 3,5 / 1,6 = 21,3 l</p>
+  <p class="ergebnis">gewählt: 25 l aus der Baureihe — das Gefäß nutzt davon 46 % seines Volumens</p>
+</div>
+
+<p>Die Reihe der lieferbaren Nenninhalte steht in keiner Norm; sie ist über die Hersteller hinweg eingespielt: 8, 12, 18, 25, 35, 50, 80, 100, 140, 200, 250, 300, 400, 500, 600, 800, 1000 l.</p>
+
+<div class="warnung"><b>Achtung</b><p>Liegen Vordruck und Enddruck weniger als 0,5 bar auseinander, warnt das Programm: das Gefäß nutzt dann nur einen kleinen Teil seines Volumens, die Auslegung wird sehr groß und reagiert empfindlich auf Abweichungen des Vordrucks. Liegt der Enddruck gar nicht über dem Vordruck, ist es ein Fehler — mit dieser statischen Höhe ist der Ansprechdruck zu niedrig.</p></div>
+
+<h4 id="k10-12-4">10.12.4 Das Sicherheitsventil</h4>
+
+<p>Die Nennweite folgt aus der Wärmeleistung des Erzeugers:</p>
+
+<table class="tab">
+<caption>Heizungs-Sicherheitsventile, Kennzeichnung „H" — Richtwerte</caption>
+<thead><tr><th>DN</th><th>Anschluss</th><th>bis Wärmeleistung</th></tr></thead>
+<tbody>
+<tr><td>15</td><td>R ½"</td><td>50 kW</td></tr>
+<tr><td>20</td><td>R ¾"</td><td>100 kW</td></tr>
+<tr><td>25</td><td>R 1"</td><td>200 kW</td></tr>
+<tr><td>32</td><td>R 1¼"</td><td>350 kW</td></tr>
+<tr><td>40</td><td>R 1½"</td><td>600 kW</td></tr>
+<tr><td>50</td><td>R 2"</td><td>900 kW</td></tr>
+</tbody>
+</table>
+
+<div class="merke"><b>Merke</b><p><b>Maßgeblich ist die Bauteilkennzeichnung des eingebauten Ventils</b>, nicht diese Tabelle. Sie nennt Ansprechdruck und die geprüfte Abblaseleistung in kW. Weicht sie von der Tabelle ab, gilt das Typenschild. Die Abblaseleitung ist mindestens in der Nennweite des Ventilaustritts, ohne Absperrung und mit stetigem Gefälle zu führen. Diesen Satz setzt das Programm unter jede Sicherheitsauslegung.</p></div>
+
+<p>Beim Trinkwassererwärmer entscheidet <b>beides</b>: der Speicherinhalt (er bestimmt, wie viel Wasser sich ausdehnt) und die Heizleistung (sie bestimmt, wie schnell). DN 15 reicht bis 200 l und 75 kW, DN 20 bis 1000 l und 150 kW, DN 25 bis 5000 l und 250 kW. Der Ansprechdruck richtet sich nach dem zulässigen Betriebsüberdruck des Speichers; üblich sind 6 bar bei einem 10-bar-Behälter.</p>
+
+<h4 id="k10-12-5">10.12.5 Die Armaturenliste nach DIN EN 12828</h4>
+
+<p>Die Liste ist bewusst vollständig und nicht „nur das Wichtigste": sie ist zugleich die Vorlage für das Anlagenschema (<a href="#k11">Kapitel 11</a>) und für die Massenermittlung. Jede Position trägt ihre technische Angabe und ihren Normbezug.</p>
+
+<table class="tab">
+<caption>Die Pflichtarmaturen und warum sie dort sitzen</caption>
+<thead><tr><th>Position</th><th>Begründung</th><th>Grundlage</th></tr></thead>
+<tbody>
+<tr><td>Sicherheitsventil Heizung</td><td>Es begrenzt den Anlagendruck. Ohne es zerreißt im Störfall das schwächste Bauteil.</td><td>DIN EN 12828, Bauteilprüfung nach DIN EN ISO 4126-1</td></tr>
+<tr><td>Membran-Ausdehnungsgefäß</td><td>Nimmt die Volumenzunahme des erwärmten Wassers auf. Zu klein heißt: das Sicherheitsventil bläst bei jedem Aufheizen ab.</td><td>DIN EN 12828, Bauart nach DIN EN 13831</td></tr>
+<tr><td>Kappenventil vor dem Gefäß</td><td>Die Ausdehnungsleitung darf <b>nicht absperrbar</b> sein. Zulässig ist allein ein gesichertes Kappenventil mit Entleerung, das nur mit Werkzeug zu betätigen ist.</td><td>DIN EN 12828</td></tr>
+<tr><td>Manometer im Erzeugerkreis</td><td>Die einzige Anzeige, an der man einen schleichenden Wasserverlust erkennt. Rote Marke beim Ansprechdruck.</td><td>DIN EN 12828, Gerät nach DIN EN 837-1</td></tr>
+<tr><td>Thermometer im Vorlauf</td><td>Unmittelbar hinter dem Erzeuger. Vorlauf und Rücklauf nebeneinander gemessen zeigen sofort, ob die Spreizung stimmt.</td><td>DIN EN 12828</td></tr>
+<tr><td>Entleerung am tiefsten Punkt</td><td>An jedem entleerbaren Abschnitt. Ohne sie lässt sich nichts tauschen, ohne die ganze Anlage zu leeren.</td><td>DIN EN 12828</td></tr>
+<tr><td>Füll- und Entleerungsarmatur</td><td>Nach dem Füllen zu trennen. Füllwasser nach VDI 2035 Blatt 1.</td><td>DIN EN 12828, VDI 2035</td></tr>
+<tr><td>Systemtrenner in der Füllleitung</td><td>Verhindert, dass Heizungswasser ins Trinkwassernetz zurückdrückt. Typ CA bei Flüssigkeitskategorie 3 (Heizungswasser ohne Zusätze), <b>Typ BA bei Kategorie 4</b> (mit Frostschutz oder Inhibitoren).</td><td>DIN EN 1717, DIN 1988-100</td></tr>
+<tr><td>Wasserzähler in der Füllleitung</td><td>Die eingebrachte Wassermenge ist zu dokumentieren. An der Nachspeisung ist er das Frühwarnzeichen für eine Undichtigkeit.</td><td>VDI 2035 Blatt 1</td></tr>
+<tr><td>Mikroblasen-Luftabscheider</td><td>Im Vorlauf, an der heißesten Stelle: die Gaslöslichkeit fällt mit steigender Temperatur, und nur dort perlt gelöstes Gas aus.</td><td>DIN EN 12828, VDI 2035 Blatt 2</td></tr>
+<tr><td>Schlammabscheider mit Magnetit-Abscheidung</td><td>Im Rücklauf, unmittelbar vor der Wärmepumpe. Der Verflüssiger ist ein gelöteter Plattenwärmetauscher mit Spaltweiten im Zehntelmillimeterbereich; der Schlamm aus Stahlheizkörpern ist überwiegend Magnetit (Fe₃O₄) — ferromagnetisch, feinkörnig und für einen rein gravimetrischen Abscheider zu leicht.</td><td>VDI 2035 Blatt 2, Herstellervorgaben</td></tr>
+<tr><td>Rückflussverhinderer</td><td>In der Erzeugerzuleitung und in jedem parallel geführten Kreis — gegen Schwerkraftzirkulation. Steht die Pumpe, wandert warmes Wasser von selbst nach oben und kühlt über die Heizflächen aus.</td><td>DIN EN 13959, Einbaufall nach DIN EN 1717</td></tr>
+<tr><td>Absperrarmaturen am Wärmeerzeuger</td><td>Zwei Stück, Vorlauf und Rücklauf: der Erzeuger muss sich ohne Entleeren der Anlage ausbauen lassen. <b>Zwischen Erzeuger und Sicherheitsventil beziehungsweise Ausdehnungsgefäß darf keine absperrbare Armatur liegen.</b></td><td>DIN EN 12828</td></tr>
+<tr><td>Überströmventil oder Differenzdruckregler</td><td>Nur wenn nötig: kein Trennspeicher <em>und</em> der kleinste Betriebsvolumenstrom liegt unter dem Mindestvolumenstrom des Geräts. Ein Differenzdruckregler ist vorzuziehen, wenn der Erzeuger drehzahlgeregelt fährt.</td><td>Herstellervorgabe zum Mindestvolumenstrom — keine Normpflicht, aber Voraussetzung für die Abtauung</td></tr>
+<tr><td>Wärmemengenzähler</td><td>Solange die Anlage gefördert wird: Nachweis der Jahresarbeitszahl. Einbau im Rücklauf mit Temperaturfühlerpaar.</td><td>BEG-EM-Förderrichtlinie, Messgerät nach RL 2014/32/EU (MID)</td></tr>
+<tr><td>Sicherheitsventil Trinkwassererwärmer</td><td>Kennzeichnung „D" mit Heizleistungsangabe, Ablaufleitung mit freiem Auslauf und Schild „Während der Beheizung tritt Wasser aus".</td><td>DIN 4753-1, Sicherheitsgruppe nach DIN 1988-200</td></tr>
+<tr><td>Rückflussverhinderer in der Kaltwasserzuleitung</td><td>Bestandteil der Sicherheitsgruppe, mit Prüfventil.</td><td>DIN 1988-200, DIN EN 13959</td></tr>
+</tbody>
+</table>
+
+<div class="warnung"><b>Achtung</b><p>Ein Rückflussverhinderer in der Kaltwasserzuleitung <b>ohne</b> Sicherheitsventil schließt den Trinkwassererwärmer druckdicht ein. Das Programm meldet das als Fehler, solange nicht quittiert ist, dass der Speicher abgesichert ist. Liegt der Ruhedruck im Trinkwassernetz über 80 % des Ansprechdrucks, ist zusätzlich ein Druckminderer vorzusehen — sonst tropft das Ventil bei jedem Aufheizen.</p></div>
+
+<h3 id="k10-13">10.13 Die Hinweise und Warnungen des Blattes</h3>
+
+<p>Alle Rechenkerne geben ihre Anmerkungen an das Anlagenblatt weiter. Dort werden sie entdoppelt und nach Gewicht sortiert: Fehler zuerst, dann Warnungen, dann Hinweise. Im einfachen Modus zeigt das Blatt nur die Fehler unter der Überschrift „Das muss noch geklärt werden".</p>
+
+<table class="tab">
+<caption>Was die drei Stufen bedeuten</caption>
+<thead><tr><th>Stufe</th><th>Bedeutung</th><th>Was zu tun ist</th></tr></thead>
+<tbody>
+<tr><td>Fehler</td><td>Die Anlage darf so nicht gebaut werden oder wird nicht funktionieren.</td><td>Muss geändert werden, bevor bestellt wird.</td></tr>
+<tr><td>Warnung</td><td>Nach der Fachliteratur falsch, überflüssig oder ungünstig — die Anlage läuft aber.</td><td>Prüfen und bewusst entscheiden.</td></tr>
+<tr><td>Hinweis</td><td>Eine Angabe zum Prüfen, weil das Programm den maßgeblichen Sachverhalt nicht kennt.</td><td>Nachsehen, oft im Datenblatt.</td></tr>
+</tbody>
+</table>
+
+<p>Die häufigsten Meldungen und was hinter ihnen steckt:</p>
+
+<table class="tab">
+<caption>Meldungen des Anlagenblatts</caption>
+<thead><tr><th>Meldung</th><th>Was dahintersteckt</th><th>Was zu tun ist</th></tr></thead>
+<tbody>
+<tr><td>„Keine beheizten Räume im Modell."</td><td>Ohne Räume gibt es keine Heizlast und keine Auslegung.</td><td>Räume anlegen und als beheizt kennzeichnen (<a href="#k7">Kapitel 7</a>).</td></tr>
+<tr><td>„… ist eine Typklasse, kein Produkt."</td><td>Der Katalogeintrag beschreibt eine Bauart, nicht ein Gerät.</td><td>Zum Bestellen und für den Schallnachweis das Datenblatt einlesen.</td></tr>
+<tr><td>„Das Gerät erreicht x °C, der wärmste Kreis verlangt y °C."</td><td>Die Vorlauftemperatur reicht nachweislich nicht.</td><td>Größeres oder anderes Gerät, oder Vorlauftemperatur senken.</td></tr>
+<tr><td>„… ist auf x °C ausgelegt, der Erzeuger fährt y °C."</td><td>Ein ungemischter Kreis kann seine Auslegungstemperatur nicht halten.</td><td>Mischer mit eigener Pumpe vorsehen oder den Kreis als gemischt führen.</td></tr>
+<tr><td>„Der Anlageninhalt unterschreitet den Mindestwasserinhalt um x l."</td><td>Beim Abtauen bricht die Vorlauftemperatur ein, der Verdichter taktet.</td><td>Puffer vorsehen oder — falls der Hersteller es zulässt — den Heizstab freigeben.</td></tr>
+<tr><td>„Im ungünstigsten Betriebsfall fließen nur x m³/h."</td><td>Bei Einzelraumregelung kann ein einziger offener Kreis unter den Mindestvolumenstrom fallen.</td><td>Überströmventil oder Differenzdruckregler; besser: hydraulisch trennen.</td></tr>
+<tr><td>„Für den Frostschutz liegt keine Materialfreigabe vor."</td><td>Glykol ist bei vielen Wärmepumpen nicht freigegeben.</td><td>Freigabe einholen, sonst kein Glykol. Konzentration jährlich prüfen.</td></tr>
+<tr><td>„Der Speicher muss auf 60 °C gehalten werden, das Gerät erreicht x °C."</td><td>Großanlage nach W 551, aber das Gerät kommt nicht hin.</td><td>Heizstab, Frischwasserstation — oder die Einstufung prüfen.</td></tr>
+<tr><td>„Die gewünschte Aufheizzeit wird nicht erreicht."</td><td>Wärmetauscherfläche oder Erzeugerleistung begrenzen.</td><td>Größere Fläche, längere Aufheizzeit oder kleinerer Speicher.</td></tr>
+<tr><td>„Das vorhandene Gefäß mit x l ist zu klein."</td><td>Ein zu kleines Gefäß treibt den Druck beim Aufheizen über den Ansprechdruck.</td><td>Gefäß tauschen oder ein zweites parallel setzen — die Summe der Nennvolumina zählt, der Vordruck ist bei allen gleich einzustellen.</td></tr>
+<tr><td>„Sperrzeit x h/Tag: die Leistung wächst um den Faktor …"</td><td>Der Sperrzeitfaktor greift.</td><td>Prüfen, ob statt der Sperrung eine Leistungsreduzierung nach § 14a EnWG vereinbart ist.</td></tr>
+</tbody>
+</table>
+
+<div class="merke"><b>Merke</b><p>Ein Anlagenblatt ohne Fehlermeldung ist <b>keine Freigabe</b>. Geprüft wird nur, was sich aus dem Modell und den eingetragenen Randbedingungen ablesen lässt. Betriebsweise, Regeleinstellung, Montageort, Fühlersitz, Schall, Kondensat und Wasserqualität sieht das Anlagenblatt nicht.</p></div>
+
+</section>

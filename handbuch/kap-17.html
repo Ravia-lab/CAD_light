@@ -1,0 +1,569 @@
+<section id="kap-17" class="kapitel" data-titel="17 · Schnittstellen: Export, IFC, Einbettung in RaVia">
+<h2 id="k17">17 · Schnittstellen: Export, IFC, Einbettung in RaVia</h2>
+<p class="lead">Alles, was dieses Programm tut, läuft auf eine Datei zu: die Übergabe an die Heizlastberechnung. Dieses Kapitel sagt, was in dieser Datei steht, welche anderen Wege es daneben gibt — IFC4 hin und zurück, Einbettung in RaVia, der Rückweg von dort — und was der Betrieb davon merkt.</p>
+
+<h3 id="k17-1">17.1 Der Export <code>ravia.bim.light</code> v2.0.0</h3>
+
+<p class="wo">Im Programm: Werkzeugleiste oben rechts → blauer Knopf <b>RaVia JSON</b>. Der Knopf trägt den Hinweis „Gebäudedaten als RaVia-BIM-JSON exportieren (DIN EN 12831) — dient zugleich als Projektdatei".</p>
+
+<h4 id="k17-1-1">17.1.1 Warum diese Datei der eigentliche Zweck des Programms ist</h4>
+
+<p>Das Programm rechnet die Norm-Heizlast <b>nicht</b>. Es erfasst, prüft und legt aus; gerechnet wird in RaVia. Damit ist die Übergabedatei nicht ein Ausgabeformat neben anderen, sondern das Ergebnis der ganzen Arbeit. Alles davor — Wände ziehen, Räume erkennen lassen, Öffnungen setzen, Aufbauten zuweisen, Wärmebrücken zählen — dient dazu, diese Datei vollständig zu machen.</p>
+
+<p>Der Leitgedanke hinter dem Format steht als Regel im Programm: <b>die Gegenstelle soll rechnen können, ohne nachzufragen.</b> Deshalb steht im Export nicht nur Geometrie, sondern jede Größe, die für Transmission, Lüftung und Aufheizung gebraucht wird — und zwar bereits aufbereitet.</p>
+
+<div class="merke"><b>Merke</b><p>Zwei Beispiele, was „aufbereitet" heißt. Erstens: an jedem Bauteil steht nicht nur der U-Wert, sondern auch die <b>Temperatur auf der anderen Seite</b>. Der Temperatur-Korrekturfaktor ist damit eine Subtraktion und kein Nachschlagewerk. Zweitens: das charakteristische Bodenmaß B′ ist bereits ausgerechnet, statt dass die Gegenstelle es aus Fläche und Umfang selbst bilden muss.</p></div>
+
+<div class="baustelle"><b>Auf der Baustelle heißt das</b><p>Der Dateiname entsteht aus dem Projektnamen und dem Tagesdatum, etwa <code>referenzhaus_ravia-bim_2026-08-29.json</code>. Umlaute werden dabei zu ae, oe, ue, Leerzeichen zu Bindestrichen. Sie können die Datei umbenennen — das Programm erkennt sie beim Öffnen am Inhalt, nicht am Namen.</p></div>
+
+<p>Nach dem Klick meldet die Statuszeile, was in der Datei steht: Zahl der Räume, Nutzfläche und installierte Heizleistung. Stehen im Modell Fehler, meldet sie stattdessen <em>„Export erzeugt — aber n Fehler im Modell, siehe Prüfung"</em>. Die Datei entsteht trotzdem; ein unvollständiges Modell darf man übergeben, man muss es nur wissen.</p>
+
+<h4 id="k17-1-2">17.1.2 Was drinsteht</h4>
+
+<p>Die Datei hat einen festen Aufbau. Ganz oben stehen vier Angaben, die sie selbst beschreiben, danach die Blöcke mit dem Inhalt.</p>
+
+<table class="tab">
+<caption>Die Blöcke des Exports</caption>
+<thead><tr><th>Block</th><th>Was darin steht</th></tr></thead>
+<tbody>
+<tr><td><code>schema</code>, <code>version</code></td><td>Formatname <code>ravia.bim.light</code> und Fassung <code>2.0.0</code>.</td></tr>
+<tr><td><code>generator</code>, <code>exportedAt</code></td><td>Welches Programm in welcher Fassung die Datei geschrieben hat, und wann.</td></tr>
+<tr><td><code>units</code></td><td>Die Einheiten aller Zahlen im Dokument: m, m², m³, °C, W/(m²·K), W, m³/h, Grad. Sie stehen im Dokument selbst und nicht in einer Beschreibung, die verlorengeht.</td></tr>
+<tr><td><code>conventions</code></td><td>Sieben Absätze Klartext: wie der Azimut zählt, wie die Koordinaten liegen, was brutto und netto heißt, was die Randbedingungen bedeuten, wie erdberührte Flächen entstehen, was ein massives Bauteil ist und — der längste Absatz — was die Lüftungsfelder bedeuten und was man nicht addieren darf.</td></tr>
+<tr><td><code>project</code></td><td>Der Projektkopf: Name, Nordabweichung, Norm-Außentemperatur, Standard-Innentemperatur, n50, Abschirmung, Temperatur unbeheizter Bereiche, Erdreichtemperatur, Geländeoberkante, Wärmebrückenverfahren und -zuschlag, Wiederaufheizfaktor, Absenkbetrieb, Lüftungsanlage.</td></tr>
+<tr><td><code>subsoil</code></td><td>Der Baugrund: Bodenart im Klartext, größte Einbindetiefe, erdberührte Fläche und — falls erfasst — der Grundwasserstand. Der Block fehlt, wenn das Gebäude das Erdreich nirgends berührt.</td></tr>
+<tr><td><code>levels</code></td><td>Die Geschosse mit Höhenlage, Höhe, Boden- und Decken-U-Wert und deren Randbedingung.</td></tr>
+<tr><td><code>constructions</code></td><td>Der Bauteilkatalog. Die U-Werte an den Flächen verweisen hierauf — damit ist nachvollziehbar, woher ein U-Wert stammt.</td></tr>
+<tr><td><code>verticals</code></td><td>Treppen und Schächte: Fläche, Breite, Länge, Stufenzahl, in welchen Raum sie fallen und ob sie die Decke darüber offen lassen.</td></tr>
+<tr><td><code>solids</code></td><td>Massive Bauteile ohne Raumfunktion — Kamin, Pfeiler, Wandversatz. Mit Umriss, Fläche, Volumen und den Eingangsgrößen für die Wärmebrücke an der Außenwand.</td></tr>
+<tr><td><code>pipes</code>, <code>pipeSchedule</code>, <code>pipeNetwork</code></td><td>Die einzelnen Leitungsabschnitte, der Längenauszug (Meter je Gewerk, Nennweite und Dämmstärke) und das Strangschema: je Verbraucher der Weg zu seiner Quelle, dazu Quellen, Steigstränge, nicht angeschlossene Objekte und der ungünstigste Fließweg.</td></tr>
+<tr><td><code>heatPump</code></td><td>Außenanlage und Wärmepumpe. Fehlt, solange im Lageplan nichts steht.</td></tr>
+<tr><td><code>plant</code></td><td>Die Anlagentechnik: Gerät, Speicher, Auslegungstemperaturen, Heizkreise, Sicherheitsausrüstung nach DIN EN 12828, Trinkwarmwasser und das Anlagenschema als Bauteile und Verbindungen. Fehlt, solange kein Gerät gewählt wurde.</td></tr>
+<tr><td><code>rooms</code></td><td>Der Kern. Je Raum die Kennwerte und darin die Liste aller Hüllbauteile — siehe unten.</td></tr>
+<tr><td><code>totals</code></td><td>Die Gebäudesummen: Räume, Nutzfläche, Bruttofläche, Luftvolumen, Außenwand- und Fensterfläche, Fensterflächenanteil, Kompaktheit A/V, installierte Heizleistung, Zahl der TGA-Objekte je Gewerk, die Wärmebrückenbilanz, der Absenkbetrieb und die Luftbilanz.</td></tr>
+<tr><td><code>validation</code></td><td>Der Prüfbericht — dieselbe Prüfung wie im Reiter <b>Prüfung</b>: Zahl der Fehler, Warnungen und Hinweise, die Kennzeichnung „rechenfähig" und jeder Befund einzeln mit Befundcode, Meldung, betroffenem Objekt und Handlungsanweisung.</td></tr>
+<tr><td><code>geometry</code></td><td>Die Rohgeometrie: Knoten, Wände, Öffnungen, TGA-Objekte, Treppen, massive Bauteile, Leitungen, Beschriftungen, Dachöffnungen. Damit ist die Datei verlustfrei wieder einlesbar.</td></tr>
+</tbody>
+</table>
+
+<p><b>Je Raum</b></p>
+
+<p>Ein Raum trägt Name, Nutzung, Geschoss, Fläche, Nettogrundfläche (abzüglich Treppen, Schächten und Mauerwerk), Höhe, Volumen, Umfang, das Raumpolygon, Solltemperatur, Mindestluftwechsel n_min und denselben Wert als Volumenstrom, ob er beheizt ist, den Umfang mit Erdkontakt, die erdberührte Fläche, B′, die Zahl der Außenfassaden, die Höhenlage seines Geschosses, die Fensterfläche je Himmelsrichtung, die installierte Heizleistung, die im Raum stehenden TGA-Objekte und — bei Räumen unter der Dachschräge — mittlere, kleinste und größte lichte Höhe, Schrägenfläche, Wohnfläche nach WoFlV, Dachfensterfläche und Gaubenvolumen.</p>
+
+<p>Steht das Projekt auf dem ausführlichen Wärmebrückenverfahren, kommt je Raum die Liste der Anschlüsse dazu: Art, Bezeichnung im Klartext, ψ, Länge, ψ·l und woher der ψ-Wert stammt. Dazu die Summe Σψ·l, die Hüllfläche des Raums und der gleichwertige pauschale Zuschlag.</p>
+
+<p><b>Je Hüllbauteil</b></p>
+
+<p>Wand, Boden, Decke, Dach und Giebel stehen in <b>einer</b> Liste und in derselben Form — die Transmissionsrechnung behandelt sie gleich. Jedes Bauteil trägt: Kennung, Art, Bauteilart, bei Wänden Länge, Höhe und Dicke, die Neigung gegen die Waagerechte (90 für eine Wand, 0 für Boden und Decke), Himmelsrichtung und Azimut, Bruttofläche, Nettofläche nach Abzug aller Öffnungen, U-Wert, Name des Bauteilaufbaus, Wärmebrückenzuschlag, die Randbedingung, die Nachbartemperatur und die Liste der Öffnungen darin.</p>
+
+<div class="merke"><b>Merke</b><p>Eine teilweise eingegrabene Kellerwand erscheint als <b>zwei</b> Flächen: der Teil unter Gelände mit der Randbedingung <code>ground</code> und der Kennung <code>&lt;wandId&gt;-ground</code>, der Teil darüber mit <code>exterior</code> und der Kennung der Wand. Beide Flächen zusammen ergeben wieder die ganze Wandfläche — das ist die Probe, ob die Aufteilung stimmt.</p></div>
+
+<p>Eine Öffnung trägt Kennung, Art (Fenster, Tür, Durchgang), Breite, Höhe, Fläche, Brüstungshöhe, Himmelsrichtung, Azimut, U-Wert und bei Fenstern den g-Wert.</p>
+
+<h4 id="k17-1-3">17.1.3 Ein gekürztes Beispiel</h4>
+
+<p>So sieht die Datei tatsächlich aus. Gekürzt ist sie an den mit <code>…</code> gekennzeichneten Stellen; die Feldnamen und die Zahlen stammen aus dem Referenzhaus, an dem das Programm bei jedem Prüflauf gemessen wird.</p>
+
+<div class="beispiel">
+<b>Auszug aus einer Übergabedatei</b>
+<pre>{
+  "schema": "ravia.bim.light",
+  "version": "2.0.0",
+  "generator": "RaVia CAD Light 1.14.0",
+  "exportedAt": "2026-08-29T16:42:00.000Z",
+  "units": {
+    "length": "m", "area": "m2", "volume": "m3",
+    "temperature": "degC", "uValue": "W/(m2K)",
+    "power": "W", "airflow": "m3/h", "angle": "deg"
+  },
+  "conventions": { "azimuth": "…", "coordinates": "…", "…": "…" },
+  "project": {
+    "name": "Referenzhaus",
+    "northAngle": 0,
+    "designOutdoorTemperature": -12,
+    "designIndoorTemperature": 20,
+    "n50": 1.5,
+    "shielding": "moderate",
+    "unheatedTemperature": 10,
+    "groundTemperature": 10,
+    "terrainElevation": -1.45,
+    "thermalBridgeMethod": "detailed",
+    "thermalBridgeCategory": "A",
+    "thermalBridgeSupplement": 0.05,
+    "reheatFactor": 0
+  },
+  "subsoil": {
+    "soil": "normal",
+    "soilLabel": "normal, bindig-feucht",
+    "terrainElevation": -1.45,
+    "deepestEmbedment": 1.15,
+    "groundContactArea": 113.49
+  },
+  "levels": [
+    { "id": "kg", "name": "KG", "order": -1, "elevation": -2.6,
+      "height": 2.3, "floorUValue": 0.35, "floorBoundary": "ground",
+      "ceilingUValue": 0.9, "ceilingBoundary": "adjacent-room" }
+  ],
+  "rooms": [
+    {
+      "id": "room-kg-0",
+      "name": "Keller",
+      "usage": "storage",
+      "level": "KG",
+      "area": 43.98,
+      "netFloorArea": 43.98,
+      "height": 2.3,
+      "volume": 101.15,
+      "perimeter": 26.79,
+      "isHeated": false,
+      "setpointTemperature": 15,
+      "airChangeRate": 0.5,
+      "minimumAirflow": 50.57,
+      "groundContactPerimeter": 20,
+      "groundContactArea": 66.38,
+      "characteristicGroundDimension": 4.4,
+      "exposedFacadeCount": 3,
+      "levelElevation": -2.6,
+      "exteriorWallArea": 22.4,
+      "totalWindowArea": 1.2,
+      "windowAreaByOrientation": { "S": 0.6, "W": 0.6 },
+      "thermalBridges": [
+        { "kind": "base", "label": "Sockel / Bodenplatte",
+          "psi": 0.22, "length": 20,
+          "heatLossCoefficient": 4.4, "source": "default" }
+      ],
+      "thermalBridgeHeatLoss": 6.685,
+      "thermalBridgeEnvelopeArea": 133.96,
+      "thermalBridgeEquivalentSupplement": 0.0499,
+      "ventilation": {
+        "role": "none", "supplyAirflow": 0, "exhaustAirflow": 0,
+        "transferAirflow": 0, "effectiveSupplyAirflow": 0,
+        "minimumAirflow": 50.57
+      },
+      "surfaces": [
+        {
+          "id": "kg-w-s1",
+          "kind": "wall",
+          "component": "exterior",
+          "length": 6, "height": 1.15, "thickness": 0.365,
+          "tilt": 90, "orientation": "S", "azimuth": 180,
+          "grossArea": 6.9, "netArea": 6.3,
+          "uValue": 0.28,
+          "thermalBridgeSupplement": 0,
+          "boundary": "exterior",
+          "neighbourTemperature": -12,
+          "openings": [
+            { "id": "kg-o-s1", "kind": "window",
+              "width": 1, "height": 0.6, "area": 0.6,
+              "sillHeight": 1.4, "orientation": "S", "azimuth": 180,
+              "uValue": 1.1, "gValue": 0.6 }
+          ]
+        },
+        {
+          "id": "kg-w-s1-ground",
+          "kind": "wall",
+          "component": "exterior",
+          "tilt": 90,
+          "grossArea": 6.9, "netArea": 6.9,
+          "uValue": 0.28,
+          "boundary": "ground",
+          "neighbourTemperature": 10,
+          "groundContact": { "embedmentDepth": 1.15, "buriedHeight": 1.15 },
+          "openings": []
+        }
+      ],
+      "polygon": [ { "x": 0, "y": 0 }, "…" ],
+      "fixtures": [ "…" ]
+    }
+  ],
+  "totals": {
+    "roomCount": 6,
+    "heatedRoomCount": 4,
+    "netFloorArea": 218.07,
+    "grossFloorArea": 235.92,
+    "netVolume": 596.81,
+    "heatedVolume": 429.63,
+    "exteriorWallArea": 202.08,
+    "windowArea": 12.54,
+    "windowWallRatio": 0.058,
+    "compactness": 1.069,
+    "installedHeatingPower": 4600,
+    "fixtureCount": { "heating": 6, "sanitary": 0, "ventilation": 4 },
+    "thermalBridges": {
+      "method": "detailed", "category": "A", "supplement": 0.05,
+      "envelopeArea": 695.85,
+      "detailedHeatLoss": 18.89,
+      "flatHeatLoss": 34.79,
+      "equivalentSupplement": 0.0271,
+      "lengthsByKind": { "base": 36, "floor-slab": 72, "…": 0 }
+    },
+    "ventilation": {
+      "kind": "balanced", "heatRecovery": 0.8,
+      "operation": "continuous",
+      "supplyAirflow": 120, "exhaustAirflow": 120,
+      "transferAirflow": 0, "effectiveSupplyAirflow": 24,
+      "balance": 0,
+      "roomsByRole": { "supply": 2, "exhaust": 2, "transfer": 0, "none": 2 }
+    }
+  },
+  "validation": { "errors": 0, "warnings": 0, "infos": 4,
+                  "ready": true, "issues": [ "…" ] },
+  "geometry": { "nodes": [ "…" ], "walls": [ "…" ], "openings": [ "…" ] }
+}</pre>
+<p class="ergebnis">Die Gebäudesummen des Referenzhauses sind Sollwerte: sie werden bei jedem Prüflauf verglichen</p>
+</div>
+
+<div class="warnung"><b>Achtung</b><p>Im Beispiel steht bei der Wärmebrückenbilanz <code>detailedHeatLoss: 18.89</code> gegen <code>flatHeatLoss: 34.79</code> — der pauschale Zuschlag von 0,05 W/(m²·K) rechnet für dieses Gebäude fast das Doppelte an Verlust. Der gleichwertige Zuschlag von 0,0271 sagt, welche Pauschale gepasst hätte. Diese Gegenprobe steht im Export, weil sie sonst niemand bildet.</p></div>
+
+<h4 id="k17-1-4">17.1.4 Was die Fassungsnummer bedeutet — und der Generator-Vermerk</h4>
+
+<p>Zwei Nummern stehen in der Datei, und sie bedeuten Verschiedenes.</p>
+
+<table class="tab">
+<caption>Fassung des Formats und Fassung des Programms</caption>
+<thead><tr><th>Feld</th><th>Beispiel</th><th>Was es sagt</th></tr></thead>
+<tbody>
+<tr><td><code>version</code></td><td><code>2.0.0</code></td><td>Die Fassung des <b>Formats</b>. Sie sagt, wie die Datei aufgebaut ist — welche Blöcke es gibt und wie die Felder heißen.</td></tr>
+<tr><td><code>generator</code></td><td><code>RaVia CAD Light 1.14.0</code></td><td>Die Fassung des <b>Programms</b>, das die Datei geschrieben hat.</td></tr>
+</tbody>
+</table>
+
+<p>Die Formatfassung steht seit Langem auf 2.0.0, obwohl das Programm inzwischen ein gutes Dutzend Ausbaustufen weiter ist. Das ist kein Versäumnis, sondern die Aussage selbst: seither ist <b>nichts umbenannt und nichts entfernt</b> worden. Dazugekommen sind Blöcke — die Wärmebrücken je Raum in 0.7.0, die Lüftung und das Strangschema in 0.8.0, die Anlagentechnik in 1.2.0. Ein Leseprogramm, das gegen einen älteren Stand gebaut wurde, findet alle Felder, die es kennt, unverändert vor und übergeht die neuen.</p>
+
+<div class="merke"><b>Merke</b><p>Ein Feld dazu ist harmlos, ein umbenanntes Feld bricht die Gegenstelle. Deshalb bleibt die Fassungsnummer bei 2.0.0, solange nur ergänzt wird. Eine <b>3.0.0</b> wäre die Ansage, dass eine Gegenstelle nachgezogen werden muss.</p></div>
+
+<p>Der Generator-Vermerk hat einen anderen Zweck: Herkunft. Eine Übergabedatei wandert weiter — an den Fachplaner, an die Förderstelle, ins Archiv. Steht sie ein halbes Jahr später wieder auf dem Tisch und eine Zahl darin ist strittig, sagt <code>generator</code>, welches Programm in welcher Fassung sie erzeugt hat, und <code>exportedAt</code> sagt wann, auf die Sekunde genau. Ohne diese beiden Angaben ist eine Datei nicht mehr zuzuordnen.</p>
+
+<div class="warnung"><b>Achtung</b><p><code>exportedAt</code> ist der einzige Teil der Datei, der sich bei jedem Klick ändert, auch wenn am Modell nichts angerührt wurde. Zwei Exporte desselben Standes sind deshalb nicht Byte für Byte gleich. Wer Dateien vergleichen will, vergleicht sie mit dem Exportvergleich (<a href="#k17-6">Abschnitt 17.6</a>) und nicht mit einem Dateivergleich.</p></div>
+
+<h4 id="k17-1-5">17.1.5 Die Übergabedatei ist zugleich die Projektdatei</h4>
+
+<p>Am Ende der Datei steht der Block <code>geometry</code> mit den Knoten, Wänden, Öffnungen, TGA-Objekten, Treppen, massiven Bauteilen, Leitungen, Beschriftungen und Dachöffnungen — also mit allem, was Sie gezeichnet haben. Deshalb ist dieselbe Datei zweierlei: Übergabe an RaVia und vollständige Projektdatei.</p>
+
+<p>Das hat eine Folge, die auf den ersten Blick verwundert: auch die <b>von RaVia zurückgeschriebene Norm-Heizlast</b> steht im Export, obwohl sie von dort kommt. Ohne dieses Feld wäre sie nach Speichern und Öffnen weg — still, und die Auslegung stünde wieder auf dem Überschlag, ohne dass es jemandem auffiele.</p>
+
+<div class="baustelle"><b>Auf der Baustelle heißt das</b><p>Sie brauchen kein zweites Dateiformat zum Sichern. Der Knopf <b>RaVia JSON</b> ist zugleich „Speichern unter". Geöffnet wird dieselbe Datei über den Öffnen-Knopf daneben.</p></div>
+
+<h3 id="k17-2">17.2 IFC4-Export: das Modell für alle anderen</h3>
+
+<p class="wo">Im Programm: Werkzeugleiste oben → Knopf mit dem Würfelsymbol, Hinweis „Modell als IFC4 exportieren — für Architektur-CAD und Fachplanung".</p>
+
+<p>Das RaVia-JSON ist die Übergabe an die Heizlastberechnung. IFC ist die Übergabe an alles andere: Architektur-CAD, Bauantrag, Fachplanung. Beide nebeneinander zu haben ist kein Luxus — ein Format, das nur ein einziges Programm liest, macht das Modell zur Sackgasse.</p>
+
+<p>Geschrieben wird eine <b>STEP-Datei nach ISO 10303-21</b> mit dem Schema IFC4. Das ist die Textform, in der IFC üblicherweise ausgetauscht wird; die Datei trägt die Endung <code>.ifc</code> und beginnt mit der Zeile <code>ISO-10303-21;</code>. Erzeugt wird sie ohne Fremdbibliothek, direkt als Text. Der Grund ist derselbe wie beim Rest des Programms: eine IFC-Bibliothek bringt mehrere Megabyte mit, für einen Umfang, der hier auf gut dreihundert Zeilen passt.</p>
+
+<h4 id="k17-2-1">17.2.1 Was übertragen wird</h4>
+
+<table class="tab">
+<caption>Der Inhalt der IFC-Datei</caption>
+<thead><tr><th>IFC-Objekt</th><th>Was daraus wird</th></tr></thead>
+<tbody>
+<tr><td>IfcProject → IfcSite → IfcBuilding → IfcBuildingStorey</td><td>Der Rahmen: Projekt, Grundstück, Gebäude und je ein Geschoss mit seiner Höhenlage.</td></tr>
+<tr><td>IfcWallStandardCase</td><td>Jede Wand als aufgezogener Rechteckkörper längs der Wandachse.</td></tr>
+<tr><td>IfcOpeningElement + IfcRelVoidsElement</td><td>Jede Öffnung als echtes Loch in der Wand.</td></tr>
+<tr><td>IfcWindow / IfcDoor + IfcRelFillsElement</td><td>Fenster und Türen als Bauteile, die das Loch füllen. Ein Durchgang bleibt ein reines Loch und bekommt kein Bauteil.</td></tr>
+<tr><td>IfcSpace</td><td>Jeder Raum als Volumen über seinem Polygon, mit Name — und mit den Mengen <code>NetFloorArea</code>, <code>NetVolume</code> und <code>Height</code>. Das ist es, was eine Gegenstelle aus einem Raum tatsächlich ausliest.</td></tr>
+<tr><td>IfcSlab</td><td>Je Raum eine 20 cm starke Bodenplatte.</td></tr>
+<tr><td>IfcStair / Bauteil-Platzhalter</td><td>Treppen als IfcStair, Schächte als benannter Platzhalter.</td></tr>
+<tr><td>IfcWindow / Bauteil-Platzhalter</td><td>Dachflächenfenster als Fenster, Gauben als benannter Platzhalter — jeweils mit ihrer Lage und Ausdehnung im Grundriss.</td></tr>
+<tr><td>IfcRoof</td><td>Das geneigte Dach als Platte über dem Geschoss.</td></tr>
+</tbody>
+</table>
+
+<p>Die Körper liegen als aufgezogene Flächen über geschlossenen Umrissen vor — die Form, die jede IFC-Anwendung ohne Sonderbehandlung liest. Einheit ist Meter, das Koordinatensystem entspricht dem Modell: +x nach Osten, +y nach Norden, +z nach oben.</p>
+
+<h4 id="k17-2-2">17.2.2 Was ausdrücklich nicht übertragen wird</h4>
+
+<div class="warnung"><b>Achtung</b><p>Die IFC-Datei ist eine <b>Geometrieübergabe</b>, keine Übergabe der Fachdaten. U-Werte, Bauteilaufbauten, Randbedingungen, Nachbartemperaturen, Wärmebrücken, Lüftungsdaten, Erdreichkennwerte, Rohrnetz und Anlagentechnik stehen <b>nicht</b> darin. Wer die Heizlast rechnen will, braucht das RaVia-JSON.</p></div>
+
+<p>Weiter gilt: Dach und Gauben werden als Platte beziehungsweise als Platzhalter mit ihrer Grundrissausdehnung geschrieben, nicht als exakte Verschneidung — die gehört in ein Architekturprogramm. Und die massiven Bauteile aus dem Grundriss (Kamin, Pfeiler, Wandversatz) kennt der IFC-Export bis heute nicht; im gedruckten Plan stehen sie seit Fassung 1.8.0, in der IFC-Datei noch nicht. Das ist ein bekannter offener Punkt, siehe <a href="#k18-5">Abschnitt 18.5</a>.</p>
+
+<h4 id="k17-2-3">17.2.3 Warum die Datei bei einem Prüfer durchgeht</h4>
+
+<p>Eine selbstgebaute IFC-Datei scheitert erfahrungsgemäß an zwei Kleinigkeiten, und beide sind hier bewusst behandelt.</p>
+
+<p><b>Erstens die Zahlen.</b> In ISO 10303-21 ist <code>1</code> eine ganze Zahl und an einer Stelle, die eine Dezimalzahl erwartet, schlicht ungültig; geschrieben werden muss <code>1.</code> mit Punkt. Die meisten Betrachter verzeihen das stillschweigend, und erst der Prüfer meldet es. In Fassung 0.4.0 hat genau das 250 Schemaverstöße auf einen Schlag ausgelöst.</p>
+
+<p><b>Zweitens die Kennungen.</b> Jedes IFC-Objekt trägt eine 22 Zeichen lange Kennung. Deren erstes Zeichen trägt nur zwei Bit, die übrigen je sechs — ein Zufallszeichen an der ersten Stelle macht die Datei für jeden Prüfer ungültig. Auch dieser Fehler steckte in 0.4.0 und ist behoben.</p>
+
+<p>Die Kennungen entstehen aus dem Namen des Objekts und sind deshalb <b>wiederholbar</b>: derselbe Export liefert dieselben Kennungen. Die Gegenstelle erkennt beim erneuten Einlesen dieselben Objekte wieder, statt Dubletten anzulegen.</p>
+
+<p>Gegengeprüft wurde die Ausgabe mit einer unabhängigen IFC-Prüfsoftware: null Schemaverstöße, alle Objekte geometrisch auflösbar. Die Prüfsoftware ist nur Gegenkontrolle und steckt nicht im Programm.</p>
+
+<p>Nach dem Klick meldet die Statuszeile, was in der Datei steht: Zahl der Geschosse, Wände und Räume sowie die Zahl der geschriebenen IFC-Objekte.</p>
+
+<h3 id="k17-3">17.3 IFC4-Import: den Grundriss vom Architekten übernehmen</h3>
+
+<p class="wo">Im Programm: Werkzeugleiste oben → Öffnen-Knopf, Hinweis „Öffnen — RaVia-Projektdatei (JSON) oder IFC4-Modell vom Architekten".</p>
+
+<p>Der wertvollste Grundriss ist der, den jemand anderes schon gezeichnet hat. Wer eine IFC-Datei vom Architekten bekommt, soll sie nicht abpausen müssen: Geschosse, Wände und Öffnungen stehen darin bereits maßhaltig.</p>
+
+<div class="merke"><b>Merke</b><p>Es gibt <b>einen</b> Öffnen-Knopf für beides. Was die Datei ist, entscheidet ihr <b>Inhalt</b> und nicht ihre Endung: beginnt sie mit <code>ISO-10303-21</code>, ist es IFC, sonst wird sie als RaVia-JSON gelesen. Eine umbenannte Datei funktioniert also trotzdem.</p></div>
+
+<h4 id="k17-3-1">17.3.1 Was gelesen wird</h4>
+
+<table class="tab">
+<caption>Der Ausschnitt, den der Import auswertet</caption>
+<thead><tr><th>Aus der IFC-Datei</th><th>Wird im Modell zu</th></tr></thead>
+<tbody>
+<tr><td>IfcBuildingStorey</td><td>Ein Geschoss mit Name und Höhenlage. Die Geschosshöhe entsteht aus dem Abstand zum nächsten Geschoss; das oberste erbt 2,75 m.</td></tr>
+<tr><td>IfcWall, IfcWallStandardCase, IfcWallElementedCase</td><td>Eine Wand. Die Achse kommt aus der Achsen-Darstellung, wenn es sie gibt, sonst aus der Mitte des Körpers; die Dicke immer aus dem Körper, denn die Achse allein sagt nichts darüber.</td></tr>
+<tr><td>IfcOpeningElement über IfcRelVoidsElement</td><td>Eine Öffnung, der richtigen Wand zugeordnet.</td></tr>
+<tr><td>IfcWindow / IfcDoor über IfcRelFillsElement</td><td>Die Art der Öffnung: Fenster oder Tür.</td></tr>
+</tbody>
+</table>
+
+<p>Der Leser ist ein eigener, zeichenweiser STEP-Leser. Er kommt mit Objekten zurecht, die über mehrere Zeilen gehen, und mit Apostrophen und Semikolons innerhalb von Texten — genau daran scheitern einfache zeilenweise Leser. Beide in IFC4 gebräuchlichen Schreibweisen des Umrisses werden gelesen. Geprüft wurde gegen Fremddateien, nicht nur gegen den eigenen Export: in Fassung 0.5.0 fand der Import in Fremddateien überhaupt keine Wand, weil dort die zweite Schreibweise verwendet wurde.</p>
+
+<p>Wandenden, die weniger als 2 cm auseinanderliegen, werden zu einem Knoten zusammengeführt. IFC-Dateien aus verschiedenen Programmen treffen sich selten exakt.</p>
+
+<h4 id="k17-3-2">17.3.2 Was dabei verlorengeht</h4>
+
+<p>Der Import liefert einen <b>Vorschlag</b>, kein fertiges Modell. Nicht gelesen werden Materialien, Bauteilaufbauten, Bewehrung und Möblierung — das wäre Datenballast für ein Werkzeug, dessen Zweck die Heizlast ist. Nicht gelesen werden auch Räume: die Raumerkennung dieses Programms bildet sie aus den eingelesenen Wänden neu.</p>
+
+<p>Zwei Dinge werden <b>geschätzt</b>, und das muss man wissen:</p>
+
+<table class="tab">
+<caption>Was der Import annimmt, weil IFC es nicht sagt</caption>
+<thead><tr><th>Angabe</th><th>Annahme</th></tr></thead>
+<tbody>
+<tr><td>Wandart</td><td>Steht „Außen", „Innen", „Schacht" oder ein englisches Gegenstück im Namen, entscheidet der Name. Sonst entscheidet die Dicke: ab 24 cm Außenwand, bis 12 cm Trennwand, dazwischen Innenwand.</td></tr>
+<tr><td>U-Werte</td><td>Außenwand 0,24, alles andere 1,2 W/(m²·K). Fenster 1,3, Türen 1,8; g-Wert der Fenster 0,6.</td></tr>
+</tbody>
+</table>
+
+<div class="warnung"><b>Achtung</b><p>Diese Vorgabewerte sind <b>Platzhalter, keine Bauteilangaben</b>. Wer nach einem IFC-Import sofort exportiert, übergibt an RaVia die U-Werte einer Annahme. Gehen Sie nach dem Import durch die Aufbauten (<a href="#k7-3">Abschnitt 7.3</a>) und setzen Sie die echten Werte.</p></div>
+
+<p>Was der Import nicht verwerten konnte, verschweigt er nicht: er zählt es und meldet es. Eine Wand ohne auswertbare Extrusionsgeometrie und eine Wand mit zusammenfallenden Enden werden ebenso genannt wie eine Öffnung mit unplausibler Breite. Nach dem Lesen steht in der Statuszeile, wie viele Wände, Öffnungen und Geschosse übernommen wurden — oder „Keine auswertbaren Wände gefunden — enthält die Datei Extrusionskörper?".</p>
+
+<div class="warnung"><b>Achtung</b><p>Der IFC-Import <b>ersetzt das aktuelle Modell</b>. Steht schon etwas im Plan, fragt das Programm vorher nach und weist ausdrücklich darauf hin, dass <kbd>Strg</kbd> + <kbd>Z</kbd> den jetzigen Stand zurückholt.</p></div>
+
+<h4 id="k17-3-3">17.3.3 Wofür der IFC-Weg taugt und wofür nicht</h4>
+
+<table class="tab">
+<caption>Ehrliche Einordnung</caption>
+<thead><tr><th>Dafür taugt er</th><th>Dafür nicht</th></tr></thead>
+<tbody>
+<tr><td>Den Grundriss vom Architekten übernehmen, statt ihn abzuzeichnen — Wandachsen, Wandstärken, Fenster- und Türlagen maßhaltig.</td><td>Ein fertiges, rechenfähiges Modell zu bekommen. Nutzung, Solltemperaturen, Aufbauten und TGA fehlen und sind danach zu setzen.</td></tr>
+<tr><td>Das Modell an ein Architekturprogramm oder in die Fachplanung zurückgeben.</td><td>Die Heizlastberechnung zu beliefern. Dafür ist das RaVia-JSON da, und nur dafür.</td></tr>
+<tr><td>Ein Modell archivieren, das auch in zehn Jahren noch lesbar ist.</td><td>Ein Modell verlustfrei zu sichern. Das kann nur die Übergabedatei, weil dort die Rohgeometrie mitwandert.</td></tr>
+<tr><td>Mehrere Geschosse aus einer Datei einlesen.</td><td>Mehrere IFC-Dateien räumlich zusammenzuführen — das geht bis heute nicht, siehe <a href="#k18-5">Abschnitt 18.5</a>.</td></tr>
+</tbody>
+</table>
+
+<h3 id="k17-4">17.4 Einbettung in RaVia</h3>
+
+<p>Dieser Abschnitt ist für den geschrieben, der eine Anbindung <b>beauftragt</b>, nicht für den, der sie programmiert. Er sagt, welche Wege es gibt, was jeder kann und was der Betrieb davon merkt.</p>
+
+<h4 id="k17-4-1">17.4.1 Warum überhaupt einbetten</h4>
+
+<p>Der Umweg über eine Exportdatei ist für den Menschen gedacht: herunterladen, ablegen, hochladen. Bettet RaVia dieses Werkzeug ein, ist der Umweg überflüssig und sogar schädlich — <b>jede Datei ist ein Stand, der veralten kann</b>. Bei einer Einbettung holt sich die Gegenstelle den aktuellen Stand direkt und merkt selbst, wenn er sich ändert.</p>
+
+<h4 id="k17-4-2">17.4.2 Die vier Wege</h4>
+
+<table class="tab">
+<caption>Vier Arten, dieses Werkzeug an RaVia anzubinden</caption>
+<thead><tr><th></th><th>Weg</th><th>Was er kann</th><th>Was er kostet</th></tr></thead>
+<tbody>
+<tr><td><b>1</b></td><td><b>Rechenmodule übernehmen</b></td><td>Die Rechenkerne werden in RaVia hineinkopiert und dort selbst aufgerufen. Kein zweites Programm läuft, keine Oberfläche, kein Rahmen. Das ist die engste Verbindung.</td><td>Entwicklungsarbeit in RaVia. Jede Weiterentwicklung hier muss dort nachgezogen werden.</td></tr>
+<tr><td><b>2</b></td><td><b>Im selben Fenster</b> — <code>window.RaViaCAD</code></td><td>Läuft das Werkzeug als Teil der RaVia-Seite, steht dort eine benannte Schnittstelle bereit: Export holen, IFC holen, Kurzfassung holen, prüfen lassen, Projekt oder IFC laden, zurückschreiben, auf Änderungen hören.</td><td>Beide laufen im selben Fenster; ein Fehler im einen kann den anderen treffen.</td></tr>
+<tr><td><b>3</b></td><td><b>Im Rahmenfenster</b> — Nachrichtenbrücke</td><td>Dieselben Befehle, nur als Nachrichten zwischen RaVia und dem eingebetteten Fenster. Sauber getrennt, mit Prüfung, wer schreibt.</td><td>Die Antworten kommen zeitversetzt; die Gegenstelle muss darauf warten können.</td></tr>
+<tr><td><b>4</b></td><td><b>Nur Dateien</b></td><td>Ganz ohne Kopplung: das RaVia-JSON und die IFC-Datei werden ausgetauscht wie jede andere Datei. Der Export enthält die Rohgeometrie und ist damit verlustfrei rücklesbar.</td><td>Jede Datei ist ein Stand, der veralten kann. Der Mensch muss den Austausch anstoßen.</td></tr>
+</tbody>
+</table>
+
+<div class="merke"><b>Merke</b><p>Weg 4 funktioniert immer und braucht keine Vereinbarung — er ist der Rückfallweg, wenn eine Einbettung nicht zustande kommt. Weg 2 und 3 sind dieselbe Schnittstelle in zwei Verpackungen; wer den einen beauftragt, bekommt den anderen ohne Zusatzaufwand mit.</p></div>
+
+<h4 id="k17-4-3">17.4.3 Was die Schnittstelle kann</h4>
+
+<table class="tab">
+<caption>Die Befehle der Einbettungsschnittstelle</caption>
+<thead><tr><th>Befehl</th><th>Was er liefert oder tut</th></tr></thead>
+<tbody>
+<tr><td>Kurzfassung</td><td>Projektname, Zahl der Geschosse, Räume, Wände und Öffnungen, Nutzfläche, Luftvolumen, installierte Heizleistung, ob das Modell rechenfähig ist, Zahl der Fehler und Warnungen.</td></tr>
+<tr><td>Export</td><td>Der vollständige Export nach <code>ravia.bim.light</code> v2.0.0 — derselbe Inhalt wie die Datei.</td></tr>
+<tr><td>IFC</td><td>Dasselbe Modell als IFC4-Text.</td></tr>
+<tr><td>Prüfung</td><td>Der Prüfbericht — dieselbe Prüfung wie im Reiter <b>Prüfung</b>.</td></tr>
+<tr><td>Projekt laden / IFC laden</td><td>Ein Modell von außen einsetzen.</td></tr>
+<tr><td>Zurückschreiben</td><td>Fachdaten ins Modell schreiben — siehe <a href="#k17-5">Abschnitt 17.5</a>.</td></tr>
+<tr><td>Selbstauskunft</td><td>Welche Felder schreibbar sind, in welcher Einheit und in welchen Grenzen. Damit muss die Gegenstelle nicht ausprobieren, was geht, und kann ihre eigene Eingabemaske daraus bauen.</td></tr>
+<tr><td>Anmelden / abmelden für Änderungen</td><td>Die Gegenstelle wird benachrichtigt, sobald sich am Modell etwas ändert.</td></tr>
+<tr><td>Lebenszeichen</td><td>Eine Anfrage, die nur die Fassung der Schnittstelle zurückgibt — damit die Gegenstelle weiß, dass jemand zuhört.</td></tr>
+</tbody>
+</table>
+
+<h4 id="k17-4-4">17.4.4 Drei Festlegungen, die den Betrieb betreffen</h4>
+
+<p><b>Die Schnittstelle ist schmal und bleibt stehen.</b> Sie ist bewusst von den inneren Datenstrukturen entkoppelt. Der rohe Datenspeicher des Programms hängt daneben ebenfalls am Fenster, ist aber ausdrücklich <b>kein Vertrag</b> — wer darauf baut, bricht beim nächsten Umbau. Die benannte Schnittstelle bricht nicht. Wer eine Anbindung beauftragt, sollte das in die Leistungsbeschreibung aufnehmen.</p>
+
+<p><b>Antworten gehen nur an den Fragesteller.</b> Jede Antwort geht an genau das Fenster zurück, das gefragt hat, und ausdrücklich an dessen Herkunftsadresse. Ein „an alle" würde den Modellinhalt an jedes Fenster ausliefern, das zufällig zuhört. Bei einem Gebäudemodell mit Adresse, Grundriss und Anlagentechnik ist das kein Randthema.</p>
+
+<p><b>Bei Änderungen wird nur die Kurzfassung gemeldet, und die entprellt.</b> Wer am Wandende zieht, erzeugt Dutzende Änderungen je Sekunde. Gemeldet wird deshalb frühestens eine Viertelsekunde nach der letzten Änderung, und auch dann nur die Kurzfassung — den vollen Export holt sich die Gegenstelle bei Bedarf selbst. Bei jedem gezogenen Wandende den ganzen Export zu schicken wäre Verschwendung.</p>
+
+<h4 id="k17-4-5">17.4.5 Die Fassung der Schnittstelle</h4>
+
+<p>Die Schnittstelle trägt eine eigene Fassungsnummer, unabhängig von der des Programms und der des Exportformats. Sie steht auf <b>1.1.0</b>. In 1.0.0 konnte die Gegenstelle nur lesen; mit 1.1.0 sind das Zurückschreiben und die Selbstauskunft dazugekommen. Die lesenden Befehle sind dabei unverändert geblieben — daher die kleine Stelle in der Nummer: eine Gegenstelle, die gegen 1.0.0 gebaut wurde, läuft weiter.</p>
+
+<p>Dem Programm liegt ein lauffähiges Beispiel für die Einbettung bei; es dient zugleich als Prüffall, damit die Schnittstelle nicht unbemerkt kaputtgeht.</p>
+
+<h3 id="k17-5">17.5 Der Rückweg: wenn RaVia ins Modell schreibt</h3>
+
+<p>Bis Fassung 1.4.0 war die Einbettung einseitig. RaVia konnte den Modellstand holen, aber nichts zurückgeben — die dort gerechnete Norm-Heizlast musste von Hand abgetippt werden, und die Anlagenauslegung rechnete weiter mit dem eigenen Überschlag. Das ist keine Verbindung zweier Programme, das ist ein Export mit besserer Anbindung.</p>
+
+<p>Seit 1.5.0 schließt der Rückweg den Kreis. RaVia schreibt Solltemperaturen, Luftwechsel, U-Werte, Randbedingungen des Projekts — und vor allem die <b>gerechnete Norm-Heizlast je Raum</b> zurück ins Modell.</p>
+
+<h4 id="k17-5-1">17.5.1 Warum das nicht einfach „speichern" heißt</h4>
+
+<p>Schreiben ist die gefährlichere Richtung. Ein zweites Programm ändert ein Modell, an dem gerade jemand zeichnet. Und ein Fehler sieht dabei nicht aus wie ein Rechenfehler, sondern <b>wie eine Eingabe</b> — er ist deshalb später nicht mehr auffindbar.</p>
+
+<div class="beispiel">
+<b>Was ohne Regeln passieren würde</b>
+<p>RaVia schreibt versehentlich 24 °C in das Bad im Erdgeschoss. Im Programm steht danach 24 °C — genauso, wie wenn der Monteur es eingetippt hätte. Nichts unterscheidet die beiden.</p>
+<p>Drei Wochen später fällt auf, dass der Heizkörper im Bad zu groß bemessen ist. Niemand weiß mehr, woher die 24 °C stammen. Der Monteur sagt, er habe 24 nie eingetragen; RaVia sagt nichts, weil dort niemand nachsieht.</p>
+<p class="ergebnis">Ein stiller Schreibvorgang macht jeden Wert unerklärbar</p>
+</div>
+
+<p>Deshalb ist der Rückweg nicht ein Speichervorgang, sondern ein <b>geprüfter, quittierter und rücknehmbarer</b> Vorgang. Fünf Regeln machen ihn beherrschbar.</p>
+
+<h4 id="k17-5-2">17.5.2 Die fünf Regeln</h4>
+
+<table class="tab">
+<caption>Was beim Zurückschreiben gilt</caption>
+<thead><tr><th></th><th>Regel</th><th>Warum</th></tr></thead>
+<tbody>
+<tr><td><b>1</b></td><td><b>Geometrie ist tabu.</b> Fachdaten ja, Wände nein. Wer versucht, Fläche, Volumen, Höhe, Umfang, Polygon, Raumname, Nutzung oder Geschoss zu setzen, bekommt eine Ablehnung — und zwar mit Begründung.</td><td>Fläche und Volumen werden aus der Geometrie gerechnet. Wer sie setzt, erzeugt einen Widerspruch im Modell. Der Unterschied zwischen „das kennen wir nicht" und „das darfst du nicht" ist der Unterschied zwischen einer verlorenen Stunde und einem verstandenen Vertrag.</td></tr>
+<tr><td><b>2</b></td><td><b>Nichts still.</b> Jeder einzelne Wert kommt als <em>übernommen</em>, <em>unverändert</em> oder <em>abgelehnt</em> zurück, mit altem Wert, neuem Wert und bei Ablehnung dem Grund.</td><td>Ein Schreibvorgang ohne Quittung ist eine Behauptung.</td></tr>
+<tr><td><b>3</b></td><td><b>Teilweise anwenden, vollständig berichten.</b> Ein Tippfehler in einer Raum-Kennung reißt die vierzig gültigen Werte nicht mit.</td><td>„Alles oder nichts" wäre nur richtig, wenn die Werte voneinander abhingen. Sie tun es nicht — jeder steht für sich.</td></tr>
+<tr><td><b>4</b></td><td><b>Gleich bleibt gleich.</b> Ein Wert, der schon so im Modell steht, gilt als „unverändert" und erzeugt keinen Schritt in der Rückgängig-Kette.</td><td>Sonst füllt eine Gegenstelle, die im Sekundentakt schreibt, die Rückgängig-Kette mit Nichts und macht sie unbrauchbar.</td></tr>
+<tr><td><b>5</b></td><td><b>Die Spur bleibt am Modell.</b> Wer wann was geschrieben hat, steht dauerhaft am Dokument und in der Statuszeile.</td><td>Ohne diese Spur erklärt später niemand mehr, warum im Bad 24 °C stehen, die hier keiner eingetragen hat.</td></tr>
+</tbody>
+</table>
+
+<p>Dazu kommt die Bedingung, unter der ein fremdes Programm überhaupt schreiben darf: <b><kbd>Strg</kbd> + <kbd>Z</kbd> nimmt den ganzen Vorgang zurück.</b> Der Mensch am Bildschirm behält das letzte Wort.</p>
+
+<p class="wo">Im Programm: rechts in der Statuszeile steht nach einem Schreibvorgang dauerhaft, wer wie viele Werte geschrieben hat und wie viele abgelehnt wurden. Bei Mausberührung Zusammenfassung und Zeitpunkt.</p>
+
+<h4 id="k17-5-3">17.5.3 Ohne Absender kein Schreibvorgang</h4>
+
+<p>Jeder Schreibvorgang muss sagen, wer schreibt. Fehlt die Angabe, wird nichts übernommen, und die Quittung sagt warum: „Ohne Angabe, wer schreibt, wird nichts übernommen — die Herkunft der Werte bliebe offen." Der Absender landet in der Spur am Modell und an jeder übernommenen Heizlast.</p>
+
+<h4 id="k17-5-4">17.5.4 Was geschrieben werden darf</h4>
+
+<table class="tab">
+<caption>Die schreibbaren Felder und ihre Grenzen</caption>
+<thead><tr><th>Ebene</th><th>Feld</th><th>Zulässiger Bereich</th></tr></thead>
+<tbody>
+<tr><td rowspan="9">Projekt</td><td>Norm-Außentemperatur</td><td>−40 bis 20 °C</td></tr>
+<tr><td>Standard-Innentemperatur</td><td>−30 bis 60 °C</td></tr>
+<tr><td>Luftdichtheit n50</td><td>0,1 bis 30 1/h</td></tr>
+<tr><td>Abschirmungsklasse</td><td>keine, mäßig, stark</td></tr>
+<tr><td>Temperatur unbeheizter Bereiche</td><td>−40 bis 40 °C</td></tr>
+<tr><td>Erdreichtemperatur</td><td>−20 bis 30 °C</td></tr>
+<tr><td>Wärmebrückenzuschlag</td><td>0 bis 1 W/(m²·K)</td></tr>
+<tr><td>Wärmebrückenverfahren</td><td>pauschal oder ausführlich</td></tr>
+<tr><td>Wiederaufheizfaktor</td><td>0 bis 50 W/m²</td></tr>
+<tr><td rowspan="6">je Raum</td><td>Solltemperatur</td><td>−30 bis 60 °C</td></tr>
+<tr><td>Mindest-Luftwechselrate</td><td>0 bis 10 1/h</td></tr>
+<tr><td>beheizt ja/nein</td><td>—</td></tr>
+<tr><td>Boden- und Decken-U-Wert</td><td>0,01 bis 10 W/(m²·K)</td></tr>
+<tr><td>Norm-Heizlast des Raums</td><td>0 bis 10 000 000 W</td></tr>
+<tr><td>davon Transmission, Lüftung, Wiederaufheizung</td><td>je 0 bis 10 000 000 W</td></tr>
+<tr><td rowspan="4">je Bauteilaufbau</td><td>U-Wert</td><td>0,01 bis 10 W/(m²·K)</td></tr>
+<tr><td>Wärmebrückenzuschlag des Aufbaus</td><td>0 bis 1 W/(m²·K)</td></tr>
+<tr><td>g-Wert</td><td>0 bis 1</td></tr>
+<tr><td>Schichtenbeschreibung</td><td>Freitext</td></tr>
+<tr><td>Gebäude</td><td>Norm-Heizlast des Gebäudes</td><td>0 bis 10 000 000 W</td></tr>
+</tbody>
+</table>
+
+<p>Die Grenzen sind bewusst weit. Hier wird nicht geplant, sondern nur der Zahlendreher abgefangen: 200 °C Solltemperatur ist kein Sonderfall, sondern ein Fehler in der Einheit. 21 °C in einem Kühlraum ist vielleicht ungewöhnlich, aber die Entscheidung der Gegenstelle und nicht die des Programms.</p>
+
+<p>Ein Bauteilaufbau, dessen Kennung unbekannt ist, kann angelegt werden — aber nur, wenn Name und Kategorie mitgeliefert werden. Ein namenloser Aufbau im Katalog ist schlimmer als ein abgelehnter Eintrag.</p>
+
+<h4 id="k17-5-5">17.5.5 Was die zurückgeschriebene Heizlast bewirkt</h4>
+
+<p>Liegt für einen Raum eine gerechnete Last vor, wird dieser Raum damit ausgelegt. Für die Gebäudeheizlast gilt eine feste Rangfolge: <b>eingetragene Zahl vor raumweiser Summe vor Überschlag</b> — wobei die mittlere Stufe nur zählt, wenn <em>alle</em> beheizten Räume eine Last tragen. Eine Mischung aus gerechneten und überschlagenen Räumen wäre keines von beidem.</p>
+
+<p>Damit ändert sich auch, was der Rohrnetzbericht bei den Pflichtangaben nach § 60c meldet: bei der Heizlast steht dann „raumweise" statt „überschlag" (siehe <a href="#k15-2">Abschnitt 15.2</a>).</p>
+
+<h4 id="k17-5-6">17.5.6 Wann eine übernommene Heizlast veraltet</h4>
+
+<p>Jede übernommene Last trägt mit, für welchen Modellstand sie gerechnet wurde — sonst legt jemand nach einem Umbau mit den alten Zahlen aus.</p>
+
+<p>Die naheliegende Prüfung wäre: Modellstand der Last gleich Änderungszeitpunkt des Dokuments. Die ist falsch, und zwar sofort — der Schreibvorgang datiert das Dokument selbst um, die Last wäre in der Sekunde ihrer Ankunft „veraltet". Ein Hinweis, der immer leuchtet, wird nach dem dritten Mal nicht mehr gelesen.</p>
+
+<p>Die Lösung nutzt aus, dass ein Schreibvorgang <em>keine</em> Geometrie ändert: jede übernommene Last beschreibt genau einen bekannten, harmlosen Sprung — von dem Stand, für den sie gerechnet wurde, zu dem Zeitpunkt, an dem sie ankam. Alle Lasten zusammen ergeben eine Kette solcher Sprünge. Eine Last ist aktuell, wenn die Kette bis zum heutigen Änderungszeitpunkt lückenlos durchläuft. Fehlt ein Glied, hat dazwischen jemand gezeichnet — und <b>nur dann</b> steht der Hinweis da.</p>
+
+<div class="merke"><b>Merke</b><p>Der Hinweis „die zurückgeschriebene Heizlast ist nicht mehr aktuell" erscheint also genau dann, wenn nach der letzten Übernahme am Gebäude gezeichnet wurde. Er ist keine Formsache, sondern die Aufforderung, in RaVia neu rechnen zu lassen.</p></div>
+
+<h3 id="k17-6">17.6 Zwei Stände vergleichen</h3>
+
+<p class="wo">Im Programm: Reiter <b>Prüfung</b>, unterhalb des Prüfberichts der Abschnitt <b>Export-Vergleich</b>.</p>
+
+<p>Die Frage, die vor jeder erneuten Übergabe an RaVia steht, lautet: <em>was hat sich seit dem letzten Mal geändert?</em> Ohne Antwort darauf muss die Gegenstelle jedes Mal alles neu rechnen und neu prüfen — und Sie müssen jedes Mal alles neu durchsehen.</p>
+
+<h4 id="k17-6-1">17.6.1 Wie man vergleicht</h4>
+
+<p>Sie laden die zuletzt an RaVia übergebene Datei als <b>Referenz</b>. Der Stand „nachher" wird aus dem aktuellen Modell erzeugt, ohne dass Sie etwas exportieren müssen. Alternativ laden Sie eine zweite Datei — dann vergleichen Sie zwei archivierte Stände, ohne das aktuelle Modell anzurühren.</p>
+
+<p>Ist die geladene Datei kein RaVia-Export, sagt das Programm das im Klartext: „Das ist kein RaVia-Export — erwartet wird eine Datei mit ‚schema', ‚rooms' und ‚totals'."</p>
+
+<h4 id="k17-6-2">17.6.2 Was verglichen wird</h4>
+
+<p>Verglichen wird auf <b>Raumebene</b> — der Einheit, in der die Heizlast gerechnet wird. Räume werden über ihre Kennung zugeordnet und, falls die Kennungen sich geändert haben (Neuerkennung nach einem Umbau), hilfsweise über Geschoss und Name.</p>
+
+<p>Gezeigt wird nur, was die Heizlast bewegt:</p>
+
+<table class="tab">
+<caption>Die verglichenen Größen je Raum</caption>
+<thead><tr><th>Größe</th><th>Ab welcher Abweichung sie gemeldet wird</th></tr></thead>
+<tbody>
+<tr><td>Fläche [m²]</td><td>ab einem halben Hundertstel</td></tr>
+<tr><td>Volumen [m³]</td><td>ab einem halben Hundertstel</td></tr>
+<tr><td>Höhe [m]</td><td>ab einem halben Tausendstel</td></tr>
+<tr><td>Solltemperatur [°C]</td><td>ab einem halben Zehntel</td></tr>
+<tr><td>Luftwechsel [1/h]</td><td>ab einem halben Hundertstel</td></tr>
+<tr><td>Außenwandfläche [m²]</td><td>ab einem halben Hundertstel</td></tr>
+<tr><td>Fensterfläche [m²]</td><td>ab einem halben Hundertstel</td></tr>
+<tr><td>Installierte Heizleistung [W]</td><td>ab einem halben Watt</td></tr>
+<tr><td>Umfang mit Erdkontakt [m]</td><td>ab einem halben Hundertstel</td></tr>
+<tr><td>Hüll-Leitwert [W/K]</td><td>ab 0,005</td></tr>
+<tr><td>Zahl der Hüllbauteile</td><td>jede Abweichung</td></tr>
+</tbody>
+</table>
+
+<p>Jeder Raum bekommt eine von vier Einstufungen: <b>neu</b>, <b>entfallen</b>, <b>geändert</b> oder <b>unverändert</b>. Unveränderte Räume sind ausgeblendet und lassen sich zuschalten. Zusätzlich stehen die Gebäudesummen nebeneinander: Nutzfläche, Volumen, Außenwand, Fenster, Heizleistung und Raumzahl.</p>
+
+<h4 id="k17-6-3">17.6.3 Warum der Hüll-Leitwert dabei ist</h4>
+
+<div class="formel">
+  <p class="worte">In Worten: der Hüll-Leitwert ist die Summe aus Fläche mal U-Wert über alle Bauteile und Öffnungen eines Raums, einschließlich des Wärmebrückenzuschlags. Er sagt, wie viel Wärme der Raum je Grad Temperaturunterschied verliert.</p>
+  <p class="math">Σ A · (U + ΔU_WB)</p>
+  <dl class="zeichen">
+    <dt>A</dt><dd>Nettofläche des Bauteils beziehungsweise Fläche der Öffnung [m²]</dd>
+    <dt>U</dt><dd>Wärmedurchgangskoeffizient — wie viel Wärme je Quadratmeter und Grad durchgeht [W/(m²·K)]</dd>
+    <dt>ΔU_WB</dt><dd>Wärmebrückenzuschlag des Bauteils [W/(m²·K)]</dd>
+  </dl>
+</div>
+
+<div class="beispiel">
+<b>Warum ohne ihn etwas Wichtiges unsichtbar bliebe</b>
+<p>Ein Raum hat 30 m² Außenwand. Sie war mit 0,24 W/(m²·K) angesetzt; der Aufbau wird auf eine besser gedämmte Wand mit 0,15 W/(m²·K) gewechselt. Am Grundriss ändert sich <b>nichts</b>: Fläche, Volumen, Höhe, Fensterfläche, alles bleibt gleich.</p>
+<p>Verglichen würden also nur unveränderte Zahlen — der Raum stünde auf „unverändert", obwohl seine Heizlast um ein knappes Drittel gefallen ist.</p>
+<p>Der Hüll-Leitwert zeigt es: 30 · 0,24 = 7,2 W/K vorher, 30 · 0,15 = 4,5 W/K nachher.</p>
+<p class="ergebnis">= 2,7 W/K weniger, also −37,5 % — der Raum steht auf „geändert"</p>
+</div>
+
+<p>Der Hüll-Leitwert wird ausschließlich für den Vergleich gebildet und steht <b>nicht</b> im Export. Es soll keine zweite Wahrheit neben der Rechnung in RaVia geben.</p>
+
+<h4 id="k17-6-4">17.6.4 Wofür man das braucht</h4>
+
+<p><b>Bauänderung.</b> Der Bauherr verschiebt eine Wand, ein Fenster wird größer, aus dem Abstellraum wird ein Arbeitszimmer. Der Vergleich sagt in einer Liste, welche Räume das betrifft und um wie viel — statt dass man zwei Ausdrucke nebeneinanderlegt und Zeile für Zeile abgleicht.</p>
+
+<p><b>Zweite Runde beim Kunden.</b> Nach dem ersten Aufmaß fällt beim zweiten Termin auf, dass der Keller anders geschnitten ist und zwei Heizkörper fehlen. Der Vergleich gegen den ersten Export zeigt, was neu ist, was entfallen ist und was sich geändert hat — und ist damit zugleich das Protokoll dessen, was am zweiten Termin herausgekommen ist.</p>
+
+<p><b>Vor der erneuten Übergabe.</b> Sie sehen, was RaVia neu rechnen muss. Bleibt ein Raum auf „unverändert", ist seine Heizlast von vorher weiter gültig.</p>
+
+<div class="baustelle"><b>Auf der Baustelle heißt das</b><p>Heben Sie jede übergebene Exportdatei auf. Sie ist gleichzeitig der Modellstand, das Archiv und die Vergleichsgrundlage für die nächste Runde. Der Dateiname trägt das Datum bereits im Namen.</p></div>
+
+</section>

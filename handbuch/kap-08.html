@@ -1,0 +1,401 @@
+<section id="kap-08" class="kapitel" data-titel="8 · TGA-Objekte: Heizung, Sanitär, Lüftung">
+<h2 id="k8">8 · TGA-Objekte: Heizung, Sanitär, Lüftung</h2>
+<p class="lead">Der Grundriss steht, die Räume sind erkannt. Jetzt kommt die Technik hinein: Heizkörper, Sanitärobjekte, Ventile, Verteiler, Stränge. Jedes Symbol trägt die Kennwerte, aus denen später die Rohrnetzberechnung und der Export entstehen.</p>
+
+<p><b>TGA</b> heißt Technische Gebäudeausrüstung — alles, was in einem Gebäude Wärme, Wasser und Luft bewegt. Das Programm kennt davon drei Gewerke: Heizung, Sanitär, Lüftung. Mehr nicht, und das ist Absicht: Elektro, Sprinkler, Gas und Medizingase sind eigene Welten mit eigenen Symbolsätzen, und ein halbes Angebot wäre schlechter als gar keines.</p>
+
+<p class="wo">Im Programm: Reiter <b>TGA</b>. Umschalter oben für das Gewerk, darunter die Symbole. Werkzeug direkt mit <kbd>T</kbd>.</p>
+
+<h3 id="k8-1">8.1 Die drei Farbfamilien</h3>
+
+<p>Jedes Gewerk hat eine Farbe, und die Farbe ist keine Dekoration. Sie beantwortet auf einen Blick die Frage, die man vor einem fremden Plan zuerst stellt: <i>Wessen Leitung ist das?</i> Bei zwanzig Symbolen in einem Bad ist die Farbe schneller als jede Beschriftung.</p>
+
+<table class="tab">
+<caption>Die drei Gewerke und ihre Farben</caption>
+<thead><tr><th>Gewerk</th><th>Farbe im Plan</th><th>Was darunter fällt</th></tr></thead>
+<tbody>
+<tr><td>Heizung</td><td>Rot</td><td>Wärmeübergabe und alles, was Heizungswasser führt: Heizkörper, Konvektor, Fußbodenheizkreis, Verteiler, Wärmeerzeuger, Steigstrang, Raumthermostat</td></tr>
+<tr><td>Sanitär</td><td>Blau</td><td>Trinkwasser und Abwasser: WC, Waschtisch, Dusche, Wanne, Spüle, Küchenzeile, Warmwasserbereiter, Fallstrang, Bodenablauf</td></tr>
+<tr><td>Lüftung</td><td>Grün</td><td>Luft: Zuluft- und Abluftventil, Überströmelement, Lüftungsgerät, Kanaltrasse</td></tr>
+</tbody>
+</table>
+
+<p>Das ausgewählte Objekt wird weiß gezeichnet, damit es sich aus seiner Farbfamilie heraushebt. Unter jedem Symbol liegt außerdem eine sehr blasse Fläche in der Gewerkefarbe — sie sorgt dafür, dass ein Symbol auch über einer eingefärbten Raumfläche noch liest.</p>
+
+<div class="merke"><b>Merke</b><p>Rot ist Heizung, Blau ist Sanitär, Grün ist Lüftung. Dieselbe Zuordnung gilt später bei den Leitungen (<a href="#k9-2">Abschnitt 9.2</a>) — dort allerdings mit Abstufungen, weil ein Gewerk mehrere Leitungsarten hat.</p></div>
+
+<p>Die Symbole selbst folgen dem, was in der TGA-Planung üblich ist: der Heizkörper ein Rechteck mit Lamellen, das Luftventil ein Kreis mit vier gerichteten Pfeilen, das Sanitärobjekt ein Umriss mit Ablaufpunkt. Sie sind bewusst schlank gezeichnet — ein Grundriss soll unter der Technik lesbar bleiben.</p>
+
+<!--SYMBOLTAFEL:tga-->
+
+<h3 id="k8-2">8.2 Der Katalog, Objekt für Objekt</h3>
+
+<p>Die Symbolbibliothek führt 22 Objekte. Dazu kommt eine 23. Darstellung, die kein Symbol im engeren Sinn ist: die raumfüllende Fußbodenheizung, die statt eines Zeichens die ganze Verlegekurve über die Raumfläche legt. Sie hat einen eigenen Abschnitt, <a href="#k8-5">8.5</a>.</p>
+
+<p>Jedes Objekt bringt Vorgabemaße und Vorgabekennwerte mit. <b>Beides sind Vorbelegungen und keine Zusagen.</b> Die tatsächliche Baulänge, die tatsächliche Leistung, der tatsächliche Anschluss werden am Objekt eingetragen — dafür ist der Reiter <b>Objekt</b> da.</p>
+
+<h4 id="k8-2-1">8.2.1 Heizung</h4>
+
+<table class="tab">
+<caption>Die acht Heizungsobjekte</caption>
+<thead><tr><th>Objekt</th><th>Vorgabe L × T [m]</th><th>Montagehöhe [m]</th><th>An der Wand</th><th>Kennwerte</th></tr></thead>
+<tbody>
+<tr><td>Heizkörper</td><td>1,00 × 0,10</td><td>0,15</td><td>ja</td><td>1200 W · Typ 22 · 55/45 °C</td></tr>
+<tr><td>Röhrenradiator</td><td>0,60 × 0,12</td><td>0,15</td><td>ja</td><td>700 W · Bauart „Röhren“</td></tr>
+<tr><td>Unterflurkonvektor</td><td>1,40 × 0,20</td><td>0,00</td><td>ja</td><td>900 W</td></tr>
+<tr><td>FBH-Heizkreis</td><td>0,90 × 0,90</td><td>0,00</td><td>nein</td><td>800 W · 35/28 °C</td></tr>
+<tr><td>Heizkreisverteiler</td><td>0,60 × 0,15</td><td>0,50</td><td>ja</td><td>keine</td></tr>
+<tr><td>Wärmeerzeuger</td><td>0,60 × 0,45</td><td>0,60</td><td>ja</td><td>15 000 W</td></tr>
+<tr><td>Steigstrang Heizung</td><td>0,16 × 0,16</td><td>0,00</td><td>nein</td><td>keine</td></tr>
+<tr><td>Raumthermostat</td><td>0,10 × 0,04</td><td>1,40</td><td>ja</td><td>keine</td></tr>
+</tbody>
+</table>
+
+<p><b>Heizkörper.</b> Das wichtigste Objekt des ganzen Katalogs, weil an ihm die Zahl hängt, die alles Weitere trägt: die <b>Normwärmeleistung</b> in Watt. Sie gilt bei den Temperaturen, die daneben stehen — voreingestellt 55 °C Vorlauf, 45 °C Rücklauf, 20 °C Raum. Das ist keine Nebensache: derselbe Heizkörper gibt bei 75/65 °C fast doppelt so viel ab wie bei 55/45 °C. Wer die Leistung vom Typenschild abschreibt, muss deshalb auch abschreiben, für welche Temperaturen sie gilt.</p>
+
+<p>Die Bauart („22“ für Typ 22, also zwei Platten und zwei Konvektorbleche) geht als Freitext in den Export. Gerechnet wird mit ihr nicht — sie ist die Angabe, mit der die Gegenstelle den Heizkörper im Herstellerkatalog wiederfindet.</p>
+
+<p>Im Plan zeichnet das Programm die Lamellen nach der Baulänge: ein 2-Meter-Heizkörper bekommt mehr Striche als ein 60-Zentimeter-Gerät. Das ist kein Zierat, sondern der schnellste Weg, im Plan lange von kurzen Heizkörpern zu unterscheiden, ohne nachzumessen.</p>
+
+<div class="warnung"><b>Achtung</b><p>Ein Heizkörper ohne Leistungsangabe fällt aus dem Rohrausleger heraus — für ihn wird keine Trasse gelegt und kein Volumenstrom gerechnet. Das Programm meldet ihn namentlich, es erfindet keine Zahl. Der Grund steht in <a href="#k9-4">Abschnitt 9.4</a>: ein Netz, das an einer Stelle geraten hat, ist an keiner Stelle mehr nachvollziehbar.</p></div>
+
+<p><b>Röhrenradiator</b> und <b>Unterflurkonvektor</b> sind derselbe Fall mit anderer Bauform. Der Konvektor hat eine Besonderheit, die man ihm nicht ansieht: er liegt <i>im</i> Boden. Deshalb ist seine Montagehöhe null, und deshalb spart er bei der Fußbodenheizung Fläche aus (siehe <a href="#k8-5-3">8.5.3</a>).</p>
+
+<p><b>FBH-Heizkreis.</b> Als Einzelsymbol ist das ein kleines gestricheltes Quadrat mit einem Mäander darin — ein Platzhalter für „hier liegt Fußbodenheizung“. Der Regelfall ist aber die Flächenbelegung: ein Klick in einen Raum belegt dessen ganze Fläche. Das ist <a href="#k8-5">Abschnitt 8.5</a>.</p>
+
+<p><b>Heizkreisverteiler.</b> Er trägt keine Leistungsangabe, und das ist richtig so: was er trägt, ist die Summe der Räume hinter ihm. Genau so rechnet der Rohrausleger auch — er zählt die Heizlasten der Räume mit Flächenbelegung zusammen. Der Verteiler ist außerdem der Punkt, an dem jeder Fußbodenheizkreis anfängt und aufhört; ohne ihn fehlt in jeder Kreislänge die Anbindeleitung.</p>
+
+<div class="baustelle"><b>Auf der Baustelle heißt das</b><p>Setzen Sie den Verteiler früh und an die Stelle, an die er wirklich kommt. Er ist der Nullpunkt der halben Rechnung: Anbindelängen, Kreislängen, Trassenführung und Druckverlust hängen an seinem Standort. Ein Verteiler, der zum Schluss „irgendwo“ gesetzt wird, macht alle Zahlen davor unbrauchbar.</p></div>
+
+<p><b>Wärmeerzeuger.</b> Das Symbol mit der Flamme. Im Rohrnetz ist er die <b>Quelle</b> — steht er im Geschoss, beginnt die Trasse bei ihm und nicht am Verteiler. Seine 15 000 W sind eine Vorbelegung; die eigentliche Gerätewahl mit Kennlinie, Leistungsverlauf und Speicher steht im Anlagenblatt, <a href="#k10">Kapitel 10</a>.</p>
+
+<p><b>Steigstrang Heizung.</b> Ein Kreis mit einem Kreuz darin — die übliche Darstellung für „hier geht es senkrecht weiter“. Er verbindet Geschosse. Liegen zwei Steigstrangsymbole in zwei Geschossen übereinander, erkennt das Programm sie als dieselbe Leitung und verbindet sie im Strangschema (<a href="#k9-7">Abschnitt 9.7</a>). Ohne ihn endet jeder Strang an der Geschossdecke.</p>
+
+<p><b>Raumthermostat.</b> Ein Kreis mit einem T. Er trägt keine Kennwerte und geht in keine Rechnung ein — er ist eine Planungsangabe: <i>hier hängt der Fühler.</i> Für den Elektriker ist das die wichtigste Information des Blattes, für den Rechner keine.</p>
+
+<h4 id="k8-2-2">8.2.2 Sanitär</h4>
+
+<table class="tab">
+<caption>Die neun Sanitärobjekte</caption>
+<thead><tr><th>Objekt</th><th>Vorgabe L × T [m]</th><th>Montagehöhe [m]</th><th>An der Wand</th><th>Kennwerte</th></tr></thead>
+<tbody>
+<tr><td>WC</td><td>0,38 × 0,55</td><td>0,00</td><td>ja</td><td>DN 100</td></tr>
+<tr><td>Waschtisch</td><td>0,60 × 0,50</td><td>0,85</td><td>ja</td><td>DN 50 · mit Warmwasser</td></tr>
+<tr><td>Dusche</td><td>0,90 × 0,90</td><td>0,00</td><td>nein</td><td>DN 50 · mit Warmwasser</td></tr>
+<tr><td>Badewanne</td><td>1,70 × 0,75</td><td>0,00</td><td>ja</td><td>DN 50 · mit Warmwasser</td></tr>
+<tr><td>Spüle</td><td>0,80 × 0,60</td><td>0,85</td><td>ja</td><td>DN 50 · mit Warmwasser</td></tr>
+<tr><td>Küchenzeile</td><td>3,00 × 0,60</td><td>0,00</td><td>ja</td><td>keine</td></tr>
+<tr><td>Warmwasserbereiter</td><td>0,50 × 0,50</td><td>1,20</td><td>ja</td><td>2000 W</td></tr>
+<tr><td>Fallstrang</td><td>0,14 × 0,14</td><td>0,00</td><td>nein</td><td>DN 100</td></tr>
+<tr><td>Bodenablauf</td><td>0,15 × 0,15</td><td>0,00</td><td>nein</td><td>DN 70</td></tr>
+</tbody>
+</table>
+
+<p><b>DN</b> heißt Nennweite (lateinisch <i>diameter nominalis</i>) — die gerundete Kennzahl, mit der Rohre und Formstücke bestellt werden. „DN 100“ ist beim Abwasser die übliche Anschlussgröße eines WC, „DN 50“ die eines Waschtischs oder einer Wanne. Der Wert steht hier als <b>Text</b> und nicht als Zahl, weil er auch als „DN 100“, „50 mm“ oder „1 ½″“ dastehen können muss; gerechnet wird mit ihm im Abwasserstrang nicht. Er ist die Angabe für den Massenauszug und für die Gegenstelle.</p>
+
+<p>Das Häkchen <b>Warmwasser</b> sagt, ob an dem Objekt ein Warmwasseranschluss liegt. Es entscheidet nicht über eine Rechnung im Programm, aber es ist die Angabe, aus der sich die Zahl der Zapfstellen und damit der Warmwasserbedarf ableiten lässt — siehe <a href="#k10">Kapitel 10</a>.</p>
+
+<p><b>WC, Dusche, Badewanne</b> sind bodenstehend. Für die Fußbodenheizung heißt das: Aussparung. Unter ihnen liegt kein Rohr, weder wärmetechnisch — der Sockel schließt die Fläche vom Raum ab — noch handwerklich.</p>
+
+<p><b>Waschtisch und Spüle</b> hängen dagegen an der Wand beziehungsweise stehen auf einem Unterschrank. Sie sparen <i>nichts</i> aus. Der Unterschied ist nicht Willkür: die Regel lautet <b>ein Objekt spart aus, wenn es auf dem Estrich steht oder ihn durchdringt.</b></p>
+
+<p><b>Küchenzeile.</b> Sie steht im Sanitärkatalog, weil das Programm nur drei Gewerke kennt und die Zeile das Objekt ist, zu dem Spüle und Anschlüsse gehören. Ihr eigentlicher Zweck ist ein anderer: sie ist für die Fußbodenheizung dasselbe wie eine Badewanne. Eine Zeile von 3,00 m Länge und 0,60 m Tiefe sind <b>1,80 m²</b>, die als Heizfläche nicht zur Verfügung stehen — und in die die Unterschränke am Boden verschraubt werden. Wer dort Rohr legt, bohrt es beim Aufstellen an.</p>
+
+<p>Gezeichnet wird sie mit Korpusumriss, Arbeitsplattenkante und den Fugen zwischen den Schrankelementen im Rastermaß 60 cm. An den Fugen erkennt man im Plan die Länge der Zeile, ohne zu messen.</p>
+
+<p><b>Warmwasserbereiter.</b> Ein Kreis mit drei Wellenlinien. Er trägt eine Leistung (2000 W Vorbelegung) und ist im Strangschema eine <b>Quelle</b> für Trinkwasser warm.</p>
+
+<p><b>Fallstrang und Bodenablauf.</b> Beides sind Durchdringungen des Estrichs. Für die Verlegekurve der Fußbodenheizung ist beides dieselbe Aussparung — an ihrer Stelle ist kein Estrich, also auch kein Rohr.</p>
+
+<h4 id="k8-2-3">8.2.3 Lüftung</h4>
+
+<table class="tab">
+<caption>Die fünf Lüftungsobjekte</caption>
+<thead><tr><th>Objekt</th><th>Vorgabe L × T [m]</th><th>Montagehöhe [m]</th><th>An der Wand</th><th>Kennwerte</th></tr></thead>
+<tbody>
+<tr><td>Zuluftventil</td><td>0,16 × 0,16</td><td>2,40</td><td>nein</td><td>45 m³/h</td></tr>
+<tr><td>Abluftventil</td><td>0,16 × 0,16</td><td>2,40</td><td>nein</td><td>60 m³/h</td></tr>
+<tr><td>Überströmelement</td><td>0,40 × 0,06</td><td>0,01</td><td>ja</td><td>40 m³/h</td></tr>
+<tr><td>Lüftungsgerät</td><td>0,90 × 0,60</td><td>1,80</td><td>ja</td><td>300 m³/h</td></tr>
+<tr><td>Kanaltrasse</td><td>1,50 × 0,20</td><td>2,50</td><td>nein</td><td>300 m³/h</td></tr>
+</tbody>
+</table>
+
+<p><b>Zuluft- und Abluftventil</b> sind dasselbe Symbol mit umgekehrten Pfeilen: vier Pfeile, die von außen zur Mitte zeigen, sind Abluft (die Luft wird abgesaugt); vier Pfeile, die von der Mitte nach außen zeigen, sind Zuluft (die Luft wird in den Raum geblasen). Das ist die einzige Unterscheidung, und sie ist an einem Ausdruck in Graustufen noch zu erkennen — anders als eine Farbunterscheidung.</p>
+
+<p>Der Kennwert ist der <b>Volumenstrom</b> in Kubikmetern je Stunde. Er ist die Zahl, aus der die Luftbilanz entsteht (<a href="#k8-6">Abschnitt 8.6</a>) und die in den Lüftungswärmeverlust eingeht. Die Vorbelegungen 45 und 60 m³/h sind gängige Ventilgrößen und ausdrücklich nur Vorbelegungen — der wirkliche Wert kommt aus der Lüftungsauslegung.</p>
+
+<p><b>Überströmelement.</b> Ein flaches Rechteck mit einem Pfeil darin. Es sitzt in oder unter der Tür und lässt Luft von einem Zuluftraum in einen Abluftraum wandern — vom Schlafzimmer über den Flur ins Bad. Ohne Überströmung funktioniert keine Wohnungslüftung: die Zuluft käme in den Schlafraum und die Abluft würde aus dem Bad gezogen, aber dazwischen wäre nichts. Der Volumenstrom, den es trägt, wird in der Luftbilanz gesondert ausgewiesen, weil er weder Zu- noch Abluft ist, sondern der Weg zwischen beiden.</p>
+
+<p><b>Lüftungsgerät.</b> Ein Rechteck mit Ventilatorsymbol. Im Strangschema ist es die <b>Quelle</b> des Lüftungsnetzes. Sein Volumenstrom ist die Nennleistung des Geräts; ob die Summe der Ventile dazu passt, sagt die Luftbilanz.</p>
+
+<p><b>Kanaltrasse.</b> Zwei parallele Linien mit einer gestrichelten Mittelachse dazwischen — die kanonische Darstellung eines Luftkanals im Grundriss. Sie ist ein <i>Symbol</i> und keine Leitung: sie hat eine Baulänge und eine Bautiefe, aber keine Polylinie. Wer eine Lüftungsleitung durch das Haus ziehen will, benutzt dafür das Leitungswerkzeug mit der Leitungsart „Zuluft“ oder „Abluft“ (<a href="#k9-3">Abschnitt 9.3</a>). Die Kanaltrasse ist die Abkürzung für ein kurzes, gerades Stück — etwa den Kanal über der abgehängten Decke im Flur.</p>
+
+<h3 id="k8-3">8.3 Das Kennwertschild unter dem Symbol</h3>
+
+<p>Unter jedem Symbol steht ein kleines dunkles Schild mit einer Zahl. Es zeigt genau <b>einen</b> Wert — den, der im Plan wirklich zählt:</p>
+
+<table class="tab">
+<caption>Was auf dem Kennwertschild steht</caption>
+<thead><tr><th>Gewerk</th><th>Angezeigter Wert</th><th>Beispiel</th></tr></thead>
+<tbody>
+<tr><td>Heizung</td><td>Leistung in Watt</td><td>1200 W</td></tr>
+<tr><td>Lüftung</td><td>Volumenstrom in m³/h</td><td>45 m³/h</td></tr>
+<tr><td>Sanitär</td><td>Anschlussnennweite</td><td>DN 100</td></tr>
+</tbody>
+</table>
+
+<p>Fehlt der Wert, fehlt das Schild. Ein Verteiler, ein Steigstrang und ein Raumthermostat tragen keines — sie haben keinen Kennwert, und ein leeres Schild wäre eine Behauptung.</p>
+
+<p><b>Ab welcher Zoomstufe.</b> Das Schild erscheint erst, wenn ein Meter Modell mehr als <b>38 Bildpunkte</b> auf dem Bildschirm einnimmt. Das entspricht etwa dem Maßstab, in dem man ein Bad plant. Weiter herausgezoomt würden die Schilder ineinanderlaufen und den Grundriss zudecken; dann verschwinden sie und die Symbole bleiben allein stehen. Die Werte gehen dabei nicht verloren — sie stehen im Reiter <b>Objekt</b>, im Raumbuch und im Export.</p>
+
+<div class="baustelle"><b>Auf der Baustelle heißt das</b><p>Wenn Sie prüfen wollen, ob überall eine Leistung eingetragen ist, zoomen Sie so weit hinein, dass die Schilder erscheinen, und gehen den Plan einmal ab. Ein Heizkörper ohne Schild ist ein Heizkörper ohne Leistung. Schneller geht es über die Modellprüfung — sie meldet jeden Wärmeübergeber ohne Leistungsangabe namentlich.</p></div>
+
+<h3 id="k8-4">8.4 Setzen, drehen, spiegeln</h3>
+
+<h4 id="k8-4-1">8.4.1 Wandgebunden oder frei stehend</h4>
+
+<p>Der Katalog unterscheidet zwei Arten von Objekten, und der Unterschied bestimmt, wie sie sich beim Setzen verhalten.</p>
+
+<p><b>Wandgebundene Objekte</b> — Heizkörper, Waschtisch, WC, Badewanne, Spüle, Küchenzeile, Verteiler, Wärmeerzeuger, Thermostat, Überströmelement, Lüftungsgerät — suchen sich beim Setzen die nächste Wand im Umkreis von einem Meter. Dort passiert dreierlei auf einmal:</p>
+
+<ol>
+<li>Das Symbol <b>dreht sich</b> so, dass seine Baulänge parallel zur Wand liegt.</li>
+<li>Es <b>rückt vor die Wandfläche</b>, und zwar um die halbe Wandstärke plus die halbe eigene Bautiefe. Es steht damit exakt an der Wand und nicht darin.</li>
+<li>Es wählt die <b>Anschlagseite</b>: Es setzt sich auf die Seite der Wand, auf der der Mauszeiger steht. Wer den Heizkörper aus dem Wohnzimmer heraus an die Außenwand zieht, bekommt ihn im Wohnzimmer; wer von außen kommt, bekommt ihn außen.</li>
+</ol>
+
+<p>Schon vor dem Klick zeigt eine Vorschau, wo das Symbol landen wird und wie es sich ausrichtet. Das erspart das Setzen-und-wieder-Verschieben.</p>
+
+<p><b>Frei stehende Objekte</b> — Dusche, Bodenablauf, Fall- und Steigstrang, Zu- und Abluftventil, FBH-Heizkreis, Kanaltrasse — landen dort, wo geklickt wird. Sie richten sich an nichts aus, weil es nichts gibt, woran sie sich sinnvoll ausrichten könnten: ein Deckenventil hat keine Wandseite.</p>
+
+<h4 id="k8-4-2">8.4.2 Drehen und spiegeln</h4>
+
+<p>Die Drehung steht im Reiter <b>Objekt</b> in Grad und lässt sich in Schritten von 15° verstellen. Gezählt wird gegen den Uhrzeigersinn; 0° heißt: die Baulänge zeigt nach rechts.</p>
+
+<p><b>Spiegeln</b> arbeitet auf einer Auswahl und spiegelt an der Mitte des ausgewählten Bereichs — wahlweise an der senkrechten oder an der waagerechten Achse. Dabei wird nicht nur die Lage gespiegelt, sondern auch die Drehung mitgeführt. Das ist der Punkt, an dem es sonst schiefgeht: ein gespiegeltes Bad, in dem die Heizkörper nach dem Spiegeln in die Wand statt in den Raum zeigen, ist kein gespiegeltes Bad.</p>
+
+<div class="baustelle"><b>Auf der Baustelle heißt das</b><p>Bei einem Doppelhaus zeichnen Sie eine Hälfte, wählen Wände und TGA-Objekte aus und spiegeln alles zusammen. Die Räume werden danach neu erkannt, die Raumzuordnung der Objekte stellt sich von selbst wieder her. Was <b>nicht</b> mitwandert, sind die Leitungen — die Rohrtrassen müssen für die zweite Hälfte neu gelegt oder neu ausgelegt werden.</p></div>
+
+<h4 id="k8-4-3">8.4.3 Die Zuordnung zum Raum — und warum sie stimmen muss</h4>
+
+<p>Jedes gesetzte Objekt bekommt sofort einen <b>Raum</b> zugewiesen: das Programm prüft, in welchem erkannten Raumpolygon der Einbaupunkt liegt. Die Zuordnung wird bei jeder Raumerkennung neu bestimmt — wer eine Wand verschiebt, bekommt sie automatisch nachgeführt.</p>
+
+<p>An dieser einen Angabe hängt mehr, als man vermutet:</p>
+
+<ul>
+<li>Die <b>installierte Heizleistung je Raum</b> — sie ist die Gegenprobe zur Heizlast. Ein Raum mit 1400 W Heizlast und 900 W installiert ist unterversorgt, und das sieht man nur, wenn der Heizkörper dem Raum zugeordnet ist.</li>
+<li>Die <b>Luftbilanz je Raum</b> — Zuluft, Abluft und Überströmung werden je Raum gezählt. Ein Abluftventil ohne Raumzuordnung fehlt in der Bilanz seines Raums und taucht trotzdem in der Summe auf.</li>
+<li>Der <b>Export</b> — jedes Objekt geht mit seiner Raumkennung an die Gegenstelle. Ohne sie ist es ein Gerät ohne Ort.</li>
+<li>Die <b>Fußbodenheizung</b> — sie belegt die Fläche <i>ihres</i> Raums, und die Aussparungen sind die Objekte, die in demselben Raum stehen.</li>
+</ul>
+
+<div class="warnung"><b>Achtung</b><p>Ein Objekt, das in keinem erkannten Raum liegt, taucht in keiner Raumauswertung auf — es ist nicht weg, es zählt nur nirgends mit. Die Modellprüfung meldet das als Warnung („liegt in keinem erkannten Raum“), und im Reiter <b>Objekt</b> steht bei „Raum“ ein Strich. Häufigste Ursache: der Raum ist nicht geschlossen, weil ein Wandende offen steht. Wand schließen, und die Zuordnung stellt sich von selbst her.</p></div>
+
+<h3 id="k8-5">8.5 Die Fußbodenheizung</h3>
+
+<p>Die Fußbodenheizung ist der einzige Wärmeübergeber, der kein Gerät ist, sondern eine Fläche. Deshalb wird sie im Programm auch nicht als Symbol gesetzt, sondern als Belegung eines Raums.</p>
+
+<p class="wo">Im Programm: Reiter <b>TGA</b> → Gewerk <b>Heizung</b> → Symbol <b>FBH-Heizkreis</b>. Ein Klick in einen Raum belegt dessen ganze Fläche; ein zweiter Klick in denselben Raum räumt sie wieder weg. Mit gedrückter <kbd>Alt</kbd>-Taste — oder außerhalb jedes Raums — wird stattdessen ein einzelnes Symbol gesetzt.</p>
+
+<h4 id="k8-5-1">8.5.1 Was gespeichert wird und was nicht</h4>
+
+<p>Gespeichert werden vier Zahlen am Objekt: Verlegeabstand, Kreiszahl, Verlegemuster und Randabstand — dazu die ausgelegte Leistung. <b>Die Verlegekurve selbst wird nicht gespeichert.</b> Sie wird bei jeder Ansicht neu aus dem Raumpolygon gerechnet.</p>
+
+<p>Das ist keine Sparsamkeit, sondern Notwendigkeit. Wer eine Wand verschiebt, bekommt eine neue Raumfläche und muss eine neue Kurve bekommen. Eine mitgespeicherte Kurve wäre nach dem ersten Wandzug falsch, ohne dass es jemandem auffiele — sie sähe ja weiterhin aus wie eine Fußbodenheizung.</p>
+
+<h4 id="k8-5-2">8.5.2 Schnecke gegen Mäander</h4>
+
+<p>Es gibt zwei Arten, ein Rohr in einen Estrich zu legen, und sie unterscheiden sich nicht im Aufwand, sondern im Ergebnis am Fußboden.</p>
+
+<p><b>Der Mäander</b> (auch: schleifenförmige Verlegung) legt die Bahnen der Reihe nach: hin, Kehre, zurück, Kehre, hin. Das ist einfach zu verlegen und verträgt jede Raumform. Der Nachteil steckt in der Physik: das Wasser kühlt auf seinem Weg ab, also ist die erste Bahn die wärmste und die letzte die kälteste. Über einen großen Raum ergibt das ein spürbares Temperaturgefälle vom Anfang zum Ende des Kreises.</p>
+
+<p><b>Die Schnecke</b> (bifilare oder schneckenförmige Verlegung) legt Vor- und Rücklauf abwechselnd nebeneinander: das Rohr läuft in immer engeren Runden bis in die Raummitte, kehrt dort um und läuft in den Lücken wieder heraus. Neben jeder warmen Vorlaufwindung liegt damit eine kühlere Rücklaufwindung, und die Oberflächentemperatur gleicht sich über die ganze Fläche aus. Das ist die übliche Verlegung und deshalb die Voreinstellung des Programms.</p>
+
+<div class="merke"><b>Merke</b><p>Mäander: einfach, verträgt jede Form, hat ein Temperaturgefälle. Schnecke: gleichmäßige Oberfläche, braucht aber eine ringförmige Fläche. Das Programm versucht immer erst die Schnecke und fällt begründet auf den Mäander zurück.</p></div>
+
+<p><b>Wann die Schnecke nicht geht.</b> Das Programm legt eine Schnecke nur, wenn sie überhaupt eine sein kann, und prüft danach das Ergebnis. Drei Fälle führen zum Mäander, und jeder wird im Klartext gemeldet:</p>
+
+<ol>
+<li><b>Mehr als ein Heizkreis im Raum.</b> Eine Schnecke läuft von außen bis in die Mitte und lässt sich nicht in zwei Kreise teilen, ohne dass beide bis in die Raummitte geführt werden. Der Raum wird stattdessen in Streifen geteilt und jeder Streifen als Mäander gelegt.</li>
+<li><b>Einbauten im Raum.</b> Um eine Badewanne herum ist die Fläche nicht mehr ringförmig; eine Schnecke müsste sie umfahren, und dabei entstehen sich kreuzende Rohre.</li>
+<li><b>Die Raumform trägt sie nicht.</b> Bei L-, U- und V-Formen laufen die nach innen versetzten Konturen irgendwann ineinander. Das Programm prüft jede Kontur (überschneidungsfrei, ganz innerhalb, Fläche nimmt ab) und hält die fertige Kurve gegen die Faustregel Fläche geteilt durch Verlegeabstand. Bleibt in der Raummitte ein zu großes unbelegtes Loch — mehr als 5 % der belegbaren Fläche oder mehr als das Vierfache des Verlegeabstands im Quadrat —, wird der Mäander gelegt.</li>
+</ol>
+
+<p>Warum dieser Aufwand: zwei sich kreuzende Rohre im Estrich sind kein Darstellungsfehler, sondern ein Bauteil, das es nicht gibt. Der Estrich hat nur eine Ebene.</p>
+
+<div class="beispiel">
+<b>Beispiel zum Nachrechnen</b>
+<p>Ein rechteckiger Raum von 6,00 × 4,00 m. Randabstand 10 cm, Verlegeabstand 15 cm, Mäander.</p>
+<p>Belegbare Fläche: (6,00 − 2 · 0,10) × (4,00 − 2 · 0,10) = 5,80 × 3,80 = <b>22,04 m²</b>.</p>
+<p>Bahnen: Das belegbare Band ist 3,80 m hoch, die Bahnen liegen 0,15 m auseinander. Es passen ⌊3,80 / 0,15⌋ + 1 = 25 + 1 = <b>26 Bahnen</b> hinein, jede 5,80 m lang.</p>
+<p>Rohr in der Fläche: 26 · 5,80 = 150,8 m (die Kehren an den Enden kommen noch dazu).</p>
+<p>Die Faustregel Fläche / Verlegeabstand: 22,04 / 0,15 = 146,9 m.</p>
+<p class="ergebnis">150,8 m gegen 146,9 m — 2,6 % Unterschied, weil die Bahnenzahl ganzzahlig ist</p>
+</div>
+
+<p>Die Schnecke fällt dagegen regelmäßig <i>kürzer</i> aus als die Faustregel, und das ist kein Fehler: die äußerste Windung wandert schon nach innen, während sie den Raum umrundet, und in der Mitte bleibt der Kern der letzten Kehre. Das Programm sagt das ausdrücklich, wenn der Unterschied 5 % übersteigt — damit niemand die beiden Zahlen nebeneinander sieht und einen Rechenfehler vermutet. <b>Maßgebend für Kreisaufteilung und Leistung ist die Auslegung, nicht die gezeichnete Länge.</b></p>
+
+<h4 id="k8-5-3">8.5.3 Verlegeabstand, Randzone, Aussparungen</h4>
+
+<p><b>Der Verlegeabstand</b> ist der Abstand zweier Rohrbahnen, voreingestellt 15 cm. Er bestimmt zwei Dinge zugleich: wie viel Rohr in den Raum geht (bei 15 cm sind das 6,67 Meter je Quadratmeter — reine Geometrie, keine Annahme) und wie gleichmäßig die Oberfläche wird. Enger heißt mehr Leistung und gleichmäßigere Wärme, aber auch mehr Rohr, mehr Druckverlust und mehr Arbeit.</p>
+
+<p><b>Der Randabstand</b> ist voreingestellt 10 cm — der Abstand des äußersten Rohrs zur lichten Wandkante. Er hat keine Norm hinter sich, sondern Praxis: der Randdämmstreifen ist 8 bis 10 mm dick, und darüber hinaus hält der Verleger Abstand, weil das Rohr am Rand vom Estrich nicht mehr sicher umschlossen wäre und weil die Randzone ohnehin eine andere Wärmestromdichte hat. Üblich sind 5 bis 10 cm; die 10 cm sind die vorsichtige Wahl. Sie schätzen die belegbare Fläche eher zu klein als zu groß — und eine zu klein geschätzte Fläche führt auf eine zu hohe Wärmestromdichte, also genau auf den Fall, den die Auslegung ohnehin prüft.</p>
+
+<div class="warnung"><b>Achtung</b><p>Der Randabstand steht am Objekt und nicht als versteckte Konstante im Zeichencode. Das ist wichtig, weil er die belegbare Fläche und damit die Leistung verändert: Bei einem Raum von 3,00 × 3,00 m machen 5 statt 10 cm Randabstand aus 7,84 m² belegbarer Fläche 8,41 m² — 7 % mehr Heizfläche allein aus einer Zahl, die man nicht sieht. Deshalb steht sie im Ergebnis.</p></div>
+
+<p><b>Die Aussparungen.</b> Unter fest eingebauten Objekten wird nicht verlegt. Welche das sind, folgt einer einzigen Regel: <b>ein Objekt spart aus, wenn es auf dem Estrich steht oder ihn durchdringt.</b> Alles, was an der Wand hängt, spart nichts aus.</p>
+
+<table class="tab">
+<caption>Was die Fußbodenheizung aussparen muss</caption>
+<thead><tr><th>Gruppe</th><th>Objekte</th><th>Grund</th></tr></thead>
+<tbody>
+<tr><td>Bodenstehende Sanitärobjekte</td><td>Badewanne, Duschwanne, WC</td><td>Sie stehen auf dem Fertigfußboden; darunter wäre das Rohr weder erreichbar noch wirksam.</td></tr>
+<tr><td>Fest eingebaute Möbel</td><td>Küchenzeile</td><td>Der Sockel schließt die Fläche vom Raum ab; die Unterschränke werden am Boden befestigt.</td></tr>
+<tr><td>Durchdringungen des Estrichs</td><td>Fallstrang, Steigstrang, Bodenablauf, Unterflurkonvektor</td><td>An ihrer Stelle ist kein Estrich, also auch kein Rohr. Der Konvektor liegt sogar ausdrücklich im Boden.</td></tr>
+<tr><td>Massive Bauteile</td><td>Kamin, Pfeiler, Wandversatz, Installationsblock</td><td>Kein Einbau, sondern Mauerwerk — hier stellt sich die Frage gar nicht, sie sparen ausnahmslos aus.</td></tr>
+</tbody>
+</table>
+
+<p>Ausdrücklich <b>nicht</b> in der Liste: Waschtisch, Wärmeerzeuger, Warmwasserbereiter, Lüftungsgerät, Verteiler, Raumthermostat. Sie hängen alle an der Wand, und unter einem Waschtisch liegt Rohr wie überall sonst.</p>
+
+<p>Zu jeder Aussparung hält das Rohr <b>5 cm</b> Abstand, damit es beim Aufstellen des Objekts nicht getroffen wird. Auch das ist Erfahrungswert und keine Norm.</p>
+
+<p><b>Die kürzeste Bahn.</b> Ein 8 cm langer Rest in einer Ecke ist keine Rohrbahn, sondern eine Kehre, die niemand legt. Bahnen unter <b>30 cm</b> werden deshalb weggelassen. Der Wert entspricht ungefähr dem kleinsten Biegeradius eines 16er Verbundrohrs samt Rückweg. Ohne diese Schwelle erzeugte jede schräge Wand eine Handvoll Stummel, die die Rohrlänge verfälschen und den Plan verschmutzen.</p>
+
+<p><b>Die Richtung der Bahnen</b> folgt ohne besondere Angabe der Hauptachse des Raums. So laufen sie parallel zu den maßgeblichen Wänden — das ergibt die wenigsten Kehren und entspricht dem, was von Hand gelegt wird.</p>
+
+<h4 id="k8-5-4">8.5.4 Die Anbindung an den Verteiler</h4>
+
+<p>Ein Heizkreis beginnt und endet am Verteiler. Nicht am Raumrand und nicht an der ersten Polygonecke — die ist eine Nummer in einer Liste und hat mit dem Bauwerk nichts zu tun.</p>
+
+<p>Steht im Geschoss ein Heizkreisverteiler, geschieht dreierlei:</p>
+
+<ol>
+<li>Jede Verlegekurve wird so gedreht, dass sie an dem <b>dem Verteiler zugewandten Ende</b> beginnt. Die Schnecke setzt ihre Startecke an die dem Verteiler nächste Raumecke.</li>
+<li>Es entsteht eine <b>Anbindeleitung</b> vom Verteiler zum Kurvenanfang. Sie zählt <b>doppelt</b>, weil Vor- und Rücklauf denselben Weg gehen. Das ist keine Schätzung, sondern die Definition der Kreislänge.</li>
+<li>Die <b>Kreislänge</b> — Rohr in der Fläche plus Anbindung — wird ausgewiesen. Sie ist die Zahl, über die der Druckverlust entsteht.</li>
+</ol>
+
+<div class="merke"><b>Merke</b><p>Ein 20 m vom Verteiler entfernter Raum kostet 40 m Rohr, bevor im Raum das erste Rohr liegt. Genau deshalb braucht ein weit entfernter Raum oft einen eigenen Kreis, obwohl seine Fläche klein ist.</p></div>
+
+<p><b>Was die Anbindeleitung ausdrücklich nicht ist:</b> die verlegte Trasse. Gemessen wird die kürzeste Verbindung Verteiler–Kurvenanfang. In Wirklichkeit läuft die Anbindung an Wänden entlang, durch Türdurchgänge und im Bündel mit den Nachbarkreisen — sie ist also länger. Die ausgewiesene Kreislänge ist damit eine <b>untere Schranke</b>, und das Programm sagt das in seinen Hinweisen. Erfunden wird nichts: kein Umwegzuschlag, keine Trassenführung.</p>
+
+<p>Im Plan ist die Anbindeleitung fein gestrichelt und stark zurückgenommen gezeichnet — als eine Linie, obwohl zwei Rohre laufen; im Maßstab eines Grundrisses wären sie ohnehin nicht zu unterscheiden. Die zurückhaltende Darstellung ist Absicht: eine kräftige Volllinie quer durch eine Wand würde eine Führung behaupten, die niemand geplant hat. So gezeichnet sagt sie, was sie ist — eine schematische Zuordnung „dieser Kreis hängt an diesem Verteiler“. Ein kleiner Ring am Verteiler zeigt, wo der Kreis anfängt.</p>
+
+<h4 id="k8-5-5">8.5.5 Was eine gestrichelte Kurve bedeutet</h4>
+
+<p>Eine <b>durchgezogene</b> Verlegekurve ist ein angeschlossener Heizkreis. Eine <b>gestrichelte</b> ist ein Kurvenstück, das nicht angeschlossen werden konnte.</p>
+
+<p>Der Fall entsteht so: Wenn die belegbare Fläche eines Raums nicht zusammenhängt — meist, weil ein Einbau an der Wand eine Bahn in zwei Abschnitte teilt —, zerfällt sie in mehrere Stücke. Steht ein Verteiler, bekommt jedes Stück eine eigene Anbindeleitung; dass ein Raum in drei Stücke zerfällt, heißt dann drei Anbindungen und nicht drei lose Enden, und alle Kurven sind durchgezogen. <b>Ohne Verteiler</b> ist dagegen jedes Stück jenseits des ersten ein Rest ohne Anschluss — und genau das soll man sehen.</p>
+
+<div class="warnung"><b>Achtung</b><p>Gestrichelt heißt: dieses Rohr hängt an nichts. Nicht: „hier ist die Darstellung etwas anders“. Setzen Sie einen Heizkreisverteiler oder teilen Sie den Raum von Hand, sonst geht das Stück in keine Kreislänge und in keinen Druckverlust ein.</p></div>
+
+<p>Zerfällt eine Fläche, meldet das Programm es zusätzlich im Klartext und nennt die Zahl der Bereiche. Wer weniger Anbindungen will, teilt den Raum von Hand oder rückt den Einbau.</p>
+
+<h4 id="k8-5-6">8.5.6 Die Beschriftung auf der Fläche</h4>
+
+<p>Unter dem Raumstempel steht ein Schild mit drei bis vier Angaben, durch Mittelpunkte getrennt:</p>
+
+<table class="tab">
+<caption>Das Schild der Flächenbelegung</caption>
+<thead><tr><th>Eintrag</th><th>Bedeutung</th></tr></thead>
+<tbody>
+<tr><td>VA 15 cm</td><td>Verlegeabstand</td></tr>
+<tr><td>2 Kreise</td><td>Zahl der Heizkreise in diesem Raum</td></tr>
+<tr><td>1.240 W</td><td>Ausgelegte Leistung der Fläche</td></tr>
+<tr><td>84 m</td><td>Kreislänge — <b>nur</b>, wenn ein Verteiler steht</td></tr>
+</tbody>
+</table>
+
+<p>Die Kreislänge steht ausdrücklich nur dort, wo sie vollständig ist. Ohne Verteiler fehlt die Anbindeleitung, und eine Länge, die zu kurz ist, ist im Plan schlimmer als gar keine. Der fehlende Verteiler steht dann in den Hinweisen. Das Schild erscheint ab einer Zoomstufe von 22 Bildpunkten je Meter.</p>
+
+<h4 id="k8-5-7">8.5.7 Alle Räume auf einmal</h4>
+
+<p class="wo">Im Programm: Reiter <b>TGA</b> → Gewerk <b>Heizung</b> → Abschnitt <b>Fußbodenheizung</b> → Knopf <b>Alle Räume dieses Geschosses auslegen</b>. Daneben steht, wie viele Räume noch offen sind.</p>
+
+<p>Der Knopf belegt jeden beheizten Raum des aktiven Geschosses, der noch keine Heizfläche hat. Danach steht ein <b>Bericht</b>, und der ist Teil der Funktion und nicht Beiwerk: eine Sammelaktion, die stillschweigend Räume auslässt, ist gefährlicher als gar keine. Der Bericht bleibt stehen, bis er weggeklickt wird, und jede Zeile ist anklickbar und wählt den Raum im Plan aus.</p>
+
+<table class="tab">
+<caption>Warum ein Raum übergangen wird</caption>
+<thead><tr><th>Meldung</th><th>Was dahintersteckt</th></tr></thead>
+<tbody>
+<tr><td>kein geschlossener Raumumriss</td><td>Der Raum wurde nicht erkannt — meist ein offenes Wandende.</td></tr>
+<tr><td>unbeheizt</td><td>Der Raum ist als unbeheizt geführt. Das ist ein richtiges Ergebnis, kein Fehler.</td></tr>
+<tr><td>hat schon eine Fußbodenheizung</td><td>Die Fläche ist bereits belegt.</td></tr>
+<tr><td>hat bereits einen Heizkörper</td><td>Im Raum steht ein Heizkörper, Röhrenradiator oder Konvektor.</td></tr>
+<tr><td>nach Randabstand und Einbauten bleibt keine belegbare Fläche</td><td>Der Raum ist zu schmal oder zu voll.</td></tr>
+</tbody>
+</table>
+
+<p>Die vierte Zeile verdient eine Erklärung. Ein Raum, in dem schon ein Heizkörper steht, bekommt keine Fußbodenheizung dazu — nicht aus Bequemlichkeit, sondern aus Hydraulik: <b>zwei Heizflächen mit verschiedenen Systemtemperaturen im selben Raum sind eine Entscheidung, die jemand treffen muss.</b> Fußbodenheizung läuft mit 35/28 °C, ein Heizkörper mit 55/45 °C. Beides an denselben Kreis zu hängen geht nicht ohne Mischer, und stillschweigend darf diese Entscheidung nicht fallen. Wollen Sie beides, setzen Sie die Fläche in diesem Raum von Hand.</p>
+
+<p>Steht im Geschoss kein Heizkreisverteiler, weist der Abschnitt ausdrücklich darauf hin, bevor Sie den Knopf drücken.</p>
+
+<p>Die eigentliche Auslegung — wie viel Leistung ein Quadratmeter Fußbodenheizung abgibt, wie viele Kreise ein Raum braucht, wie hoch der Druckverlust im Kreis ist und wo die Grenze der Oberflächentemperatur liegt — steht in <a href="#k13-6">Abschnitt 13.6</a>. Dieses Kapitel beschreibt nur, <i>wo</i> das Rohr liegt.</p>
+
+<h3 id="k8-6">8.6 Das Lüftungskonzept</h3>
+
+<p class="wo">Im Programm: Reiter <b>Lüftung</b>.</p>
+
+<p>Warum es diesen Reiter überhaupt gibt: In einem dichten Neubau entscheidet die Lüftung über einen guten Teil der Heizlast. Ohne Wärmerückgewinnung geht die gesamte Zuluft mit Außentemperatur in die Rechnung ein; mit 80 % Rückgewinnung nur noch ein Fünftel davon. Fehlt diese Angabe im Datensatz, muss die Gegenstelle raten — und zwar um den Faktor fünf.</p>
+
+<h4 id="k8-6-1">8.6.1 Die drei Anlagenarten</h4>
+
+<table class="tab">
+<caption>Was das Programm an Lüftungsanlagen kennt</caption>
+<thead><tr><th>Art</th><th>Bedeutung</th><th>Was daraus folgt</th></tr></thead>
+<tbody>
+<tr><td>frei</td><td>Fensterlüftung — kein Gerät, keine Rückgewinnung</td><td>Der Lüftungswärmeverlust folgt allein aus dem Mindestluftwechsel, der Luftdichtheit n50 und der Abschirmung. Diese Werte stehen im Reiter <b>Objekt</b>.</td></tr>
+<tr><td>Abluft</td><td>Abluftanlage; die Zuluft strömt durch Außenwandventile nach</td><td>Der Unterdruck ist gewollt und wird nicht als Fehler gemeldet.</td></tr>
+<tr><td>Zu-/Abluft</td><td>Gerät mit Zu- und Abluft, meist mit Wärmerückgewinnung</td><td>Wärmerückgewinnungsgrad η und Betriebsart werden erfragt; die Luftbilanz muss aufgehen.</td></tr>
+</tbody>
+</table>
+
+<p>Bei der Zu-/Abluftanlage stellen Sie den <b>Wärmerückgewinnungsgrad η</b> (griechisch <i>eta</i>, der Wirkungsgrad) zwischen 0 und 95 % ein. Er wirkt unmittelbar: nur der Anteil (1 − η) der Zuluft trägt noch Außentemperatur. Das Programm zeigt daneben die <b>wirksame Zuluft</b> in m³/h — also den Teil, der wirklich erwärmt werden muss.</p>
+
+<div class="beispiel">
+<b>Beispiel zum Nachrechnen</b>
+<p>Zuluft 180 m³/h, Wärmerückgewinnung η = 80 %.</p>
+<p>Wirksame Zuluft = 180 · (1 − 0,80) = <b>36 m³/h</b>.</p>
+<p class="ergebnis">Statt 180 m³/h müssen nur 36 m³/h von Außentemperatur auf Raumtemperatur gebracht werden</p>
+</div>
+
+<p>Die <b>Betriebsart</b> — Dauerbetrieb oder bedarfsgeführt — ist eine Angabe für die Gegenstelle; sie wird im Programm nicht weiterverrechnet.</p>
+
+<h4 id="k8-6-2">8.6.2 Die Luftbilanz</h4>
+
+<p>Die zweite Zahl, die hier zählt, ist die Bilanz. Eine Zu-/Abluftanlage ist per Definition ausgeglichen: was hineingeblasen wird, muss abgesaugt werden. Klafft die Bilanz, geht die Differenz durch die Gebäudehülle — bei Überdruck hinaus, bei Unterdruck herein, in beiden Fällen ungewärmt und in keiner Rechnung.</p>
+
+<p>Das Programm summiert dazu die Volumenströme der gesetzten Ventile: Zuluftventile, Abluftventile und Überströmelemente, jeweils gesamt und je Raum. Die Volumenströme kommen aus den <b>gesetzten Ventilen</b>, nicht aus einer Tabelle.</p>
+
+<table class="tab">
+<caption>Wie die Bilanz bewertet wird</caption>
+<thead><tr><th>Fall</th><th>Bewertung</th></tr></thead>
+<tbody>
+<tr><td>Abweichung höchstens 10 % des größeren Werts</td><td>„Die Anlage ist ausgeglichen.“</td></tr>
+<tr><td>Zuluft größer als Abluft</td><td>„Überdruck von … m³/h — so viel gewärmte Luft wird durch die Hülle gedrückt.“</td></tr>
+<tr><td>Abluft größer als Zuluft</td><td>„Unterdruck von … m³/h — so viel kalte Luft wird ungewärmt durch die Hülle gezogen.“</td></tr>
+<tr><td>Abluftanlage</td><td>„Bei einer Abluftanlage ist der Unterdruck gewollt: die Zuluft strömt durch Außenwandventile nach.“</td></tr>
+</tbody>
+</table>
+
+<h4 id="k8-6-3">8.6.3 Die Rollen der Räume</h4>
+
+<p>Jeder Raum hat eine Rolle im Lüftungskonzept: <b>ZU</b> (Zuluft), <b>AB</b> (Abluft), <b>ÜB</b> (Überströmen) oder keine. Die Rolle folgt zunächst der Nutzung — Aufenthaltsräume bekommen Zuluft, Bad, WC und Küche sind Ablufträume, Flure strömen über — und lässt sich je Raum umstellen.</p>
+
+<p>Neben jedem Raum steht sein rechnerischer Mindestluftstrom (Volumen mal Luftwechselrate) und daneben, was an Ventilen tatsächlich gesetzt ist. Fehlt in einem Abluftraum das Abluftventil oder in einem Zuluftraum bei einer Zu-/Abluftanlage das Zuluftventil, steht dort rot „kein Ventil“.</p>
+
+<h4 id="k8-6-4">8.6.4 Wo das Programm aufhört</h4>
+
+<p>Das muss deutlich gesagt werden, weil es sonst überschätzt wird:</p>
+
+<ul>
+<li><b>Das Programm legt keine Lüftungsanlage aus.</b> Es rechnet keine Auslegungsvolumenströme nach DIN 1946-6, es bestimmt keine Lüftungsstufen, es prüft keinen Feuchteschutz und es führt keinen Lüftungskonzept-Nachweis.</li>
+<li><b>Es bemisst keine Kanäle.</b> Für Luftkanäle gibt es im Programm weder eine Querschnittsbestimmung noch eine Druckverlustrechnung. Die Kanaltrasse ist ein Symbol, die Lüftungsleitung eine Polylinie mit einer Nennweite, die Sie eintragen.</li>
+<li><b>Es dämmt keine Kanäle.</b> Die Dämmregel nach Anlage 8 GEG gilt für Wärme- und Warmwasserleitungen, nicht für Luftkanäle — das Programm sagt das ausdrücklich und gibt für sie keine Dicke aus (<a href="#k9-6">Abschnitt 9.6</a>).</li>
+<li><b>Es prüft keine Schallwerte und keine Brandschutzanforderungen</b> an Durchführungen.</li>
+</ul>
+
+<p>Was es liefert, ist die Grundlage dafür: die Anlagenart, den Rückgewinnungsgrad, die Rollen der Räume, die Ventile mit ihren Volumenströmen und eine Bilanz, die aufgeht oder eben nicht. Das ist genau die Angabe, die eine Heizlastrechnung braucht — und genau der Punkt, an dem die meisten Datensätze eine Lücke haben.</p>
+</section>

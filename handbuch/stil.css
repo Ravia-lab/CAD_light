@@ -1,0 +1,207 @@
+/* Handbuch RaVia CAD Light — Stilblatt.
+   Gesetzt wie ein technisches Handbuch: ruhige Farben, eine Spalte für den
+   Text, feste Breite für die Lesbarkeit, und ein Druckbild, das ohne den
+   Bildschirmrahmen auskommt. */
+
+:root{
+  --tinte:#101828; --grau:#475467; --blass:#98A2B3; --linie:#E4E7EC;
+  --papier:#FFFFFF; --ruhe:#F8FAFC; --rand:#EAECF0;
+  --akzent:#B34700; --akzent-hell:#FFF4EC;
+  --merke:#0B6E4F; --merke-hell:#ECFDF3;
+  --warn:#B54708; --warn-hell:#FFFAEB;
+  --bau:#175CD3; --bau-hell:#EFF8FF;
+  --schirm:#0B1120;
+  --serif:"Iowan Old Style","Palatino Linotype",Palatino,Georgia,serif;
+  --sans:"Inter","Segoe UI",system-ui,-apple-system,sans-serif;
+  --mono:"JetBrains Mono",ui-monospace,"SF Mono",Consolas,monospace;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth;scroll-padding-top:76px}
+body{margin:0;background:var(--ruhe);color:var(--tinte);font-family:var(--sans);
+  font-size:16px;line-height:1.62;-webkit-font-smoothing:antialiased}
+
+.sprung{position:absolute;left:-9999px}
+.sprung:focus{left:8px;top:8px;z-index:100;background:var(--tinte);color:#fff;padding:8px 14px;border-radius:6px}
+
+/* --- Kopfleiste ---------------------------------------------------------- */
+.kopf{position:sticky;top:0;z-index:40;display:flex;align-items:center;gap:16px;
+  height:60px;padding:0 20px;background:rgba(255,255,255,.94);
+  backdrop-filter:blur(8px);border-bottom:1px solid var(--rand)}
+.kopf-titel{font-size:14.5px;color:var(--grau);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.kopf-titel b{color:var(--tinte)}
+.fassung{font-family:var(--mono);font-size:12px;color:#fff;background:var(--akzent);
+  padding:2px 7px;border-radius:5px;margin-left:6px}
+.menue{display:none;border:1px solid var(--rand);background:#fff;border-radius:7px;
+  width:36px;height:36px;font-size:16px;cursor:pointer;color:var(--grau)}
+.suche{margin-left:auto;display:flex;align-items:center;gap:10px}
+.suche input{width:290px;max-width:42vw;padding:8px 12px;border:1px solid var(--rand);
+  border-radius:8px;font:inherit;font-size:14px;background:#fff;color:var(--tinte)}
+.suche input:focus{outline:2px solid var(--akzent);outline-offset:-1px}
+.treffer{font-size:12px;color:var(--blass);font-family:var(--mono);min-width:74px}
+
+/* --- Aufteilung ---------------------------------------------------------- */
+.rahmen{display:grid;grid-template-columns:322px minmax(0,1fr);align-items:start}
+.toc{position:sticky;top:60px;height:calc(100vh - 60px);overflow-y:auto;
+  padding:20px 10px 60px 20px;border-right:1px solid var(--rand);background:var(--ruhe)}
+.toc a{display:block;text-decoration:none;color:var(--grau);border-radius:6px;
+  padding:3px 9px;font-size:13.5px;line-height:1.42}
+.toc a:hover{background:#fff;color:var(--tinte)}
+.toc a.jetzt{background:var(--akzent-hell);color:var(--akzent);font-weight:600}
+.toc-0,.toc-2{margin-top:11px;font-weight:650;color:var(--tinte);font-size:14px}
+.toc-3{padding-left:22px;font-size:13px}
+.toc a[hidden]{display:none}
+
+main{max-width:none;padding:0 0 90px}
+.kapitel,.deckblatt,.fuss{max-width:960px;margin:0 auto;padding:0 40px}
+
+/* --- Textkörper ---------------------------------------------------------- */
+h2{font-family:var(--serif);font-size:34px;line-height:1.16;letter-spacing:-.015em;
+  margin:76px 0 6px;padding-top:26px;border-top:3px solid var(--tinte)}
+h3{font-family:var(--serif);font-size:23px;line-height:1.25;margin:44px 0 10px}
+h4{font-size:16.5px;margin:28px 0 6px;color:var(--tinte);font-weight:680}
+p{margin:0 0 14px}
+.lead{font-size:18.5px;line-height:1.55;color:var(--grau);margin:6px 0 26px;
+  font-family:var(--serif)}
+a{color:var(--akzent)}
+ul,ol{margin:0 0 16px;padding-left:24px}
+li{margin:0 0 7px}
+b,strong{font-weight:660}
+code{font-family:var(--mono);font-size:.88em;background:var(--ruhe);
+  border:1px solid var(--rand);border-radius:4px;padding:1px 5px}
+pre{font-family:var(--mono);font-size:12.5px;line-height:1.55;background:var(--schirm);
+  color:#D0D5DD;border-radius:10px;padding:16px 18px;overflow-x:auto;margin:0 0 18px}
+pre code{background:none;border:0;padding:0;color:inherit;font-size:inherit}
+kbd{font-family:var(--mono);font-size:12px;background:#fff;border:1px solid #D0D5DD;
+  border-bottom-width:2px;border-radius:5px;padding:1px 6px;color:var(--tinte);white-space:nowrap}
+
+/* --- Kästen -------------------------------------------------------------- */
+.merke,.warnung,.baustelle,.formel,.beispiel{
+  margin:22px 0;padding:15px 18px;border-radius:10px;border:1px solid var(--rand);
+  background:#fff}
+.merke{border-left:4px solid var(--merke);background:var(--merke-hell);border-color:#B6EFD2}
+.warnung{border-left:4px solid var(--warn);background:var(--warn-hell);border-color:#FDDCAB}
+.baustelle{border-left:4px solid var(--bau);background:var(--bau-hell);border-color:#B2DDFF}
+.merke>b,.warnung>b,.baustelle>b,.beispiel>b{display:block;font-size:11.5px;
+  letter-spacing:.09em;text-transform:uppercase;margin-bottom:6px}
+.merke>b{color:var(--merke)} .warnung>b{color:var(--warn)} .baustelle>b{color:var(--bau)}
+.merke p:last-child,.warnung p:last-child,.baustelle p:last-child,.beispiel p:last-child{margin-bottom:0}
+
+.formel{border-left:4px solid var(--tinte);background:var(--ruhe)}
+.formel .worte{font-size:15.5px;color:var(--grau);margin-bottom:12px}
+.formel .math{font-family:var(--mono);font-size:16px;line-height:1.7;color:var(--tinte);
+  background:#fff;border:1px solid var(--rand);border-radius:8px;padding:12px 16px;
+  margin:0 0 12px;overflow-x:auto;white-space:pre-wrap}
+.formel .zeichen{display:grid;grid-template-columns:auto 1fr;gap:3px 14px;margin:0;font-size:14px}
+.formel .zeichen dt{font-family:var(--mono);color:var(--akzent);font-weight:600;white-space:nowrap}
+.formel .zeichen dd{margin:0;color:var(--grau)}
+
+.beispiel{border-left:4px solid var(--akzent);background:var(--akzent-hell);border-color:#FFD9BE}
+.beispiel>b{color:var(--akzent)}
+.beispiel .ergebnis{font-family:var(--mono);font-size:15.5px;font-weight:600;color:var(--akzent);
+  border-top:1px solid #FFD9BE;padding-top:9px;margin-top:9px}
+
+.quelle{font-size:13px;color:var(--blass);border-left:2px solid var(--linie);
+  padding-left:12px;margin:-6px 0 20px;font-style:italic}
+.wo{font-size:14px;background:var(--ruhe);border:1px dashed #D0D5DD;border-radius:8px;
+  padding:8px 13px;color:var(--grau)}
+.wo b{color:var(--tinte)}
+
+/* --- Tabellen ------------------------------------------------------------ */
+table,.tab{width:100%;border-collapse:collapse;margin:20px 0;font-size:14px;
+  display:block;overflow-x:auto}
+caption{caption-side:top;text-align:left;font-size:13px;color:var(--grau);
+  padding-bottom:8px;font-weight:600}
+th,td{border-bottom:1px solid var(--linie);padding:8px 12px;text-align:left;vertical-align:top}
+thead th{border-bottom:2px solid var(--tinte);font-size:12.5px;letter-spacing:.02em;
+  text-transform:uppercase;color:var(--grau);white-space:nowrap}
+tbody tr:hover{background:var(--ruhe)}
+td:first-child,th:first-child{padding-left:0}
+
+/* --- Symboltafeln -------------------------------------------------------- */
+.tafel{margin:26px 0;border:1px solid var(--rand);border-radius:12px;overflow:hidden;background:#fff}
+.kacheln{display:grid;grid-template-columns:repeat(auto-fill,minmax(178px,1fr));gap:1px;background:var(--rand)}
+.kachel{margin:0;padding:14px 13px 15px;background:#fff;display:flex;flex-direction:column;gap:9px}
+.k-bild{display:flex;align-items:center;justify-content:center;height:104px;
+  border-radius:8px;background:var(--ruhe);padding:6px}
+.k-bild svg{max-width:100%;max-height:100%;height:auto}
+.kachel figcaption{font-size:13px;line-height:1.45}
+.kachel figcaption b{display:block;color:var(--tinte);font-size:13.5px;
+  overflow-wrap:anywhere;hyphens:auto}
+.k-spitze{display:block;font-family:var(--mono);font-size:11.5px;color:var(--akzent);margin-top:1px}
+.k-text{margin:5px 0 0;color:var(--grau);font-size:12.5px;line-height:1.45}
+.tafel-hinweis{margin:0;padding:12px 16px;background:var(--ruhe);border-top:1px solid var(--rand);
+  font-size:13px;color:var(--grau)}
+/* Bildschirmsymbole stehen auf dem Grund, auf dem sie im Programm stehen —
+   ihre Farben sind für Dunkel entworfen und wären auf Weiß kaum zu sehen. */
+.tafel-schirm .k-bild{background:var(--schirm)}
+.tafel-zweifargig .k-bild,.tafel-zweifarbig .k-bild{background:linear-gradient(180deg,var(--schirm) 0 52%,#fff 52% 100%)}
+
+/* --- Deckblatt ----------------------------------------------------------- */
+.deckblatt{padding-top:52px;padding-bottom:8px}
+.deckblatt h1{font-family:var(--serif);font-size:52px;line-height:1.06;letter-spacing:-.025em;margin:0 0 8px}
+.deckblatt .unter{font-size:21px;color:var(--grau);font-family:var(--serif);margin:0 0 30px}
+.deckblatt .zahlen{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));
+  gap:1px;background:var(--rand);border:1px solid var(--rand);border-radius:12px;
+  overflow:hidden;margin:30px 0}
+.deckblatt .zahlen div{background:#fff;padding:14px 16px}
+.deckblatt .zahlen b{display:block;font-family:var(--mono);font-size:24px;color:var(--akzent);line-height:1.15}
+.deckblatt .zahlen span{font-size:12.5px;color:var(--grau)}
+
+.fuss{margin-top:80px;padding-top:26px;border-top:1px solid var(--rand);
+  font-size:13px;color:var(--blass)}
+
+/* --- Schmale Bildschirme ------------------------------------------------- */
+@media (max-width:1080px){
+  .rahmen{grid-template-columns:1fr}
+  .toc{display:none;position:fixed;top:60px;left:0;width:min(340px,86vw);z-index:39;
+    background:#fff;box-shadow:0 12px 40px rgba(16,24,40,.16)}
+  .toc.auf{display:block}
+  .menue{display:block}
+  .kapitel,.deckblatt,.fuss{padding:0 22px}
+  h2{font-size:28px}
+  .deckblatt h1{font-size:38px}
+}
+
+/* --- Druck --------------------------------------------------------------- */
+@media print{
+  @page{size:A4;margin:19mm 16mm 21mm}
+  body{background:#fff;font-size:10.4pt;line-height:1.48}
+  .kopf,.toc,.sprung,.menue,.suche{display:none!important}
+  .rahmen{display:block}
+  .kapitel,.deckblatt,.fuss{max-width:none;padding:0}
+  h2{page-break-before:always;break-before:page;font-size:20pt;margin:0 0 4pt;padding-top:0}
+  .deckblatt h1{font-size:30pt}
+  h3{page-break-after:avoid;break-after:avoid;font-size:14pt;margin-top:16pt}
+  h4{page-break-after:avoid;break-after:avoid}
+  p,li{orphans:3;widows:3}
+  .merke,.warnung,.baustelle,.formel,.beispiel,.kachel,figure,tr{
+    page-break-inside:avoid;break-inside:avoid}
+  table{display:table;font-size:9pt}
+  /* Ein Tabellenkopf allein am Seitenfuß ist keine Tabelle, sondern eine
+     Ankündigung. Er bleibt bei seiner ersten Zeile. */
+  thead{break-after:avoid;page-break-after:avoid;display:table-header-group}
+  caption{break-after:avoid;page-break-after:avoid}
+  tfoot{display:table-footer-group}
+  /* Eine Überschrift, unter der nichts mehr steht, gehört auf die nächste
+     Seite — sonst blättert der Leser mitten im Gedanken um. */
+  h3+p,h4+p,h3+.merke,h4+.merke,h3+table,h4+table{page-break-before:avoid;break-before:avoid}
+  .kacheln{grid-template-columns:repeat(4,1fr)}
+  /* Auf Papier haben die Bildschirmsymbole keinen dunklen Grund — der frisst
+     Toner und liest sich schlechter als ein feiner Rahmen. */
+  .tafel-schirm .k-bild{background:#fff;border:1px solid var(--linie);
+    -webkit-print-color-adjust:exact;print-color-adjust:exact}
+  a{color:inherit;text-decoration:none}
+  pre{background:#F2F4F7;color:#101828;border:1px solid var(--linie)}
+}
+
+/* --- Suchergebnisse ------------------------------------------------------ */
+#ergebnisse .erg{display:block;text-decoration:none;padding:6px 9px;border-radius:7px;
+  color:var(--tinte);font-size:13.5px;line-height:1.35}
+#ergebnisse .erg:hover{background:#fff}
+#ergebnisse .e-kap{display:block;font-size:11px;color:var(--blass);
+  text-transform:uppercase;letter-spacing:.05em;margin-bottom:1px}
+#ergebnisse .e-titel{display:block;color:var(--tinte)}
+#ergebnisse .erg-2 .e-titel{font-weight:650}
+#ergebnisse .erg-4 .e-titel{color:var(--grau)}
+#ergebnisse .leer{font-size:13px;color:var(--grau);padding:10px 9px;margin:0}
+.suche input::placeholder{color:var(--blass)}

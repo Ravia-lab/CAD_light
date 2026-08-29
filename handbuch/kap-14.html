@@ -1,0 +1,697 @@
+<section id="kap-14" class="kapitel" data-titel="14 · Berichte, Blätter und die Projektmappe">
+<h2 id="k14">14 · Berichte, Blätter und die Projektmappe</h2>
+<p class="lead">Alles, was gerechnet wurde, muss irgendwann aufs Papier. Dieses Kapitel führt jeden Ausdruck einzeln vor: was drauf steht, wozu Sie ihn brauchen, wie Sie ihn erzeugen, was Sie einstellen können — und was das Programm meldet, wenn es nicht passt.</p>
+
+<h3 id="k14-1">14.1 Der Weg aufs Papier: der Druckdialog des Browsers</h3>
+
+<p>Alle sechs Ausdrucksarten dieses Programms gehen denselben Weg: das Programm baut ein fertiges Blatt, öffnet damit ein neues Browserfenster und ruft dort den Druckdialog auf. Es gibt <b>keine PDF-Bibliothek</b> im Programm.</p>
+
+<p>Das ist eine bewusste Entscheidung mit drei Gründen. Der Druckdialog liefert ein Vektor-PDF in Originalqualität — die Linien bleiben Linien und werden nicht zu Bildpunkten. Er kennt die Papierformate, die am Rechner des Anwenders eingerichtet sind. Und er kostet kein einziges Kilobyte: eine eingebettete PDF-Bibliothek würde die Einzeldatei um mehrere hundert Kilobyte aufblähen und dabei schlechtere Schrift setzen.</p>
+
+<div class="baustelle"><b>Auf der Baustelle heißt das</b><p>Auf jedem Knopf, der druckt, steht sinngemäß „Drucken / als PDF sichern". Im Dialog, der aufgeht, wählen Sie als Drucker <b>„Als PDF speichern"</b> — dann liegt die Datei auf der Festplatte, statt Papier zu verbrauchen. Der vorgeschlagene Dateiname ist der Titel des Dokuments, also meist der Projektname.</p></div>
+
+<h4 id="k14-1-1">14.1.1 Die eine Einstellung, die über den Maßstab entscheidet</h4>
+
+<div class="warnung"><b>Achtung</b><p>Im Druckdialog muss die Skalierung auf <b>100 %</b> beziehungsweise „Tatsächliche Größe" stehen. Stellt der Browser „An Seite anpassen" ein — und das ist bei vielen die Vorgabe —, verkleinert er das Blatt um einige Prozent. Der Plan sieht danach völlig normal aus, ist aber nicht mehr maßstäblich. Ein auf 94 % verkleinertes A4-Blatt erkennt niemand mit bloßem Auge.</p></div>
+
+<p>Damit man das trotzdem prüfen kann, trägt jedes Zeichnungsblatt eine <b>Maßstabsleiste</b> am unteren Rand. Sie ist ein echtes Prüfmaß: legen Sie den Zollstock an, und Sie wissen, ob der Drucker skaliert hat. Auf dem Anlagenschema steht daneben ausdrücklich „Prüfmaß · 1 Rasterschritt = 1,00 m Bezugsmaß".</p>
+
+<p>Zwei weitere Einstellungen im Druckdialog:</p>
+<ul>
+<li><b>Ränder</b> auf „Keine" oder „Standard" lassen. Das Blattformat setzt das Programm selbst über die Seitenregel des Dokuments; die Ränder sind bereits eingezeichnet. Stellt der Browser zusätzlich eigene Ränder ein, schiebt er den Inhalt zusammen.</li>
+<li><b>Hintergrundgrafiken</b> einschalten. Das massive Mauerwerk im Grundriss, die grauen Tabellenköpfe und die Kopfzeilen der Mappe sind Flächen. Sind Hintergrundgrafiken abgeschaltet, druckt der Browser sie weiß — der Grundriss zeigt dann nur noch Umrisslinien statt gefüllter Wände.</li>
+</ul>
+
+<div class="merke"><b>Merke</b><p>Wenn nach dem Druckknopf scheinbar nichts passiert, hat der Browser das neue Fenster blockiert. Das Programm meldet das in der Statuszeile: „Druckfenster wurde blockiert — Pop-ups für diese Seite erlauben". Die Erlaubnis wird einmal erteilt und gilt dann.</p></div>
+
+<h4 id="k14-1-2">14.1.2 Warum Zeichnungen SVG sind und Fließtext HTML</h4>
+
+<p>Zwei Abkürzungen vorweg: <b>SVG</b> heißt Scalable Vector Graphics, also skalierbare Vektorgrafik — eine Zeichnung aus Linien und Maßangaben statt aus Bildpunkten. <b>HTML</b> heißt Hypertext Markup Language und ist das Format, in dem jede Webseite und jedes der Textblätter dieses Programms geschrieben ist.</p>
+
+<p>Zwei Sorten Blätter entstehen im Programm, und sie sind aus gutem Grund verschieden gebaut:</p>
+
+<table class="tab">
+<caption>Zwei Blattsorten, zwei Techniken</caption>
+<thead><tr><th>Sorte</th><th>Technik</th><th>Warum</th></tr></thead>
+<tbody>
+<tr><td>Grundriss, Anlagenschema, Berichtstabellen</td><td>SVG in Millimetern</td><td>Das Blatt muss maßhaltig sein. Ein SVG mit echten Millimeterangaben kommt auf jedem Rechner gleich heraus. Der Preis: Spaltenbreiten und Zeilenumbrüche sind von Hand gerechnet.</td></tr>
+<tr><td>Anlagenbuch, Projektmappe</td><td>HTML mit eingebettetem Stil</td><td>Fließtext braucht Umbruch, wiederholte Tabellenköpfe und Seitenumbrüche. Wer Fließtext in SVG setzt, baut den Zeilenumbruch von Hand nach und bekommt beim ersten langen Raumnamen eine Zeile, die aus dem Rahmen läuft.</td></tr>
+</tbody>
+</table>
+
+<p>Die Projektmappe trägt beides: die maßhaltigen SVG-Blätter als Blöcke fester Millimeterbreite, den Fließtext drumherum. Kein Blatt wird dafür ein zweites Mal gezeichnet — die Mappe ruft dieselben Bauer auf, die auch die Einzelfenster benutzen.</p>
+
+<h3 id="k14-2">14.2 Der Grundrissplan</h3>
+
+<p class="wo">Im Programm: Werkzeugleiste oben, Knopf <b>Plan drucken</b> („Grundriss maßstäblich drucken (1:50, 1:100 …) — A4/A3, komplettes Geschoss").</p>
+
+<h4 id="k14-2-1">14.2.1 Wofür Sie ihn brauchen</h4>
+
+<p>Das ist das Blatt, das mit auf die Baustelle geht: ein Geschoss im Maßstab, mit Räumen, Öffnungsmaßen, TGA-Symbolen und — seit Fassung 1.10.0 — dem gezeichneten Rohrnetz. Sie können darauf nachmessen, hineinschreiben und es beim Aufmaß gegen den Bestand halten.</p>
+
+<h4 id="k14-2-2">14.2.2 Was gezeichnet wird</h4>
+
+<p>Von unten nach oben, in dieser Reihenfolge übereinander:</p>
+
+<table class="tab">
+<caption>Die Zeichenebenen des Grundrissblatts</caption>
+<thead><tr><th>Was</th><th>Wie es aussieht</th></tr></thead>
+<tbody>
+<tr><td>Raumflächen</td><td>hellgraue Füllung des lichten Innenpolygons</td></tr>
+<tr><td>Wände</td><td><b>massive Poché-Flächen</b> — dunkel gefüllte Rechtecke mit Umrisslinie, nicht zwei Striche. Die Zerlegung kommt aus derselben Funktion, die auch der Bildschirmeditor benutzt; sie verlängert an jedem Anschlussknoten über die Achse hinaus, sonst stünde an jeder Ecke eine weiße Kerbe von der halben Wandstärke.</td></tr>
+<tr><td>Öffnungen</td><td>Laibung, Glas, Türblatt und Schwenkbogen — die Kante, an der die Wand aufhört</td></tr>
+<tr><td>Treppen und Schächte</td><td>Umriss, Stufenlinien, Lauflinie und <b>Pfeil zum Austritt</b>. Ohne den Pfeil weiß niemand, ob die Treppe hinauf- oder hinabführt. Schächte bekommen eine Schraffur und ihren Namen.</td></tr>
+<tr><td>Massive Bauteile</td><td>Kamin, Pfeiler, Wandversatz mit einer 45°-Schraffur, die im ganzen Blatt gleich dicht ist</td></tr>
+<tr><td>Dachlinien</td><td>am Raumpolygon abgeschnitten, damit sie im Raum enden und nicht über die Fassade ins Freie laufen</td></tr>
+<tr><td>TGA-Objekte</td><td>Heizung rot, Sanitär blau, Lüftung grün — als Umriss in wahrer Größe</td></tr>
+<tr><td>Rohrnetz</td><td>Leitungen in ihrer Dienstfarbe, der Rücklauf gestrichelt; Armaturen als Zeichen von 2,4 mm Größe, unabhängig vom Maßstab</td></tr>
+<tr><td>Fenster- und Türmaße</td><td>Breite × Höhe an der Öffnung, beim Fenster darunter die Brüstungshöhe — auf der Raumseite geschrieben, weil außen die Maßkette läuft</td></tr>
+<tr><td>Raumstempel</td><td>Name und Fläche in m², mittig im Raum</td></tr>
+<tr><td>Freie Maßketten und Texte</td><td>was Sie selbst mit dem Beschriftungswerkzeug gesetzt haben</td></tr>
+</tbody>
+</table>
+
+<p>Zwei Regeln, die man auf dem fertigen Blatt sieht, ohne sie zu suchen:</p>
+
+<ul>
+<li><b>Ist ein „Raum" im Wesentlichen Mauerwerk, entfällt sein Raumstempel.</b> Ein zugestellter Schacht oder ein Kaminblock trägt den Namen des Bauteils. Zwei Beschriftungen in derselben Fläche behaupten zwei Dinge, von denen nur eines stimmt. Die Schwelle liegt bei 80 % massivem Anteil.</li>
+<li><b>Die Nennweite an der Leitung weicht dem Raumstempel aus.</b> Findet sich kein freier Platz, entfällt die Beschriftung ganz. Das ist bewusst so: die Nennweite jedes Abschnitts steht vollständig in der Rohrnetzberechnung und in der Legende des Blattes. Im Plan ist sie eine Lesehilfe — und eine Lesehilfe, die einen Raumstempel zudeckt, hilft niemandem. Abschnitte unter 14 mm Blattlänge tragen die Angabe ohnehin nicht.</li>
+</ul>
+
+<div class="merke"><b>Merke</b><p>Auf dem Blatt ist die Tür schwarz, auch wenn sie am Bildschirm blau ist. Ein Plan wird schwarzweiß kopiert, gefaxt und im Regen gelesen — die Unterscheidung muss aus Strichstärke und Form kommen, nicht aus Farbe. Gezeichnet wird in drei Strichstärken: 0,35 mm stark, 0,20 mm mittel, 0,13 mm fein.</p></div>
+
+<h4 id="k14-2-3">14.2.3 Maßstab, Blattformat, Ausrichtung</h4>
+
+<p class="wo">Im Dialog links: <b>Geschoss</b>, <b>Maßstab</b>, <b>Format</b>, <b>Lage</b>.</p>
+
+<table class="tab">
+<caption>Die Einstellungen des Plandrucks</caption>
+<thead><tr><th>Einstellung</th><th>Auswahl</th><th>Vorgabe</th></tr></thead>
+<tbody>
+<tr><td>Geschoss</td><td>alle Geschosse des Modells, von oben nach unten sortiert</td><td>das aktive</td></tr>
+<tr><td>Maßstab</td><td>1:20 · 1:25 · 1:50 · 1:100 · 1:200</td><td>1:50</td></tr>
+<tr><td>Format</td><td>A4 (210 × 297 mm) · A3 (297 × 420 mm)</td><td>A4</td></tr>
+<tr><td>Lage</td><td>Hoch · Quer</td><td>Quer</td></tr>
+</tbody>
+</table>
+
+<p>Der Maßstab ist keine Darstellungsfrage, sondern eine Rechnung. Er sagt, wie viele Millimeter auf dem Papier einem Meter im Gebäude entsprechen:</p>
+
+<div class="formel">
+  <p class="worte">In Worten: ein Meter wird auf dem Papier zu tausend Millimetern geteilt durch den Maßstabsnenner. Bei 1:50 sind das 20 mm, bei 1:100 nur noch 10 mm.</p>
+  <p class="math">Blattmaß [mm] = 1000 / Maßstabsnenner · Länge [m]</p>
+  <dl class="zeichen">
+    <dt>Maßstabsnenner</dt><dd>die Zahl hinter dem Doppelpunkt: 50 bedeutet 1:50 [-]</dd>
+  </dl>
+</div>
+
+<p>Im Kopf des Dialogs steht dieselbe Aussage in einem Satz mit: „Maßstäbliche Ausgabe — 1 m wird bei 1:50 zu 20,0 mm auf dem Papier."</p>
+
+<h4 id="k14-2-4">14.2.4 Das Zeichenfeld — warum unten mehr Rand ist</h4>
+
+<p>Der Rand ist ringsum 12 mm, unten aber 34 mm: dort steht der Schriftkopf und darüber die Maßstabsleiste. Daraus folgt das nutzbare Zeichenfeld:</p>
+
+<table class="tab">
+<caption>Zeichenfeld je Blatt [mm]</caption>
+<thead><tr><th>Blatt</th><th>Breite</th><th>Höhe</th></tr></thead>
+<tbody>
+<tr><td>A4 hoch</td><td>186</td><td>251</td></tr>
+<tr><td>A4 quer</td><td>273</td><td>164</td></tr>
+<tr><td>A3 hoch</td><td>273</td><td>374</td></tr>
+<tr><td>A3 quer</td><td>396</td><td>251</td></tr>
+</tbody>
+</table>
+
+<p>Zur Ausdehnung des Plans kommt ein Zuschlag für die Maßketten: 0,50 m ringsum, wenn Maßketten mitgedruckt werden, sonst 0,15 m. Der Wert ist kein Sicherheitsaufschlag, sondern muss zu dem passen, was tatsächlich gezeichnet wird — die Maßlinie liegt 0,35 m vor der Wandkante, dazu kommt die Beschriftung. Passte er nicht, meldete das Programm einen Überstand, den man auf dem Blatt gar nicht sieht.</p>
+
+<h4 id="k14-2-5">14.2.5 Die Meldung „passt nicht" — und der Vorschlag</h4>
+
+<p>Vor dem Drucken rechnet das Programm nach, ob der Plan bei diesem Maßstab überhaupt aufs Blatt geht. Das ist der Unterschied zu „drucken und hoffen": man sieht das Ergebnis, bevor Papier verbraucht ist. Passt es nicht, erscheint links ein orange hinterlegter Kasten:</p>
+
+<p class="quelle">„Passt bei 1:50 nicht auf A4 quer." — darunter der Knopf „Auf 1:65 umstellen"</p>
+
+<p>Der vorgeschlagene Maßstab ist der kleinste, bei dem der Plan hineinpasst, aufgerundet auf Fünferschritte. Krumme Nenner wie 1:63 sind auf dem Blatt nicht nachmessbar, weil das Maßstabsdreieck sie nicht kennt.</p>
+
+<div class="formel">
+  <p class="worte">In Worten: das Programm rechnet für Breite und Höhe getrennt aus, welcher Nenner gerade noch passen würde, nimmt den größeren der beiden und rundet ihn auf das nächste Vielfache von fünf auf.</p>
+  <p class="math">Vorschlag = aufrunden auf 5 von max( 1000·B / Feldbreite ; 1000·H / Feldhöhe )</p>
+  <dl class="zeichen">
+    <dt>B, H</dt><dd>Ausdehnung des Plans einschließlich Maßkettenzuschlag [m]</dd>
+    <dt>Feldbreite, Feldhöhe</dt><dd>Zeichenfeld des gewählten Blattes [mm]</dd>
+  </dl>
+</div>
+
+<div class="beispiel">
+  <b>Beispiel zum Nachrechnen</b>
+  <p>Einfamilienhaus, Erdgeschoss 12,00 m × 9,00 m Außenmaß. Mit Maßketten kommt ringsum 0,50 m dazu: 13,00 m × 10,00 m.</p>
+  <p>Gewünscht ist A4 quer, Zeichenfeld 273 × 164 mm.</p>
+  <p>Bei 1:50: Breite 13,00 · 1000/50 = 260 mm — passt in 273 mm. Höhe 10,00 · 1000/50 = 200 mm — passt <em>nicht</em> in 164 mm.</p>
+  <p>Nötiger Nenner Breite: 13&nbsp;000/273 = 47,6. Nötiger Nenner Höhe: 10&nbsp;000/164 = 61,0. Der größere zählt.</p>
+  <p class="ergebnis">61,0 aufgerundet auf 5 → das Programm schlägt 1:65 vor</p>
+</div>
+
+<div class="baustelle"><b>Auf der Baustelle heißt das</b><p>Drei Auswege, wenn es nicht passt: kleinerer Maßstab, größeres Blatt (A3 hat mehr als die doppelte Fläche), oder Maßketten abschalten — das spart den Zuschlag von 0,50 m ringsum, also bei 1:50 immerhin 20 mm in jeder Richtung.</p></div>
+
+<h4 id="k14-2-6">14.2.6 Was Sie ein- und ausschalten können</h4>
+
+<table class="tab">
+<caption>Der Abschnitt „Inhalt" im Druckdialog</caption>
+<thead><tr><th>Schalter</th><th>Was er zeigt</th><th>Vorgabe</th></tr></thead>
+<tbody>
+<tr><td>Raumstempel</td><td>Name und Fläche in der Raummitte</td><td>an</td></tr>
+<tr><td>Maßketten</td><td>die äußeren Maßlinien; kostet 0,50 m Rand ringsum</td><td>an</td></tr>
+<tr><td>TGA-Symbole</td><td>Heizkörper, Sanitärobjekte, Lüftungsauslässe</td><td>an</td></tr>
+<tr><td>Beschriftungen</td><td>freie Maße, Texte und Hinweisfahnen, die Sie selbst gesetzt haben</td><td>an</td></tr>
+<tr><td>Innenmaße (lichte Weiten)</td><td>raumweise Innenmaßketten</td><td>aus</td></tr>
+<tr><td>Fenster- und Türmaße</td><td>Breite/Höhe an der Öffnung, beim Fenster zusätzlich die Brüstung</td><td>an</td></tr>
+<tr><td>Legende</td><td>der Kasten oben rechts</td><td>an</td></tr>
+</tbody>
+</table>
+
+<h4 id="k14-2-7">14.2.7 Die Legende</h4>
+
+<p>Sie steht als weißer Kasten von 42 mm Breite oben rechts im Zeichenfeld und führt <b>nur, was auf diesem Blatt tatsächlich vorkommt</b>. Eine vollständige Bibliothekslegende wäre eine Seite Papier ohne Bezug zum Plan.</p>
+
+<p>Aufgenommen wird in dieser Reihenfolge: massives Mauerwerk (zuerst, weil es die einzige Flächensignatur ist und sonst mit einem Schacht verwechselt wird), dann die verwendeten TGA-Gewerke, dann jede vorkommende Kombination aus Leitungsart und Nennweite, zuletzt Treppe und Schacht.</p>
+
+<div class="warnung"><b>Achtung</b><p>Bis Fassung 1.7.0 versprach die Legende eine Treppe, die auf dem Blatt gar nicht stand, und führte Leitungen, die nie gezeichnet wurden. Das ist der schlimmste Fehler, den eine Legende machen kann: ein Blatt, das etwas verspricht, was in der Zeichnung fehlt. Seither wird die Legende aus dem erzeugt, was wirklich auf dem Blatt landet.</p></div>
+
+<h4 id="k14-2-8">14.2.8 Der Schriftkopf</h4>
+
+<p>Unter einer durchgehenden Linie am unteren Blattrand, zweizeilig, links und rechts:</p>
+
+<table class="tab">
+<caption>Inhalt des Schriftkopfs</caption>
+<thead><tr><th>Stelle</th><th>Angabe</th></tr></thead>
+<tbody>
+<tr><td>links oben</td><td>Projektname (oder ein mitgegebener Titel — im Rohrnetzbericht heißt das Blatt „<em>Projektname</em> — Rohrnetz")</td></tr>
+<tr><td>links unten</td><td>„Grundriss <em>Geschossname</em> · <em>n</em> Räume · <em>x,xx</em> m² Nutzfläche"</td></tr>
+<tr><td>rechts oben</td><td>„M 1:<em>Nenner</em>"</td></tr>
+<tr><td>rechts unten</td><td>Datum und „RaVia CAD Light"</td></tr>
+</tbody>
+</table>
+
+<div class="warnung"><b>Achtung</b><p>Das Datum im Schriftkopf des Grundrissblatts kommt aus der Uhr des Rechners. Derselbe Plan, morgen gedruckt, trägt ein anderes Datum. Anlagenschema, Anlagenbuch und Projektmappe bekommen ihr Datum von außen und sind dadurch reproduzierbar; beim Grundrissblatt ist das ein bekannter offener Punkt (siehe <a href="#k18-5">Abschnitt 18.5</a>).</p></div>
+
+<h4 id="k14-2-9">14.2.9 Die Grenzen dieses Blattes</h4>
+
+<ul>
+<li><b>Der Grundrissdruck ist einseitig.</b> Passt der Plan nicht, hilft nur ein kleinerer Maßstab oder ein größeres Blatt — ein Aufteilen auf mehrere Blätter gibt es hier nicht. Der Schemadruck kann das bereits.</li>
+<li><b>Ein Blatt zeigt genau ein Geschoss.</b> Für alle Geschosse nacheinander gibt es die Projektmappe (<a href="#k14-7">Abschnitt 14.7</a>).</li>
+<li><b>Die Öffnungsbeschriftung weicht Symbolen nicht aus.</b> Sie überdeckt sie nur mit einem weißen Rand hinter der Schrift. Unter einem Fenster hängt üblicherweise ein Heizkörper; deshalb wird die Maßzahl bewusst <em>nach</em> den TGA-Symbolen gezeichnet, also darüber.</li>
+</ul>
+
+<h3 id="k14-3">14.3 Das Anlagenschema als Blatt</h3>
+
+<p class="wo">Im Programm: Umschalter <b>3D / Schema</b> in der Kopfzeile, dort der Knopf <b>Drucken</b>. Was das Schema inhaltlich zeigt, steht in <a href="#k11">Kapitel 11</a>; hier geht es nur um das Blatt.</p>
+
+<h4 id="k14-3-1">14.3.1 Warum das Schema zweimal gezeichnet wird</h4>
+
+<p>Der Bildschirmzeichner arbeitet in Pixeln auf dunklem Grund, kennt kein Blattformat und kein Schriftfeld. Für das Blatt entsteht dasselbe Schema noch einmal in Millimetern — aber <b>nicht aus einem zweiten Symbolsatz</b>. Ein Aufzeichner nimmt die Zeichenbefehle der Symbolbibliothek entgegen und macht daraus SVG. Das Symbol auf dem Papier ist Strich für Strich dasselbe wie am Bildschirm; eine Änderung an der Bibliothek wirkt in beiden.</p>
+
+<h4 id="k14-3-2">14.3.2 Einstellungen</h4>
+
+<table class="tab">
+<caption>Die Einstellungen des Schemadrucks</caption>
+<thead><tr><th>Einstellung</th><th>Auswahl</th><th>Anmerkung</th></tr></thead>
+<tbody>
+<tr><td>Format</td><td>A4 · A3 · <b>A2</b> (420 × 594 mm)</td><td>A2 gibt es nur hier — ein großes Schema braucht Fläche, und ein Schema wird nicht nachgemessen</td></tr>
+<tr><td>Ausrichtung</td><td>quer · hoch</td><td>quer ist die Regel</td></tr>
+<tr><td>Maßstab</td><td>1:20 · 1:25 · 1:50 · 1:75 · 1:100 · 1:125 · 1:150 · 1:200 · 1:250 · 1:500 oder <b>automatisch</b></td><td>automatisch wählt den ersten Nenner der Reihe, bei dem alles ins Zeichenfeld passt</td></tr>
+<tr><td>Leitungen farbig</td><td>ja / nein</td><td>bei „nein" tragen die neun Leitungsarten neun verschiedene <b>Stricharten</b>, die in der Legende benannt sind</td></tr>
+<tr><td>Stückliste anhängen</td><td>ja / nein</td><td>hängt die Positionsliste als eigene Blätter an</td></tr>
+<tr><td>Legende</td><td>ja / nein</td><td>steht neben dem Schema, notfalls auf einem eigenen Blatt</td></tr>
+</tbody>
+</table>
+
+<div class="merke"><b>Merke</b><p>Ein Schema muss ohne Farbe lesbar bleiben. Auf einem Laserdrucker werden aus Hellblau und Gelb zwei kaum unterscheidbare Graus. Deshalb hat jede Leitungsart zusätzlich eine eigene Strichart — durchgezogen für den Vorlauf, gestrichelt für den Rücklauf, strichpunktiert für Warmwasser, gepunktet für Kaltwasser und so fort. Die Zuordnung steht in der Legende und ist keine Norm; sie muss dort gelesen werden.</p></div>
+
+<h4 id="k14-3-3">14.3.3 Was „Maßstab" beim Schema bedeutet</h4>
+
+<p>Ein Prinzipschema hat streng genommen keinen Maßstab: die Lage eines Bauteils ist ein Rasterplatz, kein Ort im Gebäude. Ein Blatt ohne Maßstabsangabe ist aber unbrauchbar, weil dann niemand mehr feststellen kann, ob der Drucker skaliert hat. Vereinbart ist deshalb: <b>ein Rasterschritt entspricht 1,00 m Bezugsmaß</b>. Aus 1:50 werden 20 mm Rasterweite auf dem Papier. Das Symbol ist 34/74 der Rasterweite groß — dasselbe Verhältnis wie am Bildschirm.</p>
+
+<h4 id="k14-3-4">14.3.4 Was das Programm meldet</h4>
+
+<p>Unter den Einstellungen steht ein Kasten mit „Maßstab 1:<em>x</em> · <em>n</em> Blatt · <em>m</em> Positionen" und darunter, falls nötig, bis zu drei Meldungen:</p>
+
+<table class="tab">
+<caption>Meldungen des Schemadrucks</caption>
+<thead><tr><th>Meldung</th><th>Was sie bedeutet</th><th>Was zu tun ist</th></tr></thead>
+<tbody>
+<tr><td>„Das Schema ist in M 1:50 größer als das Zeichenfeld; es passt ab M 1:100."</td><td>Bei diesem Nenner ragt das Schema über den Rahmen.</td><td>Auf den genannten Nenner stellen, oder auf „automatisch", oder ein größeres Blatt wählen.</td></tr>
+<tr><td>„Passt in diesem Format nicht — nötig wäre mindestens 1:100."</td><td>Dieselbe Aussage, rot gesetzt, direkt unter den Kennzahlen.</td><td>dasselbe</td></tr>
+<tr><td>„Bei M 1:100 ist ein Symbol nur 4,6 mm groß und kaum noch lesbar."</td><td>Das Schema ist zwar vollständig auf dem Blatt, aber nur noch mit der Lupe zu entziffern. Die Schranke liegt bei 7 mm Symbolgröße; sie wird ab 1:75 unterschritten.</td><td>Größeres Blatt statt kleinerem Maßstab. A2 quer hat gegenüber A4 quer die vierfache Fläche.</td></tr>
+<tr><td>„Die Legende passt neben dem Schema nicht auf das Blatt und steht deshalb auf einem eigenen Blatt."</td><td>Die Legendenspalte braucht 62 mm plus 4 mm Abstand; bleibt für das Schema weniger als die halbe Rahmenbreite, wandert sie auf ein eigenes Blatt.</td><td>Nichts — das Blatt kommt einfach dazu und wird mitgezählt.</td></tr>
+</tbody>
+</table>
+
+<h4 id="k14-3-5">14.3.5 Das Schriftfeld</h4>
+
+<p>Rechts unten, 96 mm breit und 30 mm hoch, mit Rahmen und Trennlinien. Es trägt: <b>Projekt</b> (groß), <b>Anlage</b>, dann in drei Spalten <b>Maßstab</b>, <b>Blatt</b> (Format, Lage und bei mehreren Blättern „Blatt 2/3") und <b>Datum</b>, darunter den <b>Ersteller</b>. Ganz rechts unten steht in kleiner Schrift der Satz, der das ganze Blatt einordnet: <b>„Prinzipschema – kein Ausführungsplan"</b>.</p>
+
+<h4 id="k14-3-6">14.3.6 Die Stückliste</h4>
+
+<p>Sie fasst die Bauteile des Schemas zu Positionen zusammen. Zusammengezählt wird nach Bauteilart <em>und</em> technischer Angabe: zwei Absperrungen DN 25 sind eine Position, eine DN 25 und eine DN 32 sind zwei. Wer bestellt, braucht diese Trennung. Die Anlagenkennzeichen bleiben einzeln erhalten, damit sich jede Position im Schema wiederfinden lässt.</p>
+
+<table class="tab">
+<caption>Spalten der Stückliste</caption>
+<thead><tr><th>Spalte</th><th>Inhalt</th></tr></thead>
+<tbody>
+<tr><td>Pos</td><td>laufende Nummer, bei 1 beginnend, in der Reihenfolge der Symboltabelle</td></tr>
+<tr><td>Anzahl</td><td>wie viele gleiche Bauteile zusammengefasst wurden</td></tr>
+<tr><td>Bezeichnung</td><td>der Name aus der Schemalegende</td></tr>
+<tr><td>Technische Angabe</td><td>was am Bauteil hinterlegt ist — Nennweite, Volumen, Leistung; leer, wenn nichts hinterlegt ist</td></tr>
+<tr><td>Anlagenkennzeichen</td><td>die Kennzeichen der zusammengefassten Bauteile, durch Komma getrennt</td></tr>
+</tbody>
+</table>
+
+<p>Der Knopf <b>Stückliste als CSV</b> legt dieselbe Liste als Datei ab. Trennzeichen ist das <b>Semikolon</b>, Zeilenende CR/LF; Anführungszeichen werden nur gesetzt, wo sie nötig sind. Grund: das deutsche Excel liest das Komma als Dezimaltrennzeichen und scheitert an einer kommagetrennten Datei.</p>
+
+<h3 id="k14-4">14.4 Der Rohrnetzbericht</h3>
+
+<p class="wo">Im Programm: Werkzeugleiste oben, Knopf <b>Rohrnetzberechnung</b>. Es öffnet ein Fenster mit zwei Reitern: <b>Bericht</b> und <b>Wissen</b> (siehe <a href="#k16">Kapitel 16</a>).</p>
+
+<h4 id="k14-4-1">14.4.1 Wofür es diesen Bericht gibt</h4>
+
+<p>Bis Fassung 1.11.0 rechnete das Programm den hydraulischen Abgleich vollständig durch — und zeigte davon sechs Kennzahlen und eine auf 24 Zeilen gekappte Tabelle. Alles andere verfiel. Das ist die eigentliche Lücke zwischen „rechnet richtig" und „ist ein Rohrnetzrechner": nicht die Physik, sondern der Weg vom Ergebnis auf das Blatt, das der Monteur in die Hand bekommt.</p>
+
+<p>Was der Bericht enthalten muss, ist nicht frei gewählt. § 60c Abs. 4 GModG (vormals GEG) nennt sieben Pflichtangaben; die BAFA-Checkliste zur Gleichwertigkeit erweitert sie um die Einstellwerte der Abgleichorgane und Pumpen; SAENA nennt die Größen, die je Teilstrecke festzulegen sind. Die Gliederung des Berichts folgt genau diesen drei Listen. Mehr dazu in <a href="#k15">Kapitel 15</a>.</p>
+
+<h4 id="k14-4-2">14.4.2 Die Blattfolge</h4>
+
+<p>Die Reihenfolge folgt dem, was ein Monteur nacheinander braucht:</p>
+
+<table class="tab">
+<caption>Die Blätter des Rohrnetzberichts</caption>
+<thead><tr><th>Nr.</th><th>Blatt</th><th>Wofür</th></tr></thead>
+<tbody>
+<tr><td>1</td><td>Grundriss mit Rohrnetz</td><td>wo liegt was</td></tr>
+<tr><td>2</td><td>Anlagendaten und Nachweis</td><td>die sieben Pflichtangaben, jede mit Antwort oder offener Lücke</td></tr>
+<tr><td>3 …</td><td>Teilstrecken</td><td>die Rechnung, Zeile für Zeile nachvollziehbar</td></tr>
+<tr><td>…</td><td>Fließwege</td><td>Strangübersicht mit Kennzeichnung des Schlechtpunkts</td></tr>
+<tr><td>…</td><td><b>Erzeugerkreis und Pumpe</b></td><td>neu in 1.14.0 — woraus die Förderhöhe besteht</td></tr>
+<tr><td>…</td><td>Einstellwerte je Heizfläche</td><td>das Blatt, das mit an die Anlage geht</td></tr>
+<tr><td>letztes</td><td>Quellen und Hinweise</td><td>damit jede Zahl rückverfolgbar bleibt</td></tr>
+</tbody>
+</table>
+
+<p>Die Tabellenblätter stehen <b>quer</b>. Das ist kein Geschmack: die Teilstreckentabelle führt sechzehn Spalten, und hochkant passt sie nicht. Der Blattfuß trägt auf jedem Blatt „Blatt <em>i</em>/<em>n</em> · RaVia CAD Light · Berechnung nach anerkannten Regeln der Technik, kein Ersatz für die Prüfung durch den Fachplaner", der Blattkopf Projektname, „Rohrnetzberechnung" und das Erstelldatum.</p>
+
+<h4 id="k14-4-3">14.4.3 Blatt 1 — Grundriss mit Rohrnetz</h4>
+
+<p>Dieses Blatt wird von derselben Funktion gebaut wie der normale Plandruck. Zwei Zeichenwege für denselben Grundriss wären genau der Fehler, den dieses Projekt schon zweimal gemacht hat: die zweite Kopie driftet, und niemand merkt es, bis ein Ausdruck anders aussieht als der Bildschirm.</p>
+
+<p>Fest eingestellt sind hier: Raumstempel <b>an</b>, TGA-Symbole <b>an</b>, Legende <b>an</b>, Maßketten <b>aus</b>, Beschriftungen <b>aus</b>, Innenmaße <b>aus</b>, Öffnungsmaße <b>aus</b>. Der Grundriss soll das Rohrnetz zeigen, nicht das Aufmaß. Die Ausrichtung ist hochkant, während die Tabellenblätter quer stehen — der Druckdialog bekommt deshalb das größere der beiden Maße, und das kleinere Blatt wird darin zentriert. Ein zu großes Blattformat schneidet nichts ab.</p>
+
+<p>Passt der Grundriss nicht, meldet das Fenster: „Der Grundriss passt im Maßstab 1:50 nicht auf A4. Ab 1:65 passt er."</p>
+
+<h4 id="k14-4-4">14.4.4 Blatt 2 — Anlagendaten und Nachweis</h4>
+
+<p>Ganz oben das Urteil in einem Wort, grün oder orange: <b>Nachweisfähig</b> oder <b>Nicht nachweisfähig</b>. Ist es nicht nachweisfähig, folgt die Zeile „Offen: …" mit der Aufzählung dessen, was fehlt.</p>
+
+<p>Darunter der Block <b>Anlagendaten</b>:</p>
+
+<table class="tab">
+<caption>Die Anlagendaten auf dem Deckblatt des Berichts</caption>
+<thead><tr><th>Zeile</th><th>Was dort steht</th></tr></thead>
+<tbody>
+<tr><td>Auslegungstemperaturen</td><td>Vorlauf / Rücklauf in °C und die Spreizung in K</td></tr>
+<tr><td>Stoffwerte</td><td>Dichte ρ in kg/m³ und kinematische Zähigkeit ν in m²/s bei der <b>mittleren</b> Kreistemperatur. Gerechnet wird mit dem Mittel aus Vor- und Rücklauf: die Dichte unterscheidet sich zwischen beiden nur um Promille, die Zähigkeit aber um bis zu 15 % — und die geht über die Reynoldszahl direkt in die Rohrreibungszahl ein.</td></tr>
+<tr><td>Vorherrschender Werkstoff</td><td>der Werkstoff, der im gezeichneten Netz am häufigsten vorkommt; er ist die Rückfallebene für Leitungen ohne eigene Angabe</td></tr>
+<tr><td>Gebäudeheizlast</td><td>in kW, dahinter in Klammern die Herkunft: „raumweise", „vorgabe" oder „überschlag"</td></tr>
+<tr><td>Gesamtvolumenstrom</td><td>in m³/h, Summe über alle Verbraucher</td></tr>
+<tr><td>Gezeichnete Rohrlänge</td><td>Trassenlänge in m — nicht die abgerechnete Länge, sondern das, was im Grundriss liegt</td></tr>
+<tr><td>Teilstrecken / Heizflächen</td><td>die Anzahl, als Umfangsangabe für den Leser</td></tr>
+<tr><td>Schlechtpunkt</td><td>Bezeichnung des ungünstigsten Strangs und sein Gesamtdruckverlust in kPa</td></tr>
+<tr><td>Pumpe</td><td>Förderstrom in m³/h, Förderhöhe in m und kPa, elektrische Aufnahme in W</td></tr>
+</tbody>
+</table>
+
+<p>Darunter der <b>Nachweiskatalog</b>: die sieben Pflichtangaben nach § 60c Abs. 4 GModG, jede mit einem Haken (erfüllt) oder einem Ring (offen), der Forderung, der Antwort des Programms und der Herkunft. Er ist in <a href="#k15-2">Abschnitt 15.2</a> Punkt für Punkt erklärt.</p>
+
+<h4 id="k14-4-5">14.4.5 Die Teilstreckentabelle — jede Spalte einzeln</h4>
+
+<p>Über der Tabelle steht die Rechenregel in einer Zeile: „Δp = R·l + Σζ·ρ/2·w². λ nach Colebrook-White, iterativ. Längen sind Vor- und Rücklauf zusammen." Der Rechenweg selbst steht in <a href="#k13-8">Abschnitt 13.8</a>.</p>
+
+<table class="tab">
+<caption>Die sechzehn Spalten der Teilstreckentabelle</caption>
+<thead><tr><th>Spalte</th><th>Einheit</th><th>Was sie bedeutet</th></tr></thead>
+<tbody>
+<tr><td><b>TS</b></td><td>—</td><td>Laufende Nummer der Teilstrecke über den ganzen Bericht, bei 1 beginnend. Sie ist die Kennung, unter der man eine Zeile in der Besprechung anspricht.</td></tr>
+<tr><td><b>Strang / Abschnitt</b></td><td>—</td><td>Zu welchem Fließweg die Teilstrecke gehört und wie der Abschnitt im Modell heißt, durch einen Mittelpunkt getrennt. Dieselbe Teilstrecke kann in mehreren Strängen liegen — sie wird dann bei jedem aufgeführt, weil jeder Strang seine eigene Druckkette hat.</td></tr>
+<tr><td><b>V̇</b></td><td>m³/h</td><td>Volumenstrom durch diesen Abschnitt. In einer Sammelleitung ist er die Summe der dahinter liegenden Verbraucher, im Stichrohr zum Heizkörper nur dessen eigener Strom.</td></tr>
+<tr><td><b>l</b></td><td>m</td><td>Die <b>abgerechnete</b> Länge: Vorlauf und Rücklauf zusammen. Eine Trasse von 6 m Luftlinie ist damit 12 m lang. Wer das übersieht, rechnet den halben Druckverlust.</td></tr>
+<tr><td><b>Werkstoff</b></td><td>—</td><td>Kupfer, Stahl, Verbundrohr oder Kunststoff im Klartext. Er entscheidet über die Rauheit und über die Tabelle, aus der die Innendurchmesser kommen.</td></tr>
+<tr><td><b>d_a × s</b></td><td>mm</td><td>Die Abmessung, wie sie am Rohr steht: Außendurchmesser mal Wandstärke, zum Beispiel „22 × 1". Das ist die Angabe, mit der man bestellt.</td></tr>
+<tr><td><b>d_i</b></td><td>mm</td><td>Der lichte Innendurchmesser. Er und nicht der Außendurchmesser bestimmt die Geschwindigkeit und den Druckverlust — und er ist auch die Bezugsgröße für die Dämmstärke nach Anlage 8.</td></tr>
+<tr><td><b>w</b></td><td>m/s</td><td>Fließgeschwindigkeit. Der Erfahrungsbereich liegt im Wohnungsbau etwa zwischen 0,3 und 1,0 m/s; darüber wird es laut, darunter wird das Rohr unnötig teuer.</td></tr>
+<tr><td><b>Re</b></td><td>—</td><td>Reynoldszahl. Sie sagt, ob die Strömung ruhig geschichtet (laminar, unter etwa 2320) oder verwirbelt (turbulent) ist. In der Heizung ist sie fast immer turbulent. Sie ist die Eingangsgröße für λ und wird mit Tausenderpunkt gesetzt.</td></tr>
+<tr><td><b>λ</b></td><td>—</td><td>Rohrreibungszahl — wie rau das Rohr innen wirkt. Mit vier Nachkommastellen, weil sie typisch zwischen 0,02 und 0,05 liegt. Berechnet iterativ nach Colebrook-White.</td></tr>
+<tr><td><b>R</b></td><td>Pa/m</td><td>Druckgefälle: wie viel Druck ein Meter dieses Rohres bei diesem Volumenstrom kostet. Die Zahl, nach der man Nennweiten auswählt — als Erfahrungswert gelten 100 bis 150 Pa/m.</td></tr>
+<tr><td><b>R·l</b></td><td>Pa</td><td>Der Reibungsanteil der ganzen Teilstrecke: Druckgefälle mal abgerechnete Länge.</td></tr>
+<tr><td><b>Σζ</b></td><td>—</td><td>Summe der Widerstandsbeiwerte aller Formstücke dieser Teilstrecke — Bögen, T-Stücke, Armaturen. Ohne die Einzelposten dahinter ist diese Zahl eine Behauptung; die Formstücke im Klartext stehen deshalb im Datensatz des Berichts (siehe unten).</td></tr>
+<tr><td><b>Z</b></td><td>Pa</td><td>Der Druckverlust aus den Einzelwiderständen: Σζ mal Staudruck. Bei kurzen, armaturenreichen Abschnitten ist Z größer als R·l.</td></tr>
+<tr><td><b>Δp</b></td><td>Pa</td><td>Gesamtdruckverlust der Teilstrecke, also R·l + Z. Diese Beziehung wird im Prüfstand auf jeder Zeile nachgerechnet, weil sie gelten <em>muss</em>.</td></tr>
+<tr><td><b>Dämm.</b></td><td>mm</td><td>Mindestdämmstärke nach Anlage 8 GModG (vormals GEG) für diesen Innendurchmesser und diese Umgebung. Ein Strich bedeutet: für diese Leitung ist keine Anforderung erkannt worden — nicht „keine Dämmung nötig". Siehe <a href="#k9-6">Abschnitt 9.6</a>.</td></tr>
+</tbody>
+</table>
+
+<div class="merke"><b>Merke</b><p>Der Berichtsdatensatz führt zu jeder Teilstrecke drei Angaben mehr, als auf das A4-Querblatt passen: die <b>Rauheit</b> in mm, die <b>Nennweite</b> DN und die <b>Formstücke im Klartext</b> („1× Bogen 90°, 1× Kugelhahn"). Sie stehen in den Berichtsdaten und gehen in den Export; auf dem Blatt sind sechzehn Spalten die Grenze der Lesbarkeit.</p></div>
+
+<p>Ein Blatt fasst so viele Zeilen, wie in die Blatthöhe passen, mindestens aber zehn. Läuft die Tabelle über, trägt jedes Folgeblatt die Überschrift „Teilstrecken (Fortsetzung)". Ist gar kein Netz gezeichnet, entsteht trotzdem ein Blatt, und darauf steht: „Keine Teilstrecken — im Modell ist kein Rohrnetz gezeichnet." Ein fehlendes Blatt wäre schlechter als ein leeres, weil niemand weiß, ob es vergessen wurde.</p>
+
+<h4 id="k14-4-6">14.4.6 Das Blatt „Fließwege"</h4>
+
+<p>Eine Zeile je Verbraucher, absteigend nach Gesamtdruckverlust sortiert — der ungünstigste steht oben. Darüber der Satz, um den sich alles dreht: „Der ungünstigste Strang bestimmt die Förderhöhe; alle übrigen werden auf ihn abgedrosselt."</p>
+
+<table class="tab">
+<caption>Die Spalten der Strangübersicht</caption>
+<thead><tr><th>Spalte</th><th>Bedeutung</th></tr></thead>
+<tbody>
+<tr><td>Strang</td><td>Bezeichnung des Verbrauchers am Ende des Weges</td></tr>
+<tr><td>Quelle</td><td>von wo aus gerechnet wurde — Erzeuger, Verteiler oder Puffer</td></tr>
+<tr><td>Q̇ [W]</td><td>Wärmestrom. Ein <b>Stern</b> dahinter heißt: die Leistung ist eine Vorbelegung, keine gerechnete Heizlast. Die Fußnote unter der Tabelle sagt das noch einmal aus.</td></tr>
+<tr><td>V̇ [m³/h]</td><td>Volumenstrom des Strangs</td></tr>
+<tr><td>l [m]</td><td>abgerechnete Länge des ganzen Weges</td></tr>
+<tr><td>ΣR·l [Pa]</td><td>Summe der Reibungsanteile aller Teilstrecken des Weges</td></tr>
+<tr><td>ΣZ [Pa]</td><td>Summe der Einzelwiderstände</td></tr>
+<tr><td>Heizfl. [Pa]</td><td>Druckverlust der Heizfläche selbst — der Heizkörper oder Fußbodenkreis am Ende</td></tr>
+<tr><td>Ventil [Pa]</td><td>Druckverlust am Thermostatventil mit der gewählten Voreinstellung</td></tr>
+<tr><td>Drossel [Pa]</td><td>der Differenzdruck, der an diesem Strang abzudrosseln ist, damit er nicht mehr Wasser bekommt als vorgesehen</td></tr>
+<tr><td>Δp ges [Pa]</td><td>alles zusammen einschließlich Ventil</td></tr>
+<tr><td>(letzte Spalte)</td><td>trägt beim ungünstigsten Strang das Wort <b>Schlechtpunkt</b>; die Zeile ist hervorgehoben</td></tr>
+</tbody>
+</table>
+
+<p>Passen nicht alle Stränge auf das Blatt, wird abgeschnitten — die Tabelle ist nach Druckverlust sortiert, die wichtigen Zeilen stehen also oben.</p>
+
+<h4 id="k14-4-7">14.4.7 Das Blatt „Erzeugerkreis und Pumpe" — neu in 1.14.0</h4>
+
+<p>Bis Fassung 1.13.2 stand dieser Posten mit <b>null</b> in der Rechnung. Die Pumpe fiel dadurch systematisch zu klein aus: das gezeichnete Rohrnetz endet am Verteiler, aber zwischen Erzeuger und Verteiler liegen Wärmeübertrager, Umschaltventil, Wärmemengenzähler, Schmutzabscheider und Anschlussleitungen — und die kosten Druck.</p>
+
+<p>Dass daraus ein eigenes Blatt wurde und keine Zeile auf dem Deckblatt, hat einen Grund: <b>Beweislast</b>. Wer die Förderhöhe nachprüfen will, muss sehen, <em>woraus</em> sie besteht. Eine Summe allein ist wieder nur eine Behauptung.</p>
+
+<p>Das Blatt beantwortet drei Fragen und ist danach gegliedert.</p>
+
+<p><b>Erstens: woraus besteht der Zuschlag?</b> Eine Tabelle mit vier Spalten:</p>
+
+<table class="tab">
+<caption>Die Postentabelle des Erzeugerkreises</caption>
+<thead><tr><th>Spalte</th><th>Inhalt</th></tr></thead>
+<tbody>
+<tr><td>Posten</td><td>das Bauteil im Klartext — „Wärmeübertrager des Geräts", „Umschaltventil Heizung/Trinkwasser", „Wärmemengenzähler", „Schmutzabscheider", „Anschlussleitung DN 25"</td></tr>
+<tr><td>Δp [kPa]</td><td>was dieser Posten beim Auslegungsvolumenstrom kostet</td></tr>
+<tr><td>Grundlage der Zahl</td><td>wie sie zustande kommt — kv-Wert, Kennlinie, Rechenweg</td></tr>
+<tr><td>Quelle und Belastbarkeit</td><td>woher sie stammt und wie belastbar sie ist: <b>Tabellenwert des Herstellers</b>, <b>aus einem Herstellerdiagramm abgelesen</b>, <b>von diesem Programm abgeleitet</b> oder <b>Annahme</b></td></tr>
+</tbody>
+</table>
+
+<p>Unter der Tabelle die Zeile „Summe, zum Rohrnetz addiert". Über der Tabelle steht der Auslegungsvolumenstrom des Erzeugerkreises und die Begründung im Wortlaut des VdZ-Leitfadens: die Pumpenauslegung ist die „Summe der Einzeldruckverluste, bestehend aus den Druckverlusten der Rohrleitungen, des Wärmeerzeugers, der Wärmeübergabeeinrichtung, der Armaturen sowie der sonstigen Einbauten wie z. B. Rückschlagklappen und Wärmemengenzähler".</p>
+
+<div class="warnung"><b>Achtung</b><p>Ist kein Gerät gewählt, steht keine Postentabelle da — und das Blatt sagt es ausdrücklich: „Für diese Anlage ist kein Posten im Erzeugerkreis angesetzt. Solange kein Gerät gewählt ist, fehlt der Förderhöhe genau dieser Anteil — bei marktüblichen Geräten sind das im Auslegungspunkt einige Kilopascal, die die Pumpe zusätzlich aufbringen muss." Eine Null ohne diesen Satz läse sich wie ein Messergebnis.</p></div>
+
+<p><b>Zweitens: der Kennwert des Wärmeerzeugers.</b> Sechs Zeilen, und die erste ist die wichtigste:</p>
+
+<table class="tab">
+<caption>Der Gerätekennwert auf dem Pumpenblatt</caption>
+<thead><tr><th>Zeile</th><th>Was dort steht</th></tr></thead>
+<tbody>
+<tr><td>Angabeart</td><td>Entweder „Druckverlust des Geräts — wird zum Rohrnetz addiert" oder „Restförderhöhe — wird nicht addiert, sondern als Obergrenze geprüft" oder „keine Angabe veröffentlicht". Die beiden ersten schließen einander aus; beides zu addieren wäre der Fehler, vor dem die ganze Unterscheidung schützt. Siehe <a href="#k13-9-2">Abschnitt 13.9.2</a>.</td></tr>
+<tr><td>Wortlaut des Herstellers</td><td>wie der Hersteller die Größe nennt — die Begriffe gehen im Markt durcheinander</td></tr>
+<tr><td>Wert</td><td>der Kennwert in kPa und der <b>Bezugsvolumenstrom</b> in m³/h, bei dem er gilt. Ohne den zweiten ist der erste wertlos.</td></tr>
+<tr><td>Skalierung</td><td>bei einem Druckverlust: „Δp = Δp_bezug · (V̇/V̇_bezug)^2,0 — quadratisch und damit konservativ". Bei einer Restförderhöhe entfällt sie: eine Restförderhöhe ist eine Pumpenkennlinie und fällt mit dem Volumenstrom, statt zu steigen.</td></tr>
+<tr><td>Umfang</td><td>was der veröffentlichte Wert einschließt: nur den Wärmeübertrager, das ganze Gerät, Gerät einschließlich Abscheider — oder „unbekannt", dann mittelt der Wert über verschieden abgegrenzte Herstellerangaben</td></tr>
+<tr><td>Belastbarkeit</td><td>Herkunft und Quelle in einem Satz</td></tr>
+</tbody>
+</table>
+
+<p><b>Drittens: die Pumpenauslegung.</b></p>
+
+<table class="tab">
+<caption>Die Pumpenzeilen</caption>
+<thead><tr><th>Zeile</th><th>Bedeutung</th></tr></thead>
+<tbody>
+<tr><td>Förderstrom</td><td>in m³/h — „die Summe aller Stränge, nicht der größte"</td></tr>
+<tr><td>Ungünstigster Strang</td><td>sein Gesamtdruckverlust in kPa</td></tr>
+<tr><td>Erzeugerkreis</td><td>die Summe aus der Postentabelle darüber</td></tr>
+<tr><td>Sicherheitszuschlag</td><td>in Prozent</td></tr>
+<tr><td>Erforderliche Förderhöhe</td><td>in m und in kPa</td></tr>
+<tr><td>Elektrische Aufnahme</td><td>„rund <em>x</em> W bei η = <em>y</em> %" — eine Größenordnung, keine Gerätezusage</td></tr>
+<tr><td>Prüfung gegen Restförderhöhe</td><td>nur wenn das Gerät eine Restförderhöhe veröffentlicht: „verfügbar 3,20 m, erforderlich 2,45 m — Reserve 0,75 m, keine Zusatzpumpe erforderlich" oder „es fehlen 0,40 m"</td></tr>
+</tbody>
+</table>
+
+<p>Am Fuß des Blattes stehen die Hinweise der Erzeugerbilanz. Ein Punkt bedeutet Hinweis, ein Ausrufezeichen Warnung. „Für dieses Gerät ist kein Druckverlust hinterlegt" ist keine Randnotiz, sondern die Aussage, wie belastbar die Förderhöhe darunter ist; solche Hinweise stehen deshalb auch im Bericht ganz vorn.</p>
+
+<h4 id="k14-4-8">14.4.8 Das Blatt „Einstellwerte je Heizfläche"</h4>
+
+<div class="merke"><b>Merke</b><p>Das ist das Blatt, das <b>mit an die Anlage geht</b>. Alles andere ist Nachweis; dieses hier wird auf der Leiter gelesen, während jemand am Ventil dreht.</p></div>
+
+<p>Über der Tabelle die beiden Definitionen, die man dabei braucht: „a_V = Ventilautorität; unter 0,3 wird der Regelkreis instabil. k_v = V̇·√(1 bar/Δp)."</p>
+
+<table class="tab">
+<caption>Die zwölf Spalten des Einstellwertblatts</caption>
+<thead><tr><th>Spalte</th><th>Bedeutung</th></tr></thead>
+<tbody>
+<tr><td>Heizfläche</td><td>Bezeichnung des Verbrauchers im Modell</td></tr>
+<tr><td>Raum</td><td>in welchem Raum er hängt; ein Strich, wenn er keinem Raum zugeordnet ist</td></tr>
+<tr><td>Geschoss</td><td>Geschossname — zusammen mit dem Raum die Adresse auf der Baustelle</td></tr>
+<tr><td>Q̇ [W]</td><td>Wärmestrom; ein Stern heißt wieder: Vorbelegung, keine gerechnete Heizlast</td></tr>
+<tr><td>ṁ [kg/h]</td><td>Massenstrom — <b>die</b> Einheit des VdZ-Formulars. Er ist der Volumenstrom mal Dichte.</td></tr>
+<tr><td>DN</td><td>Anschluss-Nennweite</td></tr>
+<tr><td>k_v erf.</td><td>der Durchflusskennwert, den das Ventil haben müsste, um genau den Solldruck zu vernichten</td></tr>
+<tr><td>Ventil</td><td>Baureihe des gewählten Thermostatventils</td></tr>
+<tr><td>Voreinst.</td><td><b>der Einstellwert, der am Ventil einzustellen ist</b> — die Zahl, wegen der das Blatt existiert</td></tr>
+<tr><td>k_v Stufe</td><td>der k_v, den die gewählte Stufe wirklich hat. Er ist fast nie genau der erforderliche; die Abweichung ist der Grund, warum es die nächste Spalte gibt.</td></tr>
+<tr><td>a_V</td><td>Ventilautorität — der Anteil des Ventils am gesamten Druckverlust des Strangs. Unter 0,3 regelt das Ventil nicht mehr, sondern schaltet nur noch.</td></tr>
+<tr><td>Urteil</td><td>fünf mögliche Werte, siehe unten</td></tr>
+</tbody>
+</table>
+
+<table class="tab">
+<caption>Die Urteile in der letzten Spalte</caption>
+<thead><tr><th>Urteil</th><th>Bedeutung</th></tr></thead>
+<tbody>
+<tr><td>einstellbar</td><td>Alles in Ordnung — die genannte Stufe einstellen.</td></tr>
+<tr><td>ungünstigster Strang — bleibt offen</td><td>Dieser Strang ist das Maß für alle anderen. Sein Ventil wird nicht gedrosselt.</td></tr>
+<tr><td>Ventil zu klein</td><td>Der erforderliche k_v liegt über der größten Stufe. Selbst voll offen lässt das Ventil zu wenig durch — eine Nennweite größer wählen.</td></tr>
+<tr><td>drosselt nicht genug</td><td>Der erforderliche k_v liegt unter der kleinsten Stufe. Das Ventil kann nicht so weit drosseln; es hilft nur ein Ventil mit kleinerem Grund-k_v oder eine zusätzliche Drosselstelle.</td></tr>
+<tr><td>Ventilautorität zu klein</td><td>a_V unter 0,3. Der Regelkreis wird instabil: der Raum pendelt zwischen zu warm und zu kalt.</td></tr>
+<tr><td>Geräuschgrenze überschritten</td><td>Über 15 kPa am Ventil. Der VdZ-Leitfaden nennt diesen Wert als Grenze gegen Strömungsgeräusche — hier gehört ein Strangregulierventil oder ein Differenzdruckregler davor.</td></tr>
+</tbody>
+</table>
+
+<div class="merke"><b>Merke</b><p>Eine leere Zelle ist nicht dasselbe wie eine Null. Wird kein Auslegungsdruck für das Thermostatventil übergeben, bleiben k_v, Ventildruck, Autorität und Voreinstellstufe <b>leer</b> — als Strich. Der Unterschied entscheidet darüber, ob im Nachweis eine Lücke steht oder eine erfundene Zahl.</p></div>
+
+<h4 id="k14-4-9">14.4.9 Das Blatt „Hinweise und Quellen"</h4>
+
+<p>Oben die Hinweise, bis zu vierzehn Stück, mit einer Marke davor: <b>!</b> für Fehler, <b>△</b> für Warnung, <b>·</b> für einen einfachen Hinweis. Sie kommen aus drei Quellen — aus dem hydraulischen Abgleich, aus der Erzeugerbilanz (die stehen vorn) und aus dem Bericht selbst. Zwei Meldungen erscheinen dort besonders häufig:</p>
+
+<ul>
+<li><b>„Im Modell ist kein Rohrnetz gezeichnet."</b> — Ohne Leitungen gibt es keine Teilstrecken und damit keinen Nachweis; der Bericht bleibt leer. Der Hinweis sagt gleich, was hilft: über „Rohrnetz auslegen" in der Werkzeugleiste entsteht eine Trasse als Grundlage.</li>
+<li><b>„Die Heizlast ist ein Überschlag dieses Programms, keine Berechnung nach DIN EN 12831-1."</b> — § 60c Abs. 2 GModG verlangt für den Abgleich eine raumweise Heizlastberechnung; mit dieser Zahl ist der Bericht eine Vorbemessung, kein Nachweis. Mehr dazu in <a href="#k15-4">Abschnitt 15.4</a>.</li>
+</ul>
+
+<p>Darunter die <b>Quellen</b>: bis zu zwölf Einträge aus der Wissensbasis mit Titel, Quelle und, wo vorhanden, der Netzadresse. Sie werden nicht ausgewürfelt, sondern über fünf Themenschlüssel gezogen — Dokumentation, Abgleich und Recht, Ventilautorität, Druckverlust, Rohrdämmung — und je Thema die drei belastbarsten. Siehe <a href="#k16-4">Abschnitt 16.4</a>.</p>
+
+<h4 id="k14-4-10">14.4.10 Die Einstellungen des Berichtsfensters</h4>
+
+<table class="tab">
+<caption>Was Sie am Rohrnetzbericht einstellen können</caption>
+<thead><tr><th>Einstellung</th><th>Auswahl</th><th>Vorgabe</th><th>Wirkung</th></tr></thead>
+<tbody>
+<tr><td>Format</td><td>A4 · A3</td><td>A4</td><td>Blattgröße aller Blätter</td></tr>
+<tr><td>Grundriss mitdrucken</td><td>ja / nein</td><td>ja</td><td>schaltet Blatt 1 ab, wenn nur die Rechnung gebraucht wird</td></tr>
+<tr><td>Maßstab des Grundrisses</td><td>1:50 · 1:100 · 1:200</td><td>1:50</td><td>nur für Blatt 1</td></tr>
+<tr><td>Auslegungsdruck am Thermostatventil</td><td>in kPa</td><td>10 kPa</td><td>Der Druck, den das Ventil im Auslegungspunkt vernichten soll. Er wirkt auf jede Voreinstellung, jede Autorität und auf die Förderhöhe. Der Bericht rechnet bei jeder Änderung sofort neu.</td></tr>
+</tbody>
+</table>
+
+<p>Rechts steht die Vorschau — und zwar <b>dasselbe SVG, das gedruckt wird</b>, nicht eine zweite Darstellung davon. Was Sie sehen, kommt so aus dem Drucker.</p>
+
+<h3 id="k14-5">14.5 Das Anlagenbuch</h3>
+
+<p class="wo">Im Programm: Reiter <b>Anlage</b> → ganz unten Abschnitt <b>Unterlagen</b> → Knopf <b>Anlagenbuch drucken</b>.</p>
+
+<p>Die Rechenkerne liefern Zahlen, die Zeichenmodule liefern Blätter. Was fehlt, ist das, was am Ende der Baustelle übergeben wird: ein zusammenhängendes Heft, das eine Anlage beschreibt. Der Monteur braucht die Verteilertabelle, der Prüfer die Druckkette, der Kunde das Deckblatt und die Grenzen des Dokuments.</p>
+
+<p>Das Anlagenbuch ist ein vollständiges HTML-Dokument mit eingebettetem Stil. Es lässt sich speichern, per Mail versenden und in zehn Jahren wieder öffnen, ohne dass ein Server antworten muss. Es gibt darin keine externe Schriftdatei und kein Bild von einem Server — eine Anlagendokumentation, die ohne Internetverbindung anders aussieht, ist keine Dokumentation.</p>
+
+<h4 id="k14-5-1">14.5.1 Die neun Kapitel</h4>
+
+<table class="tab">
+<caption>Aufbau des Anlagenbuchs</caption>
+<thead><tr><th>Nr.</th><th>Kapitel</th><th>Inhalt</th><th>Leer, wenn …</th></tr></thead>
+<tbody>
+<tr><td>1</td><td><b>Deckblatt</b></td><td>Projekt, Anlage, Bauvorhaben, Bauherr, Bearbeiter, Datum, dazu das Inhaltsverzeichnis. Bewusst schlank: ein Deckblatt voller Kennwerte wird nicht gelesen.</td><td>nie</td></tr>
+<tr><td>2</td><td><b>Was hier steht und was nicht</b></td><td>Die Grenzen des Dokuments — und zwar <b>vorn</b>, nicht hinten. Fallabhängig formuliert: was die Heizlast ist (Norm oder Überschlag), was der Gerätekatalog leistet, was das Anlagenschema ist, was zu Schall, Trinkwasser und Sicherheitstechnik gilt. Am Ende die Liste „Was in diesem Heft nicht steht": Elektroplanung, Statik und Bauphysik, Kältetechnik, Genehmigungen, der hydraulische Abgleich als Nachweis, Kosten und Fördermittel.</td><td>nie</td></tr>
+<tr><td>3</td><td><b>Gebäude</b></td><td>Raumtabelle mit Fläche, Volumen, Solltemperatur, Luftwechsel und Geschoss, dazu die Gebäudesummen.</td><td>keine Raumdaten übergeben</td></tr>
+<tr><td>4</td><td><b>Wärmeerzeuger</b></td><td>Gewähltes Gerät mit seinen Kennwerten, die Betriebspunkte, die weiteren geprüften Geräte und warum sie es nicht wurden.</td><td>kein Gerät gewählt</td></tr>
+<tr><td>5</td><td><b>Wärmeverteilung</b></td><td>Heizkreise mit Temperaturen, Volumenströmen und Rohrdimensionen; die Verteilertabelle, nach der auf der Baustelle eingestellt wird; die Umwälzpumpe.</td><td>kein Heizkreis angelegt</td></tr>
+<tr><td>6</td><td><b>Speicher und Trinkwasser</b></td><td>Pufferspeicher mit Begründung der Größe, Trinkwassererwärmung mit Bedarfskennzahl, Legionellenbewertung und Zirkulation.</td><td>kein Speicher und keine Trinkwasserauslegung</td></tr>
+<tr><td>7</td><td><b>Sicherheitstechnik</b></td><td>Die Druckkette, das Ausdehnungsgefäß mit Vordruck und Volumen, das Sicherheitsventil, der Wasserinhalt der Anlage und die Armaturenliste nach DIN EN 12828.</td><td>Sicherheitsausrüstung nicht ausgelegt</td></tr>
+<tr><td>8</td><td><b>Hinweise</b></td><td>Alle Meldungen der Auslegung an einer Stelle. Über sieben Kapitel verteilt wären sie unbrauchbar — ein Fehler in der Trinkwasserrechnung fiele niemandem auf.</td><td>keine Hinweise gemeldet</td></tr>
+<tr><td>9</td><td><b>Inbetriebnahme-Checkliste</b></td><td>Abhakliste mit Eintragfeldern: gespült, gefüllt und Wasserqualität geprüft (Leitfähigkeit/pH nach VDI 2035), Vordruck p₀ drucklos geprüft, Fülldruck p_F eingetragen, entlüftet, Voreinstellwerte übertragen, Heizkurve eingestellt, Sicherheitsventil angelüftet. Zu jedem Punkt steht der Rechenwert daneben, damit man vergleichen kann.</td><td>nie</td></tr>
+</tbody>
+</table>
+
+<div class="merke"><b>Merke</b><p>Ein Kapitel ohne Inhalt wird trotzdem gedruckt — damit die Lücke sichtbar bleibt. Im Inhaltsverzeichnis steht dann „(ohne Angaben)" und der Grund dazu, etwa „Kein Gerät gewählt." Die Nummerierung entsteht erst, nachdem weggelassene Kapitel entfernt wurden: ein Heft mit den Kapiteln 1, 2, 4, 5 sieht aus, als fehle eine Seite.</p></div>
+
+<p>Jedes Kapitel beginnt auf einer neuen Seite und trägt oben eine Zeile mit Projekt, Anlage und „Kapitel <em>n</em> · <em>Titel</em>". Das ist kein Schmuck: die Kopf- und Fußzeilen, die die Seitenregel des Dokuments vorsieht, werten die verbreiteten Browser beim Drucken nicht aus — sie setzen ihre eigene Kopfzeile. Die sichtbare Zeile im Kapitel ist der Ersatz, der überall ankommt, und macht eine einzeln herausgelöste Seite wieder zuordenbar.</p>
+
+<p>Die Checkliste ist bewusst kurz und bewusst unvollständig. Sie enthält die Schritte, die aus <em>dieser</em> Auslegung folgen und deren Ergebnis in dieses Heft gehört — vor allem Vordruck und Fülldruck, weil die Gefäßrechnung ohne die gemessenen Werte unbelegt bleibt. Eine vollständige Inbetriebnahme folgt dem Protokoll des Geräteherstellers.</p>
+
+<h3 id="k14-6">14.6 Der Massenauszug</h3>
+
+<p class="wo">Im Programm: Reiter <b>Anlage</b> → Abschnitt <b>Unterlagen</b> → Knopf <b>Massenauszug als CSV</b>. In der Projektmappe steht dieselbe Liste als Blattfolge.</p>
+
+<h4 id="k14-6-1">14.6.1 Was er ist und was er nicht ist</h4>
+
+<p>Das ist die Liste, mit der jemand bestellt. Deshalb steht an jeder Position nicht nur eine Menge, sondern auch ihre <b>Herkunft im Klartext</b>: aus welchem Teil des Modells sie stammt. Eine Massenermittlung ohne Herkunft ist wertlos, weil niemand sie nachprüfen kann — und geprüft wird sie immer, in dem Moment, in dem auf der Baustelle Rohr fehlt.</p>
+
+<div class="warnung"><b>Achtung</b><p>Der Massenauszug kennt <b>keine Preise</b> und erfindet keine. Wer Mengen mit Preisen mischt, bekommt eine Zahl, die niemand mehr auseinandernehmen kann. Ebenso wenig enthalten sind Verschnitt, Befestigung, Kleinteile und Montagezeit; das steht als Hinweis am Ende jeder Liste.</p></div>
+
+<h4 id="k14-6-2">14.6.2 Die acht Gewerke</h4>
+
+<p>Getrennt wird nicht nach Handwerksordnung, sondern danach, <em>wer bestellt und wo die Menge herkommt</em>. Die Reihenfolge folgt dem Bauablauf.</p>
+
+<table class="tab">
+<caption>Gewerke des Massenauszugs und was darin gezählt wird</caption>
+<thead><tr><th>Gewerk</th><th>Positionen</th><th>Woher die Menge kommt</th></tr></thead>
+<tbody>
+<tr><td><b>Rohrleitungen und Dämmung</b></td><td>Leitungslänge je Dienst, Nennweite, Dämmzustand und Verlegeart; Rohrdämmung getrennt; Steigstränge</td><td>Rohrnetz im Grundriss — Trassenlänge in der Grundrissebene, ohne Höhenversatz, ohne Formstücke, ohne Verschnitt</td></tr>
+<tr><td><b>Fußbodenheizung</b></td><td>Fußbodenheizrohr in m, Heizkreise am Verteiler, Heizkreisverteiler nach Abgangszahl (4, 8 oder 12), Systemplatte oder Tackerbahn in m², Randdämmstreifen in m</td><td>Anlagenblatt, Kreis für Kreis; die Randdämmstreifen aus dem lichten Umfang der Räume im Kreis</td></tr>
+<tr><td><b>Heizflächen</b></td><td>Heizkörper je Bauart, dazu je Heizfläche eine Thermostatventil-Garnitur und eine Rücklaufverschraubung, Raumthermostate</td><td>TGA-Objekte im Grundriss</td></tr>
+<tr><td><b>Geräte und Speicher</b></td><td>Wärmeerzeuger, Elektro-Heizstab, Speicher mit Volumen</td><td>Anlagenauslegung; ohne Auslegung ersatzweise das TGA-Objekt im Grundriss</td></tr>
+<tr><td><b>Armaturen und Sicherheitstechnik</b></td><td>die Pflichtarmaturen nach DIN EN 12828, die Umwälzpumpe, von Hand im Schema ergänzte Bauteile</td><td>Sicherheitsauslegung, Pumpenauslegung aus dem ungünstigsten Strang, Anlagenschema</td></tr>
+<tr><td><b>Sanitär</b></td><td>Sanitärobjekte je Bauart</td><td>TGA-Objekte im Grundriss</td></tr>
+<tr><td><b>Lüftung</b></td><td>Kanalabschnitte nach Baulänge, Auslässe je Bauart</td><td>TGA-Objekte im Grundriss</td></tr>
+<tr><td><b>Bauteile (Grundlage Leistungsverzeichnis)</b></td><td>Fenster und Türen nach Rohbaumaß gruppiert, Wandflächen je Aufbau</td><td>Öffnungen im Grundriss; Wände aller Geschosse, Achsfläche abzüglich der Öffnungen</td></tr>
+</tbody>
+</table>
+
+<p>Es gibt genau fünf Einheiten: <b>m</b>, <b>m²</b>, <b>Stk</b>, <b>l</b> und <b>kW</b>. Alles, was sich darin nicht ausdrücken lässt, gehört nicht in eine Bestellliste. Stück werden ganzzahlig ausgewiesen, Meter und Quadratmeter auf zwei Stellen, Liter ganzzahlig, Kilowatt auf eine Stelle.</p>
+
+<h4 id="k14-6-3">14.6.3 Doppelzählung — der heikelste Punkt</h4>
+
+<p>Dieselbe Pflichtarmatur steht in der Sicherheitsauslegung <em>und</em> als Bauteil im Anlagenschema, weil das Schema aus genau diesem Ergebnis gezeichnet wird. Würde beides gezählt, stünden zwei Sicherheitsventile in der Bestellung. Die Regel dagegen: <b>die Sicherheitsauslegung führt</b>. Aus dem Schema kommen nur die Bauteile dazu, die dort von Hand ergänzt wurden.</p>
+
+<h4 id="k14-6-4">14.6.4 Was gemeldet wird, wenn etwas fehlt</h4>
+
+<p>Jede Quelle hat ihre eigene Vollständigkeit und ihre eigenen Lücken. Fehlt eine, wird das gemeldet und nicht überspielt — eine Liste, die stillschweigend die halbe Anlage weglässt, ist gefährlicher als gar keine.</p>
+
+<table class="tab">
+<caption>Meldungen des Massenauszugs</caption>
+<thead><tr><th>Schwere</th><th>Meldung</th></tr></thead>
+<tbody>
+<tr><td>Warnung</td><td>„Es wurde keine Anlagenauslegung übergeben. Gerät, Speicher, Pumpe und die Pflichtarmaturen nach DIN EN 12828 stehen nicht in der Liste."</td></tr>
+<tr><td>Warnung</td><td>„Es sind keine Leitungen gezeichnet. Die Rohrmengen fehlen in der Liste — sie lassen sich aus Räumen und Geräten nicht ableiten."</td></tr>
+<tr><td>Warnung</td><td>„Die Flächenheizung ist nicht ausgelegt. Gezählt sind nur die gesetzten Objekte — Rohrmenge, Verteilergröße, Systemplatten und Randdämmstreifen fehlen."</td></tr>
+<tr><td>Warnung</td><td>„<em>n</em> Leitungsabschnitte haben keine belastbare Verlegehöhe. Für sie ist keine Verlegeart angegeben; die Höhe ist an der Leitung nachzutragen."</td></tr>
+<tr><td>Hinweis</td><td>„Alle Leitungen liegen auf derselben Verlegehöhe. Die Verlegeart ist damit nicht erkennbar; die Rohrpositionen sind nicht danach getrennt."</td></tr>
+<tr><td>Hinweis</td><td>„Das Dokument hat kein Anlagenblatt. Für Speicher, Heizkreise und Sicherheitstechnik gelten die Vorbelegungen; ausgelegt ist davon nichts."</td></tr>
+<tr><td>Fehler</td><td>„Das Dokument enthält weder Wände noch Öffnungen, Leitungen oder TGA-Objekte. Es gibt nichts zu ermitteln."</td></tr>
+<tr><td>Fehler</td><td>„Es ließ sich keine einzige Position ermitteln, obwohl das Dokument Inhalt hat. Das deutet auf unvollständige Bauteildaten hin."</td></tr>
+</tbody>
+</table>
+
+<p>Die Verlegeart wird an der Höhe der Leitung unterschieden: unter 0,10 m „im Fußbodenaufbau", über 2,00 m „unter der Decke", dazwischen „an der Wand". Liegen alle Leitungen auf derselben Höhe, wird gar nicht danach getrennt — dann sagt das Modell nichts über die Verlegeart aus, und eine erfundene Trennung wäre schlimmer als keine.</p>
+
+<h4 id="k14-6-5">14.6.5 Die CSV-Datei</h4>
+
+<p>Die Datei hat drei Blöcke, durch Leerzeilen getrennt:</p>
+
+<ol>
+<li><b>Die Positionstabelle</b> mit den Spalten Pos, Gewerk, Bezeichnung, Technische Angabe, Menge, Einheit, Herkunft, Bemerkung.</li>
+<li><b>Die Zusammenfassung je Gewerk</b>: Gewerk, Anzahl der Positionen, die Mengen je Einheit — etwa „14 Positionen · 248,50 m · 32 Stk".</li>
+<li><b>Die Hinweise</b> mit Schwere und Text. Der Block ist kein Beiwerk: wer die Datei bekommt, muss sehen, was in der Liste <em>fehlt</em>, und nicht nur, was darin steht.</li>
+</ol>
+
+<div class="merke"><b>Merke</b><p>Trennzeichen ist das <b>Semikolon</b>, Zahlen tragen ein <b>Dezimalkomma</b>, und am Dateianfang steht eine Bytefolge-Markierung (BOM). Das ist die Kombination, mit der das deutsche Excel die Datei ohne Importdialog richtig öffnet. Der Dateiname ist „<em>Projektname</em> — Massenauszug.csv"; die Statuszeile meldet danach, wie viele Positionen gesichert wurden.</p></div>
+
+<h3 id="k14-7">14.7 Die Projektmappe — neu in 1.14.0</h3>
+
+<p class="wo">Im Programm: Werkzeugleiste oben, Knopf <b>Projektmappe</b>.</p>
+
+<h4 id="k14-7-1">14.7.1 Der Anlass</h4>
+
+<p>Bis Fassung 1.13.2 druckte dieses Programm aus vier getrennten Stellen: Grundriss, Anlagenschema, Rohrnetzbericht, Anlagenbuch. Vier Fenster, vier Blattzählungen, vier Deckblätter, viermal derselbe Vorbehalt in anderen Worten. Wer eine Anlage übergibt, braucht <b>ein</b> Dokument mit einem Inhaltsverzeichnis und einer durchlaufenden Blattnummer — sonst heftet er vier Stapel zusammen und hofft, dass sie denselben Stand zeigen.</p>
+
+<p>Beim Zusammensetzen kamen die Widersprüche ans Licht, die vier getrennte Druckwege unbemerkt tragen können: der Fuß der Berichtsblätter sagte „Blatt 3/12", während der Heftrand „Blatt 9 von 39" sagte; im Nachweiskatalog stand „5.5 kW" mit englischem Dezimalpunkt — auf einem Blatt, das nach § 60c schriftlich mitzuteilen ist, keine Geschmacksfrage, denn „5.5" darf ein deutscher Leser als fünftausendfünfhundert lesen.</p>
+
+<div class="merke"><b>Merke</b><p>Die Mappe <b>setzt zusammen statt nachzubauen</b>. Kein Grundriss, keine Teilstreckentabelle, kein Schema wird hier ein zweites Mal gezeichnet. Das ist die wichtigste Regel dieses Programms: eine Geometriequelle für Bildschirm, Blatt und 3D. Drei der teuersten Fehler dieses Programms entstanden aus zwei Kopien derselben Geometrie, die auseinanderliefen — und auffielen, als ein Ausdruck anders aussah als der Bildschirm.</p></div>
+
+<h4 id="k14-7-2">14.7.2 Die elf Kapitel</h4>
+
+<table class="tab">
+<caption>Aufbau der Projektmappe</caption>
+<thead><tr><th>Nr.</th><th>Kapitel</th><th>Was darin steht</th></tr></thead>
+<tbody>
+<tr><td>1</td><td><b>Deckblatt</b></td><td>Projekt, Anlage, Bauvorhaben und Bauherr (nur wenn im Modell erfasst), Bearbeiter, Programmstand, Datum, Umfang in Blättern. Dazu vier Kennzahlkacheln — Heizlast mit ihrer Herkunft, Gerät, Förderhöhe, Nachweisurteil — und die Vorbehalte in vier Absätzen: was die Mappe ist, was mit der Heizlast ist, ob alle sieben Pflichtangaben vorliegen, und was die Mappe <em>nicht</em> ist (keine Ausführungsplanung, keine Elektro-, Statik- oder Kälteplanung, keine Genehmigungsunterlage, keine Abnahme).</td></tr>
+<tr><td>2</td><td><b>Inhaltsverzeichnis</b></td><td>Die elf Kapitel mit ihren Blattnummern. Zusammenhängende Läufe werden verschmolzen: aus 9, 10, 11, 13 wird „9–11, 13". Kapitel ohne Inhalt tragen den Grund dazu.</td></tr>
+<tr><td>3</td><td><b>Grundriss je Geschoss</b></td><td>Für jedes Geschoss mit Wänden ein Blatt, gebaut von derselben Funktion wie der Plandruck.</td></tr>
+<tr><td>4</td><td><b>Anlagenschema</b></td><td>Das Schemablatt, gegebenenfalls mit eigenem Legendenblatt.</td></tr>
+<tr><td>5</td><td><b>Rohrnetzbericht</b></td><td>Anlagendaten und Nachweis, Teilstreckentabelle, Fließwege, Hinweise und Quellen des Berichts.</td></tr>
+<tr><td>6</td><td><b>Einstellwerte</b></td><td>Das Blatt für die Montage. Es liegt mitten in der Blattfolge des Rohrnetzberichts und ist deshalb ein eigenes Kapitel mit eigenen, nicht zusammenhängenden Blattnummern.</td></tr>
+<tr><td>7</td><td><b>Pumpenauslegung und Erzeugerkreis</b></td><td>Die Postentabelle, der Gerätekennwert und die Förderhöhe — dieselben Angaben wie im Bericht, hier als Textblatt gesetzt.</td></tr>
+<tr><td>8</td><td><b>Massenauszug</b></td><td>Die Positionsliste als Blattfolge, dazu ein eigenes Blatt mit den Hinweisen.</td></tr>
+<tr><td>9</td><td><b>Anlagenbuch</b></td><td>Die neun Kapitel aus <a href="#k14-5">Abschnitt 14.5</a>, in die Mappe eingebettet. Das Stilblatt des Anlagenbuchs wird dabei übernommen, aber auf diesen Bereich eingeschränkt — nachgebaut würde es still auseinanderlaufen.</td></tr>
+<tr><td>10</td><td><b>Quellenverzeichnis</b></td><td>Alle Belege der Wissensbasis, die für die Mappe gezogen wurden, mit Titel, Quelle, <b>Belastbarkeit</b> und Sammlung. Was der Rohrnetzbericht bereits zitiert, ist als solches gekennzeichnet und steht nur einmal da.</td></tr>
+<tr><td>11</td><td><b>Nachweiskatalog § 60c Abs. 4 GModG</b></td><td>Der Gesetzeswortlaut, das Urteil, und die sieben Angaben in einer Tabelle mit Nummer, Forderung, Zustand („liegt vor" oder „fehlt, weil …"), Angabe und Herkunft.</td></tr>
+</tbody>
+</table>
+
+<h4 id="k14-7-3">14.7.3 Die durchgehende Blattzählung am Heftrand</h4>
+
+<p>Deckblatt und Inhaltsverzeichnis sind Blatt 1 und 2; alles Weitere zählt ab 3. Die Zählung entsteht an genau einer Stelle — sie ist die eine Zahl, die die vier zusammengesetzten Druckwege bisher nicht kannten.</p>
+
+<p>Auf jedem Blatt steht die Kennung „Blatt <em>n</em> von <em>m</em> · <em>Blatttitel</em>", und wo sie steht, hängt an der Blattart:</p>
+
+<ul>
+<li><b>Zeichnungsblatt</b> — senkrecht im linken <b>Heftrand</b>, 11 mm breit. Die Zeichnung füllt das Blatt vollständig; frei ist auf jedem Blatt dieses Programms nur der Streifen bis 12 mm, weil Plandruck, Berichtsdruck und Schemadruck dort übereinstimmend beginnen. Genau darauf baut der Heftrand auf, ohne einer Zeichnung ins Bild zu fahren.</li>
+<li><b>Textblatt</b> — waagerecht als Kopfzeile, links Projekt und Anlage, rechts die Kennung.</li>
+</ul>
+
+<div class="merke"><b>Merke</b><p>Die Mappe zählt <b>Blätter</b>, keine Druckseiten. Ein Zeichnungsblatt belegt genau eine Druckseite; ein Textkapitel darf auf eine Folgeseite überlaufen. Die Zahl der Druckseiten kennt erst der Browser, und ein Inhaltsverzeichnis, das sie behauptet, würde raten.</p></div>
+
+<h4 id="k14-7-4">14.7.4 Einstellungen</h4>
+
+<table class="tab">
+<caption>Was Sie an der Projektmappe einstellen können</caption>
+<thead><tr><th>Einstellung</th><th>Auswahl</th><th>Anmerkung</th></tr></thead>
+<tbody>
+<tr><td>Format</td><td>A4 quer · A3 quer</td><td>Es gibt kein Hochformat. Die Teilstreckentabelle führt sechzehn Spalten und passt hochkant nicht; eine Mappe mit wechselnder Ausrichtung bräuchte zwei Seitenregeln, und benannte Druckseiten kennen längst nicht alle Browser. Der Fehlerfall wäre ein abgeschnittenes Blatt.</td></tr>
+<tr><td>Grundriss</td><td>1:50 · 1:100 · 1:200</td><td>gilt für <b>alle</b> Geschosse gemeinsam</td></tr>
+<tr><td>Anlagenbezeichnung</td><td>freier Text</td><td>Vorgabe „Heizungsanlage"</td></tr>
+<tr><td>Bearbeiter</td><td>freier Text</td><td>Vorgabe „RaVia CAD Light"</td></tr>
+</tbody>
+</table>
+
+<p>Passt ein Geschoss im gewünschten Nenner nicht aufs Blatt, weicht die Mappe für <b>alle</b> Geschosse auf den nächstpassenden Nenner aus. Zwei Grundrisse desselben Hauses in verschiedenen Maßstäben nebeneinander sind der sicherste Weg, zwei Räume miteinander zu verwechseln. Ausgewichen wird dabei nicht auf einen krummen Nenner, sondern auf die Reihe 1:20 · 25 · 50 · 75 · 100 · 125 · 200 · 250 · 500 — abgegriffen wird mit dem Maßstabsdreieck, und das kennt nur diese Reihe.</p>
+
+<p>Links unten listet der Dialog alle elf Kapitel mit ihrem Blattbereich auf. Kapitel ohne Inhalt stehen blass und mit dem Grund darunter, etwa „Ohne Rohrnetz gibt es keinen ungünstigsten Strang und damit keine Förderhöhe." Meldungen zum Maßstab erscheinen als orange Kästen darüber.</p>
+
+<h4 id="k14-7-5">14.7.5 Wie daraus ein PDF wird</h4>
+
+<ol>
+<li>Knopf <b>Als PDF sichern</b>. Es öffnet sich ein neues Fenster mit der ganzen Mappe und darüber der Druckdialog des Browsers.</li>
+<li>Als Ziel <b>„Als PDF speichern"</b> wählen (in manchen Browsern „Microsoft Print to PDF" oder „In PDF sichern").</li>
+<li><b>Skalierung auf 100 %</b> beziehungsweise „Tatsächliche Größe". Die Grundrisse sind nur dann maßstäblich, wenn nicht auf die Seite skaliert wird.</li>
+<li><b>Ränder</b> auf „Standard" oder „Keine" — die Mappe bringt ihre eigenen mit: oben 13 mm, rechts 14 mm, unten 15 mm, links 22 mm für den Heftrand.</li>
+<li><b>Hintergrundgrafiken</b> einschalten, sonst fehlen das massive Mauerwerk, die grauen Tabellenköpfe und die Kopfzeilen.</li>
+<li>Speichern. Der vorgeschlagene Dateiname ist „Projektmappe <em>Projektname</em>".</li>
+</ol>
+
+<div class="baustelle"><b>Auf der Baustelle heißt das</b><p>Prüfen Sie die fertige PDF-Datei an zwei Stellen, bevor Sie sie weitergeben: die Maßstabsleiste auf dem ersten Grundrissblatt mit dem Zollstock, und die letzte Blattnummer gegen die Angabe „von <em>m</em>" auf dem Deckblatt. Stimmen beide, ist nichts verrutscht und nichts verlorengegangen.</p></div>
+
+<h3 id="k14-8">14.8 Was auf allen Blättern gleich ist</h3>
+
+<ul>
+<li><b>Deutsche Zahlen.</b> Komma als Dezimaltrenner, Punkt als Tausendertrenner. Das ist bewusst nicht der Systemeinstellung des Rechners überlassen: ein Nachweis, dessen Zahlenformat von der Systemsprache abhängt, ist kein Nachweis.</li>
+<li><b>Ein Strich statt einer Null.</b> Was keine darstellbare Zahl ist, wird zum Gedankenstrich. Eine gedruckte 0 wäre eine Aussage, die die Zahl nicht trägt.</li>
+<li><b>Jede Zahl trägt ihre Herkunft.</b> Überschlag oder Norm-Heizlast, Tabellenwert oder Annahme, Typklasse oder Produkt — das steht dabei, nicht im Kleingedruckten.</li>
+<li><b>Ein Fußnotenhinweis auf jedem Berichtsblatt:</b> „Berechnung nach anerkannten Regeln der Technik, kein Ersatz für die Prüfung durch den Fachplaner."</li>
+</ul>
+
+<div class="warnung"><b>Achtung</b><p>Es gibt weiterhin <b>vier getrennte Blattzählungen</b>: der Fuß der Berichtsblätter zählt eigenständig weiter, während die Projektmappe am Heftrand durchzählt. In der Mappe stehen deshalb auf einem Berichtsblatt zwei verschiedene Zahlen — unten „Blatt 3/12", links „Blatt 9 von 39". Maßgeblich ist die Zählung am Heftrand. Der Punkt steht offen (siehe <a href="#k18-5">Abschnitt 18.5</a>).</p></div>
+</section>

@@ -1,0 +1,254 @@
+<section id="kap-05" class="kapitel" data-titel="5 · Geschosse und Höhen">
+<h2 id="k5">5 · Geschosse und Höhen</h2>
+<p class="lead">Ein Gebäude ist kein Grundriss, sondern mehrere übereinander. Dieses Kapitel erklärt, wie das Programm die Höhenlage der Geschosse bildet, wo die Decken herkommen und was Treppen, Schächte und massive Bauteile darin anrichten.</p>
+
+<h3 id="k5-1">5.1 Wie die Höhenlage eines Geschosses zustande kommt</h3>
+
+<p>Jedes Geschoss trägt drei Zahlen, aus denen sich alles Weitere ergibt:</p>
+
+<table class="tab">
+<caption>Die Höhenangaben eines Geschosses</caption>
+<thead><tr><th>Angabe</th><th>Bedeutung</th></tr></thead>
+<tbody>
+<tr><td>Höhenlage</td><td>Oberkante Fertigfußboden über dem Bezugspunkt [m]. Das Erdgeschoss liegt üblicherweise bei 0,00.</td></tr>
+<tr><td>Lichte Geschosshöhe</td><td>Vom Rohfußboden bis zur Rohdecke [m]. Das ist auch die Höhe, die kopierte Wände bekommen.</td></tr>
+<tr><td>Reihenfolge</td><td>Die Ordnung von unten nach oben. Ein nachträglich angelegter Keller hat die kleinste Ordnung und steht zuunterst, obwohl er zuletzt entstanden ist.</td></tr>
+</tbody>
+</table>
+
+<p>Steht am Geschoss eine Höhenlage, gilt sie. Fehlt sie — das kommt bei importierten Dateien vor —, werden die Geschosse von unten nach oben aufeinandergesetzt: Höhenlage plus lichte Höhe plus eine angenommene Deckenstärke von <b>0,25 m</b>. Diese 0,25 m sind 20 cm Stahlbeton, 4 cm Estrich und 1 cm Belag, also der Regelfall im Wohnungsbau. Es ist eine Annahme, keine Messung, und sie greift nur dort, wo nichts anderes bekannt ist. Fehlt auch die lichte Höhe, rechnet das Programm mit 2,75 m.</p>
+
+<div class="warnung"><b>Achtung</b><p>Bis Fassung 1.8.1 zeichnete die 3D-Ansicht <b>jedes</b> Geschoss auf Höhe null. Alle Stockwerke standen ineinander, und man sah nur eines. Im Aufmaß einer einzelnen Wohnung fällt das nicht auf, im Zweifamilienhaus sofort. Deshalb steht die Höhenrechnung heute im Rechenkern und nicht im Zeichenpfad — dort lässt sie sich prüfen.</p></div>
+
+<h3 id="k5-2">5.2 Warum das Programm immer im Erdgeschoss anfängt</h3>
+
+<p>Die Bezeichnung eines Geschosses hängt nicht davon ab, das wievielte es von unten ist. Sie hängt am Erdgeschoss.</p>
+
+<p>Das ist der Unterschied, an dem jede Zählung von unten scheitert: In einem Haus mit Keller ist das unterste Geschoss das KG, in einem ohne Keller ist es das EG — dieselbe Position, zwei verschiedene Namen. Wer stumpf durchzählt, nennt den Keller „Geschoss 1“ und das Erdgeschoss „Geschoss 2“, und ab da stimmt nichts mehr: nicht die Heizlast, denn der Boden des vermeintlichen Erdgeschosses grenzt dann an einen Raum statt an Erdreich, nicht die Höhenlage und nicht der Plankopf.</p>
+
+<div class="merke"><b>Merke</b><p>Erdgeschoss ist das Geschoss, das dem Bezugspunkt 0,00 am nächsten liegt und nicht mehr als <b>1,00 m</b> darunter. Darüber wird aufsteigend gezählt (1. OG, 2. OG …), darunter heißt die erste Ebene KG und jede weitere 2. UG, 3. UG … Ein „1. UG“ gibt es nicht — das ist das Kellergeschoss.</p></div>
+
+<p>Die Toleranz von 1,00 m entspricht der üblichen Lesart: Ein Souterrain auf −1,20 m ist damit ein Kellergeschoss und kein Erdgeschoss. Gibt es überhaupt keine brauchbare Höhenlage, gilt das unterste Geschoss als Erdgeschoss — die Annahme, mit der ein Aufmaß beginnt.</p>
+
+<p>Bei der Benennung ist das Programm zurückhaltend: Ein bereits vergebener, sprechender Name bleibt stehen. Eine IFC-Datei, die ihre Geschosse „Erdgeschoss“ und „Dachboden“ nennt, weiß mehr über das Gebäude als jede Regel. Ersetzt werden nur Platzhalter — leere Namen und die Zählform „Geschoss 3“, die kein Mensch so vergibt.</p>
+
+<h3 id="k5-3">5.3 Ein Geschoss anlegen — nach oben und nach unten</h3>
+
+<p class="wo">Im Programm: die Geschossleiste in der Kopfzeile. Vier Knöpfe, dazu das Löschen: nach oben leer, nach oben mit Grundriss, nach unten leer, nach unten mit Grundriss. Die Pfeile zeigen die Richtung, in der das neue Geschoss entsteht.</p>
+
+<p>Ein Keller lässt sich nicht „oben anlegen und dann nach unten schieben“. Mit der Reihenfolge hängen Höhenlage, Bodenanschluss und Deckenanschluss zusammen; deshalb gibt es für beide Richtungen einen eigenen Weg.</p>
+
+<h4 id="k5-3-1">5.3.1 Nach oben</h4>
+
+<p>Das neue Geschoss übernimmt die lichte Höhe des Geschosses darunter und wird um dessen lichte Höhe plus <b>0,30 m Decke</b> höher gesetzt. Boden und Decke bekommen sinnvolle Startwerte: der Boden grenzt an einen beheizten Raum mit U = 0,9 W/(m²·K), die Decke gegen unbeheizt. Gleichzeitig wird beim Geschoss darunter die Decke auf „an beheizten Raum“ umgestellt — dort ist ja jetzt eines.</p>
+
+<div class="beispiel">
+<b>Beispiel zum Nachrechnen</b>
+<p>Erdgeschoss bei 0,00 m, lichte Höhe 2,75 m. Sie legen ein Obergeschoss darüber an.</p>
+<p>Höhenlage 1. OG = 0,00 + 2,75 + 0,30</p>
+<p class="ergebnis">= 3,05 m über Bezugspunkt; die Decke dazwischen liegt zwischen 2,75 m und 3,05 m</p>
+</div>
+
+<h4 id="k5-3-2">5.3.2 Nach unten</h4>
+
+<p>Für den Keller setzt das Programm eine lichte Höhe von <b>2,30 m</b> an. Das ist der Erfahrungswert des deutschen Wohnungsbaus, deutlich unter den 2,75 m eines Wohngeschosses, und keine Normangabe — überschreibbar wie jede Vorbelegung. Die Deckenstärke ist dieselbe wie beim Anbau nach oben.</p>
+
+<p>Mit dem Keller ändern sich außerdem vier Dinge, die man sonst leicht vergisst:</p>
+
+<ol>
+<li>Die <b>Kellersohle</b> steht auf Erdreich, mit U = 0,35 W/(m²·K) — die Größenordnung einer Bodenplatte mit Perimeterdämmung.</li>
+<li>Die <b>Kellerdecke</b> grenzt an den Raum darüber, mit U = 0,9 W/(m²·K).</li>
+<li>Der <b>Boden des Geschosses darüber</b> steht jetzt nicht mehr auf Erdreich und wird entsprechend umgestellt.</li>
+<li>Die <b>Geländeoberkante</b> wird eingetragen, falls sie noch fehlt — auf die Höhe der Kellerdecke. Ohne sie bliebe der Keller rechnerisch ein Geschoss mit Norm-Außentemperatur vor der Wand. Eine bereits vorhandene Angabe bleibt unangetastet; sie kann aus einer Hanglage stammen.</li>
+</ol>
+
+<div class="beispiel">
+<b>Beispiel zum Nachrechnen</b>
+<p>Erdgeschoss bei 0,00 m. Sie legen einen Keller darunter an.</p>
+<p>Höhenlage KG = 0,00 − (2,30 + 0,30) = −2,60 m. Geländeoberkante = 0,00 − 0,30 = −0,30 m.</p>
+<p class="ergebnis">Von den 2,30 m Kellerwand stecken damit 2,30 m im Erdreich — die Wand endet oben genau an der Geländeoberkante</p>
+</div>
+
+<h4 id="k5-3-3">5.3.3 Was beim Übernehmen des Grundrisses mitwandert</h4>
+
+<p>„Grundriss übernehmen“ ist eine Geste, aber drei verschiedene Antworten. Die Regel dahinter ist fachlich, nicht technisch:</p>
+
+<table class="tab">
+<caption>Was kopiert wird und was nicht</caption>
+<thead><tr><th>Bauteil</th><th>Kopiert?</th><th>Warum</th></tr></thead>
+<tbody>
+<tr><td>Knoten, Wände, Öffnungen</td><td>ja</td><td>Sie beschreiben den Grundriss. Die Wände bekommen die Höhe des <i>neuen</i> Geschosses, nicht die ihrer Vorlage.</td></tr>
+<tr><td>Pfeiler, Wandversatz, Installationsblock</td><td>ja</td><td>Gehören zu genau diesem Grundriss und werden wie eine Wand behandelt.</td></tr>
+<tr><td>Treppen und Schächte</td><td>nein</td><td>Sie <i>verbinden</i> zwei Geschosse und existieren genau einmal. Kopiert man sie, steht oben eine zweite Treppe, die dort nichts verbindet und die Deckenöffnung ein zweites Mal abzieht.</td></tr>
+<tr><td>Schornstein (durchgehend)</td><td>nein</td><td>Er ist im Geschoss darüber ohnehin schon da, weil er durch alle Decken läuft.</td></tr>
+</tbody>
+</table>
+
+<p>Eine Wand, deren beide Endpunkte nicht im selben Geschoss liegen, wird übergangen und nicht repariert. Eine geratene Lage wäre schlimmer als eine fehlende Wand, die im Plan sofort auffällt.</p>
+
+<div class="baustelle"><b>Auf der Baustelle heißt das</b><p>Nach dem Übernehmen setzen Sie die Treppe im neuen Geschoss <b>nicht</b> neu. Sie öffnen stattdessen die vorhandene Treppe im Geschoss darunter und stellen bei „Reicht bis“ das Zielgeschoss ein. Dann durchstößt sie jede Decke dazwischen und zieht in jedem betroffenen Raum die Fläche ab — genau einmal.</p></div>
+
+<h3 id="k5-4">5.4 Geschossdecken und Bodenplatte</h3>
+
+<p>Die Decke ist in diesem Programm ein <b>eigenes Bauteil</b> und nicht der Zwischenraum zwischen zwei Geschossen. Der Grund dafür ist ein Fehler, den man erst im Bild sieht: Solange nur die Höhenlagen gerechnet wurden, klaffte zwischen der Oberkante der Wände eines Geschosses und der Unterkante des nächsten die Deckenstärke als <b>Luft</b>. Das Haus stand in Scheiben übereinander.</p>
+
+<h4 id="k5-4-1">5.4.1 Woraus eine Deckenplatte besteht</h4>
+
+<p>Der <b>Umriss</b> einer Decke ist die Summe zweier Dinge: der Achspolygone aller Räume des Geschosses <i>plus</i> der Grundflächen aller Wände. Nur die Räume genügen nicht — das Achspolygon endet in der Wandmitte, die äußere Hälfte der Außenwand bliebe unbedeckt, und die Decke endete sichtbar hinter der Fassade. Die Flächen dürfen sich dabei überlappen; Raum und Wand tun das zwangsläufig. Eine echte Vereinigung wäre erheblich mehr Rechnerei für dasselbe Bild, denn die Platten sind undurchsichtig und liegen in einer Ebene.</p>
+
+<p>Die <b>Aussparungen</b> kommen von Treppen und Schächten. Ein Bauteil durchdringt die Decke <i>über</i> dem Geschoss, in dem es beginnt; reicht es weiter nach oben, durchdringt es jede Decke bis zu seinem Zielgeschoss. Wer die Öffnung wegließe, deckelte sein Treppenhaus zu.</p>
+
+<h4 id="k5-4-2">5.4.2 Oberkante und Unterkante</h4>
+
+<p>Jede Platte trägt drei Höhenangaben, und der Zusammenhang ist einfach:</p>
+
+<div class="formel">
+  <p class="worte">In Worten: Die Unterkante der Decke ist die Oberkante der Wände darunter. Die Oberkante der Decke ist der Rohfußboden des Geschosses darüber. Der Abstand dazwischen ist die Plattenstärke.</p>
+  <p class="math">Unterkante + Stärke = Oberkante</p>
+  <dl class="zeichen">
+    <dt>Oberkante</dt><dd>Höhe des Rohfußbodens darüber [m] über dem Bezugspunkt</dd>
+    <dt>Unterkante</dt><dd>Höhe der Wandoberkante darunter [m]</dd>
+    <dt>Stärke</dt><dd>Oberkante minus (Höhenlage unten + lichte Höhe unten) [m]</dd>
+  </dl>
+</div>
+
+<div class="beispiel">
+<b>Beispiel zum Nachrechnen</b>
+<p>Erdgeschoss bei 0,00 m, lichte Höhe 2,75 m. Obergeschoss bei 3,05 m.</p>
+<p>Stärke = 3,05 − (0,00 + 2,75) = 0,30 m. Unterkante = 3,05 − 0,30 = 2,75 m.</p>
+<p class="ergebnis">Die Platte liegt zwischen 2,75 m und 3,05 m — sie hängt unter dem Obergeschoss, genau so, wie sie gebaut wird</p>
+</div>
+
+<p>Dass beide Werte im Modell stehen und nicht einer davon jedes Mal ausgerechnet wird, hat einen Grund: In einer früheren Fassung gab es nur die Oberkante und die Stärke, und der Zeichenpfad zog die Differenz selbst ab — beziehungsweise eben nicht. Die Platte saß dadurch eine volle Plattenstärke zu hoch, die Lücke blieb offen, und stattdessen ragte die Decke 25 cm in das Geschoss darüber hinein.</p>
+
+<p>Ergibt die Rechnung eine negative oder sehr kleine Stärke, entsteht keine Platte. Das passiert bei von Hand gesetzten Höhenlagen, die sich überschneiden — dort ist keine Platte die ehrlichere Antwort. Über dem obersten Geschoss entsteht ebenfalls keine: dort endet das Haus, dort sitzt das Dach.</p>
+
+<h4 id="k5-4-3">5.4.3 Die Bodenplatte</h4>
+
+<p>Unter dem untersten Geschoss liegt eine Bodenplatte von <b>25 cm</b>. Ohne sie stünde das Haus im Modell buchstäblich in der Luft: die Wände beginnen bei null, darunter ist nichts, und von schräg unten sähe man durch den Grundriss hindurch.</p>
+
+<p>Sie ist bewusst kein Sonderfall der Geschossdecke, denn sie unterscheidet sich in drei Punkten:</p>
+
+<ul>
+<li>Sie liegt <b>unter</b> dem Geschoss, das sie nennt, nicht darüber.</li>
+<li>Sie bekommt <b>keine Aussparungen</b>. Ein Treppenauge im Erdreich wäre ein Loch ins Nichts.</li>
+<li>Ihre Stärke ist eine reine Modellannahme und geht in <b>keine Rechnung</b> ein. Der U-Wert des Bodens steht am Geschoss und wird davon nicht berührt.</li>
+</ul>
+
+<h3 id="k5-5">5.5 Treppen und Schächte</h3>
+
+<p>Treppe und Schacht lösen dasselbe Problem: eine Fläche im Grundriss, die kein normaler Raum ist, weil die Decke darüber fehlt. Was Sie an beiden einstellen und was das für die Rechnung bedeutet, steht in <a href="#k4-4-5">Abschnitt 4.4.5</a>. Hier geht es um die Treppe selbst.</p>
+
+<p class="wo">Im Programm: Werkzeug <b>Treppe einsetzen</b> (Taste <kbd>R</kbd>) und <b>Schacht einsetzen</b> (Taste <kbd>S</kbd>).</p>
+
+<h4 id="k5-5-1">5.5.1 Die vier Laufformen</h4>
+
+<table class="tab">
+<caption>Treppenformen und ihre Lauflinie</caption>
+<thead><tr><th>Form</th><th>Lauflinie</th></tr></thead>
+<tbody>
+<tr><td>Gerade Treppe</td><td>Ein Lauf, mittig durch das Bauteil.</td></tr>
+<tr><td>Viertelgewendelte Treppe</td><td>Ein Lauf längs, Podest in der Ecke, dann quer heraus.</td></tr>
+<tr><td>Halbgewendelte Treppe</td><td>Zwei Läufe nebeneinander, Podest am Kopfende.</td></tr>
+<tr><td>Wendeltreppe</td><td>Spindel in der Mitte, Lauflinie auf halbem Radius, als Spirale gezeichnet.</td></tr>
+</tbody>
+</table>
+
+<p>Aus der Lauflinie folgt alles Weitere: die Stufenlinien stehen senkrecht darauf und fächern deshalb an einem Knick auf, genau wie in einer Bauzeichnung. Der Richtungspfeil sitzt am Austritt, der Antritt ist die erste Stufe. Beides wird im Grundriss so gezeichnet, wie es auch auf dem Ausdruck erscheint — dieselbe Rechnung, nicht zwei.</p>
+
+<!--SYMBOLTAFEL:treppen-->
+
+<h4 id="k5-5-2">5.5.2 Steigungsverhältnis und Austrittsmaß</h4>
+
+<p>Sie geben drei Maße ein: Laufbreite, Lauflänge und die Zahl der Steigungen. Das Programm rechnet daraus die drei Zahlen, an denen man eine Treppe beurteilt.</p>
+
+<div class="formel">
+  <p class="worte">In Worten: Die Steigungshöhe ist der Weg, den die Treppe zu überwinden hat, geteilt durch die Zahl der Steigungen. Zu überwinden ist die lichte Geschosshöhe zuzüglich des Deckenaufbaus — das Programm setzt dafür fest 28 cm an.</p>
+  <p class="math">s = (lichte Geschosshöhe + 0,28 m) / Zahl der Steigungen</p>
+  <dl class="zeichen">
+    <dt>s</dt><dd>Steigungshöhe in Metern [m] — die Höhe einer einzelnen Stufe</dd>
+  </dl>
+</div>
+
+<div class="formel">
+  <p class="worte">In Worten: Der Auftritt ist die Länge der Lauflinie, geteilt durch die Zahl der Auftritte. Auftritte gibt es einen weniger als Steigungen, weil die letzte Stufe schon der Fußboden oben ist. Gemessen wird auf der <b>Lauflinie</b>, nicht an der Bauteilkante: bei einer gewendelten Treppe ist der Weg länger, als das Bauteil tief ist.</p>
+  <p class="math">a = Länge der Lauflinie / (Zahl der Steigungen − 1)</p>
+  <dl class="zeichen">
+    <dt>a</dt><dd>Auftritt in Metern [m] — die Tiefe einer Stufe</dd>
+  </dl>
+</div>
+
+<div class="formel">
+  <p class="worte">In Worten: Das Schrittmaß prüft, ob sich die Treppe bequem gehen lässt. Man zählt zweimal die Steigung plus einmal den Auftritt zusammen; das Ergebnis soll der normalen Schrittlänge entsprechen.</p>
+  <p class="math">Schrittmaß = 2 · s + a</p>
+</div>
+
+<div class="beispiel">
+<b>Beispiel zum Nachrechnen</b>
+<p>Gerade Treppe im Einfamilienhaus. Lichte Geschosshöhe 2,75 m, Lauflänge 4,00 m, 17 Steigungen.</p>
+<p>Steigungshöhe s = (2,75 + 0,28) / 17 = 3,03 / 17 = 0,178 m</p>
+<p>Auftritt a = 4,00 / (17 − 1) = 4,00 / 16 = 0,250 m</p>
+<p>Schrittmaß = 2 · 17,8 + 25,0</p>
+<p class="ergebnis">= 17,8 cm Steigung, 25,0 cm Auftritt, Schrittmaß 60,6 cm</p>
+</div>
+
+<p>Das Programm warnt, sobald die Steigungshöhe unter 14 cm oder über 20 cm liegt oder der Auftritt unter 23 cm oder über 37 cm — die Bereiche nach DIN 18065. Bei gewendelten Treppen ist dabei fast immer die Lauflinie der Grund und nicht die Stufenzahl: Wer die Bauteiltiefe im Kopf hat, unterschätzt den Weg.</p>
+
+<div class="merke"><b>Merke</b><p>Das Programm zeichnet die Treppe und rechnet ihr Steigungsverhältnis. Es ist damit kein Treppennachweis: Kopffreiheit, Handlauf, Podestlängen und Rettungsweganforderungen prüft es nicht.</p></div>
+
+<p>Beim Schacht geben Sie statt der Laufmaße Breite und Tiefe an, dazu das Gewerk: Heizung, Sanitär, Lüftung, Elektro oder gemischt. Der Schacht wird leicht schraffiert und offen dargestellt, damit er nicht mit einem Raum verwechselt wird; ab einem gewissen Zoom steht der Anfangsbuchstabe des Gewerks darin.</p>
+
+<h3 id="k5-6">5.6 Massive Bauteile: Stützen, Unterzüge, Podeste</h3>
+
+<p>Ein Schornstein ist das Gegenteil eines Schachts. Beide sind eine Fläche im Grundriss, die kein Raum ist — aber beim Schacht ist dort Luft, beim Schornstein Mauerwerk. Deshalb sind es im Programm zwei verschiedene Bauteilarten und nicht zwei Spielarten derselben.</p>
+
+<p class="wo">Im Programm: Werkzeug <b>Massives Bauteil setzen</b> (Taste <kbd>M</kbd>). Zur Wahl stehen Kamin/Schornstein, Pfeiler, Wandversatz und Installationsblock.</p>
+
+<p>Ein massives Bauteil bekommt entweder ein Rechteck aus Länge, Breite und Drehung — oder einen freien Umriss. Der freie Umriss entsteht, wenn Sie eine fälschlich als Raum erkannte Fläche zum massiven Bauteil erklären: dann übernimmt das Bauteil genau deren Kontur. Beide Wege liefern dieselbe Form von Ergebnis, damit Plan, 3D-Ansicht, Fußbodenheizung und Export mit <i>einer</i> Geometriequelle arbeiten.</p>
+
+<p>Im Plan ist massiv nicht nur ein anderer Farbton, sondern eine andere Dichte: durchgehende Füllung, dichte 45°-Schraffur und eine kräftigere Umrisslinie als bei jedem anderen Symbol. Die Schraffur wird im Bildschirmraum gerechnet und behält bei jedem Zoom denselben Abstand — im Modellraum gerechnet würde sie beim Herauszoomen zur Volltonfläche und beim Hineinzoomen zu drei Strichen.</p>
+
+<p>Ein Schornstein steht im Obergeschoss genauso im Weg wie im Erdgeschoss. Er beginnt am Feuerraum und geht bis übers Dach; in den Geschossen dazwischen wird er als <b>Durchdringung</b> gezeichnet — dasselbe Bauteil, aber schwächer, damit man sieht, dass es nicht zu diesem Geschoss gehört. Er bleibt dabei massiv, denn dort <i>ist</i> Mauerwerk. Pfeiler und Wandversatz gehören dagegen zu genau einem Geschoss.</p>
+
+<!--SYMBOLTAFEL:bauteile-->
+
+<div class="warnung"><b>Achtung</b><p>Ein Schornstein an einer Außenwand ist eine Wärmebrücke. Das Programm führt ihn als Eingangsgröße, rechnet ihn aber <b>nicht</b> als Wärmebrücke mit. Wenn er ins Gewicht fällt, gehört er in den längenbezogenen Nachweis nach <a href="#k7-4">Abschnitt 7.4</a>.</p></div>
+
+<h3 id="k5-7">5.7 Die 3D-Ansicht</h3>
+
+<p>Die dreidimensionale Ansicht entsteht aus <b>denselben</b> Daten wie der Grundriss. Sie ist keine zweite Zeichnung, sondern dieselbe, nur von der Seite betrachtet.</p>
+
+<h4 id="k5-7-1">5.7.1 Was sie zeigt</h4>
+
+<ul>
+<li>Wände als Teilquader aus derselben Zerlegung wie im Plan — Türen und Fenster sind echte Aussparungen mit Brüstung und Sturz.</li>
+<li>Geschossdecken und die Bodenplatte samt ihren Aussparungen.</li>
+<li>Treppen als echte Stufenfolge entlang ihrer Lauflinie. Dadurch stimmt auch bei einer gewendelten Treppe, wo sie ankommt.</li>
+<li>Schächte, massive Bauteile und das Dach über dem aktiven Geschoss.</li>
+<li>Die TGA-Objekte und das verlegte Rohrnetz.</li>
+<li>Auf Wunsch das Gelände mit Grundstück, Wärmepumpe und Wärmequelle.</li>
+</ul>
+
+<h4 id="k5-7-2">5.7.2 Wie Sie sie steuern</h4>
+
+<table class="tab">
+<caption>Die Bedienung der 3D-Ansicht</caption>
+<thead><tr><th>Schalter</th><th>Wirkung</th></tr></thead>
+<tbody>
+<tr><td>Orbit</td><td>Freie perspektivische Ansicht. Ziehen dreht, Rad zoomt, mittlere Maustaste verschiebt.</td></tr>
+<tr><td>Iso</td><td>Klassische Isometrie von Südwesten, ohne Perspektive — für den Modellblick.</td></tr>
+<tr><td>Top</td><td>Senkrecht von oben, ebenfalls ohne Perspektive.</td></tr>
+<tr><td>Gelände</td><td>Blendet Grundstück und Außenanlagen aus. Bei einem großen Grundstück nimmt es sonst den größten Teil des Bildes ein.</td></tr>
+<tr><td>Einpassen</td><td>Setzt Kamera und Drehpunkt so, dass das Gebäude formatfüllend sitzt.</td></tr>
+</tbody>
+</table>
+
+<p>Die Geometrie wird nur dann neu gebaut, wenn sich Knoten, Wände, Öffnungen oder Räume ändern. Kamerabewegungen lösen keinen Neuaufbau aus, und im reinen 2D-Modus läuft die Ansicht gar nicht mit. Deshalb bleibt das Zeichnen flüssig, auch wenn beide Ansichten nebeneinander stehen.</p>
+
+<h4 id="k5-7-3">5.7.3 Was sie nicht ist</h4>
+
+<div class="warnung"><b>Achtung</b><p>Die 3D-Ansicht ist eine <b>Kontrollansicht</b>, kein Rendering und kein Nachweis. Sie hat keine Materialien, keine Sonnenstandsberechnung und keine Verschattung. Sie taugt dazu, einen Fehler zu finden — eine Wand auf dem falschen Geschoss, ein Fenster in der falschen Wand, ein Treppenauge an der falschen Stelle. Sie taugt nicht als Bild für den Bauherrn und nicht als Grundlage für eine Aussage über Belichtung, Verschattung oder Optik.</p></div>
+
+<div class="baustelle"><b>Auf der Baustelle heißt das</b><p>Nach jedem neu angelegten Geschoss einmal auf Iso schalten und von schräg oben schauen. Stehen die Geschosse übereinander statt ineinander? Sitzt die Treppe in beiden Ebenen an derselben Stelle? Ist die Decke geschlossen, wo sie geschlossen sein soll? Das sind dreißig Sekunden, die eine halbe Stunde Fehlersuche im Raumbuch ersparen.</p></div>
+
+</section>
