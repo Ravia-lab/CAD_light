@@ -12,12 +12,32 @@
  *
  * Bewusst kein Assistent, der durch Schritte zwingt: ein Bestand wird selten
  * in der Reihenfolge aufgenommen, in der ein Programm ihn gern hätte.
+ *
+ * Die Liste reicht über die Gebäudeaufnahme hinaus bis zum letzten Blatt:
+ * Grundriss, Räume, Heizflächen, Anlage, Rohrnetz, Rohrnetzbericht, Schema,
+ * Schemaprüfung, Modellprüfung, Mappe, Übergabe. Der Grund ist derselbe wie
+ * für die Liste überhaupt — was seit 1.12 dazugekommen ist, steht hinter
+ * Schaltflächen, die man nur findet, wenn man weiß, dass es sie gibt.
+ *
+ * Drei Zustände, und der dritte ist der wichtigste: **erledigt**, **offen**
+ * und **noch nicht möglich**. Ein Schritt, dessen Voraussetzung fehlt, wird
+ * nicht als offen geführt und bekommt keine Schaltfläche; er sagt stattdessen
+ * in einem Satz, was zuerst fehlt. Eine Aufforderung, der das Programm nicht
+ * nachkommen kann, ist schlimmer als gar keine.
  */
 
 import { useMemo, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { glossaryList } from '../lib/glossar';
+import { berichtsUrteil, buildPipeReport } from '../lib/pipeReport';
+import { designPlant } from '../lib/plantDesign';
+import { schemaVorlage } from '../lib/schemaKatalog';
+import { pruefeSchema } from '../lib/schemaPruefung';
 import { validateModel } from '../lib/validation';
+import type { FixtureType } from '../types/bim';
 import { useBimStore } from '../store/useBimStore';
+import PlanPrintDialog from './PlanPrintDialog';
+import RohrnetzDialog from './RohrnetzDialog';
 
 type Tone = 'done' | 'open' | 'blocked' | 'optional';
 
@@ -26,18 +46,52 @@ interface Step {
   tone: Tone;
   /** Was zu tun ist — in einem Satz, ohne Fachbegriff. */
   hint: string;
-  action?: { label: string; run: () => void };
+  /**
+   * Sprungziele des Schritts.
+   *
+   * Mehrere sind zugelassen, weil einzelne Schritte tatsächlich mehrere
+   * gleichrangige Wege haben: das Rohrnetz lässt sich für Neubau oder
+   * Sanierung auslegen, und die Mappe besteht aus vier Blattfolgen, die an
+   * vier verschiedenen Stellen entstehen. Sie in vier Schritte zu zerlegen
+   * würde die Liste aufblähen und dieselbe Aufgabe viermal zählen.
+   */
+  actions?: { label: string; run: () => void }[];
   /** Zahl rechts, wenn es etwas zu zählen gibt. */
   badge?: string;
 }
+
+/**
+ * TGA-Objekte, die am Heizungsnetz hängen.
+ *
+ * Dieselbe Menge steht in `lib/pipeLayout` als Auswahlkriterium des
+ * Rohrausleger; sie ist dort nicht ausgeführt (nicht exportiert). Sie wird
+ * hier wiederholt, damit die Liste **vorher** sagen kann, ob die Auslegung
+ * überhaupt etwas zu tun findet — ein Schritt, der zum Klicken einlädt und
+ * dann mit „keine Verbraucher" abbricht, ist schlimmer als keiner.
+ */
+const VERBRAUCHER = new Set<FixtureType>(['radiator', 'radiator-tube', 'convector', 'manifold']);
 
 export default function GuidePanel({ onOpenTab }: { onOpenTab: (tab: string) => void }) {
   const doc = useBimStore((s) => s.doc);
   const setTool = useBimStore((s) => s.setTool);
   const setActiveFixture = useBimStore((s) => s.setActiveFixture);
+  const setViewMode = useBimStore((s) => s.setViewMode);
+  const legeRohrnetzAus = useBimStore((s) => s.legeRohrnetzAus);
   const loadDemo = useBimStore((s) => s.loadDemo);
   const uiMode = useBimStore((s) => s.uiMode);
   const setUiMode = useBimStore((s) => s.setUiMode);
+
+  /**
+   * Zwei Fenster, die die Liste selbst öffnet.
+   *
+   * Sie hängen sonst an Schaltflächen der Werkzeugleiste; ein Verweis darauf
+   * („oben rechts das dritte Symbol") wäre eine Wegbeschreibung statt eines
+   * Wegs. Gezeichnet werden sie über ein Portal am Dokumentkörper: der
+   * Inspektor trägt `backdrop-blur`, und das macht ihn zum Bezugsrahmen für
+   * alles, was `position: fixed` ist — ein Dialog darin wäre 300 px breit.
+   */
+  const [rohrnetzOffen, setRohrnetzOffen] = useState(false);
+  const [grundrissdruckOffen, setGrundrissdruckOffen] = useState(false);
 
   const state = useMemo(() => {
     const report = validateModel(doc);
@@ -45,6 +99,23 @@ export default function GuidePanel({ onOpenTab }: { onOpenTab: (tab: string) => 
     const walls = Object.values(doc.walls);
     const openings = Object.values(doc.openings);
     const fixtures = Object.values(doc.fixtures);
+
+    /*
+     * Alles zum Rohrnetz wird **billig** abgelesen, nicht gerechnet.
+     *
+     * Der Rohrausleger arbeitet geschossweise: er sucht seine Quelle und
+     * seine Verbraucher auf dem aktiven Geschoss und legt dort aus. Eine
+     * Liste, die stattdessen das ganze Gebäude zählt, sagt „erledigt",
+     * während im Obergeschoss nichts liegt.
+     */
+    const aufGeschoss = fixtures.filter((f) => f.levelId === doc.activeLevelId);
+    const erzeugerObjekt = aufGeschoss.find((f) => f.type === 'boiler');
+    const verteiler = aufGeschoss.filter((f) => f.type === 'manifold');
+    // Reihenfolge wie im Rohrausleger: Erzeuger schlägt Verteiler.
+    const quelle = erzeugerObjekt ?? verteiler[0];
+    const rohre = Object.values(doc.pipes ?? {});
+    const plant = doc.plant;
+
     return {
       report,
       walls: walls.length,
@@ -67,8 +138,97 @@ export default function GuidePanel({ onOpenTab }: { onOpenTab: (tab: string) => 
       heatingPower: fixtures.reduce((sum, f) => sum + (f.params.powerW ?? 0), 0),
       generator: doc.plant?.generatorModelId,
       schematic: Object.keys(doc.plant?.schematic.components ?? {}).length,
+
+      /** Gibt es auf diesem Geschoss einen Ausgangspunkt für die Trasse? */
+      hatQuelle: quelle !== undefined,
+      /** Wie viele Heizflächen die Trasse anzuschließen hätte. */
+      verbraucher: quelle
+        ? aufGeschoss.filter((f) => f.id !== quelle.id && VERBRAUCHER.has(f.type)).length
+        : 0,
+      rohreGeschoss: rohre.filter((r) => r.levelId === doc.activeLevelId).length,
+      rohreGesamt: rohre.length,
+      /** Kennung der übernommenen Schemavorlage — die Antwort auf „welches Schema ist das?". */
+      vorlageId: plant?.schematic.vorlageId,
     };
   }, [doc]);
+
+  /**
+   * Der Rohrnetzbericht — die einzige wirklich teure Rechnung dieser Liste.
+   *
+   * Er läuft nur, wenn auf dem Geschoss Leitungen liegen. Vorher hat der
+   * Schritt ohnehin nichts zu melden, und die Liste kostet nichts. Danach ist
+   * es dieselbe Rechnung wie im Berichtsfenster — bewusst dieselbe: zwei
+   * verschiedene Urteile über dasselbe Netz wären schlimmer als eine
+   * Rechnung mehr.
+   */
+  const bericht = useMemo(
+    () => (state.rohreGeschoss > 0 ? buildPipeReport(doc) : null),
+    [doc, state.rohreGeschoss],
+  );
+  const urteil = useMemo(() => (bericht ? berichtsUrteil(bericht) : null), [bericht]);
+
+  /**
+   * Die Auslegung für die Schemaprüfung.
+   *
+   * Sie wird nur gerechnet, wenn überhaupt ein Fließbild im Modell steht —
+   * ohne Bauteile gibt es nichts zu prüfen. Die Vorgaben sind dieselben wie
+   * im Anlagenblatt (`heatLoadOverride`, `extraModels`), damit hier keine
+   * anderen Befunde erscheinen als dort. Nur die Geräte, die jemand gerade in
+   * der Sitzung eingelesen hat, kennt das Anlagenblatt allein; sie stehen
+   * absichtlich nicht im Dokument.
+   */
+  const auslegung = useMemo(
+    () =>
+      state.schematic > 0
+        ? designPlant(doc, {
+            heatLoad: doc.plant?.heatLoadOverride,
+            extraModels: doc.plant?.extraModels,
+          })
+        : null,
+    [doc, state.schematic],
+  );
+
+  const befunde = useMemo(() => {
+    const plant = doc.plant;
+    if (!auslegung || !plant) return [];
+    return pruefeSchema({
+      komponenten: Object.values(plant.schematic.components),
+      verbindungen: Object.values(plant.schematic.links),
+      auslegung,
+      anlage: plant,
+    });
+  }, [doc.plant, auslegung]);
+
+  const vorlage = state.vorlageId ? schemaVorlage(state.vorlageId) : undefined;
+
+  // Beide Berichte führen ihre Meldungen nach Gewicht getrennt. Für die Liste
+  // zählt vor allem, ob ein Fehler darunter ist: er ist der Unterschied
+  // zwischen „ansehen lohnt sich" und „so trägt es nicht".
+  const rohrFehler = bericht?.hinweise.filter((h) => h.severity === 'error').length ?? 0;
+  const rohrWarnungen = bericht?.hinweise.filter((h) => h.severity === 'warn').length ?? 0;
+  const schemaFehler = befunde.filter((b) => b.grad === 'fehler').length;
+  const schemaWarnungen = befunde.filter((b) => b.grad === 'warnung').length;
+  const schemaHinweise = befunde.filter((b) => b.grad === 'hinweis').length;
+
+  /**
+   * Die Druckwege, die es gerade wirklich gibt.
+   *
+   * Eine Schaltfläche anzubieten, hinter der ein leeres Blatt liegt, ist eine
+   * Zusage, die das Programm nicht hält. Deshalb steht jeder Weg erst da,
+   * wenn sein Inhalt da ist — und was fehlt, wird im Satz darunter benannt.
+   */
+  const druckwege: { label: string; run: () => void }[] = [];
+  const fehlendeDruckwege: string[] = [];
+  if (state.walls > 0) druckwege.push({ label: 'Grundriss', run: () => setGrundrissdruckOffen(true) });
+  else fehlendeDruckwege.push('Grundriss');
+  if (state.rohreGeschoss > 0) druckwege.push({ label: 'Rohrnetzbericht', run: () => setRohrnetzOffen(true) });
+  else fehlendeDruckwege.push('Rohrnetzbericht');
+  // Das Schema wird im Hauptfenster gedruckt, nicht im Inspektor: der Umschalter
+  // auf die Schema-Ansicht ist deshalb das ehrliche Sprungziel.
+  if (state.schematic > 0) druckwege.push({ label: 'Anlagenschema', run: () => setViewMode('schema') });
+  else fehlendeDruckwege.push('Anlagenschema');
+  if (state.generator) druckwege.push({ label: 'Anlagenbuch', run: () => onOpenTab('anlage') });
+  else fehlendeDruckwege.push('Anlagenbuch');
 
   const steps: Step[] = [
     {
@@ -79,7 +239,7 @@ export default function GuidePanel({ onOpenTab }: { onOpenTab: (tab: string) => 
         state.rooms > 0
           ? 'Die Wände stehen, die Räume wurden von selbst erkannt.'
           : 'Mit dem Wand-Werkzeug einen geschlossenen Umriss zeichnen. Jeder Klick setzt einen Punkt, Esc beendet den Zug. Sobald der Umriss zu ist, erkennt das Programm den Raum selbst.',
-      action: state.rooms > 0 ? undefined : { label: 'Wand zeichnen', run: () => setTool('wall') },
+      actions: state.rooms > 0 ? undefined : [{ label: 'Wand zeichnen', run: () => setTool('wall') }],
     },
     {
       title: 'Alle Räume geschlossen',
@@ -96,9 +256,9 @@ export default function GuidePanel({ onOpenTab }: { onOpenTab: (tab: string) => 
           : state.gaps > 0
             ? 'Zwischen zwei sauber angeschlossenen Wandenden fehlt ein Wandstück. Der Plan zeichnet die fehlende Wand gestrichelt — dort ist der Umriss offen, obwohl kein Wandende lose ist.'
             : 'Kein loses Wandende, keine Lücke. Jeder Umriss ist zu.',
-      action:
+      actions:
         state.openEnds + state.gaps > 0
-          ? { label: state.openEnds > 0 ? 'Wand verlängern' : 'Wand ergänzen', run: () => setTool('wall') }
+          ? [{ label: state.openEnds > 0 ? 'Wand verlängern' : 'Wand ergänzen', run: () => setTool('wall') }]
           : undefined,
     },
     {
@@ -109,8 +269,8 @@ export default function GuidePanel({ onOpenTab }: { onOpenTab: (tab: string) => 
         state.openings > 0
           ? 'Fenster und Türen sitzen in den Wänden und werden von der Wandfläche abgezogen.'
           : 'Fenster-Werkzeug wählen und auf die Wand klicken. Ohne Fenster rechnet die Heizlast mit einer geschlossenen Wand — und fällt zu klein aus.',
-      action:
-        state.openings > 0 ? undefined : { label: 'Fenster setzen', run: () => setTool('window') },
+      actions:
+        state.openings > 0 ? undefined : [{ label: 'Fenster setzen', run: () => setTool('window') }],
     },
     {
       title: 'Räume benennen und Nutzung wählen',
@@ -120,8 +280,8 @@ export default function GuidePanel({ onOpenTab }: { onOpenTab: (tab: string) => 
         state.unnamed > 0
           ? 'Raum im Plan anklicken und im Reiter „Objekt" die Nutzung wählen — Wohnen, Bad, Schlafen. Daraus ergeben sich Solltemperatur und Luftwechsel von selbst; im Bad sind 24 °C üblich, im Flur 15.'
           : 'Jeder Raum hat eine Nutzung und damit eine Solltemperatur.',
-      action:
-        state.unnamed > 0 ? { label: 'Räume ansehen', run: () => onOpenTab('rooms') } : undefined,
+      actions:
+        state.unnamed > 0 ? [{ label: 'Räume ansehen', run: () => onOpenTab('rooms') }] : undefined,
     },
     {
       title: 'Heizkörper eintragen',
@@ -131,16 +291,18 @@ export default function GuidePanel({ onOpenTab }: { onOpenTab: (tab: string) => 
         state.heaters > 0
           ? 'Die vorhandene Leistung steht je Raum im Export — damit sieht die Gegenstelle sofort, wo es knapp wird.'
           : 'Nur für den Bestand nötig: Wer erfassen will, was heute schon hängt, setzt die Heizkörper mit ihrer Leistung. Für eine reine Neuplanung kann der Schritt entfallen.',
-      action:
+      actions:
         state.heaters > 0
           ? undefined
-          : {
-              label: 'Heizkörper setzen',
-              run: () => {
-                setActiveFixture('radiator');
-                onOpenTab('tga');
+          : [
+              {
+                label: 'Heizkörper setzen',
+                run: () => {
+                  setActiveFixture('radiator');
+                  onOpenTab('tga');
+                },
               },
-            },
+            ],
     },
     {
       title: 'Anlage auslegen',
@@ -149,7 +311,104 @@ export default function GuidePanel({ onOpenTab }: { onOpenTab: (tab: string) => 
       hint: state.generator
         ? 'Gerät, Speicher, Rohre und Sicherheitsarmaturen sind gerechnet. Das Anlagenschema zeigt, woran was hängt.'
         : 'Nur nötig, wenn die Anlage mitgeplant werden soll: Im Reiter „Anlage" schlägt das Programm ein Gerät zur Heizlast vor und rechnet daraus Speicher, Rohrgrößen, Ausdehnungsgefäß und Sicherheitsventil. Für die reine Datenerfassung kann der Schritt entfallen.',
-      action: { label: state.generator ? 'Anlage ansehen' : 'Anlage auslegen', run: () => onOpenTab('anlage') },
+      actions: [{ label: state.generator ? 'Anlage ansehen' : 'Anlage auslegen', run: () => onOpenTab('anlage') }],
+    },
+    {
+      title: 'Rohrnetz auslegen',
+      tone:
+        !state.hatQuelle || state.verbraucher === 0
+          ? 'blocked'
+          : state.rohreGeschoss > 0
+            ? 'done'
+            : 'optional',
+      badge: state.rohreGeschoss
+        ? `${state.rohreGeschoss} Leitungen`
+        : state.verbraucher
+          ? `${state.verbraucher} Verbraucher`
+          : undefined,
+      hint: !state.hatQuelle
+        ? 'Der Trasse fehlt der Ausgangspunkt. Erst ein Wärmeerzeuger oder ein Heizkreisverteiler auf diesem Geschoss gibt ihr einen Anfang; geraten wird kein Standort.'
+        : state.verbraucher === 0
+          ? 'Auf diesem Geschoss hängt noch nichts am Netz. Heizkörper oder weitere Verteiler setzen, dann gibt es etwas anzuschließen.'
+          : state.rohreGeschoss > 0
+            ? 'Trasse, Nennweiten, Dämmstärken nach Anlage 8 GEG und Armaturen liegen im Plan. Eine erneute Auslegung ersetzt nur das Erzeugte; von Hand gezogene Leitungen bleiben stehen.'
+            : `Nur nötig, wenn das Rohrnetz mitgeplant werden soll: Das Programm führt die Trasse vom Erzeuger zu jeder Heizfläche und bestimmt daraus Nennweiten, Dämmung und Armaturen. Neubau legt die Leitungen auf die Rohdecke in den Fußbodenaufbau, Sanierung sichtbar in den Sockelleistenkanal an der Wand.${
+                state.rohreGesamt > 0
+                  ? ` Auf anderen Geschossen liegen bereits ${state.rohreGesamt} Leitungen.`
+                  : ''
+              }`,
+      actions: [
+        { label: 'Für Neubau auslegen', run: () => legeRohrnetzAus('neubau') },
+        { label: 'Für Sanierung auslegen', run: () => legeRohrnetzAus('sanierung') },
+      ],
+    },
+    {
+      title: 'Rohrnetzbericht prüfen',
+      tone: !bericht || !urteil ? 'blocked' : rohrFehler > 0 || !urteil.nachweisfaehig ? 'open' : 'done',
+      badge: !bericht
+        ? undefined
+        : rohrFehler > 0
+          ? `${rohrFehler} Fehler`
+          : urteil && !urteil.nachweisfaehig
+            ? `${urteil.offen.length} offen`
+            : `${bericht.teilstrecken.length} Teilstrecken`,
+      hint: !bericht || !urteil
+        ? 'Der Bericht rechnet das gezeichnete Netz nach — Teilstrecken, Fließwege, Einstellwerte, Nachweis. Ohne Leitungen auf diesem Geschoss gibt es nichts zu berechnen.'
+        : rohrFehler > 0
+          ? `Die Rechnung meldet ${rohrFehler === 1 ? 'einen Fehler' : `${rohrFehler} Fehler`}. Der erste lautet: „${
+              bericht.hinweise.find((h) => h.severity === 'error')?.text ?? ''
+            }"`
+          : !urteil.nachweisfaehig
+            ? `Die Rechnung läuft durch, für den Nachweis fehlt aber noch etwas: ${urteil.offen[0]}${
+                urteil.offen.length > 1 ? ` und ${urteil.offen.length - 1} weitere Punkte` : ''
+              }. Solange das offen ist, ist der Bericht eine Rechnung und kein Nachweis.`
+            : `Jede Teilstrecke ist gerechnet, jede Heizfläche hat einen darstellbaren Einstellwert, der Nachweis ist vollständig.${
+                rohrWarnungen > 0
+                  ? ` ${rohrWarnungen === 1 ? 'Ein Hinweis' : `${rohrWarnungen} Hinweise`} zum Nachlesen stehen im Bericht.`
+                  : ''
+              }`,
+      actions: [{ label: 'Bericht öffnen', run: () => setRohrnetzOffen(true) }],
+    },
+    {
+      title: 'Schema vorschlagen lassen',
+      tone: !state.generator ? 'blocked' : state.vorlageId ? 'done' : 'open',
+      badge: vorlage?.kennung ?? state.vorlageId,
+      hint: !state.generator
+        ? 'Ein Schema passt zu einer ausgelegten Anlage. Erst mit gewähltem Gerät stehen Anbindung, Trinkwassererwärmung und Zahl der Kreise fest — und nur dagegen lassen sich die Vorlagen halten.'
+        : state.vorlageId
+          ? `Übernommen ist „${vorlage?.name ?? state.vorlageId}". Damit ist beantwortet, nach welcher Musterlösung die Anlage gebaut ist — die Frage, die jeder stellt, der ein fremdes Fließbild in die Hand bekommt.`
+          : 'Im Reiter „Anlage" hält das Programm jede Vorlage des Katalogs gegen die ausgelegte Anlage und nennt zu jeder, was übereinstimmt und was nicht. Ohne übernommene Vorlage bleibt das Fließbild anonym: es zeigt eine Anlage, aber nicht, welche.',
+      actions: [
+        {
+          label: state.vorlageId ? 'Schema ansehen' : 'Vorschläge ansehen',
+          run: () => onOpenTab('anlage'),
+        },
+      ],
+    },
+    {
+      title: 'Schemaprüfung lesen',
+      tone: state.schematic === 0 ? 'blocked' : befunde.length > 0 ? 'open' : 'done',
+      badge:
+        state.schematic === 0
+          ? undefined
+          : befunde.length === 0
+            ? `${state.schematic} Bauteile`
+            : [
+                schemaFehler > 0 ? `${schemaFehler} Fehler` : '',
+                schemaWarnungen > 0 ? `${schemaWarnungen} Warnungen` : '',
+                schemaHinweise > 0 ? `${schemaHinweise} Hinweise` : '',
+              ]
+                .filter(Boolean)
+                .join(', '),
+      hint:
+        state.schematic === 0
+          ? 'Geprüft wird das Fließbild, das im Modell steht — auch ein von Hand nachgebessertes. Solange keines da ist, gibt es nichts zu prüfen; es entsteht mit der Anlagenauslegung oder mit der Übernahme einer Vorlage.'
+          : schemaFehler > 0
+            ? `So darf die Anlage nicht gebaut werden: ${schemaFehler === 1 ? 'ein Befund verstößt' : `${schemaFehler} Befunde verstoßen`} gegen eine Norm oder eine ausdrückliche Herstellervorgabe. Der erste lautet „${befunde.find((b) => b.grad === 'fehler')?.titel ?? ''}".`
+            : befunde.length > 0
+              ? `Keine Fehler. Es bleiben ${befunde.length === 1 ? 'ein Punkt' : `${befunde.length} Punkte`} zum Nachsehen; der erste lautet „${befunde[0].titel}". Zu jedem steht die Quelle im Klartext daneben.`
+              : 'Keine Befunde. Bauteile und Verbindungen des Fließbilds stimmen mit der Auslegung und mit den hinterlegten Regeln überein.',
+      actions: [{ label: 'Befunde ansehen', run: () => onOpenTab('anlage') }],
     },
     {
       title: 'Prüfung ohne Fehler',
@@ -166,7 +425,21 @@ export default function GuidePanel({ onOpenTab }: { onOpenTab: (tab: string) => 
           : state.report.warnings > 0
             ? 'Keine Fehler. An den Warnstellen wird mit Standardannahmen gerechnet statt mit Ihren Angaben — ansehen lohnt sich, nötig ist es nicht.'
             : 'Alles vollständig. Nichts wird angenommen.',
-      action: { label: 'Prüfung öffnen', run: () => onOpenTab('check') },
+      actions: [{ label: 'Prüfung öffnen', run: () => onOpenTab('check') }],
+    },
+    {
+      title: 'Mappe drucken',
+      tone: state.walls === 0 ? 'blocked' : 'optional',
+      badge: state.walls === 0 ? undefined : `${druckwege.length} von 4`,
+      hint:
+        state.walls === 0
+          ? 'Vor dem ersten Wandzug gibt es kein Blatt zu drucken.'
+          : `Vier Blattfolgen, die an vier Stellen entstehen: der maßstäbliche Grundriss, der Rohrnetzbericht mit Teilstrecken und Einstellwerten, das Anlagenschema und das Anlagenbuch mit Auslegung, Raumbuch und Inbetriebnahme.${
+              fehlendeDruckwege.length > 0
+                ? ` Noch nicht verfügbar: ${fehlendeDruckwege.join(', ')} — dazu fehlt jeweils der Schritt davor.`
+                : ''
+            } Ob gedruckt wurde, kann das Programm nicht wissen; dieser Schritt hakt sich deshalb nie von selbst ab.`,
+      actions: druckwege,
     },
     {
       title: 'An RaVia übergeben',
@@ -178,8 +451,18 @@ export default function GuidePanel({ onOpenTab }: { onOpenTab: (tab: string) => 
     },
   ];
 
+  /*
+   * Gezählt wird nur, was gerade auf dem Tisch liegt.
+   *
+   * Seit die Liste bis zum Druck reicht, sind für ein reines Erfassungs-
+   * projekt mehrere Schritte dauerhaft gesperrt — sie brauchen eine Anlage
+   * oder ein Rohrnetz, das dort niemand plant. Zählte der Nenner sie mit,
+   * stünde jedes solche Projekt auf halber Strecke, obwohl nichts fehlt. Wie
+   * viele Schritte gesperrt sind, steht deshalb daneben statt im Bruch.
+   */
   const done = steps.filter((s) => s.tone === 'done').length;
-  const relevant = steps.filter((s) => s.tone !== 'optional').length;
+  const relevant = steps.filter((s) => s.tone === 'done' || s.tone === 'open').length;
+  const gesperrt = steps.filter((s) => s.tone === 'blocked').length;
 
   return (
     <div className="space-y-3 p-3">
@@ -196,6 +479,13 @@ export default function GuidePanel({ onOpenTab }: { onOpenTab: (tab: string) => 
           style={{ width: `${Math.round((done / Math.max(1, relevant)) * 100)}%` }}
         />
       </div>
+
+      {gesperrt > 0 && (
+        <p className="text-[9.5px] leading-relaxed text-slate-600">
+          {gesperrt === 1 ? 'Ein Schritt ist' : `${gesperrt} Schritte sind`} noch nicht möglich. Woran
+          es jeweils liegt, steht beim Schritt.
+        </p>
+      )}
 
       {state.walls === 0 && (
         <div className="rounded-lg bg-accent/10 p-2.5">
@@ -238,6 +528,11 @@ export default function GuidePanel({ onOpenTab }: { onOpenTab: (tab: string) => 
             : 'Alle Reiter und Werkzeuge sind sichtbar.'}
         </p>
       </div>
+
+      {rohrnetzOffen &&
+        createPortal(<RohrnetzDialog onClose={() => setRohrnetzOffen(false)} />, document.body)}
+      {grundrissdruckOffen &&
+        createPortal(<PlanPrintDialog onClose={() => setGrundrissdruckOffen(false)} />, document.body)}
     </div>
   );
 }
@@ -265,13 +560,23 @@ function StepRow({ step }: { step: Step }) {
         )}
       </div>
       <p className="ml-[23px] mt-1 text-[10px] leading-relaxed text-slate-500">{step.hint}</p>
-      {step.action && step.tone !== 'blocked' && (
-        <button
-          onClick={step.action.run}
-          className="chip ml-[23px] mt-1.5 bg-accent/12 text-accent hover:bg-accent/20"
-        >
-          {step.action.label}
-        </button>
+      {/*
+        Ein gesperrter Schritt zeigt keine Schaltfläche: was noch nicht geht,
+        soll auch nicht zum Klicken einladen. Der Satz darüber sagt dann, was
+        zuerst fehlt.
+      */}
+      {step.actions && step.actions.length > 0 && step.tone !== 'blocked' && (
+        <div className="ml-[23px] mt-1.5 flex flex-wrap gap-1">
+          {step.actions.map((a) => (
+            <button
+              key={a.label}
+              onClick={a.run}
+              className="chip bg-accent/12 text-accent hover:bg-accent/20"
+            >
+              {a.label}
+            </button>
+          ))}
+        </div>
       )}
     </div>
   );

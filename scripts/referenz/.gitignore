@@ -1,0 +1,5 @@
+# Nur die Referenzbilder gehören ins Projekt. Was ein fehlgeschlagener Lauf
+# daneben legt — das Abweichungsbild und die verworfene Aufnahme — ist
+# Diagnosematerial für genau diesen Lauf und hat im Verlauf nichts zu suchen.
+*.abweichung.png
+*.ist.png
