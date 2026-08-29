@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="de" class="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <meta name="theme-color" content="#0B1120" />
+    <title>RaVia CAD Light</title>
+    <!--
+      Schriften kommen aus dem Netz, das Werkzeug muss aber auch ohne Netz
+      sofort benutzbar sein (lokal entpackt, in RaVia eingebettet, Baustelle
+      ohne Empfang). Deshalb wird das Stylesheet nicht blockierend geladen:
+      erst als `print` (rendert nichts), nach dem Laden als `all`. Ohne Netz
+      greift schlicht der System-Schriftstapel — Segoe UI unter Windows.
+    -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap"
+      rel="stylesheet"
+      media="print"
+      onload="this.media='all'"
+    />
+    <link
+      rel="icon"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230B1120'/%3E%3Cpath d='M7 23V9h8a4 4 0 0 1 0 8h-8m8 0 6 6' stroke='%2338BDF8' stroke-width='2.6' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E"
+    />
+  </head>
+  <body class="bg-[#0B1120]">
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

@@ -1,0 +1,99 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    color-scheme: dark;
+  }
+
+  html,
+  body,
+  #root {
+    height: 100%;
+    margin: 0;
+    overflow: hidden;
+  }
+
+  body {
+    @apply bg-graphite-900 text-slate-300 font-sans antialiased;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  ::selection {
+    background: rgba(56, 189, 248, 0.28);
+  }
+
+  /* Schlanke, rahmenlose Scrollbars im Tool-Look */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: rgba(56, 189, 248, 0.18);
+    border-radius: 999px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: rgba(56, 189, 248, 0.35);
+  }
+
+  input[type='range'] {
+    @apply h-1 w-full cursor-pointer appearance-none rounded-full bg-graphite-600;
+  }
+  input[type='range']::-webkit-slider-thumb {
+    @apply h-3 w-3 appearance-none rounded-full bg-accent;
+    box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.18);
+  }
+}
+
+@layer components {
+  /* Rahmenloses Glas-Panel – die Basis des gesamten UI */
+  .panel {
+    @apply rounded-xl bg-graphite-850/80 backdrop-blur-xl shadow-panel;
+    border: 1px solid rgba(148, 163, 184, 0.08);
+  }
+
+  .tool-btn {
+    @apply relative flex h-9 w-9 items-center justify-center rounded-lg text-slate-400
+           transition-all duration-150 hover:bg-white/[0.06] hover:text-slate-100
+           active:scale-[0.94];
+  }
+
+  .tool-btn-active {
+    @apply bg-accent/15 text-accent;
+    box-shadow: inset 0 0 0 1px rgba(56, 189, 248, 0.35);
+  }
+
+  .chip {
+    @apply rounded-md px-2 py-1 text-[11px] font-medium tabular-nums transition-colors;
+  }
+
+  .label-xs {
+    @apply text-[10px] font-medium uppercase tracking-[0.14em] text-slate-500;
+  }
+
+  .divider-v {
+    @apply mx-1 h-6 w-px bg-white/[0.07];
+  }
+
+  .field {
+    @apply w-full rounded-md bg-graphite-900/80 px-2 py-1.5 text-xs text-slate-200 outline-none
+           transition-shadow placeholder:text-slate-600;
+    border: 1px solid rgba(148, 163, 184, 0.1);
+  }
+  .field:focus {
+    border-color: rgba(56, 189, 248, 0.5);
+    box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.1);
+  }
+}
+
+/* Canvas darf nie Text-Selektion oder Touch-Scroll auslösen */
+canvas {
+  display: block;
+  touch-action: none;
+  user-select: none;
+}

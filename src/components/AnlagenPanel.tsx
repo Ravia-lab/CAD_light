@@ -1,0 +1,1342 @@
+/**
+ * AnlagenPanel — das Anlagenblatt.
+ * ---------------------------------------------------------------------------
+ * Hier wird aus einem Grundriss eine Anlage. Der Reiter beantwortet in einer
+ * Reihenfolge, die nicht beliebig ist, fünf Fragen:
+ *
+ *   1. Wie viel Leistung braucht das Haus?
+ *   2. Welches Gerät kann das — bei der Norm-Außentemperatur, nicht auf dem
+ *      Prospekt?
+ *   3. Wie kommt die Wärme in die Räume? (Kreise, Volumenströme, Rohre)
+ *   4. Wie viel Wasser steht in der Anlage, und wie wird sie abgesichert?
+ *   5. Wie wird das Trinkwasser warm, ohne dass die Arbeitszahl einbricht?
+ *
+ * Alles darin ist gerechnet, nichts abgetippt. Was das Programm vorschlägt,
+ * ist als Vorschlag gekennzeichnet und wird erst durch einen Klick Teil des
+ * Projekts — der Unterschied zwischen „das Programm meint" und „so ist es
+ * geplant" muss sichtbar bleiben.
+ */
+
+import { useMemo, useRef, useState } from 'react';
+import type { HeatPumpModel, HeatSourceKind, PipeMaterial, PumpForm } from '../types/bim';
+import { HEAT_SOURCE_LABELS, PIPE_MATERIAL_LABELS, PUMP_FORM_LABELS } from '../types/bim';
+import { useBimStore } from '../store/useBimStore';
+import type { PipeLayoutResult } from '../lib/pipeLayout';
+import { HEAT_PUMP_SERIES, REFRIGERANTS, minimumRoomVolume } from '../lib/deviceCatalog';
+import { buildSchematic, designPlant, type CircuitDesign } from '../lib/plantDesign';
+import { pruefeSchema, type SchemaBefund } from '../lib/schemaPruefung';
+import { PASSUNG_LABELS, schlageSchemaVor } from '../lib/schemaAuswahl';
+import { ANBINDUNG_LABELS, TRINKWASSERART_LABELS } from '../lib/schemaKatalog';
+import { PRESET_VERDICT_LABELS, balanceNetwork } from '../lib/hydraulicBalance';
+import { buildCsvTemplate, importDevices, mergeIntoCatalog, type DeviceImportReport } from '../lib/deviceImport';
+import { buildMaterialSchedule, materialScheduleCsv } from '../lib/materialSchedule';
+import { buildPlantBook, printPlantBook } from '../lib/plantBook';
+import { buildRaviaExport } from '../lib/raviaExport';
+import { buildPipeNetwork } from '../lib/pipeNetwork';
+import Erklaerung from './Erklaerung';
+
+const fmt = (v: number | undefined, d = 1): string =>
+  v === undefined || !Number.isFinite(v) ? '—' : v.toLocaleString('de-DE', { minimumFractionDigits: d, maximumFractionDigits: d });
+
+/**
+ * Zeitstempel der Gegenstelle als Datum mit Uhrzeit.
+ *
+ * Mit Uhrzeit, nicht nur mit Datum: an einem Planungstag kommt dieselbe
+ * Heizlast auch dreimal, und dann ist die Frage nicht „welcher Tag", sondern
+ * „welcher Stand". Unlesbares bleibt weg — „Invalid Date" im Anlagenblatt
+ * wäre schlimmer als eine fehlende Angabe.
+ */
+const zeitpunktDe = (iso: string): string | undefined => {
+  const zeit = new Date(iso);
+  if (Number.isNaN(zeit.getTime())) return undefined;
+  return zeit.toLocaleString('de-DE', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+};
+
+/**
+ * Woher die Last eines Kreises stammt, in einer Zeile.
+ *
+ * „teils gerechnet" ist der Fall, den man sehen muss: der Kreis versorgt
+ * Räume mit und ohne gerechnete Heizlast. Für den Volumenstrom ist das
+ * richtig — jeder Raum bekommt, was er braucht —, aber die Kreissumme darf
+ * niemand als Norm-Heizlast des Geschosses weitergeben.
+ */
+const LOAD_SOURCE_LABELS: Record<CircuitDesign['loadSource'], string> = {
+  norm: 'Last gerechnet',
+  ueberschlag: 'Last überschlägig',
+  gemischt: 'Last teils gerechnet, teils überschlägig',
+  vorgabe: 'Last am Kreis vorgegeben',
+};
+
+const SEVERITY_STYLE = {
+  error: 'border-l-2 border-rose-400/70 bg-rose-400/[0.07] text-rose-200',
+  warn: 'border-l-2 border-amber-400/70 bg-amber-400/[0.07] text-amber-200',
+  info: 'border-l-2 border-white/15 bg-white/[0.03] text-slate-400',
+} as const;
+
+export default function AnlagenPanel() {
+  const doc = useBimStore((s) => s.doc);
+  const updatePlant = useBimStore((s) => s.updatePlant);
+  const addPlantStorage = useBimStore((s) => s.addPlantStorage);
+  const removePlantStorage = useBimStore((s) => s.removePlantStorage);
+  const setPlantCircuits = useBimStore((s) => s.setPlantCircuits);
+  const setSchematic = useBimStore((s) => s.setSchematic);
+  const uebernehmeSchemaVorlage = useBimStore((s) => s.uebernehmeSchemaVorlage);
+  const legeRohrnetzAus = useBimStore((s) => s.legeRohrnetzAus);
+  const [rohrbericht, setRohrbericht] = useState<PipeLayoutResult | null>(null);
+  const setStatus = useBimStore((s) => s.setStatus);
+  const uiMode = useBimStore((s) => s.uiMode);
+  const [seriesFilter, setSeriesFilter] = useState<string>('');
+  const [open, setOpen] = useState<Record<string, boolean>>({ geraet: true, kreise: true });
+  const [importReport, setImportReport] = useState<DeviceImportReport | null>(null);
+  /**
+   * Eingelesene Herstellergeräte für diese Sitzung.
+   *
+   * Sie landen bewusst nicht im Dokument: ein Katalog ist keine Projektdatei,
+   * und ein Projekt, das seinen halben Gerätekatalog mitschleppt, wird beim
+   * Export unnötig groß. Wer die Geräte behalten will, liest die Datei erneut
+   * ein — sie liegt ja beim Datenblatt.
+   */
+  const [extra, setExtra] = useState<HeatPumpModel[]>([]);
+  const dateiRef = useRef<HTMLInputElement>(null);
+
+  const plant = doc.plant;
+
+  const design = useMemo(
+    () => designPlant(doc, { heatLoad: plant.heatLoadOverride, extraModels: [...extra, ...(plant.extraModels ?? [])] }),
+    [doc, extra, plant.heatLoadOverride, plant.extraModels],
+  );
+
+  const matches = useMemo(
+    () => (seriesFilter ? design.matches.filter((m) => m.model.series === seriesFilter) : design.matches),
+    [design.matches, seriesFilter],
+  );
+
+  /**
+   * Was ohne eigene Eintragung gälte — der Platzhalter im Eingabefeld.
+   *
+   * Seit die raumweisen Norm-Heizlasten die Gebäudeheizlast tragen können, ist
+   * das nicht mehr zwangsläufig der Überschlag. Ein Platzhalter, der eine
+   * andere Zahl zeigt als die, mit der gerechnet wird, ist eine Falle.
+   */
+  const ohneVorgabe =
+    design.normCoverage.complete && design.normCoverage.total > 0 ? design.normCoverage.total : design.estimate?.total;
+
+  /**
+   * Der hydraulische Abgleich hängt am *gezeichneten* Rohrnetz, nicht an der
+   * Auslegung. Ohne Leitungen im Plan gibt es nichts abzugleichen — dann
+   * bleibt der Abschnitt leer und sagt, was fehlt.
+   */
+  const balance = useMemo(() => {
+    const network = buildPipeNetwork(doc);
+    if (!network.paths.length) return null;
+    return balanceNetwork({
+      network,
+      fixtures: doc.fixtures,
+      spread: Math.max(2, plant.design.flowTemperature - plant.design.returnTemperature),
+      material: plant.design.material,
+      maxVelocity: plant.design.maxVelocity,
+      maxGradient: plant.design.maxGradient,
+      // Der Verbraucher selbst zählt mit: ohne ihn fehlt dem ungünstigsten
+      // Strang der größte Einzelposten und der Abgleich fällt zu gut aus.
+      terminalLoss: 10000,
+    });
+  }, [doc, plant.design]);
+
+  /**
+   * Befunde der Schemaprüfung.
+   *
+   * Geprüft wird das Schema, das im Dokument steht — nicht das, was
+   * `buildSchematic` gerade erzeugen würde. Wer von Hand nachgebessert hat,
+   * will wissen, ob *sein* Bild trägt.
+   */
+  /**
+   * Passende Schemavorlagen aus dem Katalog.
+   *
+   * Gerechnet wird gegen das **Auslegungsergebnis**, nicht gegen das
+   * gezeichnete Schema: der Vorschlag soll sagen, was zur Anlage passt, und
+   * nicht, was gerade auf dem Blatt steht.
+   */
+  const vorschlaege = useMemo(() => schlageSchemaVor(design, plant), [design, plant]);
+  /** Nicht passende Vorlagen einblenden — mit ihrer Begründung. */
+  const [alleZeigen, setAlleZeigen] = useState(false);
+
+  const befunde = useMemo<SchemaBefund[]>(() => {
+    const komponenten = Object.values(plant.schematic.components);
+    if (!komponenten.length) return [];
+    return pruefeSchema({
+      komponenten,
+      verbindungen: Object.values(plant.schematic.links),
+      auslegung: design,
+      anlage: plant,
+    });
+  }, [plant, design]);
+
+  const toggle = (key: string) => setOpen((o) => ({ ...o, [key]: !o[key] }));
+  const selected = design.selected;
+  const refrigerant = selected ? REFRIGERANTS[selected.model.refrigerant] : undefined;
+
+  return (
+    <div className="space-y-3 p-3">
+      {/* ---------------------------------------------------------------- */}
+      {/* 1 — Leistung                                                      */}
+      {/* ---------------------------------------------------------------- */}
+      <div className="rounded-lg bg-graphite-900/60 p-2.5">
+        <div className="mb-1.5 flex items-baseline justify-between">
+          <span className="label-xs inline-flex items-center gap-1">
+            Heizlast
+            <Erklaerung term="typklasse" />
+          </span>
+          {/*
+            Die Beschriftung nennt den Weg, nicht nur „Norm". Eine eingetragene
+            Zahl kann von Hand kommen oder von der Gegenstelle geschrieben
+            worden sein — das Anlagenblatt kann beides nicht unterscheiden und
+            behauptet es deshalb auch nicht. Die raumweise Summe dagegen weiß,
+            wer sie gerechnet hat; sie steht darunter mit Absender und Datum.
+          */}
+          <span className="text-[10px] text-slate-500">
+            {design.heatLoadProvenance === 'vorgabe'
+              ? 'eingetragen'
+              : design.heatLoadProvenance === 'raumweise'
+                ? 'aus RaVia übernommen'
+                : 'überschlägig'}
+          </span>
+        </div>
+        <div className="flex items-center gap-2">
+          <input
+            className="field w-24 font-mono"
+            type="number"
+            step={0.1}
+            placeholder={fmt(ohneVorgabe, 2)}
+            value={plant.heatLoadOverride ?? ''}
+            onChange={(e) =>
+              updatePlant({ heatLoadOverride: e.target.value === '' ? undefined : Number(e.target.value) })
+            }
+          />
+          <span className="text-[11px] text-slate-500">kW</span>
+          {plant.heatLoadOverride !== undefined && (
+            <button className="chip ml-auto bg-white/[0.04]" onClick={() => updatePlant({ heatLoadOverride: undefined })}>
+              {design.normCoverage.complete ? 'zurück zu den Raumlasten' : 'zurück zum Überschlag'}
+            </button>
+          )}
+        </div>
+        {design.estimate && (
+          <p className="mt-1.5 text-[10px] leading-relaxed text-slate-500">
+            {design.estimate.klassifizierung} · {fmt(design.estimate.heatedArea, 0)} m² beheizt ·{' '}
+            {fmt(design.estimate.transmission / 1000, 2)} kW Transmission,{' '}
+            {fmt(design.estimate.ventilation / 1000, 2)} kW Lüftung bei {design.estimate.designOutdoor} °C.
+          </p>
+        )}
+        {/*
+          Drei Spalten waren hier zu eng: die Beschriftungen wurden
+          abgeschnitten und die Zahlen liefen ineinander. Der Inspektor ist
+          300 Pixel breit — was dort steht, muss in eine Zeile passen.
+        */}
+        <div className="mt-2 border-t border-white/[0.06] pt-2">
+          <Readout label="Zuschlag Warmwasser" value={`+ ${fmt(design.dhwSurcharge, 2)} kW`} />
+          <Readout label="Sperrzeitfaktor" value={`× ${fmt(design.blocking, 2)}`} />
+          <Readout label="Das Gerät muss können" value={`${fmt(design.requiredCapacity, 2)} kW`} accent />
+        </div>
+
+        {/*
+          Herkunft der Zahlen. Sie steht auch dann hier, wenn die raumweisen
+          Lasten *nicht* für die Gebäudeheizlast gereicht haben — gerade dann:
+          wer sieht, dass 9 von 12 Räumen eine gerechnete Last tragen, weiß,
+          wie weit er von der belastbaren Zahl entfernt ist.
+        */}
+        {design.normCoverage.withNorm > 0 && (
+          <div className="mt-2 border-t border-white/[0.06] pt-2">
+            <Readout
+              label="gerechnete Raumlasten"
+              value={`${design.normCoverage.withNorm} von ${design.normCoverage.heatedRooms} Räumen`}
+              accent={design.normCoverage.complete}
+            />
+            {design.normCoverage.source && (
+              <Readout
+                label="übernommen von"
+                value={`${design.normCoverage.source}${
+                  design.normCoverage.receivedAt ? ` · ${zeitpunktDe(design.normCoverage.receivedAt) ?? ''}` : ''
+                }`}
+              />
+            )}
+            {!design.normCoverage.complete && (
+              <p className={`mt-1 rounded px-2.5 py-1.5 text-[10px] leading-relaxed ${SEVERITY_STYLE.info}`}>
+                Für die Gebäudeheizlast bleibt es beim Überschlag — eine Summe aus gerechneten und überschlagenen
+                Räumen wäre keines von beidem. Raumweise wird trotzdem mit der gerechneten Last ausgelegt. Ohne
+                gerechnete Last:{' '}
+                {design.normCoverage.missing.slice(0, 4).join(', ')}
+                {design.normCoverage.missing.length > 4
+                  ? ` und ${design.normCoverage.missing.length - 4} weitere`
+                  : ''}
+                .
+              </p>
+            )}
+            {design.normCoverage.outdated > 0 && (
+              <p className={`mt-1 rounded px-2.5 py-1.5 text-[10px] leading-relaxed ${SEVERITY_STYLE.info}`}>
+                {design.normCoverage.outdated === 1
+                  ? '1 Raum trägt eine Heizlast, die für einen früheren Modellstand gerechnet wurde'
+                  : `${design.normCoverage.outdated} Räume tragen eine Heizlast, die für einen früheren Modellstand gerechnet wurde`}
+                : {design.normCoverage.outdatedRooms.slice(0, 4).join(', ')}
+                {design.normCoverage.outdatedRooms.length > 4
+                  ? ` und ${design.normCoverage.outdatedRooms.length - 4} weitere`
+                  : ''}
+                . Die Zahl wird weiter verwendet — seit der Übernahme wurde am Modell gezeichnet, das macht sie
+                fraglich, nicht ungültig. Vor der Ausführung in RaVia neu rechnen lassen.
+              </p>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* ---------------------------------------------------------------- */}
+      {/* 2 — Gerät                                                         */}
+      {/* ---------------------------------------------------------------- */}
+      <Fold title="Gerät" open={open.geraet} onToggle={() => toggle('geraet')}>
+        <select
+          className="field mb-1.5"
+          value={seriesFilter}
+          onChange={(e) => setSeriesFilter(e.target.value)}
+        >
+          <option value="" className="bg-graphite-850">
+            alle Bauarten
+          </option>
+          {HEAT_PUMP_SERIES.map((s) => (
+            <option key={s.key} value={s.series} className="bg-graphite-850">
+              {s.series}
+            </option>
+          ))}
+        </select>
+
+        <div className="space-y-1">
+          {matches.slice(0, 6).map((m) => {
+            const isSelected = selected?.model.id === m.model.id;
+            return (
+              <button
+                key={m.model.id}
+                onClick={() => updatePlant({ generatorModelId: m.model.id })}
+                className={`w-full rounded-lg px-2.5 py-2 text-left transition ${
+                  isSelected ? 'bg-accent/12 ring-1 ring-accent/40' : 'bg-white/[0.03] hover:bg-white/[0.06]'
+                }`}
+              >
+                <div className="flex items-baseline justify-between gap-2">
+                  <span className="text-[11.5px] text-slate-200">{m.model.label}</span>
+                  <span
+                    className={`shrink-0 text-[10px] ${
+                      m.verdict === 'passt'
+                        ? 'text-emerald-300'
+                        : m.verdict === 'knapp'
+                          ? 'text-amber-300'
+                          : 'text-rose-300'
+                    }`}
+                  >
+                    {m.verdict}
+                  </span>
+                </div>
+                <div className="mt-0.5 text-[10px] leading-relaxed text-slate-500">
+                  {fmt(m.capacityAtDesign, 1)} kW bei {doc.meta.designOutdoorTemperature} °C · {m.reason}
+                </div>
+              </button>
+            );
+          })}
+          {matches.length === 0 && (
+            <p className="rounded-lg bg-white/[0.03] px-2.5 py-2 text-[10px] text-slate-500">
+              Keine Bauart in dieser Auswahl schafft die Leistung. Filter weiten oder die Vorlauftemperatur senken.
+            </p>
+          )}
+        </div>
+
+        {/*
+          Datenblatt statt Typklasse. Der Katalog ist absichtlich generisch;
+          hier ist die Stelle, an der er das aufgibt.
+        */}
+        <div className="mt-2 border-t border-white/[0.06] pt-2">
+          <div className="flex gap-1.5">
+            <button
+              className="chip flex-1 bg-white/[0.05] text-slate-300 hover:bg-white/[0.1]"
+              title="CSV oder JSON eines Herstellers einlesen und die Typklasse ersetzen"
+              onClick={() => dateiRef.current?.click()}
+            >
+              Datenblatt einlesen
+            </button>
+            <button
+              className="chip bg-white/[0.05] text-slate-300 hover:bg-white/[0.1]"
+              title="Leere CSV mit allen erkannten Spalten und einer Beispielzeile"
+              onClick={() => downloadText(buildCsvTemplate('waermepumpe'), 'Datenblatt-Vorlage.csv')}
+            >
+              Vorlage
+            </button>
+          </div>
+          <input
+            ref={dateiRef}
+            type="file"
+            accept=".csv,.json,text/csv,application/json"
+            className="hidden"
+            onChange={async (e) => {
+              const file = e.target.files?.[0];
+              e.target.value = '';
+              if (!file) return;
+              const text = await file.text();
+              const report = importDevices(text, { manufacturer: file.name.replace(/\.[^.]+$/, '') });
+              setImportReport(report);
+              const brauchbar = report.devices.filter((d) => d.accepted);
+              if (brauchbar.length) {
+                const merged = mergeIntoCatalog(report);
+                updatePlant({});
+                useBimStore.getState().setStatus(
+                  `${brauchbar.length} Gerät${brauchbar.length === 1 ? '' : 'e'} aus „${file.name}" übernommen`,
+                );
+                setExtra(merged.extraModels);
+              }
+            }}
+          />
+
+          {importReport && (
+            <div className="mt-1.5 space-y-1">
+              <div className="flex items-baseline justify-between text-[10px]">
+                <span className="text-slate-400">
+                  {importReport.devices.filter((d) => d.accepted).length} von {importReport.devices.length} übernommen
+                </span>
+                <button className="text-slate-600 hover:text-slate-300" onClick={() => setImportReport(null)}>
+                  ausblenden
+                </button>
+              </div>
+              {importReport.issues.slice(0, 6).map((n, i) => (
+                <p
+                  key={i}
+                  className={`rounded px-2.5 py-1.5 text-[10px] leading-relaxed ${
+                    SEVERITY_STYLE[n.severity === 'error' ? 'error' : n.severity === 'warn' ? 'warn' : 'info']
+                  }`}
+                >
+                  {n.text}
+                </p>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {selected && (
+          <div className="mt-2 space-y-1.5 border-t border-white/[0.06] pt-2">
+            {/* Eine Spalte statt zwei: bei 300 Pixel Inspektorbreite wurden
+                „Kältemittel" und „Mindestvolumenstrom" sonst abgeschnitten. */}
+            <div>
+              <Readout label="Bauform" value={PUMP_FORM_LABELS[selected.model.form as PumpForm].split(',')[0]} />
+              <Readout label="Wärmequelle" value={HEAT_SOURCE_LABELS[selected.model.source as HeatSourceKind]} />
+              <Readout label="Kältemittel" value={`${selected.model.refrigerant} · ${fmt(selected.model.refrigerantMass, 2)} kg · GWP ${refrigerant?.gwp ?? '—'}`} />
+              <Readout label="höchster Vorlauf" value={`${selected.model.maxFlowTemperature} °C`} />
+              <Readout label="SCOP bei 35 °C" value={fmt(selected.model.scop35, 2)} term="cop" />
+              <Readout
+                label="Schallleistung außen"
+                value={
+                  selected.model.soundPowerOutdoor === undefined
+                    ? 'entfällt — keine Außeneinheit'
+                    : `${fmt(selected.model.soundPowerOutdoor, 1)} dB(A)`
+                }
+              />
+              <Readout
+                label="Elektrik"
+                value={`${selected.model.electric.phases}~ · ${selected.model.electric.fuse} A${
+                  selected.model.electric.maxCurrent !== undefined
+                    ? ` · max. ${fmt(selected.model.electric.maxCurrent, 1)} A`
+                    : ''
+                }`}
+              />
+              <Readout label="Mindestvolumenstrom" value={`${fmt(selected.model.minVolumeFlow, 2)} m³/h`} term="ueberstroemventil" />
+              <Readout label="Mindestwasserinhalt" value={`${selected.model.minSystemVolume} l`} />
+            </div>
+            {refrigerant?.flammable && selected.model.form !== 'monoblock-outdoor' && (
+              <p className="rounded-lg bg-amber-400/[0.07] px-2.5 py-2 text-[10px] leading-relaxed text-amber-200">
+                {selected.model.refrigerant} ist brennbar ({refrigerant.group}) und liegt bei dieser Bauform im Gebäude.
+                Nach DIN EN 378-1 muss der Aufstellraum mindestens{' '}
+                {fmt(minimumRoomVolume(selected.model.refrigerant, selected.model.refrigerantMass), 0)} m³ haben.
+              </p>
+            )}
+            {selected.model.provenance === 'generisch' && (
+              <p className="rounded-lg bg-white/[0.03] px-2.5 py-2 text-[10px] leading-relaxed text-slate-500">
+                Typklasse, kein Produkt. Die Werte beschreiben, was ein Gerät dieser Bauart und Größe üblicherweise
+                leistet — zum Vordimensionieren, nicht zum Bestellen.
+              </p>
+            )}
+          </div>
+        )}
+      </Fold>
+
+      {/*
+        Im einfachen Modus endet das Blatt hier — mit einer Zusammenfassung in
+        Sätzen statt sieben aufklappbaren Abschnitten voller Zwischenwerte.
+        Wer die Zahlen dahinter braucht, schaltet auf „Fachplaner"; wer sie
+        nicht braucht, soll sie nicht wegklicken müssen.
+      */}
+      {uiMode === 'einfach' && <KurzFassung design={design} />}
+
+      {uiMode === 'einfach' && design.notes.some((n) => n.severity === 'error') && (
+        <div className="space-y-1">
+          <span className="label-xs block">Das muss noch geklärt werden</span>
+          {design.notes
+            .filter((n) => n.severity === 'error')
+            .map((n, i) => (
+              <p key={i} className={`rounded px-2.5 py-1.5 text-[10px] leading-relaxed ${SEVERITY_STYLE.error}`}>
+                {n.text}
+              </p>
+            ))}
+        </div>
+      )}
+
+      {uiMode === 'profi' && (
+      <>
+      {/* ---------------------------------------------------------------- */}
+      {/* 3 — Auslegung der Verteilung                                      */}
+      {/* ---------------------------------------------------------------- */}
+      <Fold title="Verteilung" open={open.verteilung} onToggle={() => toggle('verteilung')}>
+        <div className="grid grid-cols-2 gap-2">
+          <Num label="Vorlauf" unit="°C" term="spreizung" value={plant.design.flowTemperature} onChange={(v) => updatePlant({ design: { flowTemperature: v } })} />
+          <Num label="Rücklauf" unit="°C" value={plant.design.returnTemperature} onChange={(v) => updatePlant({ design: { returnTemperature: v } })} />
+          <Num label="v max" unit="m/s" step={0.1} value={plant.design.maxVelocity} onChange={(v) => updatePlant({ design: { maxVelocity: v } })} />
+          <Num label="R max" unit="Pa/m" step={10} value={plant.design.maxGradient} onChange={(v) => updatePlant({ design: { maxGradient: v } })} />
+        </div>
+        <label className="mt-2 block">
+          <span className="label-xs">Werkstoff der Verteilleitungen</span>
+          <select
+            className="field mt-0.5"
+            value={plant.design.material}
+            onChange={(e) => updatePlant({ design: { material: e.target.value as PipeMaterial } })}
+          >
+            {(Object.keys(PIPE_MATERIAL_LABELS) as PipeMaterial[]).map((m) => (
+              <option key={m} value={m} className="bg-graphite-850">
+                {PIPE_MATERIAL_LABELS[m]}
+              </option>
+            ))}
+          </select>
+        </label>
+        <div className="mt-2 grid grid-cols-2 gap-2">
+          <Num
+            label="Frostschutz"
+            unit="Vol-%"
+            value={plant.design.glycolFraction}
+            onChange={(v) => updatePlant({ design: { glycolFraction: v } })}
+          />
+          <label className="block">
+            <span className="label-xs">Sorte</span>
+            <select
+              className="field mt-0.5"
+              value={plant.design.glycolKind}
+              onChange={(e) => updatePlant({ design: { glycolKind: e.target.value as 'ethylen' | 'propylen' } })}
+            >
+              <option value="ethylen" className="bg-graphite-850">Ethylenglykol</option>
+              <option value="propylen" className="bg-graphite-850">Propylenglykol</option>
+            </select>
+          </label>
+        </div>
+      </Fold>
+
+      {/* ---------------------------------------------------------------- */}
+      {/* 4 — Heizkreise                                                    */}
+      {/* ---------------------------------------------------------------- */}
+      <Fold title={`Heizkreise (${design.circuits.length})`} open={open.kreise} onToggle={() => toggle('kreise')}>
+        <div className="space-y-1">
+          {design.circuits.map((c) => (
+            <div key={c.circuit.id} className="rounded-lg bg-white/[0.03] px-2.5 py-2">
+              <div className="flex items-baseline justify-between gap-2">
+                <span className="text-[11.5px] text-slate-200">{c.circuit.label}</span>
+                <span className="shrink-0 text-[10px] text-accent">{fmt(c.load, 2)} kW</span>
+              </div>
+              <div className="mt-0.5 text-[10px] leading-relaxed text-slate-500">
+                {c.circuit.flowTemperature}/{c.circuit.returnTemperature} °C · {fmt(c.flow, 3)} m³/h ·{' '}
+                {c.pipe.dimension.label} ({c.pipe.reason}) · v = {fmt(c.pipe.velocity, 2)} m/s, R ={' '}
+                {fmt(c.pipe.gradient, 0)} Pa/m · {LOAD_SOURCE_LABELS[c.loadSource]}
+                {c.floor && (
+                  <>
+                    <br />
+                    {c.floor.loops} Kreise à {fmt(c.floor.loopLength, 0)} m bei {fmt(c.floor.spacing * 100, 0)} cm Abstand ·{' '}
+                    {fmt(c.floor.flowPerLoop, 0)} l/h je Kreis · Δp = {fmt(c.floor.loopPressureMbar, 0)} mbar ·{' '}
+                    {fmt(c.floor.specificOutput, 0)} W/m² ({c.floor.specificOutputSource})
+                  </>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+        {design.circuits.length > 0 && (
+          <button
+            className="chip mt-2 w-full bg-white/[0.04] hover:bg-white/[0.08]"
+            onClick={() => {
+              setPlantCircuits(design.circuits.map((c) => c.circuit));
+              setStatus(`${design.circuits.length} Heizkreise ins Projekt übernommen`);
+            }}
+          >
+            Kreise ins Projekt übernehmen
+          </button>
+        )}
+        {design.pump && (
+          <div className="mt-2 border-t border-white/[0.06] pt-2">
+            <Readout label="Förderstrom" value={`${fmt(design.pump.flow, 2)} m³/h`} />
+            <Readout label="Förderhöhe" value={`${fmt(design.pump.head, 2)} m`} accent />
+            <Readout label="Druckdifferenz" value={`${fmt(design.pump.pressureKpa, 1)} kPa`} />
+            <Readout label="ungünstigster Strang" value={design.pump.worstPath?.label ?? '—'} />
+          </div>
+        )}
+      </Fold>
+
+      {/* ---------------------------------------------------------------- */}
+      {/* 5 — Speicher                                                      */}
+      {/* ---------------------------------------------------------------- */}
+      <Fold title="Speicher" open={open.speicher} onToggle={() => toggle('speicher')}>
+        <StorageRow
+          title="Puffer"
+          suggestion={design.buffer.selected}
+          reason={design.buffer.reason}
+          onAccept={addPlantStorage}
+          onRemove={removePlantStorage}
+        />
+        <StorageRow
+          title="Trinkwasser"
+          suggestion={design.dhwStorage}
+          reason={
+            design.dhw
+              ? `${design.dhw.demandIndex ? `Bedarfskennzahl N = ${fmt(design.dhw.demandIndex, 1)} · ` : ''}${
+                  design.dhw.recommendedVolume
+                } l empfohlen · Aufheizleistung ${fmt(design.dhw.reheatCapacity, 1)} kW in ${fmt(design.dhw.reheatTime, 1)} h`
+              : ''
+          }
+          onAccept={addPlantStorage}
+          onRemove={removePlantStorage}
+        />
+        <div className="mt-2 border-t border-white/[0.06] pt-2">
+          <Readout label="Wasserinhalt der Anlage" value={`${design.volume.total} l`} accent />
+          <Readout label="Puffer rechnerisch nötig" value={`${design.buffer.required} l`} term="puffer" />
+        </div>
+        <details className="mt-1.5">
+          <summary className="cursor-pointer text-[10px] text-slate-500 hover:text-slate-300">Wasserinhalt im Einzelnen</summary>
+          <div className="mt-1 space-y-0.5">
+            {design.volume.parts.map((p) => (
+              <div key={p.label} className="flex justify-between text-[10px] text-slate-500">
+                <span className="truncate pr-2">{p.label}</span>
+                <span className="shrink-0 tabular-nums">{fmt(p.volume, 1)} l</span>
+              </div>
+            ))}
+          </div>
+        </details>
+      </Fold>
+
+      {/* ---------------------------------------------------------------- */}
+      {/* 6 — Trinkwasser                                                   */}
+      {/* ---------------------------------------------------------------- */}
+      <Fold title="Trinkwarmwasser" open={open.tww} onToggle={() => toggle('tww')}>
+        <div className="grid grid-cols-2 gap-2">
+          <Num label="Wohneinheiten" unit="" value={plant.dhw.units} onChange={(v) => updatePlant({ dhw: { units: Math.max(1, Math.round(v)) } })} />
+          <Num label="Personen je WE" unit="" step={0.5} value={plant.dhw.occupantsPerUnit} onChange={(v) => updatePlant({ dhw: { occupantsPerUnit: v } })} />
+          <Num label="Speicher" unit="°C" term="legionellen" value={plant.design.dhwTemperature} onChange={(v) => updatePlant({ design: { dhwTemperature: v } })} />
+          <Num label="Zapfung" unit="°C" value={plant.design.tapTemperature} onChange={(v) => updatePlant({ design: { tapTemperature: v } })} />
+          <Num label="Aufheizzeit" unit="h" step={0.5} value={plant.dhw.reheatTime} onChange={(v) => updatePlant({ dhw: { reheatTime: v } })} />
+          <Num label="längste Leitung" unit="l" step={0.5} term="zirkulation" value={plant.dhw.longestBranchContent} onChange={(v) => updatePlant({ dhw: { longestBranchContent: v } })} />
+        </div>
+        <div className="mt-1.5 flex gap-0.5 rounded-lg bg-graphite-900/60 p-0.5">
+          {(['sparsam', 'normal', 'komfort'] as const).map((c) => (
+            <button
+              key={c}
+              onClick={() => updatePlant({ dhw: { comfort: c } })}
+              className={`chip flex-1 ${plant.dhw.comfort === c ? 'bg-accent/15 text-accent' : 'text-slate-500 hover:text-slate-300'}`}
+            >
+              {c}
+            </button>
+          ))}
+        </div>
+        {design.dhw && (
+          <div className="mt-2 space-y-1.5">
+            <div>
+              <Readout label="empfohlener Speicher" value={`${design.dhw.recommendedVolume} l`} accent />
+              <Readout label="Aufheizleistung" value={`${fmt(design.dhw.reheatCapacity, 1)} kW`} />
+              <Readout label="Einstufung W 551" value={design.dhw.legionellaRegime === 'großanlage' ? 'Großanlage' : 'Kleinanlage'} term="legionellen" />
+              <Readout label="Zirkulation" value={design.dhw.circulationRequired ? 'erforderlich' : 'nicht nötig'} term="zirkulation" />
+            </div>
+            <p className="rounded-lg bg-white/[0.03] px-2.5 py-2 text-[10px] leading-relaxed text-slate-500">
+              {design.dhw.legionellaReason}
+              <br />
+              {design.dhw.circulationReason}
+            </p>
+          </div>
+        )}
+      </Fold>
+
+      {/* ---------------------------------------------------------------- */}
+      {/* 7 — Sicherheitstechnik                                            */}
+      {/* ---------------------------------------------------------------- */}
+      <Fold title="Sicherheitstechnik" open={open.sicherheit} onToggle={() => toggle('sicherheit')}>
+        <div className="grid grid-cols-2 gap-2">
+          <Num label="statische Höhe" unit="m" step={0.5} term="vordruck" value={plant.safety.staticHeight} onChange={(v) => updatePlant({ safety: { staticHeight: v } })} />
+          <Num label="Ansprechdruck" unit="bar" step={0.5} value={plant.safety.safetyValvePressure} onChange={(v) => updatePlant({ safety: { safetyValvePressure: v } })} />
+          <Num label="max. Temperatur" unit="°C" step={5} value={plant.safety.maxTemperature} onChange={(v) => updatePlant({ safety: { maxTemperature: v } })} />
+          <Num label="vorh. Gefäß" unit="l" step={1} term="ausdehnungsgefaess" value={plant.safety.existingVessel} onChange={(v) => updatePlant({ safety: { existingVessel: v } })} />
+        </div>
+        {design.safety && (
+          <>
+            <div className="mt-2 border-t border-white/[0.06] pt-2">
+              <Readout label="Gefäß, gewählte Baugröße" value={`${design.safety.selectedVessel} l`} accent term="ausdehnungsgefaess" />
+              <Readout label="rechnerisch nötig" value={`${fmt(design.safety.requiredVessel, 1)} l`} />
+              <Readout label="Vordruck p₀" value={`${fmt(design.safety.prePressure, 2)} bar`} term="vordruck" />
+              <Readout label="Fülldruck p_F" value={`${fmt(design.safety.fillPressure, 2)} bar`} />
+              <Readout label="Enddruck p_e" value={`${fmt(design.safety.endPressure, 2)} bar`} />
+              <Readout label="Ausdehnungsvolumen" value={`${fmt(design.safety.expansionVolume, 1)} l`} />
+              <Readout label="Wasservorlage" value={`${fmt(design.safety.waterSeal, 1)} l`} />
+              <Readout label="Sicherheitsventil" value={design.safety.safetyValve.label} />
+            </div>
+            <details className="mt-1.5">
+              <summary className="cursor-pointer text-[10px] text-slate-500 hover:text-slate-300">
+                Armaturenliste ({design.safety.fittings.length})
+              </summary>
+              <div className="mt-1 space-y-1">
+                {design.safety.fittings.map((f, i) => (
+                  <div key={`${f.kind}-${i}`} className="rounded bg-white/[0.03] px-2 py-1.5">
+                    <div className="flex justify-between gap-2 text-[10.5px] text-slate-300">
+                      <span>{f.label}</span>
+                      <span className="shrink-0 tabular-nums text-slate-400">{f.spec}</span>
+                    </div>
+                    <div className="text-[9.5px] text-slate-600">{f.norm}</div>
+                  </div>
+                ))}
+              </div>
+            </details>
+          </>
+        )}
+      </Fold>
+
+      {/* ---------------------------------------------------------------- */}
+      {/* 7b — Hydraulischer Abgleich                                       */}
+      {/* ---------------------------------------------------------------- */}
+      <Fold title="Hydraulischer Abgleich" open={open.abgleich} onToggle={() => toggle('abgleich')}>
+        {!balance ? (
+          <p className="rounded-lg bg-white/[0.03] px-2.5 py-2 text-[10px] leading-relaxed text-slate-500">
+            Noch keine Leitungen gezeichnet. Der Abgleich rechnet am tatsächlich verlegten Netz — mit dem Werkzeug
+            „Leitung verlegen" (Taste L) Vorlauf und Rücklauf vom Verteiler zu den Heizflächen ziehen; ein Klick auf ein
+            Symbol schließt dort an.
+          </p>
+        ) : (
+          <>
+            <div>
+              <Readout label="Verbraucher" value={String(balance.consumers.length)} />
+              <Readout label="Gesamtvolumenstrom" value={`${fmt(balance.totalFlow, 2)} m³/h`} />
+              <Readout label="ungünstigster Strang" value={balance.worst ? `${fmt(balance.worst.lossKpa, 1)} kPa` : '—'} accent />
+              <Readout label="günstigster Strang" value={balance.best ? `${fmt(balance.best.lossKpa, 1)} kPa` : '—'} />
+              <Readout label="Unterschied, zu drosseln" value={`${fmt(balance.lossSpread / 1000, 1)} kPa`} />
+              <Readout label="Förderhöhe der Pumpe" value={`${fmt(balance.pump.head, 2)} m`} />
+            </div>
+
+            <div className="mt-2 space-y-0.5">
+              <div className="flex gap-1 text-[9.5px] uppercase tracking-wider text-slate-600">
+                <span className="min-w-0 flex-1">Verbraucher</span>
+                <span className="w-12 text-right">m³/h</span>
+                <span className="w-12 text-right">kPa</span>
+                <span className="w-12 text-right">Drossel</span>
+                <span className="w-11 text-right">kv</span>
+              </div>
+              {balance.consumers.slice(0, 24).map((c) => (
+                <div
+                  key={c.fixtureId}
+                  className="flex gap-1 text-[10px] tabular-nums text-slate-400"
+                  title={`${PRESET_VERDICT_LABELS[c.preset]}${c.powerAssumed ? ' · Leistung ist eine Vorbelegung' : ''}`}
+                >
+                  <span className={`min-w-0 flex-1 truncate ${c.worst ? 'text-accent' : ''}`}>
+                    {c.label}
+                    {c.powerAssumed && <span className="text-slate-600"> *</span>}
+                  </span>
+                  <span className="w-12 text-right">{fmt(c.flow, 3)}</span>
+                  <span className="w-12 text-right">{fmt(c.ownLossKpa, 1)}</span>
+                  <span className="w-12 text-right">{c.worst ? 'offen' : fmt(c.throttleKpa, 1)}</span>
+                  <span className="w-11 text-right">{c.requiredKv === undefined ? '—' : fmt(c.requiredKv, 2)}</span>
+                </div>
+              ))}
+            </div>
+
+            {(balance.undersized > 0 || balance.oversized > 0) && (
+              <p className="mt-2 text-[10px] leading-relaxed text-slate-500">
+                Rohrnetz: {balance.undersized} Abschnitte zu klein, {balance.oversized} könnten kleiner sein.
+              </p>
+            )}
+
+            {balance.notes.length > 0 && (
+              <div className="mt-2 space-y-1">
+                {balance.notes.slice(0, 6).map((n, i) => (
+                  <p key={i} className={`rounded px-2.5 py-1.5 text-[10px] leading-relaxed ${SEVERITY_STYLE[n.severity]}`}>
+                    {n.text}
+                  </p>
+                ))}
+              </div>
+            )}
+          </>
+        )}
+      </Fold>
+
+      </>
+      )}
+
+      {/* ---------------------------------------------------------------- */}
+      {/* 8 — Schema                                                        */}
+      {/* ---------------------------------------------------------------- */}
+      <div className="rounded-lg bg-graphite-900/60 p-2.5">
+        <div className="mb-1.5 flex items-baseline justify-between">
+          <span className="label-xs">Anlagenschema</span>
+          <span className="text-[10px] text-slate-500">
+            {Object.keys(plant.schematic.components).length} Bauteile
+            {plant.schematic.manual && <span className="text-amber-300"> · von Hand bearbeitet</span>}
+          </span>
+        </div>
+        {/*
+          Vorgeschlagene Hydraulikschemata.
+
+          Sie stehen **vor** dem Erzeugen-Knopf, weil sie die Frage davor
+          beantworten: nicht „wie sieht mein Schema aus", sondern „welches
+          Schema ist das eigentlich". Zu jeder Vorlage steht, warum sie passt
+          — und zu den nicht passenden, welches Merkmal sie ausschließt. Das
+          ist der eigentliche Ertrag: eine Liste ohne Begründung wäre nur eine
+          zweite Meinung.
+        */}
+        <div className="mb-2">
+          <div className="flex items-baseline justify-between">
+            <span className="label-xs">Passende Schemata</span>
+            <span className="text-[9.5px] text-slate-600">
+              {vorschlaege.passende.length} von {vorschlaege.vorschlaege.length}
+            </span>
+          </div>
+          <p className="mt-0.5 text-[9.5px] leading-relaxed text-slate-600">
+            {ANBINDUNG_LABELS[vorschlaege.merkmale.anbindung]} ·{' '}
+            {TRINKWASSERART_LABELS[vorschlaege.merkmale.trinkwasser]} ·{' '}
+            {vorschlaege.merkmale.kreise === 1 ? 'ein Heizkreis' : `${vorschlaege.merkmale.kreise} Heizkreise`}
+            {vorschlaege.merkmale.gemischt ? ', gemischt' : ''}
+          </p>
+
+          <div className="mt-1.5 space-y-1">
+            {(alleZeigen ? vorschlaege.vorschlaege : vorschlaege.passende).slice(0, alleZeigen ? 20 : 5).map((v) => (
+              <div
+                key={v.vorlage.id}
+                className={`rounded-lg px-2.5 py-2 ${
+                  v.passung === 'passt'
+                    ? 'bg-emerald-500/10'
+                    : v.passung === 'moeglich'
+                      ? 'bg-white/[0.05]'
+                      : 'bg-white/[0.02]'
+                }`}
+              >
+                <div className="flex items-baseline justify-between gap-2">
+                  <span
+                    className={`text-[11px] font-medium ${
+                      v.passung === 'passt' ? 'text-emerald-300' : 'text-slate-300'
+                    }`}
+                  >
+                    {v.vorlage.kennung}
+                  </span>
+                  <span className="shrink-0 text-[9px] uppercase tracking-wider text-slate-600">
+                    {PASSUNG_LABELS[v.passung]}
+                  </span>
+                </div>
+                <p className="mt-0.5 text-[10.5px] leading-snug text-slate-300">{v.vorlage.name}</p>
+                <p className="mt-0.5 text-[9.5px] leading-relaxed text-slate-500">{v.begruendung}</p>
+                {v.vorlage.herstellernamen.length > 0 && (
+                  <p className="mt-0.5 text-[9px] leading-relaxed text-slate-600">
+                    Bei den Herstellern:{' '}
+                    {v.vorlage.herstellernamen
+                      .slice(0, 3)
+                      .map((h) => `${h.hersteller} ${h.bezeichnung}`)
+                      .join(' · ')}
+                  </p>
+                )}
+                {v.passung !== 'passt-nicht' && (
+                  <button
+                    className="chip mt-1.5 w-full bg-accent/12 text-accent hover:bg-accent/20"
+                    onClick={() => {
+                      if (
+                        plant.schematic.manual &&
+                        !window.confirm(
+                          'Das Schema wurde von Hand bearbeitet. Eine Vorlage zu übernehmen verwirft alle Änderungen daran. Fortfahren?',
+                        )
+                      ) {
+                        return;
+                      }
+                      uebernehmeSchemaVorlage(v.vorlage.id);
+                    }}
+                  >
+                    Diese Anbindung übernehmen
+                  </button>
+                )}
+              </div>
+            ))}
+          </div>
+
+          {vorschlaege.vorschlaege.length > vorschlaege.passende.length && (
+            <button
+              className="chip mt-1 w-full text-slate-500 hover:text-slate-300"
+              onClick={() => setAlleZeigen((v) => !v)}
+            >
+              {alleZeigen
+                ? 'nur passende zeigen'
+                : `${vorschlaege.vorschlaege.length - vorschlaege.passende.length} nicht passende zeigen`}
+            </button>
+          )}
+
+          {vorschlaege.hinweise.map((h, i2) => (
+            <p
+              key={i2}
+              className={`mt-1 text-[9.5px] leading-relaxed ${
+                h.severity === 'info' ? 'text-slate-600' : 'text-orange-300/90'
+              }`}
+            >
+              {h.text}
+            </p>
+          ))}
+        </div>
+
+        <button
+          className="chip w-full bg-accent/12 text-accent hover:bg-accent/20"
+          onClick={() => {
+            // Von Hand ergänzte Armaturen gehen beim Neuerzeugen verloren.
+            // Das darf nicht stillschweigend passieren — wer eine halbe
+            // Stunde im Schema gearbeitet hat, verliert sie sonst mit einem
+            // Klick.
+            if (plant.schematic.manual && !window.confirm(
+              'Das Schema wurde von Hand bearbeitet. Neu erzeugen verwirft alle Änderungen daran. Fortfahren?',
+            )) {
+              return;
+            }
+            const { components, links, notes } = buildSchematic(design);
+            // Das erzeugte Bild bekommt die Kennung der Vorlage, zu der es
+            // gehört — sonst ist es anonym, und niemand kann später sagen,
+            // nach welcher Musterlösung diese Anlage gebaut ist.
+            setSchematic(components, links, false, vorschlaege.beste?.vorlage.id);
+            // Der Generator sagt, was er entschieden hat und warum — etwa,
+            // dass das Überströmventil wegen des Trennpuffers entfällt oder
+            // dass dem Gerät ein Heizstab fehlt. Diese Sätze gehören dem
+            // Anwender und nicht ins Nichts.
+            const wichtig = notes.filter((x) => x.severity !== 'info');
+            setStatus(
+              `Anlagenschema erzeugt${vorschlaege.beste ? ` nach ${vorschlaege.beste.vorlage.kennung}` : ''} — ` +
+                `${components.length} Bauteile, ${links.length} Verbindungen` +
+                (notes.length ? ` · ${notes.length} Hinweis${notes.length === 1 ? '' : 'e'}` : '') +
+                (wichtig.length ? `: ${wichtig[0].text}` : notes.length ? `: ${notes[0].text}` : ''),
+            );
+          }}
+        >
+          {Object.keys(plant.schematic.components).length ? 'Schema neu erzeugen' : 'Schema erzeugen'}
+        </button>
+        <p className="mt-1.5 text-[10px] leading-relaxed text-slate-500">
+          Erzeugt ein Prinzipschema aus der Auslegung — Erzeuger, Speicher, Armaturen, Kreise. Es sagt, was verbaut
+          wird und woran es hängt, nicht wo es im Technikraum steht. Ansicht über „3D/Schema" in der Kopfzeile.
+        </p>
+
+        {/*
+          Prüfung des Schemas gegen die Regeln der Fachliteratur.
+
+          Sie steht direkt unter dem Erzeugen, weil sie genau das bewertet,
+          was der Knopf darüber gebaut hat. Ein leeres Ergebnis ist keine
+          Freigabe: geprüft wird nur, was sich am Fließbild überhaupt
+          feststellen lässt — Fühlerorte, Regelparameter und Kennlinien
+          stehen nicht darin.
+        */}
+        {befunde.length > 0 && (
+          <div className="mt-2 space-y-1">
+            <div className="flex items-baseline justify-between">
+              <span className="label-xs">Prüfung des Schemas</span>
+              <span className="text-[9.5px] text-slate-600">
+                {befunde.filter((b) => b.grad === 'fehler').length} Fehler ·{' '}
+                {befunde.filter((b) => b.grad === 'warnung').length} Warnungen ·{' '}
+                {befunde.filter((b) => b.grad === 'hinweis').length} Hinweise
+              </span>
+            </div>
+            {befunde.slice(0, 8).map((b: SchemaBefund) => (
+              <div
+                key={b.id}
+                className={`rounded-lg px-2.5 py-1.5 ${
+                  b.grad === 'fehler'
+                    ? 'bg-rose-500/10'
+                    : b.grad === 'warnung'
+                      ? 'bg-orange-500/10'
+                      : 'bg-white/[0.03]'
+                }`}
+              >
+                <p
+                  className={`text-[10.5px] font-medium ${
+                    b.grad === 'fehler'
+                      ? 'text-rose-300'
+                      : b.grad === 'warnung'
+                        ? 'text-orange-300'
+                        : 'text-slate-400'
+                  }`}
+                >
+                  {b.titel}
+                </p>
+                <p className="mt-0.5 text-[9.5px] leading-relaxed text-slate-500">{b.text}</p>
+                <p className="mt-0.5 text-[9px] leading-relaxed text-slate-600">Beleg: {b.beleg}</p>
+              </div>
+            ))}
+            {befunde.length > 8 && (
+              <p className="text-[9.5px] text-slate-600">… und {befunde.length - 8} weitere.</p>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* ---------------------------------------------------------------- */}
+      {/* Rohrausleger                                                      */}
+      {/* ---------------------------------------------------------------- */}
+      <div className="panel px-3 py-2.5">
+        <div className="label-xs mb-1.5">Rohrnetz auslegen</div>
+        <div className="flex gap-1.5">
+          <button
+            className="chip flex-1 bg-white/[0.04] hover:bg-white/[0.08]"
+            title="Leitungen auf der Rohdecke im Fußbodenaufbau — der Weg darf quer durch den Raum laufen"
+            onClick={() => setRohrbericht(legeRohrnetzAus('neubau'))}
+          >
+            Neubau
+          </button>
+          <button
+            className="chip flex-1 bg-white/[0.04] hover:bg-white/[0.08]"
+            title="Leitungen sichtbar an der Wand im Sockelleistenkanal — die Trasse folgt den Wänden"
+            onClick={() => setRohrbericht(legeRohrnetzAus('sanierung'))}
+          >
+            Sanierung
+          </button>
+        </div>
+        <p className="mt-1.5 text-[10px] leading-relaxed text-slate-500">
+          Führt die Trasse vom Verteiler zu jedem Verbraucher, legt jeden Abschnitt nach seinem Volumenstrom aus,
+          dämmt ihn nach Anlage 8 GEG und setzt die Armaturen. Von Hand gezogene Leitungen bleiben stehen.
+        </p>
+        {rohrbericht && (
+          <div className="mt-2 space-y-1 rounded-lg bg-graphite-900/60 px-2.5 py-2">
+            <div className="grid grid-cols-2 gap-x-3 gap-y-0.5 text-[10.5px] text-slate-300">
+              <span>Verbraucher</span>
+              <span className="text-right font-mono">{rohrbericht.served}</span>
+              <span>Trasse</span>
+              <span className="text-right font-mono">{rohrbericht.routeLength.toFixed(1)} m</span>
+              <span>Rohr (VL + RL)</span>
+              <span className="text-right font-mono">{rohrbericht.pipeLength.toFixed(1)} m</span>
+              <span>Armaturen</span>
+              <span className="text-right font-mono">{rohrbericht.accessories.length}</span>
+            </div>
+            {rohrbericht.notes
+              .filter((n) => n.severity !== 'info')
+              .map((n, i) => (
+                <p
+                  key={i}
+                  className={`text-[10px] leading-relaxed ${n.severity === 'error' ? 'text-red-300' : 'text-orange-300'}`}
+                >
+                  {n.text}
+                </p>
+              ))}
+          </div>
+        )}
+      </div>
+
+      {/* ---------------------------------------------------------------- */}
+      {/* 9 — Hinweise                                                      */}
+      {/* ---------------------------------------------------------------- */}
+      {/* ---------------------------------------------------------------- */}
+      {/* 9 — Unterlagen                                                    */}
+      {/* ---------------------------------------------------------------- */}
+      <div className="rounded-lg bg-graphite-900/60 p-2.5">
+        <span className="label-xs mb-1.5 block">Unterlagen</span>
+        <div className="space-y-1.5">
+          <button
+            className="chip w-full bg-accent/12 text-accent hover:bg-accent/20"
+            title="Deckblatt, Auslegung, Raumbuch, Armaturenliste, Hinweise und Inbetriebnahme-Checkliste"
+            onClick={() => {
+              const book = buildPlantBook({
+                design,
+                projectName: doc.meta.name,
+                plantName: 'Wärmepumpenanlage',
+                author: 'RaVia CAD Light',
+                date: new Date().toLocaleDateString('de-DE'),
+                rooms: buildRaviaExport(doc).rooms,
+              });
+              printPlantBook(book.html, book.title);
+            }}
+          >
+            Anlagenbuch drucken
+          </button>
+          <button
+            className="chip w-full bg-white/[0.05] text-slate-300 hover:bg-white/[0.1]"
+            title="Alle Mengen des Projekts als Tabelle für die Kalkulation"
+            onClick={() => {
+              const schedule = buildMaterialSchedule(doc, design);
+              downloadText(
+                '\ufeff' + materialScheduleCsv(schedule),
+                `${doc.meta.name.replace(/[^\wäöüÄÖÜß -]/g, '_')} — Massenauszug.csv`,
+                'text/csv;charset=utf-8',
+              );
+              setStatus(`Massenauszug mit ${schedule.positionCount} Positionen gesichert`);
+            }}
+          >
+            Massenauszug als CSV
+          </button>
+        </div>
+        <p className="mt-1.5 text-[10px] leading-relaxed text-slate-500">
+          Das Anlagenbuch nennt seine eigenen Grenzen im zweiten Kapitel — was Überschlag ist, was Typklasse und was
+          kein Gutachten. Wer ein Dokument weitergibt, gibt sie mit.
+        </p>
+      </div>
+
+      {uiMode === 'profi' && design.notes.length > 0 && (
+        <div className="space-y-1">
+          <span className="label-xs block">Hinweise ({design.notes.length})</span>
+          {design.notes.map((n, i) => (
+            <p key={i} className={`rounded px-2.5 py-1.5 text-[10px] leading-relaxed ${SEVERITY_STYLE[n.severity]}`}>
+              {n.text}
+            </p>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Bausteine
+// ---------------------------------------------------------------------------
+
+function Fold({
+  title,
+  open,
+  onToggle,
+  children,
+}: {
+  title: string;
+  open?: boolean;
+  onToggle: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="rounded-lg bg-graphite-900/60">
+      <button className="flex w-full items-center justify-between px-2.5 py-2 text-left" onClick={onToggle}>
+        <span className="label-xs">{title}</span>
+        <span className="text-[10px] text-slate-600">{open ? '▾' : '▸'}</span>
+      </button>
+      {open && <div className="px-2.5 pb-2.5">{children}</div>}
+    </div>
+  );
+}
+
+/**
+ * Beschriftung links, Zahl rechts.
+ *
+ * Die Zahl wird nie gekürzt — sie ist der Grund, warum die Zeile existiert.
+ * Gekürzt wird die Beschriftung, und zwar mit Auslassungspunkten und einem
+ * Tooltip, damit der volle Wortlaut erreichbar bleibt.
+ */
+function Readout({ label, value, accent, term }: { label: string; value: string; accent?: boolean; term?: string }) {
+  return (
+    <div className="flex items-baseline justify-between gap-2 py-0.5">
+      <span className="inline-flex min-w-0 items-center gap-1 text-[10px] text-slate-500" title={label}>
+        <span className="truncate">{label}</span>
+        {term && <Erklaerung term={term} />}
+      </span>
+      <span className={`shrink-0 whitespace-nowrap tabular-nums text-[11px] ${accent ? 'text-accent' : 'text-slate-300'}`}>
+        {value}
+      </span>
+    </div>
+  );
+}
+
+function Num({
+  label,
+  unit,
+  value,
+  step = 1,
+  term,
+  onChange,
+}: {
+  label: string;
+  unit: string;
+  value: number;
+  step?: number;
+  /** Begriff aus dem Glossar — setzt ein Fragezeichen neben die Beschriftung. */
+  term?: string;
+  onChange: (v: number) => void;
+}) {
+  return (
+    <label className="block">
+      <span className="label-xs inline-flex items-center gap-1 whitespace-nowrap">
+        {label} {unit && <span className="text-slate-600">[{unit}]</span>}
+        {term && <Erklaerung term={term} />}
+      </span>
+      <input
+        className="field mt-0.5 font-mono"
+        type="number"
+        step={step}
+        value={value}
+        onChange={(e) => {
+          const v = Number(e.target.value);
+          if (Number.isFinite(v)) onChange(v);
+        }}
+      />
+    </label>
+  );
+}
+
+/**
+ * Ein Speichervorschlag mit der Möglichkeit, ihn zu übernehmen.
+ *
+ * Der Unterschied zwischen Vorschlag und Projektstand ist hier sichtbar:
+ * solange `suggested` gilt, ist es die Meinung des Programms; nach dem Klick
+ * steht der Speicher im Projekt und im Export.
+ */
+function StorageRow({
+  title,
+  suggestion,
+  reason,
+  onAccept,
+  onRemove,
+}: {
+  title: string;
+  suggestion?: import('../types/bim').PlantStorage;
+  reason: string;
+  onAccept: (s: import('../types/bim').PlantStorage) => void;
+  onRemove: (id: string) => void;
+}) {
+  if (!suggestion) {
+    return (
+      <div className="mb-1.5 rounded-lg bg-white/[0.03] px-2.5 py-2">
+        <div className="text-[11px] text-slate-300">{title}</div>
+        <div className="text-[10px] leading-relaxed text-slate-500">{reason || 'nicht erforderlich'}</div>
+      </div>
+    );
+  }
+  return (
+    <div className={`mb-1.5 rounded-lg px-2.5 py-2 ${suggestion.suggested ? 'bg-white/[0.03]' : 'bg-accent/10 ring-1 ring-accent/30'}`}>
+      <div className="flex items-baseline justify-between gap-2">
+        <span className="text-[11px] text-slate-200">
+          {title}: {suggestion.label}
+        </span>
+        <span className="shrink-0 text-[10px] text-slate-500">{suggestion.suggested ? 'Vorschlag' : 'geplant'}</span>
+      </div>
+      {reason && <div className="mt-0.5 text-[10px] leading-relaxed text-slate-500">{reason}</div>}
+      <button
+        className="chip mt-1.5 w-full bg-white/[0.04] hover:bg-white/[0.08]"
+        onClick={() => (suggestion.suggested ? onAccept(suggestion) : onRemove(suggestion.id))}
+      >
+        {suggestion.suggested ? 'übernehmen' : 'entfernen'}
+      </button>
+    </div>
+  );
+}
+
+/**
+ * Die Auslegung in Sätzen.
+ *
+ * Dieselben Zahlen wie oben, nur als Text und ohne die Zwischenschritte. Wer
+ * eine Anlage nicht selbst rechnet, sondern einbaut, braucht genau diese
+ * sechs Angaben — und zwar so, dass er sie am Telefon vorlesen kann.
+ */
+/**
+ * Ein Satz zur Herkunft der Heizlast.
+ *
+ * Er steht in der Kurzfassung, also bei dem, der die Anlage einbaut und nicht
+ * rechnet. Für ihn ist der Unterschied zwischen „gerechnet" und „überschlagen"
+ * die wichtigste Angabe der ganzen Liste: an ihr hängt, ob er die Zahl am
+ * Telefon weitergeben kann oder ob er dazusagen muss, dass sie vorläufig ist.
+ */
+function heizlastHerkunft(design: ReturnType<typeof designPlant>): string {
+  const c = design.normCoverage;
+  const woher = c.source
+    ? `${c.source}${c.receivedAt ? `, ${zeitpunktDe(c.receivedAt) ?? ''}` : ''}`
+    : 'RaVia';
+  const veraltet =
+    c.outdated > 0
+      ? ` · Achtung: ${c.outdated === 1 ? 'eine Raumlast wurde' : `${c.outdated} Raumlasten wurden`} für einen früheren Modellstand gerechnet`
+      : '';
+
+  if (design.heatLoadProvenance === 'vorgabe') {
+    return `von Hand eingetragen oder aus RaVia geschrieben — das Programm hat diese Zahl nicht nachgerechnet${veraltet}`;
+  }
+  if (design.heatLoadProvenance === 'raumweise') {
+    return `Summe der gerechneten Norm-Heizlasten aller ${c.heatedRooms} beheizten Räume (${woher})${veraltet}`;
+  }
+  if (c.withNorm > 0) {
+    return `überschlägig aus dem Modell — erst ${c.withNorm} von ${c.heatedRooms} Räumen tragen eine gerechnete Last (${woher}), das reicht für die Gebäudeheizlast noch nicht${veraltet}`;
+  }
+  return 'überschlägig aus dem Modell — die Norm-Heizlast aus RaVia oben eintragen, sobald sie vorliegt';
+}
+
+function KurzFassung({ design }: { design: ReturnType<typeof designPlant> }) {
+  const s = design.selected;
+  const kreise = design.circuits.reduce((n, c) => n + (c.loops ?? 0), 0);
+
+  const zeilen: { was: string; wert: string; dazu?: string }[] = [
+    {
+      was: 'Heizlast',
+      wert: `${fmt(design.heatLoad, 2)} kW`,
+      dazu: heizlastHerkunft(design),
+    },
+    {
+      was: 'Gerät muss können',
+      wert: `${fmt(design.requiredCapacity, 2)} kW`,
+      dazu: `Heizlast ${design.dhwSurcharge > 0 ? `plus ${fmt(design.dhwSurcharge, 2)} kW Warmwasser` : 'ohne Warmwasserzuschlag'}${
+        design.blocking > 1 ? `, mal Sperrzeitfaktor ${fmt(design.blocking, 2)}` : ''
+      }`,
+    },
+    s
+      ? {
+          was: 'Vorschlag',
+          wert: s.model.label,
+          dazu: `${fmt(s.capacityAtDesign, 1)} kW bei der Auslegungstemperatur · ${s.reason}`,
+        }
+      : { was: 'Vorschlag', wert: '—', dazu: 'Kein Gerät gefunden, das die Leistung schafft.' },
+    {
+      was: 'Heizkreise',
+      wert: kreise > 0 ? `${kreise} Stück` : `${design.circuits.length} Kreis${design.circuits.length === 1 ? '' : 'e'}`,
+      dazu: design.circuits
+        .map((c) => `${c.circuit.label}: ${c.circuit.flowTemperature}/${c.circuit.returnTemperature} °C, ${c.pipe.dimension.label}`)
+        .join(' · '),
+    },
+    {
+      was: 'Puffer',
+      wert: design.buffer.selected ? `${design.buffer.selected.volume} l` : 'nicht nötig',
+      dazu: design.buffer.reason,
+    },
+    {
+      was: 'Warmwasser',
+      wert: design.dhwStorage ? `${design.dhwStorage.volume} l` : '—',
+      dazu: design.dhw
+        ? `${design.dhw.storageTemperature} °C · Aufheizung ${fmt(design.dhw.reheatCapacity, 1)} kW · ${
+            design.dhw.circulationRequired ? 'mit Zirkulation' : 'ohne Zirkulation'
+          }`
+        : undefined,
+    },
+    {
+      was: 'Ausdehnungsgefäß',
+      wert: design.safety ? `${design.safety.selectedVessel} l` : '—',
+      dazu: design.safety
+        ? `Vordruck ${fmt(design.safety.prePressure, 1)} bar, Fülldruck ${fmt(design.safety.fillPressure, 1)} bar · Sicherheitsventil ${design.safety.safetyValve.label}`
+        : undefined,
+    },
+  ];
+
+  return (
+    <div className="space-y-1">
+      <span className="label-xs block">Das Ergebnis in Kürze</span>
+      {zeilen.map((z) => (
+        <div key={z.was} className="rounded-lg bg-white/[0.03] px-2.5 py-2">
+          <div className="flex items-baseline justify-between gap-2">
+            <span className="text-[11px] text-slate-400">{z.was}</span>
+            <span className="shrink-0 text-[11.5px] text-accent">{z.wert}</span>
+          </div>
+          {z.dazu && <p className="mt-0.5 text-[10px] leading-relaxed text-slate-500">{z.dazu}</p>}
+        </div>
+      ))}
+      <p className="rounded-lg bg-white/[0.03] px-2.5 py-2 text-[10px] leading-relaxed text-slate-500">
+        Rohrdimensionen, Druckverluste, Armaturenliste, Verteilertabelle und den hydraulischen Abgleich zeigt die
+        Ansicht „Fachplaner" — umschalten im Reiter „Start".
+      </p>
+    </div>
+  );
+}
+
+/** Text als Datei sichern — der immer gleiche Dreisatz aus Blob, Link, Klick. */
+function downloadText(text: string, filename: string, type = 'text/plain;charset=utf-8'): void {
+  const url = URL.createObjectURL(new Blob([text], { type }));
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}

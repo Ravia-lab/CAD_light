@@ -1,0 +1,53 @@
+{
+  "name": "ravia-cad-light",
+  "private": true,
+  "version": "1.13.2",
+  "type": "module",
+  "description": "RaVia CAD Light – ultraleichter 2D-Grundriss-Editor mit 3D-Realtime-View, Anlagenauslegung und BIM/TGA-Export",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "preview": "vite preview",
+    "build:einzeldatei": "vite build --config vite.config.einzeldatei.ts",
+    "typecheck": "tsc --noEmit",
+    "typecheck:pruefung": "tsc --noEmit -p tsconfig.pruefung.json",
+    "verify": "esbuild scripts/verify.ts --bundle --platform=node --format=esm --outfile=node_modules/.cache/verify.mjs --log-level=warning && node node_modules/.cache/verify.mjs",
+    "smoke:ui": "node scripts/smoke-ui.mjs",
+    "smoke:ai": "node scripts/smoke-ai.mjs",
+    "smoke:feat": "node scripts/smoke-features.mjs",
+    "smoke:export": "node scripts/smoke-export.mjs",
+    "smoke:round2": "node scripts/smoke-round2.mjs",
+    "smoke:tga": "node scripts/smoke-tga.mjs",
+    "smoke:embed": "node scripts/smoke-embed.mjs",
+    "smoke:ux": "node scripts/smoke-bedienung.mjs",
+    "smoke:wp": "node scripts/smoke-waermepumpe.mjs",
+    "smoke:raum": "node scripts/smoke-raum.mjs",
+    "smoke:anlage": "node scripts/smoke-anlage.mjs",
+    "smoke:druck": "node scripts/smoke-druck.mjs",
+    "smoke:rohrnetz": "node scripts/smoke-rohrnetz.mjs",
+    "smoke:schema": "node scripts/smoke-schema.mjs",
+    "smoke:einzeldatei": "node scripts/pruef-einzeldatei.mjs",
+    "bench": "esbuild scripts/bench.ts --bundle --platform=node --format=esm --outfile=node_modules/.cache/bench.mjs --log-level=warning && node node_modules/.cache/bench.mjs",
+    "reference:update": "esbuild scripts/update-reference.ts --bundle --platform=node --format=esm --outfile=node_modules/.cache/update-reference.mjs --log-level=warning && node node_modules/.cache/update-reference.mjs"
+  },
+  "dependencies": {
+    "pdfjs-dist": "^4.10.38",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "three": "^0.169.0",
+    "zustand": "^5.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^26.2.0",
+    "@types/react": "^18.3.11",
+    "@types/react-dom": "^18.3.1",
+    "@types/three": "^0.169.0",
+    "@vitejs/plugin-react": "^4.3.2",
+    "autoprefixer": "^10.4.20",
+    "playwright": "^1.62.1",
+    "postcss": "^8.4.47",
+    "tailwindcss": "^3.4.13",
+    "typescript": "^5.6.2",
+    "vite": "^5.4.8"
+  }
+}

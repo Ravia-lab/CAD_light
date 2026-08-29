@@ -1,0 +1,261 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>RaVia CAD Light — Einbettung</title>
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; height: 100vh; display: flex; background: #0B1120;
+    color: #E2E8F0; font: 13px/1.5 Inter, "Segoe UI", system-ui, sans-serif;
+  }
+  iframe { flex: 1; border: 0; min-width: 0; }
+  aside {
+    width: 340px; flex-shrink: 0; padding: 16px; overflow-y: auto;
+    border-left: 1px solid rgba(255,255,255,.07); background: #0F172A;
+  }
+  h1 { font-size: 14px; margin: 0 0 4px; letter-spacing: -.01em; }
+  h2 {
+    font-size: 9.5px; text-transform: uppercase; letter-spacing: .16em;
+    color: #64748B; margin: 18px 0 6px; font-weight: 600;
+  }
+  p { color: #94A3B8; margin: 0 0 12px; font-size: 11.5px; }
+  button {
+    background: rgba(56,189,248,.12); color: #38BDF8; border: 0; cursor: pointer;
+    border-radius: 8px; padding: 7px 10px; font: inherit; font-size: 11px; margin: 0 4px 4px 0;
+  }
+  button:hover { background: rgba(56,189,248,.22); }
+  .row { display: flex; justify-content: space-between; padding: 2px 0; font-size: 11.5px; }
+  .row span:first-child { color: #64748B; }
+  .row span:last-child { font-variant-numeric: tabular-nums; }
+  pre {
+    background: #0B1120; border: 1px solid rgba(255,255,255,.07); border-radius: 8px;
+    padding: 8px; font-size: 10px; max-height: 240px; overflow: auto; color: #94A3B8;
+    white-space: pre-wrap; word-break: break-word;
+  }
+  .ok { color: #34D399; } .bad { color: #FB7185; }
+</style>
+</head>
+<body>
+<iframe id="cad" src="./index.html" title="RaVia CAD Light"></iframe>
+
+<aside>
+  <h1>Einbettung in RaVia</h1>
+  <p>
+    Diese Seite bettet den Editor als <code>&lt;iframe&gt;</code> ein und spricht
+    ausschließlich über <code>postMessage</code> mit ihm — genau so, wie RaVia es täte.
+    Es gibt keinen Dateiexport dazwischen.
+  </p>
+
+  <h2>Verbindung</h2>
+  <div class="row"><span>Status</span><span id="status">verbinde …</span></div>
+  <div class="row"><span>API-Version</span><span id="version">—</span></div>
+
+  <h2>Modell</h2>
+  <div id="summary"></div>
+
+  <h2>Befehle</h2>
+  <button id="btn-summary">Kurzfassung</button>
+  <button id="btn-validate">Prüfbericht</button>
+  <button id="btn-export">RaVia-JSON</button>
+  <button id="btn-ifc">IFC4</button>
+
+  <h2>Schreibweg</h2>
+  <p>
+    Der Rückweg: RaVia schreibt Fachdaten zurück — Solltemperaturen,
+    Luftwechsel, U-Werte, gerechnete Norm-Heizlasten. Geometrie ist
+    ausgenommen und wird mit Begründung abgelehnt, nicht still übergangen.
+    Jeder Schreibvorgang ist im Editor ein Schritt der Rückgängig-Kette:
+    Strg+Z nimmt ihn zurück.
+  </p>
+  <div class="row"><span>Erster Raum</span><span id="raum">—</span></div>
+  <div class="row"><span>Solltemperatur</span><span id="soll">—</span></div>
+  <button id="btn-patch">22 °C schreiben</button>
+  <button id="btn-patch-load">Norm-Heizlast schreiben</button>
+  <button id="btn-patch-bad">Fläche schreiben</button>
+  <button id="btn-fields">Schreibbare Felder</button>
+  <div id="report"></div>
+
+  <h2>Antwort</h2>
+  <pre id="out">—</pre>
+
+  <h2>So funktioniert es</h2>
+  <pre>const cad = document.querySelector('iframe').contentWindow;
+
+cad.postMessage({
+  channel: 'ravia-cad',
+  type: 'getExport',
+  id: 1,
+}, '*');
+
+// Zurückschreiben — 'source' ist Pflicht und landet in der Spur am Modell.
+cad.postMessage({
+  channel: 'ravia-cad',
+  type: 'applyPatch',
+  id: 2,
+  payload: {
+    source: 'RaVia 3.2',
+    rooms: [{ id: 'room-eg-0', setpointTemperature: 22 }],
+  },
+}, '*');
+
+window.addEventListener('message', (e) =&gt; {
+  if (e.data?.channel !== 'ravia-cad') return;
+  // e.data.type    'export' | 'summary' | 'changed' | 'patchApplied' | …
+  // e.data.payload die Nutzdaten
+});</pre>
+  <p>
+    Was schreibbar ist, sagt <code>getWritableFields</code> — mit Einheit und
+    zulässigem Bereich je Feld. Ausprobieren muss die Gegenstelle nichts.
+  </p>
+  <p>
+    Im selben Fenster geht es noch direkter:
+    <code>window.RaViaCAD.getExport()</code>.
+  </p>
+</aside>
+
+<script>
+const frame = document.getElementById('cad');
+const out = document.getElementById('out');
+let seq = 0;
+const pending = new Map();
+
+/** Ein Befehl an den Editor; das Versprechen löst sich mit der Antwort auf. */
+function call(type, payload) {
+  return new Promise((resolve, reject) => {
+    const id = ++seq;
+    pending.set(id, resolve);
+    setTimeout(() => {
+      if (pending.delete(id)) reject(new Error('Zeitüberschreitung: ' + type));
+    }, 8000);
+    frame.contentWindow.postMessage({ channel: 'ravia-cad', type, id, payload }, '*');
+  });
+}
+
+window.addEventListener('message', (e) => {
+  const d = e.data;
+  if (!d || d.channel !== 'ravia-cad') return;
+
+  if (d.type === 'changed') {
+    renderSummary(d.payload);
+    return;
+  }
+  const resolve = pending.get(d.id);
+  if (resolve) {
+    pending.delete(d.id);
+    resolve(d.payload);
+  }
+});
+
+function renderSummary(s) {
+  document.getElementById('summary').innerHTML = [
+    ['Projekt', s.projectName],
+    ['Geschosse', s.levels],
+    ['Räume', s.rooms],
+    ['Wände', s.walls],
+    ['Öffnungen', s.openings],
+    ['Nutzfläche', s.netFloorArea.toFixed(2) + ' m²'],
+    ['Volumen', s.netVolume.toFixed(2) + ' m³'],
+    ['Heizleistung', s.installedHeatingPower + ' W'],
+  ].map(([k, v]) => `<div class="row"><span>${k}</span><span>${v}</span></div>`).join('') +
+  `<div class="row"><span>Rechenfähig</span><span class="${s.ready ? 'ok' : 'bad'}">${
+    s.ready ? 'ja' : s.errors + ' Fehler'}</span></div>`;
+}
+
+const show = (v) => { out.textContent = typeof v === 'string' ? v.slice(0, 4000) : JSON.stringify(v, null, 1).slice(0, 4000); };
+
+document.getElementById('btn-summary').onclick = () => call('getSummary').then(show);
+document.getElementById('btn-validate').onclick = () => call('validate').then(show);
+document.getElementById('btn-export').onclick = () => call('getExport').then(show);
+document.getElementById('btn-ifc').onclick = () => call('getIfc').then(show);
+
+// --- Schreibweg -------------------------------------------------------------
+
+/**
+ * Ein Ziel für den Schreibvorgang. Die Raum-Kennungen stehen im Export — die
+ * Gegenstelle erfindet sie nicht, sie liest sie. Genau darauf verweist auch
+ * die Ablehnung, wenn eine unbekannte Kennung ankommt.
+ */
+async function ersterRaum() {
+  const ex = await call('getExport');
+  const raum = ex.rooms[0];
+  if (raum) {
+    document.getElementById('raum').textContent = raum.name;
+    document.getElementById('soll').textContent = raum.setpointTemperature + ' °C';
+  }
+  return raum;
+}
+
+/**
+ * Der Bericht Zeile für Zeile. Er ist der eigentliche Inhalt der Antwort:
+ * ein Schreibvorgang, der nur „ok" meldet, ist eine Behauptung — hier steht
+ * für jeden einzelnen Wert, was mit ihm geschehen ist und warum.
+ */
+function zeigeBericht(bericht) {
+  const farbe = { 'übernommen': 'ok', 'unverändert': '', 'abgelehnt': 'bad' };
+  document.getElementById('report').innerHTML =
+    `<div class="row"><span>Bilanz</span><span class="${bericht.ok ? 'ok' : 'bad'}">${bericht.summary}</span></div>` +
+    bericht.entries.map((e) => `<div class="row"><span>${e.label}</span><span class="${farbe[e.verdict]}">${
+      e.verdict === 'übernommen' ? `${e.before ?? '—'} → ${e.after}` : e.verdict}</span></div>` +
+      (e.reason ? `<p style="margin:2px 0 8px">${e.reason}</p>` : '')).join('');
+  show(bericht);
+}
+
+/** Ein Schreibvorgang samt Anzeige des Berichts und des neuen Modellstands. */
+async function schreibe(patch) {
+  const bericht = await call('applyPatch', { source: 'RaVia-Beispielseite', ...patch });
+  zeigeBericht(bericht);
+  await ersterRaum();
+}
+
+document.getElementById('btn-patch').onclick = async () => {
+  const raum = await ersterRaum();
+  if (!raum) return;
+  // Zweimal derselbe Wert ist kein Fehler, sondern „unverändert" — und
+  // erzeugt im Editor bewusst keinen Schritt in der Rückgängig-Kette.
+  await schreibe({ rooms: [{ id: raum.id, setpointTemperature: 22, airChangeRate: 0.6 }] });
+};
+
+document.getElementById('btn-patch-load').onclick = async () => {
+  const raum = await ersterRaum();
+  if (!raum) return;
+  // Die Aufteilung muss die Summe ergeben, sonst wird sie abgelehnt.
+  await schreibe({
+    rooms: [{ id: raum.id, heatLoad: { total: 1200, transmission: 800, ventilation: 300, reheat: 100 } }],
+    totalHeatLoad: 8400,
+  });
+};
+
+document.getElementById('btn-patch-bad').onclick = async () => {
+  const raum = await ersterRaum();
+  if (!raum) return;
+  // Geometrie gehört dem, der zeichnet. Die Antwort sagt das im Klartext.
+  await schreibe({ rooms: [{ id: raum.id, area: 42 }] });
+};
+
+document.getElementById('btn-fields').onclick = () => call('getWritableFields').then(show);
+
+frame.addEventListener('load', async () => {
+  // Der Editor braucht einen Moment, bis der Store steht.
+  for (let i = 0; i < 40; i++) {
+    try {
+      const pong = await call('ping');
+      document.getElementById('status').textContent = 'verbunden';
+      document.getElementById('status').className = 'ok';
+      document.getElementById('version').textContent = pong.version;
+      await call('subscribe');
+      renderSummary(await call('getSummary'));
+      await ersterRaum();
+      return;
+    } catch {
+      await new Promise((r) => setTimeout(r, 250));
+    }
+  }
+  document.getElementById('status').textContent = 'keine Antwort';
+  document.getElementById('status').className = 'bad';
+});
+</script>
+</body>
+</html>

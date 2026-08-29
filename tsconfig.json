@@ -1,0 +1,32 @@
+{
+  "compilerOptions": {
+    "target": "ES2020",
+    "useDefineForClassFields": true,
+    "lib": ["ES2020", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "skipLibCheck": true,
+    "moduleResolution": "bundler",
+    "allowImportingTsExtensions": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "noEmit": true,
+    "jsx": "react-jsx",
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noFallthroughCasesInSwitch": true,
+    "exactOptionalPropertyTypes": false,
+    // Ohne diese Liste zieht TypeScript jedes Paket unter node_modules/@types
+    // automatisch in den globalen Namensraum — auch @types/node. Der
+    // Browser-Code hätte damit `process` und `node:fs` zur Hand, obwohl beides
+    // im Bündel nicht existiert. Deshalb hier nur die Typen, die das UI
+    // wirklich braucht; die Node-Typen kommen ausschließlich in
+    // tsconfig.pruefung.json dazu, wo die Skripte übersetzt werden.
+    "types": ["react", "react-dom", "three"],
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["./src/*"]
+    }
+  },
+  "include": ["src"]
+}

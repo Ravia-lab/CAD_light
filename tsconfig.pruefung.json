@@ -1,0 +1,14 @@
+{
+  // Der Hauptlauf prüft nur `src`. Die Prüfskripte blieben damit ungeprüft —
+  // ein fehlendes Pflichtfeld im Referenzhaus fiel erst auf, als ein Agent die
+  // Datei einzeln übersetzte. Diese Fassung nimmt `scripts` dazu, mit
+  // denselben strengen Schaltern.
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    // Nur hier kommen die Node-Typen dazu: die Skripte laufen unter Node und
+    // brauchen `process` und `node:fs`. Der Browser-Code sieht sie weiterhin
+    // nicht, weil tsconfig.json seine `types`-Liste ohne "node" führt.
+    "types": ["react", "react-dom", "three", "node"]
+  },
+  "include": ["src", "scripts"]
+}
