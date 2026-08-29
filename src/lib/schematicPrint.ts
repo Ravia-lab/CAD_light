@@ -1276,7 +1276,11 @@ export function buildSchematicSvg(
     notes.push(`Das Schema ist in M 1:${scale} größer als das Zeichenfeld; es passt ab M 1:${suggestedScale}.`);
   }
   if (pitch * SYMBOL_RATIO < 7) {
-    notes.push(`Bei M 1:${scale} ist ein Symbol nur ${(pitch * SYMBOL_RATIO).toFixed(1)} mm groß und kaum noch lesbar.`);
+    // Deutsche Schreibweise: auf einem deutschen Blatt ist „2.3 mm" kein
+    // Maß, sondern ein Tippfehler mit Bedeutung.
+    notes.push(
+      `Bei M 1:${scale} ist ein Symbol nur ${(pitch * SYMBOL_RATIO).toLocaleString('de-DE', { maximumFractionDigits: 1 })} mm groß und kaum noch lesbar.`,
+    );
   }
 
   // Zentriert einsetzen. Anders als im Grundriss zeigt die y-Achse des

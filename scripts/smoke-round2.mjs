@@ -96,7 +96,10 @@ console.log('\n▸ Geschosse');
   expect('Vorher: zwei massive Bauteile', bauteileVorher.massiv, 2);
 
   // Geschoss darüber mit übernommenem Grundriss
-  await p.getByTitle(/Grundriss des aktuellen Geschosses übernehmen/).click();
+  // Seit 1.13.0 gibt es zwei Kopierknöpfe — nach oben und nach unten. Der
+  // Test meint den nach oben; ohne die Richtung im Muster trifft er beide
+  // und Playwright bricht im Strict-Modus ab.
+  await p.getByTitle(/Geschoss darüber anlegen — Grundriss des aktuellen Geschosses übernehmen/).click();
   await p.waitForTimeout(700);
   const copied = await stats();
   expect('Zweites Geschoss angelegt', copied.levels, 2);

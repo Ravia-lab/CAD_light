@@ -105,6 +105,7 @@ import { pruefeBaugrund, pruefeLueftungskonvention } from './pruefungen/uebergab
 import { pruefeProjektmappe } from './pruefungen/projektmappe';
 import { pruefeSchichtgrenze } from './pruefungen/schichtgrenze';
 import { pruefeBeschriftungslage } from './pruefungen/beschriftungslage';
+import { pruefeErzeugerhydraulik } from './pruefungen/erzeugerhydraulik';
 
 let failures = 0;
 let checks = 0;
@@ -3655,6 +3656,9 @@ pruefeSchemavorschlag(check);
 
 console.log('\n▸ Beschriftungslage — Nennweite, Raumstempel und Armaturen im Bild');
 pruefeBeschriftungslage(check);
+
+console.log('\n▸ Erzeugerhydraulik — der Posten, der bis 1.13.2 null war');
+pruefeErzeugerhydraulik(check);
 
 console.log('\n▸ Projektmappe — ein Dokument aus vier Druckwegen');
 pruefeProjektmappe(check);

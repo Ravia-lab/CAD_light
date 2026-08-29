@@ -253,6 +253,16 @@ const round = (n: number, d = 2): number => {
   return Math.round(n * f) / f;
 };
 
+/**
+ * Zahl in deutscher Schreibweise.
+ *
+ * `toFixed` liefert einen Punkt als Dezimaltrennzeichen. Auf einem deutschen
+ * Nachweisblatt steht damit „5.5 kW" — was ein englischer Leser als fünfeinhalb
+ * und ein deutscher als fünftausendfünfhundert lesen darf. Das ist auf einem
+ * Blatt, das nach § 60c schriftlich mitzuteilen ist, keine Geschmacksfrage.
+ */
+const de = (n: number, d = 1): string => n.toLocaleString('de-DE', { minimumFractionDigits: d, maximumFractionDigits: d });
+
 const FITTING_LABEL = new Map(FITTING_RESISTANCES.map((f) => [f.id, f.label]));
 
 /**
@@ -644,7 +654,7 @@ function nachweisPunkte(
     {
       nr: 2,
       forderung: 'Heizlast des Gebäudes',
-      antwort: `${auslegung.heatLoad.toFixed(1)} kW (${auslegung.heatLoadProvenance}).`,
+      antwort: `${de(auslegung.heatLoad)} kW (${auslegung.heatLoadProvenance}).`,
       erfuellt: auslegung.heatLoad > 0,
       herkunft: raumweise ? 'raumweise Berechnung im Modell' : 'Überschlag dieses Programms',
     },
@@ -653,7 +663,7 @@ function nachweisPunkte(
       forderung: 'Eingestellte Leistung der Wärmeerzeuger',
       antwort: auslegung.selected
         ? `${auslegung.selected.model.label} (${auslegung.selected.model.series}), ` +
-          `${auslegung.selected.capacityAtDesign.toFixed(1)} kW im Auslegungspunkt.`
+          `${de(auslegung.selected.capacityAtDesign)} kW im Auslegungspunkt.`
         : 'Kein Wärmeerzeuger gewählt.',
       erfuellt: Boolean(auslegung.selected),
       herkunft: 'Geräteauswahl aus dem Katalog',
@@ -690,7 +700,7 @@ function nachweisPunkte(
       forderung: 'Druck im Ausdehnungsgefäß',
       antwort:
         ag !== undefined
-          ? `Vordruck ${ag.toFixed(1)} bar, Gefäß ${auslegung.safety?.selectedVessel ?? '—'} l.`
+          ? `Vordruck ${de(ag)} bar, Gefäß ${auslegung.safety?.selectedVessel ?? '—'} l.`
           : 'Kein Ausdehnungsgefäß ausgelegt.',
       erfuellt: ag !== undefined,
       herkunft: 'Sicherheitsauslegung nach DIN EN 12828',
