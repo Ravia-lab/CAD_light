@@ -138,6 +138,36 @@ export interface PipeLayoutOptions {
   roomLoads?: Map<string, number>;
 }
 
+/**
+ * Mindestabstand zweier Armaturen an derselben Leitung [m].
+ * ---------------------------------------------------------------------------
+ * Bis 1.13.2 setzte der Rohrausleger Thermostatventil und Entlüftung auf
+ * **denselben** Punkt — beide auf `ziel.position`, den Anschlusspunkt des
+ * Heizkörpers. Rechnerisch war das folgenlos; im Grundriss lagen zwei Symbole
+ * exakt aufeinander und ergaben ein Zeichen, das es nicht gibt.
+ *
+ * 0,12 m ist derselbe Betrag, um den die Rücklaufverschraubung schon immer
+ * neben dem Thermostatventil sitzt. Er ist kein Genauigkeitsanspruch an die
+ * Montage — wo genau die Entlüftung am Heizkörper sitzt, entscheidet das
+ * Fabrikat —, sondern die Aussage „das sind zwei Bauteile, nicht eines". In
+ * der Fachpraxis sitzen sie ohnehin nicht am selben Punkt: das Ventil im
+ * Vorlaufanschluss, der Entlüfter oben am Heizkörper.
+ */
+const ARMATUR_MINDESTABSTAND = 0.12;
+
+/**
+ * Größter zulässiger Abstand einer Armatur zu ihrer Leitung [m].
+ *
+ * Beim Ausweichen darf die Zuordnung nicht kippen. Zwei Schranken hängen
+ * daran: die Zuordnung hier unten (0,5 m) und `ACCESSORY_SNAP` in
+ * `pipeNetwork` (0,4 m), das die Armatur auf einen Abschnitt der Polylinie
+ * setzt. Maßgeblich ist die schärfere. Eine Armatur, die ihre `runId` behält,
+ * im Strangschema aber von ihrem Abschnitt fällt, wäre genau der Fehler von
+ * 1.11.0 mit anderem Gesicht: der Abgleich rechnete ohne ihre
+ * Einzelwiderstände und kam **günstiger** heraus als die Vorversion.
+ */
+const ARMATUR_HOECHSTABSTAND = 0.4;
+
 /** Abstand eines Punktes zu einer Strecke [m]. */
 function abstandZurStrecke(p: Vec2, a: Vec2, b: Vec2): number {
   const dx = b.x - a.x;
@@ -146,6 +176,106 @@ function abstandZurStrecke(p: Vec2, a: Vec2, b: Vec2): number {
   if (q < 1e-9) return Math.hypot(p.x - a.x, p.y - a.y);
   const t = Math.max(0, Math.min(1, ((p.x - a.x) * dx + (p.y - a.y) * dy) / q));
   return Math.hypot(p.x - (a.x + t * dx), p.y - (a.y + t * dy));
+}
+
+/**
+ * Die nächstgelegene Vorlaufleitung zu einem Punkt.
+ *
+ * Vor- und Rücklauf liegen 5 cm nebeneinander; eine Armatur, die abwechselnd
+ * dem einen oder dem anderen zufällt, wäre je nach Rundung mal da und mal
+ * dort. Der Vorlauf ist die stabile Wahl — und dieselbe Funktion entscheidet
+ * die erste Zuordnung *und* prüft beim Ausweichen, ob sie hält. Zwei
+ * Fassungen derselben Frage wären zwei Antworten.
+ */
+function naechsterVorlauf(p: Vec2, vorlaeufe: readonly PipeRun[]): { id?: string; abstand: number } {
+  let id: string | undefined;
+  let abstand = Infinity;
+  for (const r of vorlaeufe) {
+    const d = abstandZurStrecke(p, r.points[0], r.points[1]);
+    if (d < abstand) {
+      abstand = d;
+      id = r.id;
+    }
+  }
+  return { id, abstand };
+}
+
+/**
+ * Armaturen auseinanderrücken, die auf demselben Punkt sitzen.
+ * ---------------------------------------------------------------------------
+ * Ausgewichen wird **entlang der eigenen Leitung**, nicht quer dazu: eine
+ * Armatur sitzt *auf* dem Rohr, und seitlich versetzt läge sie daneben. Der
+ * erste Versuch geht rückwärts, also von der Trasse aus gesehen vor die
+ * Armatur — dort liegt der Punkt sicher noch auf dem Abschnitt, während er
+ * vorwärts über dessen Ende hinauslaufen könnte.
+ *
+ * **Die Zuordnung ist die Grenze, nicht die Optik.** Jeder Ausweichpunkt wird
+ * daraufhin geprüft, ob dieselbe Leitung die nächste bleibt und ob der Abstand
+ * innerhalb `ARMATUR_HOECHSTABSTAND` bleibt. Hält er das nicht, wird er
+ * verworfen. Findet sich gar kein Punkt, bleibt die Armatur, wo sie ist: zwei
+ * Symbole übereinander sind ein Schönheitsfehler, eine Armatur an der falschen
+ * Leitung ist eine falsche Rechnung.
+ *
+ * **Das kommt vor, und es ist kein Ausrutscher.** An einem Abzweig dicht am
+ * Heizkörper treffen drei kurze Abschnitte zusammen; ein T-Stück dort findet
+ * in keiner Richtung 0,12 m, ohne dass eine Nachbarleitung die nächste würde.
+ * Es bleibt dann liegen — und richtigerweise: die Lage eines T-Stücks ist eine
+ * Tatsache der Trasse und keine Konvention, anders als die des Entlüfters, für
+ * den das Netz nur „irgendwo am Hochpunkt" hergibt. Der Fall, um den es hier
+ * geht — zwei Armaturen auf **demselben** Punkt —, tritt dabei nicht ein: das
+ * setzt zwei Bauteile auf einen einzigen Anschluss voraus, und dort ist immer
+ * die Leitung selbst da, an der entlang ausgewichen werden kann.
+ *
+ * Die Reihenfolge ist die Setzreihenfolge: was zuerst gesetzt wurde, bleibt
+ * liegen. Damit bleibt das Thermostatventil auf dem Heizkörperanschluss — dort
+ * gehört es hin, und dort prüft es der Rohrausleger-Prüfblock.
+ *
+ * @returns Zahl der verschobenen Armaturen.
+ */
+function entzerreArmaturen(accessories: PipeAccessory[], vorlaeufe: readonly PipeRun[]): number {
+  const gesetzt: Vec2[] = [];
+  const zuNah = (p: Vec2): boolean =>
+    gesetzt.some((q) => Math.hypot(q.x - p.x, q.y - p.y) < ARMATUR_MINDESTABSTAND - 1e-9);
+
+  let verschoben = 0;
+  for (const armatur of accessories) {
+    if (!zuNah(armatur.position)) {
+      gesetzt.push(armatur.position);
+      continue;
+    }
+
+    const leitung = vorlaeufe.find((r) => r.id === armatur.runId);
+    let rx = 1;
+    let ry = 0;
+    if (leitung) {
+      const dx = leitung.points[1].x - leitung.points[0].x;
+      const dy = leitung.points[1].y - leitung.points[0].y;
+      const l = Math.hypot(dx, dy);
+      if (l > 1e-9) {
+        rx = dx / l;
+        ry = dy / l;
+      }
+    }
+
+    let gefunden = false;
+    for (let schritt = 1; schritt <= 4 && !gefunden; schritt++) {
+      for (const vz of [-1, 1] as const) {
+        const weg = ARMATUR_MINDESTABSTAND * schritt * vz;
+        const p: Vec2 = { x: armatur.position.x + rx * weg, y: armatur.position.y + ry * weg };
+        if (zuNah(p)) continue;
+        if (armatur.runId) {
+          const naechste = naechsterVorlauf(p, vorlaeufe);
+          if (naechste.id !== armatur.runId || naechste.abstand > ARMATUR_HOECHSTABSTAND) continue;
+        }
+        armatur.position = p;
+        verschoben += 1;
+        gefunden = true;
+        break;
+      }
+    }
+    gesetzt.push(armatur.position);
+  }
+  return verschoben;
 }
 
 export interface PipeLayoutResult {
@@ -585,20 +715,23 @@ export function planPipeNetwork(doc: BimDocument, options: PipeLayoutOptions): P
    */
   const vorlaeufe = runs.filter((r) => r.service === 'heating-flow');
   for (const armatur of accessories) {
-    let beste: string | undefined;
-    let abstand = Infinity;
-    for (const r of vorlaeufe) {
-      const d = abstandZurStrecke(armatur.position, r.points[0], r.points[1]);
-      if (d < abstand) {
-        abstand = d;
-        beste = r.id;
-      }
-    }
+    const naechste = naechsterVorlauf(armatur.position, vorlaeufe);
     // Eine Armatur weit abseits jeder Leitung gehört zu keiner. Die halbe
     // Rasterweite ist die Schranke: weiter weg ist sie nicht mehr „an" dem
     // Rohr, sondern irgendwo im Raum.
-    if (beste && abstand <= 0.5) armatur.runId = beste;
+    if (naechste.id && naechste.abstand <= 0.5) armatur.runId = naechste.id;
   }
+
+  /*
+   * Erst zuordnen, dann entzerren — und nicht umgekehrt.
+   *
+   * Das Verschieben muss wissen, an welcher Leitung eine Armatur hängt: nur
+   * dann kann es entlang der Achse ausweichen und hinterher prüfen, ob die
+   * Zuordnung hält. Umgekehrt würde die Zuordnung an einem schon
+   * verschobenen Punkt neu gefällt — sie könnte auf eine Nachbarleitung
+   * kippen, ohne dass irgendjemand es merkt.
+   */
+  entzerreArmaturen(accessories, vorlaeufe);
 
   void DEFAULT_FLUID;
   return {

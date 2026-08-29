@@ -26,6 +26,7 @@ import type {
 } from '../types/bim';
 import { PIPE_SERVICE_COLORS } from '../types/bim';
 import { accessorySymbol } from './pipeAccessorySymbols';
+import { findeBeschriftungslage, type Rechteck } from './beschriftungsLage';
 
 const TO_RAD = Math.PI / 180;
 
@@ -336,13 +337,60 @@ function drawShaftHatch(
 // Rohrleitungen
 // ---------------------------------------------------------------------------
 
+/**
+ * Die Beschriftungskästen, die in diesem Zeichendurchgang schon stehen.
+ * ---------------------------------------------------------------------------
+ * `drawPipe` wird je Leitung einmal gerufen und sieht von sich aus nur die
+ * eigene Trasse. Damit zwei Nennweiten nicht übereinander landen — im
+ * Demomodell treffen sich am Abzweig „DN 15" und „DN 20" —, merkt sich das
+ * Modul die Kästen des laufenden Durchgangs.
+ *
+ * **Warum das kein verstecktes Gedächtnis ist.** Der Durchgang ist ein
+ * einziger synchroner Aufruf des Zeichenpfads; ein `queueMicrotask` räumt die
+ * Liste, sobald dieser Aufruf zu Ende ist. Der Zustand ist damit auf genau ein
+ * Bild begrenzt und kann nicht ins nächste hineinlecken — auch dann nicht,
+ * wenn ein Bild abbricht oder weniger Leitungen zeichnet als das vorige.
+ *
+ * Der Raumstempel steht **nicht** darin: der Zeichenpfad des Editors setzt ihn
+ * selbst und reicht ihn nicht durch. Wer ihn kennt — der Ausdruck tut das —,
+ * gibt ihn über `state.belegt` mit; der Bildschirm verlässt sich auf die
+ * Rangfolge der Kandidaten in `beschriftungsLage`.
+ */
+let durchgangsFelder: Rechteck[] = [];
+let raeumungBestellt = false;
+
+function merkeBeschriftung(kasten: Rechteck): void {
+  durchgangsFelder.push(kasten);
+  if (raeumungBestellt) return;
+  raeumungBestellt = true;
+  queueMicrotask(() => {
+    durchgangsFelder = [];
+    raeumungBestellt = false;
+  });
+}
+
+/** Alles, was diese Beschriftung meiden muss: Übergebenes plus Gemerktes. */
+function belegteFelder(vomAufrufer: readonly Rechteck[] | undefined): readonly Rechteck[] {
+  if (!vomAufrufer || vomAufrufer.length === 0) return durchgangsFelder;
+  return [...vomAufrufer, ...durchgangsFelder];
+}
+
 export function drawPipe(
   ctx: CanvasRenderingContext2D,
   run: PipeRun,
   sx: (x: number) => number,
   sy: (y: number) => number,
   zoom: number,
-  state: { selected: boolean },
+  state: {
+    selected: boolean;
+    /**
+     * Flächen, die schon belegt sind — Raumstempel, Maßketten, fremde
+     * Beschriftungen —, in Bildschirmkoordinaten. Der Zeichenpfad des Editors
+     * kennt sie beim Aufruf noch nicht und lässt das Feld weg; der Weg steht
+     * offen, sobald er sie sammelt.
+     */
+    belegt?: readonly Rechteck[];
+  },
 ): void {
   if (run.points.length < 2) return;
   const colour = PIPE_SERVICE_COLORS[run.service];
@@ -386,7 +434,7 @@ export function drawPipe(
   }
 
   /*
-   * Nennweite an der längsten Teilstrecke — **nur am Vorlauf**.
+   * Nennweite an der Trasse — **nur am Vorlauf**.
    *
    * Vor- und Rücklauf laufen fünf Zentimeter nebeneinander und tragen
    * dieselbe Nennweite. Beschriftete man beide, stünde bei jedem Abschnitt
@@ -397,33 +445,36 @@ export function drawPipe(
    * Beschriftet wird der Vorlauf, weil er durchgezogen gezeichnet ist und die
    * Beschriftung dort auf einer vollen Linie sitzt. Leitungen ohne Gegenstück
    * — Trinkwasser, Zirkulation, Lüftung, Kältemittel — tragen ihre eigene.
+   *
+   * **Wo sie steht, entscheidet `findeBeschriftungslage`** — dieselbe Regel,
+   * die auch das Druckblatt benutzt. Vorher stand der Text starr auf der Mitte
+   * des längsten Abschnitts, und genau dort saß im Demomodell der Raumstempel
+   * „Schlafen / 14,77 m²". Findet die Regel keinen freien Platz, wird die
+   * Nennweite **weggelassen**; sie steht vollständig in der
+   * Rohrnetzberechnung. Ein Loch im Plan sieht man, einen Fleck hält man für
+   * eine Angabe.
    */
   if (zoom > 24 && run.service !== 'heating-return') {
-    let best = 0;
-    let bestLen = 0;
-    for (let i = 1; i < run.points.length; i++) {
-      const l = Math.hypot(run.points[i].x - run.points[i - 1].x, run.points[i].y - run.points[i - 1].y);
-      if (l > bestLen) {
-        bestLen = l;
-        best = i;
-      }
-    }
-    if (bestLen * zoom > 46) {
-      const a = run.points[best - 1];
-      const b = run.points[best];
-      const mx = sx((a.x + b.x) / 2);
-      const my = sy((a.y + b.y) / 2);
-      let angle = Math.atan2(sy(b.y) - sy(a.y), sx(b.x) - sx(a.x));
-      if (angle > Math.PI / 2 || angle < -Math.PI / 2) angle += Math.PI;
-      const label = `DN ${run.nominalDiameter}`;
-      ctx.translate(mx, my);
-      ctx.rotate(angle);
-      ctx.font = '9px ui-monospace, monospace';
+    ctx.font = '9px ui-monospace, monospace';
+    const label = `DN ${run.nominalDiameter}`;
+    const w = ctx.measureText(label).width;
+    const punkte = run.points.map((p) => ({ x: sx(p.x), y: sy(p.y) }));
+    // Der Kasten ist derselbe, der gleich gezeichnet wird: 3 px Rand seitlich,
+    // Oberkante 12 px über der Linie, Unterkante 1 px darüber.
+    const mass = { breite: w + 6, oben: -12, unten: -1 };
+    const lage = findeBeschriftungslage(punkte, mass, belegteFelder(state.belegt), {
+      // 46 px ist die alte Schranke: kürzer als das trägt ein Abschnitt im
+      // Bild keine Beschriftung mehr, auch wenn der Text hineinpasste.
+      mindestlaenge: 46,
+    });
+    if (lage) {
+      merkeBeschriftung(lage.belegt);
+      ctx.translate(lage.x, lage.y);
+      ctx.rotate(lage.winkel);
       ctx.textAlign = 'center';
       ctx.textBaseline = 'bottom';
-      const w = ctx.measureText(label).width;
       ctx.fillStyle = 'rgba(11,17,32,0.8)';
-      ctx.fillRect(-w / 2 - 3, -12, w + 6, 11);
+      ctx.fillRect(-mass.breite / 2, mass.oben, mass.breite, mass.unten - mass.oben);
       ctx.fillStyle = colour;
       ctx.fillText(label, 0, -2.5);
     }

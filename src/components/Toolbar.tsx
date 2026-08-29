@@ -32,6 +32,7 @@ import { buildIfc, downloadIfc, ifcFilename } from '../lib/ifcExport';
 import LevelBar from './LevelBar';
 import PlanPrintDialog from './PlanPrintDialog';
 import RohrnetzDialog from './RohrnetzDialog';
+import MappeDialog from './MappeDialog';
 
 // ---------------------------------------------------------------------------
 // Icons
@@ -79,6 +80,9 @@ const icons: Record<string, ReactNode> = {
   room: <><path d="M3 4h9v5h5v7H3z" /><path d="M12 4v5h5" /></>,
   projects: <><path d="M2.5 6.5V15a1 1 0 001 1h13a1 1 0 001-1V7.5a1 1 0 00-1-1h-6.2L8.6 4.5H3.5a1 1 0 00-1 1z" /><path d="M2.5 9.5h15" /></>,
   bericht: <><path d="M4.5 2.5h7l4 4V17a.5.5 0 01-.5.5H4.5a.5.5 0 01-.5-.5V3a.5.5 0 01.5-.5z" /><path d="M11.5 2.5v4h4" /><path d="M6.5 10h7M6.5 12.5h7M6.5 15h4" /></>,
+  // Projektmappe: ein Stapel Blätter mit Heftrand — das Bild für „ein
+  // Dokument statt vier Fenster".
+  mappe: <><path d="M6.5 4.5h9a.5.5 0 01.5.5v12a.5.5 0 01-.5.5h-9a.5.5 0 01-.5-.5V5a.5.5 0 01.5-.5z" /><path d="M8.5 4.5V17.5" /><path d="M4 6.5v9" /><path d="M2.5 8.5v5" /><path d="M10.5 8h4M10.5 11h4M10.5 14h2.5" /></>,
 };
 
 // ---------------------------------------------------------------------------
@@ -308,6 +312,8 @@ export function TopBar({ onProjekte }: { onProjekte: () => void }) {
   const [printOpen, setPrintOpen] = useState(false);
   /** Der Rohrnetzbericht — eigenes Fenster, weil er mehrere Blätter hat. */
   const [berichtOpen, setBerichtOpen] = useState(false);
+  /** Die Projektmappe — sie setzt die vier Druckwege zu einem Dokument zusammen. */
+  const [mappeOpen, setMappeOpen] = useState(false);
   /**
    * Zuletzt gewählte Verlegeart.
    *
@@ -522,6 +528,14 @@ export function TopBar({ onProjekte }: { onProjekte: () => void }) {
       </button>
 
       <button
+        onClick={() => setMappeOpen(true)}
+        className="tool-btn h-8 w-8"
+        title="Projektmappe — Grundrisse, Anlagenschema, Rohrnetz, Einstellwerte, Massenauszug, Anlagenbuch, Quellen und Nachweis in einem Dokument mit durchlaufender Blattnummer"
+      >
+        <Icon>{icons.mappe}</Icon>
+      </button>
+
+      <button
         onClick={() => setPrintOpen(true)}
         className="tool-btn h-8 w-8"
         title="Grundriss maßstäblich drucken (1:50, 1:100 …) — A4/A3, komplettes Geschoss"
@@ -540,6 +554,7 @@ export function TopBar({ onProjekte }: { onProjekte: () => void }) {
 
       {printOpen && <PlanPrintDialog onClose={() => setPrintOpen(false)} />}
       {berichtOpen && <RohrnetzDialog onClose={() => setBerichtOpen(false)} />}
+      {mappeOpen && <MappeDialog onClose={() => setMappeOpen(false)} />}
     </header>
   );
 }

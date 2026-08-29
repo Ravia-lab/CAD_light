@@ -102,7 +102,9 @@ import { pruefeRaumerkennung } from './pruefungen/raumerkennung';
 import { pruefeProjekte } from './pruefungen/projekte';
 import { pruefeMassivbauteile } from './pruefungen/massivbauteile';
 import { pruefeBaugrund, pruefeLueftungskonvention } from './pruefungen/uebergabe';
+import { pruefeProjektmappe } from './pruefungen/projektmappe';
 import { pruefeSchichtgrenze } from './pruefungen/schichtgrenze';
+import { pruefeBeschriftungslage } from './pruefungen/beschriftungslage';
 
 let failures = 0;
 let checks = 0;
@@ -3650,6 +3652,12 @@ pruefeSchemapruefung(check);
 
 console.log('\n▸ Schemavorschlag — Katalog, Merkmale, Auswahl');
 pruefeSchemavorschlag(check);
+
+console.log('\n▸ Beschriftungslage — Nennweite, Raumstempel und Armaturen im Bild');
+pruefeBeschriftungslage(check);
+
+console.log('\n▸ Projektmappe — ein Dokument aus vier Druckwegen');
+pruefeProjektmappe(check);
 
 console.log('\n▸ Schichtgrenze — steht der Rechenkern für sich allein?');
 pruefeSchichtgrenze(check);

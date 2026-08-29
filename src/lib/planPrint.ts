@@ -31,6 +31,77 @@ import { accessorySymbol, type AccessoryPart } from './pipeAccessorySymbols';
 import { buildRoofFrame, dormerSide, ridgeLine, roofContourLines, roofOpeningCorners } from './roofGeometry';
 import { pointInPolygon, polygonArea } from './geometry';
 import { drawableScaleBar } from './planScaleBar';
+import { findeBeschriftungslage, type Rechteck } from './beschriftungsLage';
+
+/** Schriftgröße der Rohrbeschriftung auf dem Blatt [mm]. */
+const SCHRIFT = 1.6;
+
+/** Schriftgrößen des Raumstempels [mm] — Name über Fläche. */
+const STEMPEL = { name: 2.6, flaeche: 2.2 } as const;
+
+/**
+ * Mittlere Zeichenbreite als Vielfaches der Schriftgröße.
+ *
+ * Im SVG lässt sich kein Text ausmessen — es gibt keinen Zeichenkontext, der
+ * Antwort gäbe. 0,56 ist der Wert, mit dem dieses Modul schon die
+ * Öffnungsmaße auf Platz prüft; er gilt hier weiter, damit nicht zwei
+ * Schätzungen desselben Maßes nebeneinanderstehen.
+ */
+const ZEICHENBREITE = 0.56;
+
+/** Ein gesetzter Raumstempel samt der Fläche, die er auf dem Blatt belegt. */
+interface Raumstempel {
+  x: number;
+  y: number;
+  name: string;
+  flaeche: string;
+  kasten: Rechteck;
+}
+
+/**
+ * Die Raumstempel eines Blattes — Lage, Text und belegte Fläche.
+ *
+ * Getrennt vom Zeichnen, weil die Rohrbeschriftung die Kästen kennen muss,
+ * bevor der Stempel gezeichnet wird. Der Kasten umschließt beide Zeilen: die
+ * Oberkante liegt eine Namenshöhe über der oberen Grundlinie, die Unterkante
+ * eine Unterlänge unter der zweiten.
+ */
+function raumstempelFelder(
+  rooms: Room[],
+  solids: { solid: SolidElement }[],
+  X: (x: number) => number,
+  Y: (y: number) => number,
+): Raumstempel[] {
+  const out: Raumstempel[] = [];
+  for (const room of rooms) {
+    if (room.area < 1) continue;
+    // Ist der Raum im Wesentlichen Mauerwerk — ein zugestellter Schacht,
+    // ein Kaminblock —, trägt das Bauteil seinen Namen und der Raumstempel
+    // entfällt. Zwei Beschriftungen in derselben Fläche behaupten zwei
+    // Dinge, von denen nur eines stimmt.
+    if (massiveShare(room, solids) >= 0.8) continue;
+    const x = X(room.centroid.x);
+    const y = Y(room.centroid.y);
+    const flaeche = `${room.area.toFixed(2)} m²`;
+    const breite = Math.max(
+      room.name.length * STEMPEL.name,
+      flaeche.length * STEMPEL.flaeche,
+    ) * ZEICHENBREITE;
+    out.push({
+      x,
+      y,
+      name: room.name,
+      flaeche,
+      kasten: {
+        x0: x - breite / 2,
+        x1: x + breite / 2,
+        y0: y - 1 - STEMPEL.name * 0.8,
+        y1: y + 2.4 + STEMPEL.flaeche * 0.25,
+      },
+    });
+  }
+  return out;
+}
 
 /**
  * Schneidet eine Strecke am Raumpolygon — Dachlinien sollen im Raum enden,
@@ -495,10 +566,26 @@ export function buildPlanSvg(doc: BimDocument, options: PlanPrintOptions): PlanF
     }
   }
 
+  /*
+   * --- Raumstempel: erst gerechnet, gezeichnet wird er weiter unten ---------
+   *
+   * Der Stempel steht im Blatt über den Leitungen, aber er muss **vor** ihnen
+   * bekannt sein: die Rohrbeschriftung weicht ihm aus, und dazu braucht sie
+   * sein Rechteck. Beides aus derselben Liste zu bedienen ist der Punkt —
+   * würde die Beschriftung gegen eine zweite, nachgerechnete Lage prüfen,
+   * liefen die beiden Fassungen früher oder später auseinander.
+   */
+  const raumstempel = raumstempelFelder(options.showRoomLabels ? rooms : [], solids, X, Y);
+
   // --- Rohrnetz und Armaturen ----------------------------------------------
   // Die Legende führte die Leitungen seit jeher; gezeichnet wurden sie nie.
   // Genau derselbe Fall wie bei der Treppe: ein Blatt, das in der Legende
   // etwas verspricht, was in der Zeichnung fehlt.
+  //
+  // Die belegten Flächen wachsen mit: Raumstempel von Anfang an, jede gesetzte
+  // Nennweite kommt dazu. Sonst wichen die Beschriftungen zwar dem Stempel
+  // aus, aber nicht einander.
+  const belegteFelder: Rechteck[] = raumstempel.map((s) => s.kasten);
   for (const run of Object.values(doc.pipes ?? {})) {
     if (run.levelId !== options.levelId || run.points.length < 2) continue;
     const d = run.points.map((p, i) => `${i ? 'L' : 'M'}${X(p.x).toFixed(2)} ${Y(p.y).toFixed(2)}`).join(' ');
@@ -507,22 +594,50 @@ export function buildPlanSvg(doc: BimDocument, options: PlanPrintOptions): PlanF
       `<path d="${d}" fill="none" stroke="${farbe}" stroke-width="0.3" stroke-linecap="round" stroke-linejoin="round"` +
         `${run.service === 'heating-return' ? ' stroke-dasharray="1.6 1"' : ''}/>`,
     );
-    // Die Dimension an den Abschnitt, wenn er lang genug ist, um sie zu tragen.
-    const laenge = Math.hypot(
-      run.points[run.points.length - 1].x - run.points[0].x,
-      run.points[run.points.length - 1].y - run.points[0].y,
-    );
-    if (laenge * mm >= 14 && run.service === 'heating-flow') {
-      const a = run.points[0];
-      const b = run.points[run.points.length - 1];
-      const mx = X((a.x + b.x) / 2);
-      const my = Y((a.y + b.y) / 2);
-      let winkel = (Math.atan2(-(b.y - a.y), b.x - a.x) * 180) / Math.PI;
-      if (winkel > 90 || winkel < -90) winkel += 180;
-      parts.push(
-        `<text x="${mx.toFixed(2)}" y="${(my - 0.9).toFixed(2)}" transform="rotate(${winkel.toFixed(1)} ${mx.toFixed(2)} ${my.toFixed(2)})" ` +
-          `font-size="1.6" text-anchor="middle" fill="#334155" stroke="#FFFFFF" stroke-width="0.45" paint-order="stroke">DN ${run.nominalDiameter}${run.insulation ? ` · ${run.insulation} mm` : ''}</text>`,
+    /*
+     * Die Dimension an den Abschnitt — an eine Stelle, die frei ist.
+     *
+     * Bis 1.13.2 stand sie starr auf der Mitte der Verbindungsgeraden. Im
+     * Demomodell fiel sie damit auf den Raumstempel „Schlafen / 14,77 m²";
+     * beide Angaben waren unlesbar. Die Lage bestimmt jetzt
+     * `findeBeschriftungslage` — dieselbe Regel, die auch der Bildschirm
+     * benutzt.
+     *
+     * **Findet sich kein freier Platz, entfällt die Beschriftung.** Das ist
+     * die bewusste Entscheidung an dieser Stelle und passiert nicht
+     * stillschweigend: die Nennweite jedes Abschnitts steht vollständig in
+     * der Rohrnetzberechnung und in der Legende dieses Blattes. Im Plan ist
+     * sie eine Lesehilfe — und eine Lesehilfe, die einen Raumstempel
+     * zudeckt, hilft niemandem.
+     */
+    if (run.service === 'heating-flow') {
+      const text = `DN ${run.nominalDiameter}${run.insulation ? ` · ${run.insulation} mm` : ''}`;
+      // Der weiße Rand (`stroke-width` 0,45) zählt zur belegten Breite: er
+      // frisst sich sonst in die Nachbarschrift.
+      const mass = {
+        breite: text.length * SCHRIFT * ZEICHENBREITE + 0.9,
+        oben: -0.9 - SCHRIFT * 0.8,
+        unten: -0.9 + SCHRIFT * 0.25,
+      };
+      const lage = findeBeschriftungslage(
+        run.points.map((p) => ({ x: X(p.x), y: Y(p.y) })),
+        mass,
+        belegteFelder,
+        // 14 mm auf dem Blatt war schon bisher die Schranke: kürzere
+        // Abschnitte tragen die Angabe nicht, ohne über beide Enden
+        // hinauszustehen.
+        { mindestlaenge: 14 },
       );
+      if (lage) {
+        belegteFelder.push(lage.belegt);
+        const mx = lage.x;
+        const my = lage.y;
+        const winkel = (lage.winkel * 180) / Math.PI;
+        parts.push(
+          `<text x="${mx.toFixed(2)}" y="${(my - 0.9).toFixed(2)}" transform="rotate(${winkel.toFixed(1)} ${mx.toFixed(2)} ${my.toFixed(2)})" ` +
+            `font-size="${SCHRIFT}" text-anchor="middle" fill="#334155" stroke="#FFFFFF" stroke-width="0.45" paint-order="stroke">${escapeXml(text)}</text>`,
+        );
+      }
     }
   }
 
@@ -587,21 +702,13 @@ export function buildPlanSvg(doc: BimDocument, options: PlanPrintOptions): PlanF
   }
 
   // --- Raumstempel ----------------------------------------------------------
-  if (options.showRoomLabels) {
-    for (const room of rooms) {
-      if (room.area < 1) continue;
-      // Ist der Raum im Wesentlichen Mauerwerk — ein zugestellter Schacht,
-      // ein Kaminblock —, trägt das Bauteil seinen Namen und der Raumstempel
-      // entfällt. Zwei Beschriftungen in derselben Fläche behaupten zwei
-      // Dinge, von denen nur eines stimmt.
-      if (massiveShare(room, solids) >= 0.8) continue;
-      const x = X(room.centroid.x);
-      const y = Y(room.centroid.y);
-      parts.push(
-        `<text x="${x.toFixed(2)}" y="${(y - 1).toFixed(2)}" font-size="2.6" font-weight="600" text-anchor="middle" fill="#0F172A">${escapeXml(room.name)}</text>`,
-        `<text x="${x.toFixed(2)}" y="${(y + 2.4).toFixed(2)}" font-size="2.2" text-anchor="middle" fill="#475569">${room.area.toFixed(2)} m²</text>`,
-      );
-    }
+  // Gerechnet weiter oben (`raumstempelFelder`), damit die Rohrbeschriftung
+  // ihm ausweichen konnte; gezeichnet erst hier, weil er im Blatt oben liegt.
+  for (const stempel of raumstempel) {
+    parts.push(
+      `<text x="${stempel.x.toFixed(2)}" y="${(stempel.y - 1).toFixed(2)}" font-size="${STEMPEL.name}" font-weight="600" text-anchor="middle" fill="#0F172A">${escapeXml(stempel.name)}</text>`,
+      `<text x="${stempel.x.toFixed(2)}" y="${(stempel.y + 2.4).toFixed(2)}" font-size="${STEMPEL.flaeche}" text-anchor="middle" fill="#475569">${escapeXml(stempel.flaeche)}</text>`,
+    );
   }
 
   // --- Freie Maßketten und Beschriftungen -----------------------------------
