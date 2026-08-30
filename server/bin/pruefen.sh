@@ -17,6 +17,21 @@ ADRESSE="${1:-}"
 [[ -z "$ADRESSE" ]] && { echo "Aufruf:  bin/pruefen.sh https://cad.ravia.de"; exit 1; }
 ADRESSE="${ADRESSE%/}"
 
+# Die **Herkunft** getrennt von der Adresse: unter einem Unterpfad
+# (…/Cad_light/) stehen die Verweise in der index.html absolut ab der Wurzel
+# der Domain, nicht ab dem Unterpfad. Wer sie an die Adresse hängt, prüft
+# `…/Cad_light/Cad_light/assets/…` und bekommt lauter Fehlalarm.
+HERKUNFT="$(sed -E 's|^(https?://[^/]+).*|\1|' <<<"$ADRESSE")"
+
+# Einen Verweis aus dem HTML zu einer vollständigen Adresse machen.
+voll() {
+  case "$1" in
+    http*)  printf '%s' "$1" ;;
+    /*)     printf '%s%s' "$HERKUNFT" "$1" ;;
+    *)      printf '%s/%s' "$ADRESSE" "$1" ;;
+  esac
+}
+
 FEHLER=0
 WARNUNG=0
 
@@ -54,14 +69,17 @@ fi
 echo
 echo "2 · Die Anwendungsdateien"
 SEITE="$(curl -sS -m 20 "$ADRESSE/" 2>/dev/null)"
-SKRIPT="$(grep -o 'src="/assets/[^"]*\.js"' <<<"$SEITE" | head -1 | sed 's/src="//;s/"//')"
-STIL="$(grep -o 'href="/assets/[^"]*\.css"' <<<"$SEITE" | head -1 | sed 's/href="//;s/"//')"
+# Der Pfad zu assets/ ist nicht fest: bei einem Build für die Wurzel steht
+# dort `/assets/…`, bei einem für einen Unterpfad `/Cad_light/assets/…`.
+# Gesucht wird deshalb nach dem Muster, nicht nach dem festen Anfang.
+SKRIPT="$(grep -oE 'src="[^"]*assets/[^"]*\.js"' <<<"$SEITE" | head -1 | sed 's/src="//;s/"$//')"
+STIL="$(grep -oE 'href="[^"]*assets/[^"]*\.css"' <<<"$SEITE" | head -1 | sed 's/href="//;s/"$//')"
 
 if [[ -n "$SKRIPT" ]]; then ok "Die Startseite nennt eine Skriptdatei"; grau "$SKRIPT"
 else weg "In der Startseite steht keine Skriptdatei — falsche index.html?"; fi
 
 if [[ -n "$SKRIPT" ]]; then
-  HS="$(kopf "$ADRESSE$SKRIPT")"
+  HS="$(kopf "$(voll "$SKRIPT")")"
   TYP="$(wert "$HS" 'content-type')"
   case "$TYP" in
     *javascript*) ok "Das Skript wird als JavaScript ausgeliefert" ;;
@@ -69,7 +87,7 @@ if [[ -n "$SKRIPT" ]]; then
   esac
 fi
 if [[ -n "$STIL" ]]; then
-  HC="$(kopf "$ADRESSE$STIL")"
+  HC="$(kopf "$(voll "$STIL")")"
   case "$(wert "$HC" 'content-type')" in
     *text/css*) ok "Das Stilblatt wird als CSS ausgeliefert" ;;
     *) weg "Das Stilblatt kommt als „$(wert "$HC" 'content-type')“ — die Seite bliebe unformatiert" ;;
@@ -82,16 +100,16 @@ fi
 # 3D-Betrachter und der PDF-Leser werden erst bei Bedarf nachgeladen. Es wird
 # deshalb in zwei Stufen gesucht — erst das pdf-Teilbündel im Hauptbündel,
 # dann darin der Arbeitsprozess.
-HAUPT="$(curl -sS -m 30 "$ADRESSE$SKRIPT" 2>/dev/null)"
-WORKER="$(grep -oE 'assets/pdf\.worker[A-Za-z0-9._-]*\.mjs' <<<"$HAUPT" | head -1)"
+HAUPT="$(curl -sS -m 30 "$(voll "$SKRIPT")" 2>/dev/null)"
+WORKER="$(grep -oE '[^"'"'"'`]*assets/pdf\.worker[A-Za-z0-9._-]*\.mjs' <<<"$HAUPT" | head -1)"
 if [[ -z "$WORKER" ]]; then
-  TEIL="$(grep -oE 'assets/pdf-[A-Za-z0-9_-]*\.js' <<<"$HAUPT" | head -1)"
+  TEIL="$(grep -oE '[^"'"'"']*assets/pdf-[A-Za-z0-9_-]*\.js' <<<"$HAUPT" | head -1)"
   if [[ -n "$TEIL" ]]; then
-    WORKER="$(curl -sS -m 30 "$ADRESSE/$TEIL" 2>/dev/null | grep -oE 'assets/pdf\.worker[A-Za-z0-9._-]*\.mjs' | head -1)"
+    WORKER="$(curl -sS -m 30 "$(voll "$TEIL")" 2>/dev/null | grep -oE '[^"'"'"'`]*assets/pdf\.worker[A-Za-z0-9._-]*\.mjs' | head -1)"
   fi
 fi
 if [[ -n "$WORKER" ]]; then
-  HW="$(kopf "$ADRESSE/$WORKER")"
+  HW="$(kopf "$(voll "$WORKER")")"
   CW="$(head -1 <<<"$HW" | awk '{print $2}')"
   TW="$(wert "$HW" 'content-type')"
   if [[ "$CW" != "200" ]]; then
@@ -122,7 +140,7 @@ case "$CC_INDEX" in
   *) weg "Die Startseite trägt „$CC_INDEX“ — sie darf nicht zwischengespeichert werden" ;;
 esac
 if [[ -n "$SKRIPT" ]]; then
-  CC_ASSET="$(wert "$(kopf "$ADRESSE$SKRIPT")" 'cache-control')"
+  CC_ASSET="$(wert "$(kopf "$(voll "$SKRIPT")")" 'cache-control')"
   case "$CC_ASSET" in
     *immutable*|*max-age=31536000*) ok "Die Dateien in /assets/ werden lange zwischengespeichert" ;;
     *) hm "Die Dateien in /assets/ tragen „${CC_ASSET:-nichts}“ — sie dürften ein Jahr" ;;
@@ -133,8 +151,8 @@ fi
 echo
 echo "4 · Kompression"
 if [[ -n "$SKRIPT" ]]; then
-  ROH="$(curl -sS -m 30 -o /dev/null -w '%{size_download}' "$ADRESSE$SKRIPT" 2>/dev/null)"
-  GEP="$(curl -sS -m 30 -H 'Accept-Encoding: gzip' -o /dev/null -w '%{size_download}' "$ADRESSE$SKRIPT" 2>/dev/null)"
+  ROH="$(curl -sS -m 30 -o /dev/null -w '%{size_download}' "$(voll "$SKRIPT")" 2>/dev/null)"
+  GEP="$(curl -sS -m 30 -H 'Accept-Encoding: gzip' -o /dev/null -w '%{size_download}' "$(voll "$SKRIPT")" 2>/dev/null)"
   if [[ -n "$ROH" && -n "$GEP" && "$GEP" -gt 0 && "$GEP" -lt $((ROH * 9 / 10)) ]]; then
     ok "Kompression ist aktiv ($((ROH/1024)) kB → $((GEP/1024)) kB)"
   else
@@ -170,7 +188,13 @@ else
       grau "Zu ändern in: /etc/nginx/snippets/ravia-cad-kopfzeilen.conf"
     fi
     [[ "$ANC" == *"example"* ]] && weg "  Eine Beispieladresse steht noch drin"
-    [[ "$ANC" == "'self'" ]] && hm "  Nur 'self' — RaVia darf die Anwendung nicht einbetten"
+    if [[ "$ANC" == "'self'" ]]; then
+      # Kein Mangel, sondern der Regelfall, wenn RaVia auf derselben Domain
+      # liegt: dann ist die eigene Herkunft auch die von RaVia. Nur wenn RaVia
+      # unter einer **anderen** Adresse läuft, fehlt hier eine.
+      grau "Nur 'self': Einbettung ausschließlich von derselben Herkunft."
+      grau "Richtig, solange RaVia auf derselben Domain liegt wie diese Seite."
+    fi
   else
     weg "  frame-ancestors fehlt — jede fremde Seite dürfte die Anwendung rahmen"
   fi
@@ -196,7 +220,7 @@ echo "6 · Fremde Adressen"
 # **Namensraumkennung**, die kein Browser je abruft. Wer sie mitzählt, meldet
 # einen Fehler, den es nicht gibt — und wer solche Meldungen zweimal bekommt,
 # sieht beim dritten Mal nicht mehr hin.
-EIGEN="$(sed 's|https\?://||' <<<"$ADRESSE")"
+EIGEN="$(sed 's|https\?://||' <<<"$HERKUNFT")"
 FREMD="$(grep -oE '(src|href)="https?://[^"]+"' <<<"$SEITE" \
   | sed 's/.*="//;s/"$//' \
   | grep -oE 'https?://[a-zA-Z0-9.-]+' \

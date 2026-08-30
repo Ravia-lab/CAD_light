@@ -35,6 +35,22 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+/**
+ * Unter welcher Adresse geprüft wird.
+ *
+ * Vorgabe ist die Vorschau aus `vite preview`. Über `RAVIA_PROBE` lässt sich
+ * stattdessen ein **echter Server** prüfen — und vor allem einer, der die
+ * Anwendung unter einem **Unterpfad** ausliefert:
+ *
+ *     RAVIA_PROBE=http://localhost:8080/Cad_light/ node scripts/smoke-ui.mjs
+ *
+ * Das ist kein Beiwerk. Ein Build für einen Unterpfad schreibt andere
+ * Adressen in die index.html, und ob die stimmen, zeigt sich nur, wenn man
+ * genau dort prüft. Der abschließende Schrägstrich gehört dazu.
+ */
+const BASIS = process.env.RAVIA_PROBE ?? 'http://localhost:4177/';
+
+
 const HIER = path.dirname(fileURLToPath(import.meta.url));
 const REFERENZ = path.join(HIER, 'referenz');
 /** Zulässiger Anteil abweichender Pixel, bevor ein Bild als geändert gilt. */
@@ -150,7 +166,7 @@ await p.addInitScript(() => {
   localStorage.setItem('ravia-ui-mode', 'profi');
   localStorage.setItem('ravia-einfuehrung', '1');
 });
-await p.goto('http://localhost:4177/', { waitUntil: 'networkidle' });
+await p.goto(BASIS, { waitUntil: 'networkidle' });
 await p.waitForFunction(() => typeof window.__ravia !== 'undefined', null, { timeout: 30000 });
 // Schriften abwarten: eine noch nicht geladene Schrift verschiebt jede
 // Beschriftung im Bild und macht den Vergleich zum Glücksspiel.

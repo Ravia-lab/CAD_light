@@ -7,6 +7,22 @@
  */
 import { chromium } from 'playwright';
 
+/**
+ * Unter welcher Adresse geprüft wird.
+ *
+ * Vorgabe ist die Vorschau aus `vite preview`. Über `RAVIA_PROBE` lässt sich
+ * stattdessen ein **echter Server** prüfen — und vor allem einer, der die
+ * Anwendung unter einem **Unterpfad** ausliefert:
+ *
+ *     RAVIA_PROBE=http://localhost:8080/Cad_light/ node scripts/smoke-ui.mjs
+ *
+ * Das ist kein Beiwerk. Ein Build für einen Unterpfad schreibt andere
+ * Adressen in die index.html, und ob die stimmen, zeigt sich nur, wenn man
+ * genau dort prüft. Der abschließende Schrägstrich gehört dazu.
+ */
+const BASIS = process.env.RAVIA_PROBE ?? 'http://localhost:4177/';
+
+
 const b = await chromium.launch({
   executablePath: '/opt/pw-browsers/chromium',
   args: ['--use-gl=swiftshader', '--enable-unsafe-swiftshader', '--no-sandbox'],
@@ -37,7 +53,7 @@ await p.addInitScript(() => {
   localStorage.setItem('ravia-einfuehrung', '1');
 });
 
-  await p.goto('http://localhost:4177/', { waitUntil: 'networkidle' });
+  await p.goto(BASIS, { waitUntil: 'networkidle' });
   await p.waitForTimeout(1200);
 
   const api = await p.evaluate(() => ({
@@ -104,7 +120,7 @@ console.log('\n▸ Nachrichtenbrücke (postMessage aus dem umgebenden Fenster)')
   // Editor die Rückfrage „Letzten Stand fortsetzen?" auslösen — dann stünde
   // dort ein leeres Modell. Für den Test wird sie vorher geleert.
   await p.evaluate(() => localStorage.clear());
-  await p.goto('http://localhost:4177/einbettung-beispiel.html', { waitUntil: 'networkidle' });
+  await p.goto(BASIS + 'einbettung-beispiel.html', { waitUntil: 'networkidle' });
   await p.waitForTimeout(2500);
 
   const status = await p.locator('#status').innerText();

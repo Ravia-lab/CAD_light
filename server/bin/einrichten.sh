@@ -24,7 +24,15 @@ nginx_neu_laden() {
   if command -v systemctl >/dev/null 2>&1 && systemctl is-active --quiet nginx 2>/dev/null; then
     systemctl reload nginx
   else
-    nginx -s reload 2>/dev/null || nginx
+    # Kein systemd (Container, ältere Systeme): unmittelbar neu laden. Auch
+    # hier über sudo, wenn wir nicht root sind — sonst startet nginx als
+    # gewöhnlicher Benutzer und scheitert an /var/log/nginx, und die Meldung
+    # sieht aus wie ein Konfigurationsfehler, obwohl es ein Rechtefehler ist.
+    if [[ $EUID -eq 0 ]]; then
+      nginx -s reload 2>/dev/null || nginx
+    else
+      sudo -n nginx -s reload 2>/dev/null || sudo -n nginx
+    fi
   fi
 }
 
@@ -69,6 +77,25 @@ if [[ ! -d "$PAKET/app" ]] || [[ ! -f "$PAKET/app/index.html" ]]; then
   exit 1
 fi
 grau "  ✓ Anwendungsdateien im Paket gefunden"
+
+# Der Build muss zur Auslieferungsart passen. Für eine **eigene Domain** darf
+# in der index.html kein Basispfad stehen; ein Build für `/Cad_light/` würde
+# hier eine **weiße Seite ohne Fehlermeldung** ergeben, weil der Browser die
+# Dateien unter dem falschen Pfad sucht. Das ist der am schwersten zu findende
+# Fehler dieser Auslieferungsart — deshalb wird er hier abgefangen und nicht
+# dem Zufall überlassen.
+BASIS_IM_HTML="$(grep -oE '(src|href)="[^"]*assets/' "$PAKET/app/index.html" | head -1 | sed 's/.*="//;s/assets\/$//')"
+if [[ -n "$BASIS_IM_HTML" && "$BASIS_IM_HTML" != "/" ]]; then
+  rot "  ✗ Der Build ist für den Unterpfad „$BASIS_IM_HTML" erzeugt,"
+  rot "    dieses Skript richtet aber eine **eigene Domain** ein."
+  echo
+  echo "    Entweder neu bauen:"
+  echo "        npm run build            # ohne RAVIA_BASE"
+  echo "    oder das andere Skript nehmen:"
+  echo "        sudo bin/einrichten-unterpfad.sh"
+  exit 1
+fi
+grau "  ✓ Der Build passt zur eigenen Domain (kein Basispfad)"
 
 # -- 2 · Verzeichnisse ------------------------------------------------------
 echo

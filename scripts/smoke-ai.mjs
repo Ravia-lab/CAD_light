@@ -1,4 +1,20 @@
 import { chromium } from 'playwright';
+
+/**
+ * Unter welcher Adresse geprüft wird.
+ *
+ * Vorgabe ist die Vorschau aus `vite preview`. Über `RAVIA_PROBE` lässt sich
+ * stattdessen ein **echter Server** prüfen — und vor allem einer, der die
+ * Anwendung unter einem **Unterpfad** ausliefert:
+ *
+ *     RAVIA_PROBE=http://localhost:8080/Cad_light/ node scripts/smoke-ui.mjs
+ *
+ * Das ist kein Beiwerk. Ein Build für einen Unterpfad schreibt andere
+ * Adressen in die index.html, und ob die stimmen, zeigt sich nur, wenn man
+ * genau dort prüft. Der abschließende Schrägstrich gehört dazu.
+ */
+const BASIS = process.env.RAVIA_PROBE ?? 'http://localhost:4177/';
+
 const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', args: ['--use-gl=swiftshader','--enable-unsafe-swiftshader','--no-sandbox'] });
 const p = await b.newPage({ viewport: { width: 1600, height: 950 }, deviceScaleFactor: 2 });
 const errs = [];
@@ -15,7 +31,7 @@ await p.addInitScript(() => {
 });
 
 
-await p.goto('http://localhost:4177/', { waitUntil: 'networkidle' });
+await p.goto(BASIS, { waitUntil: 'networkidle' });
 await p.waitForTimeout(800);
 await p.screenshot({ path: './screenshots/ai-0-start.png' });
 

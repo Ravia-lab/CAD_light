@@ -21,17 +21,38 @@ set -euo pipefail
 # nächsten Mal von Hand auf und lässt die Prüfungen weg.
 nginx_neu_laden() {
   if command -v systemctl >/dev/null 2>&1 && systemctl is-active --quiet nginx 2>/dev/null; then
-    systemctl reload nginx
+    # `ravia-deploy` darf genau diesen einen Befehl über sudo — mehr braucht
+    # das Aufspielen nicht, und mehr soll es auch nicht können.
+    if [[ $EUID -eq 0 ]]; then systemctl reload nginx; else sudo -n systemctl reload nginx; fi
   else
-    nginx -s reload 2>/dev/null || nginx
+    # Kein systemd (Container, ältere Systeme): unmittelbar neu laden. Auch
+    # hier über sudo, wenn wir nicht root sind — sonst startet nginx als
+    # gewöhnlicher Benutzer und scheitert an /var/log/nginx, und die Meldung
+    # sieht aus wie ein Konfigurationsfehler, obwohl es ein Rechtefehler ist.
+    if [[ $EUID -eq 0 ]]; then
+      nginx -s reload 2>/dev/null || nginx
+    else
+      sudo -n nginx -s reload 2>/dev/null || sudo -n nginx
+    fi
   fi
 }
-WURZEL="/var/www/ravia-cad"
+# Wo die Fassungen liegen. Änderbar über die Umgebung, damit dasselbe Skript
+# für den eigenen Serverblock (/var/www/ravia-cad) und für den Unterpfad in
+# einer bestehenden Seite (/opt/ravia-cad-light) taugt.
+WURZEL="${RAVIA_WURZEL:-/opt/ravia-cad-light}"
 rot()  { printf '\033[31m%s\033[0m\n' "$*"; }
 gruen(){ printf '\033[32m%s\033[0m\n' "$*"; }
 grau() { printf '\033[90m%s\033[0m\n' "$*"; }
 
-[[ $EUID -ne 0 ]] && { rot "Das Skript braucht root."; exit 1; }
+# Root ist **nicht** nötig, wenn das Verzeichnis dem Aufspielbenutzer gehört
+# — genau dafür gibt es den Benutzer `ravia-deploy`. Geprüft wird deshalb das
+# Schreibrecht und nicht die Benutzerkennung.
+if [[ ! -w "$WURZEL" ]] && [[ $EUID -ne 0 ]]; then
+  rot "Kein Schreibrecht auf $WURZEL."
+  echo "Entweder als der Benutzer aufrufen, dem das Verzeichnis gehört,"
+  echo "oder einmalig mit sudo. Eingerichtet wird das von einrichten-unterpfad.sh."
+  exit 1
+fi
 JETZT="$(readlink -f "$WURZEL/aktuell" 2>/dev/null || echo '')"
 
 mapfile -t fassungen < <(ls -1dt "$WURZEL"/fassungen/*/ 2>/dev/null)

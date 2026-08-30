@@ -26,13 +26,26 @@ set -euo pipefail
 # nächsten Mal von Hand auf und lässt die Prüfungen weg.
 nginx_neu_laden() {
   if command -v systemctl >/dev/null 2>&1 && systemctl is-active --quiet nginx 2>/dev/null; then
-    systemctl reload nginx
+    # `ravia-deploy` darf genau diesen einen Befehl über sudo — mehr braucht
+    # das Aufspielen nicht, und mehr soll es auch nicht können.
+    if [[ $EUID -eq 0 ]]; then systemctl reload nginx; else sudo -n systemctl reload nginx; fi
   else
-    nginx -s reload 2>/dev/null || nginx
+    # Kein systemd (Container, ältere Systeme): unmittelbar neu laden. Auch
+    # hier über sudo, wenn wir nicht root sind — sonst startet nginx als
+    # gewöhnlicher Benutzer und scheitert an /var/log/nginx, und die Meldung
+    # sieht aus wie ein Konfigurationsfehler, obwohl es ein Rechtefehler ist.
+    if [[ $EUID -eq 0 ]]; then
+      nginx -s reload 2>/dev/null || nginx
+    else
+      sudo -n nginx -s reload 2>/dev/null || sudo -n nginx
+    fi
   fi
 }
 
-WURZEL="/var/www/ravia-cad"
+# Wo die Fassungen liegen. Änderbar über die Umgebung, damit dasselbe Skript
+# für den eigenen Serverblock (/var/www/ravia-cad) und für den Unterpfad in
+# einer bestehenden Seite (/opt/ravia-cad-light) taugt.
+WURZEL="${RAVIA_WURZEL:-/opt/ravia-cad-light}"
 PAKET="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 BEHALTEN=5                       # so viele alte Fassungen bleiben stehen
 OHNE_NEULADEN=0
@@ -42,7 +55,15 @@ rot()  { printf '\033[31m%s\033[0m\n' "$*"; }
 gruen(){ printf '\033[32m%s\033[0m\n' "$*"; }
 grau() { printf '\033[90m%s\033[0m\n' "$*"; }
 
-[[ $EUID -ne 0 ]] && { rot "Das Skript braucht root."; exit 1; }
+# Root ist **nicht** nötig, wenn das Verzeichnis dem Aufspielbenutzer gehört
+# — genau dafür gibt es den Benutzer `ravia-deploy`. Geprüft wird deshalb das
+# Schreibrecht und nicht die Benutzerkennung.
+if [[ ! -w "$WURZEL" ]] && [[ $EUID -ne 0 ]]; then
+  rot "Kein Schreibrecht auf $WURZEL."
+  echo "Entweder als der Benutzer aufrufen, dem das Verzeichnis gehört,"
+  echo "oder einmalig mit sudo. Eingerichtet wird das von einrichten-unterpfad.sh."
+  exit 1
+fi
 [[ -f "$PAKET/app/index.html" ]] || { rot "app/index.html fehlt — Paket unvollständig."; exit 1; }
 
 FASSUNG="$(cat "$PAKET/VERSION" 2>/dev/null || echo unbekannt)"
@@ -71,7 +92,7 @@ fi
 # -- 2 · Danebenlegen -------------------------------------------------------
 mkdir -p "$ZIEL"
 rsync -a --delete "$PAKET/app/" "$ZIEL/"
-chown -R www-data:www-data "$ZIEL" 2>/dev/null || true
+chown -R "$(stat -c %U "$WURZEL"):$(stat -c %G "$WURZEL")" "$ZIEL" 2>/dev/null || true
 find "$ZIEL" -type d -exec chmod 755 {} +
 find "$ZIEL" -type f -exec chmod 644 {} +
 grau "  ✓ kopiert ($(du -sh "$ZIEL" | cut -f1))"
@@ -86,9 +107,21 @@ fehler=0
 if ! ls "$ZIEL"/assets/*.js >/dev/null 2>&1; then rot "  ✗ keine Skriptdatei in assets/"; fehler=1; fi
 # Jede in der index.html genannte Datei muss auch daliegen. Genau hier fällt
 # ein unvollständig übertragenes Archiv auf.
+#
+# Der Basispfad muss dabei abgezogen werden: bei einem Build für
+# `/Cad_light/` steht in der index.html `/Cad_light/assets/…`, auf der Platte
+# liegt die Datei aber unter `assets/…`. Der Basispfad wird aus der Datei
+# selbst gelesen statt als Vorgabe geführt — dann stimmt er auch, wenn jemand
+# den Pfad ändert und den Build vergisst.
+BASIS_IM_HTML="$(grep -oE '(src|href)="[^"]*assets/' "$ZIEL/index.html" | head -1 | sed 's/.*="//;s/assets\/$//')"
 while read -r datei; do
-  [[ -f "$ZIEL/${datei#/}" ]] || { rot "  ✗ index.html verweist auf $datei — nicht vorhanden"; fehler=1; }
-done < <(grep -o '\(src\|href\)="/[^"]*"' "$ZIEL/index.html" | sed 's/.*="//;s/"$//' | grep -v '^/$' || true)
+  relativ="${datei#"$BASIS_IM_HTML"}"
+  relativ="${relativ#/}"
+  [[ -f "$ZIEL/$relativ" ]] || { rot "  ✗ index.html verweist auf $datei — nicht vorhanden"; fehler=1; }
+done < <(grep -oE '(src|href)="/[^"]*"' "$ZIEL/index.html" | sed 's/.*="//;s/"$//' | grep -v '^/$' || true)
+if [[ -n "$BASIS_IM_HTML" && "$BASIS_IM_HTML" != "/" ]]; then
+  grau "  · Build für Basispfad $BASIS_IM_HTML"
+fi
 if [[ $fehler -eq 1 ]]; then
   rot "  ✗ Abbruch. Die laufende Fassung bleibt unverändert."
   rm -rf "$ZIEL"
@@ -113,12 +146,20 @@ grau  "    jetzt:   $ZIEL"
 
 # -- 5 · nginx ---------------------------------------------------------------
 if [[ $OHNE_NEULADEN -eq 0 ]]; then
-  if nginx -t 2>/dev/null; then
+  # `nginx -t` liest die Protokollpfade mit und scheitert deshalb als
+  # gewöhnlicher Benutzer an /var/log/nginx (root:adm 750) — mit „permission
+  # denied", nicht mit einem Konfigurationsfehler. Ohne diese Unterscheidung
+  # meldete das Skript einen Fehler, den es nicht gibt, **nachdem** es bereits
+  # umgeschaltet hat. Deshalb: als root unmittelbar, sonst über dieselbe
+  # sudo-Regel, die auch das Neuladen erlaubt.
+  if [[ $EUID -eq 0 ]]; then pruefe_nginx() { nginx -t 2>&1; }
+  else pruefe_nginx() { sudo -n nginx -t 2>&1; }; fi
+  if pruefe_nginx >/dev/null; then
     nginx_neu_laden
     grau "  ✓ nginx neu geladen"
   else
     rot "  ✗ nginx meldet einen Konfigurationsfehler:"
-    nginx -t || true
+    pruefe_nginx || true
     rot "    Die Dateien sind umgeschaltet, aber nginx läuft mit der alten"
     rot "    Konfiguration weiter. Fehler beheben, dann: systemctl reload nginx"
     exit 1
