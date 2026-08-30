@@ -33,6 +33,7 @@ import type { BimDocument } from '../types/bim';
 import type { RohrnetzBericht, TeilstreckenZeile } from './pipeReport';
 import { berichtsUrteil } from './pipeReport';
 import { buildPlanSvg, type PaperFormat, type PaperOrientation } from './planPrint';
+import { druckeDokument } from './druckFenster';
 import { PIPE_MATERIAL_LABELS } from '../types/bim';
 import type { ErzeugerUmfang, WertHerkunft } from '../types/bim';
 
@@ -910,8 +911,6 @@ function quellenBlatt(m: Blattmasse, b: RohrnetzBericht): string {
  * nichts ab.
  */
 export function printPipeReport(ergebnis: RohrnetzDruckErgebnis, titel = 'Rohrnetzberechnung'): boolean {
-  const win = window.open('', '_blank');
-  if (!win) return false;
   const w = Math.max(ergebnis.sheet.w, ergebnis.planSheet?.w ?? 0);
   const h = Math.max(ergebnis.sheet.h, ergebnis.planSheet?.h ?? 0);
   const koerper = ergebnis.sheets
@@ -920,15 +919,13 @@ export function printPipeReport(ergebnis: RohrnetzDruckErgebnis, titel = 'Rohrne
         `<div class="blatt"${i === ergebnis.sheets.length - 1 ? ' style="page-break-after:auto"' : ''}>${svg}</div>`,
     )
     .join('');
-  win.document.write(
-    `<!doctype html><html lang="de"><head><meta charset="utf-8"><title>${escapeXml(titel)}</title>` +
+  return druckeDokument(
+    `<!doctype html><html lang="de"><head><meta charset="utf-8">` +
       `<style>@page{size:${w}mm ${h}mm;margin:0}html,body{margin:0;padding:0;background:#fff}` +
       '.blatt{page-break-after:always;display:flex;align-items:center;justify-content:center}svg{display:block}' +
       '@media screen{body{padding:16px;background:#334155}svg{box-shadow:0 8px 40px rgba(0,0,0,.4);margin:0 auto 16px}}' +
       `</style></head><body>${koerper}` +
-      "<script>window.addEventListener('load',function(){setTimeout(function(){window.print()},250)})<\\/script>" +
       '</body></html>',
+    titel,
   );
-  win.document.close();
-  return true;
 }

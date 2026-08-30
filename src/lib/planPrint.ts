@@ -30,6 +30,7 @@ import { solidFootprint, solidsOnLevel, stairLayout, verticalCorners } from './v
 import { accessorySymbol, type AccessoryPart } from './pipeAccessorySymbols';
 import { buildRoofFrame, dormerSide, ridgeLine, roofContourLines, roofOpeningCorners } from './roofGeometry';
 import { pointInPolygon, polygonArea } from './geometry';
+import { druckeDokument } from './druckFenster';
 import { drawableScaleBar } from './planScaleBar';
 import { findeBeschriftungslage, type Rechteck } from './beschriftungsLage';
 
@@ -946,19 +947,21 @@ const escapeXml = (v: string): string =>
  * gesetzt, damit der Browser nicht skaliert — nur so bleibt der Maßstab exakt.
  */
 export function printPlan(svg: string, options: PlanPrintOptions): boolean {
-  const win = window.open('', '_blank');
-  if (!win) return false;
   const paper = PAPER[options.format];
   const size = options.orientation === 'landscape' ? `${paper.h}mm ${paper.w}mm` : `${paper.w}mm ${paper.h}mm`;
+  const titel = `Grundriss M 1:${options.scale}`;
 
-  win.document.write(
-    `<!doctype html><html lang="de"><head><meta charset="utf-8"><title>Grundriss M 1:${options.scale}</title>` +
+  // Kein eingebettetes Skript im Dokument: der Druck wird vom Öffner
+  // ausgelöst. Siehe `druckFenster.ts` — mit einer Inhaltsrichtlinie
+  // `script-src 'self'` würde ein Skript hier verworfen, und der Druckdialog
+  // ginge stillschweigend nicht auf.
+  return druckeDokument(
+    `<!doctype html><html lang="de"><head><meta charset="utf-8">` +
       `<style>@page{size:${size};margin:0}html,body{margin:0;padding:0;background:#fff}` +
       `svg{display:block}@media screen{body{padding:16px;background:#334155}svg{box-shadow:0 8px 40px rgba(0,0,0,.4);margin:0 auto}}</style>` +
-      `</head><body>${svg}<script>window.addEventListener('load',function(){setTimeout(function(){window.print()},250)})<\/script></body></html>`,
+      `</head><body>${svg}</body></html>`,
+    titel,
   );
-  win.document.close();
-  return true;
 }
 
 /**

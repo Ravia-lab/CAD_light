@@ -1,6 +1,41 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
+/*
+ * Die Schriften werden **mitgeliefert**, nicht nachgeladen.
+ *
+ * Bis 1.14.0 holte die Seite Inter und JetBrains Mono von Google Fonts. Das
+ * hatte drei Nachteile, von denen jeder für sich schwer genug wiegt:
+ *
+ *  1. **Datenschutz.** Beim Nachladen einer Schrift von einem fremden Server
+ *     wird die IP-Adresse des Anwenders dorthin übertragen. Das LG München I
+ *     hat am 20.01.2022 (Az. 3 O 17493/20) entschieden, dass das ohne
+ *     Einwilligung ein Verstoß gegen die DSGVO ist. Für ein Werkzeug, das
+ *     auf einem deutschen Firmenserver läuft, ist das kein Randthema.
+ *  2. **Verfügbarkeit.** Ohne Netz — Baustelle, Keller, abgeschottetes
+ *     Firmennetz — fiel die Anwendung auf den Systemschriftstapel zurück.
+ *     Sie lief, sah aber anders aus als geplant, und Tabellen mit
+ *     Zahlenkolonnen liefen ohne die dicktengleiche Schrift auseinander.
+ *  3. **Inhaltsrichtlinie.** Der Aufruf zwang die Sicherheitsrichtlinie des
+ *     Servers, zwei fremde Herkünfte zuzulassen. Jede zugelassene Herkunft
+ *     ist eine, die man nicht mehr ausschließt.
+ *
+ * Die Schriftdateien liegen jetzt im Paket und werden vom eigenen Server
+ * ausgeliefert. Eingebunden sind nur die tatsächlich benutzten Schnitte —
+ * Inter 300/400/500/600 und JetBrains Mono 400/500 — und davon nur der
+ * **lateinische Zeichenvorrat**. Kyrillisch, Griechisch und Vietnamesisch
+ * blähen das Paket um mehr als ein Megabyte auf, ohne dass ein deutsches
+ * Anlagenblatt je ein Zeichen daraus enthielte; `latin-ext` bleibt für die
+ * polnischen und tschechischen Namen, die auf einer Baustelle sehr wohl
+ * vorkommen.
+ */
+import '@fontsource/inter/latin-300.css';
+import '@fontsource/inter/latin-400.css';
+import '@fontsource/inter/latin-500.css';
+import '@fontsource/inter/latin-600.css';
+import '@fontsource/inter/latin-ext-400.css';
+import '@fontsource/jetbrains-mono/latin-400.css';
+import '@fontsource/jetbrains-mono/latin-500.css';
 import './index.css';
 import { useBimStore } from './store/useBimStore';
 import { installEmbedApi } from './lib/embedApi';

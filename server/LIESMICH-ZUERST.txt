@@ -1,0 +1,53 @@
+RaVia CAD Light 1.14.0 — Serverpaket
+=====================================
+
+Was hier drin ist
+-----------------
+Eine fertig gebaute, rein statische Webanwendung samt allem, was ein
+Linux-Server mit nginx braucht, um sie auszuliefern. Kein Node auf dem
+Server, keine Datenbank, kein Serverprozess, kein Zustand.
+
+Wo Sie anfangen
+---------------
+SERVER-EINRICHTUNG.html  im Browser öffnen. Das ist das Handbuch fuer den,
+                         der den Server aufsetzt. Abschnitt 3 ist der
+                         schnelle Weg: in zehn Minuten steht es.
+
+Der schnelle Weg, wenn Sie es eilig haben
+-----------------------------------------
+    tar xzf RaVia-CAD-Light-Server-1.14.0.tar.gz
+    cd ravia-cad-light-server
+    sudo bin/einrichten.sh IHRE-ADRESSE.de
+    sudo certbot --nginx -d IHRE-ADRESSE.de
+    # RaVia-Adresse eintragen: siehe Ausgabe von einrichten.sh
+    bin/pruefen.sh https://IHRE-ADRESSE.de
+
+Was im Paket liegt
+------------------
+    SERVER-EINRICHTUNG.html   Das Handbuch fuer die Einrichtung
+    app/                      Die Anwendung (4,2 MB, reine Dateien)
+    app/handbuch.html         Das Anwenderhandbuch, wird mit ausgeliefert
+                              und ist danach unter /handbuch.html erreichbar
+    nginx/                    Serverblock und Sicherheitskopfzeilen
+    bin/einrichten.sh         Ersteinrichtung, wiederholbar
+    bin/aufspielen.sh         Neue Fassung: danebenlegen, pruefen, umschalten
+    bin/zuruecknehmen.sh      Auf die vorige Fassung zurueck
+    bin/pruefen.sh            Abnahme des laufenden Servers von aussen
+    einbettung/               Beispielseite fuer die Einbindung in RaVia
+    pruefsummen.sha256        Wird von aufspielen.sh geprueft
+    VERSION                   1.14.0
+
+Drei Dinge, die Sie wissen sollten
+----------------------------------
+1. Es werden KEINE Projektdaten auf dem Server gespeichert. Alles bleibt im
+   Browser des Anwenders. Serverseitig gibt es ausser der Konfiguration
+   nichts zu sichern.
+
+2. Die Anwendung ruft KEINE fremde Adresse auf. Die Schriften liegen im
+   Paket. Das ist seit 1.14.0 so und war vorher anders.
+
+3. Die Abnahme (bin/pruefen.sh) meldet auf einer frischen Einrichtung genau
+   einen Fehler: die Beispieladresse app.ravia.de steht noch in der
+   Kopfzeilendatei. Tragen Sie dort Ihre RaVia-Adresse ein, dann ist sie
+   grün. Das ist Absicht — eine Abnahme, die von Anfang an alles gutheisst,
+   prueft nichts.

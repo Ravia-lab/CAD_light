@@ -59,6 +59,7 @@ import { buildMaterialSchedule, type MaterialItem } from './materialSchedule';
 import { plantOf } from './plantDefaults';
 import { GENERATOR, buildRaviaExport } from './raviaExport';
 import { BELASTBARKEIT_LABELS, KORPUS_LABELS, type KorpusId, type WissensEintrag } from './wissensbasis';
+import { druckeDokument } from './druckFenster';
 
 // ---------------------------------------------------------------------------
 // Öffentliche Typen
@@ -1774,20 +1775,14 @@ function stilblatt(blatt: { w: number; h: number }): string {
  * nichts.
  */
 export function printProjektMappe(html: string, titel = 'Projektmappe'): boolean {
-  const win = window.open('', '_blank');
-  if (!win) return false;
-  // Der Fenstertitel ist in den meisten Browsern der vorgeschlagene Dateiname
-  // beim Speichern als PDF. Zwei Fallstricke, beide mit demselben Auslöser —
-  // ein Projektname, den jemand frei eintippt:
-  //  • `JSON.stringify` schützt Anführungszeichen, aber nicht das
-  //    Kleinerzeichen; ein Titel mit `</script>` beendet den Skriptblock
-  //    mitten im Dokument.
-  //  • Der Ersatztext von `String.replace` deutet `$&` und `$'` als Muster.
-  //    Eine Ersatzfunktion wird nicht gedeutet.
-  const skript =
-    `<script>document.title=${JSON.stringify(titel).replace(/</g, '\\u003c')};` +
-    `window.addEventListener('load',function(){setTimeout(function(){window.print()},250)})<\/script></body>`;
-  win.document.write(html.replace('</body>', () => skript));
-  win.document.close();
-  return true;
+  /*
+   * Der Fenstertitel wird von `druckeDokument` als **Eigenschaft** gesetzt und
+   * nicht mehr über ein eingebettetes Skript ins Dokument geschrieben. Damit
+   * entfällt die doppelte Entschärfung des Projektnamens (`</script>` im Titel,
+   * `$&` im Ersatztext) — und vor allem läuft der Druck auch unter der
+   * Inhaltsrichtlinie `script-src 'self'`, die der Server ausliefert. Ein
+   * eingebettetes Skript würde dort verworfen, und der Druckdialog ginge
+   * stillschweigend nicht auf.
+   */
+  return druckeDokument(html, titel);
 }

@@ -47,6 +47,7 @@ import type { PipeService, SchematicComponent, SchematicKind, SchematicLink } fr
 import { PIPE_SERVICE_COLORS, PIPE_SERVICE_LABELS } from '../types/bim';
 import { SCHEMATIC_LEGEND, drawSymbol, pickPortPair, symbolExtent, symbolPortPoints } from './schematicSymbols';
 import { drawableScaleBar } from './planScaleBar';
+import { druckeDokument } from './druckFenster';
 
 // ---------------------------------------------------------------------------
 // Kleinkram: Zahlen und XML
@@ -1378,19 +1379,16 @@ export function buildSchematicSvg(
  * Browsers sie einzeln zeigt.
  */
 export function printSchematic(result: SchematicPrintResult, title = 'Anlagenschema'): boolean {
-  const win = window.open('', '_blank');
-  if (!win) return false;
   const size = `${result.sheet.w}mm ${result.sheet.h}mm`;
   const sheets = result.sheets
     .map((svg, i) => `<div class="blatt"${i === result.sheets.length - 1 ? ' style="page-break-after:auto"' : ''}>${svg}</div>`)
     .join('');
-  win.document.write(
-    `<!doctype html><html lang="de"><head><meta charset="utf-8"><title>${escapeXml(title)} M 1:${result.scale}</title>` +
+  return druckeDokument(
+    `<!doctype html><html lang="de"><head><meta charset="utf-8">` +
       `<style>@page{size:${size};margin:0}html,body{margin:0;padding:0;background:#fff}` +
       `.blatt{page-break-after:always}svg{display:block}` +
       `@media screen{body{padding:16px;background:#334155}svg{box-shadow:0 8px 40px rgba(0,0,0,.4);margin:0 auto 16px}}</style>` +
-      `</head><body>${sheets}<script>window.addEventListener('load',function(){setTimeout(function(){window.print()},250)})<\/script></body></html>`,
+      `</head><body>${sheets}</body></html>`,
+    `${title} M 1:${result.scale}`,
   );
-  win.document.close();
-  return true;
 }

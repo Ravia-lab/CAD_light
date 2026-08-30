@@ -55,6 +55,7 @@ import {
 import { REFRIGERANTS } from './deviceCatalog';
 import type { DomesticWaterResult } from './domesticWater';
 import type { CircuitDesign, PlanningNote, PlantDesignResult } from './plantDesign';
+import { druckeDokument } from './druckFenster';
 
 // ---------------------------------------------------------------------------
 // Öffentliche Typen
@@ -2031,24 +2032,21 @@ export function buildPlantBook(options: PlantBookOptions): PlantBookResult {
  * muss das anzeigen, sonst passiert für den Nutzer scheinbar nichts.
  */
 export function printPlantBook(html: string, title = 'Anlagenbuch'): boolean {
-  const win = window.open('', '_blank');
-  if (!win) return false;
-  // Der Titel des Fensters wird gesetzt, bevor der Druckdialog aufgeht: er ist
-  // in den meisten Browsern der vorgeschlagene Dateiname beim Speichern als PDF.
-  //
-  // Zwei Fallstricke, beide mit demselben Auslöser — ein Projektname, den
-  // jemand frei eintippt:
-  //  • `JSON.stringify` schützt Anführungszeichen, aber nicht das
-  //    Kleinerzeichen. Ein Titel mit `</script>` beendet den Skriptblock
-  //    mitten im Dokument; deshalb wird es als Unicode-Escape geschrieben,
-  //    das innerhalb einer JavaScript-Zeichenkette dasselbe Zeichen ergibt.
-  //  • Der Ersatztext von `String.replace` deutet `$&`, `$'` und `` $` `` als
-  //    Muster. Ein Projektname mit `$&` bekäme dort den gefundenen Text
-  //    eingesetzt. Eine Ersatzfunktion wird nicht gedeutet.
-  const script =
-    `<script>document.title=${JSON.stringify(title).replace(/</g, '\\u003c')};` +
-    `window.addEventListener('load',function(){setTimeout(function(){window.print()},250)})<\/script></body>`;
-  win.document.write(html.replace('</body>', () => script));
-  win.document.close();
-  return true;
+  /*
+   * Der Fenstertitel ist in den meisten Browsern der vorgeschlagene Dateiname
+   * beim Speichern als PDF. Er wird von `druckeDokument` als **Eigenschaft**
+   * gesetzt und nicht mehr über ein eingebettetes Skript ins Dokument
+   * geschrieben.
+   *
+   * Damit verschwinden zwei Fallstricke, die beide denselben Auslöser hatten —
+   * einen Projektnamen, den jemand frei eintippt: ein Titel mit `</script>`
+   * beendete den Skriptblock mitten im Dokument, und ein Titel mit `$&`
+   * bekam vom Ersatztext des `String.replace` den gefundenen Text eingesetzt.
+   * Beides war entschärft; jetzt kann es gar nicht mehr entstehen.
+   *
+   * Und der eigentliche Grund für den Umbau: ein Server mit der
+   * Inhaltsrichtlinie `script-src 'self'` verwirft ein eingebettetes Skript,
+   * und der Druckdialog ginge stillschweigend nicht auf.
+   */
+  return druckeDokument(html, title);
 }
