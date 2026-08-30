@@ -1,0 +1,2268 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RaVia CAD Light 1.14.0 — Server-Handbuch</title>
+<style>
+  :root {
+    --papier:   #FBFAF7;
+    --karte:    #FFFFFF;
+    --text:     #23262B;
+    --gedaempft:#5C6470;
+    --linie:    #DFDCD4;
+    --linie-hell:#ECE9E2;
+    --akzent:   #1F5C8B;
+    --code-bg:  #F3F1EC;
+    --pre-bg:   #262A30;
+    --pre-text: #E6E4DE;
+    --merk-bg:  #F0F5F9;
+    --merk-rand:#1F5C8B;
+    --warn-bg:  #FCF3EA;
+    --warn-rand:#B26A1B;
+    --stop-bg:  #FBEEEE;
+    --stop-rand:#A8352F;
+  }
+
+  * { box-sizing: border-box; }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    margin: 0;
+    background: var(--papier);
+    color: var(--text);
+    font: 16px/1.62 "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, "Times New Roman", serif;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  .blatt {
+    max-width: 860px;
+    margin: 0 auto;
+    padding: 56px 28px 120px;
+  }
+
+  /* -- Kopf -------------------------------------------------------------- */
+  header.titel {
+    border-bottom: 3px solid var(--text);
+    padding-bottom: 22px;
+    margin-bottom: 34px;
+  }
+  header.titel .marke {
+    font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+    font-size: 11px;
+    letter-spacing: .18em;
+    text-transform: uppercase;
+    color: var(--gedaempft);
+    margin: 0 0 10px;
+  }
+  header.titel h1 {
+    font-size: 34px;
+    line-height: 1.18;
+    margin: 0 0 8px;
+    font-weight: 600;
+    letter-spacing: -.015em;
+  }
+  header.titel p.unterzeile {
+    margin: 0;
+    color: var(--gedaempft);
+    font-size: 16px;
+  }
+
+  /* -- Überschriften ----------------------------------------------------- */
+  h2 {
+    font-size: 24px;
+    font-weight: 600;
+    letter-spacing: -.01em;
+    margin: 54px 0 14px;
+    padding-top: 14px;
+    border-top: 1px solid var(--linie);
+    scroll-margin-top: 18px;
+  }
+  h2 .nr {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 14px;
+    color: var(--akzent);
+    margin-right: 12px;
+    font-weight: 400;
+  }
+  h3 {
+    font-size: 18px;
+    font-weight: 600;
+    margin: 30px 0 8px;
+    scroll-margin-top: 18px;
+  }
+  h4 {
+    font-size: 15px;
+    font-weight: 600;
+    margin: 22px 0 6px;
+    color: var(--gedaempft);
+  }
+
+  p { margin: 0 0 13px; }
+  ul, ol { margin: 0 0 14px; padding-left: 24px; }
+  li { margin-bottom: 5px; }
+  strong { font-weight: 600; }
+
+  a { color: var(--akzent); text-decoration-thickness: 1px; text-underline-offset: 2px; }
+
+  /* -- Inhaltsverzeichnis ------------------------------------------------ */
+  nav.inhalt {
+    background: var(--karte);
+    border: 1px solid var(--linie);
+    border-radius: 4px;
+    padding: 22px 26px;
+    margin-bottom: 18px;
+  }
+  nav.inhalt h2 {
+    border: 0;
+    margin: 0 0 12px;
+    padding: 0;
+    font-size: 12px;
+    letter-spacing: .16em;
+    text-transform: uppercase;
+    color: var(--gedaempft);
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-weight: 600;
+  }
+  nav.inhalt ol {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    counter-reset: kap;
+  }
+  nav.inhalt li {
+    counter-increment: kap;
+    margin: 0;
+    border-bottom: 1px solid var(--linie-hell);
+  }
+  nav.inhalt li:last-child { border-bottom: 0; }
+  nav.inhalt a {
+    display: block;
+    padding: 7px 0;
+    text-decoration: none;
+    color: var(--text);
+    font-size: 15px;
+  }
+  nav.inhalt a:hover { color: var(--akzent); }
+  nav.inhalt a::before {
+    content: counter(kap) ".";
+    display: inline-block;
+    width: 30px;
+    color: var(--akzent);
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 13px;
+  }
+
+  /* -- Code -------------------------------------------------------------- */
+  code {
+    font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+    font-size: .875em;
+    background: var(--code-bg);
+    padding: 1.5px 5px;
+    border-radius: 3px;
+    word-break: break-word;
+  }
+  pre {
+    background: var(--pre-bg);
+    color: var(--pre-text);
+    border-radius: 4px;
+    padding: 13px 16px;
+    overflow-x: auto;
+    margin: 0 0 13px;
+    font-size: 13.5px;
+    line-height: 1.55;
+  }
+  pre code {
+    background: none;
+    padding: 0;
+    color: inherit;
+    font-size: inherit;
+    word-break: normal;
+  }
+  pre.ausgabe {
+    background: var(--code-bg);
+    color: var(--text);
+    border: 1px solid var(--linie);
+  }
+
+  /* -- Kästen ------------------------------------------------------------ */
+  .merk, .warn, .stop {
+    border-left: 4px solid;
+    padding: 14px 18px;
+    margin: 20px 0;
+    border-radius: 0 4px 4px 0;
+    font-size: 15px;
+  }
+  .merk { background: var(--merk-bg); border-color: var(--merk-rand); }
+  .warn { background: var(--warn-bg); border-color: var(--warn-rand); }
+  .stop { background: var(--stop-bg); border-color: var(--stop-rand); }
+  .merk p:last-child, .warn p:last-child, .stop p:last-child,
+  .merk ul:last-child, .warn ul:last-child, .stop ul:last-child { margin-bottom: 0; }
+  .kasten-titel {
+    display: block;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 10.5px;
+    letter-spacing: .16em;
+    text-transform: uppercase;
+    font-weight: 600;
+    margin-bottom: 6px;
+  }
+  .merk .kasten-titel { color: var(--merk-rand); }
+  .warn .kasten-titel { color: var(--warn-rand); }
+  .stop .kasten-titel { color: var(--stop-rand); }
+
+  /* -- Tabellen ---------------------------------------------------------- */
+  .tabellenrahmen { overflow-x: auto; margin: 0 0 18px; }
+  table {
+    border-collapse: collapse;
+    width: 100%;
+    font-size: 14.5px;
+    background: var(--karte);
+  }
+  th, td {
+    text-align: left;
+    vertical-align: top;
+    padding: 9px 12px;
+    border-bottom: 1px solid var(--linie-hell);
+  }
+  th {
+    background: var(--code-bg);
+    font-weight: 600;
+    font-size: 12px;
+    letter-spacing: .05em;
+    text-transform: uppercase;
+    color: var(--gedaempft);
+    border-bottom: 1px solid var(--linie);
+    white-space: nowrap;
+  }
+  tbody tr:last-child td { border-bottom: 0; }
+  table code { font-size: 12.5px; }
+
+  /* -- Schrittfolge ------------------------------------------------------ */
+  .schritt {
+    margin: 26px 0;
+    padding-left: 46px;
+    position: relative;
+  }
+  .schritt::before {
+    content: attr(data-nr);
+    position: absolute;
+    left: 0;
+    top: 1px;
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    background: var(--akzent);
+    color: #fff;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .schritt h3 { margin-top: 2px; }
+
+  .kleingedruckt { font-size: 14px; color: var(--gedaempft); }
+
+  hr.trenner { border: 0; border-top: 1px solid var(--linie); margin: 44px 0; }
+
+  footer.abschluss {
+    margin-top: 60px;
+    padding-top: 18px;
+    border-top: 1px solid var(--linie);
+    font-size: 13.5px;
+    color: var(--gedaempft);
+  }
+
+  /* -- Druck ------------------------------------------------------------- */
+  @media print {
+    :root { --papier: #fff; --karte: #fff; }
+    body { font-size: 10.5pt; line-height: 1.45; background: #fff; }
+    .blatt { max-width: none; padding: 0; }
+    nav.inhalt { break-after: page; border: 0; padding: 0; }
+    nav.inhalt a { color: #000; }
+    h2 { break-after: avoid; margin-top: 26px; font-size: 15pt; }
+    h3, h4 { break-after: avoid; }
+    pre, table, .merk, .warn, .stop, .schritt { break-inside: avoid; }
+    pre {
+      background: #F4F4F2;
+      color: #000;
+      border: 1px solid #BBB;
+      font-size: 8.5pt;
+      white-space: pre-wrap;
+      word-break: break-all;
+    }
+    table { font-size: 8.5pt; }
+    th { background: #EEE; color: #000; }
+    .merk, .warn, .stop { background: #F6F6F4; font-size: 10pt; }
+    a { color: #000; text-decoration: none; }
+    .tabellenrahmen { overflow: visible; }
+  }
+
+  @media (max-width: 620px) {
+    .blatt { padding: 32px 16px 80px; }
+    header.titel h1 { font-size: 26px; }
+    h2 { font-size: 20px; }
+    .schritt { padding-left: 0; }
+    .schritt::before { position: static; margin-bottom: 8px; }
+  }
+</style>
+</head>
+<body>
+<div class="blatt">
+
+<header class="titel">
+  <p class="marke">RaVia CAD Light &middot; Fassung 1.14.0 &middot; Server-Paket</p>
+  <h1>Server-Handbuch</h1>
+  <p class="unterzeile">Einrichtung, Abnahme und Betrieb auf einem Linux-Server mit nginx.</p>
+</header>
+
+<p>Dieses Handbuch führt einen Server von der leeren Maschine bis zur abgenommenen
+Anwendung. Es setzt Grundkenntnisse in Linux und SSH voraus, aber keine Erfahrung
+mit nginx.</p>
+
+<h3>Zuerst: welcher der beiden Wege gilt für Sie</h3>
+
+<p>Die Anwendung lässt sich auf zwei Arten ausliefern. Sie schließen einander
+nicht aus, aber sie haben so gut wie nichts gemeinsam — wer den falschen
+abarbeitet, richtet einen Serverblock ein, den es nicht braucht, oder wartet auf
+ein Zertifikat, das schon da ist.</p>
+
+<div class="tabellenrahmen">
+<table>
+  <thead>
+    <tr><th></th><th>Unterpfad einer bestehenden Seite</th><th>Eigene Domain</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>Adresse</strong></td>
+      <td><code>https://ravia-tech.de/Cad_light/</code></td>
+      <td><code>https://cad.ravia.de/</code></td>
+    </tr>
+    <tr>
+      <td><strong>Stand</strong></td>
+      <td><strong>Das ist der Weg, der zurzeit gebaut wird.</strong></td>
+      <td>Bleibt als zweite Möglichkeit bestehen.</td>
+    </tr>
+    <tr>
+      <td><strong>nginx</strong></td>
+      <td>Eine <code>include</code>-Zeile im <em>bestehenden</em> Serverblock von ravia-tech.de</td>
+      <td>Ein eigener Serverblock</td>
+    </tr>
+    <tr>
+      <td><strong>DNS und Zertifikat</strong></td>
+      <td>Beides gibt es schon. Nichts zu tun.</td>
+      <td>A-Eintrag setzen, Zertifikat mit certbot holen</td>
+    </tr>
+    <tr>
+      <td><strong>Dateien</strong></td>
+      <td><code>/opt/ravia-cad-light/aktuell/</code></td>
+      <td><code>/var/www/ravia-cad/aktuell/</code></td>
+    </tr>
+    <tr>
+      <td><strong>Build</strong></td>
+      <td><code>RAVIA_BASE=/Cad_light/ npm run build</code></td>
+      <td><code>npm run build</code></td>
+    </tr>
+    <tr>
+      <td><strong>Einrichtung</strong></td>
+      <td><code>bin/einrichten-unterpfad.sh</code></td>
+      <td><code>bin/einrichten.sh ADRESSE</code></td>
+    </tr>
+    <tr>
+      <td><strong>Zu lesen</strong></td>
+      <td><strong>Abschnitt 3</strong></td>
+      <td>Abschnitt 4 und 5</td>
+    </tr>
+  </tbody>
+</table>
+</div>
+
+<p>Die Abschnitte 6 bis 13 — Zertifikat, Einbettung, Abnahme, Aufspielen,
+Betrieb, Fehlersuche, Anhang — gelten für beide Wege. Wo etwas nur für einen
+von beiden gilt, steht es dabei.</p>
+
+<p>Alle Befehle stehen so, dass sie sich kopieren lassen. Wo eine Adresse
+einzusetzen ist, steht im Beispiel für den Unterpfad
+<code>ravia-tech.de</code>, für die eigene Domain <code>cad.ravia.de</code>.</p>
+
+<nav class="inhalt">
+  <h2>Inhalt</h2>
+  <ol>
+    <li><a href="#k1">Was hier aufgesetzt wird</a></li>
+    <li><a href="#k2">Voraussetzungen</a></li>
+    <li><a href="#k3">Der Unterpfad in einer bestehenden Seite</a></li>
+    <li><a href="#k4">In zehn Minuten unter einer eigenen Domain</a></li>
+    <li><a href="#k5">Was einrichten.sh tut</a></li>
+    <li><a href="#k6">Die vier Stellen, die angepasst werden müssen</a></li>
+    <li><a href="#k7">TLS-Zertifikat</a></li>
+    <li><a href="#k8">Die Einbettung in RaVia</a></li>
+    <li><a href="#k9">Abnahme</a></li>
+    <li><a href="#k10">Eine neue Fassung aufspielen</a></li>
+    <li><a href="#k11">Betrieb</a></li>
+    <li><a href="#k12">Wenn etwas nicht geht</a></li>
+    <li><a href="#k13">Anhang</a></li>
+  </ol>
+</nav>
+
+
+<!-- =================================================================== 1 -->
+<h2 id="k1"><span class="nr">1</span>Was hier aufgesetzt wird</h2>
+
+<p>RaVia CAD Light ist eine Seite ohne Server dahinter. Was auf die Maschine
+kommt, sind Dateien: eine <code>index.html</code>, JavaScript, ein Stilblatt,
+zwei Schriftfamilien. nginx liefert sie aus. Danach läuft alles im Browser des
+Anwenders.</p>
+
+<p>Es gibt kein Node auf dem Server, keine Datenbank, keinen Anwendungsprozess,
+keinen Zustand. Nichts, was abstürzen, volllaufen oder aus dem Speicher fallen
+kann. Der Serverbetrieb beschränkt sich darauf, dass nginx läuft und das
+Zertifikat gültig ist.</p>
+
+<h3>Was das für den Betrieb heißt</h3>
+
+<p>Es gibt keinen Dienst zu überwachen außer nginx selbst. Ein Neustart der
+Maschine bringt die Anwendung zurück, sobald nginx wieder läuft. Ein
+Aufspielvorgang tauscht Dateien und schaltet eine Verknüpfung um; es fährt nichts
+hoch und nichts herunter.</p>
+
+<h3>Was das für die Sicherung heißt</h3>
+
+<div class="merk">
+  <span class="kasten-titel">Merksatz</span>
+  <p><strong>Es werden keine Projektdaten auf dem Server gespeichert.</strong>
+  Grundrisse, Räume, Wände, Heizlasten — alles bleibt im Browser des Anwenders
+  im <code>localStorage</code>. Auf dem Server gibt es davon keine Kopie, weil
+  es dorthin nie gelangt.</p>
+</div>
+
+<p>Daraus folgt zweierlei. Erstens: serverseitig ist nichts zu sichern außer der
+Konfiguration — zwei Dateien unter <code>/etc/nginx</code> und das
+Anwendungspaket, das ohnehin als Archiv vorliegt. Es gibt keinen Datenbestand,
+der beim Verlust der Maschine verloren ginge. Zweitens, und das ist die
+unangenehmere Seite: <strong>die Daten des Anwenders liegen ausschließlich bei
+ihm</strong>. Wer seinen Browserspeicher leert oder den Rechner wechselt,
+verliert seine Projekte. Die Anwendung bietet dafür den Export als Projektdatei
+an; darauf sollten die Anwender hingewiesen werden.</p>
+
+<h3>Was das für den Datenschutz heißt</h3>
+
+<p>Seit Fassung 1.14.0 ruft die Anwendung <strong>keine fremde Adresse</strong>
+mehr auf. Kein Analysedienst, keine Karten, keine Fehlermeldung nach Hause. Die
+Schriften Inter und JetBrains Mono liegen im Paket und werden vom eigenen Server
+ausgeliefert.</p>
+
+<p>Vorher kamen sie von Google Fonts. Das ist entfernt worden, auch wegen des
+Urteils des LG München I vom 20.01.2022 (Az. 3 O 17493/20): Das dynamische
+Einbinden von Google Fonts überträgt die IP-Adresse des Besuchers ohne dessen
+Einwilligung an einen Dritten. Die Inhaltsrichtlinie des Servers hält diesen
+Zustand fest — <code>connect-src 'self'</code> und
+<code>font-src 'self'</code> lassen keine fremde Herkunft zu. Wer später eine
+Gegenstelle ergänzt, muss sie dort eintragen und merkt dabei, dass er es tut.</p>
+
+<h3>Größen</h3>
+
+<div class="tabellenrahmen">
+<table>
+  <thead>
+    <tr><th>Gegenstand</th><th>Größe</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>Paket auf der Platte (<code>app/</code>)</td><td>4,2 MB</td></tr>
+    <tr><td>Über die Leitung, mit Kompression</td><td>rund 1,1 MB</td></tr>
+    <tr><td>Hauptskriptdatei roh / komprimiert</td><td>1509 kB &rarr; 469 kB</td></tr>
+    <tr><td>Fünf vorgehaltene Fassungen</td><td>rund 21 MB</td></tr>
+  </tbody>
+</table>
+</div>
+
+
+<!-- =================================================================== 2 -->
+<h2 id="k2"><span class="nr">2</span>Voraussetzungen</h2>
+
+<h3>Maschine</h3>
+
+<p>Eine kleine Maschine reicht aus. Ein Kern und 512 MB Arbeitsspeicher tragen
+den Betrieb; nginx liefert statische Dateien aus und tut sonst nichts. Für die
+Platte sind 2 GB reichlich bemessen — das Paket belegt 4,2 MB, fünf Fassungen
+zusammen rund 21 MB, der Rest sind Betriebssystem und Protokolle.</p>
+
+<h3>Betriebssystem und Pakete</h3>
+
+<p>Debian 12 oder Ubuntu 22.04 beziehungsweise 24.04. Andere Distributionen
+gehen ebenfalls, die Pfadangaben in diesem Handbuch folgen aber der Debian-Art
+mit <code>sites-available</code> und <code>sites-enabled</code>.</p>
+
+<p>Vorhanden sein müssen: <code>nginx</code>, <code>rsync</code> und
+<code>curl</code>. Das Einrichtungsskript prüft das und bricht mit einer klaren
+Meldung ab, wenn eines davon fehlt.</p>
+
+<pre><code>sudo apt-get update &amp;&amp; sudo apt-get install -y nginx rsync curl</code></pre>
+
+<p>Für das Zertifikat kommt später noch certbot dazu (Abschnitt 7).</p>
+
+<h3>nginx-Fassung</h3>
+
+<p>Für HTTP/2 hängt die Schreibweise an der nginx-Fassung, und die falsche
+lässt den Server gar nicht erst starten. Der Serverblock erklärt beide Formen in
+einem Kommentar über der Zeile:</p>
+
+<div class="tabellenrahmen">
+<table>
+  <thead>
+    <tr><th>nginx-Fassung</th><th>Schreibweise</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>ab 1.25.1</td><td><code>http2 on;</code> als eigene Anweisung — so ist der Serverblock ausgeliefert</td></tr>
+    <tr><td>bis 1.24</td><td><code>listen 443 ssl http2;</code> an den beiden <code>listen</code>-Zeilen</td></tr>
+  </tbody>
+</table>
+</div>
+
+<p>Welche Fassung installiert ist, sagt:</p>
+
+<pre><code>nginx -v</code></pre>
+
+<div class="warn">
+  <span class="kasten-titel">Hinweis</span>
+  <p>Debian 12 liefert nginx 1.22, Ubuntu 24.04 liefert 1.24 — beide brauchen
+  also die zweite Form. Umstellen muss man von Hand; die Skripte tun es nicht.
+  Es sind zwei Zeilen, sie stehen in Abschnitt 12 unter <em>nginx startet nach
+  reload nicht</em>. Am einfachsten vor dem ersten <code>nginx -t</code>
+  nachsehen, statt sich die Fehlermeldung erklären zu lassen.</p>
+</div>
+
+<h3>DNS und Ports</h3>
+
+<p><strong>Nur für die eigene Domain.</strong> Wer die Anwendung als Unterpfad
+einer bestehenden Seite ausliefert (Abschnitt 3), hat DNS-Eintrag, offene Ports
+und Zertifikat bereits — dieser Unterabschnitt und Abschnitt 7 gehen ihn nichts
+an.</p>
+
+<p>Die Adresse, unter der die Anwendung laufen soll, muss als A-Eintrag (und bei
+IPv6 zusätzlich als AAAA-Eintrag) auf diesen Server zeigen. Ohne das kann
+Let's Encrypt kein Zertifikat ausstellen. Prüfen:</p>
+
+<pre><code>dig +short cad.ravia.de</code></pre>
+
+<p>Zurückkommen muss die IP-Adresse dieses Servers. Kommt nichts oder die
+falsche Adresse zurück, ist der DNS-Eintrag noch nicht gesetzt oder noch nicht
+verbreitet.</p>
+
+<p>Offen sein müssen von außen die Ports <strong>80</strong> und
+<strong>443</strong>. Port 80 wird nicht nur für die Umleitung auf https
+gebraucht, sondern auch für die Prüfung, mit der Let's Encrypt das Zertifikat
+ausstellt und später erneuert. Wer ihn schließt, kann das Zertifikat nach
+90 Tagen nicht mehr erneuern.</p>
+
+<h3>Was es ausdrücklich nicht braucht</h3>
+
+<div class="tabellenrahmen">
+<table>
+  <thead>
+    <tr><th>Nicht nötig</th><th>Weil</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>Node.js auf dem Server</td><td>Die Anwendung ist gebaut. Node braucht nur, wer sie baut.</td></tr>
+    <tr><td>Eine Datenbank</td><td>Es gibt keine Daten auf dem Server.</td></tr>
+    <tr><td>PHP, Python, ein Anwendungsserver</td><td>Es wird nichts ausgeführt, nur ausgeliefert.</td></tr>
+    <tr><td>Docker oder ein Orchestrierer</td><td>Vier Megabyte Dateien und ein nginx.</td></tr>
+    <tr><td>Ein Sicherungsdienst für Nutzdaten</td><td>Siehe Abschnitt 1: es gibt keine.</td></tr>
+    <tr><td>Ein Zwischenspeicher (Redis, Memcached)</td><td>Kein Zustand, keine Sitzungen.</td></tr>
+  </tbody>
+</table>
+</div>
+
+
+<!-- =================================================================== 3 -->
+<h2 id="k3"><span class="nr">3</span>Der Unterpfad in einer bestehenden Seite</h2>
+
+<p>Zielbild: <code>https://ravia-tech.de/Cad_light/</code>. Die Seite
+<code>ravia-tech.de</code> gibt es bereits, mit Serverblock und Zertifikat; auf
+demselben Server läuft RaVia Heizlast als Anwendung auf Port 8001. CAD Light
+kommt als Unterpfad dazu, ohne dass an dem, was steht, etwas geändert wird.</p>
+
+<div class="merk">
+  <span class="kasten-titel">Merksatz</span>
+  <p>Alles, was im bestehenden Serverblock von ravia-tech.de zu tun ist, ist
+  <strong>eine Zeile</strong>:</p>
+  <pre><code>include /etc/nginx/snippets/ravia-cad-light.conf;</code></pre>
+  <p>Kein neuer Serverblock, kein neues Zertifikat, kein DNS-Eintrag.</p>
+</div>
+
+<div class="tabellenrahmen">
+<table>
+  <thead>
+    <tr><th>Nicht nötig</th><th>Weil</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>Ein eigener Serverblock</td><td>Die drei <code>location</code>-Blöcke werden in den bestehenden eingebunden.</td></tr>
+    <tr><td>Ein DNS-Eintrag</td><td>Die Domain zeigt schon auf diesen Server.</td></tr>
+    <tr><td>Ein Zertifikat</td><td>Das der Domain gilt für alle ihre Pfade mit.</td></tr>
+    <tr><td>Ein Port 8002</td><td>Siehe den nächsten Abschnitt. Es gibt nichts, was lauschen könnte.</td></tr>
+    <tr><td>Ein <code>proxy_pass</code></td><td>Ebenso. nginx liefert die Dateien selbst aus.</td></tr>
+    <tr><td>root für das Aufspielen</td><td>Das erledigt danach der Benutzer <code>ravia-deploy</code>.</td></tr>
+  </tbody>
+</table>
+</div>
+
+<h3>Kein proxy_pass, kein Port 8002</h3>
+
+<p>Die naheliegende Erwartung ist, CAD Light so einzubinden wie RaVia Heizlast:
+ein interner Port, davor ein <code>proxy_pass</code>. Von der RaVia-Seite her
+ist das die richtige Vorstellung — dort läuft auf Port 8001 tatsächlich ein
+Prozess, und ein Proxy davor ist genau das passende Mittel.</p>
+
+<p>Hier trägt sie nicht. <strong>CAD Light ist keine Anwendung in diesem
+Sinne</strong>, sondern ein Stapel Dateien: HTML, JavaScript, ein Stilblatt,
+zwei Schriftfamilien. Es gibt keinen Prozess, der lauschen könnte, und damit
+nichts, wohin ein <code>proxy_pass</code> weiterleiten könnte. Ein Port 8002
+wäre ein Dienst, den jemand starten, überwachen und nach jedem Neustart wieder
+hochbringen müsste — für nichts. nginx liest die Dateien unmittelbar von der
+Platte, schneller als jeder Proxy davor und ohne einen weiteren Dienst, der
+ausfallen kann.</p>
+
+<p>Die ganze Rechnung läuft ohnehin im Browser des Anwenders. Der Server hält
+nichts, speichert nichts und rechnet nichts (Abschnitt 1).</p>
+
+<h3>Der Pfad steckt im Build</h3>
+
+<p>Vite schreibt die Verweise auf Skript, Stilblatt und Schriften
+<strong>absolut</strong> in die <code>index.html</code>. Bei einem Build für die
+Wurzel steht dort <code>/assets/index-….js</code>; unter
+<code>/Cad_light/</code> sucht der Browser die Datei dann unter
+<code>https://ravia-tech.de/assets/…</code> und findet nichts.</p>
+
+<pre><code>RAVIA_BASE=/Cad_light/ npm run build</code></pre>
+
+<div class="stop">
+  <span class="kasten-titel">Der Fehler, der sich nicht meldet</span>
+  <p>Wer den Basispfad beim Bauen vergisst, bekommt eine <strong>weiße Seite
+  ohne Fehlermeldung</strong>. Der Server antwortet ja — nur mit der falschen
+  Datei. <strong>Kein <code>rewrite</code> und kein <code>try_files</code>
+  repariert das hinterher</strong>, weil die falschen Adressen bereits im
+  ausgelieferten HTML stehen. Der Pfad gehört in den Build und nicht in die
+  Serverkonfiguration.</p>
+  <p><code>bin/einrichten-unterpfad.sh</code> sieht deshalb in
+  <code>app/index.html</code> nach, bevor es irgendetwas anlegt, und bricht mit
+  dem Befehl zum Neubauen ab, wenn der Build nicht zum Pfad passt.</p>
+</div>
+
+<p>Der abschließende Schrägstrich in <code>RAVIA_BASE</code> ist Pflicht; Vite
+hängt die Dateinamen unmittelbar an. Ohne ihn entstünde
+<code>/Cad_lightassets/…</code>. Die Konfiguration in
+<code>vite.config.ts</code> bricht in diesem Fall mit einer Meldung ab.</p>
+
+<h3>Die Einrichtung</h3>
+
+<div class="schritt" data-nr="1">
+<h3>Paket auf den Server bringen und entpacken</h3>
+<pre><code>scp server-paket-1.14.0.tar.gz benutzer@ravia-tech.de:~/</code></pre>
+<pre><code>ssh benutzer@ravia-tech.de</code></pre>
+<pre><code>tar xzf server-paket-1.14.0.tar.gz &amp;&amp; cd server-paket</code></pre>
+<pre><code>chmod +x bin/*.sh</code></pre>
+</div>
+
+<div class="schritt" data-nr="2">
+<h3>Einrichten</h3>
+<p>Einmalig und als root. Das Skript nimmt kein Argument; der Pfad
+<code>/Cad_light/</code> ist die Vorgabe.</p>
+<pre><code>sudo bin/einrichten-unterpfad.sh</code></pre>
+<p>Was es im Einzelnen anfasst, steht weiter unten. Am Ende gibt es die beiden
+Handgriffe aus, die es bewusst nicht selbst erledigt.</p>
+</div>
+
+<div class="schritt" data-nr="3">
+<h3>Die eine Zeile in den bestehenden Serverblock</h3>
+<p>Erst die Datei finden, in der ravia-tech.de steht:</p>
+<pre><code>grep -rl 'ravia-tech.de' /etc/nginx/sites-enabled/ /etc/nginx/conf.d/</code></pre>
+<p>Dort in den <code>server{}</code>-Block mit <code>listen 443 ssl;</code>
+diese Zeile aufnehmen — an beliebiger Stelle, üblicherweise unter die
+vorhandenen <code>location</code>-Blöcke:</p>
+<pre><code>include /etc/nginx/snippets/ravia-cad-light.conf;</code></pre>
+<p>Das Skript schreibt diese Zeile nicht selbst hinein. Ein Skript, das
+ungefragt in eine laufende Serverkonfiguration schreibt, ist ein Skript, das
+eine laufende Seite abschalten kann.</p>
+</div>
+
+<div class="schritt" data-nr="4">
+<h3>Übernehmen</h3>
+<pre><code>sudo nginx -t &amp;&amp; sudo systemctl reload nginx</code></pre>
+<p>Geht <code>nginx -t</code> nicht durch, läuft nginx mit der alten
+Konfiguration weiter — ravia-tech.de fällt also nicht aus, während der Fehler
+gesucht wird.</p>
+</div>
+
+<div class="schritt" data-nr="5">
+<h3>Abnahme fahren</h3>
+<pre><code>bin/pruefen.sh https://ravia-tech.de/Cad_light/</code></pre>
+<p>Das Prüfskript versteht Unterpfad-Adressen: es trennt die
+<strong>Herkunft</strong> von der Adresse, weil die Verweise in der
+<code>index.html</code> absolut ab der Wurzel der Domain stehen und nicht ab
+dem Unterpfad. Wer sie an die Adresse hängte, prüfte
+<code>…/Cad_light/Cad_light/assets/…</code> und bekäme lauter Fehlalarm.
+Was die einzelnen Abschnitte prüfen, steht in Abschnitt 9.</p>
+</div>
+
+<h3>Was einrichten-unterpfad.sh tut</h3>
+
+<p>Es läuft <strong>einmal</strong> und braucht dafür root. Danach wird es nicht
+mehr gebraucht.</p>
+
+<div class="tabellenrahmen">
+<table>
+  <thead>
+    <tr><th>Schritt</th><th>Was geschieht</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>1 &middot; Vorbedingungen</strong></td>
+      <td>Sind <code>nginx</code> und <code>rsync</code> vorhanden, liegt <code>app/index.html</code> im Paket. Und der eigentliche Punkt: <strong>passt der Build zum Pfad</strong>. Passt er nicht, bricht das Skript ab, zeigt die Adressen, die tatsächlich in der <code>index.html</code> stehen, und nennt den Befehl zum Neubauen.</td>
+    </tr>
+    <tr>
+      <td><strong>2 &middot; Benutzer</strong></td>
+      <td>Legt <code>ravia-deploy</code> an: Systemkonto, Anmeldeschale <code>/usr/sbin/nologin</code>, kein Passwort. Der Benutzer ist zum Dateienschreiben da, nicht zum Arbeiten. Gibt es ihn schon, bleibt er unverändert.</td>
+    </tr>
+    <tr>
+      <td><strong>3 &middot; Verzeichnisse</strong></td>
+      <td><code>/opt/ravia-cad-light/fassungen</code>, Eigentümer <code>ravia-deploy</code>, Rechte 755.</td>
+    </tr>
+    <tr>
+      <td><strong>4 &middot; Rechte</strong></td>
+      <td>Schreibt <code>/etc/sudoers.d/ravia-deploy</code> mit <strong>genau einem</strong> erlaubten Befehl: <code>systemctl reload nginx</code>. Kein Neustart, kein Editieren, kein Shell-Zugang. Die Datei wird mit <code>visudo -c</code> geprüft, bevor sie gilt, und bei einem Fehler wieder entfernt — eine kaputte sudoers-Datei sperrt sonst alle aus.</td>
+    </tr>
+    <tr>
+      <td><strong>5 &middot; nginx-Bausteine</strong></td>
+      <td>Kopiert <code>ravia-cad-light.conf</code> und <code>ravia-cad-light-basis.conf</code> nach <code>/etc/nginx/snippets/</code>.</td>
+    </tr>
+    <tr>
+      <td><strong>6 &middot; Erste Fassung</strong></td>
+      <td>Ruft <code>bin/aufspielen.sh --ohne-neuladen</code> mit <code>RAVIA_WURZEL=/opt/ravia-cad-light</code> auf und setzt anschließend die Eigentümerschaft.</td>
+    </tr>
+    <tr>
+      <td><strong>7 &middot; Was von Hand bleibt</strong></td>
+      <td>Es druckt die <code>include</code>-Zeile aus und den Befehl, mit dem sich die richtige Datei finden lässt.</td>
+    </tr>
+  </tbody>
+</table>
+</div>
+
+<div class="warn">
+  <span class="kasten-titel">Was das Skript ausdrücklich nicht anfasst</span>
+  <p>Den bestehenden Serverblock von ravia-tech.de und das TLS-Zertifikat. Beides
+  steht bereits und gehört nicht einem Einrichtungsskript in die Hand.</p>
+</div>
+
+<h3>Die drei Locations und die Umleitung</h3>
+
+<p>Sie stehen in <code>nginx/ravia-cad-light.conf</code> nebeneinander und nicht
+ineinander:</p>
+
+<div class="tabellenrahmen">
+<table>
+  <thead>
+    <tr><th>location</th><th>Liefert aus</th><th>Zwischenspeicher</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code>^~ /Cad_light/assets/</code></td>
+      <td><code>alias /opt/ravia-cad-light/aktuell/assets/</code></td>
+      <td>Ein Jahr, <code>immutable</code>. Jede Datei trägt einen Inhaltsstempel im Namen; sie wird nie überschrieben, sondern ersetzt. Das Zugriffsprotokoll ist hier abgeschaltet.</td>
+    </tr>
+    <tr>
+      <td><code>= /Cad_light/index.html</code></td>
+      <td><code>alias /opt/ravia-cad-light/aktuell/index.html</code></td>
+      <td><code>no-cache</code>. Die Startseite trägt <strong>keinen</strong> Stempel; sie ist der Zeiger auf die aktuellen Namen.</td>
+    </tr>
+    <tr>
+      <td><code>/Cad_light/</code></td>
+      <td><code>alias /opt/ravia-cad-light/aktuell/</code> mit <code>try_files $uri $uri/ /Cad_light/index.html</code></td>
+      <td><code>no-cache</code>. Hier kommen das Anwenderhandbuch <code>/Cad_light/handbuch.html</code> und die Beispielseite zur Einbettung heraus.</td>
+    </tr>
+    <tr>
+      <td><code>= /Cad_light</code></td>
+      <td>301 auf <code>/Cad_light/</code></td>
+      <td>—</td>
+    </tr>
+  </tbody>
+</table>
+</div>
+
+<p>Die letzte Zeile ist kein Beiwerk: <code>…/Cad_light</code> ohne
+abschließenden Schrägstrich sucht nginx als <strong>Datei</strong>, nicht als
+Verzeichnis. Ohne die Umleitung bekäme der erste Anwender, der die Adresse aus
+dem Gedächtnis tippt, eine 404.</p>
+
+<h4>Warum <code>^~</code> und kein Regex-Muster</h4>
+
+<div class="warn">
+  <span class="kasten-titel">Nachgemessen, nicht vermutet</span>
+  <p><code>alias</code> verhält sich in einer <strong>Regex</strong>-Location
+  anders als in einer Prefix-Location: er hängt den Restpfad
+  <strong>nicht</strong> an. Der erste Entwurf hatte
+  <code>location ~* ^/Cad_light/assets/</code> mit <code>alias</code> und
+  lieferte daraufhin eine <strong>301 auf das Verzeichnis statt der Datei</strong>.
+  Mit <code>^~</code> — Prefix, und es werden keine Regex-Locations mehr geprüft
+  — hängt nginx den Rest korrekt an.</p>
+</div>
+
+<h3>Warum es eine Basisdatei gibt</h3>
+
+<p>MIME-Typen, Kompression und die Sicherheitskopfzeilen stehen in
+<code>nginx/ravia-cad-light-basis.conf</code> und werden in
+<strong>jede der drei Locations</strong> eingebunden:</p>
+
+<pre><code>include /etc/nginx/snippets/ravia-cad-light-basis.conf;</code></pre>
+
+<p>Das ist keine Bequemlichkeit, sondern die einzige Form, in der es
+funktioniert. nginx vererbt hier nicht:</p>
+
+<ul>
+  <li><strong><code>add_header</code> erbt nicht.</strong> Sobald ein
+  <code>location</code>-Block eine eigene Kopfzeile setzt, verliert er
+  <em>alle</em> Kopfzeilen des umgebenden Blocks. Da jede der drei Locations
+  ihr eigenes <code>Cache-Control</code> setzt, wäre ohne die eingebundene Datei
+  keine einzige Sicherheitskopfzeile mehr übrig.</li>
+  <li><strong><code>types</code> erbt ebenfalls nicht</strong> — es gilt nur
+  dort, wo es steht.</li>
+</ul>
+
+<div class="stop">
+  <span class="kasten-titel">Und deshalb steht types nicht auf Serverebene</span>
+  <p>Ein <code>types</code>-Block <strong>ersetzt</strong> die MIME-Zuordnung
+  für den Bereich, in dem er steht. Auf Serverebene würde er sie damit für
+  <strong>ganz ravia-tech.de</strong> ersetzen — also auch für RaVia Heizlast.
+  Alles, was in der Basisdatei nicht aufgeführt ist, käme dort als
+  <code>application/octet-stream</code>. Der <code>types</code>-Block gehört
+  deshalb ausschließlich in die drei Locations unter
+  <code>/Cad_light/</code>.</p>
+</div>
+
+<p>Die Zeile, an der am meisten hängt, ist dieselbe wie beim eigenen
+Serverblock:</p>
+
+<pre class="ausgabe"><code>application/javascript  js mjs;</code></pre>
+
+<p>Ohne sie kommt der Arbeitsprozess von pdf.js
+(<code>pdf.worker.min-*.mjs</code>) als <code>application/octet-stream</code>,
+der Browser lehnt ihn ab, die Anwendung startet — und ein hochgeladenes PDF
+bleibt ohne Wirkung. Abschnitt 12.</p>
+
+<p>Die Sicherheitskopfzeilen der Basisdatei gelten nur innerhalb von
+<code>/Cad_light/</code>; der Rest von ravia-tech.de bleibt unberührt.
+<code>frame-ancestors</code> steht dort auf <code>'self'</code> — RaVia und CAD
+Light liegen auf derselben Domain, eine fremde Herkunft ist deshalb nicht
+nötig. Das ist der Unterschied zum eigenen Serverblock, wo die Adresse von
+RaVia von Hand einzutragen ist (Abschnitt 6).</p>
+
+<h3>Aufspielen ohne root</h3>
+
+<p><code>aufspielen.sh</code> und <code>zuruecknehmen.sh</code> arbeiten mit der
+Umgebungsvariablen <code>RAVIA_WURZEL</code>; ihre Vorgabe ist
+<code>/opt/ravia-cad-light</code>. Sie prüfen das <strong>Schreibrecht</strong>
+und nicht die Benutzerkennung — gehört das Verzeichnis dem Aufspielbenutzer,
+ist root nicht nötig:</p>
+
+<pre><code>sudo -u ravia-deploy bin/aufspielen.sh</code></pre>
+<pre><code>sudo -u ravia-deploy bin/zuruecknehmen.sh --liste</code></pre>
+<pre><code>sudo -u ravia-deploy bin/zuruecknehmen.sh</code></pre>
+
+<p>Mehr als das Neuladen von nginx braucht das Aufspielen an erhöhten Rechten
+nicht, und genau das — und nichts sonst — steht in
+<code>/etc/sudoers.d/ravia-deploy</code>. Der Ablauf ist im Übrigen derselbe wie
+beim eigenen Serverblock: danebenlegen, prüfen, umschalten. Abschnitt 10.</p>
+
+<p>Für den eigenen Serverblock zeigt dieselbe Variable woandershin:</p>
+
+<pre><code>sudo RAVIA_WURZEL=/var/www/ravia-cad bin/aufspielen.sh</code></pre>
+
+<div class="merk">
+  <span class="kasten-titel">Merksatz</span>
+  <p><code>aufspielen.sh</code> liest den Basispfad <strong>aus der
+  index.html selbst</strong>, statt ihn als Vorgabe zu führen. Deshalb findet
+  seine Vollständigkeitsprüfung die Dateien auch dann, wenn der Build für
+  <code>/Cad_light/</code> erzeugt wurde — und deshalb fällt umgekehrt auf,
+  wenn jemand den Pfad ändert und den Build vergisst.</p>
+</div>
+
+<h3>Zugang an den Login knüpfen</h3>
+
+<p>In <code>ravia-cad-light.conf</code> steht ein
+<strong>auskommentierter</strong> <code>auth_request</code>-Block. Er prüft bei
+jedem Aufruf gegen einen Endpunkt der RaVia-Anwendung, ob die Sitzung gültig
+ist:</p>
+
+<pre class="ausgabe"><code>auth_request      /__ravia_auth;
+auth_request_set  $auth_user $upstream_http_x_ravia_user;
+error_page 401 403 = @ravia_login;</code></pre>
+
+<p>Dazu gehören zwei weitere, ebenfalls auskommentierte Blöcke: der interne
+Prüfendpunkt, der auf <code>http://127.0.0.1:8001/api/session/pruefen</code>
+weiterleitet, und die Umleitung zum Login.</p>
+
+<p>Weil RaVia und CAD Light auf <strong>derselben</strong> Domain liegen, geht
+das Sitzungs-Cookie automatisch mit. Es ist keine Cookie-Anpassung nötig und es
+gibt kein Cross-Domain-Problem — das ist der eine Vorteil des Unterpfads, den
+die eigene Domain nicht hat.</p>
+
+<div class="warn">
+  <span class="kasten-titel">Voraussetzung, die es noch nicht gibt</span>
+  <p>RaVia muss einen Endpunkt anbieten, der <strong>204</strong> (oder 200) für
+  eine gültige Sitzung und <strong>401/403</strong> sonst antwortet — ohne Rumpf
+  und ohne Umleitung. Eine Anmeldeseite als Antwort wäre eine 200 und damit für
+  <code>auth_request</code> ein gültiger Zugang.</p>
+  <p>Diesen Endpunkt gibt es noch nicht. Solange er fehlt, bleiben die Zeilen
+  auskommentiert; die Anwendung ist dann für jeden erreichbar, der die Adresse
+  kennt.</p>
+</div>
+
+<p>Die Prüfung hängt bewusst nur an der Einstiegs-Location
+<code>/Cad_light/</code> und <strong>nicht</strong> an
+<code>/Cad_light/assets/</code> oder an der <code>index.html</code>. Ein
+Rechteprüflauf je Skriptdatei kostet bei jedem Seitenaufruf ein Dutzend
+zusätzliche Anfragen an die Anwendung auf Port 8001. Wer den Einstieg schützt,
+schützt die Anwendung; die Dateien darunter sind ohne die Startseite ohnehin
+nutzlos.</p>
+
+<h3>Was für diesen Weg nachgewiesen ist</h3>
+
+<p>Auf einem echten nginx durchgespielt, mit einem Platzhalter für RaVia auf
+<code>/</code> und CAD Light auf <code>/Cad_light/</code>:</p>
+
+<ul>
+  <li>Der Aufruf ohne abschließenden Schrägstrich leitet auf den mit um (301);
+  <code>/Cad_light/</code> antwortet mit 200.</li>
+  <li>Skript, Stilblatt und der Arbeitsprozess von pdf.js kommen mit dem
+  richtigen MIME-Typ.</li>
+  <li>Die Startseite trägt <code>no-cache</code>, die Dateien unter
+  <code>assets/</code> ein Jahr <code>immutable</code>.</li>
+  <li>Die Kompression greift: 1509 kB &rarr; 469 kB.</li>
+  <li><strong>Alle 17 Rauchtests</strong> der Anwendung laufen gegen den
+  Unterpfad durch — gefahren mit
+  <code>RAVIA_PROBE=…/Cad_light/</code>.</li>
+  <li>Das Aufspielen als <code>ravia-deploy</code> läuft <strong>ohne
+  root</strong> durch.</li>
+  <li>Die Abnahme meldet nur noch den Hinweis, dass lokal ohne TLS geprüft
+  wurde.</li>
+</ul>
+
+<p><code>RAVIA_PROBE</code> gehört zu den Rauchtests im Quellverzeichnis der
+Anwendung, nicht zum Serverpaket. Ein Build für einen Unterpfad schreibt andere
+Adressen in die <code>index.html</code>, und ob die stimmen, zeigt sich nur,
+wenn man genau dort prüft.</p>
+
+<!-- =================================================================== 4 -->
+<h2 id="k4"><span class="nr">4</span>In zehn Minuten unter einer eigenen Domain</h2>
+
+<p>Der zweite Weg: eine eigene Adresse mit eigenem Serverblock und eigenem
+Zertifikat, zum Beispiel <code>https://cad.ravia.de/</code>. Wer den Unterpfad
+einrichtet, kann diesen und den nächsten Abschnitt überspringen — dort steht
+nichts, was für ihn gilt.</p>
+
+<p>Der schnelle Weg. Wer wissen will, was Schritt 3 im Einzelnen anstellt, findet
+das in Abschnitt 5 — es ist ratsam, das vorher zu lesen, bevor man ein fremdes
+Skript als root laufen lässt.</p>
+
+<div class="stop">
+  <span class="kasten-titel">Vorher: der Build muss zur Wurzel passen</span>
+  <p>Das <code>app/</code>-Verzeichnis dieses Pakets ist für den Unterpfad
+  gebaut — in seiner <code>index.html</code> stehen Verweise auf
+  <code>/Cad_light/assets/…</code>. Unter einer eigenen Domain liegen die
+  Dateien aber in der Wurzel, und die Seite bliebe <strong>weiß ohne
+  Fehlermeldung</strong>.</p>
+  <p>Für eine eigene Domain gehört die Anwendung deshalb ohne
+  <code>RAVIA_BASE</code> neu gebaut:</p>
+  <pre><code>npm run build</code></pre>
+  <p>Nachsehen lässt sich das ohne Werkzeug — erwartet wird
+  <code>src="/assets/…"</code> ohne Unterpfad:</p>
+  <pre><code>grep -o 'src="[^"]*assets/[^"]*"' app/index.html</code></pre>
+  <p><code>einrichten.sh</code> prüft das nicht;
+  <code>einrichten-unterpfad.sh</code> tut es. Abschnitt 3 erklärt, warum der
+  Pfad im Build steckt.</p>
+</div>
+
+<div class="schritt" data-nr="1">
+<h3>Paket auf den Server bringen</h3>
+<p>Vom eigenen Rechner aus, in das Heimatverzeichnis des Servers:</p>
+<pre><code>scp server-paket-1.14.0.tar.gz benutzer@cad.ravia.de:~/</code></pre>
+</div>
+
+<div class="schritt" data-nr="2">
+<h3>Anmelden und entpacken</h3>
+<pre><code>ssh benutzer@cad.ravia.de</code></pre>
+<pre><code>tar xzf server-paket-1.14.0.tar.gz</code></pre>
+<pre><code>cd server-paket</code></pre>
+<p>Die Skripte müssen ausführbar sein. Nach dem Entpacken eines Archivs ist das
+in der Regel der Fall; wenn nicht:</p>
+<pre><code>chmod +x bin/*.sh</code></pre>
+</div>
+
+<div class="schritt" data-nr="3">
+<h3>Einrichten</h3>
+<p>Die Adresse ist das einzige Argument. Sie wird in die Konfiguration
+eingesetzt.</p>
+<pre><code>sudo bin/einrichten.sh cad.ravia.de</code></pre>
+<p>Das Skript legt die Verzeichnisse an, kopiert die nginx-Konfiguration, spielt
+die erste Fassung auf und sagt am Ende, was noch von Hand gehört. Beim ersten
+Lauf meldet es, dass nginx noch einen Fehler zeigt — das ist richtig so: das
+Zertifikat gibt es noch nicht. Das löst Schritt 4 auf.</p>
+</div>
+
+<div class="schritt" data-nr="4">
+<h3>Zertifikat holen</h3>
+<p>Voraussetzung ist, dass die Adresse auf diesen Server zeigt (siehe
+Abschnitt 2).</p>
+<pre><code>sudo apt-get install -y certbot python3-certbot-nginx</code></pre>
+<pre><code>sudo certbot --nginx -d cad.ravia.de</code></pre>
+<p>certbot holt das Zertifikat, trägt die Pfade selbst in die Konfiguration ein
+und lädt nginx neu.</p>
+</div>
+
+<div class="schritt" data-nr="5">
+<h3>Die Adresse von RaVia eintragen</h3>
+<p>Nur nötig, wenn RaVia die Anwendung einbetten soll. Es ist
+<strong>genau eine Stelle</strong>: in der Kopfzeilendatei den Platzhalter
+<code>https://app.ravia.de</code> hinter <code>frame-ancestors</code> gegen die
+tatsächliche Adresse tauschen. Die Einzelheiten stehen in Abschnitt 8.</p>
+<pre><code>sudo nano /etc/nginx/snippets/ravia-cad-kopfzeilen.conf</code></pre>
+<pre><code>sudo nginx -t &amp;&amp; sudo systemctl reload nginx</code></pre>
+</div>
+
+<div class="schritt" data-nr="6">
+<h3>Abnahme fahren</h3>
+<p>Das Prüfskript ruft den Server von außen auf. Es kann von jedem Rechner mit
+curl laufen, nicht nur vom Server.</p>
+<pre><code>bin/pruefen.sh https://cad.ravia.de</code></pre>
+<p>Erwartet wird <code>ABNAHME BESTANDEN</code>. Was die einzelnen Abschnitte
+prüfen, steht in Abschnitt 9 — und dort auch die vier Handgriffe am Bildschirm,
+die kein Skript ersetzen kann.</p>
+</div>
+
+<div class="merk">
+  <span class="kasten-titel">Merksatz</span>
+  <p>Aufspielen ist kein Nachweis. Erst die bestandene Abnahme ist einer. Die
+  Fehler, die diese Bauart kennt, äußern sich nicht als Fehlermeldung, sondern
+  als Anwendung, die aussieht, als würde sie laufen.</p>
+</div>
+
+
+<!-- =================================================================== 5 -->
+<h2 id="k5"><span class="nr">5</span>Was einrichten.sh tut</h2>
+
+<p>Niemand sollte ein fremdes Skript als root laufen lassen, ohne zu wissen, was
+es anfasst. Hier steht es Schritt für Schritt. Das Skript ist
+<strong>wiederholbar</strong>: ein zweiter Lauf ändert nichts, was schon richtig
+ist. Ein Zertifikat fasst es nicht an.</p>
+
+<h4>Vorab: Argument und Rechte</h4>
+<p>Ohne Adresse als Argument bricht es ab. Ohne root bricht es ab, mit dem
+Hinweis, dass es nach <code>/etc/nginx</code> und <code>/var/www</code>
+schreibt.</p>
+
+<h4>1 &middot; Vorbedingungen</h4>
+<p>Es prüft, ob <code>nginx</code>, <code>rsync</code> und <code>curl</code>
+vorhanden sind, und ob im Paket <code>app/index.html</code> liegt. Fehlt eines
+davon, bricht es ab, bevor es irgendetwas geändert hat.</p>
+
+<h4>2 &middot; Verzeichnisse</h4>
+<p>Es legt an:</p>
+<ul>
+  <li><code>/var/www/ravia-cad/fassungen</code> — hier liegt jede aufgespielte
+  Fassung in einem eigenen Verzeichnis</li>
+  <li><code>/var/www/certbot</code> — hierhin legt Let's Encrypt seine
+  Prüfdatei</li>
+</ul>
+
+<h4>3 &middot; nginx-Konfiguration</h4>
+<ul>
+  <li>Kopiert <code>nginx/ravia-cad.conf</code> nach
+  <code>/etc/nginx/sites-available/ravia-cad.conf</code> und ersetzt dabei jedes
+  Vorkommen von <code>cad.ravia.de</code> durch die übergebene Adresse. Damit
+  sind <code>server_name</code> und die Zertifikatspfade schon richtig.</li>
+  <li>Kopiert <code>nginx/ravia-cad-kopfzeilen.conf</code> nach
+  <code>/etc/nginx/snippets/</code>. <strong>Unverändert</strong> — die Adresse
+  von RaVia in der Inhaltsrichtlinie bleibt auf dem Beispielwert stehen.</li>
+  <li>Verknüpft die Konfiguration nach <code>/etc/nginx/sites-enabled/</code>.</li>
+  <li><strong>Ändert die <code>/etc/nginx/nginx.conf</code>:</strong> es setzt
+  dort <code>server_tokens off;</code> in den <code>http</code>-Abschnitt, sofern
+  es noch nicht steht. Damit verrät der Antwortkopf die nginx-Fassung nicht mehr.
+  Das ist die einzige Datei außerhalb der eigenen, die das Skript anfasst — die
+  Einstellung gehört in den <code>http</code>-Abschnitt und lässt sich in einem
+  <code>server</code>-Block nicht setzen.</li>
+</ul>
+
+<div class="warn">
+  <span class="kasten-titel">Hinweis</span>
+  <p>Die Kopfzeilendatei wird <strong>unverändert</strong> kopiert. Der
+  Platzhalter <code>https://app.ravia.de</code> in <code>frame-ancestors</code>
+  bleibt also stehen — er ist die eine Stelle, die von Hand gehört, und die
+  Abnahme meldet ihn ausdrücklich, solange er dasteht.</p>
+</div>
+
+<h4>4 &middot; Erste Fassung aufspielen</h4>
+<p>Es ruft <code>bin/aufspielen.sh --ohne-neuladen</code> auf. Was dort im
+Einzelnen passiert, steht in Abschnitt 10.</p>
+
+<h4>5 &middot; nginx prüfen und laden</h4>
+<p><code>nginx -t</code>. Geht die Prüfung durch, wird nginx neu geladen. Geht
+sie nicht durch, meldet das Skript das und bricht <strong>nicht</strong> ab — vor
+dem ersten Zertifikat kennt nginx die Pfade unter <code>/etc/letsencrypt</code>
+noch nicht, und das ist beim ersten Lauf der Normalfall.</p>
+
+<h4>6 &middot; Was noch von Hand gehört</h4>
+<p>Es gibt die certbot-Befehle aus und nennt die eine Stelle, an der die Adresse
+von RaVia einzutragen ist — Datei, Zeile und der zu ersetzende Wert stehen im
+Klartext dabei.</p>
+
+<div class="merk">
+  <span class="kasten-titel">Merksatz</span>
+  <p>Alle drei Skripte laden nginx über dieselbe Hilfsfunktion neu. Sie benutzt
+  <code>systemctl</code>, wenn systemd läuft, und sonst <code>nginx -s reload</code>.
+  Damit funktionieren sie auch in einem Container, in dem es kein systemd gibt.</p>
+</div>
+
+
+<!-- =================================================================== 6 -->
+<h2 id="k6"><span class="nr">6</span>Die vier Stellen, die angepasst werden müssen</h2>
+
+<p><strong>Nur für die eigene Domain.</strong> Am Unterpfad ist nichts
+anzupassen: Adresse und Zertifikat gehören der bestehenden Seite, das
+Verzeichnis steht in <code>ravia-cad-light.conf</code>, und
+<code>frame-ancestors 'self'</code> genügt, weil RaVia auf derselben Domain
+liegt (Abschnitt 3).</p>
+
+<p>Vier Stellen, verteilt auf zwei Dateien. <strong>Drei</strong> stehen im
+Serverblock <code>nginx/ravia-cad.conf</code> und sind dort mit
+<code>&gt;&gt;&gt; ANPASSEN &lt;&lt;&lt;</code> markiert; die
+<strong>vierte</strong>, die Adresse von RaVia, steht in der Kopfzeilendatei
+<code>nginx/ravia-cad-kopfzeilen.conf</code>.</p>
+
+<p>In der Praxis bleibt nur eine davon übrig: <code>einrichten.sh</code> setzt
+die Adresse ein, certbot setzt die Zertifikatspfade, das Verzeichnis stimmt
+ohnehin. Von Hand gehört allein die Adresse von RaVia. Alles andere ist begründet
+und sollte so bleiben.</p>
+
+<div class="tabellenrahmen">
+<table>
+  <thead>
+    <tr><th>Zeile</th><th>Bedeutung</th><th>Beispiel</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code>server_name</code><br><span class="kleingedruckt">zweimal: Port 80 und Port 443</span></td>
+      <td>Die Adresse, unter der die Anwendung läuft. Sie muss auf diesen Server zeigen.</td>
+      <td><code>server_name cad.ravia.de;</code><br><span class="kleingedruckt">setzt <code>einrichten.sh</code></span></td>
+    </tr>
+    <tr>
+      <td><code>ssl_certificate</code><br><code>ssl_certificate_key</code></td>
+      <td>Die beiden Zertifikatspfade. Sie folgen der Adresse.</td>
+      <td><code>/etc/letsencrypt/live/cad.ravia.de/fullchain.pem</code><br><span class="kleingedruckt">setzt certbot beim ersten Lauf</span></td>
+    </tr>
+    <tr>
+      <td><code>root</code></td>
+      <td>Wo die Dateien liegen. Nur ändern, wenn ein anderes Verzeichnis gewollt ist — dann auch in den Skripten die Variable <code>WURZEL</code>.</td>
+      <td><code>root /var/www/ravia-cad/aktuell;</code><br><span class="kleingedruckt">stimmt so</span></td>
+    </tr>
+    <tr>
+      <td><code>frame-ancestors</code><br><span class="kleingedruckt">in <code>ravia-cad-kopfzeilen.conf</code>, in der Zeile <code>Content-Security-Policy</code></span></td>
+      <td>Die Adresse von RaVia, in dessen Seite die Anwendung eingebettet werden darf. Mit Schema, ohne Schrägstrich am Ende. Mehrere durch Leerzeichen getrennt.</td>
+      <td><code>frame-ancestors 'self' https://app.ravia.de;</code><br><span class="kleingedruckt">von Hand — die einzige, die übrig bleibt</span></td>
+    </tr>
+  </tbody>
+</table>
+</div>
+
+<div class="merk">
+  <span class="kasten-titel">Merksatz</span>
+  <p>Die Adresse von RaVia steht an <strong>genau einer</strong> Stelle:
+  <code>frame-ancestors</code> in
+  <code>/etc/nginx/snippets/ravia-cad-kopfzeilen.conf</code>. Sonst nirgends.
+  Wer sie dort ändert, hat sie geändert.</p>
+  <p>Bis 1.14.0 gab es im Serverblock zusätzlich eine Variable
+  <code>$ravia_origin</code>, die zwar gesetzt, aber von keiner Anweisung
+  ausgewertet wurde — wer nur sie änderte, bekam weiter einen leeren Rahmen und
+  keinen Hinweis darauf, warum. Sie ist entfernt. Wer eine ältere Konfiguration
+  vor sich hat und dort auf sie stößt: sie tut nichts.</p>
+</div>
+
+<h3>Die drei Stellen, an denen es erfahrungsgemäß schiefgeht</h3>
+
+<p>Sie sind im Serverblock ausdrücklich kommentiert und sollten unverändert
+bleiben:</p>
+
+<div class="tabellenrahmen">
+<table>
+  <thead>
+    <tr><th>Stelle</th><th>Was passiert, wenn sie fehlt</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>Der <code>types</code>-Block mit <code>application/javascript mjs js;</code></td>
+      <td>Der Arbeitsprozess von pdf.js heißt <code>pdf.worker.min-*.mjs</code>. Ohne diese Zuordnung liefert nginx ihn als <code>application/octet-stream</code> aus, der Browser lehnt ihn ab. Die Anwendung startet, aber das Einlesen eines PDF bleibt ohne Wirkung.</td>
+    </tr>
+    <tr>
+      <td><code>Cache-Control "no-cache"</code> für <code>/index.html</code></td>
+      <td>Die <code>index.html</code> ist der Zeiger auf die aktuellen Dateinamen. Wird sie zwischengespeichert, sehen Anwender nach einer Aktualisierung tagelang die alte Fassung — ohne jede Fehlermeldung.</td>
+    </tr>
+    <tr>
+      <td><code>frame-ancestors</code> in der Inhaltsrichtlinie</td>
+      <td>Steht dort noch der Platzhalter, zeigt RaVia einen leeren Rahmen. Steht dort ein <code>*</code>, darf jede beliebige Seite die Anwendung rahmen. Die Abnahme meldet beides.</td>
+    </tr>
+  </tbody>
+</table>
+</div>
+
+<div class="warn">
+  <span class="kasten-titel">Achtung beim types-Block</span>
+  <p>Er <strong>ersetzt</strong> die MIME-Zuordnung für diesen Serverblock
+  vollständig; die <code>mime.types</code> der Distribution gilt hier nicht mehr.
+  Ausgeliefert wird er mit den Zuordnungen, die die Anwendung braucht, und
+  zusätzlich <code>webp</code>, <code>gif</code>, <code>ico</code>,
+  <code>txt</code>, <code>md</code>, <code>map</code>, <code>pdf</code> und
+  <code>xml</code>.</p>
+  <p>Wer später eine Dateiart ergänzt — ein Logo als <code>.avif</code>, eine
+  Schrift als <code>.ttf</code> —, muss sie dort eintragen. Sonst kommt sie als
+  <code>application/octet-stream</code>, und der Browser lehnt sie ab oder bietet
+  sie zum Herunterladen an. Es gibt dafür keine Fehlermeldung.</p>
+</div>
+
+<h3>Warum die Kopfzeilen in einer eigenen Datei stehen</h3>
+
+<p>Weil <code>add_header</code> in nginx <strong>nicht erbt</strong>. Sobald ein
+<code>location</code>-Block eine eigene Kopfzeile setzt, verliert er alle
+Kopfzeilen des <code>server</code>-Blocks. Deshalb wird die Datei in jedem Block
+eingebunden, der <code>add_header</code> benutzt. Wer einen weiteren
+<code>location</code>-Block ergänzt und dort <code>add_header</code> benutzt,
+muss die Zeile mitnehmen:</p>
+
+<pre><code>include /etc/nginx/snippets/ravia-cad-kopfzeilen.conf;</code></pre>
+
+
+<!-- =================================================================== 7 -->
+<h2 id="k7"><span class="nr">7</span>TLS-Zertifikat</h2>
+
+<h3>Holen</h3>
+
+<p>Vorbedingung ist ein DNS-Eintrag, der auf diesen Server zeigt, und ein
+offener Port 80. Beides prüfen, bevor certbot läuft — sonst scheitert er, und
+Let's Encrypt begrenzt die Zahl der Fehlversuche.</p>
+
+<pre><code>dig +short cad.ravia.de</code></pre>
+<pre><code>sudo apt-get install -y certbot python3-certbot-nginx</code></pre>
+<pre><code>sudo certbot --nginx -d cad.ravia.de</code></pre>
+
+<p>certbot trägt die Zertifikatspfade selbst in
+<code>/etc/nginx/sites-available/ravia-cad.conf</code> ein und lädt nginx neu.
+Danach steht die Anwendung unter <code>https://</code>, und der Aufruf über
+<code>http://</code> wird umgeleitet.</p>
+
+<h3>Die Erneuerung prüfen</h3>
+
+<p>Ein Let's-Encrypt-Zertifikat gilt 90 Tage. Die Erneuerung läuft nach der
+Installation als Systemdienst und braucht keinen Eintrag in der Crontab. Dass
+sie eingerichtet ist, zeigt:</p>
+
+<pre><code>systemctl list-timers | grep certbot</code></pre>
+
+<p>Dass sie auch funktioniert, zeigt nur der Probelauf. Er holt kein Zertifikat,
+sondern geht den ganzen Weg bis kurz davor:</p>
+
+<pre><code>sudo certbot renew --dry-run</code></pre>
+
+<div class="warn">
+  <span class="kasten-titel">Hinweis</span>
+  <p>Der Probelauf braucht denselben offenen Port 80 wie die erste Ausstellung.
+  Wer die Firewall später zumacht, merkt es erst nach 90 Tagen — dann, wenn das
+  Zertifikat abgelaufen ist und niemand mehr auf die Seite kommt. Den Probelauf
+  einmal nach jeder Änderung an der Firewall fahren.</p>
+</div>
+
+<h3>Wann HSTS eingeschaltet werden darf</h3>
+
+<p>HSTS (<code>Strict-Transport-Security</code>) sagt dem Browser, dass diese
+Adresse nur über TLS zu erreichen ist. Er ruft sie danach gar nicht erst
+unverschlüsselt auf. Die Zeile steht in der Kopfzeilendatei bereit, aber
+auskommentiert:</p>
+
+<pre><code># add_header Strict-Transport-Security "max-age=31536000" always;</code></pre>
+
+<div class="stop">
+  <span class="kasten-titel">Achtung</span>
+  <p>Die Angabe gilt ein Jahr und lässt sich <strong>nicht zurücknehmen</strong> —
+  auch nicht dadurch, dass man die Zeile wieder auskommentiert. Der Browser hat
+  sie sich gemerkt. Läuft das Zertifikat danach ab oder wird TLS abgeschaltet,
+  ist die Seite für jeden, der sie einmal besucht hat, bis zu ein Jahr lang nicht
+  mehr erreichbar. Kein Umweg über http hilft dann.</p>
+</div>
+
+<p>Daraus ergibt sich die Reihenfolge. Einschalten erst, wenn:</p>
+
+<ol>
+  <li>das Zertifikat steht und die Seite über https läuft,</li>
+  <li><code>certbot renew --dry-run</code> nachweislich durchgeht,</li>
+  <li>Port 80 dauerhaft offen bleibt, damit die Erneuerung weiterläuft.</li>
+</ol>
+
+<p>Dann die Zeile freigeben und übernehmen:</p>
+
+<pre><code>sudo nano /etc/nginx/snippets/ravia-cad-kopfzeilen.conf</code></pre>
+<pre><code>sudo nginx -t &amp;&amp; sudo systemctl reload nginx</code></pre>
+
+<p><code>includeSubDomains</code> nur ergänzen, wenn wirklich
+<strong>alle</strong> Unteradressen dieser Domain TLS können — auch die, an die
+gerade niemand denkt. Solange HSTS aus ist, meldet das Prüfskript das
+ausdrücklich als Absicht und nicht als Fehler.</p>
+
+
+<!-- =================================================================== 8 -->
+<h2 id="k8"><span class="nr">8</span>Die Einbettung in RaVia</h2>
+
+<p>RaVia bettet die Anwendung als <code>&lt;iframe&gt;</code> ein und spricht
+über <code>postMessage</code> mit ihr. Es gibt keinen Dateiexport dazwischen —
+der Umweg über eine Exportdatei ist für den Menschen gedacht, nicht für zwei
+Programme.</p>
+
+<h3>Welche Adresse wo eingetragen wird</h3>
+
+<p>Zwei Stellen, und sie meinen zwei verschiedene Dinge:</p>
+
+<div class="merk">
+  <span class="kasten-titel">Am Unterpfad entfällt das</span>
+  <p>Liegen RaVia und CAD Light auf <strong>derselben</strong> Domain, ist die
+  eigene Herkunft auch die von RaVia: <code>frame-ancestors 'self'</code> in
+  <code>ravia-cad-light-basis.conf</code> genügt, und es ist nichts einzutragen.
+  Aus demselben Grund geht dort auch das Sitzungs-Cookie ohne Zutun mit
+  (Abschnitt 3). Der Rest dieses Abschnitts — der iframe, die Schnittstelle,
+  der <code>postMessage</code>-Weg — gilt unverändert.</p>
+</div>
+
+<div class="tabellenrahmen">
+<table>
+  <thead>
+    <tr><th>Wo</th><th>Was dort steht</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>In RaVia, im <code>src</code> des iframes</td>
+      <td>Die Adresse <strong>dieses</strong> Servers, also <code>https://cad.ravia.de</code>.</td>
+    </tr>
+    <tr>
+      <td>Auf diesem Server, in <code>frame-ancestors</code> der Kopfzeilendatei</td>
+      <td>Die Adresse <strong>von RaVia</strong>, also <code>https://app.ravia.de</code>. Ohne Schrägstrich am Ende, mit Schema.</td>
+    </tr>
+  </tbody>
+</table>
+</div>
+
+<p>Wer die beiden vertauscht, bekommt einen leeren Rahmen und keine
+Fehlermeldung, die das erklärt.</p>
+
+<h3>Der iframe</h3>
+
+<pre><code>&lt;iframe
+  id="cad"
+  src="https://cad.ravia.de/"
+  title="RaVia CAD Light"
+  style="border:0; width:100%; height:100%"&gt;&lt;/iframe&gt;</code></pre>
+
+<h3>frame-ancestors in einfachen Worten</h3>
+
+<p>Die Zeile in der Inhaltsrichtlinie lautet:</p>
+
+<pre><code>frame-ancestors 'self' https://app.ravia.de;</code></pre>
+
+<p>Sie sagt dem Browser, wer die Seite in einen Rahmen stellen darf:</p>
+
+<ul>
+  <li><code>'self'</code> — der <strong>unmittelbare Aufruf</strong> unter der
+  eigenen Adresse. Wer <code>https://cad.ravia.de</code> in die Adresszeile
+  tippt, bekommt die Anwendung.</li>
+  <li><code>https://app.ravia.de</code> — die <strong>Einbettung</strong> durch
+  RaVia ist erlaubt.</li>
+  <li>Jede andere Seite wird abgewiesen. Damit ist Clickjacking ausgeschlossen:
+  niemand kann die Anwendung in seine eigene Seite hängen und den Anwender
+  darüber täuschen, womit er gerade arbeitet.</li>
+</ul>
+
+<h4>Wenn der unmittelbare Aufruf zusätzlich gesperrt werden soll</h4>
+
+<p>Soll die Anwendung <strong>ausschließlich</strong> aus RaVia heraus
+erreichbar sein: <code>'self'</code> streichen.</p>
+
+<pre><code>frame-ancestors https://app.ravia.de;</code></pre>
+
+<div class="warn">
+  <span class="kasten-titel">Folgen</span>
+  <ul>
+    <li>Der Aufruf der Adresse im Browser zeigt nur noch eine leere Seite.</li>
+    <li>Die Beispielseite <code>/einbettung-beispiel.html</code> funktioniert
+    nicht mehr — sie rahmt die Anwendung von derselben Herkunft aus.</li>
+    <li>Der Aufruf zur Fehlersuche fällt weg. Wer prüfen will, ob die Anwendung
+    läuft, kann es nur noch durch RaVia hindurch.</li>
+    <li>Abschnitt 7 des Prüfskripts meldet die Beispielseite dann als Hinweis.</li>
+  </ul>
+  <p>Das ist eine bewusste Entscheidung und keine Kleinigkeit. Wer sie trifft,
+  sollte sie an dieser Stelle in der Konfiguration vermerken.</p>
+</div>
+
+<h3>Die Schnittstelle window.RaViaCAD</h3>
+
+<p>Fassung <strong>1.1.0</strong>. Läuft die Anwendung im selben Fenster, hängt
+die Schnittstelle unmittelbar am <code>window</code>. Läuft sie im iframe,
+gehen dieselben Befehle als Nachricht.</p>
+
+<div class="tabellenrahmen">
+<table>
+  <thead>
+    <tr><th>Befehl</th><th>Antwort (<code>type</code>)</th><th>Was er tut</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>ping</code></td><td><code>pong</code></td><td>Lebenszeichen. Liefert die Fassung der Schnittstelle. Der Weg, um zu erkennen, wann der Editor bereit ist.</td></tr>
+    <tr><td><code>getSummary()</code></td><td><code>summary</code></td><td>Kurzfassung des Modells: Projektname, Geschosse, Räume, Wände, Öffnungen, Nutzfläche, Volumen, installierte Heizleistung, Rechenfähigkeit, Zahl der Fehler und Hinweise.</td></tr>
+    <tr><td><code>getExport()</code></td><td><code>export</code></td><td>Vollständiger Export nach <code>ravia.bim.light</code> v2.</td></tr>
+    <tr><td><code>getIfc()</code></td><td><code>ifc</code></td><td>Dasselbe Modell als IFC4-Text (STEP).</td></tr>
+    <tr><td><code>validate()</code></td><td><code>validation</code></td><td>Prüfbericht — dieselbe Prüfung wie im Reiter Prüfung.</td></tr>
+    <tr><td><code>loadProject(daten)</code></td><td><code>loaded</code></td><td>Projektdatei laden. Ersetzt das aktuelle Modell.</td></tr>
+    <tr><td><code>loadIfc(text)</code></td><td><code>loaded</code></td><td>IFC4-Datei laden. Ersetzt das aktuelle Modell.</td></tr>
+    <tr><td><code>applyPatch(patch)</code></td><td><code>patchApplied</code></td><td>Der Rückweg: Fachdaten zurückschreiben. Siehe unten.</td></tr>
+    <tr><td><code>getWritableFields()</code></td><td><code>writableFields</code></td><td>Selbstauskunft: welche Felder schreibbar sind, mit Einheit und zulässigem Bereich. Die Gegenstelle muss nichts ausprobieren.</td></tr>
+    <tr><td><code>subscribe</code> / <code>unsubscribe</code></td><td><code>subscribed</code> / <code>unsubscribed</code></td><td>Nur über <code>postMessage</code>. Danach kommt bei jeder Änderung von selbst eine Nachricht vom Typ <code>changed</code> mit der Kurzfassung — entprellt, nicht bei jedem gezogenen Wandende.</td></tr>
+    <tr><td><code>onChange(fn)</code></td><td>&mdash;</td><td>Nur im selben Fenster. Dasselbe wie <code>subscribe</code>; der Rückgabewert meldet den Hörer wieder ab.</td></tr>
+    <tr><td><code>getDocument()</code></td><td>&mdash;</td><td>Nur im selben Fenster. Das Rohdokument, ausschließlich lesend gedacht.</td></tr>
+    <tr><td><code>version</code></td><td>&mdash;</td><td>Die Fassung der Schnittstelle als Eigenschaft.</td></tr>
+  </tbody>
+</table>
+</div>
+
+<p>Ein unbekannter Befehl bekommt eine Antwort vom Typ <code>error</code> mit
+einer Meldung im Klartext. Er wird nicht stillschweigend verworfen.</p>
+
+<div class="merk">
+  <span class="kasten-titel">Merksatz</span>
+  <p><code>window.RaViaCAD</code> ist der Vertrag, auf den RaVia bauen darf.
+  Daneben steht <code>window.__ravia</code>, der rohe Datenspeicher — das ist
+  ausdrücklich <strong>kein</strong> Vertrag. Wer darauf baut, bricht beim
+  nächsten Umbau.</p>
+</div>
+
+<h3>Der postMessage-Weg</h3>
+
+<p>Jede Nachricht trägt <code>channel: 'ravia-cad'</code>, einen
+<code>type</code>, eine frei gewählte <code>id</code> und bei Bedarf eine
+<code>payload</code>. Die Antwort trägt dieselbe <code>id</code> zurück; daran
+ordnet die Gegenstelle sie ihrer Frage zu.</p>
+
+<pre><code>const cad = document.getElementById('cad').contentWindow;
+
+cad.postMessage({
+  channel: 'ravia-cad',
+  type: 'getExport',
+  id: 1,
+}, '*');
+
+window.addEventListener('message', (e) =&gt; {
+  if (e.data?.channel !== 'ravia-cad') return;
+  // e.data.type    'export' | 'summary' | 'changed' | 'patchApplied' | ...
+  // e.data.id      die id der eigenen Frage
+  // e.data.payload die Nutzdaten
+});</code></pre>
+
+<p>Antworten gehen immer an genau den Absender zurück, und zwar mit dessen
+eigener Herkunft als Ziel. Ein <code>*</code> als Ziel würde den Modellinhalt an
+jedes Fenster ausliefern, das zufällig zuhört.</p>
+
+<h4>Der Rückweg: Fachdaten zurückschreiben</h4>
+
+<p>RaVia schreibt Solltemperaturen, Luftwechsel, U-Werte und gerechnete
+Norm-Heizlasten zurück. Das Feld <code>source</code> ist Pflicht und landet in
+der Spur am Modell.</p>
+
+<pre><code>cad.postMessage({
+  channel: 'ravia-cad',
+  type: 'applyPatch',
+  id: 2,
+  payload: {
+    source: 'RaVia 3.2',
+    rooms: [{ id: 'room-eg-0', setpointTemperature: 22 }],
+  },
+}, '*');</code></pre>
+
+<p>Drei Dinge sind daran wichtig:</p>
+
+<ul>
+  <li><strong>Geometrie ist ausgenommen.</strong> Wände gehören dem, der
+  zeichnet. Ein Schreibversuch auf eine Fläche wird mit Begründung abgelehnt,
+  nicht still übergangen.</li>
+  <li><strong>Die Antwort ist ein Bericht, keine Bestätigung.</strong> Für jeden
+  einzelnen Wert steht darin, ob er übernommen, unverändert geblieben oder
+  abgelehnt worden ist — und warum. Derselbe Wert zweimal geschrieben ergibt
+  <em>unverändert</em> und erzeugt bewusst keinen Schritt in der
+  Rückgängig-Kette.</li>
+  <li><strong>Der ganze Vorgang ist ein Schritt in der Rückgängig-Kette.</strong>
+  Strg+Z im Editor nimmt ihn zurück.</li>
+</ul>
+
+<p>Die Raum-Kennungen stehen im Export. Die Gegenstelle erfindet sie nicht, sie
+liest sie.</p>
+
+<h3>Die Beispielseite</h3>
+
+<p>Der Server liefert unter <code>/einbettung-beispiel.html</code> eine Seite
+aus, die genau das tut, was RaVia täte: sie bettet den Editor ein, verbindet
+sich, holt die Kurzfassung und zeigt für jeden Befehl einen Knopf. Wer die
+Einbindung baut, hat damit einen Vergleich, der nachweislich funktioniert.</p>
+
+<pre><code>https://cad.ravia.de/einbettung-beispiel.html</code></pre>
+
+<p>Dieselben zwei Dateien liegen im Paket unter <code>einbettung/</code> und
+lassen sich als Vorlage übernehmen.</p>
+
+<div class="merk">
+  <span class="kasten-titel">Merksatz — die Regel für jede einbindende Seite</span>
+  <p>Die Beispielseite hat ihr Skript in einer <strong>eigenen Datei</strong>
+  (<code>einbettung-beispiel.js</code>) und nicht im Dokument. Der Grund ist die
+  Inhaltsrichtlinie <code>script-src 'self'</code>: sie verwirft jedes Skript,
+  das im Dokument selbst steht.</p>
+  <p>Das ist kein theoretischer Hinweis, sondern ein Fehler, der auf dem
+  Probeserver tatsächlich aufgetreten ist. Die Seite hatte ihr Skript zunächst im
+  Dokument. Unter nginx sah sie danach aus wie eine Seite, deren
+  <strong>Einbettung</strong> nicht funktioniert — der iframe war leer, die
+  Knöpfe taten nichts. Tatsächlich lief nur ihre eigene Steuerung nicht, die
+  Einbettung war die ganze Zeit in Ordnung. Auf dem Entwicklungsrechner ohne
+  Richtlinie tritt das nie auf.</p>
+  <p>Wer eine Seite baut, die RaVia CAD Light einbindet, übernimmt diese Regel
+  am besten mit: Skripte in eigene Dateien, keine <code>onclick</code>-Attribute
+  im Dokument. Es ist derselbe Grund, aus dem die fünf Druckwege ihr
+  eingebettetes Skript verloren haben.</p>
+</div>
+
+
+<!-- =================================================================== 9 -->
+<h2 id="k9"><span class="nr">9</span>Abnahme</h2>
+
+<p>Das Prüfskript ruft den Server von außen auf und prüft die Dinge, die sich
+still verschlucken lassen: ein falscher MIME-Typ, eine fehlende Kopfzeile, eine
+<code>index.html</code> im Zwischenspeicher. Jede dieser Abweichungen sieht auf
+dem Bildschirm zunächst nach einer laufenden Anwendung aus.</p>
+
+<pre><code>bin/pruefen.sh https://cad.ravia.de</code></pre>
+
+<p>Es braucht nur <code>curl</code> und kann von jedem Rechner laufen. Es
+schreibt nichts und ändert nichts.</p>
+
+<p>Beim Unterpfad wird die vollständige Adresse übergeben, mit
+abschließendem Schrägstrich:</p>
+
+<pre><code>bin/pruefen.sh https://ravia-tech.de/Cad_light/</code></pre>
+
+<p>Das Skript trennt dabei die <strong>Herkunft</strong> von der Adresse, weil
+die Verweise in der <code>index.html</code> absolut ab der Wurzel der Domain
+stehen. Die Beispielseite aus Abschnitt 8 sucht es entsprechend unter
+<code>/Cad_light/einbettung-beispiel.html</code>.</p>
+
+<h3>Die sieben Abschnitte</h3>
+
+<div class="tabellenrahmen">
+<table>
+  <thead>
+    <tr><th>Abschnitt</th><th>Was er findet</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>1 &middot; Erreichbarkeit</strong></td>
+      <td>Antwortet die Startseite mit 200. Wird http auf https umgeleitet. Antwortet sie nicht, bricht das Skript hier ab — alles Weitere wäre gegenstandslos.</td>
+    </tr>
+    <tr>
+      <td><strong>2 &middot; Die Anwendungsdateien</strong></td>
+      <td>Nennt die Startseite überhaupt eine Skriptdatei. Kommt das Skript als JavaScript und das Stilblatt als CSS. Und der stille Ausfall Nummer eins: hat der Arbeitsprozess von pdf.js (<code>.mjs</code>) den richtigen MIME-Typ. Sein Dateiname steht nicht im Hauptbündel, sondern im pdf-Teilbündel <code>assets/pdf-*.js</code> — der PDF-Leser wird erst bei Bedarf nachgeladen. Deshalb wird in zwei Stufen gesucht: erst im Hauptbündel, dann im Teilbündel. Wird er in keinem von beiden gefunden, ist das ein <strong>Fehler</strong>, kein Hinweis.</td>
+    </tr>
+    <tr>
+      <td><strong>3 &middot; Zwischenspeicher</strong></td>
+      <td>Trägt die Startseite <code>no-cache</code>. Werden die Dateien unter <code>/assets/</code> lange zwischengespeichert. Das erste ist ein Fehler, wenn es fehlt; das zweite ein Hinweis.</td>
+    </tr>
+    <tr>
+      <td><strong>4 &middot; Kompression</strong></td>
+      <td>Lädt die Hauptskriptdatei einmal roh und einmal mit <code>Accept-Encoding: gzip</code> und vergleicht die Größen. Erwartet werden rund 1509 kB gegen 469 kB.</td>
+    </tr>
+    <tr>
+      <td><strong>5 &middot; Sicherheitskopfzeilen</strong></td>
+      <td>Ist eine Inhaltsrichtlinie da. Ist <code>script-src</code> auf <code>'self'</code> begrenzt, ohne <code>'unsafe-inline'</code> und ohne <code>'unsafe-eval'</code>. Was steht in <code>frame-ancestors</code>: ein <code>*</code> ist ein Fehler, der wörtliche Platzhalter <code>app.ravia.de</code> ebenfalls, und steht dort nur <code>'self'</code>, kommt ein Hinweis — dann kann RaVia nicht einbetten. Dazu X-Content-Type-Options, Referrer-Policy, Permissions-Policy, der Zustand von HSTS und ob die nginx-Fassung im Antwortkopf steht.</td>
+    </tr>
+    <tr>
+      <td><strong>6 &middot; Fremde Adressen</strong></td>
+      <td>Sucht in der Startseite nach ladenden Verweisen auf fremde Herkünfte. Seit 1.14.0 darf dort nichts stehen. Gesucht wird bewusst nur nach <code>src</code> und <code>href</code> und nicht nach jeder Zeichenfolge, die wie eine Adresse aussieht — sonst würde jedes <code>xmlns</code> in einem SVG einen Fehler melden, den es nicht gibt.</td>
+    </tr>
+    <tr>
+      <td><strong>7 &middot; Einbettung</strong></td>
+      <td>Ist die Beispielseite <code>/einbettung-beispiel.html</code> erreichbar.</td>
+    </tr>
+  </tbody>
+</table>
+</div>
+
+<h3>Wie das Ergebnis zu lesen ist</h3>
+
+<div class="tabellenrahmen">
+<table>
+  <thead>
+    <tr><th>Meldung</th><th>Rückgabewert</th><th>Bedeutung</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>ABNAHME BESTANDEN</code></td><td>0</td><td>Kein Fehler, kein Hinweis. Weiter mit der Abnahme am Bildschirm.</td></tr>
+    <tr><td><code>n Hinweis(e)</code></td><td>0</td><td>Betriebsfähig, aber ansehen. Typisch: HSTS noch aus, Kompression greift nicht.</td></tr>
+    <tr><td><code>n Fehler</code></td><td>1</td><td>Nicht abgenommen. Abschnitt 12 dieses Handbuchs.</td></tr>
+  </tbody>
+</table>
+</div>
+
+<div class="merk">
+  <span class="kasten-titel">Auf frischer Einrichtung ist ein Fehler zu erwarten</span>
+  <p>Solange der Platzhalter <code>app.ravia.de</code> in
+  <code>frame-ancestors</code> steht, meldet die Abnahme ihn als Fehler und
+  endet mit <code>noch nicht abgenommen</code>. Das ist Absicht: eine
+  Einrichtung, in der die Adresse von RaVia nicht eingetragen ist, ist nicht
+  fertig. Ist <code>app.ravia.de</code> tatsächlich Ihre Adresse, tragen Sie sie
+  trotzdem einmal von Hand ein — dann steht sie da, weil jemand sie geprüft hat,
+  und nicht, weil niemand hingesehen hat.</p>
+</div>
+
+<h3>Was nachgewiesen ist</h3>
+
+<p>Die Konfiguration ist auf einem echten nginx gefahren worden, nicht nur
+gelesen. Nachgewiesen sind:</p>
+
+<ul>
+  <li>Aufspielen, Zurücknehmen und erneutes Aufspielen laufen durch. Die
+  Verknüpfung <code>aktuell</code> zeigt danach jeweils auf die richtige
+  Fassung.</li>
+  <li>Die Abnahme meldet nichts außer dem noch stehenden Platzhalter in
+  <code>frame-ancestors</code>.</li>
+  <li><strong>Alle 17 Rauchtests</strong> der Anwendung laufen gegen diesen
+  nginx durch — mit genau dieser Inhaltsrichtlinie, also mit
+  <code>script-src 'self'</code> ohne <code>'unsafe-inline'</code>.</li>
+  <li>Dasselbe noch einmal für den Unterpfad, mit einem Platzhalter für RaVia
+  auf <code>/</code> und CAD Light auf <code>/Cad_light/</code>: 301 ohne
+  abschließenden Schrägstrich, 200 mit, richtige MIME-Typen, die
+  Zwischenspeicherregeln, die Kompression, alle 17 Rauchtests gegen den
+  Unterpfad und das Aufspielen als <code>ravia-deploy</code> ohne root. Die
+  Einzelheiten stehen in Abschnitt 3.</li>
+</ul>
+
+<p>Dabei ist ein echter Fehler aufgefallen und behoben worden: die Beispielseite
+zur Einbettung hatte ihr Skript im Dokument stehen und wurde von
+<code>script-src 'self'</code> verworfen. Sie liegt jetzt als
+<code>einbettung-beispiel.js</code> daneben. Genau dieser Fehlertyp tritt auf dem
+Entwicklungsrechner nie auf und beim Kunden immer — siehe Abschnitt 8.</p>
+
+<h3>Abnahme am Bildschirm</h3>
+
+<p>Vier Handgriffe, die kein Skript prüfen kann, weil es keinen Browser hat.
+Sie dauern zusammen zwei Minuten und decken genau die Fehler ab, die sich
+serverseitig nicht sehen lassen. Am besten in einem frischen privaten Fenster,
+damit kein alter Zwischenspeicher mitspielt.</p>
+
+<div class="schritt" data-nr="1">
+<h3>Die 3D-Ansicht geht auf</h3>
+<p>Die Anwendung aufrufen, in die 3D-Ansicht wechseln. Erwartet wird ein
+Modell, kein schwarzes Feld. Das prüft, ob WebGL im Browser und auf der Maschine
+des Anwenders funktioniert — eine Sache des Arbeitsplatzes, nicht des Servers,
+aber sie muss einmal gesehen worden sein.</p>
+</div>
+
+<div class="schritt" data-nr="2">
+<h3>Ein PDF als Vorlage laden</h3>
+<p>Einen beliebigen Grundriss als PDF hochladen. Erwartet wird, dass er als
+Hintergrundbild erscheint. <strong>Das ist der wichtigste der vier
+Handgriffe</strong>: passiert nichts, ist der MIME-Typ für <code>.mjs</code>
+falsch, und das ist ein Serverfehler. Abschnitt 12.</p>
+</div>
+
+<div class="schritt" data-nr="3">
+<h3>Ein Blatt drucken</h3>
+<p>Einen der Ausdrucke auslösen. Erwartet wird, dass sich ein Fenster öffnet
+<em>und</em> der Druckdialog aufgeht. Öffnet sich nur das Fenster, aber kein
+Dialog, ist die Inhaltsrichtlinie im Spiel — oder ein Blocker für
+Pop-up-Fenster.</p>
+</div>
+
+<div class="schritt" data-nr="4">
+<h3>Einen Export herunterladen</h3>
+<p>Das Projekt als RaVia-JSON exportieren. Erwartet wird, dass die Datei im
+Download-Verzeichnis liegt und sich öffnen lässt. Das prüft den Weg, über den
+Anwender ihre Arbeit sichern — und der ist bei einer Anwendung ohne Server der
+einzige.</p>
+</div>
+
+
+<!-- ================================================================== 10 -->
+<h2 id="k10"><span class="nr">10</span>Eine neue Fassung aufspielen</h2>
+
+<h3>Der Ablauf</h3>
+
+<pre><code>scp server-paket-1.15.0.tar.gz benutzer@cad.ravia.de:~/</code></pre>
+<pre><code>ssh benutzer@cad.ravia.de</code></pre>
+<pre><code>tar xzf server-paket-1.15.0.tar.gz &amp;&amp; cd server-paket</code></pre>
+<pre><code>sudo bin/aufspielen.sh</code></pre>
+<pre><code>bin/pruefen.sh https://cad.ravia.de</code></pre>
+
+<p>Die nginx-Konfiguration wird dabei <strong>nicht</strong> angefasst. Wer sie
+mit erneuern will, muss <code>einrichten.sh</code> laufen lassen — und danach
+die Adresse von RaVia in der Kopfzeilendatei wieder eintragen, denn die Datei
+wird unverändert kopiert.</p>
+
+<h3>Warum erst danebengelegt und dann umgeschaltet wird</h3>
+
+<div class="merk">
+  <span class="kasten-titel">Merksatz</span>
+  <p>Wer mit <code>rsync --delete</code> unmittelbar in das laufende Verzeichnis
+  kopiert, liefert genau dazwischen eine <code>index.html</code> aus, die auf
+  Dateien zeigt, die es noch nicht gibt. Das ist kein theoretischer Fall.</p>
+</div>
+
+<p>Deshalb geht das Skript in dieser Reihenfolge vor:</p>
+
+<div class="tabellenrahmen">
+<table>
+  <thead>
+    <tr><th>Schritt</th><th>Was geschieht</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>1 &middot; Prüfsummen</strong></td>
+      <td>Vor dem Kopieren, nicht danach. Eine Datei, die beim Übertragen des Archivs beschädigt wurde, soll gar nicht erst auf den Server. Stimmen die Prüfsummen nicht, bricht das Skript ab.</td>
+    </tr>
+    <tr>
+      <td><strong>2 &middot; Danebenlegen</strong></td>
+      <td>Die neue Fassung geht in ein eigenes Verzeichnis <code>fassungen/JJJJMMTT-HHMMSS-1.15.0/</code>. Eigentümer wird <code>www-data</code>, Verzeichnisse bekommen 755, Dateien 644.</td>
+    </tr>
+    <tr>
+      <td><strong>3 &middot; Prüfen</strong></td>
+      <td>Gibt es <code>index.html</code>, gibt es <code>assets/</code>, liegt dort mindestens eine Skriptdatei. Und dann der eigentliche Punkt: <strong>jede in der index.html genannte Datei muss auch daliegen</strong>. Genau hier fällt ein unvollständig übertragenes Archiv auf. Fehlt etwas, wird das neue Verzeichnis wieder entfernt und die laufende Fassung bleibt unverändert.</td>
+    </tr>
+    <tr>
+      <td><strong>4 &middot; Umschalten</strong></td>
+      <td>Die Verknüpfung <code>aktuell</code> zeigt auf die neue Fassung. Der Wechsel geschieht über eine Zwischenverknüpfung und <code>mv</code> und ist auf dem Dateisystem ein einziger Vorgang — es gibt keinen Augenblick, in dem halb alte und halb neue Dateien ausgeliefert werden.</td>
+    </tr>
+    <tr>
+      <td><strong>5 &middot; nginx</strong></td>
+      <td><code>nginx -t</code>, dann neu laden. Meldet nginx einen Fehler, sagt das Skript ausdrücklich, dass die Dateien zwar umgeschaltet sind, nginx aber mit der alten Konfiguration weiterläuft.</td>
+    </tr>
+    <tr>
+      <td><strong>6 &middot; Aufräumen</strong></td>
+      <td>Es bleiben die <strong>fünf</strong> jüngsten Fassungen stehen; ältere werden entfernt. Die laufende Fassung wird niemals gelöscht, auch wenn sie alt ist.</td>
+    </tr>
+  </tbody>
+</table>
+</div>
+
+<h3>Zurücknehmen</h3>
+
+<p>Es wird nichts gelöscht und nichts kopiert: die Verknüpfung
+<code>aktuell</code> zeigt danach wieder auf die vorige Fassung. Das dauert
+einen Wimpernschlag und lässt sich ebenso zurücknehmen.</p>
+
+<p>Erst ansehen, was zur Wahl steht — der Pfeil markiert die laufende Fassung:</p>
+
+<pre><code>sudo bin/zuruecknehmen.sh --liste</code></pre>
+
+<p>Auf die vorige Fassung zurück:</p>
+
+<pre><code>sudo bin/zuruecknehmen.sh</code></pre>
+
+<p>Oder auf eine bestimmte, mit dem Namen aus der Liste:</p>
+
+<pre><code>sudo bin/zuruecknehmen.sh 20260830-041500-1.14.0</code></pre>
+
+<p>Auch danach gehört die Abnahme gefahren:</p>
+
+<pre><code>bin/pruefen.sh https://cad.ravia.de</code></pre>
+
+<div class="warn">
+  <span class="kasten-titel">Hinweis</span>
+  <p>Zurückgenommen wird nur die Anwendung, nicht die nginx-Konfiguration. Wer
+  zwischendurch die Konfiguration geändert hat, muss sie eigenhändig
+  zurücknehmen.</p>
+</div>
+
+
+<!-- ================================================================== 11 -->
+<h2 id="k11"><span class="nr">11</span>Betrieb</h2>
+
+<h3>Protokolldateien</h3>
+
+<div class="tabellenrahmen">
+<table>
+  <thead>
+    <tr><th>Datei</th><th>Inhalt</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>/var/log/nginx/ravia-cad.access.log</code></td><td>Jeder Aufruf. Wächst mit der Nutzung.</td></tr>
+    <tr><td><code>/var/log/nginx/ravia-cad.error.log</code></td><td>Stufe <code>warn</code>. Hier steht, was schiefgeht.</td></tr>
+  </tbody>
+</table>
+</div>
+
+<p>Mitlesen, während man einen Fehler nachstellt:</p>
+
+<pre><code>sudo tail -f /var/log/nginx/ravia-cad.error.log</code></pre>
+
+<p>Nachsehen, ob jemand 404 bekommt:</p>
+
+<pre><code>sudo grep ' 404 ' /var/log/nginx/ravia-cad.access.log | tail -20</code></pre>
+
+<p>Die Rotation übernimmt das <code>logrotate</code> von nginx; eigene Einträge
+sind nicht nötig. Wer die Zugriffsprotokolle aus Datenschutzgründen kürzer
+vorhalten will, ändert das in <code>/etc/logrotate.d/nginx</code>.</p>
+
+<h3>Was zu sichern ist</h3>
+
+<p>Fast nichts, und das hat einen Grund: Auf dem Server liegen keine Nutzdaten.
+Was hier steht, ist entweder wiederherstellbar oder ohnehin vorhanden.</p>
+
+<div class="tabellenrahmen">
+<table>
+  <thead>
+    <tr><th>Gegenstand</th><th>Sichern</th><th>Warum</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code>/etc/nginx/sites-available/ravia-cad.conf</code></td>
+      <td>ja</td>
+      <td>Trägt Ihre Adresse und die Zertifikatspfade. Zwei Kilobyte.</td>
+    </tr>
+    <tr>
+      <td><code>/etc/nginx/snippets/ravia-cad-kopfzeilen.conf</code></td>
+      <td>ja</td>
+      <td>Trägt die Adresse von RaVia und den HSTS-Zustand. Die einzige Datei, deren Verlust wirklich Arbeit macht.</td>
+    </tr>
+    <tr>
+      <td>Das Paketarchiv</td>
+      <td>ja</td>
+      <td>Liegt ohnehin dort, wo es hergekommen ist. Eine Kopie schadet nicht.</td>
+    </tr>
+    <tr>
+      <td><code>/etc/letsencrypt/</code></td>
+      <td>nicht nötig</td>
+      <td>certbot stellt ein neues Zertifikat aus, wenn die Adresse auf den Server zeigt.</td>
+    </tr>
+    <tr>
+      <td><code>/var/www/ravia-cad/</code></td>
+      <td>nicht nötig</td>
+      <td>Ergibt sich aus dem Paket.</td>
+    </tr>
+    <tr>
+      <td>Projektdaten der Anwender</td>
+      <td>nicht möglich</td>
+      <td>Sie liegen im Browser des Anwenders und nirgends sonst.</td>
+    </tr>
+  </tbody>
+</table>
+</div>
+
+<div class="stop">
+  <span class="kasten-titel">Achtung</span>
+  <p>Die Kehrseite: Ein Anwender, der seinen Browserspeicher leert, verliert
+  seine Projekte, und niemand kann sie ihm zurückgeben. Der Export als
+  Projektdatei ist der einzige Weg, Arbeit dauerhaft zu sichern. Das gehört in
+  die Einweisung.</p>
+</div>
+
+<h3>nginx aktuell halten</h3>
+
+<p>Der übliche Weg der Distribution reicht aus. Es läuft kein
+Anwendungsprozess, der dabei stören könnte.</p>
+
+<pre><code>sudo apt-get update &amp;&amp; sudo apt-get upgrade</code></pre>
+
+<p>Nach einer Aktualisierung von nginx einmal prüfen und die Abnahme fahren:</p>
+
+<pre><code>sudo nginx -t &amp;&amp; sudo systemctl reload nginx</code></pre>
+<pre><code>bin/pruefen.sh https://cad.ravia.de</code></pre>
+
+<p>Eine Aktualisierung von nginx kann eigene Konfigurationsdateien überschreiben
+oder eine neue <code>nginx.conf</code> ablegen. Dann ist
+<code>server_tokens off;</code> unter Umständen wieder verschwunden — Abschnitt 5
+des Prüfskripts meldet das.</p>
+
+<h3>Platzbedarf</h3>
+
+<div class="tabellenrahmen">
+<table>
+  <thead>
+    <tr><th>Gegenstand</th><th>Größe</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>Eine Fassung</td><td>4,2 MB</td></tr>
+    <tr><td>Fünf vorgehaltene Fassungen</td><td>rund 21 MB</td></tr>
+    <tr><td>Protokolle</td><td>abhängig von der Nutzung, mit Rotation begrenzt</td></tr>
+  </tbody>
+</table>
+</div>
+
+<p>Was tatsächlich belegt ist:</p>
+
+<pre><code>du -sh /var/www/ravia-cad/fassungen/*</code></pre>
+
+<p><code>client_max_body_size</code> steht auf 4 MB. Hochgeladen wird zwar
+nichts an den Server — der Grundriss bleibt im Browser —, aber die Grenze
+verhindert, dass ein Fehlgriff das Protokoll flutet.</p>
+
+
+<!-- ================================================================== 12 -->
+<h2 id="k12"><span class="nr">12</span>Wenn etwas nicht geht</h2>
+
+<p>Die Fälle in der Reihenfolge, in der sie tatsächlich auftreten. Der
+gemeinsame Nenner: fast alle sehen zunächst nach einer laufenden Anwendung aus.</p>
+
+<div class="tabellenrahmen">
+<table>
+  <thead>
+    <tr><th>Erscheinung</th><th>Wahrscheinliche Ursache</th><th>Prüfung</th><th>Abhilfe</th></tr>
+  </thead>
+  <tbody>
+
+    <tr>
+      <td><strong>Weiße Seite</strong><br>Die Seite lädt, bleibt aber leer.</td>
+      <td>Die Skriptdatei kommt nicht oder mit falschem MIME-Typ. Häufig, weil der <code>types</code>-Block fehlt oder die <code>index.html</code> auf Dateien zeigt, die nicht daliegen.</td>
+      <td><pre class="ausgabe"><code>curl -I https://cad.ravia.de/assets/index-o7hUfi-v.js</code></pre>Erwartet: <code>200</code> und <code>Content-Type: application/javascript</code>. Im Browser zusätzlich die Konsole ansehen.</td>
+      <td>Abschnitt 2 des Prüfskripts fahren. Zeigt es einen falschen Typ: den <code>types</code>-Block in <code>ravia-cad.conf</code> wiederherstellen. Zeigt es 404: <code>sudo bin/aufspielen.sh</code> — dessen Schritt 3 findet fehlende Dateien.</td>
+    </tr>
+
+    <tr>
+      <td><strong>Weiße Seite unter <code>/Cad_light/</code></strong><br>Die Seite antwortet, bleibt aber leer. In der Konsole stehen 404 auf <code>/assets/…</code>.</td>
+      <td><strong>Der Build ist ohne Basispfad erzeugt.</strong> In der <code>index.html</code> stehen dann <code>/assets/…</code> statt <code>/Cad_light/assets/…</code>; der Browser sucht die Dateien in der Wurzel der Domain. Der Server antwortet — nur mit der falschen Datei.</td>
+      <td><pre class="ausgabe"><code>curl -s https://ravia-tech.de/Cad_light/ | grep -o 'src="[^"]*assets/[^"]*"'</code></pre>Erwartet: <code>src="/Cad_light/assets/…"</code>. Steht dort <code>src="/assets/…"</code>, ist es dieser Fall.</td>
+      <td>Neu bauen und aufspielen:<pre class="ausgabe"><code>RAVIA_BASE=/Cad_light/ npm run build</code></pre><strong>Kein <code>rewrite</code> und kein <code>try_files</code> repariert das</strong> — die falschen Adressen stehen bereits im ausgelieferten HTML. Abschnitt 3.</td>
+    </tr>
+
+    <tr>
+      <td><strong>301 statt 200 auf die Assets</strong><br>Jede Datei unter <code>/Cad_light/assets/</code> antwortet mit einer Umleitung auf das Verzeichnis; die Seite bleibt leer.</td>
+      <td><code>alias</code> steht in einer <strong>Regex</strong>-Location. Dort hängt nginx den Restpfad <strong>nicht</strong> an — <code>location ~* ^/Cad_light/assets/</code> mit <code>alias</code> liefert deshalb das Verzeichnis statt der Datei.</td>
+      <td><pre class="ausgabe"><code>curl -I https://ravia-tech.de/Cad_light/assets/index-DCd_Ok-t.js</code></pre>Erwartet: <code>200</code>. Kommt <code>301</code>, ist es dieser Fall.</td>
+      <td>In <code>/etc/nginx/snippets/ravia-cad-light.conf</code> muss die Location als <strong>Prefix</strong> stehen:<pre class="ausgabe"><code>location ^~ /Cad_light/assets/ {</code></pre>Dann <code>sudo nginx -t &amp;&amp; sudo systemctl reload nginx</code>.</td>
+    </tr>
+
+    <tr>
+      <td><strong>MIME-Typ fehlt nur unter <code>/Cad_light/</code></strong><br>Auf ravia-tech.de stimmt alles, unter dem Unterpfad kommt eine Datei als <code>application/octet-stream</code>.</td>
+      <td><code>types</code> <strong>erbt nicht</strong> — es gilt nur in dem Block, in dem es steht. Fehlt in einer der drei Locations die Einbindung der Basisdatei, greift dort die <code>mime.types</code> der Distribution, und die kennt <code>.mjs</code> nicht.</td>
+      <td><pre class="ausgabe"><code>curl -I https://ravia-tech.de/Cad_light/assets/pdf.worker.min-yatZIOMy.mjs</code></pre>Erwartet: <code>application/javascript</code>.</td>
+      <td>In <strong>jeder</strong> der drei Locations muss stehen:<pre class="ausgabe"><code>include /etc/nginx/snippets/ravia-cad-light-basis.conf;</code></pre>Nicht stattdessen auf Serverebene setzen: dort ersetzte <code>types</code> die MIME-Zuordnung für ganz ravia-tech.de, also auch für RaVia Heizlast.</td>
+    </tr>
+
+    <tr>
+      <td><strong>Sicherheitskopfzeilen fehlen in einer Location</strong><br>Die Startseite trägt die Inhaltsrichtlinie, eine andere Adresse unter <code>/Cad_light/</code> nicht — oder umgekehrt.</td>
+      <td><code>add_header</code> <strong>erbt nicht</strong>. Sobald ein <code>location</code>-Block eine eigene Kopfzeile setzt — und jede der drei setzt ihr eigenes <code>Cache-Control</code> —, verliert er <em>alle</em> Kopfzeilen des umgebenden Blocks.</td>
+      <td><pre class="ausgabe"><code>curl -I https://ravia-tech.de/Cad_light/handbuch.html | grep -i content-security-policy</code></pre>Dasselbe für <code>/Cad_light/</code> und für eine Datei unter <code>assets/</code> und vergleichen.</td>
+      <td>Die Basisdatei in <strong>jede</strong> Location einbinden, die <code>add_header</code> benutzt. Wer eine weitere Location unter <code>/Cad_light/</code> ergänzt, muss die <code>include</code>-Zeile mitnehmen.</td>
+    </tr>
+
+    <tr>
+      <td><strong>PDF-Vorlage bleibt ohne Wirkung</strong><br>Die Anwendung läuft, ein hochgeladener Grundriss erscheint aber nicht.</td>
+      <td><strong>Der stille Ausfall Nummer eins.</strong> Der Arbeitsprozess von pdf.js heißt <code>pdf.worker.min-*.mjs</code>. Die mitgelieferte <code>mime.types</code> der meisten Distributionen kennt <code>.mjs</code> nicht und liefert <code>application/octet-stream</code>. Der Browser lehnt ein Modul mit diesem Typ ab.</td>
+      <td><pre class="ausgabe"><code>curl -I https://cad.ravia.de/assets/pdf.worker.min-yatZIOMy.mjs</code></pre>Erwartet: <code>application/javascript</code>. Kommt <code>application/octet-stream</code>, ist es dieser Fall.</td>
+      <td>Im Serverblock muss im <code>types</code>-Block stehen:<pre class="ausgabe"><code>application/javascript  mjs js;</code></pre>Dann <code>sudo nginx -t &amp;&amp; sudo systemctl reload nginx</code>.</td>
+    </tr>
+
+    <tr>
+      <td><strong>Alte Fassung nach der Aktualisierung</strong><br>Anwender sehen tagelang den alten Stand, andere den neuen.</td>
+      <td>Die <code>index.html</code> liegt im Zwischenspeicher. Sie trägt keinen Inhaltsstempel im Namen und ist der Zeiger auf die aktuellen Dateinamen — ein zwischengespeicherter Zeiger zeigt auf gestern.</td>
+      <td><pre class="ausgabe"><code>curl -I https://cad.ravia.de/ | grep -i cache-control</code></pre>Erwartet: <code>Cache-Control: no-cache</code>.</td>
+      <td>Der Block <code>location = /index.html</code> in <code>ravia-cad.conf</code> muss <code>no-cache</code> setzen. Ist ein Zwischenspeicher davor (CDN, Reverse Proxy), muss der dieselbe Regel kennen. Betroffene Anwender kommen mit Strg+Umschalt+R sofort weiter.</td>
+    </tr>
+
+    <tr>
+      <td><strong>Der Druckdialog geht nicht auf</strong><br>Das Fenster mit dem Ausdruck erscheint, der Dialog nicht.</td>
+      <td>Entweder ein Blocker für Pop-up-Fenster. Oder: eine Inhaltsrichtlinie mit <code>script-src 'self'</code> trifft auf ein Druckfenster mit eingebettetem Skript — ein solches Fenster erbt die Richtlinie seines Öffners.</td>
+      <td>Konsole des Hauptfensters ansehen. Steht dort eine Meldung zur Content-Security-Policy, ist es der zweite Fall. Wird gar kein Fenster geöffnet, ist es der erste.</td>
+      <td>Seit 1.14.0 lösen alle fünf Druckwege den Druck <strong>vom Hauptfenster aus</strong> und schreiben kein Skript mehr in das Druckfenster; der zweite Fall kann bei laufender 1.14.0 nicht mehr auftreten. Tritt er auf, läuft noch eine ältere Fassung: <code>sudo bin/aufspielen.sh</code>. Für den ersten Fall die Adresse im Pop-up-Blocker freigeben.</td>
+    </tr>
+
+    <tr>
+      <td><strong>Die Einbettung zeigt einen leeren Rahmen</strong><br>In RaVia bleibt der iframe weiß.</td>
+      <td><code>frame-ancestors</code> nennt die Adresse von RaVia nicht — meist steht dort noch der Platzhalter <code>https://app.ravia.de</code>, oder nur <code>'self'</code>.</td>
+      <td><pre class="ausgabe"><code>curl -I https://cad.ravia.de/ | grep -i content-security-policy</code></pre>Dort <code>frame-ancestors</code> suchen. In der Konsole von RaVia steht die Meldung im Klartext.</td>
+      <td>In <code>/etc/nginx/snippets/ravia-cad-kopfzeilen.conf</code> die tatsächliche Adresse von RaVia eintragen — mit Schema, ohne Schrägstrich am Ende. Das ist die einzige Stelle, an der sie steht. Dann <code>sudo nginx -t &amp;&amp; sudo systemctl reload nginx</code>. Abschnitt 5 des Prüfskripts meldet den Platzhalter, solange er dasteht.</td>
+    </tr>
+
+    <tr>
+      <td><strong>Die einbindende Seite tut nichts</strong><br>Der iframe bleibt leer, Knöpfe der Wirtsseite reagieren nicht.</td>
+      <td>Nicht die Einbettung, sondern das Skript der <em>Wirtsseite</em>. Steht es als <code>&lt;script&gt;</code> im Dokument, verwirft es <code>script-src 'self'</code>. Der Fehler sieht aus wie ein Einbettungsproblem und ist keines. Genau so ist es der Beispielseite ergangen, bevor sie ihr Skript in eine eigene Datei bekam.</td>
+      <td>Konsole der Wirtsseite ansehen. Dort steht eine Meldung zur Content-Security-Policy mit <code>script-src</code>, nicht mit <code>frame-ancestors</code>. Zur Gegenprobe <code>/einbettung-beispiel.html</code> aufrufen: funktioniert die, liegt es an der eigenen Seite.</td>
+      <td>Das Skript der Wirtsseite in eine eigene Datei auslagern und mit <code>&lt;script src="…"&gt;</code> einbinden; <code>onclick</code>-Attribute im Dokument durch <code>addEventListener</code> ersetzen. Die Richtlinie deswegen nicht aufweichen — <code>script-src 'self'</code> ist der Grund, warum die Druckwege funktionieren.</td>
+    </tr>
+
+    <tr>
+      <td><strong>nginx startet nach reload nicht</strong></td>
+      <td>Ein Konfigurationsfehler. Am häufigsten: <code>unknown directive "http2"</code> auf nginx älter als 1.25.1, oder ein Zertifikatspfad, den es noch nicht gibt.</td>
+      <td><pre class="ausgabe"><code>sudo nginx -t</code></pre>Die Ausgabe nennt Datei und Zeile.</td>
+      <td>Bei <code>unknown directive "http2"</code> in <code>/etc/nginx/sites-available/ravia-cad.conf</code> die Zeile <code>http2 on;</code> entfernen und dafür beide <code>listen</code>-Zeilen ändern:<pre class="ausgabe"><code>listen 443 ssl http2;
+listen [::]:443 ssl http2;</code></pre>Der Kommentar über der Zeile im Serverblock beschreibt beide Formen. Bei fehlendem Zertifikat: Abschnitt 7. Solange <code>nginx -t</code> nicht durchgeht, läuft nginx mit der alten Konfiguration weiter — die Anwendung ist also nicht ausgefallen.</td>
+    </tr>
+
+    <tr>
+      <td><strong>Zertifikat abgelaufen</strong><br>Der Browser warnt, niemand kommt mehr auf die Seite.</td>
+      <td>Die Erneuerung ist nicht gelaufen. Fast immer: Port 80 wurde zugemacht, oder der DNS-Eintrag zeigt woandershin.</td>
+      <td><pre class="ausgabe"><code>sudo certbot certificates</code></pre><pre class="ausgabe"><code>systemctl list-timers | grep certbot</code></pre><pre class="ausgabe"><code>dig +short cad.ravia.de</code></pre></td>
+      <td>Ursache beheben — Port 80 öffnen, DNS richtigstellen — dann:<pre class="ausgabe"><code>sudo certbot renew --force-renewal</code></pre>Danach <code>sudo certbot renew --dry-run</code>, damit es nicht wieder passiert. Ist HSTS eingeschaltet, hilft in der Zwischenzeit kein Umweg über http.</td>
+    </tr>
+
+    <tr>
+      <td><strong>Die 3D-Ansicht bleibt schwarz</strong><br>Die 2D-Ansicht funktioniert, die 3D-Ansicht nicht.</td>
+      <td>Kein Serverfehler. WebGL steht auf dem Arbeitsplatz nicht zur Verfügung: veralteter Grafiktreiber, WebGL in den Browsereinstellungen abgeschaltet, oder eine virtuelle Maschine ohne Grafikbeschleunigung.</td>
+      <td>Im selben Browser <code>about:gpu</code> beziehungsweise die WebGL-Auskunft aufrufen. Die Konsole zeigt in diesem Fall eine Meldung zum WebGL-Kontext. Zur Gegenprobe die Anwendung auf einem anderen Rechner öffnen.</td>
+      <td>Grafiktreiber aktualisieren, Hardwarebeschleunigung im Browser einschalten. Auf einer virtuellen Maschine ohne Grafik lässt sich das nicht lösen — die 2D-Ansicht und alle Berechnungen funktionieren weiter, nur die 3D-Ansicht nicht.</td>
+    </tr>
+
+  </tbody>
+</table>
+</div>
+
+<h3>Wenn nichts davon passt</h3>
+
+<p>Drei Griffe in dieser Reihenfolge:</p>
+
+<pre><code>bin/pruefen.sh https://cad.ravia.de</code></pre>
+<pre><code>sudo tail -50 /var/log/nginx/ravia-cad.error.log</code></pre>
+<pre><code>sudo bin/zuruecknehmen.sh</code></pre>
+
+<p>Das Zurücknehmen ist billig und in Sekunden erledigt. Wenn nach einer
+Aktualisierung etwas nicht stimmt, ist es der richtige erste Schritt und nicht
+der letzte.</p>
+
+
+<!-- ================================================================== 13 -->
+<h2 id="k13"><span class="nr">13</span>Anhang</h2>
+
+<h3>Alle Pfade auf dem Server</h3>
+
+<h4>Unterpfad in einer bestehenden Seite</h4>
+
+<div class="tabellenrahmen">
+<table>
+  <thead>
+    <tr><th>Pfad</th><th>Was dort liegt</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>/opt/ravia-cad-light/aktuell</code></td><td>Verknüpfung auf die laufende Fassung. Kein <code>root</code>, sondern das Ziel der drei <code>alias</code>-Anweisungen.</td></tr>
+    <tr><td><code>/opt/ravia-cad-light/fassungen/</code></td><td>Je Aufspielvorgang ein Verzeichnis <code>JJJJMMTT-HHMMSS-FASSUNG</code>. Es bleiben fünf stehen. Gehört <code>ravia-deploy</code>.</td></tr>
+    <tr><td><code>/etc/nginx/snippets/ravia-cad-light.conf</code></td><td>Die drei <code>location</code>-Blöcke, die Umleitung ohne Schrägstrich und der auskommentierte <code>auth_request</code>-Block.</td></tr>
+    <tr><td><code>/etc/nginx/snippets/ravia-cad-light-basis.conf</code></td><td>MIME-Typen, Kompression, Sicherheitskopfzeilen. Wird in jede der drei Locations eingebunden.</td></tr>
+    <tr><td><code>/etc/sudoers.d/ravia-deploy</code></td><td>Genau ein erlaubter Befehl: <code>systemctl reload nginx</code>.</td></tr>
+    <tr><td><code>/home/ravia-deploy</code></td><td>Heimatverzeichnis des Aufspielbenutzers. Systemkonto ohne Anmeldeschale.</td></tr>
+    <tr><td><span class="kleingedruckt">der bestehende Serverblock von ravia-tech.de</span></td><td>Enthält die eine <code>include</code>-Zeile. Zu finden mit <code>grep -rl 'ravia-tech.de' /etc/nginx/sites-enabled/ /etc/nginx/conf.d/</code>.</td></tr>
+    <tr><td><span class="kleingedruckt">die Protokolle von ravia-tech.de</span></td><td>Es gibt keine eigenen. Die Zugriffe auf <code>/Cad_light/</code> stehen in den Protokollen der bestehenden Seite; für <code>assets/</code> ist das Zugriffsprotokoll abgeschaltet.</td></tr>
+  </tbody>
+</table>
+</div>
+
+<h4>Eigene Domain</h4>
+
+<div class="tabellenrahmen">
+<table>
+  <thead>
+    <tr><th>Pfad</th><th>Was dort liegt</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>/var/www/ravia-cad/aktuell</code></td><td>Verknüpfung auf die laufende Fassung. Das ist die <code>root</code> von nginx.</td></tr>
+    <tr><td><code>/var/www/ravia-cad/fassungen/</code></td><td>Je Aufspielvorgang ein Verzeichnis <code>JJJJMMTT-HHMMSS-FASSUNG</code>. Es bleiben fünf stehen.</td></tr>
+    <tr><td><code>/var/www/certbot</code></td><td>Ablage für die Prüfung von Let's Encrypt.</td></tr>
+    <tr><td><code>/etc/nginx/sites-available/ravia-cad.conf</code></td><td>Der Serverblock, mit Ihrer Adresse.</td></tr>
+    <tr><td><code>/etc/nginx/sites-enabled/ravia-cad.conf</code></td><td>Verknüpfung darauf. Nur was hier liegt, ist aktiv.</td></tr>
+    <tr><td><code>/etc/nginx/snippets/ravia-cad-kopfzeilen.conf</code></td><td>Inhaltsrichtlinie und die übrigen Sicherheitskopfzeilen. Hier steht die Adresse von RaVia.</td></tr>
+    <tr><td><code>/etc/letsencrypt/live/ADRESSE/fullchain.pem</code></td><td>Zertifikatskette. Setzt certbot.</td></tr>
+    <tr><td><code>/etc/letsencrypt/live/ADRESSE/privkey.pem</code></td><td>Privater Schlüssel. Setzt certbot.</td></tr>
+    <tr><td><code>/var/log/nginx/ravia-cad.access.log</code></td><td>Zugriffsprotokoll.</td></tr>
+    <tr><td><code>/var/log/nginx/ravia-cad.error.log</code></td><td>Fehlerprotokoll, Stufe <code>warn</code>.</td></tr>
+  </tbody>
+</table>
+</div>
+
+<h4>Auf beiden Wegen</h4>
+
+<div class="tabellenrahmen">
+<table>
+  <thead>
+    <tr><th>Pfad</th><th>Was dort liegt</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>/etc/nginx/nginx.conf</code></td><td>Nur wegen <code>server_tokens off;</code> berührt — und das setzt allein <code>einrichten.sh</code>.</td></tr>
+  </tbody>
+</table>
+</div>
+
+<h3>Alles, was im Paket liegt</h3>
+
+<div class="tabellenrahmen">
+<table>
+  <thead>
+    <tr><th>Datei</th><th>Wozu</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>VERSION</code></td><td>Die Fassungsnummer. <code>aufspielen.sh</code> liest sie für den Verzeichnisnamen.</td></tr>
+    <tr><td><code>pruefsummen.sha256</code></td><td>Prüfsummen aller Paketdateien. Werden vor dem Aufspielen geprüft.</td></tr>
+    <tr><td><code>app/</code></td><td>Die gebaute Anwendung, 4,2 MB. Reine Dateien, kein Serverprozess.</td></tr>
+    <tr><td><code>app/index.html</code></td><td>Die Startseite. Zeigt auf die Dateien in <code>assets/</code>.</td></tr>
+    <tr><td><code>app/assets/</code></td><td>Skripte, Stilblatt, Schriften. Jede Datei trägt einen Inhaltsstempel im Namen.</td></tr>
+    <tr><td><code>app/einbettung-beispiel.html</code>, <code>.js</code></td><td>Die Beispielseite. Wird mit ausgeliefert und ist unter <code>/einbettung-beispiel.html</code> erreichbar.</td></tr>
+    <tr><td><code>nginx/ravia-cad.conf</code></td><td>Der Serverblock. Drei Stellen mit <code>&gt;&gt;&gt; ANPASSEN &lt;&lt;&lt;</code>; die vierte steht in der Kopfzeilendatei.</td></tr>
+    <tr><td><code>nginx/ravia-cad-kopfzeilen.conf</code></td><td>Die Sicherheitskopfzeilen zum Serverblock, je Zeile begründet. Hier steht die Adresse von RaVia — die vierte anzupassende Stelle.</td></tr>
+    <tr><td><code>nginx/ravia-cad-light.conf</code></td><td><strong>Unterpfad.</strong> Die drei <code>location</code>-Blöcke für <code>/Cad_light/</code>, die Umleitung ohne Schrägstrich und der auskommentierte <code>auth_request</code>-Block. Wird als Ganzes in den bestehenden Serverblock eingebunden.</td></tr>
+    <tr><td><code>nginx/ravia-cad-light-basis.conf</code></td><td><strong>Unterpfad.</strong> MIME-Typen, Kompression, Sicherheitskopfzeilen. Wird in jede der drei Locations eingebunden, weil <code>add_header</code> und <code>types</code> nicht erben.</td></tr>
+    <tr><td><code>bin/einrichten.sh</code></td><td>Ersteinrichtung für die <strong>eigene Domain</strong>. Wiederholbar. Nimmt die Adresse als Argument.</td></tr>
+    <tr><td><code>bin/einrichten-unterpfad.sh</code></td><td>Ersteinrichtung für den <strong>Unterpfad</strong>. Einmalig als root: Benutzer <code>ravia-deploy</code>, <code>/opt/ravia-cad-light</code>, sudoers-Regel, nginx-Bausteine. Prüft, ob der Build zum Pfad passt.</td></tr>
+    <tr><td><code>bin/aufspielen.sh</code></td><td>Neue Fassung: danebenlegen, prüfen, umschalten. Arbeitet mit <code>RAVIA_WURZEL</code> und läuft ohne root, wenn das Verzeichnis dem Aufspielbenutzer gehört.</td></tr>
+    <tr><td><code>bin/zuruecknehmen.sh</code></td><td>Auf die vorige Fassung zurück. Ebenfalls <code>RAVIA_WURZEL</code>, ebenfalls ohne root.</td></tr>
+    <tr><td><code>bin/pruefen.sh</code></td><td>Abnahme von außen, sieben Abschnitte. Versteht Unterpfad-Adressen.</td></tr>
+    <tr><td><code>einbettung/</code></td><td>Dieselben zwei Beispieldateien, zum Übernehmen als Vorlage.</td></tr>
+    <tr><td><code>SERVER-EINRICHTUNG.html</code></td><td>Dieses Handbuch.</td></tr>
+  </tbody>
+</table>
+</div>
+
+<h3>Spickzettel</h3>
+
+<h4>Einrichten &mdash; Unterpfad in einer bestehenden Seite</h4>
+<pre><code>tar xzf server-paket-1.14.0.tar.gz &amp;&amp; cd server-paket</code></pre>
+<pre><code>sudo bin/einrichten-unterpfad.sh</code></pre>
+<p>Dann die eine Zeile in den bestehenden Serverblock von ravia-tech.de:</p>
+<pre><code>grep -rl 'ravia-tech.de' /etc/nginx/sites-enabled/ /etc/nginx/conf.d/</code></pre>
+<pre><code>include /etc/nginx/snippets/ravia-cad-light.conf;</code></pre>
+<pre><code>sudo nginx -t &amp;&amp; sudo systemctl reload nginx</code></pre>
+<pre><code>bin/pruefen.sh https://ravia-tech.de/Cad_light/</code></pre>
+
+<h4>Einrichten &mdash; eigene Domain</h4>
+<pre><code>sudo apt-get update &amp;&amp; sudo apt-get install -y nginx rsync curl</code></pre>
+<pre><code>tar xzf server-paket-1.14.0.tar.gz &amp;&amp; cd server-paket</code></pre>
+<pre><code>sudo bin/einrichten.sh cad.ravia.de</code></pre>
+<pre><code>sudo apt-get install -y certbot python3-certbot-nginx</code></pre>
+<pre><code>sudo certbot --nginx -d cad.ravia.de</code></pre>
+
+<h4>Bauen</h4>
+<pre><code>RAVIA_BASE=/Cad_light/ npm run build</code></pre>
+<pre><code>npm run build</code></pre>
+<p>Der erste Befehl baut für den Unterpfad, der zweite für die Wurzel einer
+eigenen Domain. Nachsehen, wofür ein Paket gebaut ist:</p>
+<pre><code>grep -o 'src="[^"]*assets/[^"]*"' app/index.html</code></pre>
+
+<h4>Aufspielen und zurücknehmen &mdash; Unterpfad, ohne root</h4>
+<pre><code>sudo -u ravia-deploy bin/aufspielen.sh</code></pre>
+<pre><code>sudo -u ravia-deploy bin/zuruecknehmen.sh --liste</code></pre>
+<pre><code>sudo -u ravia-deploy bin/zuruecknehmen.sh</code></pre>
+
+<h4>Aufspielen und zurücknehmen &mdash; eigene Domain</h4>
+<pre><code>sudo RAVIA_WURZEL=/var/www/ravia-cad bin/aufspielen.sh</code></pre>
+<pre><code>sudo RAVIA_WURZEL=/var/www/ravia-cad bin/zuruecknehmen.sh --liste</code></pre>
+<pre><code>sudo RAVIA_WURZEL=/var/www/ravia-cad bin/zuruecknehmen.sh 20260830-041500-1.14.0</code></pre>
+
+<h4>Umgebungsvariablen</h4>
+
+<div class="tabellenrahmen">
+<table>
+  <thead>
+    <tr><th>Variable</th><th>Vorgabe</th><th>Wo sie wirkt</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>RAVIA_WURZEL</code></td><td><code>/opt/ravia-cad-light</code></td><td><code>aufspielen.sh</code>, <code>zuruecknehmen.sh</code>, <code>einrichten-unterpfad.sh</code>. Wo <code>fassungen/</code> und <code>aktuell</code> liegen. Für den eigenen Serverblock auf <code>/var/www/ravia-cad</code> setzen.</td></tr>
+    <tr><td><code>RAVIA_BASE</code></td><td><code>/</code></td><td><code>vite.config.ts</code> beim Bauen. Der Pfad, unter dem die Anwendung ausgeliefert wird. Muss auf einen Schrägstrich enden, sonst bricht der Build ab.</td></tr>
+    <tr><td><code>RAVIA_PROBE</code></td><td>die Vorschau aus <code>vite preview</code></td><td>Die Rauchtests im Quellverzeichnis der Anwendung. Damit lässt sich ein echter Server prüfen — und vor allem einer, der unter einem Unterpfad ausliefert. Der abschließende Schrägstrich gehört dazu.</td></tr>
+    <tr><td><code>RAVIA_BENUTZER</code></td><td><code>ravia-deploy</code></td><td><code>einrichten-unterpfad.sh</code>. Der Aufspielbenutzer.</td></tr>
+    <tr><td><code>RAVIA_PFAD</code></td><td><code>/Cad_light/</code></td><td><code>einrichten-unterpfad.sh</code>. Nur für die Prüfung, ob der Build zum Pfad passt, und für die ausgegebenen Hinweise — die Locations stehen in <code>ravia-cad-light.conf</code> und werden davon nicht geändert.</td></tr>
+  </tbody>
+</table>
+</div>
+
+<h4>Abnahme</h4>
+<pre><code>bin/pruefen.sh https://ravia-tech.de/Cad_light/</code></pre>
+<pre><code>bin/pruefen.sh https://cad.ravia.de</code></pre>
+
+<h4>nginx</h4>
+<pre><code>sudo nginx -t</code></pre>
+<pre><code>sudo systemctl reload nginx</code></pre>
+<pre><code>sudo systemctl status nginx</code></pre>
+<pre><code>nginx -v</code></pre>
+
+<h4>Zertifikat</h4>
+<pre><code>sudo certbot certificates</code></pre>
+<pre><code>sudo certbot renew --dry-run</code></pre>
+<pre><code>systemctl list-timers | grep certbot</code></pre>
+
+<h4>Nachsehen</h4>
+<pre><code>dig +short cad.ravia.de</code></pre>
+<pre><code>curl -I https://cad.ravia.de/</code></pre>
+<pre><code>curl -I https://ravia-tech.de/Cad_light/</code></pre>
+<pre><code>sudo tail -f /var/log/nginx/ravia-cad.error.log</code></pre>
+<pre><code>du -sh /var/www/ravia-cad/fassungen/*</code></pre>
+<pre><code>ls -l /var/www/ravia-cad/aktuell</code></pre>
+<pre><code>du -sh /opt/ravia-cad-light/fassungen/*</code></pre>
+<pre><code>ls -l /opt/ravia-cad-light/aktuell</code></pre>
+
+<h3>Fassungsstand</h3>
+
+<div class="tabellenrahmen">
+<table>
+  <thead>
+    <tr><th>Gegenstand</th><th>Stand</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>Anwendung</td><td>RaVia CAD Light 1.14.0</td></tr>
+    <tr><td>Ausgeliefert wird zurzeit</td><td>als Unterpfad: <code>https://ravia-tech.de/Cad_light/</code>, aus <code>/opt/ravia-cad-light/aktuell/</code> durch den Benutzer <code>ravia-deploy</code>. Das <code>app/</code>-Verzeichnis dieses Pakets ist mit <code>RAVIA_BASE=/Cad_light/</code> gebaut.</td></tr>
+    <tr><td>Zugang</td><td>offen. Der <code>auth_request</code>-Block ist vorbereitet, aber auskommentiert — der Prüfendpunkt in RaVia fehlt noch (Abschnitt 3).</td></tr>
+    <tr><td>Einbettungs-Schnittstelle</td><td><code>window.RaViaCAD</code> 1.1.0</td></tr>
+    <tr><td>Exportformat</td><td><code>ravia.bim.light</code> v2, daneben IFC4 (STEP)</td></tr>
+    <tr><td>Nachgewiesen auf</td><td>einem echten nginx mit genau dieser Konfiguration. <strong>Eigene Domain:</strong> Aufspielen, Zurücknehmen und erneutes Aufspielen laufen; alle 17 Rauchtests durchgelaufen; die Abnahme meldet nur den noch stehenden Platzhalter in <code>frame-ancestors</code>. <strong>Unterpfad:</strong> mit einem Platzhalter für RaVia auf <code>/</code> und CAD Light auf <code>/Cad_light/</code> — 301 ohne Schrägstrich, 200 mit, richtige MIME-Typen, <code>no-cache</code> auf der Startseite und ein Jahr <code>immutable</code> auf <code>assets/</code>, Kompression 1509 kB &rarr; 469 kB, alle 17 Rauchtests gegen den Unterpfad, Aufspielen als <code>ravia-deploy</code> ohne root; die Abnahme meldet nur den Hinweis, dass lokal ohne TLS geprüft wurde</td></tr>
+    <tr><td>Paketgröße</td><td>4,2 MB; über die Leitung rund 1,1 MB</td></tr>
+    <tr><td>Fremde Adressen</td><td>keine. Schriften im Paket, seit 1.14.0 kein Google Fonts</td></tr>
+    <tr><td>Inhaltsrichtlinie</td><td><code>script-src 'self'</code>, ohne <code>'unsafe-inline'</code> und ohne <code>'unsafe-eval'</code></td></tr>
+  </tbody>
+</table>
+</div>
+
+<h3>Was sich gegenüber älteren Fassungen für den Serverbetrieb geändert hat</h3>
+
+<ul>
+  <li><strong>Die Anwendung lässt sich jetzt auch als Unterpfad einer
+  bestehenden Seite ausliefern</strong> — Abschnitt 3. Dazu kommen
+  <code>nginx/ravia-cad-light.conf</code>,
+  <code>nginx/ravia-cad-light-basis.conf</code> und
+  <code>bin/einrichten-unterpfad.sh</code>. Der Pfad kommt beim Bauen aus
+  <code>RAVIA_BASE</code>, nicht aus der Serverkonfiguration.</li>
+  <li><code>aufspielen.sh</code> und <code>zuruecknehmen.sh</code> arbeiten mit
+  <code>RAVIA_WURZEL</code> (Vorgabe <code>/opt/ravia-cad-light</code>) und
+  prüfen das Schreibrecht statt der Benutzerkennung. Damit laufen sie
+  <strong>ohne root</strong>, wenn das Verzeichnis dem Aufspielbenutzer
+  gehört.</li>
+  <li><code>pruefen.sh</code> trennt die Herkunft von der Adresse und versteht
+  dadurch Unterpfad-Adressen. Vorher hätte es
+  <code>…/Cad_light/Cad_light/assets/…</code> geprüft.</li>
+  <li>Die Schriften liegen im Paket. Die Anwendung ruft keine fremde Adresse
+  mehr auf; die Inhaltsrichtlinie kann <code>connect-src 'self'</code> und
+  <code>font-src 'self'</code> setzen.</li>
+  <li>Die fünf Druckwege schreiben kein eingebettetes Skript mehr in das
+  Druckfenster. Dadurch kommt die Inhaltsrichtlinie ohne
+  <code>script-src 'unsafe-inline'</code> aus. Das war die Voraussetzung dafür,
+  dass der Druck unter einer strengen Richtlinie überhaupt funktioniert.</li>
+  <li>Die Beispielseite zur Einbettung hat ihr Skript in einer eigenen Datei —
+  aus demselben Grund. Der Fehler ist auf dem Probeserver aufgefallen, nicht auf
+  dem Entwicklungsrechner.</li>
+  <li>Die Variable <code>$ravia_origin</code> im Serverblock ist entfernt. Sie
+  war gesetzt, wurde aber von keiner Anweisung ausgewertet. Die Adresse von RaVia
+  steht jetzt nur noch in <code>frame-ancestors</code>.</li>
+  <li>Der <code>types</code>-Block trägt zusätzlich <code>webp</code>,
+  <code>gif</code>, <code>ico</code>, <code>txt</code>, <code>md</code>,
+  <code>map</code>, <code>pdf</code> und <code>xml</code>, und darüber einen
+  Warnkommentar, dass er die MIME-Zuordnung der Distribution ersetzt.</li>
+  <li>Die Abnahme prüft den Platzhalter <code>app.ravia.de</code> wörtlich und
+  sucht den PDF-Arbeitsprozess in zwei Stufen. Beides war vorher wirkungslos.</li>
+</ul>
+
+<footer class="abschluss">
+  RaVia CAD Light 1.14.0 &middot; Server-Handbuch &middot; Teil des Server-Pakets.
+  Bei Fragen zur Konfiguration sind die Dateien unter <code>nginx/</code> und
+  <code>bin/</code> ausführlich kommentiert; sie sind die verbindliche Quelle,
+  dieses Handbuch die Anleitung dazu.
+</footer>
+
+</div>
+</body>
+</html>

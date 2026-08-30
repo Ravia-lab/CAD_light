@@ -55,7 +55,12 @@ if [[ ! -w "$WURZEL" ]] && [[ $EUID -ne 0 ]]; then
 fi
 JETZT="$(readlink -f "$WURZEL/aktuell" 2>/dev/null || echo '')"
 
-mapfile -t fassungen < <(ls -1dt "$WURZEL"/fassungen/*/ 2>/dev/null)
+# Sortiert wird nach dem **Namen**, nicht nach der Änderungszeit.
+# Der Name ist bereits der Zeitstempel des Aufspielens (JJJJMMTT-HHMMSS-Fassung)
+# und damit die einzige verlässliche Reihenfolge: `cp -a` und `rsync -a`
+# übernehmen die Zeitstempel aus dem Paket, weshalb alle Fassungsverzeichnisse
+# dieselbe Änderungszeit tragen können — `ls -t` würfelt sie dann.
+mapfile -t fassungen < <(ls -1d "$WURZEL"/fassungen/*/ 2>/dev/null | sort -r)
 if [[ ${#fassungen[@]} -eq 0 ]]; then
   rot "Es liegt keine Fassung unter $WURZEL/fassungen — nichts zurückzunehmen."
   exit 1

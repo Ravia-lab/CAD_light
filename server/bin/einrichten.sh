@@ -62,14 +62,17 @@ echo "────────────────────────�
 # -- 1 · Vorbedingungen -----------------------------------------------------
 echo
 echo "1 · Vorbedingungen"
-for werkzeug in nginx rsync curl; do
+for werkzeug in nginx curl; do
   if ! command -v "$werkzeug" >/dev/null 2>&1; then
     rot "  ✗ $werkzeug fehlt."
-    echo "    Nachinstallieren:  apt-get install -y nginx rsync curl"
+    echo "    Nachinstallieren:  apt-get install -y nginx curl"
     exit 1
   fi
   grau "  ✓ $werkzeug vorhanden"
 done
+# rsync erspart beim Aufspielen Zeit, ist aber ersetzbar (cp). Kein Abbruch.
+if command -v rsync >/dev/null 2>&1; then grau "  ✓ rsync vorhanden"
+else grau "  · rsync fehlt — aufspielen.sh nutzt cp (gleichwertig)"; fi
 
 if [[ ! -d "$PAKET/app" ]] || [[ ! -f "$PAKET/app/index.html" ]]; then
   rot "  ✗ Im Paket fehlt das Verzeichnis app/ mit der index.html."

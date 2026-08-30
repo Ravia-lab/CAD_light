@@ -91,7 +91,15 @@ fi
 
 # -- 2 · Danebenlegen -------------------------------------------------------
 mkdir -p "$ZIEL"
-rsync -a --delete "$PAKET/app/" "$ZIEL/"
+# Kopiert wird in ein **frisches** Verzeichnis (Zeitstempel im Namen), darum
+# ist rsync hier kein Muss: --delete hätte nichts zu löschen. Wo rsync fehlt
+# — auf schlanken Servern die Regel — tut `cp -a` genau dasselbe. Eine
+# Abhängigkeit weniger ist eine Fehlerquelle weniger.
+if command -v rsync >/dev/null 2>&1; then
+  rsync -a --delete "$PAKET/app/" "$ZIEL/"
+else
+  cp -a "$PAKET/app/." "$ZIEL/"
+fi
 chown -R "$(stat -c %U "$WURZEL"):$(stat -c %G "$WURZEL")" "$ZIEL" 2>/dev/null || true
 find "$ZIEL" -type d -exec chmod 755 {} +
 find "$ZIEL" -type f -exec chmod 644 {} +
@@ -169,7 +177,11 @@ fi
 # -- 6 · Aufräumen -----------------------------------------------------------
 #  Alte Fassungen bleiben stehen, damit man zurückkann. Fünf reichen: das
 #  sind bei wöchentlicher Aktualisierung über einen Monat.
-mapfile -t alt < <(ls -1dt "$WURZEL"/fassungen/*/ 2>/dev/null | tail -n +$((BEHALTEN + 1)))
+# Sortiert nach **Namen**, nicht nach Änderungszeit: der Name ist der
+# Zeitstempel des Aufspielens, während `cp -a` die Dateizeiten aus dem Paket
+# übernimmt. Mit `ls -t` könnte hier die *neueste* Fassung als „alt" gelten
+# und gelöscht werden — der eine Fehler, den ein Aufräumschritt nicht machen darf.
+mapfile -t alt < <(ls -1d "$WURZEL"/fassungen/*/ 2>/dev/null | sort -r | tail -n +$((BEHALTEN + 1)))
 for a in "${alt[@]:-}"; do
   [[ -z "$a" ]] && continue
   # Die laufende Fassung wird niemals gelöscht, auch wenn sie alt ist.

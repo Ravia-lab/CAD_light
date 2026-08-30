@@ -42,10 +42,14 @@ echo "────────────────────────�
 # -- 1 · Vorbedingungen -----------------------------------------------------
 echo
 echo "1 · Vorbedingungen"
-for w in nginx rsync; do
+for w in nginx; do
   command -v "$w" >/dev/null 2>&1 || { rot "  ✗ $w fehlt.  apt-get install -y $w"; exit 1; }
   grau "  ✓ $w vorhanden"
 done
+# rsync ist erwünscht, aber nicht nötig: aufspielen.sh weicht auf cp aus.
+# Ein Abbruch an dieser Stelle wäre eine erfundene Hürde.
+if command -v rsync >/dev/null 2>&1; then grau "  ✓ rsync vorhanden"
+else grau "  · rsync fehlt — aufspielen.sh nutzt cp (gleichwertig)"; fi
 [[ -f "$PAKET/app/index.html" ]] || { rot "  ✗ app/index.html fehlt — Paket unvollständig."; exit 1; }
 
 # Der Build muss zum Pfad passen. Ein Build für die Wurzel unter einem
