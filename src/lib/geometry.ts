@@ -258,6 +258,14 @@ export function polygonBounds(poly: readonly Vec2[]): Bounds {
 }
 
 /**
+ * Wie weit eine Gehrungsecke höchstens vom Ursprungseckpunkt wegwandern darf,
+ * als Vielfaches des Versatzes. 4 ist der Vorgabewert von SVG und der
+ * übliche Wert in CAD-Anwendungen; er lässt Ecken bis herunter zu etwa 29°
+ * unangetastet und fängt alles Spitzere ab.
+ */
+const MITER_LIMIT = 4;
+
+/**
  * Versetzt jede Polygonkante um ihren *eigenen* Betrag nach innen und
  * schneidet die versetzten Geraden neu — so entstehen die lichten
  * Raummaße bei gemischten Wandstärken korrekt (eine 36,5er Außenwand
@@ -287,7 +295,34 @@ export function offsetPolygonPerEdge(poly: readonly Vec2[], offsets: readonly nu
     const curr = shifted[i];
     const hit = lineIntersection(prev.p, prev.d, curr.p, curr.d);
     // Nahezu kollineare Kanten liefern keinen stabilen Schnitt → Startpunkt nehmen.
-    result.push(hit ?? { ...curr.p });
+    if (!hit) {
+      result.push({ ...curr.p });
+      continue;
+    }
+    // Gehrung begrenzen. An einer spitzen Ecke laufen die beiden versetzten
+    // Kanten fast parallel, und ihr Schnittpunkt wandert gegen unendlich: aus
+    // einem Versatz von 12 cm wird ein Eckpunkt hundert Meter neben dem
+    // Grundriss. Das ist kein Randfall — eine Facette, die um ein loses
+    // Wandende herumläuft, enthält eine Zacke ohne Breite, und genau dort
+    // entsteht diese Ecke. Ohne Grenze liefert der Versatz dann ein Polygon
+    // mit 0,7 m² Fläche und 438 m Umfang, das anschließend als „Raum" durch
+    // die ganze Rechnung getragen wird.
+    //
+    // Begrenzt wird wie beim Linienzug in SVG und in jedem CAD: über das
+    // Verhältnis von Gehrungslänge zu Versatz. Jenseits der Grenze wird der
+    // Punkt auf der Verbindung Ecke→Gehrung zurückgezogen — die Ecke wird
+    // stumpf statt falsch.
+    const ecke = poly[i];
+    const grenze = MITER_LIMIT * Math.max(offsets[(i - 1 + n) % n] ?? 0, offsets[i] ?? 0, 1e-6);
+    const dx = hit.x - ecke.x;
+    const dy = hit.y - ecke.y;
+    const weit = Math.hypot(dx, dy);
+    if (weit > grenze) {
+      const f = grenze / weit;
+      result.push({ x: ecke.x + dx * f, y: ecke.y + dy * f });
+    } else {
+      result.push(hit);
+    }
   }
   return result;
 }

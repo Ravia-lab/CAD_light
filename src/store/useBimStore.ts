@@ -122,6 +122,7 @@ import { solidFootprint } from '../lib/verticalSymbols';
 import { planPipeNetwork, type PipeLayoutResult } from '../lib/pipeLayout';
 import { baseRoofHeightAt, buildRoofFrame, dormerSide } from '../lib/roofGeometry';
 import { importIfc } from '../lib/ifcImport';
+import { importRaumplan } from '../lib/raumplanImport';
 import { benenneGeschosse, erdgeschossIndex } from '../lib/levelGeometry';
 import { emptyPlant, emptySite } from '../lib/plantDefaults';
 import { ANBINDUNG_LABELS, schemaVorlage } from '../lib/schemaKatalog';
@@ -335,6 +336,18 @@ interface BimState {
   clipboard: ClipboardContent | null;
   hover: Selection | null;
   viewport: Viewport;
+  /**
+   * Zähler, der um eins steigt, sobald das **ganze Dokument** ersetzt wurde —
+   * Projektdatei, IFC, Raumscan, Demo, neues Projekt.
+   *
+   * Die Zeichenfläche passt die Ansicht sonst nur einmal ein, beim ersten
+   * brauchbaren Modell; danach nie wieder, weil sonst beim Zeichnen die
+   * Ansicht springt. Nach einem Import stand deshalb ein fremder Grundriss
+   * im alten Ausschnitt: sichtbar war eine Wandecke, und das Programm sah
+   * aus, als hätte es die Datei nicht gelesen. Der Zähler ist das Signal,
+   * genau dann noch einmal einzupassen — und nur dann.
+   */
+  einpassenZaehler: number;
   snap: SnapSettings;
   showDimensions: boolean;
   /** Dachlinien im Grundriss: First, Traufe und die Höhenlinien nach WoFlV. */
@@ -590,6 +603,8 @@ interface BimState {
   loadProject: (data: unknown) => { ok: boolean; message: string };
   /** IFC4-Datei als neues Projekt einlesen. */
   loadIfc: (text: string) => { ok: boolean; message: string };
+  /** Raumscan aus Apple RoomPlan als neues Projekt einlesen. */
+  loadRaumscan: (text: string) => { ok: boolean; message: string };
   /** Dokument direkt ersetzen — für die Wiederherstellung aus dem Autosave. */
   replaceDocument: (doc: BimDocument, message?: string) => void;
   /**
@@ -1038,6 +1053,7 @@ export const useBimStore = create<BimState>()((set, get) => {
     clipboard: null,
     hover: null,
     viewport: { zoom: 60, center: { x: 4, y: 3 } },
+    einpassenZaehler: 0,
     snap: DEFAULT_SNAP,
     showDimensions: true,
     showRoofLines: true,
@@ -3032,7 +3048,7 @@ export const useBimStore = create<BimState>()((set, get) => {
         const preset = naming[i];
         if (preset) get().updateRoom(room.id, { name: preset.name, usage: preset.usage });
       });
-      set({ statusMessage: 'Demo-Grundriss geladen' });
+      set({ statusMessage: 'Demo-Grundriss geladen', einpassenZaehler: get().einpassenZaehler + 1 });
     },
 
     /**
@@ -3093,6 +3109,7 @@ export const useBimStore = create<BimState>()((set, get) => {
         future: [],
         selection: null,
         selections: [],
+        einpassenZaehler: get().einpassenZaehler + 1,
       });
 
       const rooms = Object.keys(fresh.rooms).length;
@@ -3106,6 +3123,116 @@ export const useBimStore = create<BimState>()((set, get) => {
       };
     },
 
+    /**
+     * Liest einen Raumscan aus Apple RoomPlan ein.
+     *
+     * Wie beim IFC-Import entsteht bewusst ein *neues* Dokument. Was den Scan
+     * vom IFC unterscheidet, ist die Rechenschaft: ein Scan misst Wände ohne
+     * Dicke und kennt keinen Türanschlag. Beides wird geschätzt, und beides
+     * steht hinterher in der Statuszeile — der Nutzer soll wissen, welche
+     * Zahlen aus dem Aufmaß kommen und welche aus einer Annahme.
+     */
+    loadRaumscan: (text) => {
+      const ergebnis = importRaumplan(text);
+      if (!ergebnis.ok) return { ok: false, message: ergebnis.message };
+
+      const fresh = emptyDocument();
+      fresh.meta = {
+        ...fresh.meta,
+        name: ergebnis.projektName || 'Raumscan',
+        address: ergebnis.adresse ?? fresh.meta.address,
+        modifiedAt: new Date().toISOString(),
+      };
+
+      // Nordabweichung aus dem Kompass des Geräts.
+      //
+      // Der Import liefert die Nordrichtung als Winkel gegen +x; das Dokument
+      // führt sie als Abweichung von „+y zeigt nach Norden". Zwischen beidem
+      // liegt die Vierteldrehung. Die Genauigkeit des Kompasses — beim
+      // Beispielscan ±15,7° — wird bewusst **nicht** stillschweigend
+      // übernommen: sie steht in der Meldung, damit niemand solare Gewinne
+      // auf ein Grad genau rechnet, die auf fünfzehn Grad unsicher sind.
+      if (ergebnis.nordrichtung !== undefined) {
+        const grad = (ergebnis.nordrichtung * 180) / Math.PI;
+        fresh.meta.northAngle = Math.round(((90 - grad) % 360 + 360) % 360 * 10) / 10;
+      }
+
+      const geschoss = ergebnis.levels[0];
+      fresh.levels = Object.fromEntries(
+        ergebnis.levels.map((l, i) => [
+          l.id,
+          {
+            id: l.id,
+            name: l.name,
+            order: i,
+            elevation: l.elevation,
+            height: l.height,
+            floorUValue: i === 0 ? 0.3 : 0.9,
+            floorBoundary: i === 0 ? ('ground' as const) : ('adjacent-room' as const),
+            ceilingUValue: 0.2,
+            ceilingBoundary: 'unheated' as const,
+          },
+        ]),
+      );
+      fresh.activeLevelId = geschoss?.id ?? fresh.activeLevelId;
+      fresh.nodes = Object.fromEntries(ergebnis.nodes.map((n) => [n.id, n]));
+      fresh.walls = Object.fromEntries(ergebnis.walls.map((w) => [w.id, w]));
+      fresh.openings = Object.fromEntries(ergebnis.openings.map((o) => [o.id, o]));
+      recomputeRooms(fresh);
+
+      // Raumnutzung aus dem Scan übernehmen.
+      //
+      // Zugeordnet wird über die Lage, nicht über eine Kennung: RoomPlan
+      // teilt die Wohnung in eigene Bereiche, und deren Grenzen sind nicht
+      // die Wandachsen, an denen die Raumerkennung arbeitet. Fällt der
+      // Mittelpunkt eines Bereichs in einen erkannten Raum, erbt der Raum
+      // Namen und Nutzung — sonst bleibt er, wie er ist. Trifft ein Raum
+      // mehrere Bereiche (weil eine Wand dazwischen im Scan fehlt), gewinnt
+      // der erste; ihn stillschweigend zu überschreiben hieße, die Reihenfolge
+      // in der Datei über die Sache entscheiden zu lassen.
+      let benannt = 0;
+      let doppelt = 0;
+      const vergeben = new Set<string>();
+      for (const hinweis of ergebnis.raumHinweise) {
+        const raum = Object.values(fresh.rooms).find(
+          (r) => r.levelId === hinweis.levelId && pointInPolygon(hinweis.punkt, r.polygon),
+        );
+        if (!raum) continue;
+        if (vergeben.has(raum.id)) {
+          // Zwei Bereiche in einem Raum heißt: zwischen ihnen fehlt eine Wand,
+          // die der Scan nicht gesehen hat. Das ist keine Kleinigkeit — es
+          // sind zwei Räume mit verschiedener Solltemperatur, die zu einem
+          // verschmolzen sind. Deshalb wird es gezählt und gesagt.
+          doppelt++;
+          continue;
+        }
+        vergeben.add(raum.id);
+        fresh.rooms[raum.id] = { ...raum, name: hinweis.name, usage: hinweis.usage };
+        benannt++;
+      }
+
+      set({
+        doc: fresh,
+        past: [...get().past.slice(-49), get().doc],
+        future: [],
+        selection: null,
+        selections: [],
+        einpassenZaehler: get().einpassenZaehler + 1,
+      });
+
+      const offen = fresh.diagnostics.openEnds.length;
+      const raeume = Object.keys(fresh.rooms).length;
+      return {
+        ok: true,
+        message:
+          `${ergebnis.message} · ${raeume} Räume erkannt, ${benannt} benannt` +
+          (doppelt
+            ? ` · ${doppelt} Raumname nicht vergeben: dort liegen zwei Bereiche in einem Raum, zwischen ihnen fehlt eine Wand`
+            : '') +
+          (offen ? ` · ${offen} offene Wandenden — der Scan hat dort keine Wand gemessen` : ''),
+      };
+    },
+
     neuesDokument: (name) => {
       const frisch = emptyDocument();
       frisch.meta.name = name.trim() || 'Neues Projekt';
@@ -3116,6 +3243,7 @@ export const useBimStore = create<BimState>()((set, get) => {
         selection: null,
         selections: [],
         trace: null,
+        einpassenZaehler: get().einpassenZaehler + 1,
         statusMessage: `Neues Projekt „${frisch.meta.name}“ angelegt`,
       });
       return frisch;
@@ -3255,6 +3383,7 @@ export const useBimStore = create<BimState>()((set, get) => {
         future: [],
         selection: null,
         trace: null,
+        einpassenZaehler: get().einpassenZaehler + 1,
         statusMessage: `Projekt geladen: ${Object.keys(fresh.walls).length} Wände, ${Object.keys(fresh.rooms).length} Räume`,
       });
       return { ok: true, message: 'Projekt geladen' };
@@ -3294,6 +3423,7 @@ export const useBimStore = create<BimState>()((set, get) => {
         selection: null,
         selections: [],
         trace: null,
+        einpassenZaehler: get().einpassenZaehler + 1,
         statusMessage: message ?? 'Dokument ersetzt',
       }),
 

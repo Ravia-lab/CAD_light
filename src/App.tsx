@@ -475,7 +475,7 @@ function Einfuehrung({ onChoose }: { onChoose: (dann: 'demo' | 'leer' | 'bild') 
           >
             <div className="text-[12px] text-slate-200">Grundriss laden</div>
             <div className="mt-0.5 text-[10px] leading-snug text-slate-500">
-              Foto, PDF oder IFC als Vorlage hinterlegen und nachzeichnen.
+              Foto oder PDF nachzeichnen — oder IFC und Raumscan fertig übernehmen.
             </div>
           </button>
         </div>

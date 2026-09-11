@@ -19,6 +19,7 @@
     "smoke:round2": "node scripts/smoke-round2.mjs",
     "smoke:tga": "node scripts/smoke-tga.mjs",
     "smoke:embed": "node scripts/smoke-embed.mjs",
+    "smoke:scan": "node scripts/smoke-raumscan.mjs",
     "smoke:ux": "node scripts/smoke-bedienung.mjs",
     "smoke:wp": "node scripts/smoke-waermepumpe.mjs",
     "smoke:raum": "node scripts/smoke-raum.mjs",

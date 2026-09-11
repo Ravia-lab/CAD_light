@@ -1760,6 +1760,10 @@ npm run smoke:raum   # Raumvorlagen aufziehen, Wände einzeln nachziehen,
 npm run smoke:anlage # Anlagenblatt: Auslegung, Geräteauswahl, Schema
                      # bearbeiten und drucken, Datenblatt einlesen,
                      # Massenauszug, Anlagenbuch
+npm run smoke:scan   # Raumscan vom iPhone (Apple RoomPlan): echte Datei in den
+                     # Öffnen-Dialog, Wand-/Öffnungs-/Raumzahl, Rechenschaft
+                     # über Geschätztes und Offengebliebenes, eingepasste
+                     # Ansicht, Raumnamen, 3D bei ungleichen Wandhöhen
 ```
 
 ### Die Prüfungen selbst werden geprüft

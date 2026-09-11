@@ -220,6 +220,7 @@ export default function Editor2D({ className = '' }: { className?: string }) {
   const solidKind = useBimStore((s) => s.solidKind);
   const snap = useBimStore((s) => s.snap);
   const viewport = useBimStore((s) => s.viewport);
+  const einpassenZaehler = useBimStore((s) => s.einpassenZaehler);
   const selection = useBimStore((s) => s.selection);
   const selections = useBimStore((s) => s.selections);
   const showDimensions = useBimStore((s) => s.showDimensions);
@@ -1479,17 +1480,23 @@ export default function Editor2D({ className = '' }: { className?: string }) {
 
   // Einmalig beim ersten sinnvollen Modell einpassen — danach nie automatisch,
   // sonst springt die Ansicht beim Zeichnen.
-  const fittedRef = useRef(false);
+  //
+  // Ausnahme: wenn das **ganze Dokument** ersetzt wurde. Ein Import, der den
+  // alten Ausschnitt stehen lässt, zeigt vom fremden Grundriss eine Wandecke;
+  // das Programm sieht dann aus, als hätte es die Datei nicht gelesen. Der
+  // Zähler im Speicher steigt genau bei diesen Vorgängen — Projektdatei, IFC,
+  // Raumscan, Demo, Wiederherstellung — und bei keinem Zeichenschritt.
+  const fittedRef = useRef(-1);
   useEffect(() => {
-    if (fittedRef.current) return;
+    if (fittedRef.current === einpassenZaehler) return;
     if (Object.keys(nodesOfLevel).length < 3) return;
     // Ein Frame warten, damit der ResizeObserver die Canvasgröße gesetzt hat.
     const id = requestAnimationFrame(() => {
       fitToContent();
-      fittedRef.current = true;
+      fittedRef.current = einpassenZaehler;
     });
     return () => cancelAnimationFrame(id);
-  }, [nodesOfLevel, fitToContent]);
+  }, [nodesOfLevel, fitToContent, einpassenZaehler]);
 
   // -------------------------------------------------------------------------
   // Referenzbild laden

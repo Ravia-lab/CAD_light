@@ -29,6 +29,7 @@ import { useBimStore } from '../store/useBimStore';
 import { useRef, useState } from 'react';
 import { buildRaviaExport, downloadJson, exportFilename } from '../lib/raviaExport';
 import { buildIfc, downloadIfc, ifcFilename } from '../lib/ifcExport';
+import { istRaumplanDatei } from '../lib/raumplanImport';
 import LevelBar from './LevelBar';
 import PlanPrintDialog from './PlanPrintDialog';
 import RohrnetzDialog from './RohrnetzDialog';
@@ -308,6 +309,7 @@ export function TopBar({ onProjekte }: { onProjekte: () => void }) {
   const setStatus = useBimStore((s) => s.setStatus);
   const loadProject = useBimStore((s) => s.loadProject);
   const loadIfc = useBimStore((s) => s.loadIfc);
+  const loadRaumscan = useBimStore((s) => s.loadRaumscan);
   const fileRef = useRef<HTMLInputElement>(null);
   const [printOpen, setPrintOpen] = useState(false);
   /** Der Rohrnetzbericht — eigenes Fenster, weil er mehrere Blätter hat. */
@@ -347,12 +349,33 @@ export function TopBar({ onProjekte }: { onProjekte: () => void }) {
   };
 
   /**
-   * Öffnet eine Projektdatei *oder* eine IFC-Datei. Welche es ist, entscheidet
-   * der Inhalt, nicht die Endung: eine umbenannte Datei soll trotzdem
-   * funktionieren, und die STEP-Kopfzeile ist eindeutig.
+   * Öffnet eine Projektdatei, eine IFC-Datei *oder* einen Raumscan. Welche es
+   * ist, entscheidet der Inhalt, nicht die Endung: eine umbenannte Datei soll
+   * trotzdem funktionieren, die STEP-Kopfzeile ist eindeutig, und ein Scan
+   * aus RoomPlan ist zwar JSON — aber eines, das sich an seinen Feldern
+   * sicher erkennen lässt. Die Reihenfolge ist wichtig: der Scan wird **vor**
+   * der Projektdatei geprüft, weil beide JSON sind und `loadProject` einen
+   * Scan sonst als leeres Projekt einlesen würde, ohne zu scheitern.
    */
   const handleOpen = async (file: File) => {
     const text = await file.text();
+
+    if (istRaumplanDatei(text)) {
+      if (
+        Object.keys(doc.walls).length > 0 &&
+        !confirm(
+          'Der Raumscan ersetzt das aktuelle Modell. Fortfahren?\n\n' +
+            'Rückgängig (Strg+Z) holt den jetzigen Stand zurück.',
+        )
+      ) {
+        setStatus('Scan-Import abgebrochen');
+        return;
+      }
+      const result = loadRaumscan(text);
+      setStatus(result.message);
+      return;
+    }
+
     if (text.trimStart().startsWith('ISO-10303-21')) {
       if (
         Object.keys(doc.walls).length > 0 &&
@@ -373,7 +396,7 @@ export function TopBar({ onProjekte }: { onProjekte: () => void }) {
       const result = loadProject(JSON.parse(text));
       setStatus(result.message);
     } catch {
-      setStatus('Datei konnte nicht gelesen werden — weder RaVia-JSON noch IFC.');
+      setStatus('Datei konnte nicht gelesen werden — weder RaVia-JSON, IFC noch Raumscan.');
     }
   };
 
@@ -472,7 +495,7 @@ export function TopBar({ onProjekte }: { onProjekte: () => void }) {
       <button
         onClick={() => fileRef.current?.click()}
         className="tool-btn h-8 w-8"
-        title="Öffnen — RaVia-Projektdatei (JSON) oder IFC4-Modell vom Architekten"
+        title="Öffnen — RaVia-Projektdatei (JSON), IFC4-Modell vom Architekten oder Raumscan vom iPhone (RoomPlan)"
       >
         <Icon>{icons.open}</Icon>
       </button>
