@@ -123,6 +123,10 @@ import { planPipeNetwork, type PipeLayoutResult } from '../lib/pipeLayout';
 import { baseRoofHeightAt, buildRoofFrame, dormerSide } from '../lib/roofGeometry';
 import { importIfc } from '../lib/ifcImport';
 import { importRaumplan } from '../lib/raumplanImport';
+import { begradige } from '../lib/begradigen';
+import type { BegradigenOptionen } from '../lib/begradigen';
+import { findeLuecken, oeffnungFuerLuecke } from '../lib/luecken';
+import type { LueckenSchluss } from '../lib/luecken';
 import { benenneGeschosse, erdgeschossIndex } from '../lib/levelGeometry';
 import { emptyPlant, emptySite } from '../lib/plantDefaults';
 import { ANBINDUNG_LABELS, schemaVorlage } from '../lib/schemaKatalog';
@@ -605,6 +609,13 @@ interface BimState {
   loadIfc: (text: string) => { ok: boolean; message: string };
   /** Raumscan aus Apple RoomPlan als neues Projekt einlesen. */
   loadRaumscan: (text: string) => { ok: boolean; message: string };
+  /**
+   * Wände des aktiven Geschosses auf die Achsen ziehen. Ein Aufmaß steht nie
+   * ganz gerade; dieser Schritt richtet es, ohne Ecken aufzureißen.
+   */
+  begradigeWaende: (optionen?: BegradigenOptionen) => { ok: boolean; message: string };
+  /** Ein loses Wandende bis zum Gegenüber schließen — als Wand oder Öffnung. */
+  schliesseLuecke: (knotenId: string, art: LueckenSchluss) => { ok: boolean; message: string };
   /** Dokument direkt ersetzen — für die Wiederherstellung aus dem Autosave. */
   replaceDocument: (doc: BimDocument, message?: string) => void;
   /**
@@ -3231,6 +3242,128 @@ export const useBimStore = create<BimState>()((set, get) => {
             : '') +
           (offen ? ` · ${offen} offene Wandenden — der Scan hat dort keine Wand gemessen` : ''),
       };
+    },
+
+    /**
+     * Wände gerade ziehen.
+     *
+     * Bewegt Knoten, nicht Wände — siehe `lib/begradigen.ts`. Öffnungen wandern
+     * **verhältnisgleich** mit: ändert sich die Wandlänge um ein Prozent, rückt
+     * eine Tür in der Wandmitte um ein halbes Prozent. Absolut stehen zu lassen
+     * wäre die naheliegende und falsche Wahl — eine Öffnung am fernen Ende
+     * stünde nach dem Begradigen über der Wandkante und verschwände beim
+     * nächsten Neuzeichnen.
+     */
+    begradigeWaende: (optionen) => {
+      const doc = get().doc;
+      const waende = Object.values(doc.walls).filter((w) => w.levelId === doc.activeLevelId);
+      const ergebnis = begradige(waende, doc.nodes, optionen);
+      if (ergebnis.bewegt === 0) {
+        const meldung =
+          ergebnis.achsparallelVorher === waende.length
+            ? 'Alle Wände stehen bereits gerade.'
+            : ergebnis.uebersprungen > 0
+              ? `Nichts verändert — ${ergebnis.uebersprungen} Wandzüge hätten sich dabei um mehr als das Erlaubte verschoben.`
+              : 'Nichts zu begradigen.';
+        set({ statusMessage: meldung });
+        return { ok: false, message: meldung };
+      }
+
+      mutate((d) => {
+        for (const [id, p] of Object.entries(ergebnis.knoten)) {
+          const n = d.nodes[id];
+          if (n) d.nodes[id] = { ...n, x: p.x, y: p.y };
+        }
+        for (const o of Object.values(d.openings)) {
+          const laenge = ergebnis.laengen[o.wallId];
+          if (!laenge || laenge.vorher <= 0) continue;
+          const faktor = laenge.nachher / laenge.vorher;
+          const mitte = Math.min(
+            Math.max(o.distance * faktor, o.width / 2),
+            laenge.nachher - o.width / 2,
+          );
+          d.openings[o.id] = { ...o, distance: roundMm(mitte) };
+        }
+      });
+
+      const message =
+        `${ergebnis.bewegt} Knoten gerade gezogen, größter Versatz ` +
+        `${ergebnis.groessterVersatz.toFixed(3).replace('.', ',')} m · ` +
+        `${ergebnis.achsparallelNachher} von ${waende.length} Wänden stehen jetzt genau auf der Achse ` +
+        `(vorher ${ergebnis.achsparallelVorher})` +
+        (ergebnis.schraeg ? ` · ${ergebnis.schraeg} schräge Wände unangetastet` : '') +
+        (ergebnis.uebersprungen ? ` · ${ergebnis.uebersprungen} Wandzüge übersprungen` : '');
+      set({ statusMessage: message });
+      return { ok: true, message };
+    },
+
+    /**
+     * Eine Lücke schließen — als Wand, Tür, Fenster oder Durchgang.
+     *
+     * Der Reihe nach: Wand von der Lücke zum Gegenüber ziehen (`addWall` bindet
+     * beide Enden an und teilt eine getroffene Wand, aus dem optischen wird ein
+     * topologischer T-Stoß), dann die Öffnung hineinsetzen. Dicke, Höhe und Art
+     * erbt die neue Wand von der, die an der Lücke hängt — eine Außenwand wird
+     * mit einer Außenwand geschlossen.
+     */
+    schliesseLuecke: (knotenId, art) => {
+      const doc = get().doc;
+      const luecken = findeLuecken(
+        Object.values(doc.walls),
+        doc.nodes,
+        doc.activeLevelId,
+      );
+      const luecke = luecken.find((l) => l.knotenId === knotenId);
+      if (!luecke) return { ok: false, message: 'Zu diesem Wandende ist kein Gegenüber in Reichweite.' };
+
+      const quelle = doc.walls[luecke.wandId];
+      if (!quelle) return { ok: false, message: 'Die Wand an der Lücke fehlt.' };
+
+      const wand = get().addWall(luecke.punkt, luecke.ziel, {
+        thickness: quelle.thickness,
+        height: quelle.height,
+        type: quelle.type,
+        uValue: quelle.uValue,
+        levelId: quelle.levelId,
+      });
+      if (!wand) return { ok: false, message: 'Die Wand ließ sich nicht setzen.' };
+
+      const weite = luecke.weite;
+      if (art === 'wand') {
+        const message = `Lücke mit ${weite.toFixed(2).replace('.', ',')} m Wand geschlossen`;
+        set({ statusMessage: message });
+        return { ok: true, message };
+      }
+
+      const masse = oeffnungFuerLuecke(art, weite, quelle.height);
+      if (!masse) {
+        const message = `Lücke geschlossen — für eine Öffnung ist sie mit ${weite.toFixed(2).replace('.', ',')} m zu schmal`;
+        set({ statusMessage: message });
+        return { ok: true, message };
+      }
+
+      const kind = art === 'tuer' ? 'door' : art === 'fenster' ? 'window' : 'passage';
+      const erzeugt = get().addOpening({
+        wallId: wand.id,
+        kind,
+        distance: weite / 2,
+        width: masse.width,
+        height: masse.height,
+        sillHeight: masse.sillHeight,
+
+        uValue: kind === 'window' ? 1.3 : kind === 'door' ? 1.8 : 0,
+        gValue: kind === 'window' ? 0.6 : undefined,
+        doorType: kind === 'door' ? 'single' : undefined,
+        windowType: kind === 'window' ? 'tilt-turn' : undefined,
+        passageType: kind === 'passage' ? 'lintel' : undefined,
+      });
+
+      const wort = art === 'tuer' ? 'Tür' : art === 'fenster' ? 'Fenster' : 'Durchgang';
+      const message = erzeugt
+        ? `${wort} ${masse.width.toFixed(2).replace('.', ',')} m in die Lücke gesetzt`
+        : `Lücke geschlossen, aber ${wort} passte nicht hinein`;
+      set({ statusMessage: message });
+      return { ok: true, message };
     },
 
     neuesDokument: (name) => {

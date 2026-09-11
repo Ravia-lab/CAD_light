@@ -31,6 +31,7 @@ import GuidePanel from './components/GuidePanel';
 import HeatPumpPanel from './components/HeatPumpPanel';
 import ThermalBridgePanel from './components/ThermalBridgePanel';
 import VentilationPanel from './components/VentilationPanel';
+import AufmassPanel from './components/AufmassPanel';
 import ValidationPanel from './components/ValidationPanel';
 import AnlagenPanel from './components/AnlagenPanel';
 import SchemaView from './components/SchemaView';
@@ -250,6 +251,13 @@ export default function App() {
             {tab === 'anlage' && <AnlagenPanel />}
             {tab === 'check' && (
               <>
+                {/* Zuerst das, was sich mit einem Klick richten lässt —
+                    danach der Bericht über alles Übrige. Umgekehrt läse man
+                    erst zwanzig Befunde und fände die zwei Knöpfe darunter
+                    nicht mehr. */}
+                <div className="px-3 pt-3">
+                  <AufmassPanel />
+                </div>
                 <ValidationPanel />
                 <div className="mx-3 border-t border-white/[0.06]" />
                 <ExportDiffPanel />

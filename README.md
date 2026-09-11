@@ -1763,7 +1763,8 @@ npm run smoke:anlage # Anlagenblatt: Auslegung, Geräteauswahl, Schema
 npm run smoke:scan   # Raumscan vom iPhone (Apple RoomPlan): echte Datei in den
                      # Öffnen-Dialog, Wand-/Öffnungs-/Raumzahl, Rechenschaft
                      # über Geschätztes und Offengebliebenes, eingepasste
-                     # Ansicht, Raumnamen, 3D bei ungleichen Wandhöhen
+                     # Ansicht, Raumnamen, Wände begradigen, Lücken als Tür
+                     # schließen, Bearbeitbarkeit, 3D bei ungleichen Wandhöhen
 ```
 
 ### Die Prüfungen selbst werden geprüft

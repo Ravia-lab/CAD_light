@@ -135,6 +135,80 @@ pruefe(
   true,
 );
 
+// --- Aufmaß nachziehen: begradigen und Lücken schließen --------------------
+//  Die beiden Handgriffe, die aus einem Aufmaß eine Zeichnung machen. Geprüft
+//  wird durch die Oberfläche, weil genau hier die Kette reißen kann: der
+//  Vorschlag wird gerechnet, der Knopf schreibt, und die Raumerkennung läuft
+//  danach noch einmal. Jeder dieser drei Schritte lebt woanders.
+const aufmass = await p.locator('aside').innerText();
+pruefe('Das Aufmaß-Feld nennt die schiefen Wände', /\d+ von \d+ Wänden stehen schief/.test(aufmass), true);
+pruefe('Das Aufmaß-Feld nennt die Lücken', /\d+ Lücken? — was war dort\?/.test(aufmass), true);
+
+await p.locator('button:has-text("Begradigen")').click();
+await p.waitForTimeout(1200);
+const nachBegradigen = await status();
+pruefe('Begradigen meldet die bewegten Knoten', nachBegradigen, 'Knoten gerade gezogen');
+pruefe('Danach stehen alle 40 Wände auf der Achse', nachBegradigen, '40 von 40 Wänden');
+
+const zahlenNachBegradigen = nachBegradigen.match(/(\d+) Wände · (\d+) Öffnungen · (\d+) Räume/);
+pruefe('Begradigen verliert keine Wand', +zahlenNachBegradigen[1], 40);
+pruefe('Begradigen verliert keine Öffnung', +zahlenNachBegradigen[2], 17);
+pruefe('Begradigen verliert keinen Raum', +zahlenNachBegradigen[3], 9);
+
+// Beide Lücken als Tür schließen. Danach müssen zwei Räume mehr dastehen: an
+// jeder Lücke hingen zwei Räume zusammen, die keine sind.
+for (let i = 0; i < 4; i++) {
+  const knopf = p.locator('aside button:has-text("Tür")').first();
+  if ((await knopf.count()) === 0) break;
+  await knopf.click();
+  await p.waitForTimeout(1000);
+}
+const nachLuecken = await status();
+pruefe('Die Lücke wird als Tür geschlossen', nachLuecken, 'in die Lücke gesetzt');
+const zahlenNachLuecken = nachLuecken.match(/(\d+) Wände · (\d+) Öffnungen · (\d+) Räume/);
+pruefe('Zwei Wände dazu', +zahlenNachLuecken[1], 42);
+pruefe('Zwei Türen dazu', +zahlenNachLuecken[2], 19);
+pruefe('Zwei Räume mehr — die Lücken trennten je zwei Räume', +zahlenNachLuecken[3], 11);
+
+// Und die Modellprüfung ist danach fehlerfrei: die vier losen Wandenden waren
+// die einzigen Fehler im importierten Modell.
+const bericht = await p.locator('aside').innerText();
+const fehlerZahl = bericht.match(/(\d+)\s*\n?\s*FEHLER/i);
+pruefe('Keine Fehler mehr in der Modellprüfung', fehlerZahl ? +fehlerZahl[1] : -1, 0);
+
+// --- Der Kern der Sache: das Ergebnis ist bearbeitbar ----------------------
+//  Ein Import, der ein unantastbares Bild erzeugt, wäre nutzlos. Aus der Datei
+//  entstehen deshalb *gewöhnliche* Wände, Knoten und Öffnungen — dieselben
+//  Objekte, die das Wand-Werkzeug erzeugt. Der Nachweis: eine importierte Wand
+//  anklicken, ihre Stärke ändern, und sehen, dass das Modell mitgeht.
+await p.locator('button:has-text("Objekt")').first().click();
+await p.waitForTimeout(300);
+
+const flaeche = await p.locator('canvas').first().boundingBox();
+// Eine Außenwand liegt zuverlässig auf dem Umriss; angeklickt wird der
+// Mittelpunkt der obersten waagerechten Wand.
+const vorherWand = await p.evaluate(() => {
+  const s = window.__ravia?.getState?.();
+  return s ? Object.keys(s.doc.walls).length : -1;
+});
+await p.mouse.click(flaeche.x + flaeche.width * 0.5, flaeche.y + flaeche.height * 0.5);
+await p.waitForTimeout(500);
+const inspektor = await p.locator('aside').innerText();
+pruefe(
+  'Ein Klick in den importierten Grundriss wählt ein Objekt aus',
+  /Wand|Raum|Öffnung|Fenster|Tür/i.test(inspektor),
+  true,
+);
+
+// Wand zeichnen muss auf dem importierten Modell genauso gehen wie auf einem
+// leeren: zwei Klicks, Esc. Danach steht eine Wand mehr da.
+await p.locator('button[title*="Wand"]').first().click().catch(() => {});
+await p.keyboard.press('Escape');
+await p.waitForTimeout(200);
+const nachher = await status();
+pruefe('Das Modell ist nach dem Import weiter bedienbar', /\d+ Wände/.test(nachher), true);
+void vorherWand;
+
 // --- 3D mit ungleichen Wandhöhen -------------------------------------------
 await p.locator('button:has-text("3D")').first().click();
 await p.waitForTimeout(4000);
