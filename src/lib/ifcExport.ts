@@ -152,7 +152,7 @@ export function buildIfc(doc: BimDocument, options: IfcExportOptions = {}): stri
   const org = w.add("IFCORGANIZATION($,'RaVia',$,$,$)");
   const personOrg = w.add(`IFCPERSONANDORGANIZATION(${person},${org},$)`);
   const application = w.add(
-    `IFCAPPLICATION(${org},'1.14.0','RaVia CAD Light','RAVIA-CAD-LIGHT')`,
+    `IFCAPPLICATION(${org},'1.15.0','RaVia CAD Light','RAVIA-CAD-LIGHT')`,
   );
   const seconds = Math.floor(new Date(stamp).getTime() / 1000) || 0;
   const ownerHistory = w.add(
@@ -385,7 +385,7 @@ export function buildIfc(doc: BimDocument, options: IfcExportOptions = {}): stri
     `ISO-10303-21;\nHEADER;\n` +
     `FILE_DESCRIPTION(('ViewDefinition [CoordinationView_V2.0]'),'2;1');\n` +
     `FILE_NAME('${doc.meta.name.replace(/'/g, '')}.ifc','${stamp}',('RaVia CAD Light'),('RaVia'),` +
-    `'RaVia CAD Light 1.14.0','RaVia CAD Light','');\n` +
+    `'RaVia CAD Light 1.15.0','RaVia CAD Light','');\n` +
     `FILE_SCHEMA(('IFC4'));\nENDSEC;\nDATA;\n`;
 
   return `${header}${w.body()}\nENDSEC;\nEND-ISO-10303-21;\n`;

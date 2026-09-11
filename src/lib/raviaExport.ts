@@ -94,7 +94,7 @@ import {
   sourceDemand,
 } from './heatPump';
 
-export const GENERATOR = 'RaVia CAD Light 1.14.0';
+export const GENERATOR = 'RaVia CAD Light 1.15.0';
 
 /** Fallback-U-Werte [W/(m²·K)], falls am Bauteil nichts hinterlegt ist. */
 const DEFAULT_U = {
