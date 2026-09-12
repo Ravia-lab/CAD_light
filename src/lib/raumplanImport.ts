@@ -373,15 +373,26 @@ const vertrauenAus = (c: Record<string, unknown> | undefined): number => {
  * werfen.
  */
 export function istRaumplanDatei(text: string): boolean {
-  const anfang = text.slice(0, 4096);
-  if (!anfang.includes('{')) return false;
-  if (anfang.includes('"roomData"')) return true;
+  if (!text.trimStart().startsWith('{')) return false;
+  // Gesucht wird im **ganzen** Text, nicht in den ersten Kilobytes.
+  //
+  // Das ist der Punkt, an dem diese Funktion schon einmal falsch war. In einer
+  // echten Ausgabe von „Room Scanner" steht das USD-Netz (`roomModelData`) als
+  // base64 vorn — bei der Beispielwohnung 700 kB davon —, und `roomData` folgt
+  // erst ab Zeichen 486 099. Eine Erkennung, die nur in den Anfang schaut,
+  // hält die Datei deshalb für kein Raumscan, reicht sie an den Projektleser
+  // weiter und meldet „Datei konnte nicht gelesen werden".
+  //
+  // Die Suche über die ganze Zeichenkette kostet bei 1,4 MB Bruchteile einer
+  // Millisekunde — `indexOf` ist in jeder Laufzeit ein Maschinenwortscan.
+  // Gespart hätte man hier nichts und eine Fehlerquelle eingebaut.
+  if (text.includes('"roomData"')) return true;
   // Direkt serialisiertes CapturedRoom: Wände und Boden zusammen kommen in
   // keinem anderen Format dieser Anwendung vor.
   return (
-    anfang.includes('"walls"') &&
-    (anfang.includes('"floors"') || anfang.includes('"sections"')) &&
-    anfang.includes('"transform"')
+    text.includes('"walls"') &&
+    (text.includes('"floors"') || text.includes('"sections"')) &&
+    text.includes('"transform"')
   );
 }
 

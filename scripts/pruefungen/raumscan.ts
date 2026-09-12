@@ -109,6 +109,31 @@ export function pruefeRaumscan(check: CheckFn): void {
   );
   check('Leerer Text wird nicht als Raumscan erkannt', istRaumplanDatei(''), false);
 
+  // Der Fehler, der einen Handwerker eine Fassung lang aufgehalten hätte.
+  //
+  // Die Beispieldatei in diesem Verzeichnis ist **beschnitten**: das USD-Netz
+  // (`roomModelData`) ist heraus, weil der Import es nicht liest. In der
+  // Ausgabe der App steht es aber **vor** `roomData` — bei dieser Wohnung
+  // 700 kB base64 —, und `roomData` beginnt erst bei Zeichen 486 099. Eine
+  // Erkennung, die nur in den Anfang der Datei schaut, sieht dort nichts,
+  // reicht die Datei an den Projektleser weiter und meldet „Datei konnte nicht
+  // gelesen werden". Genau so ist es passiert.
+  //
+  // Die Lehre steckt in der Prüfdatei selbst: wer eine Beispieldatei
+  // verkleinert, entfernt womöglich gerade die Eigenschaft, an der es
+  // scheitert. Deshalb wird das Netz hier wieder eingesetzt — als Attrappe,
+  // damit das Verzeichnis schlank bleibt, aber an derselben Stelle und in
+  // derselben Größenordnung.
+  {
+    const attrappe = 'A'.repeat(700 * 1024);
+    const mitNetz = text.replace('{', `{"roomModelData":"${attrappe}",`);
+    check('Das USD-Netz steht vor den Raumdaten', mitNetz.indexOf('"roomData"') > 500_000, true);
+    check('Eine Datei mit vorangestelltem 3D-Netz wird erkannt', istRaumplanDatei(mitNetz), true);
+    const mitNetzGelesen = importRaumplan(mitNetz);
+    check('… und vollständig gelesen', mitNetzGelesen.walls.length, 40);
+    check('… mit allen Öffnungen', mitNetzGelesen.openings.length, 17);
+  }
+
   // --- Import ---------------------------------------------------------------
   const r = importRaumplan(text);
   check('Import gelingt', r.ok, true);
