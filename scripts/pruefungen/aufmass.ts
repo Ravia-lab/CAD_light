@@ -250,6 +250,26 @@ export function pruefeAufmass(check: CheckFn): void {
     check('Die Gesamtfläche wächst dabei nicht', danach.flaeche <= vorher.flaeche + 0.01, true);
   }
 
+  // ======================================= Geschätzte Wandstärken
+  //  Die Schätzung muss als Schätzung im Modell stehen, nicht nur in einer
+  //  Statuszeile, die beim nächsten Klick verschwindet. Aus ihr folgt die
+  //  Bauteilfläche und damit der Transmissionsverlust: bei 101 m Wandlänge
+  //  und 2,45 m Höhe macht ein Irrtum von 12 cm in der Stärke rund 25 m²
+  //  Wandfläche aus — mehr als die Fensterfläche der ganzen Wohnung.
+  check(
+    'Jede importierte Wand trägt das Kennzeichen „geschätzt"',
+    scan.walls.every((w) => w.thicknessEstimated === true),
+    true,
+  );
+  check(
+    'Gezählt werden alle 40',
+    scan.walls.filter((w) => w.thicknessEstimated).length,
+    40,
+  );
+  // Die Gegenprobe: eine von Hand gezeichnete Wand trägt es nicht. Stünde es
+  // überall, wäre der Schritt „Wandstärken bestätigen" nie erledigt.
+  check('Eine gezeichnete Wand trägt es nicht', W('x', 'a', 'b').thicknessEstimated === undefined, true);
+
   // --- Keine Lücke, wo keine ist ---------------------------------------------
   {
     const nodes: Record<string, BimNode> = {};

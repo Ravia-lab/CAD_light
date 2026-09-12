@@ -133,6 +133,17 @@ export function gradeSplit(
 const MIN_ROOM_AREA = 0.4; // m²
 
 /**
+ * Ab dieser Höhe ist ein Bauteil eine Wand, darunter eine Brüstung [m].
+ *
+ * Die Grenze trennt zwei Dinge, die geometrisch gleich aussehen und baulich
+ * nichts miteinander zu tun haben: eine Wand schließt einen Raum nach oben
+ * ab, eine Brüstung steht darin. 1,60 m liegt zwischen beidem — höher als
+ * jedes Geländer und jeder Tresen, niedriger als jede Wand, die man für eine
+ * Wand hält.
+ */
+export const BRUESTUNGS_HOEHE = 1.6; // m
+
+/**
  * Schweiß-Toleranz [m] für die Topologie-Heilung.
  *
  * Der mit Abstand häufigste Grund dafür, dass ein optisch geschlossener
@@ -857,8 +868,25 @@ export function detectRooms(input: DetectRoomsInput): Room[] {
     // Raumhöhe = kleinste beteiligte Wandhöhe (lichtes Maß gewinnt).
     // Eine vom Nutzer gesetzte Raumhöhe schlägt das — bei abgehängter Decke
     // oder Dachschräge ist die Wandhöhe nicht die maßgebliche Raumhöhe.
+    //
+    // **Brüstungen zählen dabei nicht mit.** Ein Raum, der teilweise von einer
+    // Brüstung begrenzt wird — Galerie, Treppenauge, Küchentresen, der
+    // Kniestock im Dachgeschoss —, ist nicht so hoch wie diese Brüstung. Bis
+    // 1.15.1 war er es: die kleinste Wandhöhe gewann bedingungslos, und ein
+    // Raum neben einer 1,19-m-Brüstung bekam 1,19 m Höhe.
+    //
+    // Das ist kein Schönheitsfehler. Aus der Raumhöhe folgt das Luftvolumen,
+    // aus dem Luftvolumen der Lüftungswärmeverlust. Der Raum im Beispielscan
+    // wurde mit 10,3 m³ statt 21,3 m³ gerechnet — der Lüftungsanteil seiner
+    // Heizlast war damit halbiert. Aufgefallen ist es erst, als ein Raumscan
+    // echte, unterschiedliche Wandhöhen ins Modell brachte; von Hand zeichnet
+    // niemand eine 1,19-m-Wand an einen Wohnraum.
     let height = defaultHeight;
-    for (const w of edgeWalls) if (w && w.height < height) height = w.height;
+    for (const w of edgeWalls) {
+      if (!w || w.height >= height) continue;
+      if (w.height < BRUESTUNGS_HOEHE) continue;
+      height = w.height;
+    }
 
     // --- Wandabschnitte & Öffnungen -------------------------------------
     const boundaries: RoomBoundary[] = [];

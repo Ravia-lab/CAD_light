@@ -19,7 +19,7 @@
 
 import type { BimDocument, ValidationIssue, ValidationReport, Vec2 } from '../types/bim';
 import { distance } from './geometry';
-import { diagnoseClosure, gradeSplit } from './roomDetection';
+import { BRUESTUNGS_HOEHE, diagnoseClosure, gradeSplit } from './roomDetection';
 import { documentBridgeHeatLoss, envelopeArea } from './thermalBridges';
 import { buildPipeNetwork } from './pipeNetwork';
 import { acousticReport, protectionIssues, sourceDemand, waterProtectionVerdict } from './heatPump';
@@ -76,7 +76,8 @@ export const REMEDIES: Record<string, string> = {
     'Wand anklicken und im Reiter „Objekt" den U-Wert eintragen oder einen Aufbau aus dem Katalog zuweisen. Ohne Angabe wird ein Standardwert gerechnet.',
   'wall.implausible-u-value':
     'U-Wert prüfen: eine gedämmte Außenwand liegt bei 0,15 bis 0,3, eine ungedämmte Altbauwand bei etwa 1,4.',
-  'wall.implausible-height': 'Wandhöhe im Reiter „Objekt" prüfen — üblich sind 2,50 bis 3,00 m.',
+  'wall.implausible-height':
+    'Wandhöhe im Reiter „Objekt" prüfen — üblich sind 2,50 bis 3,00 m. Eine Brüstung oder ein Kniestock unter 1,60 m ist kein Fehler und wird nicht gemeldet.',
   'opening.missing-u-value':
     'Fenster oder Tür anklicken und den U-Wert eintragen. Auf dem Aufkleber am Rahmen steht er meist; sonst: 2-fach-Verglasung rund 1,3, 3-fach rund 0,9.',
   'opening.implausible-u-value': 'U-Wert prüfen — Fenster liegen zwischen 0,8 (3-fach) und 3,0 (alte 2-fach-Verglasung).',
@@ -162,6 +163,12 @@ export const REMEDIES: Record<string, string> = {
 };
 
 /** Plausibilitätsgrenzen — bewusst weit, sie sollen nur Ausreißer fangen. */
+/**
+ * Unter dieser Höhe ist es kein Bauteil mehr, sondern ein Versehen [m].
+ * Eine 5-cm-Wand kommt aus einem verrutschten Zahlenfeld, nicht aus dem Bau.
+ */
+const MINDEST_BAUTEILHOEHE = 0.3; // m
+
 const LIMITS = {
   minRoomArea: 1.0, // m²
   minRoomHeight: 2.0, // m
@@ -287,7 +294,33 @@ export function validateModel(doc: BimDocument): ValidationReport {
         { kind: 'wall', id: wall.id },
       );
     }
-    if (wall.height < LIMITS.minRoomHeight || wall.height > LIMITS.maxRoomHeight) {
+    // Wandhöhe prüfen — aber eine Brüstung ist keine zu niedrige Wand.
+    //
+    // Bis 1.15.1 galt alles unter 2,00 m als unplausibel. Nach dem Import
+    // eines Raumscans standen dadurch drei Warnungen im Bericht, die alle
+    // dasselbe meinten: der Scan hat eine 1,19 m hohe Brüstung gemessen, und
+    // das ist richtig so. Eine Prüfung, die dreimal danebenliegt, wird beim
+    // vierten Mal nicht mehr gelesen — und die vierte ist dann die echte.
+    //
+    // Unterschieden werden jetzt drei Fälle:
+    //   · unter der Brüstungsgrenze: ein Bauteil, das im Raum steht. In
+    //     Ordnung, solange es überhaupt eine Höhe hat.
+    //   · dazwischen (1,60 bis 2,00 m): zu hoch für eine Brüstung, zu niedrig
+    //     für eine Wand. Genau hier lohnt das Hinsehen.
+    //   · über der Obergrenze: wie bisher.
+    if (wall.height < MINDEST_BAUTEILHOEHE) {
+      add('warning', 'wall.implausible-height', `Wandhöhe ${wall.height.toFixed(2)} m ist zu gering für ein Bauteil.`, {
+        kind: 'wall',
+        id: wall.id,
+      });
+    } else if (wall.height >= BRUESTUNGS_HOEHE && wall.height < LIMITS.minRoomHeight) {
+      add(
+        'warning',
+        'wall.implausible-height',
+        `Wandhöhe ${wall.height.toFixed(2)} m liegt zwischen Brüstung und Wand.`,
+        { kind: 'wall', id: wall.id },
+      );
+    } else if (wall.height > LIMITS.maxRoomHeight) {
       add('warning', 'wall.implausible-height', `Wandhöhe ${wall.height.toFixed(2)} m ist unplausibel.`, {
         kind: 'wall',
         id: wall.id,

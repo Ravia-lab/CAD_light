@@ -616,6 +616,14 @@ interface BimState {
   begradigeWaende: (optionen?: BegradigenOptionen) => { ok: boolean; message: string };
   /** Ein loses Wandende bis zum Gegenüber schließen — als Wand oder Öffnung. */
   schliesseLuecke: (knotenId: string, art: LueckenSchluss) => { ok: boolean; message: string };
+  /**
+   * Geschätzte Wandstärken bestätigen — für eine Wandart oder alle, wahlweise
+   * mit neuem Wert. Danach gilt die Zahl als gesetzt, nicht mehr als geschätzt.
+   */
+  bestaetigeWandstaerken: (
+    typ: WallType | 'alle',
+    staerke?: number,
+  ) => { ok: boolean; message: string };
   /** Dokument direkt ersetzen — für die Wiederherstellung aus dem Autosave. */
   replaceDocument: (doc: BimDocument, message?: string) => void;
   /**
@@ -1255,8 +1263,52 @@ export const useBimStore = create<BimState>()((set, get) => {
     updateWall: (id, patch) =>
       mutate((doc) => {
         const wall = doc.walls[id];
-        if (wall) doc.walls[id] = { ...wall, ...patch };
+        if (!wall) return;
+        // Wer die Stärke von Hand setzt, hat sie nicht mehr geschätzt. Das
+        // Kennzeichen hier zu löschen ist die einzige Stelle, an der das
+        // zuverlässig passiert — sonst bliebe der Schritt „Wandstärken
+        // bestätigen" auch dann offen, wenn jede Zahl längst geprüft ist.
+        const geprueft =
+          patch.thickness !== undefined && patch.thickness !== wall.thickness
+            ? { thicknessEstimated: undefined }
+            : {};
+        doc.walls[id] = { ...wall, ...patch, ...geprueft };
       }),
+
+    /**
+     * Die geschätzten Wandstärken bestätigen — wahlweise mit neuem Wert.
+     *
+     * Zwei Dinge in einem Zug, weil sie zusammengehören: alle Wände einer Art
+     * auf eine Stärke setzen *und* das Kennzeichen „geschätzt" löschen. Ohne
+     * den zweiten Teil bliebe die Aufgabe offen, obwohl sie erledigt ist;
+     * ohne den ersten müsste man einundzwanzig Wände einzeln anklicken.
+     *
+     * `staerke` weglassen heißt: die Schätzung stimmt so, nur bestätigen.
+     */
+    bestaetigeWandstaerken: (typ, staerke) => {
+      let betroffen = 0;
+      mutate((doc) => {
+        for (const wand of Object.values(doc.walls)) {
+          if (wand.levelId !== doc.activeLevelId) continue;
+          if (!wand.thicknessEstimated) continue;
+          if (typ !== 'alle' && wand.type !== typ) continue;
+          doc.walls[wand.id] = {
+            ...wand,
+            thickness: staerke ?? wand.thickness,
+            thicknessEstimated: undefined,
+          };
+          betroffen++;
+        }
+      });
+      const wort = typ === 'exterior' ? 'Außenwände' : typ === 'alle' ? 'Wände' : 'Innenwände';
+      const message = betroffen
+        ? staerke !== undefined
+          ? `${betroffen} ${wort} auf ${(staerke * 100).toFixed(1).replace('.', ',')} cm gesetzt`
+          : `${betroffen} ${wort} bestätigt`
+        : 'Keine geschätzten Stärken mehr offen';
+      set({ statusMessage: message });
+      return { ok: betroffen > 0, message };
+    },
 
     moveNode: (id, position) =>
       mutate((doc) => {
@@ -3168,16 +3220,28 @@ export const useBimStore = create<BimState>()((set, get) => {
         fresh.meta.northAngle = Math.round(((90 - grad) % 360 + 360) % 360 * 10) / 10;
       }
 
-      const geschoss = ergebnis.levels[0];
+      // Geschosse benennen und ordnen — genau wie beim IFC-Import.
+      //
+      // RoomPlan zählt Geschosse durch (`story: 0, 1, …`); daraus „Geschoss 0"
+      // zu machen wäre eine Übersetzung ohne Übersetzung. Benannt wird deshalb
+      // nach der Höhenlage: das Erdgeschoss ist das Geschoss am Bezugspunkt,
+      // nicht das unterste. Hat das Haus einen Keller, steht das EG auf dessen
+      // Decke — und die Reihenfolge `order` zählt von dort aus, damit ein
+      // Kellergeschoss die Ordnungszahl −1 bekommt und nicht 0.
+      const sortiert = [...ergebnis.levels].sort((a, b) => a.elevation - b.elevation);
+      const namen = benenneGeschosse(sortiert);
+      const egIdx = erdgeschossIndex(sortiert.map((l) => l.elevation));
       fresh.levels = Object.fromEntries(
-        ergebnis.levels.map((l, i) => [
+        sortiert.map((l, i) => [
           l.id,
           {
             id: l.id,
-            name: l.name,
-            order: i,
+            name: namen[i],
+            order: i - egIdx,
             elevation: l.elevation,
             height: l.height,
+            // Erdreich liegt unter dem *untersten* Geschoss, nicht unter dem
+            // Erdgeschoss.
             floorUValue: i === 0 ? 0.3 : 0.9,
             floorBoundary: i === 0 ? ('ground' as const) : ('adjacent-room' as const),
             ceilingUValue: 0.2,
@@ -3185,7 +3249,9 @@ export const useBimStore = create<BimState>()((set, get) => {
           },
         ]),
       );
-      fresh.activeLevelId = geschoss?.id ?? fresh.activeLevelId;
+      // Angefangen wird im Erdgeschoss, nicht im Keller — dort beginnt
+      // niemand ein Aufmaß.
+      fresh.activeLevelId = sortiert[egIdx]?.id ?? sortiert[0]?.id ?? fresh.activeLevelId;
       fresh.nodes = Object.fromEntries(ergebnis.nodes.map((n) => [n.id, n]));
       fresh.walls = Object.fromEntries(ergebnis.walls.map((w) => [w.id, w]));
       fresh.openings = Object.fromEntries(ergebnis.openings.map((o) => [o.id, o]));

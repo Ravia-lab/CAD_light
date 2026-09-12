@@ -44,6 +44,7 @@ import type { CheckFn } from './typ';
 import type { BimNode, Wall } from '../../src/types/bim';
 import { importRaumplan, istRaumplanDatei } from '../../src/lib/raumplanImport';
 import { detectRooms } from '../../src/lib/roomDetection';
+import { benenneGeschosse, erdgeschossIndex } from '../../src/lib/levelGeometry';
 import { offsetPolygonPerEdge, polygonArea, polygonPerimeter } from '../../src/lib/geometry';
 
 /**
@@ -314,6 +315,135 @@ export function pruefeRaumscan(check: CheckFn): void {
   };
   const getroffen = r.raumHinweise.filter((h) => raeume.some((z) => imPolygon(h.punkt, z.polygon)));
   check('Jeder Nutzungshinweis trifft einen erkannten Raum', getroffen.length, r.raumHinweise.length);
+
+  // --- Brüstungen bestimmen nicht die Raumhöhe ------------------------------
+  //  Der Fehler, den erst ein echter Scan ans Licht gebracht hat.
+  //
+  //  Die Raumhöhe war die kleinste beteiligte Wandhöhe — bedingungslos. Ein
+  //  Raum, der an eine 1,19 m hohe Brüstung grenzt, bekam damit 1,19 m Höhe.
+  //  Von Hand zeichnet niemand so eine Wand an einen Wohnraum, deshalb ist es
+  //  nie aufgefallen; ein Scan misst sie.
+  //
+  //  Die Folge stand nicht in der Geometrie, sondern in der Heizlast: aus der
+  //  Raumhöhe folgt das Luftvolumen und daraus der Lüftungswärmeverlust. Über
+  //  die ganze Wohnung fehlten 32,5 von 224,8 m³ — 17 %, und zwar nach unten.
+  {
+    const raeume = detectRooms({
+      walls: r.walls,
+      nodes: Object.fromEntries(r.nodes.map((n) => [n.id, n])),
+      openings: r.openings,
+      levelId: r.levels[0].id,
+      defaultHeight: r.levels[0].height,
+      northAngle: 0,
+    });
+    const bruestungen = r.walls.filter((w) => w.height < 1.6);
+    check('Der Scan enthält Brüstungen unter 1,60 m', bruestungen.length, 3);
+    check('Niedrigste Brüstung [m]', Math.min(...bruestungen.map((w) => w.height)), 1.185, 0.002);
+    check(
+      'Kein Raum ist so niedrig wie eine Brüstung',
+      raeume.every((z) => z.height >= 1.6),
+      true,
+    );
+    check('Niedrigster Raum [m]', Math.min(...raeume.map((z) => z.height)), 2.067, 0.01);
+    check(
+      'Luftvolumen der Wohnung [m³]',
+      raeume.reduce((s2, z) => s2 + z.area * z.height, 0),
+      224.8,
+      1.0,
+    );
+    // Die Gegenprobe: mit der alten Regel — kleinste Wandhöhe ohne Ausnahme —
+    // wären es 192,3 m³. Bleibt diese Zeile stehen und die obige fällt, ist
+    // die Ausnahme wieder verschwunden.
+    const alt = raeume.reduce((s2, z) => {
+      let h = r.levels[0].height;
+      for (const b of z.boundaries) {
+        const w = r.walls.find((x) => x.id === b.wallId);
+        if (w && w.height < h) h = w.height;
+      }
+      return s2 + z.area * h;
+    }, 0);
+    check('Mit der alten Regel wären es [m³]', alt, 192.3, 1.0);
+    check('Die Ausnahme bringt mehr als 30 m³', raeume.reduce((s2, z) => s2 + z.area * z.height, 0) - alt > 30, true);
+  }
+
+  // --- Mehrere Geschosse -----------------------------------------------------
+  //  Die Beispielwohnung hat nur `story: 0` — enthält aber ein Objekt
+  //  `stairs`, also gibt es weitere Geschosse, die nur nicht mitgescannt
+  //  wurden. Dass der Import damit umgehen kann, war bis hierher ungeprüft.
+  //
+  //  Gebaut wird deshalb ein zweigeschossiger Scan von Hand: dasselbe Rechteck
+  //  auf `story: 0` und `story: 1`, das obere um 2,70 m höher. Geprüft wird
+  //  die Trennung (kein Knoten darf zwei Geschosse verbinden) und die
+  //  Benennung — RoomPlan zählt durch, aus „Geschoss 0" muss „Erdgeschoss"
+  //  werden, sonst ist die Übersetzung keine.
+  {
+    const M = (dx: number, dz: number, cx: number, cy: number, cz: number): number[] =>
+      [dx, 0, dz, 0, 0, 1, 0, 0, -dz, 0, dx, 0, cx, cy, cz, 1];
+    const wand = (
+      id: string, dx: number, dz: number, cx: number, cz: number,
+      laenge: number, story: number, cy: number,
+    ) => ({
+      identifier: id, parentIdentifier: null, dimensions: [laenge, 2.5, 0],
+      transform: M(dx, dz, cx, cy, cz), story,
+      confidence: { high: {} }, category: { wall: {} }, polygonCorners: [],
+    });
+    const stock = (story: number, cy: number, p: string) => [
+      wand(p + '1', 1, 0, 0, -2, 5, story, cy), wand(p + '2', 0, 1, 2.5, 0, 4, story, cy),
+      wand(p + '3', 1, 0, 0, 2, 5, story, cy), wand(p + '4', 0, 1, -2.5, 0, 4, story, cy),
+    ];
+    const zwei = importRaumplan(
+      JSON.stringify({
+        version: 2,
+        walls: [...stock(0, 0, 'EG'), ...stock(1, 2.7, 'OG')],
+        doors: [], windows: [], openings: [], floors: [], objects: [],
+        sections: [
+          { label: 'livingRoom', story: 0, center: [0, -0.5, 0] },
+          { label: 'bedroom', story: 1, center: [0, 2.2, 0] },
+        ],
+      }),
+    );
+    check('Zweigeschossiger Scan wird gelesen', zwei.ok, true);
+    check('Zwei Geschosse', zwei.levels.length, 2);
+    check('Der Importer liefert Platzhalternamen', zwei.levels[0].name, 'Geschoss 0');
+    check('Höhenlage des oberen Geschosses [m]', zwei.levels[1].elevation, 2.7, 0.01);
+    check('Vier Wände unten', zwei.walls.filter((w) => w.levelId === zwei.levels[0].id).length, 4);
+    check('Vier Wände oben', zwei.walls.filter((w) => w.levelId === zwei.levels[1].id).length, 4);
+    // Kein Knoten darf zu zwei Geschossen gehören — sonst zöge das Verschieben
+    // einer Wand im Erdgeschoss die darüber mit.
+    check(
+      'Kein Knoten verbindet zwei Geschosse',
+      new Set(zwei.nodes.map((n) => n.levelId)).size,
+      2,
+    );
+    check('Knoten unten', zwei.nodes.filter((n) => n.levelId === zwei.levels[0].id).length, 4);
+    check('Knoten oben', zwei.nodes.filter((n) => n.levelId === zwei.levels[1].id).length, 4);
+    check('Beide Raumbereiche übernommen', zwei.raumHinweise.length, 2);
+    check(
+      'Der obere Hinweis gehört zum oberen Geschoss',
+      zwei.raumHinweise.find((h) => h.name === 'Schlafen')?.levelId ?? 'fehlt',
+      zwei.levels[1].id,
+    );
+
+    // Die Benennung, die der Speicher daraus macht — dieselbe Rechnung wie
+    // beim IFC-Import.
+    const sortiert = [...zwei.levels].sort((a, b) => a.elevation - b.elevation);
+    const namen = benenneGeschosse(sortiert);
+    const eg = erdgeschossIndex(sortiert.map((l) => l.elevation));
+    check('Unteres Geschoss heißt EG', namen[0], 'EG');
+    check('Oberes Geschoss heißt 1. OG', namen[1], '1. OG');
+    check('Das Erdgeschoss bekommt die Ordnungszahl 0', 0 - eg, 0);
+
+    // Und mit Keller: das unterste Geschoss ist dann nicht das Erdgeschoss.
+    const mitKeller = [{ elevation: -2.6 }, { elevation: 0 }, { elevation: 2.7 }];
+    const kellerNamen = benenneGeschosse(mitKeller);
+    check('Mit Keller heißt das unterste Geschoss KG', kellerNamen[0], 'KG');
+    check('Und das mittlere EG', kellerNamen[1], 'EG');
+    check(
+      'Der Keller bekommt die Ordnungszahl −1',
+      0 - erdgeschossIndex(mitKeller.map((l) => l.elevation)),
+      -1,
+    );
+  }
 
   // --- Fehlerfälle ----------------------------------------------------------
   check('Kaputtes JSON wird abgefangen', importRaumplan('{nicht').ok, false);

@@ -484,7 +484,11 @@ export function importRaumplan(text: string): RaumplanImportErgebnis {
     const unten = Math.min(...eigene.map((s) => s.unten));
     return {
       id: `rp-level-${story}`,
-      name: stockwerke.length === 1 ? 'Erdgeschoss' : `Geschoss ${story}`,
+      // Bewusst ein Platzhalter: die richtige Benennung nach Höhenlage
+      // (KG, EG, 1. OG) macht `benenneGeschosse` beim Übernehmen. Stünde hier
+      // schon „Erdgeschoss", würde sie als eigener Name durchgelassen — und
+      // ein Scan mit Keller hätte zwei Erdgeschosse.
+      name: `Geschoss ${story}`,
       elevation: rund(unten),
       height: rund(hoehe),
     };
@@ -537,6 +541,7 @@ export function importRaumplan(text: string): RaumplanImportErgebnis {
       a: a.id,
       b: b.id,
       thickness: aussen ? STAERKE_AUSSEN : STAERKE_INNEN,
+      thicknessEstimated: true,
       height: rund(s.hoehe),
       type: typ,
       layerId: 'layer-walls',

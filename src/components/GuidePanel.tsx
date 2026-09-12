@@ -133,6 +133,8 @@ export default function GuidePanel({ onOpenTab }: { onOpenTab: (tab: string) => 
       gaps: (doc.diagnostics.closure ?? []).filter((c) => c.kind === 'gap').length,
       openings: openings.length,
       unnamed: rooms.filter((r) => r.usage === 'other').length,
+      /** Wände, deren Stärke aus einem Scan geschätzt statt gemessen ist. */
+      geschaetzteStaerken: walls.filter((w) => w.thicknessEstimated).length,
       missingU: report.issues.filter((i) => i.code.includes('u-value') || i.code.includes('missing-u')).length,
       heaters: fixtures.filter((f) => f.category === 'heating' && f.params.powerW).length,
       heatingPower: fixtures.reduce((sum, f) => sum + (f.params.powerW ?? 0), 0),
@@ -261,6 +263,23 @@ export default function GuidePanel({ onOpenTab }: { onOpenTab: (tab: string) => 
           ? [{ label: state.openEnds > 0 ? 'Wand verlängern' : 'Wand ergänzen', run: () => setTool('wall') }]
           : undefined,
     },
+    // Nur sichtbar, solange etwas offen ist: wer von Hand zeichnet, setzt die
+    // Stärke beim Zeichnen und soll keinen Schritt vorgesetzt bekommen, den es
+    // für ihn nicht gibt.
+    ...(state.geschaetzteStaerken > 0
+      ? [
+          {
+            title: 'Wandstärken bestätigen',
+            tone: 'open' as const,
+            badge: `${state.geschaetzteStaerken} geschätzt`,
+            hint:
+              'Ein Raumscan misst Wände als Flächen ohne Dicke. Angenommen sind 36,5 cm außen und 11,5 cm innen. ' +
+              'Die Zahl geht über die Bauteilfläche unmittelbar in den Transmissionsverlust — bei 100 m Wandlänge ' +
+              'macht ein Irrtum von 12 cm rund 25 m² Fläche aus. Im Reiter „Prüfung" stehen sie zum Bestätigen oder Ändern.',
+            actions: [{ label: 'Stärken ansehen', run: () => onOpenTab('check') }],
+          },
+        ]
+      : []),
     {
       title: 'Fenster und Türen setzen',
       tone: state.walls === 0 ? 'blocked' : state.openings > 0 ? 'done' : 'open',

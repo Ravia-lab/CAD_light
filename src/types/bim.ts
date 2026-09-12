@@ -158,6 +158,20 @@ export interface Wall {
   b: NodeId;
   /** Wandstärke [m], symmetrisch um die Achse aufgetragen. */
   thickness: number;
+  /**
+   * Die Stärke ist **geschätzt**, nicht gemessen oder gesetzt.
+   *
+   * Gesetzt wird das vom Raumscan-Import: Apple RoomPlan misst Wände als
+   * Flächen ohne Dicke, und der Import nimmt nach Lage am Bodenumriss 36,5 cm
+   * außen und 11,5 cm innen an. Das ist eine brauchbare Annahme und trotzdem
+   * eine Annahme — sie geht über die Bauteilfläche unmittelbar in den
+   * Transmissionsverlust ein.
+   *
+   * Solange das Kennzeichen steht, bleibt der Schritt „Wandstärken
+   * bestätigen" in der Aufgabenliste offen. Wer die Stärke von Hand setzt,
+   * löscht es damit — eine gesetzte Zahl ist keine Schätzung mehr.
+   */
+  thicknessEstimated?: boolean;
   /** Lichte Wandhöhe [m] (OK Rohdecke − OK Rohboden). */
   height: number;
   type: WallType;

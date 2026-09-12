@@ -62,6 +62,35 @@ const b = await chromium.launch({
   executablePath: '/opt/pw-browsers/chromium',
   args: ['--use-gl=swiftshader', '--enable-unsafe-swiftshader', '--no-sandbox'],
 });
+
+/**
+ * Die Umgebung, in der die Referenzbilder entstanden sind.
+ *
+ * **Warum das mitgeschrieben wird.** Ein Pixelvergleich von Text ist an die
+ * Maschine gebunden, die ihn erzeugt hat. Zieht das Projekt auf einen anderen
+ * Rechner oder wechselt Chromium die Fassung, verrutscht der Textsatz um
+ * ein, zwei Pixel — die Zahlen bleiben dieselben, die Bilder nicht. Genau das
+ * ist hier passiert: nach einem Umzug wichen alle drei Blätter mit Text
+ * systematisch ab (0,167 / 0,233 / 0,352 %), das Blatt ohne Text mit 0,000 %.
+ *
+ * Die Fehlersuche kostete eine Stunde, weil die Meldung nur „0,352 % ab-
+ * weichende Pixel" sagte. Mit dieser Datei daneben steht die Antwort in der
+ * ersten Zeile des Fehlers. Sie kostet nichts und spart genau diese Stunde.
+ */
+const umgebung = {
+  chromium: b.version(),
+  plattform: `${process.platform}-${process.arch}`,
+  node: process.version,
+  angelegt: new Date().toISOString().slice(0, 10),
+};
+const UMGEBUNG_DATEI = path.join(REFERENZ, 'umgebung.json');
+const umgebungAlt = fs.existsSync(UMGEBUNG_DATEI)
+  ? JSON.parse(fs.readFileSync(UMGEBUNG_DATEI, 'utf-8'))
+  : null;
+const umgebungGleich =
+  umgebungAlt !== null &&
+  umgebungAlt.chromium === umgebung.chromium &&
+  umgebungAlt.plattform === umgebung.plattform;
 // `reducedMotion` schaltet Übergänge ab. Ohne das entscheidet der Zufall der
 // Aufnahmezeit darüber, wie weit eine Einblendung fortgeschritten war.
 const ctx = await b.newContext({
@@ -105,6 +134,7 @@ const vergleicheMitReferenz = (name, ist) => {
   if (process.env.REFERENZ_NEU === '1' || !fs.existsSync(ziel)) {
     const neuAngelegt = !fs.existsSync(ziel);
     fs.writeFileSync(ziel, ist);
+    fs.writeFileSync(UMGEBUNG_DATEI, JSON.stringify(umgebung, null, 2) + '\n');
     hinweis(
       `Referenz „${name}"`,
       `${neuAngelegt ? 'neu angelegt' : 'auf Wunsch erneuert'} — beim nächsten Lauf wird verglichen`,
@@ -138,6 +168,22 @@ const vergleicheMitReferenz = (name, ist) => {
     `  ${ok ? '✓' : '✗'} Referenz „${name}": ${anteil.toFixed(3)} % abweichende Pixel` +
       `${ok ? '' : ` (Schwelle ${SCHWELLE_PROZENT} % — siehe ${name}.abweichung.png)`}`,
   );
+  // Die erste Frage bei einem roten Bildvergleich lautet: hat sich das
+  // Programm geändert oder die Maschine? Wenn die Umgebung eine andere ist,
+  // steht die Antwort hier, bevor jemand anfängt zu suchen.
+  if (!ok && !umgebungGleich) {
+    console.log(
+      umgebungAlt
+        ? `      Achtung: die Referenzen stammen aus einer anderen Umgebung —\n` +
+          `      Referenz: Chromium ${umgebungAlt.chromium} auf ${umgebungAlt.plattform} (${umgebungAlt.angelegt})\n` +
+          `      jetzt   : Chromium ${umgebung.chromium} auf ${umgebung.plattform}\n` +
+          `      Textsatz verschiebt sich zwischen Fassungen um ein, zwei Pixel.\n` +
+          `      Zahlen im Abweichungsbild prüfen: sind sie gleich und nur versetzt,\n` +
+          `      ist es die Maschine. Dann: REFERENZ_NEU=1 npm run smoke:bild`
+        : `      Hinweis: zu den Referenzen ist keine Umgebung hinterlegt.\n` +
+          `      Einmal mit REFERENZ_NEU=1 laufen lassen legt sie an.`,
+    );
+  }
 };
 
 /** Nimmt einen Bildausschnitt auf; der Kopfstreifen der Ansicht bleibt außen vor. */

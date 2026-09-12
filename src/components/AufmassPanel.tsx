@@ -37,6 +37,7 @@ export default function AufmassPanel() {
   const doc = useBimStore((s) => s.doc);
   const begradigeWaende = useBimStore((s) => s.begradigeWaende);
   const schliesseLuecke = useBimStore((s) => s.schliesseLuecke);
+  const bestaetigeWandstaerken = useBimStore((s) => s.bestaetigeWandstaerken);
   const setViewport = useBimStore((s) => s.setViewport);
   const viewport = useBimStore((s) => s.viewport);
   const [meldung, setMeldung] = useState<string | null>(null);
@@ -59,11 +60,18 @@ export default function AufmassPanel() {
   );
 
   const offeneEnden = doc.diagnostics.openEnds.length;
+
+  // Geschätzte Stärken, nach Wandart getrennt — die Frage stellt sich für
+  // Außen- und Innenwände verschieden.
+  const geschaetzt = useMemo(() => waende.filter((w) => w.thicknessEstimated), [waende]);
+  const aussen = geschaetzt.filter((w) => w.type === 'exterior');
+  const innen = geschaetzt.filter((w) => w.type !== 'exterior');
+
   if (waende.length === 0) return null;
 
   const schief = waende.length - vorschau.achsparallelVorher;
   const nichtsZuTun = vorschau.bewegt === 0 && luecken.length === 0;
-  if (nichtsZuTun && offeneEnden === 0) return null;
+  if (nichtsZuTun && offeneEnden === 0 && geschaetzt.length === 0) return null;
 
   return (
     <div className="space-y-2.5 rounded-lg border border-white/[0.07] bg-white/[0.02] p-3">
@@ -158,7 +166,88 @@ export default function AufmassPanel() {
         </p>
       )}
 
+      {/* ------------------------------------------- Geschätzte Wandstärken */}
+      {geschaetzt.length > 0 && (
+        <div className="space-y-1.5 border-t border-white/[0.06] pt-2.5">
+          <div className="flex items-center justify-between gap-2">
+            <div className="text-[11.5px] text-slate-300">
+              {geschaetzt.length} Wandstärken sind geschätzt
+            </div>
+            <button
+              className="rounded-md bg-accent/15 px-2.5 py-1 text-[11px] text-accent transition hover:bg-accent/25"
+              title="Die Schätzung stimmt so — den Schritt abhaken."
+              onClick={() => setMeldung(bestaetigeWandstaerken('alle').message)}
+            >
+              Passt so
+            </button>
+          </div>
+          <p className="text-[10.5px] leading-snug text-slate-500">
+            Ein Scan misst Wände als Flächen ohne Dicke. Angenommen sind{' '}
+            {aussen.length > 0 && <>{aussen.length}× außen </>}
+            {aussen.length > 0 && innen.length > 0 && <>und </>}
+            {innen.length > 0 && <>{innen.length}× innen</>}. Die Zahl geht über die Bauteilfläche
+            unmittelbar in die Heizlast — sie ist es wert, einmal angesehen zu werden.
+          </p>
+          {aussen.length > 0 && (
+            <StaerkenZeile
+              label={`Außenwand (${aussen.length})`}
+              werte={[0.24, 0.3, 0.365, 0.425]}
+              aktuell={aussen[0].thickness}
+              setzen={(v) => setMeldung(bestaetigeWandstaerken('exterior', v).message)}
+            />
+          )}
+          {innen.length > 0 && (
+            <StaerkenZeile
+              label={`Innenwand (${innen.length})`}
+              werte={[0.115, 0.175, 0.24]}
+              aktuell={innen[0].thickness}
+              setzen={(v) => setMeldung(bestaetigeWandstaerken('interior', v).message)}
+            />
+          )}
+        </div>
+      )}
+
       {meldung && <div className="text-[10.5px] leading-snug text-accent/80">{meldung}</div>}
+    </div>
+  );
+}
+
+/**
+ * Eine Reihe Stärken zum Anklicken. Der Wert, der gerade gilt, ist
+ * hervorgehoben — sonst weiß niemand, wovon er ausgeht.
+ */
+function StaerkenZeile({
+  label,
+  werte,
+  aktuell,
+  setzen,
+}: {
+  label: string;
+  werte: number[];
+  aktuell: number;
+  setzen: (v: number) => void;
+}) {
+  return (
+    <div className="flex flex-wrap items-center gap-1">
+      <span className="mr-1 text-[10.5px] text-slate-500">{label}</span>
+      {werte.map((v) => {
+        const gleich = Math.abs(v - aktuell) < 1e-6;
+        return (
+          <button
+            key={v}
+            title={`Alle auf ${(v * 100).toFixed(1).replace('.', ',')} cm setzen und bestätigen`}
+            className={
+              'rounded px-2 py-0.5 text-[10.5px] transition ' +
+              (gleich
+                ? 'bg-accent/25 text-accent'
+                : 'bg-white/[0.06] text-slate-300 hover:bg-accent/20 hover:text-accent')
+            }
+            onClick={() => setzen(v)}
+          >
+            {(v * 100).toFixed(1).replace('.', ',')}
+          </button>
+        );
+      })}
     </div>
   );
 }

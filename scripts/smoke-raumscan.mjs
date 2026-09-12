@@ -176,6 +176,41 @@ const bericht = await p.locator('aside').innerText();
 const fehlerZahl = bericht.match(/(\d+)\s*\n?\s*FEHLER/i);
 pruefe('Keine Fehler mehr in der Modellprüfung', fehlerZahl ? +fehlerZahl[1] : -1, 0);
 
+// --- Geschätzte Wandstärken bleiben sichtbar -------------------------------
+//  Der Punkt, an dem eine Annahme zur Zahl wird: sie steht nicht mehr nur in
+//  der Statuszeile, sondern als offener Schritt in der Aufgabenliste und als
+//  Feld im Prüfungsreiter. Erst ein Klick macht aus der Schätzung eine gesetzte
+//  Zahl.
+const mitStaerken = await p.locator('aside').innerText();
+pruefe('Das Feld nennt die geschätzten Stärken', /\d+ Wandstärken sind geschätzt/.test(mitStaerken), true);
+
+await p.locator('button:has-text("Start")').first().click();
+await p.waitForTimeout(600);
+const aufgaben = await p.locator('aside').innerText();
+pruefe('Die Aufgabenliste führt den Schritt', aufgaben, 'Wandstärken bestätigen');
+pruefe('… mit der Zahl der offenen Stärken', /\d+ geschätzt/.test(aufgaben), true);
+
+await p.locator('button:has-text("Prüfung")').first().click();
+await p.waitForTimeout(600);
+// Außenwände auf 30 cm setzen — ein Klick statt einundzwanzig.
+await p.locator('aside button[title*="30,0 cm"]').first().click();
+await p.waitForTimeout(900);
+pruefe('Ein Klick setzt alle Außenwände', await status(), 'auf 30,0 cm gesetzt');
+// Der Rest per „Passt so".
+await p.locator('aside button:has-text("Passt so")').first().click();
+await p.waitForTimeout(900);
+pruefe('„Passt so" bestätigt den Rest', await status(), 'bestätigt');
+
+await p.locator('button:has-text("Start")').first().click();
+await p.waitForTimeout(700);
+pruefe(
+  'Danach ist der Schritt aus der Aufgabenliste verschwunden',
+  (await p.locator('aside').innerText()).includes('Wandstärken bestätigen'),
+  false,
+);
+await p.locator('button:has-text("Prüfung")').first().click();
+await p.waitForTimeout(500);
+
 // --- Der Kern der Sache: das Ergebnis ist bearbeitbar ----------------------
 //  Ein Import, der ein unantastbares Bild erzeugt, wäre nutzlos. Aus der Datei
 //  entstehen deshalb *gewöhnliche* Wände, Knoten und Öffnungen — dieselben
