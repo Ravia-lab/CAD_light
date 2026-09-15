@@ -70,8 +70,19 @@ export default function AufmassPanel() {
   if (waende.length === 0) return null;
 
   const schief = waende.length - vorschau.achsparallelVorher;
-  const nichtsZuTun = vorschau.bewegt === 0 && luecken.length === 0;
-  if (nichtsZuTun && offeneEnden === 0 && geschaetzt.length === 0) return null;
+  /*
+   * **Das Feld bleibt stehen, auch wenn nichts zu tun ist.**
+   *
+   * Vorher blendete es sich in genau dem Fall aus, in dem der Plan sauber
+   * war. Das klingt aufgeräumt und ist ein Fehler: Wer die Funktion nie
+   * gesehen hat, weiß auch nicht, dass es sie gibt — und sucht sie
+   * vergeblich, sobald er sie das erste Mal braucht. „Ich sehe die
+   * Begradigungsfunktion nicht" war genau das.
+   *
+   * Ein Werkzeugkasten zeigt seine Werkzeuge auch dann, wenn gerade nichts
+   * kaputt ist. Was fehlt, ist nicht das Feld, sondern die Arbeit — und das
+   * steht dann dort: „Alle Wände stehen auf der Achse."
+   */
 
   return (
     <div className="space-y-2.5 rounded-lg border border-white/[0.07] bg-white/[0.02] p-3">

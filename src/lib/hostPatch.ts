@@ -46,10 +46,14 @@ import type {
   BimDocument,
   Construction,
   ConstructionCategory,
+  Fixture,
+  FixtureParams,
   ProjectMeta,
+  RadiatorConnection,
   Room,
   RoomHeatLoad,
 } from '../types/bim';
+import { RADIATOR_CONNECTION_LABELS } from '../types/bim';
 
 // ===========================================================================
 // Vertrag
@@ -75,6 +79,55 @@ export interface RoomPatch {
     ventilation?: number;
     reheat?: number;
   };
+}
+
+/**
+ * Was die Gegenstelle je Heizfläche setzen darf.
+ *
+ * **Warum es diesen Weg braucht.** Bis hierher konnte RaVia die Heizlast
+ * zurückschreiben, aber nicht ihr Ergebnis: welcher Heizkörper es nun wird,
+ * welche Voreinstellung sein Ventil bekommt, mit welchem Verlegeabstand der
+ * Heizkreis liegt. Die Auslegung endete damit in einem Bericht statt in der
+ * Zeichnung, und der nächste, der den Plan öffnete, sah den Stand von vorher.
+ *
+ * Geschrieben werden ausschließlich **Auslegungsergebnisse** — keine
+ * Geometrie. Position, Drehung und Wandbindung eines Objekts gehören dem
+ * Zeichner; ein Rechenkern, der ein Symbol verschieben darf, verschiebt es
+ * irgendwann gegen die Absicht dessen, der es gesetzt hat.
+ */
+export interface FixturePatch {
+  /** Kennung des Objekts, so wie sie in `emitters[].fixtureId` steht. */
+  id: string;
+  /** Normwärmeleistung [W] bei 55/45/20 °C. */
+  powerW?: number;
+  /** Bauart/Typ, z. B. „22". */
+  radiatorType?: string;
+  /** Heizkörperexponent n [-] aus dem Datenblatt des gewählten Geräts. */
+  radiatorExponent?: number;
+  /** Bauhöhe [m]. */
+  radiatorHeight?: number;
+  /** Gliederzahl [-]. */
+  radiatorSections?: number;
+  /** Anschlussart. */
+  radiatorConnection?: RadiatorConnection;
+  /** Baulänge [m] — das einzige Geometriemaß, das die Auslegung bestimmt. */
+  length?: number;
+  /** Vor- und Rücklauftemperatur dieser Heizfläche [°C]. */
+  flowTemperature?: number;
+  returnTemperature?: number;
+  /** Fußbodenheizung: Verlegeabstand [m]. */
+  loopSpacing?: number;
+  /** Fußbodenheizung: Zahl der Kreise [-]. */
+  loopCount?: number;
+  /** Fußbodenheizung: Estrichüberdeckung [m]. */
+  screedCover?: number;
+  /** Fußbodenheizung: Wärmedurchlasswiderstand des Belags R_λB [m²·K/W]. */
+  floorCoveringResistance?: number;
+  /** Fußbodenheizung: Rohraußendurchmesser und Wandstärke [m]. */
+  pipeOuterDiameter?: number;
+  pipeWallThickness?: number;
+  /** Freitext für Fabrikat und Typ — hier landet das gewählte Gerät. */
+  note?: string;
 }
 
 /** Was am Bauteilaufbau gesetzt werden darf. */
@@ -120,6 +173,8 @@ export interface HostPatch {
   project?: ProjectPatch;
   rooms?: RoomPatch[];
   constructions?: ConstructionPatch[];
+  /** Auslegungsergebnisse je Heizfläche. */
+  fixtures?: FixturePatch[];
   /**
    * Gesamte Norm-Heizlast des Gebäudes [W]. Sie geht in das Anlagenblatt als
    * `heatLoadOverride` und ersetzt dort den Überschlag.
@@ -292,6 +347,7 @@ export function applyHostPatch(doc: BimDocument, patch: HostPatch, now: string):
       continue;
     }
     let bestand = constructions[id];
+    const neuAngelegt = bestand === undefined;
     if (!bestand) {
       const anlegen = eintrag.createIfMissing;
       if (!anlegen || typeof anlegen.name !== 'string' || anlegen.name.trim() === '') {
@@ -304,15 +360,62 @@ export function applyHostPatch(doc: BimDocument, patch: HostPatch, now: string):
         );
         continue;
       }
+      /*
+       * Ein neuer Aufbau kommt **mit** seinem U-Wert zur Welt oder gar nicht.
+       *
+       * Bis 1.23.0 stand hier `uValue: 0`. Das war kein Platzhalter, sondern
+       * eine Aussage — und zwar die schlimmstmögliche: Jedes Bauteil, dem
+       * dieser Aufbau zugewiesen wurde, verlor seinen gesamten
+       * Transmissionsverlust. Die 0 kam durch jede Prüfung (sie ist ja kein
+       * fehlender Wert), und am Referenzhaus kostete derselbe Mechanismus
+       * 29 % der Heizlast und eine Gerätegröße — ohne einen einzigen Hinweis.
+       *
+       * Warum kein Vorgabewert nach Kategorie statt der 0? Weil eine Kategorie
+       * den Aufbau nicht bestimmt: „floor" ist die gedämmte Bodenplatte
+       * (0,28) genauso wie die Geschossdecke (0,9). Ein geratener Wert wäre
+       * von einem geschriebenen nicht mehr zu unterscheiden — genau der
+       * Fehler, den dieses Modul sonst überall vermeidet.
+       *
+       * Und warum nicht aus `layers` rechnen? Weil `layers` Freitext ist
+       * („36,5 Ziegel + 14 cm WDVS"), kein Schichtaufbau mit λ und d. Aus
+       * einem Satz einen U-Wert zu rechnen hieße, ihn zu erfinden.
+       *
+       * Bleibt: ablehnen. Die Gegenstelle setzt `uValue` ohnehin im selben
+       * Eintrag — dafür steht das Feld direkt neben `createIfMissing`.
+       */
+      // `checkNumber` statt `CONSTRUCTION_FIELDS.uValue.check`: Beide prüfen
+      // dasselbe, aber nur die erste liefert eine `number` zurück statt eines
+      // `unknown`, und hier wird die Zahl unmittelbar gebraucht.
+      const startwert = checkNumber(eintrag.uValue, PATCH_RANGES.uValue, 'W/(m²·K)');
+      if (startwert.value === undefined) {
+        entries.push(
+          rejected(
+            `constructions.${id}`,
+            'Bauteilaufbau',
+            `Zum Anlegen des Aufbaus „${anlegen.name.trim()}" gehört sein U-Wert mit. ` +
+              `${startwert.reason ?? 'Er fehlt.'} ` +
+              'Ein Aufbau ohne U-Wert nimmt jedem zugewiesenen Bauteil seinen Wärmeverlust, ' +
+              'und zwar unsichtbar — an der Wand selbst ist nichts zu sehen.',
+          ),
+        );
+        continue;
+      }
       bestand = {
         id,
         name: anlegen.name.trim(),
         category: anlegen.category,
-        uValue: 0,
+        uValue: startwert.value,
       };
       constructions = { ...constructions, [id]: bestand };
       changed = true;
-      entries.push(applied(`constructions.${id}`, 'Bauteilaufbau angelegt', '—', bestand.name));
+      entries.push(
+        applied(
+          `constructions.${id}`,
+          'Bauteilaufbau angelegt',
+          '—',
+          `${bestand.name} · U = ${startwert.value} W/(m²·K)`,
+        ),
+      );
     }
 
     const next: Construction = { ...bestand };
@@ -320,6 +423,10 @@ export function applyHostPatch(doc: BimDocument, patch: HostPatch, now: string):
     for (const key of ['uValue', 'thermalBridgeSupplement', 'gValue', 'layers'] as const) {
       const value = eintrag[key];
       if (value === undefined) continue;
+      // Beim frisch angelegten Aufbau ist der U-Wert schon eingebaut; er
+      // stünde sonst gleich darunter ein zweites Mal in der Historie, einmal
+      // als „angelegt" und einmal als „unverändert".
+      if (key === 'uValue' && neuAngelegt) continue;
       const feld = CONSTRUCTION_FIELDS[key];
       const before = (bestand as unknown as Record<string, unknown>)[key];
       const geprueft = feld.check(value);
@@ -446,6 +553,73 @@ export function applyHostPatch(doc: BimDocument, patch: HostPatch, now: string):
     }
   }
 
+  // --- Heizflächen ---------------------------------------------------------
+  //
+  // Der Rückweg für das Ergebnis der Auslegung. Geschrieben wird in
+  // `Fixture.params`, plus `length` als einziges Geometriemaß — die Baulänge
+  // folgt aus der gewählten Type und ist deshalb ein Auslegungsergebnis, kein
+  // Zeichnerentscheid.
+  let fixtures = doc.fixtures;
+  for (const eintrag of patch.fixtures ?? []) {
+    const id = typeof eintrag?.id === 'string' ? eintrag.id : '';
+    if (id === '') {
+      entries.push(rejected('fixtures', 'Heizfläche', 'Der Eintrag nennt keine Kennung.'));
+      continue;
+    }
+    const bestand = fixtures[id] as Fixture | undefined;
+    if (!bestand) {
+      entries.push(
+        rejected(
+          `fixtures.${id}`,
+          'Heizfläche',
+          'Unter dieser Kennung steht im Modell kein Objekt. Heizflächen werden gezeichnet, nicht von außen angelegt.',
+        ),
+      );
+      continue;
+    }
+    if (bestand.category !== 'heating') {
+      entries.push(
+        rejected(
+          `fixtures.${id}`,
+          bestand.label ?? bestand.type,
+          'Das Objekt ist keine Heizfläche. Geschrieben werden nur Auslegungsergebnisse der Heizung.',
+        ),
+      );
+      continue;
+    }
+
+    let params: FixtureParams = bestand.params;
+    let laenge = bestand.length;
+    let beruehrt = false;
+    for (const [key, value] of Object.entries(eintrag)) {
+      if (key === 'id') continue;
+      const feld = FIXTURE_FIELDS[key as keyof Omit<FixturePatch, 'id'>];
+      if (!feld) {
+        entries.push(rejected(`fixtures.${id}.${key}`, key, unknownField(key)));
+        continue;
+      }
+      const pfad = `fixtures.${id}.${key}`;
+      const before = key === 'length' ? bestand.length : (params as unknown as Record<string, unknown>)[key];
+      const geprueft = feld.check(value);
+      if (geprueft.reason !== undefined) {
+        entries.push(rejected(pfad, feld.label, geprueft.reason, asPrintable(before)));
+        continue;
+      }
+      if (Object.is(before, geprueft.value)) {
+        entries.push(unchangedEntry(pfad, feld.label, asPrintable(before)));
+        continue;
+      }
+      if (key === 'length') laenge = geprueft.value as number;
+      else params = { ...params, [key]: geprueft.value };
+      beruehrt = true;
+      entries.push(applied(pfad, feld.label, asPrintable(before), asPrintable(geprueft.value)));
+    }
+    if (beruehrt) {
+      fixtures = { ...fixtures, [id]: { ...bestand, length: laenge, params } };
+      changed = true;
+    }
+  }
+
   const appliedCount = entries.filter((e) => e.verdict === 'übernommen').length;
   const unchangedCount = entries.filter((e) => e.verdict === 'unverändert').length;
   const rejectedCount = entries.filter((e) => e.verdict === 'abgelehnt').length;
@@ -465,6 +639,7 @@ export function applyHostPatch(doc: BimDocument, patch: HostPatch, now: string):
       ...doc,
       rooms,
       constructions,
+      fixtures,
       plant,
       meta: {
         ...meta,
@@ -512,6 +687,9 @@ export function writableFields(): {
   for (const [key, feld] of Object.entries(CONSTRUCTION_FIELDS)) {
     liste.push({ path: `constructions[].${key}`, label: feld.label, unit: feld.unit, range: feld.range });
   }
+  for (const [key, feld] of Object.entries(FIXTURE_FIELDS)) {
+    liste.push({ path: `fixtures[].${key}`, label: feld.label, unit: feld.unit, range: feld.range, values: feld.values });
+  }
   liste.push({ path: 'totalHeatLoad', label: 'Norm-Heizlast des Gebäudes', unit: 'W', range: PATCH_RANGES.heatLoad });
   return liste;
 }
@@ -527,6 +705,64 @@ interface Feld {
   values?: readonly string[];
   check: (value: unknown) => { value?: unknown; reason?: string };
 }
+
+/**
+ * Grenzen für die Auslegungsergebnisse.
+ *
+ * Sie sind weit gefasst, aber nicht offen: eine Norm-Wärmeleistung von 50 kW
+ * an einem einzelnen Heizkörper ist kein Auslegungsergebnis, sondern ein
+ * Einheitenfehler, und ein Exponent von 3 gibt es an keinem Gerät. Die
+ * Schnittstelle weist solche Werte ab und sagt warum, statt sie ins Modell zu
+ * lassen und später unerklärliche Zahlen zu erzeugen.
+ */
+const FIXTURE_RANGES = {
+  powerW: [0, 20000] as const,
+  /** DIN EN 442-2: die Exponenten liegen bei Raumheizkörpern zwischen 1,1 und 1,5. */
+  exponent: [1.0, 1.6] as const,
+  height: [0.1, 3.0] as const,
+  sections: [1, 60] as const,
+  length: [0.1, 20] as const,
+  temperature: [10, 95] as const,
+  loopSpacing: [0.05, 0.5] as const,
+  loopCount: [1, 20] as const,
+  screedCover: [0.01, 0.15] as const,
+  /** Fliese ≈ 0, Teppich ≈ 0,15; darüber wäre der Boden keine Heizfläche mehr. */
+  floorCovering: [0, 0.2] as const,
+  pipeOuter: [0.005, 0.05] as const,
+  pipeWall: [0.001, 0.01] as const,
+};
+
+const FIXTURE_FIELDS: Record<keyof Omit<FixturePatch, 'id'>, Feld> = {
+  powerW: { label: 'Normwärmeleistung', unit: 'W', range: FIXTURE_RANGES.powerW, check: (v) => checkNumber(v, FIXTURE_RANGES.powerW, 'W') },
+  radiatorType: { label: 'Bauart/Typ', check: (v) => checkText(v) },
+  radiatorExponent: {
+    label: 'Heizkörperexponent n',
+    range: FIXTURE_RANGES.exponent,
+    check: (v) => checkNumber(v, FIXTURE_RANGES.exponent, '-'),
+  },
+  radiatorHeight: { label: 'Bauhöhe', unit: 'm', range: FIXTURE_RANGES.height, check: (v) => checkNumber(v, FIXTURE_RANGES.height, 'm') },
+  radiatorSections: { label: 'Gliederzahl', range: FIXTURE_RANGES.sections, check: (v) => checkNumber(v, FIXTURE_RANGES.sections, '-') },
+  radiatorConnection: {
+    label: 'Anschlussart',
+    values: Object.keys(RADIATOR_CONNECTION_LABELS) as RadiatorConnection[],
+    check: (v) => checkEnum(v, Object.keys(RADIATOR_CONNECTION_LABELS)),
+  },
+  length: { label: 'Baulänge', unit: 'm', range: FIXTURE_RANGES.length, check: (v) => checkNumber(v, FIXTURE_RANGES.length, 'm') },
+  flowTemperature: { label: 'Vorlauftemperatur', unit: '°C', range: FIXTURE_RANGES.temperature, check: (v) => checkNumber(v, FIXTURE_RANGES.temperature, '°C') },
+  returnTemperature: { label: 'Rücklauftemperatur', unit: '°C', range: FIXTURE_RANGES.temperature, check: (v) => checkNumber(v, FIXTURE_RANGES.temperature, '°C') },
+  loopSpacing: { label: 'Verlegeabstand', unit: 'm', range: FIXTURE_RANGES.loopSpacing, check: (v) => checkNumber(v, FIXTURE_RANGES.loopSpacing, 'm') },
+  loopCount: { label: 'Zahl der Heizkreise', range: FIXTURE_RANGES.loopCount, check: (v) => checkNumber(v, FIXTURE_RANGES.loopCount, '-') },
+  screedCover: { label: 'Estrichüberdeckung', unit: 'm', range: FIXTURE_RANGES.screedCover, check: (v) => checkNumber(v, FIXTURE_RANGES.screedCover, 'm') },
+  floorCoveringResistance: {
+    label: 'Belagswiderstand R_λB',
+    unit: 'm²K/W',
+    range: FIXTURE_RANGES.floorCovering,
+    check: (v) => checkNumber(v, FIXTURE_RANGES.floorCovering, 'm²K/W'),
+  },
+  pipeOuterDiameter: { label: 'Rohraußendurchmesser', unit: 'm', range: FIXTURE_RANGES.pipeOuter, check: (v) => checkNumber(v, FIXTURE_RANGES.pipeOuter, 'm') },
+  pipeWallThickness: { label: 'Rohrwandstärke', unit: 'm', range: FIXTURE_RANGES.pipeWall, check: (v) => checkNumber(v, FIXTURE_RANGES.pipeWall, 'm') },
+  note: { label: 'Fabrikat und Typ', check: (v) => checkText(v) },
+};
 
 const PROJECT_FIELDS: Record<keyof ProjectPatch, Feld> = {
   designOutdoorTemperature: {
@@ -659,6 +895,23 @@ function checkNumber(value: unknown, range: readonly [number, number], unit: str
   // wie 0,30000000000000004 wäre sonst dauerhaft „geändert" und würde bei
   // jedem Schreibvorgang erneut in der Historie landen.
   return { value: Math.round(value * 1e6) / 1e6 };
+}
+
+/**
+ * Ein Freitextfeld — Fabrikat, Typenbezeichnung.
+ *
+ * Begrenzt auf 120 Zeichen: was länger ist, ist keine Typenbezeichnung,
+ * sondern eine Beschreibung, und die gehört nicht an ein Symbol im Plan.
+ * Leerer Text löscht das Feld nicht, sondern wird abgewiesen — Löschen ist
+ * eine Absicht, die man aussprechen muss, kein Nebenprodukt eines leeren
+ * Eingabefelds auf der Gegenseite.
+ */
+function checkText(value: unknown): { value?: string; reason?: string } {
+  if (typeof value !== 'string') return { reason: 'Erwartet wird Text.' };
+  const t = value.trim();
+  if (t === '') return { reason: 'Leerer Text. Zum Löschen gibt es keinen Weg über diese Schnittstelle.' };
+  if (t.length > 120) return { reason: `Zu lang (${t.length} Zeichen, höchstens 120).` };
+  return { value: t };
 }
 
 function checkEnum(value: unknown, erlaubt: readonly string[]): { value?: string; reason?: string } {

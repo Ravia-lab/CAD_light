@@ -29,6 +29,7 @@
 import type {
   BimNode,
   BoundaryCondition,
+  Construction,
   ClosureIssue,
   ClosureIssueKind,
   Opening,
@@ -61,6 +62,7 @@ import {
   sub,
 } from './geometry';
 import { solidFootprint } from './verticalSymbols';
+import { uWertWand } from './uwert';
 import { buildRoofFrame, measureRoomUnderRoof, wallProfileUnderRoof } from './roofGeometry';
 import type { RoofFrame } from './roofGeometry';
 
@@ -660,6 +662,123 @@ const boundedFaces = (faces: TracedFace[]): TracedFace[] =>
   faces.filter((f) => f.signed > MIN_ROOM_AREA * 0.5);
 
 // ---------------------------------------------------------------------------
+// Gebäudeumriss
+// ---------------------------------------------------------------------------
+
+/** Zwei Punkte, die aus derselben Graphenecke stammen. */
+const nahBei = (a: Vec2, b: Vec2): boolean =>
+  Math.abs(a.x - b.x) < 1e-6 && Math.abs(a.y - b.y) < 1e-6;
+
+/**
+ * Entfernt Stacheln aus einem traversierten Ring.
+ *
+ * Die Außenfacette läuft über *jede* Wand, auch über die, die nichts
+ * umschließt: ein freies Wandende, ein Gartenmauerstumpf, eine Wand, die nur
+ * an einem Ende angebunden ist. Solche Wände werden hin und wieder zurück
+ * durchlaufen und stehen im Ring als Zickzack ohne Fläche.
+ *
+ * Stehen bleiben dürfen sie nicht. Der Umriss wird für Punkt-Kanten-Abstände
+ * benutzt, und ein null Millimeter breiter Schlitz mitten in der Fläche liegt
+ * jedem Punkt daneben beliebig nahe — das Dach bekäme dort eine Kehle bis auf
+ * Traufhöhe, wo in Wirklichkeit gar keine Gebäudekante ist.
+ *
+ * Gestrichen wird, solange sich etwas ändert: ein langer Stachel aus mehreren
+ * Wänden wird von der Spitze her abgetragen, und jeder abgetragene Zacken legt
+ * den nächsten frei.
+ */
+function ohneStacheln(ring: readonly Vec2[]): Vec2[] {
+  let pts: Vec2[] = ring.map((p) => ({ x: p.x, y: p.y }));
+
+  for (let runde = 0; runde < pts.length + 4; runde++) {
+    // Aufeinanderfolgende Dubletten — auch über den Ringschluss hinweg.
+    const knapp: Vec2[] = [];
+    for (const p of pts) {
+      if (knapp.length === 0 || !nahBei(knapp[knapp.length - 1], p)) knapp.push(p);
+    }
+    while (knapp.length > 1 && nahBei(knapp[0], knapp[knapp.length - 1])) knapp.pop();
+    pts = knapp;
+    if (pts.length < 3) return [];
+
+    // Ein Stachel: Vorgänger und Nachfolger sind derselbe Punkt.
+    const n = pts.length;
+    let spitze = -1;
+    for (let i = 0; i < n; i++) {
+      if (nahBei(pts[(i - 1 + n) % n], pts[(i + 1) % n])) {
+        spitze = i;
+        break;
+      }
+    }
+    if (spitze < 0) return pts;
+    // Die Spitze und einen der beiden gleichen Nachbarn streichen; der andere
+    // bleibt stehen und schließt die Lücke.
+    const weg = (spitze + 1) % n;
+    pts = pts.filter((_, k) => k !== spitze && k !== weg);
+    if (pts.length < 3) return [];
+  }
+  return pts.length >= 3 ? pts : [];
+}
+
+/**
+ * Der Außenumriss aus einem bereits traversierten Facettensatz.
+ *
+ * Die unbeschränkte Facette läuft im Uhrzeigersinn und trägt deshalb eine
+ * negative Fläche. Gibt es mehrere — jede zusammenhängende Wandgruppe hat
+ * ihre eigene, und ein freistehender Innenring im Hof hat auch eine —, gewinnt
+ * die flächengrößte: das ist der Umriss des Gebäudes, alle anderen liegen
+ * darin oder daneben.
+ */
+function umrissAusFacetten(faces: TracedFace[]): Vec2[] {
+  let aussen: TracedFace | undefined;
+  for (const f of faces) {
+    if (f.signed >= 0) continue;
+    if (!aussen || f.signed < aussen.signed) aussen = f;
+  }
+  if (!aussen) return [];
+
+  const ring = simplifyPolygon(ohneStacheln(aussen.polygon));
+  if (ring.length < 3) return [];
+  // Umgedreht, damit der Umriss gegen den Uhrzeigersinn läuft — wie
+  // `room.polygon`, das aus den beschränkten Facetten kommt und dort schon
+  // CCW ist. Zwei Umlaufkonventionen in einem Programm wären eine Falle:
+  // jede Außennormale, jedes Vorzeichen einer Fläche hinge dann davon ab,
+  // aus welcher Funktion das Polygon gerade stammt.
+  ring.reverse();
+  return ring;
+}
+
+/**
+ * Der Gebäudeumriss eines Geschosses als geordnetes Polygon, gegen den
+ * Uhrzeigersinn und ohne Dubletten.
+ *
+ * **Warum es diese Funktion braucht.** Bis 1.26.0 gab es im ganzen Programm
+ * keine. Wer den Umriss brauchte — das Dach braucht ihn —, bekam eine
+ * *Punktwolke*: je Wand Anfangs- und Endknoten, mit Duplikaten, ohne
+ * Reihenfolge, Innenwände mittendrin. Daraus lässt sich nur noch das
+ * umschließende Rechteck bilden, und ein L-förmiges Haus ist kein Rechteck.
+ * Ein Walmdach über einem solchen Rechteck läuft über den Innenwinkel hinweg:
+ * Dachform, Raumvolumen, Wohnfläche nach WoFlV und die Dachflächen je
+ * Himmelsrichtung stimmen dann alle nicht — und zwar unbemerkt, weil die
+ * Zahlen plausibel aussehen.
+ *
+ * Gerechnet wird auf demselben planaren Graphen wie die Raumerkennung. Die
+ * unbeschränkte Facette, die dort verworfen wird, *ist* der gesuchte Umriss;
+ * sie wird hier nur nicht weggeworfen, sondern von Stacheln befreit und
+ * umgedreht.
+ *
+ * Leeres Ergebnis heißt: es gibt keinen geschlossenen Umriss (zu wenige
+ * Wände, nur Stummel, kein Ring). Dann rechnet der Aufrufer wie bisher — eine
+ * geratene Umrisslinie wäre schlimmer als gar keine.
+ */
+export function gebaeudeUmriss(
+  walls: Wall[],
+  nodes: Record<string, BimNode>,
+  weldTolerance = WELD_TOLERANCE,
+): Vec2[] {
+  if (walls.length < 3) return [];
+  return umrissAusFacetten(traceFaces(buildPlanarGraph(walls, nodes, weldTolerance)));
+}
+
+// ---------------------------------------------------------------------------
 // Raumbildung
 // ---------------------------------------------------------------------------
 
@@ -683,6 +802,39 @@ export interface DetectRoomsInput {
   roof?: RoofDefinition;
   /** Gauben und Dachflächenfenster dieses Geschosses. */
   roofOpenings?: RoofOpening[];
+  /**
+   * Der Katalog der Bauteilaufbauten — `doc.constructions`.
+   *
+   * **Warum die Raumerkennung ihn braucht.** Der Wandabschnitt führt einen
+   * U-Wert mit, und bis 1.23.0 war das stur `wall.uValue`. Eine Wand, der ein
+   * Aufbau aus dem Katalog zugewiesen war und die deshalb gar keinen eigenen
+   * U-Wert trug, kam damit ohne U-Wert aus der Raumerkennung heraus — während
+   * die Übergabe an RaVia denselben Aufbau längst auswertete. Zwei Programme,
+   * dieselbe Wand, zwei U-Werte.
+   *
+   * Wahlfrei, weil die Raumerkennung auch ohne Katalog arbeiten können muss:
+   * sie läuft in Prüfblöcken über von Hand gebaute Wandlisten, in denen es gar
+   * kein Dokument gibt. Ohne Katalog bleibt es bei der bisherigen Rangfolge
+   * ohne die oberste Stufe.
+   */
+  constructions?: Record<string, Construction>;
+}
+
+/**
+ * Der U-Wert, den ein Wandabschnitt mitführen darf.
+ *
+ * Nur die beiden belastbaren Stufen der Rangfolge: was im Modell steht.
+ * `undefined` heißt hier ausdrücklich „im Modell nicht erfasst" und nicht
+ * „null" — der Unterschied ist der ganze Zweck dieser Funktion. Wer daraus
+ * rechnet, muss den Vorgabewert selbst holen und mitdrucken, dass er geraten
+ * ist; siehe `uwert.ts` und `heatLoadEstimate.ts`.
+ */
+function uWertAbschnitt(
+  wall: Wall | undefined,
+  constructions: Record<string, Construction> | undefined,
+): number | undefined {
+  const auskunft = uWertWand(wall, constructions);
+  return auskunft.herkunft === 'aufbau' || auskunft.herkunft === 'bauteil' ? auskunft.wert : undefined;
 }
 
 /**
@@ -778,8 +930,20 @@ export function detectRooms(input: DetectRoomsInput): Room[] {
     weldTolerance = WELD_TOLERANCE,
     roof,
     roofOpenings = [],
+    constructions,
   } = input;
   if (walls.length < 3) return [];
+
+  const openingsByWall = new Map<string, Opening[]>();
+  for (const op of openings) {
+    const list = openingsByWall.get(op.wallId);
+    if (list) list.push(op);
+    else openingsByWall.set(op.wallId, [op]);
+  }
+
+  const graph = buildPlanarGraph(walls, nodes, weldTolerance);
+  const facetten = traceFaces(graph);
+  const faces = boundedFaces(facetten);
 
   // Bezugsrahmen des Daches einmal aus allen Wandknoten dieses Geschosses.
   // Er muss aus dem *ganzen* Geschoss kommen, nicht je Raum: der First liegt
@@ -791,17 +955,13 @@ export function detectRooms(input: DetectRoomsInput): Room[] {
     if (na) outline.push({ x: na.x, y: na.y });
     if (nb) outline.push({ x: nb.x, y: nb.y });
   }
-  const roofFrame: RoofFrame | null = buildRoofFrame(roof, outline, roofOpenings);
-
-  const openingsByWall = new Map<string, Opening[]>();
-  for (const op of openings) {
-    const list = openingsByWall.get(op.wallId);
-    if (list) list.push(op);
-    else openingsByWall.set(op.wallId, [op]);
-  }
-
-  const graph = buildPlanarGraph(walls, nodes, weldTolerance);
-  const faces = boundedFaces(traceFaces(graph));
+  // Der geordnete Umriss kommt aus *demselben* Facettensatz, der eben für die
+  // Räume traversiert wurde — ein zweiter Graphaufbau wäre der teuerste
+  // Schritt der Raumerkennung, doppelt. Gebildet wird er nur, wenn wirklich
+  // ein geneigtes Dach darüberliegt: der Regelfall ohne Dach darf nichts
+  // kosten.
+  const umriss = roof && roof.kind !== 'flat' ? umrissAusFacetten(facetten) : [];
+  const roofFrame: RoofFrame | null = buildRoofFrame(roof, outline, roofOpenings, umriss);
 
   const rooms: Room[] = [];
   const probesByRoom = new Map<string, Vec2[]>();
@@ -944,7 +1104,14 @@ export function detectRooms(input: DetectRoomsInput): Room[] {
         orientation: orientationFromAzimuth(azimuth),
         azimuth,
         isExterior: wall?.type === 'exterior',
-        uValue: wall?.uValue,
+        // Nicht `wall?.uValue`, sondern die Rangfolge aus `uwert.ts`: zuerst
+        // der zugewiesene Bauteilaufbau, dann der am Bauteil erfasste Wert.
+        // Der Vorgabewert nach Bauteilart bleibt hier bewusst **außen vor** —
+        // der Abschnitt soll festhalten, was im Modell steht, nicht was man
+        // ersatzweise annehmen könnte. Wer rechnet, fragt `uwert.ts` selbst
+        // und erfährt dabei auch die Herkunft; ein hier eingetragener
+        // Vorgabewert wäre von einem erfassten nicht mehr zu unterscheiden.
+        uValue: uWertAbschnitt(wall, constructions),
         // Vorläufig; die endgültige Randbedingung steht erst fest, wenn alle
         // Räume bekannt sind — ein Nachbarraum kann erst dann gefunden werden.
         boundary: wall?.boundary ?? (wall?.type === 'exterior' ? 'exterior' : 'unheated'),
@@ -1017,6 +1184,10 @@ export function detectRooms(input: DetectRoomsInput): Room[] {
       groundContactPerimeter: 0,
       exposedFacadeCount: 0,
       heightOverride: inherited?.heightOverride,
+      // Der Bodenbelag ist eine Angabe des Anwenders und überlebt das
+      // Neuerkennen — eine verschobene Wand ändert nicht, was auf dem
+      // Boden liegt.
+      floorCovering: inherited?.floorCovering,
       // Eine von der Gegenstelle gerechnete Heizlast überlebt das Neuerkennen.
       // Sie geht dabei aber nicht als „aktuell" durch: sie trägt den
       // Modellstand mit, für den sie gerechnet wurde, und das Anlagenblatt

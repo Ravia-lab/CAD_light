@@ -12,8 +12,13 @@
  */
 
 import type { Annotation, BimDocument, Opening, Room, SolidElement, Vec2 } from '../types/bim';
-import { PIPE_SERVICE_COLORS, PIPE_SERVICE_LABELS, SOLID_LABELS } from '../types/bim';
-import { annotationText, dimensionLine } from './annotationSymbols';
+import {
+  DURCHBRUCH_LABELS,
+  PIPE_SERVICE_COLORS,
+  PIPE_SERVICE_LABELS,
+  SOLID_LABELS,
+} from '../types/bim';
+import { annotationText, dimensionLine, planbeschriftungsText } from './annotationSymbols';
 import type { WallGeometry } from './wallGeometry';
 import {
   getWallGeometry,
@@ -27,12 +32,20 @@ import {
 import type { SymbolPart } from './openingSymbols';
 import { openingLabel, openingSymbol } from './openingSymbols';
 import { solidFootprint, solidsOnLevel, stairLayout, verticalCorners } from './verticalSymbols';
+import {
+  durchbruchBeschriftung,
+  durchbruchMitte,
+  durchbruchUmriss,
+  durchbruecheAufGeschoss,
+} from './durchbruchSymbols';
 import { accessorySymbol, type AccessoryPart } from './pipeAccessorySymbols';
 import { buildRoofFrame, dormerSide, ridgeLine, roofContourLines, roofOpeningCorners } from './roofGeometry';
+import { gebaeudeUmriss } from './roomDetection';
 import { pointInPolygon, polygonArea } from './geometry';
 import { druckeDokument } from './druckFenster';
 import { drawableScaleBar } from './planScaleBar';
 import { findeBeschriftungslage, type Rechteck } from './beschriftungsLage';
+import { EBENE_DURCHBRUECHE, ebeneFuerMedium, ebeneFuerObjekt } from './ebenen';
 
 /** Schriftgröße der Rohrbeschriftung auf dem Blatt [mm]. */
 const SCHRIFT = 1.6;
@@ -72,6 +85,16 @@ function raumstempelFelder(
   solids: { solid: SolidElement }[],
   X: (x: number) => number,
   Y: (y: number) => number,
+  /**
+   * Nur der Name, ohne Fläche.
+   *
+   * Auf einem Gewerkeblatt muss der Monteur wissen, in welchem Raum er
+   * steht — die Fläche braucht er nicht, und im Bad lägen Raumstempel,
+   * Heizkörperbeschriftung und Leitungsmaß sonst auf zwei Quadratzentimetern
+   * übereinander. Die Räume ganz wegzulassen wäre die schlechtere Antwort:
+   * Ein Plan ohne Raumnamen ist auf der Baustelle nicht zuzuordnen.
+   */
+  kurz = false,
 ): Raumstempel[] {
   const out: Raumstempel[] = [];
   for (const room of rooms) {
@@ -83,7 +106,7 @@ function raumstempelFelder(
     if (massiveShare(room, solids) >= 0.8) continue;
     const x = X(room.centroid.x);
     const y = Y(room.centroid.y);
-    const flaeche = `${room.area.toFixed(2)} m²`;
+    const flaeche = kurz ? '' : `${room.area.toFixed(2)} m²`;
     const breite = Math.max(
       room.name.length * STEMPEL.name,
       flaeche.length * STEMPEL.flaeche,
@@ -97,7 +120,7 @@ function raumstempelFelder(
         x0: x - breite / 2,
         x1: x + breite / 2,
         y0: y - 1 - STEMPEL.name * 0.8,
-        y1: y + 2.4 + STEMPEL.flaeche * 0.25,
+        y1: kurz ? y + STEMPEL.name * 0.3 : y + 2.4 + STEMPEL.flaeche * 0.25,
       },
     });
   }
@@ -149,10 +172,22 @@ export interface PlanPrintOptions {
   orientation: PaperOrientation;
   levelId: string;
   showRoomLabels: boolean;
+  /** Raumstempel auf den Namen verkürzen — für Gewerkeblätter. */
+  raumstempelKurz?: boolean;
   showDimensions: boolean;
   showFixtures: boolean;
   /** Freie Maßketten und Beschriftungen mitdrucken. */
   showAnnotations: boolean;
+  /**
+   * Handnotizen (Freihandstriche) mitdrucken.
+   *
+   * Standard ist **aus**, und das mit Absicht: Eine Notiz ist eine
+   * Randbemerkung für den, der sie geschrieben hat. Auf einem Plan, der aus
+   * dem Haus geht, hat sie nichts zu suchen, solange sie niemand bewusst
+   * dazugelegt hat. Anhaken kann man sie immer — versehentlich mitschicken
+   * soll man sie nicht.
+   */
+  showNotizen?: boolean;
   /** Raumweise Innenmaßketten (lichte Weiten) mitdrucken. */
   showInteriorDimensions: boolean;
   /** Symbollegende der verwendeten TGA-Objekte und Leitungen aufs Blatt. */
@@ -196,7 +231,24 @@ export function buildPlanSvg(doc: BimDocument, options: PlanPrintOptions): PlanF
 
   const walls = Object.values(doc.walls).filter((w) => w.levelId === options.levelId);
   const rooms = Object.values(doc.rooms).filter((r) => r.levelId === options.levelId);
-  const fixtures = Object.values(doc.fixtures).filter((f) => f.levelId === options.levelId);
+  /*
+   * **Der Druck liest die Ebenen.**
+   *
+   * Bis 1.26.0 kannte `planPrint` `doc.layers` überhaupt nicht: Ein
+   * ausgeblendetes Gewerk stand trotzdem auf dem Blatt. Damit war der
+   * Planungssatz — Grundriss, Grundriss+Heizung, Grundriss+Sanitär,
+   * Grundriss+Lüftung — aus diesem Programm nicht herzustellen; es gab
+   * `showFixtures` als *einen* Schalter für alle drei Gewerke.
+   *
+   * `showFixtures` bleibt daneben stehen und wirkt weiter: Es ist die Frage
+   * „Technik überhaupt?", die Ebene die Frage „welche?". Beides zugleich zu
+   * einem Schalter zusammenzuziehen hieße, dass ein ausgeblendetes Gewerk
+   * beim nächsten Druck stillschweigend wieder auftaucht.
+   */
+  const gewerkSichtbar = (id: string): boolean => doc.layers?.[id]?.visible !== false;
+  const fixtures = Object.values(doc.fixtures)
+    .filter((f) => f.levelId === options.levelId)
+    .filter((f) => gewerkSichtbar(ebeneFuerObjekt(f)));
   const openingIndex = indexOpeningsByWall(Object.values(doc.openings));
 
   // --- Ausdehnung des Plans in Metern -------------------------------------
@@ -350,6 +402,47 @@ export function buildPlanSvg(doc: BimDocument, options: PlanPrintOptions): PlanF
     );
   }
 
+  // --- Durchbrüche ----------------------------------------------------------
+  // Auf dem Blatt ist ein Durchbruch ein gekreuztes Feld mit einer Fahne
+  // daneben. Die Fahne steht außerhalb, nicht darin: bei 1:100 ist eine
+  // Kernbohrung Ø 152 anderthalb Millimeter groß, und in anderthalb Millimeter
+  // passt keine Zahl. Wer die Beschriftung ins Loch schriebe, bekäme ein
+  // Blatt, das aus der Ferne sauber aussieht und aus der Nähe unlesbar ist.
+  //
+  // Gezeichnet wird **nach** den Wänden und **vor** den Bauteilen: der
+  // Durchbruch sitzt in der Wand, das massive Bauteil steht davor.
+  for (const { durchbruch, vonUnten } of durchbruecheAufGeschoss(doc, options.levelId)) {
+    const poly = durchbruchUmriss(durchbruch, doc);
+    const mitte = durchbruchMitte(durchbruch, doc);
+    if (poly.length < 3 || !mitte) continue;
+    const d = poly.map((p, i) => `${i ? 'L' : 'M'}${X(p.x).toFixed(2)} ${Y(p.y).toFixed(2)}`).join(' ');
+    const stift = vonUnten ? 0.18 : 0.3;
+    parts.push(
+      `<path d="${d} Z" fill="#FFFFFF" stroke="#0F172A" stroke-width="${stift}"${vonUnten ? ' stroke-dasharray="1 0.7"' : ''}/>`,
+    );
+    // Das Kreuz im Feld — die Aussage „hier ist nichts". Ohne es liest jeder
+    // Prüfer das Rechteck in der Wand als Vormauerung.
+    const xs = poly.map((p) => X(p.x));
+    const ys = poly.map((p) => Y(p.y));
+    const x0 = Math.min(...xs);
+    const x1 = Math.max(...xs);
+    const y0 = Math.min(...ys);
+    const y1 = Math.max(...ys);
+    parts.push(
+      `<path d="M${x0.toFixed(2)} ${y0.toFixed(2)}L${x1.toFixed(2)} ${y1.toFixed(2)}M${x1.toFixed(2)} ${y0.toFixed(2)}L${x0.toFixed(2)} ${y1.toFixed(2)}" stroke="#0F172A" stroke-width="0.2" fill="none"/>`,
+    );
+    if (vonUnten) continue;
+    const fx = X(mitte.x);
+    const fy = Y(mitte.y);
+    const ty = y0 - 2.4;
+    parts.push(
+      `<path d="M${fx.toFixed(2)} ${fy.toFixed(2)}L${fx.toFixed(2)} ${(ty + 0.8).toFixed(2)}" stroke="#0F172A" stroke-width="0.18" fill="none"/>`,
+      `<text x="${fx.toFixed(2)}" y="${ty.toFixed(2)}" font-size="2" text-anchor="middle" fill="#0F172A" stroke="#FFFFFF" stroke-width="0.5" paint-order="stroke">${escapeXml(
+        durchbruchBeschriftung(durchbruch),
+      )}</text>`,
+    );
+  }
+
   // --- Massive Bauteile -----------------------------------------------------
   // Kamin, Pfeiler, Wandversatz. Auf dem Blatt sind sie Mauerwerk: dichte
   // 45°-Schraffur und eine kräftigere Umrisslinie als jedes andere Symbol.
@@ -450,7 +543,16 @@ export function buildPlanSvg(doc: BimDocument, options: PlanPrintOptions): PlanF
   const levelRoofOpenings = Object.values(doc.roofOpenings ?? {}).filter(
     (o) => o.levelId === options.levelId,
   );
-  const roofFrame = buildRoofFrame(doc.levels[options.levelId]?.roof, roofOutline, levelRoofOpenings);
+  const dach = doc.levels[options.levelId]?.roof;
+  // Der geordnete Umriss wird nur geholt, wenn wirklich ein geneigtes Dach
+  // darüberliegt: er kostet einen eigenen Graphaufbau, und der Regelfall
+  // ohne Dach soll den Ausdruck nicht bezahlen.
+  const roofFrame = buildRoofFrame(
+    dach,
+    roofOutline,
+    levelRoofOpenings,
+    dach && dach.kind !== 'flat' ? gebaeudeUmriss(walls, doc.nodes) : [],
+  );
   if (roofFrame) {
     const drawRoofLine = (
       line: { a: Vec2; b: Vec2 },
@@ -560,9 +662,44 @@ export function buildPlanSvg(doc: BimDocument, options: PlanPrintOptions): PlanF
       const w = f.length * mm;
       const h = Math.max(f.depth, 0.08) * mm;
       const colour = f.category === 'heating' ? '#B91C1C' : f.category === 'sanitary' ? '#1D4ED8' : '#047857';
+      /*
+       * **Die Anschlusspunkte gehören aufs Blatt, nicht nur auf den Schirm.**
+       *
+       * Auf dem Bildschirm zeichnet `anschlussPunkte` zwei Punkte unter den
+       * Heizkörper: gefüllt die Ventilseite, offen der Rücklauf. Auf dem
+       * gedruckten Blatt fehlten sie — und gerade das Blatt geht auf die
+       * Baustelle. Wer dort die Anbindung setzt, hätte die Seite raten
+       * müssen, obwohl sie im Modell erfasst ist. Ist keine Seite erfasst,
+       * bleiben beide Punkte offen: Das ist die ehrliche Aussage
+       * „nicht aufgenommen" und nicht „rechts".
+       *
+       * Gezeichnet wird nur, wenn überhaupt etwas erfasst ist — sonst
+       * bekäme jeder Heizkörper zwei nichtssagende Kringel, und die Legende
+       * müsste einen Zustand erklären, den niemand eingegeben hat.
+       */
+      const anschluss = f.params?.radiatorConnection;
+      const seite = f.params?.valveSide;
+      let punkte = '';
+      if ((anschluss || seite) && (f.type === 'radiator' || f.type === 'radiator-tube')) {
+        const y = h / 2 + Math.min(0.045, f.depth * 0.45) * mm;
+        const r = Math.min(0.028, f.length * 0.05) * mm;
+        const t = anschluss === 'mitte' ? [-0.025 / Math.max(f.length, 0.001), 0.025 / Math.max(f.length, 0.001)] : [-0.4, 0.4];
+        punkte = t
+          .map((anteil, i) => {
+            const links = i === 0;
+            const gefuellt = (links && seite === 'links') || (!links && seite === 'rechts');
+            return (
+              `<circle cx="${(anteil * w).toFixed(2)}" cy="${y.toFixed(2)}" r="${r.toFixed(2)}" ` +
+              `fill="${gefuellt ? colour : 'none'}" stroke="${colour}" stroke-width="0.15"/>`
+            );
+          })
+          .join('');
+      }
       parts.push(
         `<g transform="translate(${X(f.position.x).toFixed(2)} ${Y(f.position.y).toFixed(2)}) rotate(${(-f.rotation).toFixed(1)})">` +
-          `<rect x="${(-w / 2).toFixed(2)}" y="${(-h / 2).toFixed(2)}" width="${w.toFixed(2)}" height="${h.toFixed(2)}" fill="none" stroke="${colour}" stroke-width="0.2"/></g>`,
+          `<rect x="${(-w / 2).toFixed(2)}" y="${(-h / 2).toFixed(2)}" width="${w.toFixed(2)}" height="${h.toFixed(2)}" fill="none" stroke="${colour}" stroke-width="0.2"/>` +
+          punkte +
+          `</g>`,
       );
     }
   }
@@ -576,7 +713,13 @@ export function buildPlanSvg(doc: BimDocument, options: PlanPrintOptions): PlanF
    * würde die Beschriftung gegen eine zweite, nachgerechnete Lage prüfen,
    * liefen die beiden Fassungen früher oder später auseinander.
    */
-  const raumstempel = raumstempelFelder(options.showRoomLabels ? rooms : [], solids, X, Y);
+  const raumstempel = raumstempelFelder(
+    options.showRoomLabels ? rooms : [],
+    solids,
+    X,
+    Y,
+    options.raumstempelKurz === true,
+  );
 
   // --- Rohrnetz und Armaturen ----------------------------------------------
   // Die Legende führte die Leitungen seit jeher; gezeichnet wurden sie nie.
@@ -588,6 +731,7 @@ export function buildPlanSvg(doc: BimDocument, options: PlanPrintOptions): PlanF
   // aus, aber nicht einander.
   const belegteFelder: Rechteck[] = raumstempel.map((s) => s.kasten);
   for (const run of Object.values(doc.pipes ?? {})) {
+    if (!gewerkSichtbar(ebeneFuerMedium(run.service))) continue;
     if (run.levelId !== options.levelId || run.points.length < 2) continue;
     const d = run.points.map((p, i) => `${i ? 'L' : 'M'}${X(p.x).toFixed(2)} ${Y(p.y).toFixed(2)}`).join(' ');
     const farbe = PIPE_SERVICE_COLORS[run.service];
@@ -708,7 +852,11 @@ export function buildPlanSvg(doc: BimDocument, options: PlanPrintOptions): PlanF
   for (const stempel of raumstempel) {
     parts.push(
       `<text x="${stempel.x.toFixed(2)}" y="${(stempel.y - 1).toFixed(2)}" font-size="${STEMPEL.name}" font-weight="600" text-anchor="middle" fill="#0F172A">${escapeXml(stempel.name)}</text>`,
-      `<text x="${stempel.x.toFixed(2)}" y="${(stempel.y + 2.4).toFixed(2)}" font-size="${STEMPEL.flaeche}" text-anchor="middle" fill="#475569">${escapeXml(stempel.flaeche)}</text>`,
+      // Bei leerer Fläche entfällt die Zeile ganz — ein leeres `<text>` ließe
+      // den Kasten so hoch, als stünde etwas darin.
+      stempel.flaeche
+        ? `<text x="${stempel.x.toFixed(2)}" y="${(stempel.y + 2.4).toFixed(2)}" font-size="${STEMPEL.flaeche}" text-anchor="middle" fill="#475569">${escapeXml(stempel.flaeche)}</text>`
+        : '',
     );
   }
 
@@ -717,6 +865,20 @@ export function buildPlanSvg(doc: BimDocument, options: PlanPrintOptions): PlanF
     for (const note of Object.values(doc.annotations ?? {})) {
       if (note.levelId !== options.levelId) continue;
       parts.push(...annotationSvg(note, X, Y));
+    }
+  }
+
+  // --- Handnotizen ----------------------------------------------------------
+  // Bewusst als letzte Zeichnungsschicht, aber vor dem Schriftkopf: eine
+  // Notiz liegt auf dem Plan wie ein Bleistiftstrich auf dem Ausdruck und
+  // darf ihn überschreiben — den Schriftkopf jedoch nicht.
+  if (options.showNotizen) {
+    for (const strich of Object.values(doc.freihand ?? {})) {
+      if (strich.levelId !== options.levelId || strich.punkte.length < 2) continue;
+      const d = strich.punkte.map((p, i) => `${i === 0 ? 'M' : 'L'}${X(p.x).toFixed(2)} ${Y(p.y).toFixed(2)}`).join(' ');
+      parts.push(
+        `<path d="${d}" fill="none" stroke="#B45309" stroke-width="0.3" stroke-linecap="round" stroke-linejoin="round" opacity="0.85"/>`,
+      );
     }
   }
 
@@ -978,8 +1140,17 @@ function annotationSvg(
 
   if (note.kind === 'text') {
     const p = note.points[0];
+    /*
+     * Derselbe Text wie auf dem Bildschirm — über `planbeschriftungsText`.
+     *
+     * Vorher stand hier `note.text`. Das ist die Stelle, an der eine in der
+     * begehbaren Ansicht gesetzte Fahne ihre Höhenangabe verlor: am
+     * Bildschirm „2000 W · +0,85 m", auf dem gedruckten Blatt „2000 W".
+     * Gerade das Blatt geht aber auf die Baustelle, und dort ist die Höhe
+     * die Hälfte der Auskunft.
+     */
     out.push(
-      `<text x="${X(p.x).toFixed(2)}" y="${Y(p.y).toFixed(2)}" font-size="${size.toFixed(2)}" fill="#0F172A">${escapeXml(note.text ?? '')}</text>`,
+      `<text x="${X(p.x).toFixed(2)}" y="${Y(p.y).toFixed(2)}" font-size="${size.toFixed(2)}" fill="#0F172A">${escapeXml(planbeschriftungsText(note))}</text>`,
     );
     return out;
   }
@@ -992,7 +1163,7 @@ function annotationSvg(
     out.push(
       `<path d="M${X(tip.x).toFixed(2)} ${Y(tip.y).toFixed(2)} L${X(anchor.x).toFixed(2)} ${Y(anchor.y).toFixed(2)} L${flagX.toFixed(2)} ${Y(anchor.y).toFixed(2)}" fill="none" stroke="#334155" stroke-width="0.12"/>`,
       `<circle cx="${X(tip.x).toFixed(2)}" cy="${Y(tip.y).toFixed(2)}" r="0.5" fill="#334155"/>`,
-      `<text x="${(flagX - dir * 7.5).toFixed(2)}" y="${(Y(anchor.y) - 0.8).toFixed(2)}" font-size="${size.toFixed(2)}" text-anchor="${dir > 0 ? 'start' : 'end'}" fill="#0F172A">${escapeXml(note.text ?? '')}</text>`,
+      `<text x="${(flagX - dir * 7.5).toFixed(2)}" y="${(Y(anchor.y) - 0.8).toFixed(2)}" font-size="${size.toFixed(2)}" text-anchor="${dir > 0 ? 'start' : 'end'}" fill="#0F172A">${escapeXml(planbeschriftungsText(note))}</text>`,
     );
     return out;
   }
@@ -1042,6 +1213,10 @@ function buildLegend(
   frame: { x: number; y: number; w: number; h: number },
 ): string {
   const entries: { colour: string; label: string; dashed?: boolean; pattern?: string }[] = [];
+  // Die Legende zeigt nur, was auf *diesem* Blatt steht — also auch nur die
+  // eingeblendeten Gewerke. Eine Legende, die ein Gewerk führt, das der Plan
+  // nicht zeigt, lässt den Leser danach suchen.
+  const gewerkSichtbar = (id: string): boolean => doc.layers?.[id]?.visible !== false;
 
   // Massives Mauerwerk zuerst: es ist die einzige Flächensignatur auf dem
   // Blatt und wird sonst mit einem Schacht verwechselt.
@@ -1058,6 +1233,7 @@ function buildLegend(
   if (options.showFixtures) {
     const seen = new Set<string>();
     for (const f of Object.values(doc.fixtures)) {
+      if (!gewerkSichtbar(ebeneFuerObjekt(f))) continue;
       if (f.levelId !== options.levelId || seen.has(f.category)) continue;
       seen.add(f.category);
       entries.push({
@@ -1070,6 +1246,7 @@ function buildLegend(
 
   const seenPipes = new Set<string>();
   for (const run of Object.values(doc.pipes ?? {})) {
+    if (!gewerkSichtbar(ebeneFuerMedium(run.service))) continue;
     if (run.levelId !== options.levelId) continue;
     const key = `${run.service}-${run.nominalDiameter}`;
     if (seenPipes.has(key)) continue;
@@ -1078,6 +1255,35 @@ function buildLegend(
       colour: PIPE_SERVICE_COLORS[run.service],
       label: `${PIPE_SERVICE_LABELS[run.service]} DN ${run.nominalDiameter}`,
       dashed: run.service === 'heating-return',
+    });
+  }
+
+  /*
+   * Die Ventilseite braucht eine Zeile, sobald sie auf dem Blatt vorkommt.
+   *
+   * Zwei kleine Kreise unter einem Heizkörper erklären sich nicht von
+   * selbst — und eine Signatur, die auf dem Blatt steht, aber in der Legende
+   * fehlt, ist auf der Baustelle eine Rückfrage. Die Zeile erscheint nur,
+   * wenn wirklich eine Seite erfasst ist: Wo alles offen bliebe, gäbe es
+   * nichts zu erklären.
+   */
+  if (options.showFixtures) {
+    const mitSeite = Object.values(doc.fixtures).some(
+      (f) => f.levelId === options.levelId && f.params?.valveSide !== undefined,
+    );
+    if (mitSeite) {
+      entries.push({ colour: '#B91C1C', pattern: 'ventilseite', label: 'Ventilseite (gefüllt), von vorn' });
+    }
+  }
+
+  const durchbrueche = gewerkSichtbar(EBENE_DURCHBRUECHE)
+    ? durchbruecheAufGeschoss(doc, options.levelId).filter((e) => !e.vonUnten)
+    : [];
+  if (durchbrueche.length) {
+    const arten = [...new Set(durchbrueche.map((e) => DURCHBRUCH_LABELS[e.durchbruch.kind]))];
+    entries.push({
+      colour: '#0F172A',
+      label: arten.length > 1 ? `Durchbrüche (${durchbrueche.length})` : `${arten[0]} (${durchbrueche.length})`,
     });
   }
 
@@ -1096,9 +1302,19 @@ function buildLegend(
   const rows = entries
     .map((e, i) => {
       const ry = y + 6 + i * rowH;
-      const swatch = e.pattern
-        ? `<rect x="${(x + 2).toFixed(2)}" y="${(ry - 1.3).toFixed(2)}" width="6" height="2.6" fill="url(#${e.pattern})" stroke="${e.colour}" stroke-width="0.2"/>`
-        : `<line x1="${(x + 2).toFixed(2)}" y1="${ry.toFixed(2)}" x2="${(x + 8).toFixed(2)}" y2="${ry.toFixed(2)}" stroke="${e.colour}" stroke-width="0.5"${e.dashed ? ' stroke-dasharray="1.2 0.8"' : ''}/>`;
+      /*
+       * Die Ventilseite bekommt kein Füllmuster, sondern ihr eigenes
+       * Sinnbild: zwei Kreise, einer voll, einer leer — genau das, was auf
+       * dem Blatt unter dem Heizkörper steht. Ein Strich in Rot hätte hier
+       * nichts erklärt.
+       */
+      const swatch =
+        e.pattern === 'ventilseite'
+          ? `<circle cx="${(x + 3.2).toFixed(2)}" cy="${ry.toFixed(2)}" r="0.9" fill="${e.colour}"/>` +
+            `<circle cx="${(x + 6.4).toFixed(2)}" cy="${ry.toFixed(2)}" r="0.9" fill="none" stroke="${e.colour}" stroke-width="0.2"/>`
+          : e.pattern
+            ? `<rect x="${(x + 2).toFixed(2)}" y="${(ry - 1.3).toFixed(2)}" width="6" height="2.6" fill="url(#${e.pattern})" stroke="${e.colour}" stroke-width="0.2"/>`
+            : `<line x1="${(x + 2).toFixed(2)}" y1="${ry.toFixed(2)}" x2="${(x + 8).toFixed(2)}" y2="${ry.toFixed(2)}" stroke="${e.colour}" stroke-width="0.5"${e.dashed ? ' stroke-dasharray="1.2 0.8"' : ''}/>`;
       return (
         swatch +
         `<text x="${(x + 10).toFixed(2)}" y="${(ry + 0.8).toFixed(2)}" font-size="2" fill="#334155">${escapeXml(e.label)}</text>`

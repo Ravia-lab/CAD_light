@@ -335,6 +335,7 @@ export function pruefeMassivbauteile(check: CheckFn): void {
     openings: Object.values(quelle.openings),
     verticals: Object.values(quelle.verticals),
     solids: Object.values(quelle.solids),
+    durchbrueche: Object.values(quelle.durchbrueche ?? {}),
     newId: neueId,
   });
 

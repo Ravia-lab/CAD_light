@@ -34,8 +34,14 @@ import type { HostPatch, HostPatchReport } from './hostPatch';
  * `getWritableFields`. Die lesenden Befehle sind unverändert geblieben,
  * deshalb die kleine Stelle: eine Gegenstelle, die gegen 1.0.0 gebaut wurde,
  * läuft weiter.
+ *
+ * 1.2.0 — der Export trägt zwei neue Blöcke, `emitters` und `hydraulics`,
+ * und `applyPatch` nimmt zusätzlich `fixtures[]` entgegen. Auch das ist
+ * ausschließlich Zuwachs: kein Feld ist weggefallen, keines hat seine
+ * Bedeutung geändert. Wer gegen 1.1.0 gebaut hat, läuft unverändert weiter —
+ * er sieht die neuen Blöcke nur nicht.
  */
-export const EMBED_API_VERSION = '1.1.0';
+export const EMBED_API_VERSION = '1.2.0';
 
 /** Kurzfassung des Modells — das, was eine Gegenstelle meistens wissen will. */
 export interface RaviaSummary {

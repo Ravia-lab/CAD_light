@@ -24,6 +24,55 @@
  */
 
 import type { BimNode, Opening, OpeningKind, Vec2, Wall, WallType } from '../types/bim';
+import { VORGABE_U } from './uwert';
+
+/*
+ * U-Werte beim Import — **eine Quelle für die Wand, eine begründete Ausnahme
+ * für die Öffnung.**
+ *
+ * Die Wand bekommt den Vorgabewert ihrer Bauteilart aus `uwert.ts`. Vorher
+ * stand hier `wallType === 'exterior' ? 0.24 : 1.2`: dieselben Zahlen wie im
+ * Vorgabekatalog, nur an einer zweiten Stelle geschrieben und schon
+ * auseinandergelaufen — „nicht außen" wurde pauschal mit dem Wert der
+ * *Innenwand* belegt, auch wo `guessWallType` eine Trenn- oder Schachtwand
+ * erkannt hatte. Der Katalog führt für die beiden 1,4 statt 1,2. Über
+ * `VORGABE_U[wallType]` kann das nicht mehr auseinanderlaufen.
+ *
+ * **Warum überhaupt ein Wert am Bauteil steht.** Zahlengleich wäre es, gar
+ * keinen zu schreiben: `uwert.ts` setzt denselben Vorgabewert ein, wenn am
+ * Bauteil nichts steht. Der Unterschied liegt allein in der Herkunft —
+ * geschrieben heißt „am Bauteil erfasst", weggelassen heißt „angenommen".
+ * Ehrlicher wäre Weglassen, denn eine IFC-Datei ohne U-Wert-Pset hat nichts
+ * erfasst. Es bleibt trotzdem beim Schreiben, weil `validation.ts` sonst für
+ * **jede** importierte Wand und jede Öffnung eine Meldung erzeugt: An einem
+ * mittleren Scan sind das über hundert Hinweise, die alle dasselbe sagen,
+ * und eine Prüfliste, in der hundert gleiche Meldungen stehen, wird nicht
+ * gelesen — damit auch die eine nicht, auf die es ankommt. Sobald der Import
+ * die Herkunft je Bauteil führen kann, gehört diese Entscheidung umgedreht.
+ *
+ * **Die Öffnung folgt bewusst nicht `VORGABE_U`.** Dort stehen 0,95 für das
+ * Fenster und 1,6 für die Tür — Werte eines heutigen Neubaus. Was hier
+ * ankommt, ist Bestand: eine aufgemessene oder gescannte Wirklichkeit. 1,3
+ * ist das Zweischeiben-Fenster (`c-fe-2fach` im Aufbaukatalog), 1,8 die
+ * Innentür (`c-tu-innen`); beide sind für ein Bestandsgebäude die bessere
+ * Annahme. Sie auf `VORGABE_U` zu ziehen hieße, jedes importierte Fenster um
+ * 27 % besser zu rechnen, als es vermutlich ist — und zwar nach unten, in
+ * die Richtung, in der ein zu kleines Gerät herauskommt. Die Zahlen bleiben
+ * deshalb, wo sie sind, und heißen hier so, dass man sieht, dass sie gemeint
+ * sind.
+ *
+ * Der **Durchgang** bekommt gar keinen mehr. `uWertOeffnung` beantwortet ihn
+ * seit 1.23.0 selbst mit 0 aus dem Katalog — er ist ein Loch in der Wand und
+ * kein Bauteil. Die 0 am Bauteil stehen zu lassen wäre nicht falsch, aber
+ * überflüssig, und sie steht damit als „erfasster U-Wert 0" im Modell:
+ * genau die Eingabe, die `validation.ts` seit 1.23.0 als unplausibel meldet.
+ * Dass der Durchgang dort ausgenommen ist, ist eine Ausnahme mehr, auf die
+ * sich niemand verlassen sollte.
+ */
+/** U-Wert eines importierten Fensters [W/(m²·K)] — Zweischeiben-Bestand. */
+const U_FENSTER_BESTAND = 1.3;
+/** U-Wert einer importierten Tür [W/(m²·K)] — Innentür aus dem Aufbaukatalog. */
+const U_TUER_BESTAND = 1.8;
 
 // ---------------------------------------------------------------------------
 // STEP-Parser
@@ -665,7 +714,7 @@ export function importIfc(text: string): IfcImportResult {
         height: Math.round(Math.max(1, axis.height || 2.75) * 1000) / 1000,
         type: wallType,
         layerId: 'layer-walls',
-        uValue: wallType === 'exterior' ? 0.24 : 1.2,
+        uValue: VORGABE_U[wallType],
         levelId,
       });
     }
@@ -745,7 +794,11 @@ export function importIfc(text: string): IfcImportResult {
       height: Math.round(height * 1000) / 1000,
       sillHeight: Math.round(sill * 1000) / 1000,
       layerId: 'layer-openings',
-      uValue: kind === 'window' ? 1.3 : kind === 'door' ? 1.8 : 0,
+      ...(kind === 'window'
+        ? { uValue: U_FENSTER_BESTAND }
+        : kind === 'door'
+          ? { uValue: U_TUER_BESTAND }
+          : {}),
       gValue: kind === 'window' ? 0.6 : undefined,
     } as Opening);
   }

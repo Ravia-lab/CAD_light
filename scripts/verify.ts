@@ -101,13 +101,41 @@ import { pruefeKeller } from './pruefungen/keller';
 import { pruefeRaumerkennung } from './pruefungen/raumerkennung';
 import { pruefeProjekte } from './pruefungen/projekte';
 import { pruefeMassivbauteile } from './pruefungen/massivbauteile';
-import { pruefeBaugrund, pruefeLueftungskonvention } from './pruefungen/uebergabe';
+import { pruefeDurchbrueche } from './pruefungen/durchbrueche';
+import { pruefeWandfuehrung } from './pruefungen/wandfuehrung';
+import { pruefeRohrlaenge } from './pruefungen/rohrlaenge';
+import { pruefeHeizflaeche } from './pruefungen/heizflaeche';
+import { pruefeGriffe } from './pruefungen/griffe';
+import { pruefeUwert } from './pruefungen/uwert';
+import { pruefeSystemtemperatur } from './pruefungen/systemtemperatur';
+import { pruefeAnschlussgroesse } from './pruefungen/anschlussgroesse';
+import { pruefeVorhaben } from './pruefungen/vorhaben';
+import { pruefeBaugrund, pruefeLueftungskonvention, pruefeRueckweg } from './pruefungen/uebergabe';
+import { pruefeAuslegungsuebergabe } from './pruefungen/auslegungsuebergabe';
+import { pruefeUWertQuelle } from './pruefungen/uwertquelle';
+import { pruefePruefsumme } from './pruefungen/pruefsumme';
+import { pruefeExportvertrag } from './pruefungen/exportvertrag';
+import { pruefeFassung } from './pruefungen/fassung';
 import { pruefeProjektmappe } from './pruefungen/projektmappe';
+import { pruefeUiModus } from './pruefungen/uimodus';
 import { pruefeSchichtgrenze } from './pruefungen/schichtgrenze';
 import { pruefeBeschriftungslage } from './pruefungen/beschriftungslage';
+import { pruefeSchemabeschriftung } from './pruefungen/schemabeschriftung';
+import { pruefeZeigereingabe } from './pruefungen/zeigereingabe';
+import { pruefeSkizze } from './pruefungen/skizze';
+import { pruefeNotizen } from './pruefungen/notizen';
+import { pruefeBeschriftungsflaeche, pruefeEckpunkte } from './pruefungen/eckpunkte';
+import { pruefeBegehen } from './pruefungen/begehen';
+import { pruefeRaumtreffer } from './pruefungen/raumtreffer';
 import { pruefeErzeugerhydraulik } from './pruefungen/erzeugerhydraulik';
 import { pruefeRaumscan } from './pruefungen/raumscan';
 import { pruefeAufmass } from './pruefungen/aufmass';
+import { pruefeWerkzeugkiste } from './pruefungen/werkzeugkiste';
+import { pruefeBeschriftung3d } from './pruefungen/beschriftung';
+import { pruefeWandquerung } from './pruefungen/wandquerung';
+import { pruefeDachumriss } from './pruefungen/dachumriss';
+import { pruefeAussenwand } from './pruefungen/aussenwand';
+import { pruefeEbenen } from './pruefungen/ebenen';
 
 let failures = 0;
 let checks = 0;
@@ -661,7 +689,7 @@ console.log('\n▸ Export für die Heizlastberechnung');
   };
 
   const ex = buildRaviaExport(doc as never);
-  check('Schema-Version', ex.version, '2.0.0');
+  check('Schema-Version', ex.version, '2.1.0');
   check('Einheiten dokumentiert', ex.units.uValue, 'W/(m2K)');
 
   const room = ex.rooms.find((r) => r.polygon.some((p) => p.x < 4))!;
@@ -3623,11 +3651,38 @@ pruefeProjekte(check);
 console.log('\n▸ Massive Bauteile — Kamin, Pfeiler, Geschoss übernehmen');
 pruefeMassivbauteile(check);
 
+console.log('\n▸ Durchbrüche — Kernbohrung, Deckenloch, Schottung');
+pruefeDurchbrueche(check);
+
+console.log('\n▸ Wandführung — wohin ein Heizkörper kann, und wie weit er ist');
+pruefeWandfuehrung(check);
+
+console.log('\n▸ U-Wert — die Zahl, die eine Wand in der Bilanz hält');
+pruefeUwert(check);
+
 console.log('\n▸ Lüftung — Konvention und Volumenströme im Export');
 pruefeLueftungskonvention(check);
 
 console.log('\n▸ Baugrund — Bodenart und Grundwasserstand im Export');
 pruefeBaugrund(check);
+
+console.log('\n▸ Rückweg — was aus der Exportdatei wieder ein Modell macht');
+pruefeRueckweg(check);
+
+console.log('\n▸ Auslegungsübergabe — hat der Rechenkern alles, was er braucht?');
+pruefeAuslegungsuebergabe(check);
+
+console.log('\n▸ U-Wert-Quelle — woher jede Zahl im Export stammt');
+pruefeUWertQuelle(check);
+
+console.log('\n▸ Prüfsumme — erkennt die Gegenstelle, was sich geändert hat?');
+pruefePruefsumme(check);
+
+console.log('\n▸ Exportvertrag — das Format, gegen das die Gegenstelle baut');
+pruefeExportvertrag(check);
+
+console.log('\n▸ Fassung — eine Nummer, ein Ort');
+pruefeFassung(check);
 
 console.log('\n▸ Druckplan — Ecken, Symbolik, Maße');
 pruefeDruckplan(check);
@@ -3656,16 +3711,79 @@ pruefeSchemapruefung(check);
 console.log('\n▸ Schemavorschlag — Katalog, Merkmale, Auswahl');
 pruefeSchemavorschlag(check);
 
+console.log('\n▸ Zeigereingabe — Stift, Finger und der Handballen');
+pruefeZeigereingabe(check);
+
+console.log('\n▸ Skizze — aus einem Freihandstrich werden Wände');
+pruefeSkizze(check);
+
+console.log('\n▸ Notizebene — Radierer, Geschossgrenze und der Speicherweg');
+pruefeNotizen(check);
+
+console.log('\n▸ Eckpunkte — was beim Zeichnen gefangen wird');
+pruefeEckpunkte(check);
+
+console.log('\n▸ Beschriftungsfläche — wo ein Text getroffen wird');
+pruefeBeschriftungsflaeche(check);
+
+console.log('\n▸ Begehen — komme ich durch die Tür, hält die Wand?');
+pruefeBegehen(check);
+
+console.log('\n▸ Raumtreffer — was ein Punkt im Raum im Modell bedeutet');
+pruefeRaumtreffer(check);
+
+console.log('\n▸ Werkzeugkiste — zielen, urteilen, setzen im begehbaren Haus');
+pruefeWerkzeugkiste(check);
+
+console.log('\n▸ Beschriften in 3D — die Fahne, die nicht altert');
+pruefeBeschriftung3d(check);
+
 console.log('\n▸ Beschriftungslage — Nennweite, Raumstempel und Armaturen im Bild');
 pruefeBeschriftungslage(check);
+
+console.log('\n▸ Schemabeschriftung — 63 Überdeckungen, gezählt und beseitigt');
+pruefeSchemabeschriftung(check);
 pruefeRaumscan(check);
 pruefeAufmass(check);
+
+console.log('\n▸ Systemtemperatur — eine Anlage, eine Auslegungstemperatur');
+pruefeSystemtemperatur(check);
+
+console.log('\n▸ Rohrlänge — was der Grundriss nicht zeigt');
+pruefeRohrlaenge(check);
+
+console.log('\n▸ Heizfläche — von der Raumheizlast zur Normleistung');
+pruefeHeizflaeche(check);
+
+console.log('\n▸ Griffe — was man in der 3D-Ansicht anfassen kann');
+pruefeGriffe(check);
+
+console.log('\n▸ Anschlussgröße — wirkt der Gerätestutzen des Erzeugers auf die Leitung?');
+pruefeAnschlussgroesse(check);
+
+console.log('\n▸ Vorhaben — Neubau, Sanierung, Teilsanierung und was daraus folgt');
+pruefeVorhaben(check);
 
 console.log('\n▸ Erzeugerhydraulik — der Posten, der bis 1.13.2 null war');
 pruefeErzeugerhydraulik(check);
 
 console.log('\n▸ Projektmappe — ein Dokument aus vier Druckwegen');
 pruefeProjektmappe(check);
+
+console.log('\n▸ Wandquerung — das Loch, das bis 1.25.0 niemand bestellt hat');
+pruefeWandquerung(check);
+
+console.log('\n▸ Dachumriss — das Dach folgt dem Grundriss statt seiner Bounding Box');
+pruefeDachumriss(check);
+
+console.log('\n▸ Außenwand — die Hülle einmal zeichnen, nicht je Geschoss neu');
+pruefeAussenwand(check);
+
+console.log('\n▸ Ebenen — was auf welcher liegt, was man sieht, was man anfassen darf');
+pruefeEbenen(check);
+
+console.log('\n▸ UI-Modus — wie viel von diesem Programm jemand zu sehen bekommt');
+pruefeUiModus(check);
 
 console.log('\n▸ Schichtgrenze — steht der Rechenkern für sich allein?');
 pruefeSchichtgrenze(check);

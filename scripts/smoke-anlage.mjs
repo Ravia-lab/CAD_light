@@ -132,6 +132,41 @@ console.log('\n▸ Schema erzeugen');
   expect('Legende sichtbar', await p.locator('text=Heizung Vorlauf').count() > 0, true);
 }
 
+/*
+ * Das gedruckte Blatt war unlesbar: die Bauteilnamen standen waagerecht am
+ * Symbol, und bei M 1:200 — dem Maßstab, in dem diese Anlage auf A4 quer
+ * passt — überdeckten sie einander dutzendfach. Geprüft wird deshalb an der
+ * Oberfläche, was das Rechenmodul entscheidet: dass der Druckdialog die Wahl
+ * anbietet, dass er von sich aus Nummern wählt, und dass er sagt, was die
+ * erzwungenen Namen kosten würden.
+ */
+console.log('\n▸ Der Druckdialog des Schemas');
+{
+  await p.locator('button[title="Maßstäblich drucken oder als PDF sichern"]').click();
+  await p.waitForTimeout(300);
+  const dialog = p.locator('text=Anlagenschema drucken').locator('xpath=ancestor::div[contains(@class,"panel")]').first();
+  expect('Der Druckdialog geht auf', await dialog.isVisible(), true);
+  expect('Die Beschriftungsart ist wählbar', await dialog.getByText('Bauteile benennen').count() > 0, true);
+
+  const zustand = await dialog.innerText();
+  expect('Von sich aus stehen Positionsnummern auf dem Blatt', /Positionsnummern/.test(zustand), true);
+  expect('Das Blatt hat mehr als eine Seite', /\d+ Blatt/.test(zustand), true);
+
+  // Namen erzwingen: dann muss der Dialog den Preis nennen, statt still ein
+  // unlesbares Blatt zu drucken.
+  await dialog.getByRole('button', { name: 'Namen', exact: true }).click();
+  await p.waitForTimeout(300);
+  const beiNamen = await dialog.innerText();
+  expect('Erzwungene Namen werden als Überdeckung gemeldet', /überdecken einander/.test(beiNamen), true);
+
+  await dialog.getByRole('button', { name: 'automatisch', exact: true }).click();
+  await p.waitForTimeout(300);
+  expect('Zurück auf automatisch stehen wieder Nummern', /Positionsnummern/.test(await dialog.innerText()), true);
+
+  await dialog.getByText('schließen').click();
+  await p.waitForTimeout(200);
+}
+
 console.log('\n▸ Schema von Hand bearbeiten');
 {
   const canvas = p.locator('main canvas').first();

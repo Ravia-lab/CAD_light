@@ -26,6 +26,7 @@ import type {
 } from '../types/bim';
 import { PIPE_SERVICE_COLORS } from '../types/bim';
 import { accessorySymbol } from './pipeAccessorySymbols';
+import { trassenlaenge as trassenlaengeVon } from './rohrlaenge';
 import { findeBeschriftungslage, type Rechteck } from './beschriftungsLage';
 
 const TO_RAD = Math.PI / 180;
@@ -398,6 +399,46 @@ export function drawPipe(
   ctx.save();
   ctx.lineCap = 'round';
   ctx.lineJoin = 'round';
+
+  /*
+   * **Der Strang, der im Grundriss ein Punkt ist.**
+   *
+   * Ein Fallstrang in der Zimmerecke hat keine Trassenlänge — Anfang und
+   * Ende liegen aufeinander. Gezeichnet als Linie ergäbe das nichts
+   * Sichtbares: Der Plan zeigte an dieser Stelle leeren Fußboden, während
+   * im Modell zweieinhalb Meter Rohr stehen, die im Massenauszug und im
+   * Druckverlust auftauchen. Genau diese Lücke zwischen Plan und Liste ist
+   * es, an der Bestellungen scheitern.
+   *
+   * Ein Strang bekommt deshalb ein eigenes Zeichen: ein Ring um den
+   * Durchstoßpunkt, mit einem Pfeil nach oben oder unten für die Richtung.
+   * Die Darstellung ist dieselbe Verabredung wie auf jedem Strangschema —
+   * wer Pläne liest, muss dafür nichts lernen.
+   */
+  const dh = (run.elevationTo ?? run.elevation) - run.elevation;
+  const trasse = trassenlaengeVon(run.points);
+  if (Math.abs(dh) >= 0.15 && trasse < 0.2) {
+    const x = sx(run.points[0].x);
+    const y = sy(run.points[0].y);
+    const r = Math.max(4, Math.min(10, 0.09 * zoom));
+    ctx.beginPath();
+    ctx.arc(x, y, r, 0, Math.PI * 2);
+    ctx.strokeStyle = colour;
+    ctx.lineWidth = state.selected ? 2.4 : 1.6;
+    ctx.setLineDash([]);
+    ctx.stroke();
+    // Pfeilspitze: nach oben, wenn der Strang steigt.
+    const auf = dh > 0;
+    ctx.beginPath();
+    ctx.moveTo(x, auf ? y - r * 0.65 : y + r * 0.65);
+    ctx.lineTo(x - r * 0.42, auf ? y + r * 0.25 : y - r * 0.25);
+    ctx.lineTo(x + r * 0.42, auf ? y + r * 0.25 : y - r * 0.25);
+    ctx.closePath();
+    ctx.fillStyle = colour;
+    ctx.fill();
+    ctx.restore();
+    return;
+  }
 
   // Gedämmte Leitungen bekommen einen breiten, blassen Mantel — man sieht
   // auf einen Blick, was gedämmt ist und was nicht.

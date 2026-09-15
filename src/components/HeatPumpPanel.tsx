@@ -35,6 +35,8 @@ import {
   sourceDemand,
   waterProtectionVerdict,
 } from '../lib/heatPump';
+import { anschlussVonGeraet, nennweiteAusText, NENNWEITE_GEWINDE } from '../lib/anschlussgroesse';
+import { findModel } from '../lib/deviceCatalog';
 import { useBimStore } from '../store/useBimStore';
 import Erklaerung from './Erklaerung';
 
@@ -79,6 +81,25 @@ export default function HeatPumpPanel() {
 
   const elements = useMemo(() => Object.values(site.elements), [site.elements]);
   const hasBoundary = elements.some((e) => e.kind === 'boundary');
+
+  /*
+   * Das Katalogmodell, aus dem die Anschlussgröße vorbelegt wird.
+   *
+   * Nur das **ausdrücklich gewählte**: Solange im Anlagenblatt kein Gerät
+   * steht, schlägt die Anlagenauslegung zwar eines vor, aber ein Vorschlag
+   * ist keine Aussage über das Gerät, das hier aufgestellt wird. Eine
+   * Vorbelegung aus einem Vorschlag stünde nach dem ersten Klick als
+   * scheinbar erfasster Datenblattwert im Feld.
+   */
+  const katalogModell = useMemo(
+    () => (doc.plant?.generatorModelId ? findModel(doc.plant.generatorModelId, doc.plant.extraModels) : undefined),
+    [doc.plant?.generatorModelId, doc.plant?.extraModels],
+  );
+  /** Was das Gerät heute sagt — und woher es kommt. */
+  const anschluss = useMemo(
+    () => anschlussVonGeraet(pump, katalogModell),
+    [pump, katalogModell],
+  );
 
   return (
     <div className="space-y-3 p-3">
@@ -326,6 +347,112 @@ export default function HeatPumpPanel() {
                 {pump.domesticHotWater ? ` + ${fmt(0.2 * pump.occupants, 1)} kW Warmwasser` : ''}
                 {pump.gridRegime === 'evu-3x2h' ? ' × Sperrzeitfaktor' : ''}
               </span>
+            </div>
+
+            {/* --- Heizungsanschluss -------------------------------------
+                Die Angabe, um die ein Heizungsfachplaner ausdrücklich
+                gebeten hat: „Bei der Wärmepumpe brauche ich eine
+                Anschlussgröße; die meisten Anbieter sagen hier mindestens
+                1 Zoll." Sie ist keine Zierde für das Anlagenbuch — die
+                Leitung ab dem Erzeuger darf sie nicht unterschreiten, und
+                genau das rechnet die Auslegung seit 1.24.0 nach.
+
+                Zwei Felder und nicht eines: Der Klartext ist das, was im
+                Datenblatt steht und was der Monteur am Gerät wiederfindet;
+                die Nennweite ist die Zahl, mit der sich rechnen lässt. Aus
+                dem Text wird die Zahl abgeleitet, sobald er sich deuten
+                lässt — sichtbar, damit eine danebenliegende Deutung
+                auffällt und von Hand korrigiert werden kann. */}
+            <div className="space-y-2 rounded-lg bg-white/[0.03] p-2.5">
+              <div className="label-xs">Heizungsanschluss</div>
+
+              <label className="block">
+                <span className="label-xs mb-1 block">Anschlussgröße laut Datenblatt</span>
+                <input
+                  type="text"
+                  className="field min-h-[44px]"
+                  value={pump.hydraulicConnection ?? ''}
+                  placeholder={
+                    katalogModell ? `${katalogModell.hydraulicConnection} (Katalog)` : 'nicht erfasst'
+                  }
+                  onChange={(e) => {
+                    const text = e.target.value;
+                    // Leer heißt leer und nicht 0: Ein nicht ausgefülltes
+                    // Feld muss vom Wert „keine Größe" unterscheidbar
+                    // bleiben, sonst rechnet die Auslegung mit einer
+                    // Mindestnennweite, die niemand eingetragen hat.
+                    if (text.trim() === '') {
+                      updateHeatPump(pump.id, { hydraulicConnection: undefined, connectionDn: undefined });
+                      return;
+                    }
+                    const gedeutet = nennweiteAusText(text);
+                    updateHeatPump(pump.id, {
+                      hydraulicConnection: text,
+                      // Nur überschreiben, wenn der Text etwas hergibt.
+                      // Sonst bliebe eine von Hand gesetzte Nennweite beim
+                      // Tippen des Klartextes auf der Strecke.
+                      ...(gedeutet !== undefined ? { connectionDn: gedeutet } : {}),
+                    });
+                  }}
+                />
+              </label>
+
+              <label className="block">
+                <span className="label-xs mb-1 block">Nennweite</span>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="number"
+                    className="field min-h-[44px] flex-1"
+                    value={pump.connectionDn ?? ''}
+                    step={1}
+                    min={8}
+                    list="anschluss-nennweiten"
+                    placeholder={
+                      katalogModell && anschluss.herkunft === 'katalog' && anschluss.dn !== undefined
+                        ? `${anschluss.dn} (Katalog)`
+                        : 'nicht erfasst'
+                    }
+                    onChange={(e) =>
+                      updateHeatPump(pump.id, {
+                        connectionDn: e.target.value === '' ? undefined : Number(e.target.value),
+                      })
+                    }
+                  />
+                  <span className="w-6 shrink-0 text-[9.5px] text-slate-600">mm</span>
+                </div>
+              </label>
+              <datalist id="anschluss-nennweiten">
+                {[...NENNWEITE_GEWINDE].map(([dn, gewinde]) => (
+                  <option key={dn} value={dn} label={`DN ${dn} · ${gewinde}`} />
+                ))}
+              </datalist>
+
+              {/* Die Deutung sichtbar machen — sie ist der Punkt, an dem ein
+                  Missverständnis auffliegt. „Cu 28 × 1,0" als DN 25 zu lesen
+                  ist richtig; wer hier DN 28 erwartet hat, sieht es sofort. */}
+              {pump.hydraulicConnection && nennweiteAusText(pump.hydraulicConnection) !== undefined ? (
+                <p className="text-[9.5px] leading-relaxed text-emerald-400/70">
+                  „{pump.hydraulicConnection}" gelesen als DN{' '}
+                  {nennweiteAusText(pump.hydraulicConnection)}. Stimmt das nicht, die Nennweite
+                  darunter von Hand setzen — sie gilt.
+                </p>
+              ) : pump.hydraulicConnection ? (
+                <p className="text-[9.5px] leading-relaxed text-amber-400/80">
+                  „{pump.hydraulicConnection}" lässt sich nicht in eine Nennweite umsetzen. Der Text
+                  steht im Anlagenbuch, wirkt aber nur auf die Rohrauslegung, wenn die Nennweite
+                  darunter eingetragen ist. Gebräuchlich: „G 1¼ AG", „DN 32", „Cu 28 × 1,0".
+                </p>
+              ) : (
+                <p className="text-[9.5px] leading-relaxed text-slate-600">
+                  Ohne Angabe wird nichts angenommen — die Leitung ab dem Erzeuger wird dann rein
+                  hydraulisch ausgelegt. Marktüblich sind bei 5 bis 16 kW G 1" bis G 1¼" (DN 25 bis
+                  DN 32); genormt ist das nicht, maßgeblich bleibt das Datenblatt.
+                </p>
+              )}
+
+              {anschluss.herkunft === 'katalog' && anschluss.dn !== undefined && (
+                <Readout label="aus dem Katalogmodell" value={`DN ${anschluss.dn} · ${anschluss.text ?? ''}`} />
+              )}
             </div>
           </div>
 

@@ -465,13 +465,51 @@ function deckblatt(m: Blattmasse, b: RohrnetzBericht): string {
   // --- Anlagendaten ---------------------------------------------------------
   teile.push(zeile(m.feld.x, y, 'Anlagendaten', { size: FONT_ABSCHNITT, bold: true }));
   y += 5;
+  /*
+   * Die Auslegungstemperatur **mit Absender**.
+   *
+   * Bis 1.23.0 standen hier drei nackte Zahlen. Genau das ist die Stelle, an
+   * der jemand einen Fehler vermutet, wo keiner ist: Im Anlagenblatt steht
+   * 35/28 °C, hier steht 50/40 °C — und wer nur diese beiden Blätter
+   * nebeneinander legt, hält das Programm für kaputt und rechnet von Hand
+   * nach. Der Grund ist aber ein fachlicher: Ein Heizkörper, der für 35 °C
+   * zu klein ist, wird durch eine Eintragung im Anlagenblatt nicht größer,
+   * und der Erzeuger kann nur eine einzige Vorlauftemperatur liefern.
+   *
+   * Deshalb zwei Stufen: ein kurzer Vermerk direkt hinter der Zahl, damit
+   * niemand sie für eine Eingabe hält, und darunter der ganze Satz aus
+   * `systemtemperatur.begruendung` — er nennt beide Temperaturpaare und den
+   * Kreis, der den Ton angibt. Steht die Zahl unverändert so im
+   * Anlagenblatt, entfällt beides: ein Vermerk ohne Anlass liest sich wie
+   * ein Vorbehalt und entwertet die Vermerke, die einen Anlass haben.
+   */
+  const temperaturVermerk =
+    b.temperaturen.herkunft === 'angehoben'
+      ? ' — vom heißesten Kreis angehoben'
+      : b.temperaturen.herkunft === 'vorgabe'
+        ? ' — Vorbelegung des Programms'
+        : '';
   const daten: [string, string][] = [
-    ['Auslegungstemperaturen', `${de(b.temperaturen.vorlauf, 0)} / ${de(b.temperaturen.ruecklauf, 0)} °C, Spreizung ${de(b.temperaturen.spreizung, 1)} K`],
+    [
+      'Auslegungstemperaturen',
+      `${de(b.temperaturen.vorlauf, 0)} / ${de(b.temperaturen.ruecklauf, 0)} °C, ` +
+        `Spreizung ${de(b.temperaturen.spreizung, 1)} K${temperaturVermerk}`,
+    ],
     ['Stoffwerte', `ρ = ${de(b.fluid.density, 1)} kg/m³, ν = ${b.fluid.kinematicViscosity.toExponential(2)} m²/s bei ${de(b.fluid.temperature, 0)} °C`],
     ['Vorherrschender Werkstoff', PIPE_MATERIAL_LABELS[b.werkstoff]],
     ['Gebäudeheizlast', `${de(b.heizlast.wert, 1)} kW (${b.heizlast.herkunft})`],
     ['Gesamtvolumenstrom', `${de(b.volumenstrom, 3)} m³/h`],
-    ['Gezeichnete Rohrlänge', `${de(b.rohrlaenge, 1)} m Trasse`],
+    /*
+     * „m Trasse" war seit `rohrlaenge.ts` falsch.
+     *
+     * `RohrnetzBericht.rohrlaenge` summiert seitdem die **wahre** Länge —
+     * Pythagoras aus Trasse und Höhenversatz —, die Beschriftung nannte aber
+     * weiter die Trasse. An einem Haus mit Steigsträngen weicht beides
+     * voneinander ab, und dann steht auf dem Blatt eine richtige Zahl mit
+     * einer falschen Erklärung: Wer im Grundriss nachmisst, kommt auf
+     * weniger und sucht den Fehler dort, wo keiner ist.
+     */
+    ['Gezeichnete Rohrlänge', `${de(b.rohrlaenge, 1)} m, wahre Länge einschließlich Höhenversatz`],
     ['Teilstrecken', `${b.teilstrecken.length}`],
     ['Heizflächen', `${b.heizflaechen.length}`],
   ];
@@ -492,6 +530,15 @@ function deckblatt(m: Blattmasse, b: RohrnetzBericht): string {
     teile.push(zeile(m.feld.x, y, k, { fill: GRAU }));
     teile.push(zeile(m.feld.x + 58, y, v));
     y += ZEILE;
+  }
+  // Der ganze Satz unter die Tabelle, eingerückt auf die Wertespalte, damit
+  // er als Erläuterung der Zeile darüber lesbar bleibt und nicht als neuer
+  // Abschnitt. Siehe `temperaturVermerk`.
+  if (temperaturVermerk) {
+    for (const z of umbrich(b.temperaturen.begruendung, m.feld.w - 58, FONT_KLEIN)) {
+      teile.push(zeile(m.feld.x + 58, y, z, { size: FONT_KLEIN, fill: GRAU }));
+      y += ZEILE * 0.8;
+    }
   }
   y += 4;
 

@@ -285,6 +285,17 @@ const LEERES_ERGEBNIS: PlantDesignResult = {
   requiredCapacity: 0,
   matches: [],
   circuits: [],
+  // Seit 1.23.0 trägt jede Auslegung ihre maßgebliche Systemtemperatur
+  // samt Absender: Der Rohrnetzbericht liest sie hier ab, statt sie aus
+  // dem Anlagenblatt noch einmal zu rechnen.
+  systemtemperatur: {
+    vorlauf: 35,
+    ruecklauf: 28,
+    spreizung: 7,
+    herkunft: 'anlagenblatt',
+    begruendung: '35/28 °C stehen so im Anlagenblatt; kein Heizkreis verlangt mehr. Spreizung 7 K.',
+  },
+  anschlussDn: 20,
   totalFlow: 0,
   volume: { total: 0, parts: [] },
   buffer: { required: 0, reason: 'kein Puffer erforderlich' },

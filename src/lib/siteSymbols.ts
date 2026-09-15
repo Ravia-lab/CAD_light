@@ -57,6 +57,53 @@ export function drawSiteElement(
 
   switch (element.kind) {
     case 'boundary': {
+      /*
+       * Erst die Fläche, dann die Linie.
+       *
+       * Ein gesetztes Grundstück soll im Plan als Grundstück zu erkennen
+       * sein und nicht nur als gestrichelter Umriss — sonst sieht ein
+       * erfasstes Grundstück aus wie irgendein Hilfspolygon. Die Fläche ist
+       * sehr blass gehalten und liegt als erstes im Plan: alles, was darauf
+       * steht, bleibt lesbar. Die Grasandeutung ist ein Zeichen, kein Bild
+       * — sie kommt erst ab einem Maßstab, in dem sie nicht zur Störung
+       * wird.
+       */
+      ctx.fillStyle = 'rgba(74,107,61,0.20)';
+      path(ctx, points, sx, sy, true);
+      ctx.fill();
+
+      if (zoom >= 8) {
+        const xs = points.map((p) => p.x);
+        const ys = points.map((p) => p.y);
+        const schritt = 1.6;
+        ctx.save();
+        ctx.beginPath();
+        path(ctx, points, sx, sy, true);
+        ctx.clip();
+        ctx.strokeStyle = 'rgba(120,160,100,0.45)';
+        ctx.lineWidth = 1;
+        ctx.setLineDash([]);
+        for (let x = Math.min(...xs); x <= Math.max(...xs); x += schritt) {
+          for (let y = Math.min(...ys); y <= Math.max(...ys); y += schritt) {
+            // Drei kurze Halme, leicht versetzt — die Versetzung kommt aus
+            // der Lage selbst, damit das Muster beim Verschieben des Plans
+            // nicht wandert.
+            const vx = sx(x + ((Math.abs(Math.sin(x * 12.9898 + y * 78.233)) * 1.2) % 1.2));
+            const vy = sy(y + ((Math.abs(Math.cos(x * 4.898 + y * 23.11)) * 1.2) % 1.2));
+            const h = Math.max(3, Math.min(8, zoom * 0.09));
+            ctx.beginPath();
+            ctx.moveTo(vx, vy);
+            ctx.lineTo(vx - h * 0.35, vy - h);
+            ctx.moveTo(vx, vy);
+            ctx.lineTo(vx, vy - h * 1.15);
+            ctx.moveTo(vx, vy);
+            ctx.lineTo(vx + h * 0.35, vy - h);
+            ctx.stroke();
+          }
+        }
+        ctx.restore();
+      }
+
       // Die Grenze bekommt die kräftigste Linie im Plan — sie ist die
       // Bedingung, gegen die am häufigsten verstoßen wird.
       ctx.strokeStyle = SITE_COLORS.boundary;

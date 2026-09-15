@@ -48,12 +48,20 @@ import type {
   WallType,
 } from '../types/bim';
 import {
+  RADIATOR_CONNECTION_LABELS,
+  VENTILSEITE_LABELS,
+  BRANDSCHUTZ_LABELS,
   DEFAULT_CONSTRUCTIONS,
+  DURCHBRUCH_LABELS,
   FIXTURE_BY_TYPE,
   PIPE_MATERIAL_LABELS,
   PIPE_SERVICE_LABELS,
+  SHAFT_SERVICE_LABELS,
   STORAGE_KIND_LABELS,
 } from '../types/bim';
+import { BELAG_GRENZE, belagNach } from './bodenbelag';
+import { rohrlaenge, steiganteil } from './rohrlaenge';
+import { herkunftText, uWertOeffnung, uWertWand, type UWertAuskunft } from './uwert';
 import { findModel } from './deviceCatalog';
 import { plantOf } from './plantDefaults';
 import { buildSchematic, type CircuitDesign, type PlantDesignResult, type RoomLoopDesign } from './plantDesign';
@@ -78,6 +86,7 @@ export type MaterialTrade =
   | 'armatur'
   | 'sanitaer'
   | 'lueftung'
+  | 'durchbruch'
   | 'bauteil';
 
 export const MATERIAL_TRADE_LABELS: Record<MaterialTrade, string> = {
@@ -88,11 +97,15 @@ export const MATERIAL_TRADE_LABELS: Record<MaterialTrade, string> = {
   armatur: 'Armaturen und Sicherheitstechnik',
   sanitaer: 'Sanitär',
   lueftung: 'Lüftung',
+  durchbruch: 'Durchbrüche und Schottungen',
   bauteil: 'Bauteile (Grundlage Leistungsverzeichnis)',
 };
 
 /** Reihenfolge der Gewerke in der Liste — sie folgt dem Bauablauf. */
 const TRADE_ORDER: readonly MaterialTrade[] = [
+  // Gebohrt wird, bevor verlegt wird — deshalb steht der Durchbruch vor dem
+  // Rohr und nicht bei den Bauteilen am Ende.
+  'durchbruch',
   'rohr',
   'fbh',
   'heizflaeche',
@@ -303,14 +316,6 @@ const insulationSpec = (value: number): string => {
   return state === 'ungedaemmt' ? 'ungedämmt' : 'Dämmstärke nicht angegeben';
 };
 
-/** Länge einer Polylinie im Grundriss [m]. */
-function polylineLength(points: readonly { x: number; y: number }[]): number {
-  let sum = 0;
-  for (let i = 1; i < points.length; i += 1) {
-    sum += Math.hypot(points[i].x - points[i - 1].x, points[i].y - points[i - 1].y);
-  }
-  return sum;
-}
 
 /** Ein Eintrag des Längenauszugs, um die Verlegeart erweitert. */
 interface PipeRow extends PipeScheduleEntry {
@@ -328,13 +333,25 @@ interface PipeRow extends PipeScheduleEntry {
 function pipeRows(runs: readonly PipeRun[], splitByLaying: boolean): PipeRow[] {
   const map = new Map<string, PipeRow>();
   for (const run of runs) {
-    const length = polylineLength(run.points ?? []);
+    /*
+     * **Die wahre Länge, nicht die Trassenlänge.**
+     *
+     * Bis 1.23.0 stand hier die Grundrisslänge, und die Bemerkung unter der
+     * Tabelle sagte das auch ehrlich: „ohne Höhenversatz". Ehrlich war sie,
+     * richtig nicht: Ein Fallstrang von 2,40 m in der Zimmerecke hat im
+     * Grundriss die Länge null und fiel damit durch die Zeile
+     * `length <= 0` — er fehlte in der Bestellung vollständig, ohne dass
+     * irgendwo etwas gemeldet worden wäre.
+     */
+    const length = rohrlaenge(run);
+    const steig = steiganteil(run);
     if (!Number.isFinite(length) || length <= 0) continue;
     const laying = splitByLaying ? layingOf(run) : undefined;
     const key = `${run.service}|${run.nominalDiameter}|${run.insulation}|${laying ?? ''}`;
     const found = map.get(key);
     if (found) {
       found.length += length;
+      found.riseLength = (found.riseLength ?? 0) + steig;
       found.runs += 1;
       continue;
     }
@@ -343,11 +360,55 @@ function pipeRows(runs: readonly PipeRun[], splitByLaying: boolean): PipeRow[] {
       nominalDiameter: run.nominalDiameter,
       insulation: run.insulation,
       length,
+      riseLength: steig,
       runs: 1,
       laying,
     });
   }
   return [...map.values()];
+}
+
+/**
+ * Die Bemerkung unter einer Rohrposition — und warum sie den senkrechten
+ * Anteil **nennen muss**.
+ *
+ * Bis 1.23.0 stand hier ein fester Satz: „Trassenlänge in der Grundrissebene,
+ * ohne Höhenversatz, ohne Formstücke und ohne Verschnitt." Der erste Teil
+ * stimmt seit `rohrlaenge.ts` nicht mehr — die Menge ist die **wahre** Länge
+ * einschließlich Höhenversatz. Den alten Satz stehen zu lassen wäre der
+ * schlimmere der beiden möglichen Fehler: Eine falsche Menge fällt beim
+ * Nachmessen auf, eine falsche Erklärung einer richtigen Menge lässt den
+ * Prüfer die richtige Menge korrigieren.
+ *
+ * **Warum in der Bemerkung und nicht als eigene Spalte.** Die Zahl wird von
+ * genau einem Leser gebraucht, und zwar in genau einem Moment: Wer eine
+ * Bestellung gegen einen Plan prüft, misst im Plan nach und kommt auf die
+ * Trassenlänge. Ihm fehlen dann ein paar Meter, und er hält sie für einen
+ * Fehler. Er braucht die Differenz **neben der Menge, die er gerade
+ * anzweifelt** — nicht in einer eigenen Spalte, die er erst in Beziehung
+ * setzen muss, und die bei den neun von zehn Positionen ohne Höhenversatz
+ * leer bliebe und damit als „nicht ausgefüllt" gelesen würde. Die Bemerkung
+ * steht in der Projektmappe und in der CSV unter derselben Zeile; die Spalte
+ * müsste in beiden erst geschaffen werden.
+ *
+ * Genannt werden beide Zahlen, aus denen sich die Menge zusammensetzt — die
+ * Trasse und der senkrechte Anteil. Nur die Differenz zu nennen hieße, den
+ * Prüfer rechnen zu lassen, was das Programm schon gerechnet hat.
+ */
+function rohrBemerkung(row: PipeRow): string {
+  const ohneZuschlag = 'Ohne Formstücke und ohne Verschnitt.';
+  // Unter einem Zentimeter ist der senkrechte Anteil kein Höhenversatz,
+  // sondern Rundung aus den Verlegehöhen. Ihn auszuweisen erzeugte an jeder
+  // waagerechten Leitung einen Satz über nichts.
+  if (!positive(row.riseLength) || row.riseLength < 0.01) {
+    return `Wahre Rohrlänge; die Leitungen liegen waagerecht, die Menge entspricht der Trasse im Grundriss. ${ohneZuschlag}`;
+  }
+  const trasse = row.length - row.riseLength;
+  return (
+    `Wahre Rohrlänge einschließlich Höhenversatz: ${num(trasse, 2)} m Trasse in der Grundrissebene ` +
+    `zuzüglich ${num(row.riseLength, 2)} m senkrechter Anteil aus Steig- und Fallstrecken. Im Plan ` +
+    `nachgemessen ergibt sich nur die Trasse — die Differenz ist kein Fehler. ${ohneZuschlag}`
+  );
 }
 
 function collectPipes(doc: BimDocument, sheet: Sheet, notes: MaterialNote[]): void {
@@ -393,7 +454,7 @@ function collectPipes(doc: BimDocument, sheet: Sheet, notes: MaterialNote[]): vo
         quantity: row.length,
         unit: 'm',
         origin: `Rohrnetz im Grundriss, ${row.runs} ${row.runs === 1 ? 'Abschnitt' : 'Abschnitte'}`,
-        remark: 'Trassenlänge in der Grundrissebene, ohne Höhenversatz, ohne Formstücke und ohne Verschnitt.',
+        remark: rohrBemerkung(row),
       });
     }
 
@@ -758,6 +819,22 @@ function collectRadiators(doc: BimDocument, sheet: Sheet, notes: MaterialNote[])
         positive(f.params?.flowTemperature) && positive(f.params?.returnTemperature)
           ? `${num(f.params.flowTemperature, 0)}/${num(f.params.returnTemperature, 0)} °C`
           : undefined,
+        /*
+         * **Anschlussart und Ventilseite gehören in den Massenauszug.**
+         *
+         * Sie ändern keine Zahl in der Berechnung, aber sie ändern, *was
+         * bestellt und wie angebunden wird*: Ein Mittelanschluss braucht
+         * eine andere Garnitur als ein Seitenanschluss, und ob das Ventil
+         * links oder rechts sitzt, entscheidet, auf welcher Seite die
+         * Leitung hochkommt. Wer das erst auf der Baustelle merkt, hat den
+         * Estrich schon geschlossen.
+         *
+         * Fehlt die Angabe, steht hier **nichts** — nicht etwa eine
+         * Annahme. Eine geratene Seite ist auf dem Bestellzettel schlimmer
+         * als eine fehlende: Die fehlende fragt jemand nach.
+         */
+        f.params?.radiatorConnection ? RADIATOR_CONNECTION_LABELS[f.params.radiatorConnection] : undefined,
+        f.params?.valveSide ? VENTILSEITE_LABELS[f.params.valveSide] : undefined,
       ),
       quantity: 1,
       unit: 'Stk',
@@ -1229,6 +1306,32 @@ const OPENING_KIND_LABELS: Record<Opening['kind'], string> = {
   passage: 'Durchgang',
 };
 
+/**
+ * Der U-Wert als technische Angabe — **mit Vorbehalt, wo einer nötig ist**.
+ *
+ * Bis 1.23.0 stand hier `wall.uValue ?? construction?.uValue`, also die
+ * **umgekehrte** Rangfolge gegenüber Export, Heizlast und Prüfbericht. Das war
+ * keine Geschmacksfrage: Eine Wand mit dem Aufbau „AW 36,5 + WDVS" (0,21) und
+ * einem alten Eintrag 1,10 am Bauteil stand im Export mit U = 0,21 und in der
+ * Stückliste mit U = 1,10 — beides gedruckt, beides mit demselben Anspruch,
+ * und kein Hinweis darauf, welche der beiden Zahlen gilt. Wer daraufhin
+ * ausschreibt, schreibt die falsche Wand aus. Die Rangfolge kommt deshalb aus
+ * `uwert.ts` und steht damit nur noch an einer Stelle.
+ *
+ * Der zweite Teil ist genauso wichtig: Ein **Vorgabewert nach Bauteilart** ist
+ * eine Annahme des Programms und keine Eigenschaft des Bauteils. Ihn ohne
+ * Zusatz neben eine erfasste Zahl zu drucken hieße, dem Leser die Auskunft zu
+ * nehmen, an der er entscheidet, ob er der Zahl folgen darf — und eine
+ * Nachweismenge fürs Leistungsverzeichnis ist genau der Ort, an dem das
+ * auffallen muss. Fehlt der U-Wert ganz, steht gar keine Angabe da; ein
+ * Strich wäre eine Zahl, die es nicht gibt.
+ */
+const uWertAngabe = (a: UWertAuskunft): string | undefined => {
+  if (!positive(a.wert)) return undefined;
+  const zahl = `U = ${num(a.wert, 2)} W/(m²·K)`;
+  return a.herkunft === 'katalog' ? `${zahl} (${herkunftText(a)})` : zahl;
+};
+
 /** Bauteilaufbauten des Dokuments, ergänzt um den Startkatalog. */
 function constructionIndex(doc: BimDocument): Map<string, Construction> {
   const map = new Map<string, Construction>();
@@ -1242,8 +1345,78 @@ function constructionIndex(doc: BimDocument): Map<string, Construction> {
  * Grundlage für ein Leistungsverzeichnis taugt. Ein Auszug, der die Anlage
  * kennt und das Gebäude nicht, ist für die Ausschreibung nur die halbe Arbeit.
  */
+/**
+ * Durchbrüche und Schottungen.
+ *
+ * Gruppiert wird nach dem, wonach bestellt und abgerechnet wird: Art, lichtes
+ * Maß und Brandschutzklasse. Zwei Kernbohrungen Ø 152 in derselben Klasse sind
+ * eine Position mit Menge 2 — das erledigt der Gruppierungsschlüssel des
+ * Blatts von selbst, sobald `name` und `spec` gleich sind.
+ *
+ * Die Schottung steht als **eigene** Position daneben und nicht als Zusatz in
+ * der Bemerkung. Grund: die Bohrung macht der Rohbau, die Schottung der
+ * Brandschützer, und die beiden schreiben getrennte Rechnungen. Eine Zeile,
+ * die beides enthält, lässt sich nicht aufteilen, ohne sie neu zu schreiben.
+ */
+function collectDurchbrueche(doc: BimDocument, sheet: Sheet, notes: MaterialNote[]): void {
+  const durchbrueche = Object.values(doc.durchbrueche ?? {});
+  if (!durchbrueche.length) return;
+
+  let geschottet = 0;
+  for (const d of durchbrueche) {
+    const mass =
+      d.form === 'rund'
+        ? `Ø ${num((d.diameter ?? 0) * 1000, 0)} mm`
+        : `${num((d.width ?? 0) * 1000, 0)} × ${num((d.height ?? 0) * 1000, 0)} mm`;
+    const klasse = d.brandschutz && d.brandschutz !== 'keine' ? d.brandschutz : undefined;
+    sheet.add({
+      trade: 'durchbruch',
+      name: DURCHBRUCH_LABELS[d.kind],
+      spec: joinSpec(
+        mass,
+        d.service ? SHAFT_SERVICE_LABELS[d.service] : undefined,
+        d.dn !== undefined ? `DN ${num(d.dn, 0)}` : undefined,
+        klasse ? BRANDSCHUTZ_LABELS[klasse] : undefined,
+      ),
+      quantity: 1,
+      unit: 'Stk',
+      origin: 'Durchbrüche im Grundriss, nach Maß und Brandschutzklasse gruppiert',
+      remark: d.note,
+    });
+    if (klasse) {
+      geschottet++;
+      sheet.add({
+        trade: 'durchbruch',
+        name: 'Brandschott',
+        spec: joinSpec(BRANDSCHUTZ_LABELS[klasse], mass),
+        quantity: 1,
+        unit: 'Stk',
+        origin: 'Brandschutzanforderung der Durchbrüche',
+        remark: 'Bauart nach Zulassung des Ausführenden — hier steht die Anforderung, nicht das Produkt.',
+      });
+    }
+  }
+
+  notes.push({
+    severity: 'info',
+    text:
+      `${durchbrueche.length} Durchbrüche im Modell, davon ${geschottet} mit Brandschutzanforderung. ` +
+      'Die Maße sind lichte Maße. Ob die angegebene Bohrkrone reicht, hängt an der Dämmstärke der ' +
+      'durchgeführten Leitung — bei Vollmaßdämmung ist die nächstgrößere anzusetzen. Eine Kernbohrung ' +
+      'in einer tragenden Wand ist nachweispflichtig; dieser Auszug erbringt den Nachweis nicht.',
+  });
+}
+
 function collectBuildingParts(doc: BimDocument, sheet: Sheet, notes: MaterialNote[]): void {
   const constructions = constructionIndex(doc);
+  /*
+   * Derselbe Katalog noch einmal als Record — `uwert.ts` kennt nur diese
+   * Form, und sie muss die Vorgabeaufbauten mit enthalten. Würde hier bloß
+   * `doc.constructions` übergeben, sähe die Stückliste einen Aufbau
+   * `c-aw-wdvs` nicht, den der Export über `constructionIndex` sehr wohl
+   * kennt — und wir hätten die beiden Zahlen wieder, nur an anderer Stelle.
+   */
+  const aufbauten: Record<string, Construction> = Object.fromEntries(constructions);
   const openings = Object.values(doc.openings ?? {});
   const walls = Object.values(doc.walls ?? {});
   const LV_REMARK = 'Nachweismenge für das Leistungsverzeichnis, keine Bestellposition.';
@@ -1261,7 +1434,12 @@ function collectBuildingParts(doc: BimDocument, sheet: Sheet, notes: MaterialNot
           : 'Rohbaumaß nicht angegeben',
         positive(o.sillHeight) ? `Brüstung ${num(o.sillHeight * 100, 0)} cm` : undefined,
         construction?.name,
-        positive(o.uValue) ? `U = ${num(o.uValue, 2)} W/(m²·K)` : undefined,
+        // Dieselbe Rangfolge wie bei der Wand darunter und aus demselben
+        // Grund: Ein Fenster mit dem Aufbau „Fenster 3-fach" (0,90) und einem
+        // stehen gebliebenen Wert 1,40 am Bauteil stand hier mit 1,40 und im
+        // Export mit 0,90 — dieselbe Öffnung in zwei Papieren mit zwei
+        // U-Werten, und der Ausschreibende muss raten, welcher gilt.
+        uWertAngabe(uWertOeffnung(o, aufbauten)),
       ),
       quantity: 1,
       unit: 'Stk',
@@ -1295,7 +1473,6 @@ function collectBuildingParts(doc: BimDocument, sheet: Sheet, notes: MaterialNot
 
     const construction = wall.constructionId ? constructions.get(wall.constructionId) : undefined;
     if (!construction) withoutConstruction += 1;
-    const uValue = wall.uValue ?? construction?.uValue;
 
     sheet.add({
       trade: 'bauteil',
@@ -1303,12 +1480,53 @@ function collectBuildingParts(doc: BimDocument, sheet: Sheet, notes: MaterialNot
       spec: joinSpec(
         positive(wall.thickness) ? `${num(wall.thickness * 100, 1)} cm dick` : 'Wandstärke nicht angegeben',
         construction?.layers,
-        positive(uValue) ? `U = ${num(uValue, 2)} W/(m²·K)` : undefined,
+        uWertAngabe(uWertWand(wall, aufbauten)),
       ),
       quantity: net,
       unit: 'm²',
       origin: 'Wände aller Geschosse, Achsfläche abzüglich Öffnungen',
       remark: LV_REMARK,
+    });
+  }
+
+  /*
+   * --- Bodenbeläge ---------------------------------------------------------
+   *
+   * Sie fehlten bis 1.25.0 vollständig. Ein Auszug, der jede Schraubverbindung
+   * am Rohrnetz führt, aber nicht sagt, wie viel Quadratmeter Fliese zu legen
+   * sind, ist für den Bau die halbe Liste. Gemessen wird die lichte Fläche des
+   * Raums — das ist die Fläche, die verlegt wird; ein Verschnittzuschlag steht
+   * hier bewusst nicht, den setzt der Verleger nach seinem Verlegemuster.
+   *
+   * Räume ohne erfassten Belag erscheinen nicht als Position, sondern als
+   * Hinweis. Eine Position „Belag unbekannt, 42 m²" sähe im Ausdruck wie eine
+   * Menge aus und wäre keine.
+   */
+  let ohneBelag = 0;
+  for (const room of Object.values(doc.rooms ?? {})) {
+    if (!positive(room.area)) continue;
+    const belag = belagNach(room.floorCovering);
+    if (!belag) {
+      ohneBelag += 1;
+      continue;
+    }
+    sheet.add({
+      trade: 'bauteil',
+      name: `Bodenbelag ${belag.name}`,
+      spec: joinSpec(
+        `R λB ${num(belag.wert, 2)} m²K/W`,
+        belag.wert > BELAG_GRENZE ? 'über der Grenze aus DIN EN 1264-3' : undefined,
+      ),
+      quantity: room.area,
+      unit: 'm²',
+      origin: `Lichte Fläche „${room.name}"`,
+      remark: LV_REMARK,
+    });
+  }
+  if (ohneBelag > 0) {
+    notes.push({
+      severity: 'info',
+      text: `${ohneBelag} ${ohneBelag === 1 ? 'Raum trägt' : 'Räume tragen'} keinen erfassten Bodenbelag. Diese Flächen fehlen im Auszug — der Belag steht im Inspektor beim Raum.`,
     });
   }
 
@@ -1465,6 +1683,7 @@ export function buildMaterialSchedule(doc: BimDocument, plan?: PlantDesignResult
   collectDevices(doc, plan, sheet, notes);
   collectFittings(doc, plan, sheet, notes);
   collectSanitaryAndVentilation(doc, sheet, notes);
+  collectDurchbrueche(doc, sheet, notes);
   collectBuildingParts(doc, sheet, notes);
 
   const { groups, items } = assemble(sheet.all());

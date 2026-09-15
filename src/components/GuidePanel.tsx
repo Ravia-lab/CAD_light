@@ -29,12 +29,14 @@
 import { useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { glossaryList } from '../lib/glossar';
+import { begradige } from '../lib/begradigen';
 import { berichtsUrteil, buildPipeReport } from '../lib/pipeReport';
 import { designPlant } from '../lib/plantDesign';
 import { schemaVorlage } from '../lib/schemaKatalog';
 import { pruefeSchema } from '../lib/schemaPruefung';
 import { validateModel } from '../lib/validation';
 import type { FixtureType } from '../types/bim';
+import { UEBERGABE_SCHRITTE, UI_MODUS_AUSKUNFT, UI_MODUS_LABELS } from '../lib/uimodus';
 import { useBimStore } from '../store/useBimStore';
 import PlanPrintDialog from './PlanPrintDialog';
 import RohrnetzDialog from './RohrnetzDialog';
@@ -135,6 +137,18 @@ export default function GuidePanel({ onOpenTab }: { onOpenTab: (tab: string) => 
       unnamed: rooms.filter((r) => r.usage === 'other').length,
       /** Wände, deren Stärke aus einem Scan geschätzt statt gemessen ist. */
       geschaetzteStaerken: walls.filter((w) => w.thicknessEstimated).length,
+      /**
+       * Knoten, die das Begradigen bewegen würde.
+       *
+       * Steht hier, damit die Aufgabenliste die Funktion **nennt**. Sie lag
+       * bisher allein im Reiter „Prüfung" und blendete sich dort auch noch
+       * aus, sobald nichts zu tun war — wer sie nie gesehen hatte, konnte
+       * nicht wissen, dass es sie gibt.
+       */
+      krumm: begradige(
+        walls.filter((w) => w.levelId === doc.activeLevelId),
+        doc.nodes,
+      ).bewegt,
       missingU: report.issues.filter((i) => i.code.includes('u-value') || i.code.includes('missing-u')).length,
       heaters: fixtures.filter((f) => f.category === 'heating' && f.params.powerW).length,
       heatingPower: fixtures.reduce((sum, f) => sum + (f.params.powerW ?? 0), 0),
@@ -430,6 +444,20 @@ export default function GuidePanel({ onOpenTab }: { onOpenTab: (tab: string) => 
       actions: [{ label: 'Befunde ansehen', run: () => onOpenTab('anlage') }],
     },
     {
+      title: 'Wände gerade ziehen',
+      tone: state.walls === 0 ? 'blocked' : state.krumm > 0 ? 'optional' : 'done',
+      badge: state.krumm > 0 ? `${state.krumm} Knoten` : undefined,
+      hint:
+        state.walls === 0
+          ? 'Ohne Wände gibt es nichts zu begradigen.'
+          : state.krumm > 0
+            ? `Ein Aufmaß von Hand oder aus dem Scan steht selten genau auf der Achse. „Begradigen" zieht ${state.krumm} Knoten gerade, ohne bewusst schräge Wände anzufassen — und ist mit Strg+Z in einem Schritt zurückzunehmen. Der Knopf steht im Reiter „Prüfung".`
+            : 'Alle Wände stehen auf der Achse. Der Knopf dafür steht im Reiter „Prüfung" — dort finden Sie ihn auch, wenn später einmal etwas schief steht.',
+      // Eigene Beschriftung, nicht noch ein „Prüfung öffnen": Der Reiter ist
+      // nur der Weg, das Ziel ist das Begradigen.
+      actions: [{ label: 'Begradigen öffnen', run: () => onOpenTab('check') }],
+    },
+    {
       title: 'Prüfung ohne Fehler',
       tone: state.rooms === 0 ? 'blocked' : state.report.errors > 0 ? 'open' : 'done',
       badge:
@@ -469,6 +497,18 @@ export default function GuidePanel({ onOpenTab }: { onOpenTab: (tab: string) => 
           : 'Sobald die Prüfung keine Fehler mehr zeigt, steht die Übergabe bereit.',
     },
   ];
+
+  /*
+   * Die Schritte, die im aktuellen Modus zählen.
+   *
+   * Gefiltert wird über die Überschriften (`UEBERGABE_SCHRITTE`) und nicht
+   * über ein Merkmal am Schritt: Die Liste entsteht hier aus dem
+   * Modellzustand, und ihr eine zweite Ordnungsebene zu geben hieße, jeden
+   * Schritt zweimal zu pflegen. Wer einen Titel ändert, ändert ihn dort mit
+   * — und merkt es sofort, weil der Schritt im Handwerkermodus verschwindet.
+   */
+  const sichtbareSchritte =
+    uiMode === 'handwerker' ? steps.filter((s2) => UEBERGABE_SCHRITTE.includes(s2.title)) : steps;
 
   /*
    * Gezählt wird nur, was gerade auf dem Tisch liegt.
@@ -518,8 +558,16 @@ export default function GuidePanel({ onOpenTab }: { onOpenTab: (tab: string) => 
         </div>
       )}
 
+      {/*
+        Im Handwerkermodus nur die Schritte bis zur Heizlastübergabe.
+
+        Eine Liste mit fünfzehn Punkten, von denen sechs — Anlage, Rohrnetz,
+        Bericht, Schema, Schemaprüfung, Mappe — den Aufmesser nichts angehen,
+        sieht nach einer unerledigten Aufgabe aus, obwohl sie fertig ist. Und
+        wer sie trotzdem abarbeitet, legt eine Anlage aus, die er nicht plant.
+      */}
       <div className="space-y-1">
-        {steps.map((step) => (
+        {sichtbareSchritte.map((step) => (
           <StepRow key={step.title} step={step} />
         ))}
       </div>
@@ -529,23 +577,20 @@ export default function GuidePanel({ onOpenTab }: { onOpenTab: (tab: string) => 
       <div className="border-t border-white/[0.06] pt-3">
         <div className="label-xs mb-1.5">Ansicht</div>
         <div className="flex gap-0.5 rounded-lg bg-graphite-900/60 p-0.5">
-          {(['einfach', 'profi'] as const).map((m) => (
+          {(['handwerker', 'einfach', 'profi'] as const).map((m) => (
             <button
               key={m}
               onClick={() => setUiMode(m)}
+              title={UI_MODUS_AUSKUNFT[m]}
               className={`chip flex-1 ${
                 uiMode === m ? 'bg-accent/15 text-accent' : 'text-slate-500 hover:text-slate-300'
               }`}
             >
-              {m === 'einfach' ? 'Einfach' : 'Fachplaner'}
+              {UI_MODUS_LABELS[m]}
             </button>
           ))}
         </div>
-        <p className="mt-1.5 text-[9.5px] leading-relaxed text-slate-600">
-          {uiMode === 'einfach'
-            ? 'Zeigt, was für die Aufnahme eines Gebäudes gebraucht wird. Wärmebrücken, Lüftung, Bauteilkatalog, Geschosse und Rohrnetz sind ausgeblendet — sie werden nicht gelöscht, nur nicht angezeigt.'
-            : 'Alle Reiter und Werkzeuge sind sichtbar.'}
-        </p>
+        <p className="mt-1.5 text-[9.5px] leading-relaxed text-slate-600">{UI_MODUS_AUSKUNFT[uiMode]}</p>
       </div>
 
       {rohrnetzOffen &&

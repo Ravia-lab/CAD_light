@@ -226,6 +226,17 @@ function baueAuslegung(anpassung: Partial<PlantDesignResult> = {}): PlantDesignR
     requiredCapacity: 8,
     matches: [],
     circuits: [kreis('hk-1', 'Fußbodenheizung EG', 'floor', 35, false)],
+    // Seit 1.23.0 trägt jede Auslegung ihre maßgebliche Systemtemperatur
+    // samt Absender: Der Rohrnetzbericht liest sie hier ab, statt sie aus
+    // dem Anlagenblatt noch einmal zu rechnen.
+    systemtemperatur: {
+      vorlauf: 35,
+      ruecklauf: 28,
+      spreizung: 7,
+      herkunft: 'anlagenblatt',
+      begruendung: '35/28 °C stehen so im Anlagenblatt; kein Heizkreis verlangt mehr. Spreizung 7 K.',
+    },
+    anschlussDn: 20,
     totalFlow: 0.6,
     volume: { total: 200, parts: [{ label: 'Anlage', volume: 200 }] },
     buffer: { required: 0, reason: 'Anlagenvolumen ohne Puffer ausreichend' },

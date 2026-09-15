@@ -158,6 +158,25 @@ function mitBildhinweis(fehler: Fehlschlag, doc: BimDocument): Fehlschlag {
  * gibt es nichts anzubieten: dann `null`, und die Anwendung startet wie
  * gewohnt, statt eine Wiederherstellung zu versprechen, die leer ist.
  */
+/**
+ * Ist an diesem Dokument überhaupt etwas dran?
+ *
+ * Gezählt wurden früher nur Wände. Wer mit dem Grundstück angefangen hat —
+ * Grenze, Nachbarhaus, Aufstellort der Wärmepumpe — und dann die Seite neu
+ * lud, bekam **keine** Wiederherstellung angeboten und stand wieder vor einem
+ * leeren Blatt. Die Sicherung lag da, sie wurde nur verworfen.
+ */
+function leer(doc: BimDocument): boolean {
+  return (
+    Object.keys(doc.walls ?? {}).length === 0 &&
+    Object.keys(doc.site?.elements ?? {}).length === 0 &&
+    Object.keys(doc.site?.pumps ?? {}).length === 0 &&
+    Object.keys(doc.freihand ?? {}).length === 0 &&
+    Object.keys(doc.annotations ?? {}).length === 0 &&
+    Object.keys(doc.durchbrueche ?? {}).length === 0
+  );
+}
+
 export function loadAutosave(): AutosaveEntry | null {
   try {
     const raw = localStorage.getItem(KEY);
@@ -168,7 +187,7 @@ export function loadAutosave(): AutosaveEntry | null {
     if (zeiger.projektId) {
       const geladen = ladeProjekt(zeiger.projektId);
       if (!geladen.ok) return null;
-      if (Object.keys(geladen.doc.walls ?? {}).length === 0) return null;
+      if (leer(geladen.doc)) return null;
       return {
         savedAt: zeiger.savedAt,
         projectName: geladen.doc.meta?.name ?? zeiger.projectName,
@@ -179,7 +198,7 @@ export function loadAutosave(): AutosaveEntry | null {
     }
 
     // Nur brauchbare Stände anbieten — ein leeres Dokument hilft niemandem.
-    if (!zeiger.doc?.walls || Object.keys(zeiger.doc.walls).length === 0) return null;
+    if (!zeiger.doc || leer(zeiger.doc)) return null;
     return {
       savedAt: zeiger.savedAt,
       projectName: zeiger.projectName,

@@ -290,8 +290,27 @@ console.log('\n▸ Speichern und Öffnen — der Kamin überlebt den Rundlauf');
   await p.waitForTimeout(400);
   expect('Ein weiterer Kamin gesetzt', gesetzt.anzahl > 0, true);
 
+  // Und dasselbe für einen Durchbruch. Er ist der härtere Fall: er hängt
+  // parametrisch an einer Wand, und wenn beim Zurücklesen die Wandkennung
+  // verlorengeht, steht er zwar in der Datei, aber nirgends im Plan.
+  const gebohrt = await p.evaluate(() => {
+    const st = window.__ravia.getState();
+    const wand = Object.values(st.doc.walls).find((w) => w.levelId === st.doc.activeLevelId);
+    const db = st.addDurchbruch(st.durchbruchPreset, { wallId: wand.id, distance: 1.2 });
+    window.__ravia.getState().updateDurchbruch(db.id, { brandschutz: 'R90', note: 'Statik geprüft' });
+    return { id: db.id, wallId: wand.id, distance: db.distance };
+  });
+  await p.waitForTimeout(300);
+  expect('Ein Durchbruch gesetzt', Boolean(gebohrt.id), true);
+
   // Speichern über dieselbe Schnittstelle, die auch der Download benutzt.
   const datei = await p.evaluate(() => JSON.parse(JSON.stringify(window.RaViaCAD.getExport())));
+  expect('Die Datei führt die Rohgeometrie der Durchbrüche',
+    (datei.geometry?.durchbrueche ?? []).length, 1);
+  expect('Der Durchbruch steht auch in der Auswertungsliste',
+    (datei.durchbrueche ?? []).length, 1);
+  expect('Ein Durchbruch mindert keine Wandfläche',
+    (datei.rooms ?? []).every((r) => r.surfaces.every((f) => f.grossArea > 0)), true);
   expect('Die Datei führt die Rohgeometrie der massiven Bauteile',
     (datei.geometry?.solids ?? []).length, gesetzt.anzahl);
   expect('Mit dem Baustoff darin',
@@ -317,12 +336,22 @@ console.log('\n▸ Speichern und Öffnen — der Kamin überlebt den Rundlauf');
         return m ? m.width * m.length : 0;
       })(),
       durchgehend: liste.filter((m) => m.kind === 'chimney').every((m) => m.throughAllLevels === true),
+      durchbrueche: Object.keys(doc.durchbrueche ?? {}).length,
+      durchbruchWand: Object.values(doc.durchbrueche ?? {})[0]?.wallId,
+      durchbruchAbstand: Object.values(doc.durchbrueche ?? {})[0]?.distance,
+      durchbruchSchott: Object.values(doc.durchbrueche ?? {})[0]?.brandschutz,
+      durchbruchNotiz: Object.values(doc.durchbrueche ?? {})[0]?.note,
       geschosse: Object.keys(doc.levels).length,
       waende: Object.keys(doc.walls).length,
     };
   }, datei);
   expect('Vorher wirklich leergeräumt', zurueck.leer, 0);
   expect('Die Projektdatei lässt sich zurücklesen', zurueck.ok, true);
+  expect('Der Durchbruch ist wieder da', zurueck.durchbrueche, 1);
+  expect('… auf derselben Wand', zurueck.durchbruchWand, gebohrt.wallId);
+  expect('… an derselben Stelle', zurueck.durchbruchAbstand, gebohrt.distance);
+  expect('… mit seiner Brandschutzklasse', zurueck.durchbruchSchott, 'R90');
+  expect('… und mit der Bemerkung', zurueck.durchbruchNotiz, 'Statik geprüft');
   expect('Alle massiven Bauteile sind wieder da', zurueck.anzahl, gesetzt.anzahl);
   expect('Mit ihrer Art', zurueck.kamine > 0, true);
   expect('Mit ihrem Baustoff', zurueck.material, 'Schamotte');

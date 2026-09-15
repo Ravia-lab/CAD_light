@@ -11,6 +11,7 @@
  */
 
 import type { Annotation, Vec2 } from '../types/bim';
+import { planText } from './beschriftung3d';
 
 export const ANNOTATION_COLORS = {
   line: '#94A3B8',
@@ -31,6 +32,43 @@ export function annotationText(note: Annotation): string {
   if (note.text) return note.text;
   if (note.kind === 'dimension') return annotationLength(note).toFixed(3);
   return '';
+}
+
+/**
+ * Der Text, der im **Grundriss** an einer Beschriftung steht.
+ *
+ * **Warum es dafür eine eigene Funktion braucht.** Seit dem Beschriften in
+ * der begehbaren Ansicht kann eine Fahne eine Höhe über Fertigfußboden
+ * tragen (`Annotation.elevation`). Diese Höhe ist ausdrücklich Teil der
+ * Planaussage — „2000 W" allein sagt nicht, ob der Heizkörper über oder
+ * unter der Fensterbank sitzt. `planText` aus `beschriftung3d` hängt sie an,
+ * und genau dieser Text muss im Plan stehen; stünde dort weiterhin
+ * `note.text`, läse man im Grundriss etwas anderes, als man in 3D gesetzt
+ * hat, und zwar ohne jeden Hinweis darauf.
+ *
+ * **Warum die Maßkette ausgenommen ist.** Eine Maßkette ohne eigenen Text
+ * zeigt das *gemessene* Maß; `planText` kennt dieses Maß nicht und gäbe für
+ * sie nur den (leeren) freien Text zurück — bei gesetzter Höhe also allein
+ * „+0,85 m" an der Stelle, an der die Länge stehen muss. Und selbst mit
+ * eigenem Text wäre „2,450 · +0,85 m" auf einer Maßlinie kein Höhenhinweis
+ * mehr, sondern läse sich wie ein zweites Maß. Deshalb bleibt die Maßkette
+ * bei `annotationText`.
+ *
+ * **Warum einzeilig und nicht Höhe klein darunter.** Die Höhe steht so
+ * überall gleich: in der Auswahlliste beim Setzen, im Massenauszug und hier
+ * im Plan — dieselbe Zeichenkette aus derselben Funktion. Zwei Zeilen wären
+ * hübscher, bedeuteten aber eine zweite Formatierung derselben Angabe, und
+ * genau daran laufen Plan und Modell erfahrungsgemäß auseinander.
+ *
+ * Die Platzhalter („Text", „Hinweis") bleiben erhalten: eine Beschriftung,
+ * die gerade erst gesetzt und noch nicht getippt wurde, muss sichtbar sein,
+ * sonst sucht man auf dem Plan nach etwas Unsichtbarem.
+ */
+export function planbeschriftungsText(note: Annotation): string {
+  if (note.kind === 'dimension') return annotationText(note);
+  const text = planText(note);
+  if (text) return text;
+  return note.kind === 'leader' ? 'Hinweis' : 'Text';
 }
 
 /**
@@ -72,7 +110,7 @@ export function drawAnnotation(
 
   if (note.kind === 'text') {
     const p = note.points[0];
-    const label = note.text ?? 'Text';
+    const label = planbeschriftungsText(note);
     ctx.textAlign = 'left';
     ctx.textBaseline = 'middle';
     const w = ctx.measureText(label).width;
@@ -107,7 +145,7 @@ export function drawAnnotation(
     ctx.fillStyle = colour;
     ctx.fill();
 
-    const label = note.text ?? 'Hinweis';
+    const label = planbeschriftungsText(note);
     ctx.fillStyle = textColour;
     ctx.textAlign = flagDir > 0 ? 'left' : 'right';
     ctx.textBaseline = 'bottom';
@@ -178,9 +216,76 @@ export function drawAnnotation(
   ctx.restore();
 }
 
-/** Abstand eines Punktes zur Beschriftung [m] — für die Trefferprüfung. */
-export function distanceToAnnotation(note: Annotation, p: Vec2): number {
+/**
+ * Breite eines Textes in Bildpunkten.
+ *
+ * Gemessen wird mit einem eigenen, unsichtbaren Kontext — dieselbe Schrift wie
+ * beim Zeichnen, also dasselbe Ergebnis. Wo es kein DOM gibt (Prüflauf,
+ * Serverdruck), greift die Näherung: bei einer Festbreitenschrift ist ein
+ * Zeichen 0,6 Geviert breit, und genau die benutzen wir hier.
+ */
+let messkontext: CanvasRenderingContext2D | null | undefined;
+export function textBreitePx(label: string, size: number): number {
+  if (messkontext === undefined) {
+    messkontext = typeof document === 'undefined' ? null : document.createElement('canvas').getContext('2d');
+  }
+  if (!messkontext) return 0.6 * size * label.length;
+  messkontext.font = `${size}px ui-monospace, monospace`;
+  return messkontext.measureText(label).width;
+}
+
+/**
+ * Die Fläche, die eine Textbeschriftung im Plan wirklich einnimmt [m].
+ *
+ * **Warum das gebraucht wird.** Die Trefferprüfung maß bis 1.19.0 nur den
+ * Abstand zum **Ankerpunkt**. Bei einem Text von zwanzig Zeichen sind damit
+ * rund 95 % der sichtbaren Fläche tot: Man tippt auf das Wort, das man meint,
+ * und trifft nichts. Mit dem Finger ist das kein Randfall, sondern der
+ * Regelfall.
+ *
+ * Der Kasten wird in Bildpunkten aufgespannt (so wird die Schrift gezeichnet)
+ * und über `zoom` in Meter zurückgerechnet. Er beginnt am Anker und läuft nach
+ * rechts — genau so, wie `drawAnnotation` ihn malt.
+ */
+export function textKasten(
+  note: Annotation,
+  zoom: number,
+): { x0: number; y0: number; x1: number; y1: number } | null {
+  if (note.kind !== 'text') return null;
+  const p = note.points[0];
+  if (!p || zoom <= 0) return null;
+  const size = 10 * note.scale;
+  // Gemessen wird genau die Zeichenkette, die auch gezeichnet wird. Sonst
+  // wäre der Trefferkasten einer in 3D gesetzten Fahne um die angehängte
+  // Höhe zu kurz — man tippt auf „+0,85 m" und trifft nichts.
+  const breite = (textBreitePx(planbeschriftungsText(note), size) + 8) / zoom;
+  const hoehe = (size + 6) / zoom;
+  return {
+    x0: p.x - 4 / zoom,
+    // Bildschirm-y wächst nach unten, Welt-y nach oben: die halbe Höhe geht
+    // deshalb in beide Richtungen, und der Kasten ist um den Anker zentriert.
+    y0: p.y - hoehe / 2,
+    x1: p.x - 4 / zoom + breite,
+    y1: p.y + hoehe / 2,
+  };
+}
+
+/**
+ * Abstand eines Punktes zur Beschriftung [m] — für die Trefferprüfung.
+ *
+ * `zoom` ist freiwillig und betrifft nur den Text: ohne ihn bleibt es beim
+ * alten Verhalten (Abstand zum Anker), mit ihm zählt die ganze Textfläche.
+ */
+export function distanceToAnnotation(note: Annotation, p: Vec2, zoom?: number): number {
   if (note.kind === 'text') {
+    const kasten = zoom ? textKasten(note, zoom) : null;
+    if (kasten) {
+      // Abstand zum Rechteck: innerhalb null, außerhalb der Weg zur nächsten
+      // Kante.
+      const dx = Math.max(kasten.x0 - p.x, 0, p.x - kasten.x1);
+      const dy = Math.max(kasten.y0 - p.y, 0, p.y - kasten.y1);
+      return Math.hypot(dx, dy);
+    }
     return Math.hypot(note.points[0].x - p.x, note.points[0].y - p.y);
   }
   const segments: [Vec2, Vec2][] = [];

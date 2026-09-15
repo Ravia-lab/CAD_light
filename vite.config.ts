@@ -1,5 +1,25 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
+import { readFileSync } from 'node:fs';
+
+/**
+ * Die Fassungsnummer — aus `package.json` und nirgendwo sonst.
+ *
+ * **Warum sie nicht als Zeichenkette im Quelltext steht.** Die Nummer wird
+ * beim Ausliefern in `package.json` hochgezählt. Stünde sie zusätzlich als
+ * `'1.23.0'` in einer Komponente, gäbe es zwei Wahrheiten — und spätestens
+ * bei der übernächsten Auslieferung vergisst jemand die zweite. Der Anwender
+ * läse dann in der Kopfzeile eine Nummer, die es so nicht gibt, und meldete
+ * Fehler zu einer Fassung, die er gar nicht benutzt. Genau dafür ist die
+ * Anzeige aber da: damit eine Meldung einer Fassung zugeordnet werden kann.
+ *
+ * Gelesen wird die Datei, statt sie zu importieren: ein `import … from
+ * './package.json'` zöge die **ganze** Datei — Abhängigkeiten, Skripte,
+ * Beschreibung — in das Bündel. Hier landet nur die eine Zeichenkette darin.
+ */
+const paket = JSON.parse(
+  readFileSync(new URL('./package.json', import.meta.url), 'utf-8'),
+) as { version: string };
 
 /**
  * Unter welchem Pfad die Anwendung ausgeliefert wird.
@@ -31,6 +51,11 @@ if (!BASIS.endsWith('/')) {
 export default defineConfig({
   base: BASIS,
   plugins: [react()],
+  // `__RAVIA_FASSUNG__` wird beim Bauen durch die Nummer ersetzt. Dieselbe
+  // Zeile steht in `vite.config.einzeldatei.ts` — eine Festlegung, die nur
+  // in einer der beiden Konfigurationen stünde, ließe die Anzeige in der
+  // anderen Fassung leer oder brächte das Bündel zum Absturz.
+  define: { __RAVIA_FASSUNG__: JSON.stringify(paket.version) },
   build: {
     target: 'es2020',
     rollupOptions: {

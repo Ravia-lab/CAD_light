@@ -11,6 +11,7 @@ import { useMemo } from 'react';
 import type { RoofKind, RoofOpeningKind } from '../types/bim';
 import { ROOF_KIND_LABELS, ROOF_OPENING_LABELS } from '../types/bim';
 import { buildRoofFrame } from '../lib/roofGeometry';
+import { gebaeudeUmriss } from '../lib/roomDetection';
 import { useBimStore } from '../store/useBimStore';
 import Erklaerung from './Erklaerung';
 
@@ -51,15 +52,23 @@ export default function RoofPanel() {
 
   const frame = useMemo(() => {
     if (!roof) return null;
+    const levelWalls = Object.values(doc.walls).filter((w) => w.levelId === doc.activeLevelId);
     const outline: { x: number; y: number }[] = [];
-    for (const w of Object.values(doc.walls)) {
-      if (w.levelId !== doc.activeLevelId) continue;
+    for (const w of levelWalls) {
       const a = doc.nodes[w.a];
       const b = doc.nodes[w.b];
       if (a) outline.push({ x: a.x, y: a.y });
       if (b) outline.push({ x: b.x, y: b.y });
     }
-    return buildRoofFrame(roof, outline);
+    // Dieses Blatt zeigt die Firsthöhe an. Sie aus der Bounding Box zu
+    // nehmen hieße, über einem L-Grundriss einen First auszuweisen, den es
+    // nicht gibt — deshalb auch hier der geordnete Umriss.
+    return buildRoofFrame(
+      roof,
+      outline,
+      [],
+      roof.kind !== 'flat' ? gebaeudeUmriss(levelWalls, doc.nodes) : [],
+    );
   }, [roof, doc.walls, doc.nodes, doc.activeLevelId]);
 
   // Summen über alle Räume des Geschosses — die Zahlen, die man weitergibt.

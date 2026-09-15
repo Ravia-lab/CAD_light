@@ -200,6 +200,19 @@ export interface Wall {
 export type OpeningKind = 'door' | 'window' | 'passage';
 
 /**
+ * Die Klartextnamen der Öffnungsarten.
+ *
+ * Bis 1.24.0 gab es sie nicht, und jede Oberfläche schrieb sich ihre eigenen
+ * hin — mit den üblichen Folgen: „Durchgang" an einer Stelle, „Wandöffnung"
+ * an der nächsten, und in der Meldung stand der englische Schlüssel.
+ */
+export const OPENING_LABELS: Record<OpeningKind, string> = {
+  door: 'Tür',
+  window: 'Fenster',
+  passage: 'Durchgang',
+};
+
+/**
  * Fenstertypen. Der Typ bestimmt Symbol im Plan, Sprossenteilung im Modell
  * und die sinnvollen Vorgabemaße — ein Bandfenster wird anders bemaßt als
  * ein Dreh-Kipp-Flügel.
@@ -406,6 +419,25 @@ export interface Room {
    */
   heightOverride?: number;
   /**
+   * Bodenbelag des Raums — Kennung aus `lib/bodenbelag.ts`.
+   *
+   * **Warum der Belag am Raum hängt und nicht am Heizkreis.** Bis 1.25.0
+   * stand er ausschließlich an der Fußbodenheizung (`floorCoveringResistance`).
+   * Damit hatte ein Raum ohne Flächenheizung überhaupt keinen Belag — im
+   * Modell war jeder Boden dieselbe graue Fläche, und der Massenauszug
+   * konnte nicht sagen, wie viel Fliese und wie viel Parkett zu verlegen
+   * ist. Der Belag gehört aber zum Raum: er liegt dort, ob geheizt wird
+   * oder nicht.
+   *
+   * Der Heizkreis liest ihn und übernimmt den Widerstand, solange an ihm
+   * selbst nichts Abweichendes steht — dort darf weiterhin ein
+   * Datenblattwert stehen, der den Listenwert schlägt.
+   *
+   * Fehlt das Feld, ist nichts erfasst. Das ist nicht dasselbe wie „kein
+   * Belag": dafür gibt es den Eintrag `estrich` mit 0,00.
+   */
+  floorCovering?: string;
+  /**
    * Abgeleitete Kennwerte unter der Dachschräge. Nur gesetzt, wenn über dem
    * Geschoss ein geneigtes Dach definiert ist.
    */
@@ -492,6 +524,7 @@ export type FixtureType =
   | 'underfloor' // Fußbodenheizkreis
   | 'manifold' // Heizkreisverteiler
   | 'boiler' // Wärmeerzeuger
+  | 'storage' // Speicher (Puffer, Trinkwasser, Kombi) — der Aufstellort
   | 'riser-heating' // Heizungs-Steigstrang
   | 'thermostat' // Raumthermostat
   // Sanitär
@@ -524,14 +557,162 @@ export type FixtureType =
  */
 export type FloorLoopPattern = 'schnecke' | 'maeander';
 
+/**
+ * Anschlussart eines Heizkörpers.
+ *
+ * Sie ist kein Schönheitsmerkmal: die Norm-Leistungsangabe gilt für den
+ * Anschluss „oben/unten, wechselseitig". Ein Mittelanschluss oder ein
+ * beidseitig unten angeschlossener Heizkörper überträgt bei gleicher
+ * Übertemperatur weniger — die Hersteller geben dafür Korrekturfaktoren an.
+ * Wer die Anschlussart nicht mitliefert, zwingt den Rechenkern, sie
+ * anzunehmen.
+ */
+export type RadiatorConnection =
+  /** Oben/unten wechselseitig — der Anschluss, für den die Normleistung gilt. */
+  | 'wechselseitig'
+  /** Beidseitig unten (Zweirohr, klassischer Ventilheizkörper). */
+  | 'unten'
+  /** Mittelanschluss (Ventilheizkörper mit Anschluss in der Mitte). */
+  | 'mitte'
+  /** Oben/unten gleichseitig. */
+  | 'gleichseitig';
+
+export const RADIATOR_CONNECTION_LABELS: Record<RadiatorConnection, string> = {
+  wechselseitig: 'oben/unten wechselseitig',
+  unten: 'Seitenanschluss unten, beidseitig',
+  mitte: 'Mittelanschluss unten',
+  gleichseitig: 'oben/unten gleichseitig',
+};
+
+/**
+ * Auf welcher Seite das Ventil sitzt — **von vorn auf den Heizkörper gesehen**.
+ *
+ * **Warum das ein eigenes Feld ist und nicht in der Anschlussart steckt.** Die
+ * Anschlussart sagt, *wo* Vor- und Rücklauf ankommen (unten mittig, unten an
+ * den Enden, oben und unten). Die Ventilseite sagt, *an welchem Ende* die
+ * Absperrung sitzt. Beides ist unabhängig: ein Mittelanschluss kann das
+ * Ventil links oder rechts haben, ein Seitenanschluss auch. Führte man beides
+ * in einer Liste, stünden dort acht Einträge, von denen die Hälfte nie
+ * gebraucht wird — und man müsste bei jeder neuen Anschlussart alle Seiten
+ * nachziehen.
+ *
+ * **Wofür es gebraucht wird.** Für die Anbindung: die Leitung muss auf der
+ * richtigen Seite hochkommen. Wer das erst auf der Baustelle merkt, hat den
+ * Estrich schon geschlossen. Gerechnet wird damit nichts — die Angabe geht
+ * in Plan, Massenauszug und Export.
+ *
+ * Die Sicht ist festgelegt: **von vorn auf den Heizkörper**, also aus dem
+ * Raum. Ohne diese Festlegung heißt „links" bei zwei Leuten zweierlei.
+ */
+export type VentilSeite = 'links' | 'rechts';
+
+export const VENTILSEITE_LABELS: Record<VentilSeite, string> = {
+  links: 'Ventil links',
+  rechts: 'Ventil rechts',
+};
+
+/**
+ * Woher die Leistung eines Bauteils stammt.
+ *
+ * **Der Fehler, den dieses Feld beendet.** `addFixture` kopierte bis 1.23.0
+ * die Vorbelegung aus der Symbolbibliothek — beim Heizkörper 1200 W — als
+ * echten Wert ins Objekt. Danach war die Katalogzahl von einem abgelesenen
+ * Datenblattwert nicht mehr zu unterscheiden. Die Folgen trafen ausgerechnet
+ * die Stellen, die Herkunft ausweisen *wollen*: Der Abgleich setzte
+ * `assumed: false`, weil ja ein Wert dastand, und die ganze Kennzeichnung
+ * angenommener Leistungen lief ins Leere. Der Übergabedatensatz an RaVia
+ * meldete `herkunft: 'eingegeben'` für eine Zahl, die niemand eingegeben
+ * hatte. Und die Prüfung „Heizfläche ohne Leistung" konnte nie zutreffen.
+ *
+ * **Was daran hängt.** Nur `katalog` und `heizlast` dürfen automatisch
+ * nachgezogen werden. Alles andere hat ein Mensch oder eine rechnende
+ * Gegenstelle gesetzt und bleibt stehen — auch dann, wenn es nicht zur
+ * Heizlast passt. Ein Werkzeug, das einen abgelesenen Datenblattwert
+ * überschreibt, ist schlimmer als eines, das gar nichts vorschlägt.
+ */
+export type LeistungHerkunft =
+  /** Vorbelegung aus der Symbolbibliothek — eine Platzhalterzahl, kein Messwert. */
+  | 'katalog'
+  /** Aus der Raumheizlast abgeleitet, auf den Normpunkt umgerechnet. */
+  | 'heizlast'
+  /** Von Hand eingetragen oder aus einem Datenblatt übernommen. */
+  | 'datenblatt'
+  /** Von RaVia zurückgeschrieben — dort wurde gerechnet, hier nicht. */
+  | 'ravia';
+
+export const LEISTUNG_HERKUNFT_LABELS: Record<LeistungHerkunft, string> = {
+  katalog: 'Vorbelegung aus dem Katalog',
+  heizlast: 'aus der Raumheizlast geschätzt',
+  datenblatt: 'eingetragen bzw. aus dem Datenblatt',
+  ravia: 'von RaVia berechnet',
+};
+
+/** Darf diese Leistung automatisch nachgezogen werden? */
+export function leistungNachziehbar(h: LeistungHerkunft | undefined): boolean {
+  return h === 'katalog' || h === 'heizlast';
+}
+
 export interface FixtureParams {
   /** Heizung: Normwärmeleistung [W] bei 55/45/20 °C. */
   powerW?: number;
+  /**
+   * Woher `powerW` stammt.
+   *
+   * Fehlt die Angabe, gilt die Leistung als **eingetragen** (`datenblatt`) —
+   * nicht als Katalogwert. Grund: Projekte aus älteren Fassungen tragen das
+   * Feld nicht, und in ihnen hat der Anwender die Zahlen tatsächlich
+   * gepflegt. Sie im Nachhinein für überschreibbar zu erklären, wäre der
+   * eine Fehler, den dieses Feld auf keinen Fall machen darf.
+   */
+  powerSource?: LeistungHerkunft;
   /** Heizung: Bautiefe/Typ, z. B. "22" für Typ 22. */
   radiatorType?: string;
   /** Heizung: Vor-/Rücklauftemperatur [°C]. */
   flowTemperature?: number;
   returnTemperature?: number;
+  /**
+   * Heizung: **Heizkörperexponent n** aus dem Datenblatt [-].
+   *
+   * **Warum dieses Feld die wichtigste Ergänzung für den Rechenkern ist.**
+   * `powerW` ist die Normleistung bei genau 55/45/20 °C. Eine Wärmepumpe
+   * fährt aber 35/28 oder 45/38 — und eine Normleistung lässt sich ohne den
+   * Exponenten **nicht** auf eine andere Übertemperatur umrechnen. Die
+   * Beziehung lautet (EN 442-2):
+   *
+   *     Q = Q_norm · (Δθ / Δθ_norm)^n
+   *
+   * mit Δθ als logarithmischer Übertemperatur. Ohne n fehlt dem Rechenkern
+   * der Exponent dieser Potenz; er kann dann entweder nichts rechnen oder
+   * muss selbst etwas annehmen — und eine Annahme, die zweimal unabhängig
+   * getroffen wird, ist zweimal anders.
+   *
+   * Der Wert steht im Datenblatt des Herstellers. Ohne Angabe bleibt das Feld
+   * **leer**; der Export nennt dann den branchenüblichen Richtwert
+   * ausdrücklich als Annahme (siehe `EMITTER_EXPONENT_ANNAHME`), statt ihn
+   * als Messwert auszugeben.
+   */
+  radiatorExponent?: number;
+  /** Heizung: Bauhöhe des Heizkörpers [m] — Datenblattmaß, nicht geschätzt. */
+  radiatorHeight?: number;
+  /** Heizung: Zahl der Glieder bzw. Elemente [-]; bei Plattenheizkörpern leer. */
+  radiatorSections?: number;
+  /** Heizung: Anschlussart — bestimmt den Korrekturfaktor der Leistung. */
+  radiatorConnection?: RadiatorConnection;
+  /**
+   * Heizung: Auf welcher Seite das Ventil sitzt, von vorn gesehen.
+   *
+   * Rein ausführungsrelevant: Es geht in Plan, Massenauszug und Export, aber
+   * in keine Rechnung. Fehlt die Angabe, ist sie nicht erfasst — nicht
+   * „rechts".
+   */
+  valveSide?: VentilSeite;
+  /**
+   * Heizung: Speicherinhalt [l] am Aufstellort.
+   *
+   * Maßgebend ist die Auslegung in der Anlage; dieser Wert beschreibt, was
+   * dort im Raum steht, und bestimmt die Stellfläche.
+   */
+  volumeL?: number;
   /** Lüftung: Volumenstrom [m³/h]. */
   airflow?: number;
   /** Sanitär: Anschlussnennweite, z. B. "DN 100". */
@@ -551,6 +732,26 @@ export interface FixtureParams {
   roomCoverage?: boolean;
   /** Fußbodenheizung: Verlegeabstand [m]. */
   loopSpacing?: number;
+  /**
+   * Fußbodenheizung: **Wärmedurchlasswiderstand des Bodenbelags R_λB**
+   * [m²·K/W].
+   *
+   * Die zweite Größe, ohne die der Rechenkern eine Fußbodenheizung nicht
+   * auslegen kann. Das Kennfeld nach DIN EN 1264-2 hängt an drei Eingängen:
+   * Verlegeabstand, Estrichüberdeckung **und** R_λB. Derselbe Kreis trägt
+   * unter Fliesen (R_λB ≈ 0,00) rund ein Drittel mehr als unter Teppich
+   * (0,15) — das ist der Unterschied zwischen „reicht" und „reicht nicht".
+   *
+   * Übliche Werte: Fliese/Naturstein 0,00 · Parkett 10 mm 0,06 ·
+   * Laminat 0,05 bis 0,10 · Teppich 0,10 bis 0,15 · PVC 0,02.
+   */
+  floorCoveringResistance?: number;
+  /** Fußbodenheizung: Estrichüberdeckung über dem Rohrscheitel [m]. */
+  screedCover?: number;
+  /** Fußbodenheizung: Rohraußendurchmesser [m], z. B. 0,017 für 17 × 2. */
+  pipeOuterDiameter?: number;
+  /** Fußbodenheizung: Rohrwandstärke [m], z. B. 0,002 für 17 × 2. */
+  pipeWallThickness?: number;
   /** Fußbodenheizung: Zahl der Heizkreise in diesem Raum [-]. */
   loopCount?: number;
   /** Fußbodenheizung: Verlegemuster. */
@@ -615,6 +816,20 @@ export const FIXTURE_LIBRARY: FixtureDefinition[] = [
   { type: 'underfloor', category: 'heating', label: 'FBH-Heizkreis', length: 0.9, depth: 0.9, elevation: 0, wallMounted: false, params: { powerW: 800, flowTemperature: 35, returnTemperature: 28 } },
   { type: 'manifold', category: 'heating', label: 'Heizkreisverteiler', length: 0.6, depth: 0.15, elevation: 0.5, wallMounted: true, params: {} },
   { type: 'boiler', category: 'heating', label: 'Wärmeerzeuger', length: 0.6, depth: 0.45, elevation: 0.6, wallMounted: true, params: { powerW: 15000 } },
+  /*
+   * Der Speicher ist hier der **Aufstellort**, nicht das Gerät.
+   *
+   * Das Gerät mit Volumen, Bauart und Anschlüssen steht in der Anlage
+   * (`PlantDefinition.storages`) — dort wird es ausgelegt, dort steht die
+   * maßgebende Zahl. Was im Grundriss fehlte, war die Antwort auf die andere
+   * Frage: *wo* steht er, und passt er da überhaupt hin. Genau dieselbe
+   * Trennung gilt schon beim Wärmeerzeuger, und aus demselben Grund.
+   *
+   * `volumeL` steht trotzdem daneben, weil die Stellfläche vom Volumen
+   * abhängt und man im Raum eine Zahl sehen will. Maßgebend bleibt die
+   * Auslegung; weicht beides ab, meldet die Prüfung es.
+   */
+  { type: 'storage', category: 'heating', label: 'Speicher', length: 0.7, depth: 0.7, elevation: 0, wallMounted: false, params: { volumeL: 300 } },
   { type: 'riser-heating', category: 'heating', label: 'Steigstrang Heizung', length: 0.16, depth: 0.16, elevation: 0, wallMounted: false, params: {} },
   { type: 'thermostat', category: 'heating', label: 'Raumthermostat', length: 0.1, depth: 0.04, elevation: 1.4, wallMounted: true, params: {} },
   // --- Sanitär ---
@@ -686,6 +901,24 @@ export interface Level {
   ceilingConstructionId?: string;
   /** Reihenfolge von unten nach oben — steuert Sortierung und Nachbarschaft. */
   order: number;
+  /**
+   * Wird dieses Geschoss im Modell gezeigt?
+   *
+   * **Warum das am Geschoss steht und nicht an einer Ebene.** Der Grundriss
+   * zeigt immer *ein* Geschoss, das Modell bisher immer *alle* — und genau
+   * darin lagen Erdgeschoss, Obergeschoss und Keller auseinander: Wer im
+   * Keller arbeitete, sah im Plan den Keller und im Modell das ganze Haus
+   * darüber. Eine Ebene taugt dafür nicht: Ebenen ordnen nach Gewerk, und
+   * ein Geschoss ist kein Gewerk.
+   *
+   * Fehlt das Feld, ist das Geschoss sichtbar. Ältere Projekte kennen es
+   * nicht, und „nicht eingetragen" darf nicht wie „ausgeblendet" wirken —
+   * sonst öffnet sich eine alte Datei mit leerem Modell.
+   *
+   * Das **aktive** Geschoss wird immer gezeigt, auch wenn es hier
+   * ausgeblendet ist: Man bearbeitet nicht, was man nicht sieht.
+   */
+  visible?: boolean;
   /**
    * Dach über diesem Geschoss. Fehlt der Eintrag, ist die Decke horizontal —
    * dasselbe wie `kind: 'flat'`, nur ohne Ballast im Dokument.
@@ -1015,6 +1248,74 @@ export interface TraceOpeningCandidate {
 
 export type TraceCandidate = TraceWallCandidate | TraceOpeningCandidate;
 
+/**
+ * Ein Freihandstrich, wie er unter dem Stift entsteht.
+ *
+ * Punkte in **Weltkoordinaten** und nicht in Bildpunkten: Ein Strich, der in
+ * Bildpunkten abgelegt wäre, läge nach dem nächsten Zoomen woanders. Der
+ * Druck reist mit, wo das Gerät ihn meldet — er steuert die Strichstärke der
+ * Notiz und sonst nichts.
+ */
+export interface Freihandstrich {
+  id: string;
+  levelId: LevelId;
+  punkte: Vec2[];
+  /** Stiftdruck je Punkt [0…1]; leer, wenn das Gerät keinen meldet. */
+  druck?: number[];
+  /** Strichfarbe als Kennung, nicht als Hexwert — die Ebene bestimmt sie. */
+  farbe?: 'tinte' | 'rot' | 'gruen' | 'gelb';
+  /** Strichstärke [mm auf dem Blatt]. */
+  staerke?: number;
+  createdAt: string;
+}
+
+/**
+ * Der Stand der Freihanderkennung — ein **Vorschlag**, kein Modellinhalt.
+ *
+ * Dieselbe Bauart wie `TraceState` bei der Bilderkennung, und aus demselben
+ * Grund: Was eine Erkennung liefert, wird angezeigt, geprüft und erst dann
+ * übernommen. Ein Strich, der ungefragt Wände anlegt, ist beim ersten
+ * Fehlgriff nicht mehr zu bändigen — und ein Fehlgriff ist bei einer
+ * Freihandskizze die Regel und nicht die Ausnahme.
+ */
+export interface SkizzenZug {
+  /** Der rohe Strich — er bleibt sichtbar, damit man vergleichen kann. */
+  strich: Vec2[];
+  /** Wie viele Strecken dieser Zug zum Vorschlag beigesteuert hat. */
+  anzahl: number;
+  ring: boolean;
+}
+
+export interface SkizzenVorschlag {
+  /** Die erkannten Strecken **aller** Züge in Weltkoordinaten. */
+  strecken: { a: Vec2; b: Vec2; laenge: number; ausgerichtet: boolean }[];
+  /**
+   * Die einzelnen Züge, in der Reihenfolge, in der sie gezogen wurden.
+   *
+   * **Warum mehrere.** Ein Grundriss entsteht nicht in einem Strich. Wer die
+   * Außenwände umfährt und danach die Innenwände einzeichnet, zieht drei,
+   * vier, fünf Striche — und bis 1.18.0 warf jeder neue Strich den vorigen
+   * Vorschlag weg, weil hier genau einer Platz hatte. Schlimmer noch: ein
+   * misslungener Kurzstrich löschte den fertigen Vorschlag davor gleich mit.
+   * Für den Anwender sah das aus, als könne man „nicht in einem
+   * durchzeichnen".
+   *
+   * Die Züge bleiben einzeln erhalten, damit sich der letzte zurücknehmen
+   * lässt, ohne alles zu verlieren.
+   */
+  zuege: SkizzenZug[];
+  levelId: LevelId;
+  /** Hat **einer** der Züge einen geschlossenen Umriss ergeben? */
+  ring: boolean;
+  /** Um wie viel der Strich gedreht lag [°]. */
+  drehungGrad: number;
+  hinweise: string[];
+  /** Wandstärke, mit der die Vorschläge angelegt würden [m]. */
+  staerke: number;
+  /** Wandart der Vorschläge. */
+  art: WallType;
+}
+
 export interface TraceState {
   /** Modell-ID / Provider, der die Vorschläge erzeugt hat. */
   source: string;
@@ -1180,6 +1481,188 @@ export interface SolidElement {
 }
 
 // ===========================================================================
+// Durchbrüche und Bohrungen
+// ===========================================================================
+
+export type DurchbruchKind =
+  | 'kernbohrung' // Rundbohrung in der Wand, gebohrt
+  | 'wanddurchbruch' // rechteckiger Ausbruch in der Wand, gestemmt oder gesägt
+  | 'schlitz' // Wandschlitz für eine aufliegende Leitung
+  | 'deckendurchbruch'; // Loch in der Geschossdecke
+
+export const DURCHBRUCH_LABELS: Record<DurchbruchKind, string> = {
+  kernbohrung: 'Kernbohrung',
+  wanddurchbruch: 'Wanddurchbruch',
+  schlitz: 'Wandschlitz',
+  deckendurchbruch: 'Deckendurchbruch',
+};
+
+/** Wird die Wand durchstoßen oder die Decke? Folgt aus der Art. */
+export type DurchbruchWirt = 'wand' | 'decke';
+
+export function durchbruchWirt(kind: DurchbruchKind): DurchbruchWirt {
+  return kind === 'deckendurchbruch' ? 'decke' : 'wand';
+}
+
+export type DurchbruchForm = 'rund' | 'rechteckig';
+
+/**
+ * Feuerwiderstand, den die Schottung im Durchbruch leisten muss.
+ *
+ * Bewusst als Anforderung und nicht als Produkt: welches Schott gesetzt wird,
+ * entscheidet der Ausführende nach seiner Zulassung. Was der Plan liefern
+ * muss, ist die Anforderung — und zwar so, dass sie im Massenauszug steht.
+ */
+export type Brandschutzklasse = 'keine' | 'R30' | 'R60' | 'R90' | 'R120';
+
+export const BRANDSCHUTZ_LABELS: Record<Brandschutzklasse, string> = {
+  keine: 'ohne Anforderung',
+  R30: 'R 30',
+  R60: 'R 60',
+  R90: 'R 90',
+  R120: 'R 120',
+};
+
+/**
+ * Ein Durchbruch im Modell — und warum er ein eigenes Bauteil ist.
+ *
+ * Eine Kernbohrung ließe sich auch als Loch in der Anzeige führen: man malt
+ * einen Kreis in die Wand, und in 3D fehlt dort Material. Das reicht genau so
+ * lange, bis jemand danach bohrt. Dann braucht er die Nennweite, die Höhe über
+ * Fertigfußboden, die Wand, in der gebohrt wird, und die Anforderung an die
+ * Schottung — und all das steht in keinem Loch, sondern nur in einem Bauteil.
+ *
+ * **Warum nicht als weitere `OpeningKind`.** Eine Öffnung ist ein Bauteil mit
+ * Fläche, U-Wert und Orientierung: Fenster und Türen mindern die Wandfläche
+ * und gehen als eigene Hüllfläche in die Heizlast ein. Eine Kernbohrung von
+ * 100 mm tut das nicht — sie ist wärmetechnisch belanglos, aber
+ * ausführungsrelevant. Führte man sie als Öffnung, zöge sie stillschweigend
+ * 0,008 m² von der Wandfläche ab, erschiene in der Hüllflächenliste des
+ * Exports und verlangte einen U-Wert, den niemand angeben kann. Umgekehrt
+ * bekäme ein Durchbruch alles, was eine Öffnung mitbringt — Anschlag,
+ * Flügelzahl, g-Wert —, und nichts, was er braucht.
+ *
+ * **Was der Typ leisten muss.** Er sitzt parametrisch in seinem Wirtsbauteil
+ * (Wand: Abstand auf der Wandachse wie bei `Opening`; Decke: Punkt im
+ * Grundriss), er erscheint im Plan mit Maß und Höhenangabe, er zählt im
+ * Massenauszug nach Nennweite und Brandschutzklasse, und beim Deckendurchbruch
+ * fehlt in 3D tatsächlich Material in der Platte.
+ */
+export interface Durchbruch {
+  id: string;
+  kind: DurchbruchKind;
+  name: string;
+  /** Geschoss. Beim Deckendurchbruch das Geschoss **unter** der Decke. */
+  levelId: LevelId;
+  /**
+   * Die durchbrochene Wand. Steht nur bei wandgebundenen Arten.
+   *
+   * Fehlt die Wand im Dokument (gelöscht, nie gesetzt), ist der Durchbruch
+   * verwaist. Die Prüfung meldet das als `durchbruch.orphan`; stillschweigend
+   * gelöscht wird er nicht — ein Loch, das jemand eingetragen hat, verschwindet
+   * nicht dadurch, dass die Wand neu gezogen wurde.
+   */
+  wallId?: WallId;
+  /** Distanz vom Wandstart (Knoten a) bis zur Durchbruchsmitte [m]. */
+  distance?: number;
+  /** Mittelpunkt im Grundriss [m] — nur beim Deckendurchbruch. */
+  position?: Vec2;
+  /** Drehung [°] CCW — nur beim rechteckigen Deckendurchbruch. */
+  rotation?: number;
+  form: DurchbruchForm;
+  /** Lichter Durchmesser [m] bei runder Form. */
+  diameter?: number;
+  /**
+   * Erstes Rechteckmaß [m] — **in der Ebene des durchbrochenen Bauteils**.
+   * In der Wand: Breite waagerecht entlang der Wandachse.
+   * In der Decke: Ausdehnung in x-Richtung bei `rotation = 0`.
+   */
+  width?: number;
+  /**
+   * Zweites Rechteckmaß [m], ebenfalls in der Bauteilebene.
+   * In der Wand: lichte Höhe.
+   * In der Decke: Ausdehnung in y-Richtung bei `rotation = 0`.
+   */
+  height?: number;
+  /**
+   * Unterkante bzw. Achshöhe über OK Fertigfußboden [m] — nur wandgebunden.
+   *
+   * Bei runder Form ist es die **Achshöhe** (danach wird angerissen), bei
+   * rechteckiger die **Unterkante** (danach wird gestemmt). Der Unterschied
+   * steht hier und nicht in zwei Feldern, weil auf der Baustelle nie beides
+   * zugleich gebraucht wird — aber die Anzeige muss ihn benennen.
+   */
+  sillHeight?: number;
+  /** Gewerk, das hindurchgeführt wird. */
+  service?: ShaftService;
+  /** Nennweite der durchgeführten Leitung [mm] — reine Angabe, kein Maß. */
+  dn?: number;
+  /** Geforderter Feuerwiderstand der Schottung. */
+  brandschutz?: Brandschutzklasse;
+  /** Freitext zur Ausführung — geht in den Massenauszug als Bemerkung. */
+  note?: string;
+  /**
+   * Von der Rohrnetzauslegung erzeugt.
+   *
+   * Erzeugte Durchbrüche werden bei der nächsten Auslegung ersetzt, von Hand
+   * gesetzte nie. Ohne die Unterscheidung müsste man nach jeder Änderung der
+   * Trasse alle Bohrungen von Hand nachziehen — oder es bliebe eine Bohrung
+   * an einer Wand stehen, durch die längst keine Leitung mehr geht.
+   *
+   * Wer einen erzeugten Durchbruch verschiebt, macht ihn damit zu seinem:
+   * das Merkmal fällt weg, und die nächste Auslegung lässt ihn stehen.
+   */
+  generated?: boolean;
+}
+
+/**
+ * Regelmaße für Durchbrüche.
+ *
+ * Bewusst als Daten und nicht als Sonderfälle im Code — dieselbe Entscheidung
+ * wie bei `OPENING_PRESETS`, und aus demselben Grund: ein Betrieb, der andere
+ * Bohrkronen vorhält, ersetzt diese Liste, ohne die Zeichenlogik anzufassen.
+ *
+ * Die Durchmesser sind **Bohrkronenmaße**, nicht Rohrmaße. Der lichte
+ * Durchbruch muss Rohr, Dämmung und Luft aufnehmen; die hier angegebenen
+ * Werte gehen von einer üblichen Dämmstärke aus. Wer nach EnEV-Vollmaß dämmt,
+ * braucht die nächstgrößere Krone — deshalb steht die Nennweite als eigenes
+ * Feld daneben und wird nicht aus dem Durchmesser zurückgerechnet.
+ */
+export interface DurchbruchPreset {
+  id: string;
+  label: string;
+  kind: DurchbruchKind;
+  form: DurchbruchForm;
+  diameter?: number;
+  width?: number;
+  height?: number;
+  sillHeight?: number;
+  service?: ShaftService;
+  dn?: number;
+}
+
+export const DURCHBRUCH_PRESETS: DurchbruchPreset[] = [
+  // --- Kernbohrungen, Heizung/Sanitär ---
+  { id: 'kb-dn20', label: 'Kernbohrung Ø 68 (DN 20)', kind: 'kernbohrung', form: 'rund', diameter: 0.068, sillHeight: 0.3, service: 'heating', dn: 20 },
+  { id: 'kb-dn25', label: 'Kernbohrung Ø 82 (DN 25)', kind: 'kernbohrung', form: 'rund', diameter: 0.082, sillHeight: 0.3, service: 'heating', dn: 25 },
+  { id: 'kb-dn32', label: 'Kernbohrung Ø 102 (DN 32)', kind: 'kernbohrung', form: 'rund', diameter: 0.102, sillHeight: 0.3, service: 'heating', dn: 32 },
+  { id: 'kb-dn50', label: 'Kernbohrung Ø 127 (DN 50)', kind: 'kernbohrung', form: 'rund', diameter: 0.127, sillHeight: 0.3, service: 'sanitary', dn: 50 },
+  { id: 'kb-dn100', label: 'Kernbohrung Ø 152 (DN 100)', kind: 'kernbohrung', form: 'rund', diameter: 0.152, sillHeight: 0.15, service: 'sanitary', dn: 100 },
+  { id: 'kb-lueftung', label: 'Kernbohrung Ø 162 (Lüftung)', kind: 'kernbohrung', form: 'rund', diameter: 0.162, sillHeight: 2.2, service: 'ventilation', dn: 160 },
+  { id: 'kb-elektro', label: 'Kernbohrung Ø 52 (Elektro)', kind: 'kernbohrung', form: 'rund', diameter: 0.052, sillHeight: 0.3, service: 'electric', dn: 40 },
+  // --- Rechteckige Wanddurchbrüche ---
+  { id: 'wd-klein', label: 'Wanddurchbruch 30 × 30', kind: 'wanddurchbruch', form: 'rechteckig', width: 0.3, height: 0.3, sillHeight: 0.1, service: 'mixed' },
+  { id: 'wd-mittel', label: 'Wanddurchbruch 50 × 30', kind: 'wanddurchbruch', form: 'rechteckig', width: 0.5, height: 0.3, sillHeight: 0.1, service: 'mixed' },
+  { id: 'wd-trasse', label: 'Wanddurchbruch Trasse 80 × 40', kind: 'wanddurchbruch', form: 'rechteckig', width: 0.8, height: 0.4, sillHeight: 2.3, service: 'mixed' },
+  // --- Schlitze ---
+  { id: 'sz-waagerecht', label: 'Wandschlitz 20 × 8', kind: 'schlitz', form: 'rechteckig', width: 0.2, height: 0.08, sillHeight: 0.3, service: 'heating' },
+  // --- Deckendurchbrüche ---
+  { id: 'dd-strang', label: 'Deckendurchbruch 30 × 30', kind: 'deckendurchbruch', form: 'rechteckig', width: 0.3, height: 0.3, service: 'mixed' },
+  { id: 'dd-schacht', label: 'Deckendurchbruch 60 × 40', kind: 'deckendurchbruch', form: 'rechteckig', width: 0.6, height: 0.4, service: 'mixed' },
+  { id: 'dd-rund', label: 'Deckenbohrung Ø 152', kind: 'deckendurchbruch', form: 'rund', diameter: 0.152, service: 'sanitary', dn: 100 },
+];
+
+// ===========================================================================
 // Rohrnetz
 // ===========================================================================
 
@@ -1247,8 +1730,36 @@ export interface PipeRun {
   nominalDiameter: number;
   /** Dämmstärke [mm]; 0 = ungedämmt. */
   insulation: number;
-  /** Verlegehöhe über Fertigfußboden [m]. */
+  /** Verlegehöhe über Fertigfußboden [m] — am **Anfang** des Abschnitts. */
   elevation: number;
+  /**
+   * Verlegehöhe am **Ende** des Abschnitts [m]. Fehlt: waagerecht.
+   *
+   * **Warum der senkrechte Meter ein eigenes Feld braucht.** Bis 1.23.0 trug
+   * ein Abschnitt genau eine Höhe. Zwei Leitungen auf verschiedenen Höhen —
+   * der Vorlauf unter der Decke, die Anbindung am Sockel — standen damit
+   * zwar beide im Modell, aber das Stück dazwischen existierte nirgends:
+   * nicht in der Zeichnung, nicht in den Metern des Massenauszugs, nicht im
+   * Druckverlust. Der Massenauszug sagte es sogar selbst in der Bemerkung
+   * („Trassenlänge in der Grundrissebene, ohne Höhenversatz") — ehrlich
+   * deklariert und trotzdem eine Lücke, denn im Altbau ist der Fallstrang in
+   * der Zimmerecke der Normalfall, nicht die Ausnahme.
+   *
+   * **Warum eine zweite Höhe und kein eigenes Bauteil „Steigstrang".** Ein
+   * eigenes Bauteil hätte eine zweite Art von Leitung geschaffen, mit
+   * eigener Auslegung, eigener Dämmpflicht, eigenem Bericht — und mit der
+   * Frage, was an der Nahtstelle gilt. Eine zweite Höhe ändert dagegen nur
+   * **eine** Größe, und zwar genau die, die falsch war: die Länge.
+   *
+   *     l = √(Trassenlänge² + Δh²)
+   *
+   * Ein reiner Steigstrang ist damit ein Abschnitt, dessen beide Punkte im
+   * Grundriss (fast) aufeinanderliegen und dessen Höhen sich unterscheiden.
+   * Die Steigung verteilt sich gleichmäßig über die Trasse; wer ein
+   * abschnittsweise anderes Gefälle braucht, legt zwei Abschnitte — das ist
+   * die ehrlichere Abbildung als eine Neigung, die nur an einem Ende stimmt.
+   */
+  elevationTo?: number;
   /** Angebundene TGA-Objekte — Verteiler am Anfang, Verbraucher am Ende. */
   fromFixtureId?: string;
   toFixtureId?: string;
@@ -1269,6 +1780,23 @@ export interface PipeRun {
   outerDiameter?: number;
   /** Werkstoff des Abschnitts. */
   material?: PipeMaterial;
+  /**
+   * Kennung der Doppelleitung, zu der dieser Abschnitt gehört.
+   *
+   * **Warum das Paar eine Kennung braucht.** Vor- und Rücklauf liegen im
+   * Bau nebeneinander in einem Kanal, einer Schlitzung, einem Loch. Bis
+   * 1.25.0 entstand das Paar nur beim automatischen Auslegen, und zwar als
+   * zwei Leitungen 5 cm nebeneinander — zusammengehörig ausschließlich
+   * dadurch, dass sie zufällig parallel lagen. Wer eine davon verschob,
+   * hatte einen Vorlauf im Flur und einen Rücklauf im Zimmer; wer eine
+   * löschte, hatte eine Heizung, die nur hinführt.
+   *
+   * Mit der Kennung wandert und verschwindet das Paar gemeinsam, und der
+   * Massenauszug kann sagen, wie viel Meter **Trasse** zu bauen sind — was
+   * für Kanal, Dämmung und Bohrung die maßgebliche Zahl ist — statt nur,
+   * wie viel Meter Rohr zu bestellen sind.
+   */
+  pairId?: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -1362,8 +1890,16 @@ export interface PipeScheduleEntry {
   service: PipeService;
   nominalDiameter: number;
   insulation: number;
-  /** Trassenlänge im Grundriss [m]. */
+  /**
+   * **Wahre** Rohrlänge [m] — Trasse und Höhenversatz zusammen.
+   *
+   * Bis 1.23.0 stand hier die reine Grundrisslänge. Ein Fallstrang von
+   * 2,40 m hatte damit eine Länge von null und fehlte in der Bestellung
+   * vollständig.
+   */
   length: number;
+  /** Davon senkrecht bzw. geneigt [m] — der Anteil, der im Grundriss fehlt. */
+  riseLength?: number;
   /** Zahl der Abschnitte. */
   runs: number;
 }
@@ -1552,6 +2088,34 @@ export interface HeatPump {
   backupCapacity: number;
   /** Auslegungs-Vorlauftemperatur [°C]. */
   flowTemperature: number;
+  /**
+   * Heizungsseitige Anschlussgröße des Geräts, im Klartext — z. B. „G 1¼ AG".
+   *
+   * Die Herstellerangabe, so wie sie im Datenblatt steht. Sie geht in das
+   * Anlagenbuch und in den Massenauszug.
+   */
+  hydraulicConnection?: string;
+  /**
+   * Dieselbe Anschlussgröße als **Nennweite** [mm] — die rechenbare Fassung.
+   *
+   * **Warum beides nebeneinander steht.** „G 1¼ AG" ist der Text, den der
+   * Monteur am Gerät wiederfindet; DN 32 ist die Zahl, mit der sich die
+   * Leitung auslegen lässt. Aus dem Text die Zahl zu erraten, ginge für die
+   * gängigen Fälle und scheiterte am ersten Gerät mit „Cu 28 × 1,0".
+   *
+   * **Wofür sie gebraucht wird — und das ist der eigentliche Punkt.** Die
+   * erste Leitung ab dem Erzeuger darf die Anschlussgröße des Geräts nicht
+   * unterschreiten. Nicht weil die Hydraulik es verlangte — rechnerisch
+   * kommt man bei 8 kW und 7 K Spreizung leicht auf DN 20 —, sondern weil
+   * der Hersteller es vorgibt: Gerätedruckverlust, Mindestvolumenstrom,
+   * Abtauverhalten, Gewährleistung. Bis 1.23.0 rechnete das Programm eine
+   * Leitung, die kleiner sein konnte als der Stutzen, an dem sie hängt, und
+   * der Massenauszug bestellte sie so.
+   *
+   * Ohne Angabe wird **nichts** angenommen: Die Auslegung läuft dann wie
+   * bisher rein hydraulisch, und das Anlagenbuch schreibt einen Strich.
+   */
+  connectionDn?: number;
   /** Sperrzeit-Regime nach §14a EnWG bzw. altes EVU-Modell. */
   gridRegime: 'none' | 'evu-3x2h' | 'p14a-dimming';
   /** Summe der Sperrstunden je Tag [h] — für den Sperrzeitfaktor. */
@@ -1692,7 +2256,78 @@ export interface Annotation {
   text?: string;
   /** Schriftgröße relativ (1 = normal). */
   scale: number;
+  /**
+   * Höhe über Fertigfußboden [m] — nur bei Beschriftungen, die in der
+   * begehbaren Ansicht gesetzt wurden.
+   *
+   * **Warum die Höhe am Text steht und nicht nur in der 3D-Ansicht.** Eine
+   * Fahne, die im Raum an einem Heizkörper hängt, hat im Grundriss keinen
+   * Platz, an dem sie „oben" wäre — der Grundriss kennt nur x und y. Ohne
+   * die Höhe stünde derselbe Text zweimal an derselben Stelle, sobald jemand
+   * über- und untereinander zwei Bauteile beschriftet, und niemand wüsste,
+   * welcher Text zu welchem gehört. Mit der Höhe schreibt der Plan sie
+   * dazu: „2000 W · +0,85 m".
+   *
+   * Fehlt das Feld, ist die Beschriftung eine reine Planbeschriftung wie
+   * bisher — nicht etwa eine auf Höhe 0.
+   */
+  elevation?: number;
+  /**
+   * Das Bauteil, das hier beschriftet wird.
+   *
+   * Der Anker ist der Grund, warum in der begehbaren Ansicht **keine Zahl
+   * getippt** wird: Über ihn kennt das Programm die Werte, die am Bauteil
+   * stehen — Leistung, Nennweite, Höhe —, und bietet sie an. Eine getippte
+   * Zahl altert still weiter, wenn der Heizkörper später getauscht wird;
+   * ein angebotener Wert lässt sich nachziehen, weil klar ist, woher er
+   * kommt.
+   */
+  anchor?: AnnotationAnchor;
 }
+
+/** Worauf eine Beschriftung zeigt. */
+export interface AnnotationAnchor {
+  kind: 'fixture' | 'pipe' | 'durchbruch';
+  id: string;
+  /**
+   * Woraus der Text stammt, falls er aus dem Modell angeboten wurde.
+   *
+   * Steht hier ein Schlüssel, ist `text` eine **Abschrift** des Modellwerts
+   * zum Zeitpunkt des Setzens. Der Plan kann dann melden, dass Abschrift und
+   * Modell auseinanderlaufen, statt die veraltete Zahl stillschweigend zu
+   * drucken. Freier Text lässt das Feld leer.
+   */
+  quelle?: AnnotationQuelle;
+}
+
+/**
+ * Die Modellwerte, die als Beschriftung angeboten werden.
+ *
+ * Bewusst kurz. Angeboten wird nur, was am Bauteil wirklich steht und was
+ * auf einer Fahne im Raum einen Sinn ergibt — nicht jedes Feld des Modells.
+ */
+export type AnnotationQuelle =
+  | 'leistung'
+  | 'typ'
+  | 'anschluss'
+  | 'hoehe'
+  | 'dn'
+  | 'medium'
+  | 'volumen'
+  | 'mass'
+  | 'name';
+
+export const ANNOTATION_QUELLE_LABELS: Record<AnnotationQuelle, string> = {
+  leistung: 'Leistung',
+  typ: 'Bauart',
+  anschluss: 'Anschluss',
+  hoehe: 'Höhe über FFB',
+  dn: 'Nennweite',
+  medium: 'Medium',
+  volumen: 'Inhalt',
+  mass: 'Maß',
+  name: 'Bezeichnung',
+};
 
 export type ToolId =
   | 'select'
@@ -1705,16 +2340,33 @@ export type ToolId =
   | 'stair'
   | 'shaft'
   | 'solid'
+  | 'durchbruch'
   | 'pipe'
   | 'annotation'
   | 'site'
   | 'heatpump'
   | 'dimension'
   | 'calibrate'
+  /**
+   * Freihand skizzieren — mit dem Stift einen Grundriss ziehen, aus dem das
+   * Programm Wandvorschläge macht. Kein Zeichenwerkzeug im engeren Sinn: es
+   * legt nichts an, sondern schlägt vor.
+   */
+  | 'sketch'
+  /** Freihand auf den Plan schreiben. Notiz, keine Geometrie. */
+  | 'ink'
   | 'pan';
 
 export type ViewMode = '2d' | '3d' | 'split' | 'schema';
-export type CameraMode = 'orbit' | 'iso' | 'top';
+/**
+ * Wie man das Modell ansieht — oder darin steht.
+ *
+ * `walk` ist die vierte und andersartige: Bei den ersten dreien dreht man ein
+ * Modell auf dem Tisch, bei `walk` steht man auf Augenhöhe darin. Das ist
+ * nicht nur eine andere Kamera, sondern eine andere Frage: „komme ich hier
+ * durch?" statt „wie sieht das aus?".
+ */
+export type CameraMode = 'orbit' | 'iso' | 'top' | 'walk';
 
 export interface SnapSettings {
   /** Raster-Snapping aktiv. */
@@ -1725,24 +2377,46 @@ export interface SnapSettings {
   nodes: boolean;
   /** Fang auf Wandachsen (Punkt auf Linie). */
   walls: boolean;
+  /**
+   * Fang auf **Eckpunkte** außerhalb der Wandtopologie: Geländeecken,
+   * Leitungspunkte, Kamin- und Treppenecken, lichte Raumecken, TGA-Objekte —
+   * und die Punkte des gerade gezogenen Zuges.
+   *
+   * Bis 1.19.0 war der Wandknoten das einzige Fangziel im ganzen Programm.
+   * Eine Grundstücksgrenze ließ sich nicht an die Ecke des Nachbarhauses
+   * legen und der vierte Punkt einer Umfahrung nicht auf die Höhe des ersten.
+   */
+  points?: boolean;
   /** Winkelrasterung 0/45/90 relativ zum Startpunkt. */
   angle: boolean;
   /** Winkelschritt [°]. */
   angleStep: number;
   /** Fangradius in Bildschirm-Pixeln (zoom-unabhängig gedacht). */
   pixelTolerance: number;
+  /**
+   * Darf der Finger zeichnen?
+   *
+   * Auf einem Gerät mit Stift ist die Antwort **nein**, und das ist keine
+   * Bequemlichkeit: Wer mit dem Stift schreibt, legt die Hand auf. Zeichnet
+   * der Finger mit, zieht der Handballen eine Wand quer durch die Wohnung.
+   * Für ein Tablet ohne Stift lässt sich die Einstellung umlegen; dann trägt
+   * allein die Karenzzeit nach dem Abheben des Stifts.
+   */
+  fingerZeichnet?: boolean;
 }
 
 /** Ergebnis einer Snapping-Auswertung — trägt seine eigene Begründung. */
 export interface SnapResult {
   point: Vec2;
-  kind: 'free' | 'grid' | 'node' | 'wall' | 'angle' | 'extension';
+  kind: 'free' | 'grid' | 'node' | 'wall' | 'angle' | 'extension' | 'point';
   /** Getroffener Knoten, falls `kind === 'node'`. */
   nodeId?: NodeId;
   /** Getroffene Wand, falls `kind === 'wall'`. */
   wallId?: WallId;
   /** Für das HUD: gerasteter Winkel [°]. */
   angleDeg?: number;
+  /** Woher der Eckpunkt stammt, falls `kind === 'point'` — für die Anzeige. */
+  eckart?: string;
 }
 
 export type SelectionKind =
@@ -1755,7 +2429,10 @@ export type SelectionKind =
   | 'fixture'
   | 'vertical'
   | 'solid'
+  | 'durchbruch'
   | 'pipe'
+  /** Eine Armatur am Rohrnetz. */
+  | 'accessory'
   | 'annotation'
   | 'roofOpening'
   | 'site'
@@ -1765,6 +2442,18 @@ export interface Selection {
   kind: SelectionKind;
   id: string;
 }
+
+/**
+ * Woher eine Auswahl stammt.
+ *
+ * `'plan'` heißt: jemand hat im Grundriss oder im Modell auf ein Bauteil
+ * gezeigt. `'liste'` heißt: jemand hat einen Eintrag in einer Liste
+ * angeklickt — einen Prüfbefund, eine Raumzeile. Beides wählt dasselbe
+ * Objekt aus, aber nur im ersten Fall will der Anwender auch den Inspektor
+ * davor haben. Im zweiten würde der Reiterwechsel ihm die Liste wegnehmen,
+ * die er gerade abarbeitet.
+ */
+export type AuswahlQuelle = 'plan' | 'liste';
 
 /** 2D-Viewport: Modellraum → Bildschirm. */
 export interface Viewport {
@@ -1778,10 +2467,62 @@ export interface Viewport {
 // Projekt & Dokument
 // ===========================================================================
 
+/**
+ * Neubau oder Bestand — die Wurzel, aus der ein Dutzend Vorbelegungen folgt.
+ *
+ * **Warum das ein eigenes Feld ist und keine Ableitung.** Bis 1.23.0 gab es
+ * diesen Begriff im Modell überhaupt nicht, und in der Folge wurde er an
+ * einem Dutzend Stellen einzeln geraten: die Auslegungstemperatur mit 35/28
+ * (Flächenheizung, also Neubau), die Luftdichtheit mit einem Mittelwert, die
+ * Fenster-U-Werte im Überschlag mit 1,3 statt 0,9 „damit der Überschlag im
+ * Bestand nicht systematisch zu niedrig liegt", das vorhandene
+ * Ausdehnungsgefäß mit 0 (im Bestand fast immer falsch), die Dämmpflicht
+ * nach GEG mit dem Neubaufall. Jede dieser Annahmen ist für sich
+ * verteidigbar; zusammen beschreiben sie ein Haus, das es nicht gibt.
+ *
+ * Aus dem Programm ableiten lässt sich das Vorhaben **nicht**. Ein
+ * Bestandsgebäude, das vollständig entkernt wird, sieht im Modell aus wie ein
+ * Neubau. Deshalb wird gefragt, und zwar früh.
+ *
+ * `teilsanierung` ist kein Zwischenwert aus Bequemlichkeit, sondern der
+ * häufigste Fall in der Wärmepumpensanierung: neue Fenster und gedämmte
+ * oberste Geschossdecke, aber die Heizkörper von 1985 bleiben hängen. Wer
+ * ihn nicht führt, muss sich zwischen zwei falschen Annahmen entscheiden.
+ *
+ * `bestand` ist der vierte Fall und der, den ein Werkzeug für die
+ * Wärmepumpensanierung am leichtesten vergisst: das Haus, an dem **nichts**
+ * gemacht wird. Gusseiserne oder schmale Stahlheizkörper von 1975, ein Kessel
+ * im Keller, 75/60 im Auslegungsfall. Er kommt vor, wenn nur die Heizlast
+ * gebraucht wird — für den Kesseltausch, für den hydraulischen Abgleich nach
+ * VdZ, für die Frage, ob eine Wärmepumpe überhaupt in Frage kommt. Ihn unter
+ * `sanierung` zu führen hieße, mit 55/45 zu rechnen; bei einem Heizkörper
+ * sind das nach DIN EN 442-2 rund 40 Prozent weniger Leistung, als er
+ * wirklich abgibt, und ein doppelt so großer Volumenstrom im Rohrnetz.
+ */
+export type Vorhaben = 'neubau' | 'sanierung' | 'teilsanierung' | 'bestand';
+
+export const VORHABEN_LABELS: Record<Vorhaben, string> = {
+  neubau: 'Neubau',
+  sanierung: 'Sanierung',
+  teilsanierung: 'Teilsanierung',
+  bestand: 'Bestand, unsaniert',
+};
+
 export interface ProjectMeta {
   name: string;
   address?: string;
   client?: string;
+  /**
+   * Art des Vorhabens.
+   *
+   * **Optional, und das ist Absicht.** Ein Projekt aus einer älteren Fassung
+   * kennt das Feld nicht. Fehlt es, verhält sich das Programm exakt so wie
+   * vor seiner Einführung — es wird nichts abgeleitet, und jede Stelle, die
+   * daraus eine Vorbelegung zöge, behält ihren bisherigen Wert. Ein
+   * stillschweigendes „dann eben Neubau" wäre genau der Fehler, den dieses
+   * Feld beheben soll.
+   */
+  vorhaben?: Vorhaben;
   /** ISO-8601. */
   createdAt: string;
   modifiedAt: string;
@@ -1972,10 +2713,25 @@ export interface BimDocument {
    * älteren Fassung oder aus dem Import ohne dieses Feld gültig bleibt.
    */
   solids?: Record<string, SolidElement>;
+  /**
+   * Durchbrüche und Bohrungen. Optional aus demselben Grund wie `solids`:
+   * ein Dokument aus einer älteren Fassung oder aus dem Import bleibt ohne
+   * dieses Feld gültig.
+   */
+  durchbrueche?: Record<string, Durchbruch>;
   pipes: Record<string, PipeRun>;
   /** Armaturen und Formstücke am Rohrnetz — vom Rohrausleger erzeugt. */
   pipeAccessories?: Record<string, PipeAccessory>;
   annotations: Record<string, Annotation>;
+  /**
+   * Freihandnotizen über dem Plan.
+   *
+   * Bewusst **neben** den Annotationen und nicht in ihnen: eine Annotation
+   * ist ein Bemaßungs- oder Textobjekt mit Bedeutung für die Auswertung, ein
+   * Freihandstrich ist eine Randbemerkung. Wer beides in einen Topf wirft,
+   * bekommt Kringel in den Massenauszug.
+   */
+  freihand?: Record<string, Freihandstrich>;
   roofOpenings: Record<string, RoofOpening>;
   constructions: Record<string, Construction>;
   /** Außengelände: Grundstück, Wärmepumpe, Wärmequelle. */
@@ -2007,6 +2763,31 @@ export interface BimDocument {
 // ===========================================================================
 
 /** Öffnungs-Datensatz, wie ihn die Heizlastberechnung erwartet. */
+/**
+ * Woher der U-Wert einer exportierten Fläche stammt.
+ *
+ * Die Stufen sind nach ihrer Belastbarkeit geordnet, von stark nach schwach.
+ * Sie sind der Grund, warum diese Angabe überhaupt mitreist: eine Heizlast,
+ * deren U-Werte sämtlich `'annahme'` sind, ist rechnerisch dieselbe wie eine
+ * mit geöffneten Bauteilen — und fachlich etwas völlig anderes. Wer sie
+ * ausweist, macht aus einer Schwäche eine Aussage; wer sie verschweigt, hat
+ * im Streitfall nichts in der Hand.
+ *
+ * `'annahme'` ist dabei die einzige Stufe, die keine Erfassung hinter sich
+ * hat: Sie steht für einen festen Ersatzwert dieses Exports, den niemand
+ * eingetragen und kein Katalog geliefert hat. Genau diese Zeilen gehören in
+ * ein Annahmenverzeichnis.
+ */
+export type UWertQuelle =
+  /** U-Wert aus dem zugewiesenen Bauteilaufbau, gerechnet aus dessen Schichten. */
+  | 'aufbau'
+  /** Am Bauteil selbst erfasster Wert — jemand hat ihn eingetragen. */
+  | 'bauteil'
+  /** Vorgabewert der Bauteilart aus `VORGABE_U` — marktübliche Größenordnung. */
+  | 'katalog'
+  /** Fester Ersatzwert dieses Exports, ohne Katalogeintrag und ohne Erfassung. */
+  | 'annahme';
+
 export interface ExportOpening {
   id: string;
   kind: OpeningKind;
@@ -2017,6 +2798,8 @@ export interface ExportOpening {
   orientation: Orientation;
   azimuth: number;
   uValue: number;
+  /** Woher dieser U-Wert stammt — siehe `UWertQuelle`. */
+  uValueSource: UWertQuelle;
   gValue?: number;
   /** Name des zugewiesenen Bauteilaufbaus. */
   construction?: string;
@@ -2085,6 +2868,8 @@ export interface ExportSurface {
   /** Fläche abzüglich aller Öffnungen [m²] — Basis für Q_T. */
   netArea: number;
   uValue: number;
+  /** Woher dieser U-Wert stammt — siehe `UWertQuelle`. */
+  uValueSource: UWertQuelle;
   /** Name des zugewiesenen Bauteilaufbaus — macht den U-Wert nachvollziehbar. */
   construction?: string;
   constructionId?: string;
@@ -2125,6 +2910,26 @@ export interface ExportFixture {
 
 export interface ExportRoom {
   id: string;
+  /**
+   * Prüfsumme über die heizlastrelevanten Größen dieses Raums.
+   *
+   * Sie beantwortet der Gegenstelle eine einzige Frage: *Ist die Heizlast,
+   * die ich für diesen Raum gerechnet habe, noch gültig?* Gleiche Summe heißt
+   * ja, verschiedene Summe heißt nein.
+   *
+   * Gedeckt sind Geometrie, Hüllbauteile mit U-Werten und Randbedingungen,
+   * Öffnungen, Solltemperatur, Luftwechsel und Wärmebrücken. **Nicht** gedeckt
+   * sind Name, Farbe und Beschriftung: Wer einen Raum umbenennt, hat nichts
+   * ungültig gemacht, und eine Summe, die auf Umbenennungen anspringt,
+   * erzeugt Fehlalarme, nach denen niemand mehr hinschaut. Ebenso wenig
+   * gedeckt ist `exportedAt` — sonst wäre jeder Export anders als der vorige.
+   *
+   * Was das Modell mitliefert, ist der Vergleich; die Entscheidung, was mit
+   * einem veralteten Ergebnis geschieht, bleibt bei der Gegenstelle. Diese
+   * Übergabe rechnet keine Heizlast und kann sie deshalb auch nicht
+   * verwerfen.
+   */
+  checksum: string;
   name: string;
   usage: RoomUsage;
   level: string;
@@ -2314,6 +3119,43 @@ export interface ExportSolid {
   thermalBridge: ExportSolidThermalBridge;
 }
 
+/**
+ * Ein Durchbruch im Exportformat.
+ *
+ * Alle Maße sind lichte Maße in Metern. Es steht bewusst **keine** Fläche
+ * darin, die in eine Hüllflächenbilanz passen würde: ein Durchbruch mindert
+ * keine Wandfläche, er wird geschottet. Was er liefert, ist eine
+ * Ausführungsangabe — wo, wie groß, wie hoch, welches Gewerk, welche
+ * Brandschutzklasse.
+ */
+export interface ExportDurchbruch {
+  id: string;
+  kind: DurchbruchKind;
+  name: string;
+  /** Wird die Wand durchstoßen oder die Decke? */
+  wirt: DurchbruchWirt;
+  /** Geschoss; beim Deckendurchbruch das Geschoss unter der Decke. */
+  level: string;
+  /** Kennung der durchbrochenen Wand, falls wandgebunden. */
+  wallId?: string;
+  form: DurchbruchForm;
+  /** Lichter Durchmesser [m] bei runder Form. */
+  diameter?: number;
+  /** Rechteckmaße [m] in der Bauteilebene. */
+  width?: number;
+  height?: number;
+  /** Lichter Querschnitt [m²] — für den Schottungsaufwand, nicht für die Hülle. */
+  openArea: number;
+  /** Mittelpunkt in Weltkoordinaten [m]. */
+  position: Vec2;
+  /** Achs- bzw. Unterkantenhöhe über OK FFB [m], falls wandgebunden. */
+  sillHeight?: number;
+  service?: ShaftService;
+  dn?: number;
+  brandschutz: Brandschutzklasse;
+  note?: string;
+}
+
 /** Ein Leitungsabschnitt im Exportformat. */
 export interface ExportPipe {
   id: string;
@@ -2321,8 +3163,17 @@ export interface ExportPipe {
   level: string;
   nominalDiameter: number;
   insulation: number;
+  /** Verlegehöhe am Anfang [m]. */
   elevation: number;
-  /** Trassenlänge im Grundriss [m]. */
+  /** Verlegehöhe am Ende [m], falls der Abschnitt geneigt ist. */
+  elevationTo?: number;
+  /**
+   * **Wahre** Rohrlänge [m] — Trasse und Höhenversatz zusammen.
+   *
+   * Bis 1.23.0 stand hier die reine Grundrisslänge; der Steigstrang fehlte
+   * der Gegenstelle damit vollständig. Wer die Grundrisslänge braucht,
+   * rechnet sie aus `points` — die stehen daneben.
+   */
   length: number;
   points: Vec2[];
   fromFixtureId?: string;
@@ -2753,9 +3604,39 @@ export interface ExportPlant {
   };
 }
 
+/**
+ * Das Übergabeformat an die Heizlastberechnung — der **Vertrag**.
+ *
+ * **Wie die Version zu lesen ist.** `major.minor.patch`, und zwar aus der
+ * Sicht der Gegenstelle, nicht aus der des Erzeugers:
+ *
+ *   • **major** — ein Feld ist weggefallen oder hat eine andere Bedeutung
+ *     bekommen. Wer gegen die alte Fassung gebaut hat, rechnet ab jetzt
+ *     falsch oder gar nicht. Das ist der Fall, der abgestimmt werden muss.
+ *   • **minor** — es sind Felder dazugekommen, alle alten stehen unverändert.
+ *     Wer sie nicht kennt, überliest sie und rechnet weiter wie bisher.
+ *   • **patch** — an den Feldern hat sich nichts geändert.
+ *
+ * Diese Unterscheidung ist der ganze Zweck der Zahl: Sie sagt der
+ * Gegenstelle, ob sie etwas tun *muss* oder nur *kann*.
+ *
+ * **Was den Vertrag bewacht.** `scripts/pruefungen/exportvertrag.ts` führt
+ * die Feldlisten von Hand und vergleicht sie bei jedem `npm run verify` mit
+ * dem, was tatsächlich herauskommt. Ein Feld, das dazukommt oder verschwindet,
+ * ohne dass jemand die Liste anfasst, lässt den Prüflauf fallen — und wer die
+ * Liste anfasst, entscheidet dabei über die Version. Ohne diesen Wächter
+ * wandert das Format still weiter, während die Gegenstelle gegen eine
+ * Fassung baut, die es nicht mehr gibt.
+ */
 export interface RaviaExport {
   schema: 'ravia.bim.light';
-  version: '2.0.0';
+  /**
+   * 2.1.0 — gegenüber 2.0.0 additiv: `uValueSource` an jeder Hüllfläche und
+   * jeder Öffnung, `checksum` an jedem Raum. Alle Felder aus 2.0.0 stehen
+   * unverändert; eine Gegenstelle, die 2.0.0 liest, rechnet ohne Änderung
+   * weiter.
+   */
+  version: '2.1.0';
   generator: string;
   exportedAt: string;
   /** Einheiten explizit im Dokument — keine Konvention, die verloren gehen kann. */
@@ -2779,6 +3660,11 @@ export interface RaviaExport {
     groundContact: string;
     /** Was ein massives Bauteil ist und was seine Wärmebrückenangabe leistet. */
     solids: string;
+    /**
+     * Was ein Durchbruch ist, warum er die Wandfläche **nicht** mindert und
+     * was die Brandschutzangabe leistet.
+     */
+    durchbrueche: string;
     /**
      * Was die Lüftungsfelder bedeuten und was nicht addiert werden darf.
      * Der Text beantwortet die Fragen, die sonst als Rückfrage kommen:
@@ -2807,6 +3693,8 @@ export interface RaviaExport {
   verticals: ExportVertical[];
   /** Massive Bauteile — Kamin, Pfeiler, Wandversatz. */
   solids: ExportSolid[];
+  /** Durchbrüche und Bohrungen — Ausführungsangaben, keine Rechengrößen. */
+  durchbrueche: ExportDurchbruch[];
   /** Einzelne Leitungsabschnitte mit ihrer Trassenlänge. */
   pipes: ExportPipe[];
   /** Längenauszug: Meter je Gewerk, Nennweite und Dämmstärke. */
@@ -2816,6 +3704,29 @@ export interface RaviaExport {
    * hydraulischen Abgleichs — gerechnet wird er in RaVia.
    */
   pipeNetwork: PipeNetworkReport;
+  /**
+   * **Die Eingangsgrößen der Auslegung, je Heizfläche.**
+   *
+   * Warum dieser Block neben `rooms[].fixtures` steht, obwohl dort dieselben
+   * Objekte schon vorkommen: dort stehen sie als *Zeichnungsobjekte* —
+   * Position, Drehung, Symbolgröße. Hier stehen sie als *Rechenfälle*, und
+   * zwar vollständig. Der Rechenkern soll nicht aus einer Zeichnungsliste
+   * heraussuchen müssen, was er zum Auslegen braucht, und er soll vor allem
+   * nicht raten müssen, was fehlt: jedes Feld sagt, ob es gemessen, eingegeben
+   * oder angenommen ist.
+   *
+   * Der Block ist leer, solange keine Heizfläche gezeichnet ist.
+   */
+  emitters: ExportEmitter[];
+  /**
+   * **Vorbemessung der Hydraulik.** Ausdrücklich eine Vorbemessung: gerechnet
+   * wird der hydraulische Abgleich in RaVia. Was hier steht, ist der Stand,
+   * den die Zeichnung selbst ergibt — damit RaVia ihn nachvollziehen,
+   * vergleichen und ersetzen kann, statt bei null anzufangen.
+   *
+   * Fehlt, solange kein Rohrnetz gezeichnet ist.
+   */
+  hydraulics?: ExportHydraulics;
   rooms: ExportRoom[];
   totals: ExportBuildingTotals;
   validation: ValidationReport;
@@ -2838,10 +3749,189 @@ export interface RaviaExport {
     fixtures: Fixture[];
     verticals: VerticalElement[];
     solids: SolidElement[];
+    durchbrueche: Durchbruch[];
     pipes: PipeRun[];
     annotations: Annotation[];
     roofOpenings: RoofOpening[];
+    /**
+     * Das Grundstück, wie es im Modell steht — Grenze, Nachbarbebauung,
+     * Wärmepumpen, Bodenart. `heatPump` weiter oben ist die ausgewertete
+     * Sicht für den Rechenkern; **hier** steht, was zum Zurücklesen nötig ist.
+     */
+    site: SitePlan;
+    /** Handnotizen, falls welche im Plan liegen. */
+    freihand?: Freihandstrich[];
   };
+}
+
+// ===========================================================================
+// Auslegung — die Eingangsgrößen, die der Rechenkern braucht
+// ===========================================================================
+
+/**
+ * Woher eine Zahl kommt.
+ *
+ * Das Feld steht an jeder Größe, die nicht unmittelbar gemessen ist. Es ist
+ * die Antwort auf die Frage, die bei jeder Übergabe zuerst kommt: „ist das
+ * jetzt euer Wert oder unserer?"
+ */
+export type Herkunft =
+  /** Aus dem Modell gemessen — Länge, Fläche, Höhe. */
+  | 'gemessen'
+  /** Von Hand eingegeben, meist aus einem Datenblatt. */
+  | 'eingegeben'
+  /** Aus anderen Eingaben gerechnet. */
+  | 'gerechnet'
+  /**
+   * Angenommen, weil nichts vorlag. **Jede so gekennzeichnete Zahl darf der
+   * Rechenkern durch eine bessere ersetzen** — sie ist ein Platzhalter mit
+   * Begründung, kein Ergebnis.
+   */
+  | 'angenommen';
+
+/** Eine Zahl mit ihrer Herkunft und, wo nötig, ihrer Begründung. */
+export interface Auslegungswert {
+  wert: number;
+  herkunft: Herkunft;
+  /** Warum dieser Wert — Pflicht, wenn `herkunft` „angenommen" ist. */
+  begruendung?: string;
+}
+
+/**
+ * Eine Heizfläche als Rechenfall.
+ *
+ * **Warum es diesen Typ gibt.** Die Übergabe war an genau einer Stelle
+ * blockiert: `powerW` ist die Normleistung bei 55/45/20 °C, und ohne den
+ * Heizkörperexponenten lässt sie sich auf keine andere Übertemperatur
+ * umrechnen. Eine Wärmepumpe fährt aber nie 55/45. Der Rechenkern bekam also
+ * eine Zahl, mit der er nichts anfangen konnte, und musste den Exponenten
+ * selbst annehmen — eine Annahme, die an zwei Stellen unabhängig getroffen
+ * wird, ist an zwei Stellen anders.
+ *
+ * Dasselbe bei der Fußbodenheizung: das Kennfeld nach DIN EN 1264-2 hängt an
+ * Verlegeabstand, Estrichüberdeckung **und** Belagswiderstand R_λB. Zwei der
+ * drei standen im Export, der dritte nicht.
+ */
+export interface ExportEmitter {
+  /** Verweist auf `geometry.fixtures[].id`. */
+  fixtureId: string;
+  roomId?: RoomId;
+  levelId: LevelId;
+  label: string;
+  /** `radiator`, `underfloor`, `convector` … — die Bauart entscheidet die Rechenregel. */
+  type: FixtureType;
+  /**
+   * Welche Norm die Leistung dieser Bauart beschreibt. Der Rechenkern weiß
+   * damit ohne Fallunterscheidung, welches Verfahren gilt.
+   */
+  rule: 'EN 442' | 'EN 1264' | 'unbekannt';
+  /** Normwärmeleistung [W] und bei welchen Temperaturen sie gilt. */
+  nominalPower?: Auslegungswert;
+  nominalFlowTemperature?: number;
+  nominalReturnTemperature?: number;
+  nominalRoomTemperature?: number;
+  /** Die Temperaturen, mit denen diese Fläche betrieben werden soll [°C]. */
+  designFlowTemperature?: Auslegungswert;
+  designReturnTemperature?: Auslegungswert;
+  /** Der Exponent n aus EN 442-2. Ohne ihn ist keine Umrechnung möglich. */
+  exponent?: Auslegungswert;
+  /** Korrekturfaktor für die Anschlussart, falls bekannt. */
+  connection?: RadiatorConnection;
+  /** Baumaße [m] — Länge und Tiefe stehen in der Zeichnung, Höhe nicht. */
+  length?: number;
+  depth?: number;
+  height?: Auslegungswert;
+  /** Zahl der Glieder [-]; bei Plattenheizkörpern leer. */
+  sections?: number;
+  /** Fußbodenheizung: die drei Eingänge des Kennfelds nach EN 1264-2. */
+  loopSpacing?: Auslegungswert;
+  screedCover?: Auslegungswert;
+  floorCoveringResistance?: Auslegungswert;
+  /** Fußbodenheizung: Rohr [m] — außen und Wandstärke. */
+  pipeOuterDiameter?: Auslegungswert;
+  pipeWallThickness?: Auslegungswert;
+  /** Belegte Fläche [m²] bei Flächenheizung; die Heizkörperfläche ist keine. */
+  area?: number;
+  /** Zahl der Heizkreise in diesem Raum [-]. */
+  loopCount?: number;
+  /**
+   * Was dieser Heizfläche zum Auslegen **fehlt**, im Klartext.
+   *
+   * Eine leere Liste heißt: der Rechenkern kann rechnen. Eine gefüllte sagt
+   * ihm, was er beim Anwender nachfragen muss — und zwar bevor er rechnet und
+   * nicht, nachdem das Ergebnis unplausibel war.
+   */
+  missing: string[];
+}
+
+/**
+ * Die Vorbemessung der Hydraulik, wie die Zeichnung sie hergibt.
+ *
+ * **Ausdrücklich eine Vorbemessung.** Der hydraulische Abgleich gehört in den
+ * Rechenkern: dort liegen die Ventilkennlinien, die Herstellerdaten und die
+ * Verantwortung für das Ergebnis. Was hier steht, ist der Stand aus der
+ * Zeichnung — Trassenlängen, Einzelwiderstände, der ungünstigste Strang. Ihn
+ * mitzuliefern kostet nichts und erspart RaVia, ihn aus `pipes` neu
+ * herzuleiten; ihn *nicht* mitzuliefern hieße, dass zwei Programme dasselbe
+ * Netz verschieden verstehen und niemand merkt es.
+ */
+export interface ExportHydraulics {
+  /** „Vorbemessung aus der Zeichnung — maßgebend ist die Berechnung in RaVia." */
+  status: 'vorbemessung';
+  /** Angesetzte Spreizung [K] und Stoffwerte. */
+  spread: number;
+  fluid: { name: string; density: number; heatCapacity: number; viscosity: number };
+  material: string;
+  /** Summe der Volumenströme [m³/h] und der angesetzten Leistungen [kW]. */
+  totalFlow: number;
+  totalPower: number;
+  /** Je Verbraucher: Sollstrom, Druckverlust, erforderlicher k_v, Drosselbedarf. */
+  consumers: ExportConsumerBalance[];
+  /** Ungünstigster und günstigster Strang [Pa] und ihr Verhältnis. */
+  worst?: { fixtureId: string; label: string; lossPa: number };
+  best?: { fixtureId: string; label: string; lossPa: number };
+  lossSpreadPa: number;
+  lossRatio: number;
+  /** Wie viele Stränge sich mit den gewählten Ventilen **nicht** einstellen lassen. */
+  notAdjustable: number;
+  beyondPreset: number;
+  /** Pumpenauslegung aus der Vorbemessung. */
+  pump?: { flow: number; head: number; note?: string };
+  /**
+   * Erzeugerseite: was das Gerät selbst an Druckverlust hat und was es an
+   * Restförderhöhe übriglässt. Die beiden Angaben schließen einander aus —
+   * ein Hersteller nennt entweder die eine oder die andere; welche, steht in
+   * `kind`.
+   */
+  generator?: {
+    kind: 'geraetedruckverlust' | 'restfoerderhoehe' | 'unbekannt';
+    valuePa?: number;
+    flow?: number;
+    source?: string;
+  };
+  /** Hinweise der Vorbemessung im Klartext. */
+  notes: string[];
+}
+
+export interface ExportConsumerBalance {
+  fixtureId: string;
+  label: string;
+  roomId?: RoomId;
+  /** Sollvolumenstrom [m³/h]. */
+  flow: number;
+  /** Angesetzte Leistung [W]. */
+  powerW: number;
+  /** Druckverlust des Strangs ohne Ventil [Pa]. */
+  lossPa: number;
+  /** Erforderlicher k_v-Wert [m³/h bei 1 bar]. */
+  requiredKv?: number;
+  /** Zu drosselnder Anteil [Pa]. */
+  throttlePa?: number;
+  /** Druckverlust über dem Ventil [Pa] und dessen Autorität [-]. */
+  valvePa?: number;
+  authority?: number;
+  /** Vorgeschlagene Voreinstellung, falls das Ventil eine Reihe hat. */
+  preset?: string;
 }
 
 // ===========================================================================
@@ -3142,6 +4232,21 @@ export interface HeatPumpModel {
   contains?: UnitContents;
   /** Heizungsseitiger Anschluss, z. B. „G 1¼ AG". */
   hydraulicConnection: string;
+  /**
+   * Dieselbe Anschlussgröße als **Nennweite** [mm] — die rechenbare Fassung.
+   *
+   * Der Klartext oben ist, was im Datenblatt steht; diese Zahl ist die, mit
+   * der die erste Leitung ab dem Erzeuger gegen den Gerätestutzen geprüft
+   * wird. Fehlt sie, wird sie aus dem Klartext gedeutet — das trägt für
+   * „G 1¼ AG" und „Cu 28 × 1,0" und scheitert stillschweigend an jeder
+   * Schreibweise, die der Deuter nicht kennt. Dann wirkt eine vorhandene
+   * Herstellerangabe gar nicht auf die Rohrauslegung, und genau deshalb
+   * steht die Zahl lieber daneben.
+   *
+   * Optional, weil nicht jedes importierte Datenblatt sie hergibt. Fehlt sie
+   * **und** lässt sich der Klartext nicht deuten, wird nichts angenommen.
+   */
+  connectionDn?: number;
   /** Kältemittelleitungen bei Split: Flüssig / Sauggas [Zoll]. */
   refrigerantLines?: { liquid: string; gas: string; maxLength: number; maxHeight: number };
   /** Mindestvolumenstrom im Heizbetrieb [m³/h] — er bestimmt den Überströmer. */

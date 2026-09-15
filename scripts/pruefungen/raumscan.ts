@@ -135,6 +135,80 @@ export function pruefeRaumscan(check: CheckFn): void {
     check('… mit allen Öffnungen', mitNetzGelesen.openings.length, 17);
   }
 
+  // --- Fassungen von RoomPlan ----------------------------------------------
+  //
+  // Die Erkennung verlangte anfangs neben `walls` noch `floors` oder
+  // `sections`. **Beide Felder gibt es erst seit iOS 17.** Ein Scan von einem
+  // iPhone mit iOS 16 hat weder das eine noch das andere — und wurde deshalb
+  // abgewiesen, obwohl er vollständig brauchbar ist. Gefunden hat das keine
+  // Prüfung, sondern ein Blick in die Verfügbarkeitsangaben der Apple-Doku;
+  // die Beispieldatei hier stammt von einem neueren Gerät und hat die Felder.
+  //
+  // Geprüft wird deshalb ab jetzt jede Gestalt, die vorkommen kann.
+  {
+    const roh = JSON.parse(text) as Record<string, unknown>;
+    const modell = JSON.parse(
+      Buffer.from(String(roh.roomData), 'base64').toString('utf-8'),
+    ) as Record<string, unknown>;
+
+    // iOS 16: keine `floors`, keine `sections`, kein `story`, kein `version`.
+    const wieIos16 = { ...modell };
+    delete wieIos16.floors;
+    delete wieIos16.sections;
+    delete wieIos16.story;
+    delete wieIos16.version;
+    const ios16 = JSON.stringify(wieIos16);
+    check('Ein Scan im Umfang von iOS 16 wird erkannt', istRaumplanDatei(ios16), true);
+    const g16 = importRaumplan(ios16);
+    check('… und gelesen', g16.ok, true);
+    // Ohne Bodenumriss kann nicht entschieden werden, was außen liegt; die
+    // Wände kommen trotzdem alle an. Das ist der Punkt: lieber ein Plan mit
+    // geschätzten Stärken als gar keiner.
+    check('… mit allen Wänden', g16.walls.length, 40);
+
+    // iOS 17 Mehrraum: `CapturedStructure` mit zusammengeführter Geometrie
+    // **und** den Einzelräumen. Gelesen werden muss die zusammengeführte.
+    const struktur = JSON.stringify({ ...modell, rooms: [modell, modell] });
+    check('Ein Mehrraum-Scan wird erkannt', istRaumplanDatei(struktur), true);
+    const gs = importRaumplan(struktur);
+    check('… und nicht doppelt gelesen', gs.walls.length, 40);
+
+    // Und derselbe Aufbau ohne zusammengeführte Geometrie: dann sind die
+    // Einzelräume die einzige Quelle.
+    const nurRaeume = JSON.stringify({ version: 2, rooms: [modell] });
+    check('Ein Mehrraum-Scan ohne Zusammenführung wird erkannt', istRaumplanDatei(nurRaeume), true);
+    const gr = importRaumplan(nurRaeume);
+    check('… und aus den Einzelräumen gelesen', gr.walls.length, 40);
+  }
+
+  // --- Unmaß und Krümmung ---------------------------------------------------
+  {
+    const roh = JSON.parse(text) as Record<string, unknown>;
+    const modell = JSON.parse(
+      Buffer.from(String(roh.roomData), 'base64').toString('utf-8'),
+    ) as { walls: { dimensions: number[]; curve?: unknown }[] };
+
+    // Eine Wand von 120 m ist in Metern gemessen keine Wand. Sie fliegt
+    // heraus und steht mit Grund in der Liste der übersprungenen Teile —
+    // nicht stillschweigend, sonst hängt der ganze Plan an ihr.
+    const mitUnmass = JSON.parse(JSON.stringify(modell)) as typeof modell;
+    mitUnmass.walls[0].dimensions = [120, 2.5, 0];
+    const gu = importRaumplan(JSON.stringify(mitUnmass));
+    check('Eine 120-m-Wand wird übersprungen', gu.walls.length < 40, true);
+    check(
+      '… und der Grund genannt',
+      gu.skipped.some((s) => s.reason.includes('unglaubwürdigem Maß')),
+      true,
+    );
+
+    // Eine gekrümmte Wand wird als Sehne gezeichnet — und das wird gesagt.
+    const mitBogen = JSON.parse(JSON.stringify(modell)) as typeof modell;
+    mitBogen.walls[0].curve = { startAngle: 0, endAngle: 1.2, radius: 2.4 };
+    const gb = importRaumplan(JSON.stringify(mitBogen));
+    check('Die Krümmung wird gemeldet', gb.geschaetzt.some((a) => a.was === 'Gekrümmte Wände'), true);
+    check('… und die Wand trotzdem übernommen', gb.walls.length, 40);
+  }
+
   // --- Import ---------------------------------------------------------------
   const r = importRaumplan(text);
   check('Import gelingt', r.ok, true);

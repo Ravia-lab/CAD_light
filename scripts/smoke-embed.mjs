@@ -62,9 +62,14 @@ await p.addInitScript(() => {
     methods: Object.keys(window.RaViaCAD ?? {}).sort(),
   }));
   expect('Schnittstelle vorhanden', api.present, true);
+  // 1.2.0: `emitters` und `hydraulics` im Export, `fixtures[]` im Rückweg.
+  // Auch das ist reiner Zuwachs — kein Feld ist weggefallen, keines hat seine
+  // Bedeutung geändert. Geprüft wird deshalb weiterhin, dass die Befehle von
+  // 1.1.0 unverändert antworten.
+  //
   // 1.1.0: der Rückweg ist dazugekommen, die lesenden Befehle sind
   // unverändert geblieben.
-  expect('Version gemeldet', api.version, '1.1.0');
+  expect('Version gemeldet', api.version, '1.2.0');
   expect(
     'Alle Methoden da',
     api.methods,
@@ -125,7 +130,7 @@ console.log('\n▸ Nachrichtenbrücke (postMessage aus dem umgebenden Fenster)')
 
   const status = await p.locator('#status').innerText();
   expect('Verbindung steht', status, 'verbunden');
-  expect('Version angezeigt', await p.locator('#version').innerText(), '1.1.0');
+  expect('Version angezeigt', await p.locator('#version').innerText(), '1.2.0');
 
   const panel = await p.locator('#summary').innerText();
   expect('Kurzfassung angekommen', /Räume/.test(panel), true);

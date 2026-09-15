@@ -208,7 +208,7 @@ export default function VentilationPanel() {
               <div key={r.id} className="rounded-lg bg-white/[0.02] px-2 py-1.5">
                 <div className="flex items-baseline gap-2">
                   <button
-                    onClick={() => setSelection({ kind: 'room', id: r.id })}
+                    onClick={() => setSelection({ kind: 'room', id: r.id }, 'liste')}
                     className="min-w-0 flex-1 truncate text-left text-[10.5px] text-slate-300 hover:text-accent"
                   >
                     {r.name}

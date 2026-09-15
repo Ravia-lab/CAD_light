@@ -428,3 +428,67 @@ export function pruefeBaugrund(check: CheckFn): void {
   check('… sagt, dass λ fehlt', text.includes('λ'), true);
   check('Der Erdkontakt-Text verweist auf den Baugrund', ex.conventions.groundContact.includes('subsoil'), true);
 }
+
+/**
+ * Der Rückweg: was aus der Exportdatei wieder ein Modell macht.
+ *
+ * **Der Fehler, der hier nicht mehr passieren soll.** Bis 1.18.0 enthielt der
+ * Export das Grundstück nur in der *ausgewerteten* Sicht unter `heatPump` —
+ * Grundstücksfläche, Schallnachweis, Schutzbereich. Zum Zurücklesen taugt das
+ * nicht: dort steht ein Rechenfall und kein Gerät. Wer exportierte und die
+ * Datei wieder öffnete, hatte Grundstücksgrenze, Nachbarbebauung und
+ * Wärmepumpe verloren — ohne Fehlermeldung, denn geladen wurde ja etwas.
+ *
+ * Geprüft wird deshalb nicht „ist eine Zahl richtig", sondern: **steht in der
+ * Rohgeometrie alles, was das Modell wieder ergibt?**
+ */
+export function pruefeRueckweg(check: CheckFn): void {
+  const doc = baueHaus({ gelaende: 0 });
+  doc.site = {
+    ...doc.site,
+    elements: {
+      grenze: {
+        id: 'grenze',
+        kind: 'boundary',
+        points: [
+          { x: -5, y: -5 },
+          { x: 20, y: -5 },
+          { x: 20, y: 18 },
+          { x: -5, y: 18 },
+        ],
+      },
+      baum: { id: 'baum', kind: 'tree', points: [{ x: 3, y: -2 }] },
+    } as typeof doc.site.elements,
+  };
+  doc.freihand = {
+    fh1: {
+      id: 'fh1',
+      levelId: 'eg',
+      punkte: [
+        { x: 1, y: 1 },
+        { x: 2, y: 1.2 },
+      ],
+      createdAt: '2026-09-13T00:00:00.000Z',
+    },
+  };
+
+  const ex = buildRaviaExport(doc);
+  const geo = ex.geometry;
+  check('Die Rohgeometrie trägt das Grundstück', Boolean(geo.site), true);
+  check('… mit allen Geländeobjekten', Object.keys(geo.site?.elements ?? {}).length, 2);
+  check('… und die Grenze ist noch eine Fläche', geo.site?.elements?.grenze?.points.length ?? 0, 4);
+  check('… die Bodenart reist mit', geo.site?.soil, doc.site.soil);
+  check('Handnotizen reisen mit', geo.freihand?.length ?? 0, 1);
+  check('… mit ihren Punkten', geo.freihand?.[0]?.punkte.length ?? 0, 2);
+
+  // Der Weg durch die Datei: was JSON.stringify nicht mitnimmt, ist weg.
+  const zurueck = JSON.parse(JSON.stringify(ex)) as typeof ex;
+  check('Das Grundstück übersteht die Datei', Object.keys(zurueck.geometry.site?.elements ?? {}).length, 2);
+  check('Die Notiz übersteht die Datei', zurueck.geometry.freihand?.length ?? 0, 1);
+
+  // Gegenprobe: ein Modell ohne Gelände darf keine erfundenen Objekte
+  // mitschicken — und keine leere Notizliste, die nach Inhalt aussieht.
+  const leer = buildRaviaExport(baueHaus({ gelaende: 0 }));
+  check('Ohne Geländeobjekte bleibt die Sammlung leer', Object.keys(leer.geometry.site?.elements ?? {}).length, 0);
+  check('Ohne Notizen steht kein Notizfeld da', leer.geometry.freihand === undefined, true);
+}

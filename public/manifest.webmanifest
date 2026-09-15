@@ -1,0 +1,17 @@
+{
+  "name": "RaVia CAD Light",
+  "short_name": "CAD Light",
+  "description": "Grundriss aufnehmen und Anlagentechnik auslegen — auf dem Tablet mit dem Stift.",
+  "start_url": ".",
+  "scope": ".",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#0B1120",
+  "theme_color": "#0B1120",
+  "lang": "de",
+  "icons": [
+    { "src": "kachel-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "kachel-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "kachel-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

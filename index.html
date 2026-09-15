@@ -2,7 +2,19 @@
 <html lang="de" class="dark">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <!--
+      `viewport-fit=cover` blendet den Inhalt bis unter die abgerundeten Ecken
+      und die Home-Leiste des iPads; ohne die Angabe bleiben dort graue
+      Streifen stehen. `user-scalable=no` verhindert, dass ein Doppeltipp den
+      ganzen Plan verzieht — gezoomt wird im Zeichner, nicht im Browser.
+    -->
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"
+    />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="mobile-web-app-capable" content="yes" />
     <meta name="theme-color" content="#0B1120" />
     <title>RaVia CAD Light</title>
     <!--
@@ -14,9 +26,55 @@
       dafür, dass die Anwendung ohne Netz vollständig ist, und es hält die
       Inhaltsrichtlinie des Servers frei von fremden Herkünften.
     -->
+    <!--
+      Das Kachelbild für den Home-Bildschirm.
+
+      Ohne `apple-touch-icon` macht iOS ein **Bildschirmfoto der Seite** und
+      legt das auf den Home-Bildschirm — bei einer dunklen CAD-Oberfläche ein
+      grauer Fleck, an dem niemand erkennt, was das sein soll. Die Datei muss
+      eine PNG sein; das SVG-Favicon unten nimmt iOS dafür nicht.
+
+      Die Pfade sind bewusst **relativ**: Die Anwendung liegt auf dem Server
+      unter /Cad_light/ und als Einzeldatei unter file:// — ein führender
+      Schrägstrich zeigte in beiden Fällen ins Leere.
+    -->
+    <link rel="apple-touch-icon" href="apple-touch-icon.png" />
+    <link rel="manifest" href="manifest.webmanifest" />
+    <meta name="application-name" content="RaVia CAD Light" />
+    <meta name="apple-mobile-web-app-title" content="CAD Light" />
+    <!--
+      Das Browsersymbol: dasselbe Haus, das die Anwendung oben links führt.
+
+      Die Vorlage steht in `src/components/Toolbar.tsx` (Marke, Block 1) und
+      besteht aus drei Zügen in einem 24er-Feld: Wände mit Dach
+      (`M4 20V9l8-5 8 5v11`), Boden (`M4 20h16`) und Tür (`M10 20v-6h4v6`),
+      Akzentblau #38BDF8 auf dem Anwendungsgrund #0B1120, runde Ecken und
+      Enden. Genau diese Formensprache steht hier — wer das Symbol im
+      Programm gesehen hat, erkennt den Reiter im Browser wieder.
+
+      **Was gegenüber der Vorlage bewusst anders ist.** Ein Favicon wird mit
+      32 px dargestellt, nicht mit 24 CSS-Pixeln auf einem scharfen Schirm.
+      Zwei Maße sind deshalb nachgezogen:
+
+      1. Der Strich ist 3 statt 1,5 Einheiten breit (im 24er-Feld entspräche
+         das etwa 2,4). Ein Haarstrich von einem Pixel wird vom Browser beim
+         Verkleinern grau gewaschen und verschwindet auf hellen Reiterleisten
+         fast ganz; 3 Einheiten bleiben auch nach dem Glätten blau.
+      2. Die Tür ist breiter (7 statt 4,8 Einheiten auf die Hauskante von
+         19,2 gerechnet). Bei Originalbreite bliebe zwischen den beiden
+         Türpfosten weniger als 2 px dunkler Grund übrig — die Tür liefe zu
+         einem blauen Klecks zusammen, statt als Öffnung zu lesen.
+
+      Weggelassen wurde nichts: Dach, Wände, Boden und Tür sind alle vier da.
+      Getestet wurde in 32 px, dort ist das Haus samt Türöffnung erkennbar.
+
+      Das Ganze steht als `data:`-Adresse und nicht als Datei, damit der
+      Reiter ohne einen zweiten Abruf steht — und weil ein Pfad unter
+      /Cad_light/ und unter file:// verschieden aussähe.
+    -->
     <link
       rel="icon"
-      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230B1120'/%3E%3Cpath d='M7 23V9h8a4 4 0 0 1 0 8h-8m8 0 6 6' stroke='%2338BDF8' stroke-width='2.6' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230B1120'/%3E%3Cg stroke='%2338BDF8' stroke-width='3' fill='none' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6.4 25.6V12.4L16 6.4l9.6 6V25.6'/%3E%3Cpath d='M6.4 25.6h19.2'/%3E%3Cpath d='M12.5 25.6v-8.6h7v8.6'/%3E%3C/g%3E%3C/svg%3E"
     />
   </head>
   <body class="bg-[#0B1120]">

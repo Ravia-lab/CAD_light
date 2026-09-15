@@ -1,4 +1,4 @@
-RaVia CAD Light 1.14.0 — Serverpaket
+RaVia CAD Light 1.17.0 — Serverpaket
 =====================================
 
 Was hier drin ist
@@ -15,7 +15,7 @@ SERVER-EINRICHTUNG.html  im Browser öffnen. Das ist das Handbuch fuer den,
 
 Der schnelle Weg, wenn Sie es eilig haben
 -----------------------------------------
-    tar xzf RaVia-CAD-Light-Server-1.14.0.tar.gz
+    tar xzf RaVia-CAD-Light-Server-1.17.0.tar.gz
     cd ravia-cad-light-server
     sudo bin/einrichten.sh IHRE-ADRESSE.de
     sudo certbot --nginx -d IHRE-ADRESSE.de
@@ -35,7 +35,7 @@ Was im Paket liegt
     bin/pruefen.sh            Abnahme des laufenden Servers von aussen
     einbettung/               Beispielseite fuer die Einbindung in RaVia
     pruefsummen.sha256        Wird von aufspielen.sh geprueft
-    VERSION                   1.14.0
+    VERSION                   1.17.0
 
 Drei Dinge, die Sie wissen sollten
 ----------------------------------
@@ -44,7 +44,7 @@ Drei Dinge, die Sie wissen sollten
    nichts zu sichern.
 
 2. Die Anwendung ruft KEINE fremde Adresse auf. Die Schriften liegen im
-   Paket. Das ist seit 1.14.0 so und war vorher anders.
+   Paket. Das ist seit 1.17.0 so und war vorher anders.
 
 3. Die Abnahme (bin/pruefen.sh) meldet auf einer frischen Einrichtung genau
    einen Fehler: die Beispieladresse app.ravia.de steht noch in der

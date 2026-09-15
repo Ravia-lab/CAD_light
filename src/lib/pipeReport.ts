@@ -40,6 +40,7 @@ import type {
   PipeSurrounding,
 } from '../types/bim';
 import { PIPE_MATERIAL_LABELS, PIPE_SERVICE_LABELS } from '../types/bim';
+import { rohrlaenge as rohrlaengeVon } from './rohrlaenge';
 import type { FluidProperties, PipeSegmentResult, PumpDesign } from './hydraulics';
 import { FITTING_RESISTANCES, fluidProperties } from './hydraulics';
 import type { BalanceReport, ConsumerBalance } from './hydraulicBalance';
@@ -49,8 +50,9 @@ import { erzeugerBilanz } from './erzeugerHydraulik';
 import { buildPipeNetwork } from './pipeNetwork';
 import type { PlantDesignResult } from './plantDesign';
 import { designPlant } from './plantDesign';
+import { anschlussNotiz } from './anschlussgroesse';
 import { plantOf } from './plantDefaults';
-import { connectionDiameter } from './safetyFittings';
+import type { Systemtemperatur, Temperaturherkunft } from './systemtemperatur';
 import { insulationForDimension } from './pipeInsulation';
 import {
   DEFAULT_THERMOSTAT_PRESSURE,
@@ -196,8 +198,22 @@ export interface RohrnetzBericht {
   /** Geschoss, auf das sich der Grundriss bezieht. */
   levelId: string;
   erstellt: string;
-  /** Angesetzte Auslegungstemperaturen. */
-  temperaturen: { vorlauf: number; ruecklauf: number; spreizung: number };
+  /**
+   * Angesetzte Auslegungstemperaturen — **mit Absender**.
+   *
+   * Bis 1.23.0 standen hier drei nackte Zahlen. Wer „50/40 °C" auf dem Blatt
+   * las und im Anlagenblatt 35/28 vorfand, musste das Programm für kaputt
+   * halten; wer „35/28" las, während die Kreise 50/40 fuhren, merkte gar
+   * nichts. Herkunft und Begründung sind deshalb Teil der Angabe und keine
+   * Beigabe.
+   */
+  temperaturen: {
+    vorlauf: number;
+    ruecklauf: number;
+    spreizung: number;
+    herkunft: Temperaturherkunft;
+    begruendung: string;
+  };
   /** Stoffwerte, mit denen gerechnet wurde. */
   fluid: FluidProperties;
   /** Vorherrschender Werkstoff im Netz. */
@@ -337,9 +353,25 @@ function rauigkeitVon(dimension: PipeDimension, ergebnis: PipeSegmentResult): nu
 export function buildPipeReport(doc: BimDocument, options: RohrnetzOptionen = {}): RohrnetzBericht {
   const auslegung = designPlant(doc);
   const anlage = plantOf(doc);
-  const vorlauf = anlage.design?.flowTemperature ?? 55;
-  const ruecklauf = anlage.design?.returnTemperature ?? Math.max(20, vorlauf - 7);
-  const spreizung = Math.max(1, vorlauf - ruecklauf);
+  /*
+   * Die Temperatur, mit der dieser Bericht rechnet — und woher sie kommt.
+   *
+   * Bis 1.23.0 stand hier `anlage.design.flowTemperature`, also das
+   * Anlagenblatt. Der Kommentar darunter erklärte sorgfältig, warum die
+   * **mittlere** Temperatur die richtige Bezugsgröße ist, und nahm dann die
+   * falsche: An einem reinen Heizkörperhaus wies die Anlagenauslegung eine
+   * Zeile weiter oben Kreise mit 50/40 aus, während dieser Bericht mit 35/28
+   * rechnete. 7 K statt 10 K Spreizung sind 43 % Volumenstrom zu viel, und
+   * damit ist jede Nennweite, jede Reynoldszahl und jedes λ auf diesem Blatt
+   * falsch.
+   *
+   * Sie kommt jetzt aus der Anlagenauslegung, die sie ihrerseits aus
+   * `systemtemperatur` hat — eine Quelle für Kreis, Erzeuger und Bericht.
+   */
+  const temperatur = auslegung.systemtemperatur;
+  const vorlauf = temperatur.vorlauf;
+  const ruecklauf = temperatur.ruecklauf;
+  const spreizung = temperatur.spreizung;
   // Gerechnet wird mit der **mittleren** Temperatur des Kreises. Die Dichte
   // zwischen Vor- und Rücklauf unterscheidet sich um wenige Promille, die
   // Zähigkeit um bis zu 15 % — und die geht über die Reynoldszahl direkt in
@@ -376,10 +408,22 @@ export function buildPipeReport(doc: BimDocument, options: RohrnetzOptionen = {}
   const erzeugerVolumenstrom =
     auslegung.totalFlow ||
     (auslegung.selected?.capacityAtDesign ?? auslegung.requiredCapacity) / (1.163 * spreizung);
-  const anschlussDn = connectionDiameter(auslegung.selected?.capacityAtDesign ?? auslegung.requiredCapacity, {
-    spread: spreizung,
-    velocity: 0.8,
-  });
+  /*
+   * Abgelesen, nicht nachgerechnet: Die Anlagenauslegung hat die Nennweite
+   * bereits bestimmt, und zwar mit derselben Spreizung, mit der dieser
+   * Bericht rechnet. Eine zweite Rechnung an dieser Stelle war der Weg, auf
+   * dem die falsche Spreizung hierher kam.
+   *
+   * Seit 1.24.0 trägt dieselbe Zahl eine zweite Aussage: Ist am Erzeuger
+   * eine Anschlussgröße hinterlegt, die größer ist als das hydraulisch
+   * nötige Maß, steht hier die **angehobene** Nennweite (siehe
+   * `anschlussgroesse.pruefeAnschluss`). Auch das kommt abgelesen und wird
+   * nicht nachgeprüft — genau deshalb steht es hier richtig, ohne dass
+   * dieser Bericht die Regel kennen müsste. Die Begründung reist als
+   * Hinweis aus `designPlant` mit; `auslegung.anschluss` hält sie
+   * zusätzlich als Datensatz.
+   */
+  const anschlussDn = auslegung.anschlussDn;
   const trinkwasserUeberErzeuger = Boolean(
     auslegung.dhwStorage ?? Object.values(anlage.storages ?? {}).find((st) => st.kind === 'dhw-cylinder' || st.kind === 'combi'),
   );
@@ -457,11 +501,10 @@ export function buildPipeReport(doc: BimDocument, options: RohrnetzOptionen = {}
   const heizflaechen: HeizflaechenZeile[] = abgleich.consumers.map((c) => heizflaecheVon(c, doc, fluid));
 
   // --- Kennzahlen ----------------------------------------------------------
-  const rohrlaenge = runs.reduce((sum, r) => {
-    let l = 0;
-    for (let i = 1; i < r.points.length; i++) {
-      l += Math.hypot(r.points[i].x - r.points[i - 1].x, r.points[i].y - r.points[i - 1].y);
-    }
+  const rohrlaengeGesamt = runs.reduce((sum, r) => {
+    // Wahre Länge einschließlich Höhenversatz — ein Steigstrang ist Rohr,
+    // auch wenn er im Grundriss auf einem Punkt steht.
+    const l = rohrlaengeVon(r);
     return sum + l;
   }, 0);
 
@@ -497,6 +540,19 @@ export function buildPipeReport(doc: BimDocument, options: RohrnetzOptionen = {}
    */
   for (const n of erzeuger.hinweise) hinweise.unshift(n);
 
+  /*
+   * Und davor die Begründung der Anschlussnennweite, falls sie angehoben wurde.
+   *
+   * Sie steht in `designPlant` schon als Hinweis — aber in *dessen* Notizen,
+   * und die liest niemand, der dieses Blatt in der Hand hält. Auf diesem
+   * Blatt steht eine Nennweite, die sich mit den Zahlen daneben nicht
+   * nachrechnen lässt: DN 32 bei einem Volumenstrom, für den DN 20 reicht.
+   * Eine Zahl, die der Leser nicht nachrechnen kann und die niemand erklärt,
+   * hält er für einen Fehler — und rechnet sie „richtig", also klein.
+   */
+  const anhebung = auslegung.anschluss ? anschlussNotiz(auslegung.anschluss) : undefined;
+  if (anhebung) hinweise.unshift(anhebung);
+
   const basis = wissensbasis();
   const quellen: RohrnetzBericht['quellen'] = [];
   for (const thema of ['dokumentation', 'abgleich-recht', 'ventilautoritaet', 'druckverlust', 'rohrdaemmung']) {
@@ -510,7 +566,13 @@ export function buildPipeReport(doc: BimDocument, options: RohrnetzOptionen = {}
     titel: doc.meta.name || 'Rohrnetzberechnung',
     levelId: options.levelId ?? doc.activeLevelId,
     erstellt: new Date().toISOString().slice(0, 10),
-    temperaturen: { vorlauf, ruecklauf, spreizung },
+    temperaturen: {
+      vorlauf,
+      ruecklauf,
+      spreizung,
+      herkunft: temperatur.herkunft,
+      begruendung: temperatur.begruendung,
+    },
     fluid,
     werkstoff,
     heizlast: {
@@ -519,7 +581,7 @@ export function buildPipeReport(doc: BimDocument, options: RohrnetzOptionen = {}
       norm: auslegung.heatLoadSource === 'norm',
     },
     volumenstrom: round(abgleich.totalFlow, 3),
-    rohrlaenge: round(rohrlaenge, 1),
+    rohrlaenge: round(rohrlaengeGesamt, 1),
     straenge: straenge.sort((a, b) => b.gesamt - a.gesamt),
     heizflaechen,
     teilstrecken,
@@ -528,7 +590,7 @@ export function buildPipeReport(doc: BimDocument, options: RohrnetzOptionen = {}
     schlechtpunkt: schlecht
       ? { id: schlecht.id, bezeichnung: schlecht.bezeichnung, gesamt: schlecht.gesamt }
       : undefined,
-    nachweis: nachweisPunkte(doc, auslegung, abgleich, { vorlauf, ruecklauf }),
+    nachweis: nachweisPunkte(doc, auslegung, abgleich, temperatur),
     quellen,
     abgleich,
     auslegung,
@@ -633,7 +695,7 @@ function nachweisPunkte(
   doc: BimDocument,
   auslegung: PlantDesignResult,
   abgleich: BalanceReport,
-  temperaturen: { vorlauf: number; ruecklauf: number },
+  temperaturen: Systemtemperatur,
 ): NachweisPunkt[] {
   const eingestellt = abgleich.consumers.filter((c) => c.presetSelection).length;
   const raumweise = auslegung.heatLoadSource === 'norm';
@@ -681,10 +743,22 @@ function nachweisPunkte(
     {
       nr: 5,
       forderung: 'Auslegungstemperatur',
-      antwort: `Vorlauf ${temperaturen.vorlauf} °C, Rücklauf ${temperaturen.ruecklauf} °C, ` +
-        `Norm-Außentemperatur ${doc.meta.designOutdoorTemperature} °C.`,
+      // Die Begründung steht mit in der Antwort und nicht nur in der
+      // Herkunftsspalte: Auf einem Blatt, das nach § 60c schriftlich
+      // mitzuteilen ist, muss eine angehobene Temperatur sich selbst
+      // erklären — sonst sucht der Empfänger sie im Anlagenblatt und findet
+      // eine andere.
+      antwort:
+        `Vorlauf ${temperaturen.vorlauf} °C, Rücklauf ${temperaturen.ruecklauf} °C ` +
+        `(Spreizung ${temperaturen.spreizung} K), Norm-Außentemperatur ${doc.meta.designOutdoorTemperature} °C. ` +
+        temperaturen.begruendung,
       erfuellt: true,
-      herkunft: 'Anlagendefinition im Modell',
+      herkunft:
+        temperaturen.herkunft === 'angehoben'
+          ? 'Heizkreise der Anlagenauslegung (über die Angabe im Anlagenblatt angehoben)'
+          : temperaturen.herkunft === 'vorgabe'
+            ? 'Vorbelegung des Programms — im Modell steht keine Auslegungstemperatur'
+            : 'Anlagendefinition im Modell',
     },
     {
       nr: 6,

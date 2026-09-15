@@ -143,6 +143,34 @@ console.log('\n▸ Eine Fläche, die kein Raum ist, sondern Mauerwerk');
   await schliesseDruck();
 }
 
+// --- 3 · Ein Durchbruch auf dem Blatt ---------------------------------------
+//
+// Ein Durchbruch muss auf dem Ausdruck stehen, sonst wird er nicht gebohrt.
+// Geprüft wird beides, was ihn ausmacht: das gekreuzte Feld in der Wand und
+// die Fahne mit Maß und Höhe daneben. Ein Loch ohne Maß ist eine Markierung,
+// kein Auftrag.
+{
+  console.log('\n▸ Durchbruch auf dem Blatt');
+  const gesetzt = await p.evaluate(() => {
+    const s = window.__ravia.getState();
+    const wand = Object.values(s.doc.walls).find((w) => w.levelId === s.doc.activeLevelId);
+    if (!wand) return null;
+    const db = s.addDurchbruch(s.durchbruchPreset, { wallId: wand.id, distance: 1.1 });
+    window.__ravia.getState().updateDurchbruch(db.id, { brandschutz: 'R90' });
+    return { id: db.id, form: db.form, d: db.diameter };
+  });
+  expect('Ein Durchbruch ist gesetzt', Boolean(gesetzt?.id), true);
+  await p.waitForTimeout(300);
+
+  await oeffneDruck();
+  const svg2 = await vorschau();
+  // Die Fahne trägt Durchmesser, Höhe über Fertigfußboden und die
+  // Brandschutzklasse — in genau dieser Reihenfolge.
+  expect('Die Maßfahne steht auf dem Blatt', /Ø152[^<]*0,15 m[^<]*R 90/.test(svg2), true);
+  await p.screenshot({ path: './screenshots/druck-3-durchbruch.png' });
+  await schliesseDruck();
+}
+
 console.log(`\n${failures === 0 && errs.length === 0 ? '✓ RAUCHTEST BESTANDEN' : '✗ FEHLGESCHLAGEN'}`);
 if (errs.length) console.log('ERRORS:', errs.join(' | '));
 await b.close();

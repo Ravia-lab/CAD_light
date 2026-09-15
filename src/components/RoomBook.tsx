@@ -202,7 +202,7 @@ export default function RoomBook() {
                 key={r.room.id}
                 onClick={() => {
                   if (r.room.levelId !== doc.activeLevelId) setActiveLevel(r.room.levelId);
-                  setSelection({ kind: 'room', id: r.room.id });
+                  setSelection({ kind: 'room', id: r.room.id }, 'liste');
                 }}
                 className={`grid w-full grid-cols-[1fr_auto_auto] gap-x-2 rounded px-1.5 py-1 text-left transition-colors ${
                   active ? 'bg-accent/12' : 'hover:bg-white/[0.04]'

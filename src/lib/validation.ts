@@ -19,7 +19,10 @@
 
 import type { BimDocument, ValidationIssue, ValidationReport, Vec2 } from '../types/bim';
 import { distance } from './geometry';
-import { BRUESTUNGS_HOEHE, diagnoseClosure, gradeSplit } from './roomDetection';
+import { durchbruchPasst } from './durchbruchSymbols';
+import { durchbruchWirt } from '../types/bim';
+import { BRUESTUNGS_HOEHE, diagnoseClosure, gebaeudeUmriss, gradeSplit } from './roomDetection';
+import { BAUTEIL_BEZEICHNUNG, VORGABE_U, istErfasst, uWertOeffnung, uWertWand } from './uwert';
 import { documentBridgeHeatLoss, envelopeArea } from './thermalBridges';
 import { buildPipeNetwork } from './pipeNetwork';
 import { acousticReport, protectionIssues, sourceDemand, waterProtectionVerdict } from './heatPump';
@@ -73,13 +76,15 @@ export const REMEDIES: Record<string, string> = {
   'wall.dangling': 'Wandende an die nächste Wand heranziehen oder die Wand löschen, wenn sie nicht gebraucht wird.',
   'wall.degenerate': 'Diese Wand hat kaum Länge — vermutlich ein verrutschter Klick. Am besten löschen.',
   'wall.missing-u-value':
-    'Wand anklicken und im Reiter „Objekt" den U-Wert eintragen oder einen Aufbau aus dem Katalog zuweisen. Ohne Angabe wird ein Standardwert gerechnet.',
+    'Wand anklicken und im Reiter „Objekt" den U-Wert eintragen oder einen Aufbau aus dem Katalog zuweisen. Bis dahin rechnet die Heizlast mit dem Vorgabewert der Bauteilart — einer Annahme, die zufällig passen kann und meist danebenliegt.',
   'wall.implausible-u-value':
-    'U-Wert prüfen: eine gedämmte Außenwand liegt bei 0,15 bis 0,3, eine ungedämmte Altbauwand bei etwa 1,4.',
+    'U-Wert prüfen: eine gedämmte Außenwand liegt bei 0,15 bis 0,3, eine ungedämmte Altbauwand bei etwa 1,4. Eine 0 ist kein U-Wert — ein Bauteil ohne Wärmedurchgang gibt es nicht.',
+  'construction.u-value':
+    'Im Bauteilkatalog den U-Wert dieses Aufbaus eintragen. Ein Aufbau mit 0 nimmt jedem zugewiesenen Bauteil seinen Wärmeverlust, und zwar ohne dass es an der Wand selbst zu sehen wäre.',
   'wall.implausible-height':
     'Wandhöhe im Reiter „Objekt" prüfen — üblich sind 2,50 bis 3,00 m. Eine Brüstung oder ein Kniestock unter 1,60 m ist kein Fehler und wird nicht gemeldet.',
   'opening.missing-u-value':
-    'Fenster oder Tür anklicken und den U-Wert eintragen. Auf dem Aufkleber am Rahmen steht er meist; sonst: 2-fach-Verglasung rund 1,3, 3-fach rund 0,9.',
+    'Fenster oder Tür anklicken und den U-Wert eintragen. Auf dem Aufkleber am Rahmen steht er meist; sonst: 2-fach-Verglasung rund 1,3, 3-fach rund 0,9. Bis dahin rechnet die Übergabe mit dem Vorgabewert der Bauteilart.',
   'opening.implausible-u-value': 'U-Wert prüfen — Fenster liegen zwischen 0,8 (3-fach) und 3,0 (alte 2-fach-Verglasung).',
   'opening.missing-g-value':
     'g-Wert eintragen, wenn er bekannt ist. Er wirkt nur auf die sommerlichen Gewinne, nicht auf die Heizlast.',
@@ -87,6 +92,16 @@ export const REMEDIES: Record<string, string> = {
   'opening.too-tall': 'Brüstung plus Höhe liegen über der Wandhöhe. Höhe oder Brüstungshöhe verringern.',
   'opening.overlap': 'Zwei Öffnungen liegen übereinander. Eine verschieben oder löschen.',
   'opening.orphan': 'Die zugehörige Wand fehlt — die Öffnung löschen.',
+  'durchbruch.orphan':
+    'Die durchbrochene Wand fehlt im Modell. Den Durchbruch auf eine vorhandene Wand ziehen oder löschen — ein Loch ohne Wand bohrt niemand.',
+  'durchbruch.does-not-fit':
+    'Der Durchbruch passt nicht in seine Wand. Maß verkleinern, Höhe über Fertigfußboden verringern oder ihn auf eine größere Wand setzen.',
+  'durchbruch.overlap':
+    'Zwei Durchbrüche überschneiden sich in derselben Wand. Einen verschieben oder beide zu einem gemeinsamen Wanddurchbruch zusammenfassen — zwei Kernbohrungen, die sich berühren, ergeben einen Ausbruch.',
+  'durchbruch.no-brandschutz':
+    'Der Durchbruch liegt in einer Wand, die Geschosse oder Nutzungseinheiten trennt, und trägt keine Brandschutzanforderung. In der Eigenschaftsleiste die geforderte Klasse setzen — oder bewusst „ohne Anforderung" stehen lassen.',
+  'durchbruch.oversize':
+    'Der Durchbruch ist größer als ein Viertel der Wandlänge. Ab dieser Größe ist es kein Durchbruch mehr, sondern ein Wandausschnitt: statisch nachweisen lassen oder als Durchgang zeichnen.',
   'room.missing-usage':
     'Raum anklicken und im Reiter „Objekt" die Nutzung wählen. Daraus ergeben sich Solltemperatur und Luftwechsel.',
   'room.tiny': 'Sehr kleiner Raum — meist ein ungewollter Restbereich zwischen zwei Wänden. Wände prüfen.',
@@ -94,7 +109,8 @@ export const REMEDIES: Record<string, string> = {
   'room.no-exterior': 'Dieser Raum hat keine Außenwand. Das ist möglich (Innenbad), aber oft fehlt einfach eine Wand.',
   'room.unresolved-neighbour':
     'Hinter dieser Wand wurde kein Raum erkannt — meist steht dort ein offenes Wandende. Gerechnet wird solange gegen „unbeheizt".',
-  'level.missing-floor-u': 'Im Reiter „Objekt" beim Geschoss den U-Wert für Boden und Decke eintragen.',
+  'level.missing-floor-u':
+    'Im Reiter „Objekt" beim Geschoss den U-Wert für Boden und Decke eintragen. Für beide gibt es keinen Vorgabewert — zwischen gedämmter Bodenplatte und Geschossdecke liegt der Faktor drei —, sie fallen ohne Angabe mit 0 W aus der Heizlast.',
   'level.below-grade-no-ground':
     'Die Geländeoberkante im Projektkopf eintragen — dieselbe Bezugshöhe wie die Fußbodenhöhe der Geschosse. Erst dann weiß das Programm, welcher Teil der Wände im Erdreich steckt; bis dahin wird das ganze Geschoss gegen Außenluft gerechnet.',
   'level.embedment-exceeds-height':
@@ -124,6 +140,8 @@ export const REMEDIES: Record<string, string> = {
   'roof.collar': 'Die Kehlbalkenlage muss über dem Kniestock liegen, sonst gibt es keine Schräge dazwischen.',
   'roof.wall-height': 'Kein Fehler: unter der Schräge zählt ohnehin die tatsächliche Höhe. Die Wandhöhe wirkt dort nur als Obergrenze.',
   'roof.low-room': 'Sehr niedriger Raum unter der Schräge — Kniestock und Neigung im Reiter „Dach" prüfen.',
+  'roof.single-ridge':
+    'Entweder im Reiter „Dach" auf Walm umstellen — das Walmdach folgt dem Umriss von selbst und bildet die Kehle über dem Innenwinkel mit —, oder den Seitenflügel als eigenes Geschoss mit eigenem Dach führen. Bleibt es beim Sattel- oder Pultdach, ist das eine bewusste Entscheidung: Wo der Grundriss einspringt, springt die Dachhaut mit, aber der zweite First und seine Kehle fehlen im Modell. Dachflächen und Volumen des Flügels sind dann eine Annahme.',
   'ventilation.unbalanced':
     'Volumenströme an den Ventilen angleichen: bei einer Zu-/Abluftanlage muss so viel hinein wie heraus.',
   'ventilation.no-supply': 'Zuluftventile in Wohn- und Schlafräumen setzen (Reiter „TGA", Gewerk Lüftung).',
@@ -134,7 +152,12 @@ export const REMEDIES: Record<string, string> = {
   'ventilation.room-missing-exhaust': 'Abluftventil in diesem Raum setzen oder seine Rolle im Reiter „Lüftung" ändern.',
   'ventilation.room-missing-supply': 'Zuluftventil in diesem Raum setzen oder seine Rolle im Reiter „Lüftung" ändern.',
   'ventilation.no-ahu': 'Nur ein Hinweis: das Lüftungsgerät im Plan zu setzen hilft beim Aufmaß, ist aber nicht nötig.',
-  'pipes.no-source': 'Einen Verteiler oder Wärmeerzeuger setzen und die Leitungen daran anschließen.',
+  'pipes.no-source':
+    'Einen Speicher, Verteiler oder Wärmeerzeuger setzen und die Leitungen daran anschließen.',
+  'plant.generator-unlinked':
+    'Im Reiter „Anlage" das passende Gerät aus dem Katalog wählen — danach rechnet die Anlage mit Datenblattwerten.',
+  'pipes.source-outside':
+    'Dort, wo die Leitung ins Haus kommt, einen Speicher oder Verteiler setzen und die Leitungen daran anschließen.',
   'pipes.unconnected':
     'Beim Verlegen auf das Symbol klicken — damit hängt es am Strang. Oder die Leitung bis an das Symbol heranziehen.',
   'pipes.idle-source': 'An dieser Quelle hängt nichts. Entweder eine Leitung anschließen oder sie entfernen.',
@@ -281,16 +304,48 @@ export function validateModel(doc: BimDocument): ValidationReport {
         id: wall.id,
       });
     }
-    if (wall.uValue === undefined) {
-      add('warning', 'wall.missing-u-value', 'Wand ohne U-Wert — es wird ein Standardwert angenommen.', {
-        kind: 'wall',
-        id: wall.id,
-      });
-    } else if (wall.type === 'exterior' && wall.uValue > LIMITS.maxExteriorU) {
+    /*
+     * U-Wert der Wand — drei Fälle, und bis 1.23.0 sah die Prüfung nur einen.
+     *
+     * Die alte Meldung lautete „Wand ohne U-Wert — es wird ein Standardwert
+     * angenommen." Sie war unwahr: Der Heizlastüberschlag nahm keinen
+     * Standardwert an, sondern rechnete mit `?? 0`, und die Wand fiel damit
+     * aus der Bilanz. Seit `uwert.ts` stimmt der Satz — deshalb darf er hier
+     * stehen bleiben, und deshalb nennt er jetzt auch die Zahl: Ein Anwender,
+     * der liest „es wird etwas angenommen", kann nicht beurteilen, ob die
+     * Annahme für sein Haus taugt. Mit „0,24 für eine Außenwand" kann er es.
+     *
+     * Der zweite Fall ist neu und der gefährlichere: eine **erfasste 0**. Sie
+     * ist kein fehlender Wert, also lief sie durch jede Prüfung; und sie ist
+     * kein möglicher U-Wert, denn ein Bauteil ohne Wärmedurchgang gibt es
+     * nicht. Genau so entstanden über `hostPatch` angelegte Bauteilaufbauten,
+     * und genau so verlor das Referenzhaus ein Viertel seiner Heizlast, ohne
+     * dass ein einziger Hinweis im Bericht stand. Deshalb `error` und nicht
+     * `warning`: hier ist eine Angabe da und sie ist nachweislich falsch —
+     * dieselbe Einstufung wie bei der Dachfläche weiter unten.
+     */
+    const erfassteWand = wall.uValue;
+    if (erfassteWand !== undefined && !istErfasst(erfassteWand)) {
+      add(
+        'error',
+        'wall.implausible-u-value',
+        `${BAUTEIL_BEZEICHNUNG[wall.type]} mit U = ${erfassteWand} W/(m²·K) — das ist kein U-Wert. ` +
+          `Gerechnet wird ersatzweise mit ${VORGABE_U[wall.type]} W/(m²·K).`,
+        { kind: 'wall', id: wall.id },
+      );
+    } else if (uWertWand(wall, doc.constructions).herkunft === 'katalog') {
+      add(
+        'warning',
+        'wall.missing-u-value',
+        `${BAUTEIL_BEZEICHNUNG[wall.type]} ohne U-Wert — für die Heizlast wird der Vorgabewert ` +
+          `${VORGABE_U[wall.type]} W/(m²·K) angesetzt.`,
+        { kind: 'wall', id: wall.id },
+      );
+    } else if (wall.type === 'exterior' && erfassteWand !== undefined && erfassteWand > LIMITS.maxExteriorU) {
       add(
         'warning',
         'wall.implausible-u-value',
-        `Außenwand mit U = ${wall.uValue} W/(m²·K) — das ist für eine Außenwand ungewöhnlich hoch.`,
+        `Außenwand mit U = ${erfassteWand} W/(m²·K) — das ist für eine Außenwand ungewöhnlich hoch.`,
         { kind: 'wall', id: wall.id },
       );
     }
@@ -355,11 +410,24 @@ export function validateModel(doc: BimDocument): ValidationReport {
         { kind: 'opening', id: op.id },
       );
     }
-    if (op.kind !== 'passage' && op.uValue === undefined) {
-      add('warning', 'opening.missing-u-value', `${labelOf(op.kind)} ohne U-Wert.`, {
-        kind: 'opening',
-        id: op.id,
-      });
+    // Dieselben drei Fälle wie bei der Wand. Der Durchgang bleibt außen vor:
+    // er ist ein Loch und kein Bauteil, und `uWertOeffnung` beantwortet ihn
+    // mit 0 aus dem Katalog — richtig so, nur eben keine Lücke.
+    if (op.kind !== 'passage' && op.uValue !== undefined && !istErfasst(op.uValue)) {
+      add(
+        'error',
+        'opening.implausible-u-value',
+        `${labelOf(op.kind)} mit U = ${op.uValue} W/(m²·K) — das ist kein U-Wert. ` +
+          `Gerechnet wird ersatzweise mit ${VORGABE_U[op.kind]} W/(m²·K).`,
+        { kind: 'opening', id: op.id },
+      );
+    } else if (op.kind !== 'passage' && uWertOeffnung(op, doc.constructions).herkunft === 'katalog') {
+      add(
+        'warning',
+        'opening.missing-u-value',
+        `${labelOf(op.kind)} ohne U-Wert — angesetzt wird der Vorgabewert ${VORGABE_U[op.kind]} W/(m²·K).`,
+        { kind: 'opening', id: op.id },
+      );
     }
     if (op.kind === 'window') {
       if (op.uValue !== undefined && (op.uValue < LIMITS.minWindowU || op.uValue > LIMITS.maxWindowU)) {
@@ -394,6 +462,69 @@ export function validateModel(doc: BimDocument): ValidationReport {
           kind: 'opening',
           id: curr.id,
         });
+      }
+    }
+  }
+
+  // --- Durchbrüche --------------------------------------------------------
+  //
+  // Vier Fragen, die vor dem Bohren zu klären sind. Sie sind bewusst nicht
+  // die der Öffnungsprüfung: ein Durchbruch darf über die Wandhöhe hinaus
+  // nichts, aber er darf sehr wohl dicht neben einem Fenster liegen — nur
+  // nicht in einem anderen Durchbruch.
+  const durchbrueche = Object.values(doc.durchbrueche ?? {});
+  for (const db of durchbrueche) {
+    const wand = db.wallId ? doc.walls[db.wallId] : undefined;
+    if (durchbruchWirt(db.kind) === 'wand' && !wand) {
+      add('error', 'durchbruch.orphan', `${db.name} ohne zugehörige Wand.`, {
+        kind: 'durchbruch',
+        id: db.id,
+      });
+      continue;
+    }
+    if (wand) {
+      const urteil = durchbruchPasst(db, doc, wand.height);
+      if (!urteil.passt) {
+        add('error', 'durchbruch.does-not-fit', `${db.name}: ${urteil.grund}`, {
+          kind: 'durchbruch',
+          id: db.id,
+        });
+      }
+      const a = doc.nodes[wand.a];
+      const b = doc.nodes[wand.b];
+      const wandLaenge = a && b ? distance(a, b) : 0;
+      const breite = db.form === 'rund' ? (db.diameter ?? 0) : (db.width ?? 0);
+      if (wandLaenge > 0 && breite > wandLaenge / 4) {
+        add(
+          'warning',
+          'durchbruch.oversize',
+          `${db.name} nimmt mit ${breite.toFixed(2)} m mehr als ein Viertel der ${wandLaenge.toFixed(2)} m langen Wand ein.`,
+          { kind: 'durchbruch', id: db.id },
+        );
+      }
+    }
+  }
+
+  // Überschneidung: nur innerhalb derselben Wand, und nur, wenn sich die
+  // Felder sowohl waagerecht als auch senkrecht überlagern. Zwei Bohrungen
+  // übereinander in derselben Achse sind erlaubt und üblich — Vorlauf oben,
+  // Rücklauf unten.
+  const durchbruchNachWand = new Map<string, typeof durchbrueche>();
+  for (const db of durchbrueche) {
+    if (!db.wallId) continue;
+    const liste = durchbruchNachWand.get(db.wallId);
+    if (liste) liste.push(db);
+    else durchbruchNachWand.set(db.wallId, [db]);
+  }
+  for (const liste of durchbruchNachWand.values()) {
+    for (let i = 0; i < liste.length; i++) {
+      for (let j = i + 1; j < liste.length; j++) {
+        if (ueberschneidet(liste[i], liste[j])) {
+          add('error', 'durchbruch.overlap', 'Zwei Durchbrüche überschneiden sich in derselben Wand.', {
+            kind: 'durchbruch',
+            id: liste[j].id,
+          });
+        }
       }
     }
   }
@@ -480,8 +611,29 @@ export function validateModel(doc: BimDocument): ValidationReport {
   if (meta.n50 <= 0 || meta.n50 > LIMITS.maxN50) {
     add('warning', 'project.n50', `n50 = ${meta.n50} 1/h ist unplausibel.`);
   }
-  if (Object.values(doc.levels).some((l) => l.floorUValue === undefined)) {
-    add('warning', 'level.missing-floor-u', 'Für mindestens ein Geschoss fehlt der U-Wert des Bodens.');
+  /*
+   * Boden und Decke der Geschosse.
+   *
+   * Geprüft wurde bisher `floorUValue === undefined`. Der Typ sagt aber, dass
+   * das Feld eine Zahl **ist** — die Bedingung konnte also praktisch nie
+   * greifen, während der Fall, der wirklich vorkommt, durchlief: eine 0. Ein
+   * frisch angelegtes Geschoss trägt sie, und sie macht die Bodenplatte
+   * verlustfrei. Für Boden und Decke gibt es anders als bei Wänden **keinen**
+   * Vorgabewert nach Bauteilart (Begründung in `uwert.ts`), die Fläche fällt
+   * also tatsächlich mit 0 W aus der Bilanz. Deshalb wird hier auch die Decke
+   * mitgeprüft und beides namentlich benannt — „mindestens ein Geschoss"
+   * schickt den Leser suchen.
+   */
+  for (const level of Object.values(doc.levels)) {
+    const ohneBoden = !istErfasst(level.floorUValue) && !level.floorConstructionId;
+    const ohneDecke = !istErfasst(level.ceilingUValue) && !level.ceilingConstructionId;
+    if (!ohneBoden && !ohneDecke) continue;
+    const fehlend = ohneBoden && ohneDecke ? 'Boden und Decke' : ohneBoden ? 'der Boden' : 'die Decke';
+    add(
+      'warning',
+      'level.missing-floor-u',
+      `Im Geschoss ${level.name} trägt ${fehlend} keinen U-Wert — die Fläche geht mit 0 W in die Heizlast ein.`,
+    );
   }
 
   // --- Geländeoberkante und erdberührte Bauteile ---------------------------
@@ -673,12 +825,34 @@ export function validateModel(doc: BimDocument): ValidationReport {
   // gar nicht erfasst, soll nicht mit Befunden darüber behelligt werden.
   if (Object.keys(doc.pipes ?? {}).length > 0) {
     const network = buildPipeNetwork(doc);
+    /*
+     * Ein fehlender Anschlusspunkt ist nicht dasselbe wie ein fehlender
+     * Erzeuger.
+     *
+     * Bei einer Wärmepumpe steht der Erzeuger im Außenbereich und ist im
+     * Grundriss gar kein Objekt, sondern Teil der Außenanlage. Wer sie
+     * erfasst hat und trotzdem liest, es gebe keinen Erzeuger, bekommt
+     * einen Befund, der nicht stimmt — und lernt dabei, die Prüfliste
+     * nicht ernst zu nehmen. Darum wird hier getrennt: gibt es überhaupt
+     * keinen Erzeuger, ist das eine Warnung; steht er draußen und fehlt
+     * nur der Punkt, an dem die Leitung ins Haus kommt, ist es ein
+     * Hinweis mit genau dieser Auskunft.
+     */
     if (!network.sources.length) {
-      add(
-        'warning',
-        'pipes.no-source',
-        'Es sind Leitungen verlegt, aber kein Verteiler und kein Erzeuger — ohne Quelle lässt sich kein Strang zuordnen.',
-      );
+      const pumpen = Object.keys(doc.site?.pumps ?? {}).length;
+      if (pumpen > 0) {
+        add(
+          'info',
+          'pipes.source-outside',
+          `Die Wärmepumpe steht in der Außenanlage, im Grundriss fehlt aber der Punkt, an dem die Leitung ins Haus kommt — ohne ihn lässt sich kein Strang zuordnen.`,
+        );
+      } else {
+        add(
+          'warning',
+          'pipes.no-source',
+          'Es sind Leitungen verlegt, aber kein Speicher, kein Verteiler und kein Erzeuger — ohne Quelle lässt sich kein Strang zuordnen.',
+        );
+      }
     }
     // Nur dort mahnen, wo überhaupt ein Netz dieses Gewerks gezeichnet
     // wurde. Wer die Heizung verlegt, die Lüftungskanäle aber bewusst
@@ -833,12 +1007,30 @@ export function validateModel(doc: BimDocument): ValidationReport {
       const schematic = Object.keys(plant.schematic.components).length;
 
       if (plant.generatorModelId || storages.length || circuits.length || schematic) {
+        /*
+         * „Kein Wärmeerzeuger" stimmt nur, wenn wirklich keiner erfasst ist.
+         *
+         * Wer die Wärmepumpe in der Außenanlage aufgenommen hat, hat einen
+         * Erzeuger — ihm fehlt nur die Verbindung zum Gerätekatalog, aus
+         * dem Druckverlust, Mindestvolumen und Gefäßgröße kommen. Das ist
+         * ein Hinweis auf eine offene Zuordnung, keine Meldung über ein
+         * fehlendes Gerät.
+         */
         if (!plant.generatorModelId) {
-          add(
-            'warning',
-            'plant.no-generator',
-            'Es ist eine Anlage geplant, aber kein Wärmeerzeuger gewählt. Ohne Gerät sind Puffer, Rohrnetz und Sicherheitstechnik nicht belastbar.',
-          );
+          const pumpen = Object.values(doc.site?.pumps ?? {});
+          if (pumpen.length > 0) {
+            add(
+              'info',
+              'plant.generator-unlinked',
+              `${pumpen.length === 1 ? `Die Wärmepumpe „${pumpen[0].label}" ist` : `${pumpen.length} Wärmepumpen sind`} in der Außenanlage erfasst, aber keinem Gerät aus dem Katalog zugeordnet. Bis dahin rechnen Puffer, Rohrnetz und Sicherheitstechnik mit Annahmen statt mit Datenblattwerten.`,
+            );
+          } else {
+            add(
+              'warning',
+              'plant.no-generator',
+              'Es ist eine Anlage geplant, aber kein Wärmeerzeuger gewählt. Ohne Gerät sind Puffer, Rohrnetz und Sicherheitstechnik nicht belastbar.',
+            );
+          }
         }
         if (plant.heatLoadOverride === undefined) {
           add(
@@ -928,6 +1120,55 @@ export function validateModel(doc: BimDocument): ValidationReport {
     // Der praktisch wichtigste Hinweis: Wandhöhe und Kniestock passen nicht
     // zusammen. Dann steht im Modell eine Wand, die es so nicht gibt.
     const levelWalls = Object.values(doc.walls).filter((w) => w.levelId === level.id);
+
+    /*
+     * Eine Firstlinie über einem Grundriss, der keine ist.
+     *
+     * Sattel- und Pultdach haben je *eine* gerade Firstlinie — das ist ihre
+     * Definition. Über einem Rechteck reicht das. Über einem L nicht: Der
+     * Seitenflügel bekäme am Bau einen eigenen First und dazwischen eine
+     * Kehle, und welcher First das ist, folgt aus keiner Firstrichtung,
+     * sondern aus einer Planungsentscheidung. Das Programm trifft sie nicht
+     * heimlich — es rechnet die Traufe dem Umriss nach und sagt hier, was
+     * dabei offen bleibt.
+     *
+     * Erkannt wird über beides zugleich: mehr als vier Umrisspunkte **und**
+     * eine Umrissfläche deutlich unter der ihrer Bounding Box. Die
+     * Punktzahl allein schlüge bei jeder harmlosen Nische an, das
+     * Flächenverhältnis allein bei jedem gedrehten Rechteck — dessen Umriss
+     * hat vier Punkte und trotzdem nur einen Bruchteil der achsparallelen
+     * Bounding Box.
+     */
+    if (roof.kind === 'gable' || roof.kind === 'monopitch') {
+      const umriss = gebaeudeUmriss(levelWalls, doc.nodes);
+      if (umriss.length > 4) {
+        let minX = Infinity;
+        let minY = Infinity;
+        let maxX = -Infinity;
+        let maxY = -Infinity;
+        for (const p of umriss) {
+          if (p.x < minX) minX = p.x;
+          if (p.y < minY) minY = p.y;
+          if (p.x > maxX) maxX = p.x;
+          if (p.y > maxY) maxY = p.y;
+        }
+        const kasten = (maxX - minX) * (maxY - minY);
+        const flaeche = Math.abs(
+          umriss.reduce((sum, p, i) => {
+            const q = umriss[(i + 1) % umriss.length];
+            return sum + p.x * q.y - q.x * p.y;
+          }, 0) / 2,
+        );
+        const anteil = kasten > 0 ? flaeche / kasten : 1;
+        if (anteil < 0.98) {
+          add(
+            'warning',
+            'roof.single-ridge',
+            `${roof.kind === 'gable' ? 'Satteldach' : 'Pultdach'} über ${level.name}: Der Gebäudeumriss hat ${umriss.length} Ecken und füllt nur ${Math.round(anteil * 100)} % seines umschließenden Rechtecks. Eine einzelne Firstlinie deckt einen solchen Grundriss nicht ab — der Seitenflügel bräuchte einen eigenen First und eine Kehle.`,
+          );
+        }
+      }
+    }
     const tooTall = levelWalls.filter((w) => w.height > roof.kneeHeight + 0.3).length;
     if (tooTall > 0 && levelWalls.length > 0) {
       add(
@@ -958,3 +1199,36 @@ export function validateModel(doc: BimDocument): ValidationReport {
 
 const labelOf = (kind: string): string =>
   kind === 'door' ? 'Tür' : kind === 'window' ? 'Fenster' : 'Durchgang';
+
+/**
+ * Überschneiden sich zwei Durchbrüche in derselben Wand?
+ *
+ * Geprüft wird in der Wandebene: waagerecht über den Abstand auf der Achse,
+ * senkrecht über Unterkante und Höhe. Nur wenn sich **beide** Bereiche
+ * überlagern, ist es eine Überschneidung — sonst liegen die Löcher neben- oder
+ * übereinander, und das ist der Regelfall.
+ *
+ * Runde Bohrungen werden dabei als ihr umschreibendes Quadrat behandelt. Das
+ * ist die vorsichtigere Antwort: zwei Kreise, deren Quadrate sich um wenige
+ * Millimeter überlagern, stehen so eng, dass der Steg zwischen ihnen beim
+ * Bohren ausbricht. Wer es genauer will, misst auf der Baustelle nach.
+ */
+function ueberschneidet(
+  a: { distance?: number; sillHeight?: number; form: string; diameter?: number; width?: number; height?: number },
+  b: typeof a,
+): boolean {
+  const feld = (d: typeof a) => {
+    const breite = d.form === 'rund' ? (d.diameter ?? 0) : (d.width ?? 0);
+    const hoch = d.form === 'rund' ? (d.diameter ?? 0) : (d.height ?? 0);
+    const u = d.distance ?? 0;
+    // Bei runder Form ist `sillHeight` die Achshöhe, bei rechteckiger die
+    // Unterkante — dieselbe Unterscheidung wie im Typ, und hier muss sie
+    // gemacht werden, sonst sitzt der Kreis eine halbe Bohrung zu hoch.
+    const unten = d.form === 'rund' ? (d.sillHeight ?? 0) - hoch / 2 : (d.sillHeight ?? 0);
+    return { u0: u - breite / 2, u1: u + breite / 2, z0: unten, z1: unten + hoch };
+  };
+  const fa = feld(a);
+  const fb = feld(b);
+  const eps = 1e-6;
+  return fa.u0 < fb.u1 - eps && fb.u0 < fa.u1 - eps && fa.z0 < fb.z1 - eps && fb.z0 < fa.z1 - eps;
+}

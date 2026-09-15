@@ -35,10 +35,12 @@ import type {
   PipeMaterial,
   PipeNetworkReport,
   PipePath,
+  PipeRun,
   PipeSegment,
   PipeService,
   Vec2,
 } from '../types/bim';
+import { hoeheAnPunkt, hoehenversatz, trassenlaenge } from './rohrlaenge';
 
 export type { PipeNetworkReport, PipePath, PipeSegment };
 
@@ -49,10 +51,19 @@ const ATTACH = 0.3;
 /** Steigstränge übereinander gelten als verbunden. */
 const RISER_ALIGN = 0.35;
 
-/** Objekte, von denen ein Netz ausgeht. */
+/**
+ * Objekte, von denen ein Netz ausgeht.
+ *
+ * Der Speicher gehört dazu, und das ist keine Feinheit. Bei einer
+ * Wärmepumpe steht der Erzeuger draußen; im Haus beginnt das Heizungsnetz
+ * am Puffer oder am Trinkwasserspeicher. Wer ihn hier nicht als Quelle
+ * führt, bekommt bei einer vollständig erfassten Anlage den Befund, es
+ * gebe keinen Erzeuger — und das ist schlicht falsch.
+ */
 const SOURCES: Partial<Record<string, PipeService>> = {
   manifold: 'heating-flow',
   boiler: 'heating-flow',
+  storage: 'heating-flow',
   'water-heater': 'hot-water',
   ahu: 'ventilation-supply',
 };
@@ -81,6 +92,23 @@ const RISERS = new Set(['riser-heating', 'riser-sanitary']);
 interface GraphNode {
   id: number;
   point: Vec2;
+  /**
+   * Verlegehöhe des Knotens über Fertigfußboden [m].
+   *
+   * **Warum ein Knoten eine Höhe braucht.** Ohne sie ist das Netz ein
+   * Grundriss, und ein Fallstrang in der Zimmerecke ist darin ein Punkt:
+   * Anfang und Ende liegen im Grundriss zwei Zentimeter auseinander, also
+   * innerhalb des Fangabstands, werden verschmolzen — und die Kante zwischen
+   * ihnen ist danach eine Schleife auf sich selbst, die `connect` verwirft.
+   * Der Strang verschwand damit **vollständig** aus dem Rohrnetz: keine
+   * Teilstrecke, keine Länge, kein Druckverlust, und der Heizkörper dahinter
+   * galt als angeschlossen und widerstandsfrei. Gemessen: bis 5,9 cm Trasse
+   * war er weg, ab 6,1 cm stand er mit 2,40 m im Bericht.
+   *
+   * Derselbe Massenauszug führte ihn die ganze Zeit richtig. Zwei Berichte
+   * aus einem Modell, und der eine hätte die Pumpe zu klein gewählt.
+   */
+  hoehe: number;
   levelId: string;
   fixtures: string[];
 }
@@ -139,17 +167,27 @@ class Graph {
   }
 
   /** Knoten an dieser Stelle finden oder anlegen. */
-  node(point: Vec2, levelId: string): GraphNode {
+  node(point: Vec2, levelId: string, hoehe = 0): GraphNode {
     const cx = Math.floor(point.x / WELD);
     const cy = Math.floor(point.y / WELD);
     for (let dx = -1; dx <= 1; dx++) {
       for (let dy = -1; dy <= 1; dy++) {
         const bucket = this.cells.get(Graph.cellKey(levelId, cx + dx, cy + dy));
         if (!bucket) continue;
-        for (const n of bucket) if (dist(n.point, point) <= WELD) return n;
+        /*
+         * Verschmolzen wird nur, was im Grundriss **und** in der Höhe
+         * zusammenfällt. Der Rasterhash bleibt zweidimensional — Knoten an
+         * derselben Stelle in verschiedenen Höhen liegen also im selben
+         * Eimer und werden hier auseinandergehalten, statt das Raster
+         * dreidimensional zu machen. Das ist billiger und ändert am
+         * Verhalten aller waagerechten Leitungen nichts.
+         */
+        for (const n of bucket) {
+          if (dist(n.point, point) <= WELD && Math.abs(n.hoehe - hoehe) <= WELD) return n;
+        }
       }
     }
-    const n: GraphNode = { id: this.nodes.length, point, levelId, fixtures: [] };
+    const n: GraphNode = { id: this.nodes.length, point, hoehe, levelId, fixtures: [] };
     this.nodes.push(n);
     this.edges.set(n.id, []);
     const key = Graph.cellKey(levelId, cx, cy);
@@ -212,11 +250,11 @@ function buildGraph(doc: BimDocument): { graph: Graph; risers: number } {
 
   for (const run of runs) {
     if (run.points.length < 2) continue;
-    let previous = graph.node(run.points[0], run.levelId);
+    let previous = graph.node(run.points[0], run.levelId, hoeheAnPunkt(run, 0));
     const first = previous;
     const armaturen = armaturenJeLeitung.get(run.id) ?? [];
     for (let i = 1; i < run.points.length; i++) {
-      const current = graph.node(run.points[i], run.levelId);
+      const current = graph.node(run.points[i], run.levelId, hoeheAnPunkt(run, i));
       // Armaturen, deren nächster Abschnitt genau dieser ist.
       const aufAbschnitt: PipeAccessoryKind[] = [];
       for (const armatur of armaturen) {
@@ -240,7 +278,24 @@ function buildGraph(doc: BimDocument): { graph: Graph; risers: number } {
         // verschmolzenen Knoten. Sonst wichen Strangschema und Längenauszug
         // um genau den Fangabstand voneinander ab — zwei Zahlen im selben
         // Dokument, die sich widersprechen.
-        length: dist(run.points[i - 1], run.points[i]),
+        /*
+         * **Der senkrechte Anteil gehört in die Teilstreckenlänge.**
+         *
+         * Bis 1.23.0 stand hier die reine Grundrisslänge. Ein Abschnitt mit
+         * Höhenversatz — der Vorlauf, der unter die Decke steigt, der
+         * Fallstrang in der Zimmerecke — ging damit mit einer zu kurzen
+         * Länge in den Druckverlust ein; ein reiner Strang sogar mit **null**.
+         * Der Rohrnetzbericht wies die Teilstrecke dann als widerstandsfrei
+         * aus, die Pumpe wurde zu klein gewählt, und im Längenauszug fehlten
+         * dieselben Meter ein zweites Mal.
+         *
+         * Die Steigung verteilt sich gleichmäßig über die Trasse (so ist
+         * `elevationTo` definiert), also trägt jede Teilstrecke ihren Anteil
+         * am Höhenversatz — im selben Verhältnis, in dem sie an der Trasse
+         * beteiligt ist. Bei einem reinen Strang (Trassenlänge null) fällt
+         * der ganze Versatz auf die eine Teilstrecke, die es dann gibt.
+         */
+        length: teilstreckenlaenge(run, i),
         runId: run.id,
         nominalDiameter: run.nominalDiameter,
         insulation: run.insulation,
@@ -470,6 +525,26 @@ function shortestPaths(graph: Graph, sourceNodes: { node: number; fixtureId: str
   }
   return best;
 }
+
+
+/**
+ * Die wahre Länge der Teilstrecke zwischen Stützpunkt `i-1` und `i` [m].
+ *
+ * Getrennt von `rohrlaenge` (die den ganzen Abschnitt misst), weil das
+ * Rohrnetz je Teilstrecke rechnet: Reynoldszahl, λ und Δp hängen an der
+ * einzelnen Strecke, nicht an der Summe.
+ */
+function teilstreckenlaenge(run: PipeRun, i: number): number {
+  const eben = dist(run.points[i - 1], run.points[i]);
+  const dh = hoehenversatz(run);
+  if (dh === 0) return eben;
+  const gesamt = trassenlaenge(run.points);
+  // Reiner Strang: keine Trasse, also fällt der ganze Versatz auf die eine
+  // Teilstrecke. Ohne diesen Zweig teilte man durch null.
+  if (gesamt <= 0) return Math.abs(dh);
+  return Math.hypot(eben, (dh * eben) / gesamt);
+}
+
 
 export function buildPipeNetwork(doc: BimDocument): PipeNetworkReport {
   const fixtures = Object.values(doc.fixtures);

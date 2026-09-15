@@ -10,6 +10,7 @@
 import { useMemo, useState } from 'react';
 import type { PaperFormat, PaperOrientation } from '../lib/planPrint';
 import { buildPlanSvg, printPlan } from '../lib/planPrint';
+import { GEWERKESAETZE, type GewerkesatzId } from '../lib/ebenen';
 import { useBimStore } from '../store/useBimStore';
 
 const SCALES = [20, 25, 50, 100, 200];
@@ -26,11 +27,28 @@ export default function PlanPrintDialog({ onClose }: { onClose: () => void }) {
   const [showDimensions, setShowDimensions] = useState(true);
   const [showFixtures, setShowFixtures] = useState(true);
   const [showAnnotations, setShowAnnotations] = useState(true);
+  // Handnotizen sind Randbemerkungen — auf einem Plan, der aus dem Haus
+  // geht, nur wenn man sie ausdrücklich dazulegt.
+  const [showNotizen, setShowNotizen] = useState(false);
   const [showInteriorDimensions, setShowInteriorDimensions] = useState(false);
   const [showLegend, setShowLegend] = useState(true);
   const [showOpeningDimensions, setShowOpeningDimensions] = useState(true);
+  /*
+   * Der Gewerkesatz schaltet die Ebenen im Dokument, nicht im Dialog.
+   *
+   * Das ist mit Absicht: Was auf dem Blatt steht, soll dasselbe sein, was
+   * auf dem Bildschirm steht. Ein Dialog mit eigenem Gewerkezustand wäre
+   * eine zweite Wahrheit — man druckte das Heizungsblatt und sähe im Plan
+   * weiter alles, und beim nächsten Druck wäre der Zustand wieder weg.
+   *
+   * Verkürzt wird der Raumstempel dagegen nur fürs Blatt: Am Bildschirm
+   * stört die Fläche nicht, dort kann man hineinzoomen.
+   */
+  const ebenenSatz = useBimStore((s) => s.ebenenSatz);
+  const [satzId, setSatzId] = useState<GewerkesatzId | null>(null);
 
   const options = {
+    raumstempelKurz: satzId !== null && satzId !== 'grundriss',
     scale,
     format,
     orientation,
@@ -39,6 +57,7 @@ export default function PlanPrintDialog({ onClose }: { onClose: () => void }) {
     showDimensions,
     showFixtures,
     showAnnotations,
+    showNotizen,
     showInteriorDimensions,
     showLegend,
     showOpeningDimensions,
@@ -56,9 +75,11 @@ export default function PlanPrintDialog({ onClose }: { onClose: () => void }) {
       showDimensions,
       showFixtures,
       showAnnotations,
+      showNotizen,
       showInteriorDimensions,
       showLegend,
       showOpeningDimensions,
+      satzId,
     ],
   );
 
@@ -145,11 +166,48 @@ export default function PlanPrintDialog({ onClose }: { onClose: () => void }) {
             </div>
 
             <div className="space-y-1">
+              {/*
+                Vier Blätter aus einem Modell.
+
+                Ein Planungssatz ist in der Praxis: Grundriss, Grundriss +
+                Heizung, Grundriss + Sanitär, Grundriss + Lüftung. Wer ihn
+                über Einzelhäkchen zusammenstellt, klickt viermal durch acht
+                Schalter und hat beim dritten Blatt das Kreuz bei „Lüftung"
+                vergessen — am Bildschirm fällt das nicht auf, auf der
+                Baustelle schon.
+              */}
+              <span className="label-xs mb-1 block">Blatt</span>
+              <div className="mb-2 grid grid-cols-2 gap-1">
+                {GEWERKESAETZE.map((satz) => (
+                  <button
+                    key={satz.id}
+                    title={satz.auskunft}
+                    onClick={() => {
+                      ebenenSatz(satz);
+                      setSatzId(satz.id);
+                    }}
+                    className={`chip justify-center text-[11px] ${
+                      satzId === satz.id ? 'bg-accent/15 text-accent' : 'text-slate-400 hover:text-slate-200'
+                    }`}
+                    style={{ minHeight: 30 }}
+                  >
+                    {satz.label}
+                  </button>
+                ))}
+              </div>
+              {satzId !== null && satzId !== 'grundriss' && (
+                <p className="mb-2 text-[9.5px] leading-relaxed text-slate-500">
+                  Auf dem Gewerkeblatt steht im Raumstempel nur der Name — Fläche und Volumen
+                  kämen sonst mit der Technikbeschriftung ins Gehege.
+                </p>
+              )}
+
               <span className="label-xs mb-1 block">Inhalt</span>
               <Toggle label="Raumstempel" value={showRoomLabels} onChange={setShowRoomLabels} />
               <Toggle label="Maßketten" value={showDimensions} onChange={setShowDimensions} />
               <Toggle label="TGA-Symbole" value={showFixtures} onChange={setShowFixtures} />
               <Toggle label="Beschriftungen" value={showAnnotations} onChange={setShowAnnotations} />
+              <Toggle label="Handnotizen" value={showNotizen} onChange={setShowNotizen} />
               <Toggle
                 label="Innenmaße (lichte Weiten)"
                 value={showInteriorDimensions}

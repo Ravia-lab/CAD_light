@@ -103,6 +103,44 @@ console.log(
   missingTemp,
 );
 
+/*
+ * Die zwei Felder aus Fassung 2.1.0 — hier im ausgelieferten Bündel, nicht
+ * nur im Rechenkern.
+ *
+ * Der Prüflauf prüft sie am Quelltext; dass sie auch durch Bau, Bündelung
+ * und den Weg über die heruntergeladene Datei kommen, sieht man erst hier.
+ * `uValueSource` ist ein String und `checksum` eine Zeichenkette — beides
+ * übersteht `JSON.stringify` —, aber genau solche Annahmen sind es, die
+ * einmal nicht stimmen.
+ */
+const alleFlaechen = json.rooms.flatMap((r) => r.surfaces);
+const ohneQuelle = alleFlaechen.filter((s) => !s.uValueSource).length;
+const oeffnungOhneQuelle = alleFlaechen.flatMap((s) => s.openings).filter((o) => !o.uValueSource).length;
+const quellen = [...new Set(alleFlaechen.map((s) => s.uValueSource))].sort().join(' ');
+const summen = json.rooms.map((r) => r.checksum);
+const summenForm = summen.every((c) => /^[0-9a-f]{16}$/.test(c));
+const summenVerschieden = new Set(summen).size === summen.length;
+console.log(
+  'QUELLEN    : ohne Quelle',
+  ohneQuelle,
+  '| Öffnungen ohne Quelle',
+  oeffnungOhneQuelle,
+  '|',
+  quellen,
+);
+console.log(
+  'PRÜFSUMMEN : Form',
+  summenForm,
+  '| je Raum verschieden',
+  summenVerschieden,
+  '|',
+  summen.join(' '),
+);
+if (ohneQuelle || oeffnungOhneQuelle) {
+  errs.push(`Felder ohne uValueSource: ${ohneQuelle} Flächen, ${oeffnungOhneQuelle} Öffnungen`);
+}
+if (!summenForm) errs.push(`Prüfsumme hat nicht die erwartete Form: ${summen.join(' ')}`);
+
 // Roundtrip: Datei wieder einlesen
 await fs.copyFile(path, '/tmp/roundtrip.json');
 await p.setInputFiles('input[type=file][accept*="json"]', '/tmp/roundtrip.json');

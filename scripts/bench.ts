@@ -94,6 +94,38 @@ function buildBuilding({ levels, units }: BuildOptions): BimDocument {
       id: levelId, name: `Geschoss ${l}`, order: l, elevation: l * 2.85, height: 2.6,
       floorUValue: 0.3, floorBoundary: l === 0 ? 'ground' : 'adjacent-room',
       ceilingUValue: 0.2, ceilingBoundary: l === levels - 1 ? 'unheated' : 'adjacent-room',
+      /*
+       * Das oberste Geschoss bekommt ein Walmdach.
+       *
+       * Bis 1.27.0 hatte das Prüfgebäude gar kein Dach — und weil der
+       * Dachpfad in `buildRoom` nur anläuft, wenn über dem Geschoss eine
+       * Neigung steht, wurde er hier **nie gemessen**. „Alle Budgets
+       * gehalten" galt damit für ein Haus ohne Dach, also für den einen
+       * Rechenweg nicht, der in 1.27.0 gerade grundlegend umgebaut worden
+       * war: Die Walmhöhe ist seither eine Abstandsfunktion zum
+       * Gebäudeumriss und kein Rechteck mehr — sie kostet je Raum einen
+       * Durchlauf über alle Umrisskanten, und genau so etwas wächst
+       * quadratisch, ohne dass es im Beispielhaus auffällt.
+       *
+       * Walm und nicht Sattel, weil der Walm der teure Fall ist: Beim
+       * Satteldach bleibt die Firstlinie eine Gerade, beim Walm wird für
+       * jeden Punkt der Abstand zum ganzen Umriss gebildet.
+       */
+      ...(l === levels - 1
+        ? {
+            roof: {
+              kind: 'hip' as const,
+              pitch: 38,
+              kneeHeight: 0.8,
+              azimuth: 180,
+              ridgeOffset: 0,
+              uValue: 0.18,
+              gableUValue: 0.24,
+              collarHeight: 2.3,
+              collarUValue: 0.16,
+            },
+          }
+        : {}),
     };
 
     // Knotenraster
@@ -203,6 +235,12 @@ function buildBuilding({ levels, units }: BuildOptions): BimDocument {
       levelId: level.id,
       defaultHeight: level.height,
       northAngle: 0,
+      // Ohne diese Zeile bleibt `room.roof` leer, und der Dachpfad im Export
+      // läuft trotz Dach am Geschoss nicht an — die Dachflächen entstehen
+      // aus den Raumkennwerten, nicht aus der Dachdefinition allein. Genau
+      // daran wäre die Messlücke bis 1.28.0 auch nach dem Anbau des Dachs
+      // geblieben, nur unsichtbarer als vorher.
+      roof: level.roof,
     }),
   );
   applyVerticalDeductions(rooms, [], Object.values(doc.levels).map((l) => l.id));
@@ -280,15 +318,48 @@ const SIZES: Record<string, BuildOptions & { budgets: Budgets }> = {
     levels: 8, units: 12,
     budgets: { rooms: 200, validation: 100, bridges: 60, pipes: 80, export: 200, ifc: 200, plant: 45, print: 90, routing: 400, report: 500 },
   },
-  // Absichtlich jenseits des Sinnvollen — hier zeigt sich, was quadratisch ist.
+  /*
+   * Absichtlich jenseits des Sinnvollen — hier zeigt sich, was quadratisch ist.
+   *
+   * `export` stand bis 1.28.0 auf 250 ms und steht jetzt auf 310. Die Anhebung
+   * ist begründet und nachgemessen, nicht nachgezogen; beide Ursachen sind
+   * neue Arbeit, keine langsamer gewordene alte:
+   *
+   *   • Das Prüfgebäude hat seit 1.28.0 ein **Dach** (siehe `buildBuilding`).
+   *     Bis dahin lief der ganze Dachpfad hier nie an — „alle Budgets
+   *     gehalten" galt für ein Haus ohne Dach. Gemessen bei 720 Räumen:
+   *     rund 12 ms.
+   *   • Jeder Raum trägt jetzt eine **Prüfsumme** über seine
+   *     heizlastrelevanten Größen. Gemessen bei 720 Räumen: rund 46 ms.
+   *
+   * 202 ms (1.27.0, ohne beides) + 12 + 46 ≈ 260 ms, gemessen 260. Beides
+   * wächst linear mit der Raumzahl; bei 72 Räumen — der Größe, die im Alltag
+   * vorkommt — kosten sie zusammen etwa 6 ms und sind nicht zu bemerken. Das
+   * Budget bleibt damit das, wofür es da ist: ein Melder für quadratisches
+   * Wachstum, mit rund 20 % Luft über dem Gemessenen.
+   */
   huge: {
     levels: 12, units: 20,
-    budgets: { rooms: 300, validation: 150, bridges: 100, pipes: 120, export: 250, ifc: 300, plant: 70, print: 120, routing: 600, report: 800 },
+    budgets: { rooms: 300, validation: 150, bridges: 100, pipes: 120, export: 310, ifc: 300, plant: 70, print: 120, routing: 600, report: 800 },
   },
 };
 
 const size = process.argv[2] ?? 'normal';
-const config = SIZES[size] ?? SIZES.normal;
+/*
+ * Eine unbekannte Größe bricht ab, statt stillschweigend auf `normal`
+ * zurückzufallen. Der Rückfall stand bis hierher da — und weil die
+ * Überschrift trotzdem den *angeforderten* Namen zeigte, las man
+ * „Belastungsprobe (gross)" über den Zahlen des Mehrfamilienhauses. Eine
+ * Messung, die etwas anderes misst, als über ihr steht, ist schlimmer als
+ * gar keine: Man glaubt, die große Größe sei grün.
+ */
+const config = SIZES[size];
+if (!config) {
+  console.error(
+    `\nUnbekannte Größe „${size}". Vorhanden: ${Object.keys(SIZES).join(', ')}\n`,
+  );
+  process.exit(2);
+}
 const budgets = config.budgets;
 const doc = buildBuilding(config);
 const walls = Object.keys(doc.walls).length;

@@ -65,7 +65,17 @@ console.log('\n▸ Einfacher Modus');
 {
   expect('Startet im einfachen Modus', await p.evaluate(() => window.__ravia.getState().uiMode), 'einfach');
   const t = await tabs();
-  expect('Acht Reiter statt dreizehn', t.length, 8);
+  /*
+   * Neun seit 1.22.0, vorher acht: Der Reiter **Ebenen** ist dazugekommen.
+   *
+   * Er trägt das Augensymbol und ist die einzige Stelle, an der sich
+   * Handnotizen und Ebenen ein- und ausblenden lassen. Ohne ihn fehlte diese
+   * Möglichkeit auf dem Tablet vollständig — dort läuft das Programm im
+   * einfachen Modus, und ein Schalter, den man nur im Fachplanermodus findet,
+   * ist auf einem Gerät ohne Tastatur unauffindbar.
+   */
+  expect('Neun Reiter statt dreizehn', t.length, 9);
+  expect('Darunter „Ebenen" mit dem Augensymbol', t.includes('Ebenen'), true);
   expect('„Start" steht vorn', t[0], 'Start');
   expect('Fachplaner-Reiter ausgeblendet', t.includes('Wärmebrücken'), false);
 

@@ -14,6 +14,7 @@ import { create } from 'zustand';
 import type {
   AiAnalysisState,
   AiFloorplanAnalysis,
+  AuswahlQuelle,
   BimDocument,
   BimNode,
   ClosureIssue,
@@ -22,8 +23,12 @@ import type {
   Level,
   Opening,
   Annotation,
+  AnnotationAnchor,
+  Vorhaben,
   AnnotationKind,
   PipeRoutingMode,
+  PipeAccessory,
+  PipeAccessoryKind,
   PipeRun,
   PipeService,
   PlantDefinition,
@@ -41,6 +46,9 @@ import type {
   SiteElement,
   SiteElementKind,
   SolidElement,
+  Durchbruch,
+  DurchbruchKind,
+  DurchbruchPreset,
   StorageKind,
   SolidKind,
   VerticalElement,
@@ -54,6 +62,8 @@ import type {
   SnapSettings,
   ToolId,
   TraceOpeningCandidate,
+  Freihandstrich,
+  SkizzenVorschlag,
   TraceState,
   TraceWallCandidate,
   Vec2,
@@ -73,10 +83,20 @@ import {
   ROOF_OPENING_LABELS,
   SITE_ELEMENT_LABELS,
   SOLID_LABELS,
+  DURCHBRUCH_PRESETS,
+  durchbruchWirt,
   VERTICAL_LABELS,
+  VORHABEN_LABELS,
 } from '../types/bim';
 
-/** Trassenlänge einer Polylinie [m]. */
+/**
+ * Trassenlänge einer Polylinie [m] — **ohne** Höhenversatz.
+ *
+ * Bewusst behalten und bewusst so benannt: Es gibt Stellen, an denen genau
+ * die Grundrisslänge gemeint ist (etwa der Maßstab im Plan). Wer die *Länge
+ * des Rohres* braucht, nimmt `rohrlaenge` aus `lib/rohrlaenge.ts` — sie
+ * rechnet den senkrechten Anteil mit.
+ */
 export function pipeLength(points: readonly Vec2[]): number {
   let total = 0;
   for (let i = 1; i < points.length; i++) {
@@ -98,7 +118,14 @@ const DEFAULT_ROOF: RoofDefinition = {
   uValue: 0.2,
   gableUValue: 0.24,
 };
-import { EPS, closestPointOnSegment, distance, pointInPolygon, roundMm } from '../lib/geometry';
+import { erkenneSkizze } from '../lib/skizze';
+import { getroffene } from '../lib/notizen';
+import { vorzugsrichtung, EPS, closestPointOnSegment, distance, distanceToSegment, pointInPolygon, roundMm } from '../lib/geometry';
+import { ACCESSORY_LABELS } from '../lib/pipeAccessorySymbols';
+import { hoehenText } from '../lib/beschriftung3d';
+import { zieheHeizflaechenNach } from '../lib/heizflaechenAbgleich';
+import { rohrlaenge } from '../lib/rohrlaenge';
+import { istHeizflaeche } from '../lib/heizflaechenLeistung';
 import {
   DEFAULT_EDGE_CLEARANCE,
   DEFAULT_LOOP_PATTERN,
@@ -107,12 +134,19 @@ import {
   fixtureFootprint,
   measureLayableArea,
 } from '../lib/floorLoopLayout';
+import { BESTANDS_EBENEN, EBENEN_KATALOG, auswahlGesperrt, type Gewerkesatz } from '../lib/ebenen';
+import { planeUebernahme } from '../lib/aussenwand';
+import type { UiModus } from '../lib/uimodus';
+import { belagsWiderstand } from '../lib/bodenbelag';
+import { durchbruecheFuerTrassen } from '../lib/wandquerung';
+import { bildePaar, partnerVon } from '../lib/doppelleitung';
 import { copyLevelContents } from '../lib/levelCopy';
 import { designFloorHeating } from '../lib/hydraulics';
 import { estimateHeatLoad } from '../lib/heatLoadEstimate';
 import {
   applyVerticalDeductions,
   detectRooms,
+  gebaeudeUmriss,
   isMassiveArea,
   diagnoseClosure,
   findOpenEnds,
@@ -128,7 +162,7 @@ import type { BegradigenOptionen } from '../lib/begradigen';
 import { findeLuecken, oeffnungFuerLuecke } from '../lib/luecken';
 import type { LueckenSchluss } from '../lib/luecken';
 import { benenneGeschosse, erdgeschossIndex } from '../lib/levelGeometry';
-import { emptyPlant, emptySite } from '../lib/plantDefaults';
+import { VORHABEN_VORBELEGUNG, emptyPlant, emptySite } from '../lib/plantDefaults';
 import { ANBINDUNG_LABELS, schemaVorlage } from '../lib/schemaKatalog';
 import { applyHostPatch as applyPatchToDocument } from '../lib/hostPatch';
 import type { HostPatch, HostPatchReport } from '../lib/hostPatch';
@@ -152,16 +186,33 @@ const uid = (prefix: string): string => `${prefix}-${(idCounter++).toString(36)}
 // Defaults
 // ---------------------------------------------------------------------------
 
-export const DEFAULT_LAYERS: Layer[] = [
-  { id: 'layer-walls', name: 'Wände', color: '#E2E8F0', visible: true, locked: false },
-  { id: 'layer-openings', name: 'Öffnungen', color: '#38BDF8', visible: true, locked: false },
-  { id: 'layer-rooms', name: 'Räume', color: '#2DD4BF', visible: true, locked: false },
-  { id: 'layer-dimensions', name: 'Maßketten', color: '#94A3B8', visible: true, locked: false },
-  { id: 'layer-heating', name: 'TGA · Heizung', color: '#F87171', visible: true, locked: false },
-  { id: 'layer-sanitary', name: 'TGA · Sanitär', color: '#38BDF8', visible: true, locked: false },
-  { id: 'layer-ventilation', name: 'TGA · Lüftung', color: '#34D399', visible: true, locked: false },
-  { id: 'layer-image', name: 'Referenzbild', color: '#64748B', visible: true, locked: false },
-];
+/**
+ * Die Ebenen des Modells.
+ *
+ * Der Katalog selbst steht in `lib/ebenen.ts` — dort, wo auch die Zuordnung
+ * steht, und damit im Rechenkern, der an die Gegenstelle geht. Hier bleibt
+ * nur der Name, unter dem der Store ihn kennt.
+ */
+export const DEFAULT_LAYERS: readonly Layer[] = EBENEN_KATALOG;
+
+/**
+ * Fehlende Ebenen in einem geöffneten Projekt ergänzen.
+ *
+ * Heute baut jeder Ladeweg auf `emptyDocument()` auf, das die Ebenen
+ * mitbringt — der Fall kann also gar nicht eintreten. Das ist aber eine
+ * Eigenschaft des Ladewegs und keine des Modells: Käme je ein Weg dazu, der
+ * `doc.layers` aus der Datei übernimmt, wäre `doc.layers['layer-site']`
+ * `undefined`, und weil „nicht vorhanden" beim Sichtbarkeitsvergleich wie
+ * „aus" aussieht, verschwände das Gelände beim Öffnen einer alten Datei.
+ * Zwei Zeilen, die das ausschließen, sind billiger als die Suche danach.
+ *
+ * Ergänzt wird nur, was fehlt; ein ausgeblendeter Zustand bleibt stehen.
+ */
+export function ergaenzeEbenen(doc: BimDocument): void {
+  for (const l of DEFAULT_LAYERS) {
+    if (!doc.layers[l.id]) doc.layers[l.id] = { ...l };
+  }
+}
 
 /** Jedes Gewerk hat seine eigene Ebene — Pläne lassen sich gewerkeweise leeren. */
 export const LAYER_BY_CATEGORY: Record<FixtureCategory, string> = {
@@ -238,6 +289,7 @@ function emptyDocument(): BimDocument {
     fixtures: {},
     verticals: {},
     solids: {},
+    durchbrueche: {},
     pipes: {},
     annotations: {},
     roofOpenings: {},
@@ -252,9 +304,11 @@ const DEFAULT_SNAP: SnapSettings = {
   gridSize: 0.25,
   nodes: true,
   walls: true,
+  points: true,
   angle: true,
   angleStep: 45,
   pixelTolerance: 12,
+  fingerZeichnet: false,
 };
 
 /**
@@ -336,6 +390,17 @@ interface BimState {
   selection: Selection | null;
   /** Mehrfachauswahl. `selection` ist immer das zuletzt gefasste Objekt. */
   selections: Selection[];
+  /**
+   * Woher die aktuelle Auswahl kam.
+   *
+   * Der Unterschied ist keine Spitzfindigkeit: Wer im Plan ein Objekt
+   * anfasst, will danach dessen Eigenschaften sehen — wer dagegen eine
+   * Liste abarbeitet (Prüfbefunde, Raumbuch), will in der Liste bleiben.
+   * Springt der Inspektor dort weg, verliert man nach jedem Befund die
+   * Stelle und muss sich zurückklicken. Darum trägt die Auswahl ihre
+   * Herkunft mit, statt dass die Oberfläche sie erraten muss.
+   */
+  auswahlQuelle: AuswahlQuelle;
   /** Zwischenablage für Kopieren/Einfügen (geschossübergreifend). */
   clipboard: ClipboardContent | null;
   hover: Selection | null;
@@ -358,6 +423,16 @@ interface BimState {
   showRoofLines: boolean;
   /** Aktive Leitungsart für das Rohr-Werkzeug. */
   pipeService: PipeService;
+  /**
+   * Zeichnet das Rohr-Werkzeug eine Doppelleitung?
+   *
+   * Eine Heizungstrasse ist immer zweirohrig; von Hand zwei Züge parallel zu
+   * zeichnen ist Fleißarbeit mit garantiertem Rechtschreibfehler — der
+   * Rücklauf hat dann drei Meter mehr als der Vorlauf, und niemand sieht
+   * es. Der Schalter steht neben der Leitungsart und gilt nur für die
+   * Heizung; bei Abwasser oder Zuluft gibt es kein Paar.
+   */
+  doppelleitung: boolean;
   /** Gewählte Raumvorlage für das Werkzeug „Raum aufziehen". */
   roomTemplate: RoomTemplateKind;
   /** Feineinstellung der Vorlage — Aussparung, Drehung, Segmentzahl. */
@@ -366,6 +441,9 @@ interface BimState {
   verticalKind: VerticalKind;
   /** Welche Art massives Bauteil das Werkzeug setzt. */
   solidKind: SolidKind;
+  /** Gewählte Durchbruchart und Regelmaß für das Durchbruchwerkzeug. */
+  durchbruchKind: DurchbruchKind;
+  durchbruchPreset: DurchbruchPreset;
   /** Aktive Art für das Beschriftungs-Werkzeug. */
   annotationKind: AnnotationKind;
   /** Aktive Art für das Außenanlagen-Werkzeug. */
@@ -377,7 +455,7 @@ interface BimState {
    * Werkzeuge, die Kürzel. Wer das Werkzeug zum ersten Mal öffnet, soll
    * nicht zwischen zehn Reitern suchen müssen, welcher gemeint ist.
    */
-  uiMode: 'einfach' | 'profi';
+  uiMode: UiModus;
   /** Warnpunkte an nicht angeschlossenen Wandenden einblenden. */
   showDiagnostics: boolean;
   /** Ausrichtungs-Hilfslinien beim Zeichnen. */
@@ -394,12 +472,31 @@ interface BimState {
   statusMessage: string;
   /** Auto-Trace-Vorschau — bewusst außerhalb von `doc` (kein Undo-Rauschen). */
   trace: TraceState | null;
+  /**
+   * Der Stand der Freihanderkennung. `null`, solange nichts skizziert wurde.
+   *
+   * Er liegt **neben** dem Dokument und nicht darin: ein Vorschlag ist kein
+   * Modellinhalt, gehört nicht in die Projektdatei und nicht in die
+   * Rückgängig-Kette. In die Kette kommt genau ein Schritt — das Übernehmen.
+   */
+  skizze: SkizzenVorschlag | null;
+  /**
+   * Radiert das Notizwerkzeug gerade, statt zu schreiben?
+   *
+   * Auf dem Tablet gibt es keine zweite Maustaste und der Apple Pencil hat
+   * kein Radierende, das der Browser meldet. Es braucht also einen
+   * sichtbaren Schalter — und weil er sichtbar ist, gehört sein Zustand in
+   * den Speicher und nicht in eine Variable der Leinwand.
+   */
+  radiergummi: boolean;
+  /** Notizebene sichtbar? Ansichtssache, deshalb neben dem Dokument. */
+  notizenSichtbar: boolean;
 
   // --- UI ----------------------------------------------------------------
   setTool: (tool: ToolId) => void;
   setViewMode: (mode: ViewMode) => void;
   setCameraMode: (mode: CameraMode) => void;
-  setSelection: (sel: Selection | null) => void;
+  setSelection: (sel: Selection | null, quelle?: AuswahlQuelle) => void;
   setSelections: (sels: Selection[]) => void;
   toggleSelection: (sel: Selection) => void;
   selectInBox: (min: Vec2, max: Vec2, additive: boolean) => void;
@@ -410,13 +507,16 @@ interface BimState {
   toggleDimensions: () => void;
   toggleRoofLines: () => void;
   setPipeService: (service: PipeService) => void;
+  /** Doppelleitung (Vor- und Rücklauf in einem Zug) ein- oder ausschalten. */
+  setDoppelleitung: (an: boolean) => void;
   setRoomTemplate: (kind: RoomTemplateKind) => void;
   setRoomTemplateOptions: (patch: Partial<TemplateOptions>) => void;
   setVerticalKind: (kind: VerticalKind) => void;
   setSolidKind: (kind: SolidKind) => void;
+  setDurchbruchPreset: (preset: DurchbruchPreset) => void;
   setAnnotationKind: (kind: AnnotationKind) => void;
   toggleRoomLabels: () => void;
-  setUiMode: (mode: 'einfach' | 'profi') => void;
+  setUiMode: (mode: UiModus) => void;
   toggleDiagnostics: () => void;
   toggleGuides: () => void;
   setOrthoLock: (value: boolean) => void;
@@ -481,6 +581,20 @@ interface BimState {
   updateVertical: (id: string, patch: Partial<VerticalElement>) => void;
   addSolid: (kind: SolidKind, position: Vec2) => SolidElement;
   /**
+   * Einen Durchbruch setzen.
+   *
+   * Bei wandgebundenen Arten muss eine Wand unter dem Zeiger liegen — ohne
+   * Wand kein Wanddurchbruch. Der Aufrufer sucht sie (`pickWallForOpening`)
+   * und reicht sie mitsamt Abstand auf der Achse herein; findet er keine,
+   * gibt diese Aktion `null` zurück und schreibt eine Meldung in die
+   * Statuszeile. Beim Deckendurchbruch zählt nur der Punkt.
+   */
+  addDurchbruch: (
+    preset: DurchbruchPreset,
+    ziel: { position: Vec2 } | { wallId: string; distance: number },
+  ) => Durchbruch | null;
+  updateDurchbruch: (id: string, patch: Partial<Durchbruch>) => void;
+  /**
    * Einen erkannten Raum in ein massives Bauteil verwandeln.
    *
    * Der Fall aus der Praxis: zwischen vier Wandstücken erkennt das Programm
@@ -502,7 +616,49 @@ interface BimState {
    */
   legeRohrnetzAus: (mode: PipeRoutingMode) => PipeLayoutResult;
   updatePipe: (id: string, patch: Partial<PipeRun>) => void;
+  /**
+   * Eine Armatur von Hand setzen — aus der Werkzeugkiste im Haus.
+   *
+   * Der Rohrausleger setzt Armaturen dorthin, wo die Trasse sie verlangt.
+   * Das deckt den Neubau ab. Im Bestand sitzt das Absperrventil aber da, wo
+   * es 1978 jemand hingebaut hat, und das steht in keiner Regel. Von Hand
+   * gesetzte Armaturen tragen deshalb **kein** `generated` und werden von
+   * `legeRohrnetzAus` nicht angerührt.
+   *
+   * Liegt eine Leitung in Reichweite, bindet sich die Armatur an sie; sonst
+   * steht sie frei. Beides ist gültig — eine Armatur ohne Abschnitt ist eine
+   * Aufnahme aus dem Bestand, noch bevor die Trasse erfasst ist.
+   */
+  /**
+   * Das Vorhaben festlegen — Neubau, Sanierung oder Teilsanierung.
+   *
+   * Ändert **nur** die Vorbelegungen, die noch niemand angefasst hat. Wer die
+   * Auslegungstemperatur schon eingetragen hat, behält sie: Eine Angabe, die
+   * der Anwender gemacht hat, darf eine Auswahl weiter oben nicht
+   * überschreiben — sonst traut er der Auswahl beim nächsten Mal nicht mehr
+   * und meidet sie.
+   */
+  setVorhaben: (vorhaben: Vorhaben) => void;
+  setzeArmatur: (
+    kind: PipeAccessoryKind,
+    position: Vec2,
+    elevation: number,
+    label?: string,
+  ) => PipeAccessory | null;
   addAnnotation: (kind: AnnotationKind, points: Vec2[], text?: string) => Annotation | null;
+  /**
+   * Eine Beschriftung setzen, die an einem Bauteil hängt und eine Höhe hat.
+   *
+   * Der Weg aus der begehbaren Ansicht: Man schaut ein Bauteil an, wählt
+   * einen Wert, den das Modell kennt, und der Text hängt danach dort. Im
+   * Grundriss erscheint er mit Höhenangabe (siehe `planText`).
+   */
+  setzeBeschriftung3D: (
+    anchor: AnnotationAnchor,
+    punkt: Vec2,
+    elevation: number,
+    text: string,
+  ) => Annotation | null;
   setSiteKind: (kind: SiteElementKind) => void;
   addSiteElement: (kind: SiteElementKind, points: Vec2[]) => SiteElement | null;
   updateSiteElement: (id: string, patch: Partial<SiteElement>) => void;
@@ -566,6 +722,8 @@ interface BimState {
   addSchematicLink: (from: string, to: string, service: PipeService, label?: string) => SchematicLink | null;
   deleteSchematicLink: (id: string) => void;
   updateAnnotation: (id: string, patch: Partial<Annotation>) => void;
+  /** Eine Beschriftung gezielt löschen — ohne den Umweg über die Auswahl. */
+  deleteAnnotation: (id: string) => void;
   addRoofOpening: (kind: RoofOpeningKind, position?: Vec2) => RoofOpening | null;
   updateRoofOpening: (id: string, patch: Partial<RoofOpening>) => void;
 
@@ -577,6 +735,13 @@ interface BimState {
   addLevel: (options?: { copyFrom?: string; name?: string; below?: boolean }) => Level | null;
   deleteLevel: (id: string) => void;
   setActiveLevel: (id: string) => void;
+  /** Ein Geschoss im Modell ein- oder ausblenden. Das aktive bleibt sichtbar. */
+  zeigeGeschoss: (id: string, sichtbar: boolean) => void;
+  /**
+   * Außenwände von einem Geschoss in ein anderes übernehmen.
+   * @returns Zahl der angelegten Wände.
+   */
+  uebernehmeAussenwaende: (vonLevelId: string, nachLevelId: string) => number;
 
   // --- Bauteilkatalog ----------------------------------------------------
   addConstruction: (construction: Omit<Construction, 'id'>) => Construction;
@@ -591,6 +756,12 @@ interface BimState {
   mirrorSelection: (axis: 'x' | 'y') => void;
   arraySelection: (count: number, delta: Vec2) => void;
   toggleLayer: (id: string) => void;
+  /** Eine Ebene sperren oder freigeben — Gesperrtes ist sichtbar, aber unantastbar. */
+  sperreEbene: (id: string, gesperrt: boolean) => void;
+  /** Wände, Öffnungen, Räume und Durchbrüche auf einmal sperren. */
+  sperreBestand: (gesperrt: boolean) => void;
+  /** Die Sichtbarkeit auf einen Gewerkesatz stellen — ein Blatt auf Knopfdruck. */
+  ebenenSatz: (satz: Gewerkesatz) => void;
   deleteSelection: () => void;
   clearAll: () => void;
   loadDemo: () => void;
@@ -650,6 +821,33 @@ interface BimState {
   acceptTrace: () => void;
   clearTrace: () => void;
 
+  // --- Freihand ----------------------------------------------------------
+  /** Einen Freihandstrich auswerten und als Vorschlag zeigen. */
+  skizziere: (punkte: Vec2[]) => { ok: boolean; message: string };
+  /** Die vorgeschlagenen Wände wirklich anlegen — ein Schritt in der Historie. */
+  uebernimmSkizze: () => { ok: boolean; message: string };
+  /** Den zuletzt gezogenen Strich aus dem Vorschlag nehmen. */
+  nimmZugZurueck: () => void;
+  /** Den Vorschlag verwerfen. */
+  verwirfSkizze: () => void;
+  /** Wandstärke und -art der Vorschläge ändern, ohne neu zu skizzieren. */
+  setzeSkizzenwand: (patch: { staerke?: number; art?: WallType }) => void;
+  /** Eine Freihandnotiz ablegen. */
+  notiere: (punkte: Vec2[], druck?: number[]) => void;
+  /** Eine Freihandnotiz löschen. */
+  loescheNotiz: (id: string) => void;
+  /** Alle Freihandnotizen des aktiven Geschosses löschen. */
+  loescheNotizen: () => void;
+  /**
+   * Alles wegradieren, was die Bahn im aktiven Geschoss berührt.
+   * Ein Schritt in der Historie, egal wie viele Striche fallen.
+   */
+  radiere: (bahn: Vec2[]) => void;
+  /** Zwischen Schreiben und Radieren umschalten (Werkzeug „Notiz"). */
+  setzeRadiergummi: (an: boolean) => void;
+  /** Die Notizebene ein- und ausblenden — Ansicht, nicht Dokument. */
+  setzeNotizenSichtbar: (sichtbar: boolean) => void;
+
   // --- Historie ----------------------------------------------------------
   /**
    * Klammert eine zusammenhängende Geste — typisch das Ziehen mit der Maus.
@@ -708,14 +906,116 @@ function cloneDoc(doc: BimDocument): BimDocument {
     fixtures: { ...doc.fixtures },
     verticals: { ...(doc.verticals ?? {}) },
     solids: { ...(doc.solids ?? {}) },
+    durchbrueche: { ...(doc.durchbrueche ?? {}) },
     pipes: { ...(doc.pipes ?? {}) },
+    /*
+     * **Die Armaturen haben hier gefehlt — und das war kein Schönheitsfehler.**
+     *
+     * Ohne diese Zeile zeigte jede Kopie des Dokuments auf *dasselbe*
+     * Armaturenverzeichnis wie das Original. Wer eine Armatur löschte,
+     * löschte sie damit auch aus dem Stand, der in der Historie liegt: Strg+Z
+     * holte sie nicht zurück. Aufgefallen ist es erst bei der Abnahme am
+     * laufenden Server — im Programm sah alles richtig aus, weil der Fehler
+     * genau dort sitzt, wo man ihn nicht sucht.
+     *
+     * `legeRohrnetzAus` war nie betroffen: die Aktion setzt ein neues Objekt
+     * ein, statt im alten zu löschen. Das ist der Grund, warum die Lücke so
+     * lange unbemerkt blieb.
+     */
+    pipeAccessories: { ...(doc.pipeAccessories ?? {}) },
     annotations: { ...(doc.annotations ?? {}) },
+    freihand: { ...(doc.freihand ?? {}) },
     roofOpenings: { ...(doc.roofOpenings ?? {}) },
     rooms: { ...doc.rooms },
     site: { ...doc.site, elements: { ...doc.site.elements }, pumps: { ...doc.site.pumps } },
     diagnostics: { openEnds: doc.diagnostics.openEnds, closure: doc.diagnostics.closure },
     image: doc.image ? { ...doc.image } : undefined,
   };
+}
+
+/**
+ * Sammlungen, an denen sich nichts geändert hat, bekommen ihre alte Kennung
+ * zurück.
+ * ---------------------------------------------------------------------------
+ *
+ * **Warum das nötig ist.** `cloneDoc` legt jede Sammlung flach neu an — es
+ * muss das tun, weil die Mutationen unmittelbar in `next.walls[…]` schreiben.
+ * Die Folge: Nach *jeder* Änderung hat `doc.walls` eine neue Kennung, auch
+ * wenn keine einzige Wand angefasst wurde. Für React und für `useMemo` heißt
+ * das „alles hat sich geändert".
+ *
+ * Was daran teuer ist, sieht man erst beim Ziehen. Die 3D-Ansicht baut ihren
+ * Inhalt neu auf, sobald sich `walls`, `rooms`, `pipes` oder `doc.nodes`
+ * ändern — Wände, Decken, Dach, Rohre, Gelände, alles. Beim Verschieben eines
+ * Heizkörpers ändert sich davon nichts, und trotzdem lief der ganze Aufbau
+ * fünfzigmal je Sekunde. Es gab dazu schon einen Kommentar im Viewer, der das
+ * beschreibt und für `fixtures` behoben hat; die Ursache lag aber eine Ebene
+ * tiefer und machte die Abhilfe wirkungslos.
+ *
+ * **Was hier passiert.** Nach der Änderung wird jede Sammlung mit ihrem
+ * Vorzustand verglichen — Zahl der Einträge und Kennungsgleichheit je
+ * Eintrag, kein tiefer Vergleich. Sind sie gleich, bekommt das neue Dokument
+ * die *alte* Sammlung zurück. Das kostet einen Durchlauf über ein paar
+ * hundert Verweise und spart eine Geometrie.
+ *
+ * **Warum der flache Vergleich genügt.** Eine geänderte Wand wird im Store
+ * nirgends an Ort und Stelle verändert, sondern immer ersetzt
+ * (`doc.walls[id] = { ...wall, … }`). Ein geänderter Eintrag hat damit
+ * zwangsläufig eine neue Kennung. Wo doch einmal an Ort und Stelle geändert
+ * würde, käme das Dokument hier unverändert durch — und die Anzeige bliebe
+ * stehen. Das ist der Preis, und er ist derselbe, den React überall zahlt.
+ *
+ * `meta` bleibt außen vor: dort steht `modifiedAt`, das sich bei jeder
+ * Änderung ändert — mit Absicht.
+ */
+function teileUnveraendertes(alt: BimDocument, neu: BimDocument): void {
+  const gleich = (a: Record<string, unknown>, b: Record<string, unknown>): boolean => {
+    const ka = Object.keys(a);
+    if (ka.length !== Object.keys(b).length) return false;
+    for (const k of ka) if (a[k] !== b[k]) return false;
+    return true;
+  };
+
+  const sammlungen = [
+    'levels',
+    'layers',
+    'constructions',
+    'nodes',
+    'walls',
+    'openings',
+    'fixtures',
+    'verticals',
+    'solids',
+    'durchbrueche',
+    'pipes',
+    'pipeAccessories',
+    'annotations',
+    'freihand',
+    'roofOpenings',
+    'rooms',
+  ] as const;
+
+  const a = alt as unknown as Record<string, Record<string, unknown> | undefined>;
+  const b = neu as unknown as Record<string, Record<string, unknown> | undefined>;
+  for (const k of sammlungen) {
+    const va = a[k];
+    const vb = b[k];
+    if (va && vb && va !== vb && gleich(va, vb)) b[k] = va;
+  }
+
+  // Die Außenanlage hat zwei Sammlungen in einem Objekt — erst die inneren,
+  // dann das äußere, sonst bliebe `site` immer neu.
+  if (alt.site && neu.site && alt.site !== neu.site) {
+    if (alt.site.elements !== neu.site.elements && gleich(alt.site.elements, neu.site.elements)) {
+      neu.site.elements = alt.site.elements;
+    }
+    if (alt.site.pumps !== neu.site.pumps && gleich(alt.site.pumps, neu.site.pumps)) {
+      neu.site.pumps = alt.site.pumps;
+    }
+    const s1 = alt.site as unknown as Record<string, unknown>;
+    const s2 = neu.site as unknown as Record<string, unknown>;
+    if (gleich(s1, s2)) neu.site = alt.site;
+  }
 }
 
 /** Sucht einen Knoten im Toleranzradius oder legt einen neuen an. */
@@ -836,17 +1136,164 @@ function transferRoomProperties(doc: BimDocument, fromLevelId: string, toLevelId
   }
 }
 
-function recomputeRooms(doc: BimDocument): void {
+/**
+ * Räume, Topologiebefunde und Raumzuordnung neu bilden.
+ *
+ * @param nurAktivesGeschoss Nur das sichtbare Geschoss neu erkennen; die
+ *   übrigen behalten ihre Räume unverändert.
+ *
+ * **Wofür die Abkürzung da ist.** Beim Ziehen einer Wand läuft `mutate` bei
+ * jedem Zeigerereignis — auf einem Stift sind das 120 in der Sekunde. Die
+ * volle Raumerkennung geht dabei über *alle* Geschosse; am Referenzhaus mit
+ * vier Geschossen sind das rund zehn Millisekunden je Ereignis, und die
+ * fehlen dem Bild. Während eines Zuges ändert sich aber nur das sichtbare
+ * Geschoss: Die Wand, die man anfasst, liegt dort, und keine Geste bewegt
+ * etwas in einem anderen Geschoss mit.
+ *
+ * **Warum die übernommenen Räume nicht noch einmal durch
+ * `applyVerticalDeductions` laufen dürfen.** Diese Funktion zieht das
+ * Treppenloch vom Luftvolumen ab — `room.volume = room.volume − …`. Sie ist
+ * damit *nicht* wiederholbar: Ein zweiter Durchlauf über dieselben Räume
+ * zöge dasselbe Loch ein zweites Mal ab, und der Lüftungswärmeverlust des
+ * Raums wäre zu klein. Die übernommenen Räume sind bereits abgezogen und
+ * bleiben deshalb außen vor.
+ *
+ * Nach dem Loslassen läuft `endGesture` und rechnet einmal vollständig nach.
+ */
+/**
+ * Sind zwei Räume inhaltlich derselbe?
+ *
+ * Verglichen wird alles, was die Anzeige und die Rechnung benutzen. Nicht
+ * verglichen wird, was aus den Feldern folgt (`grossArea` aus `polygon`,
+ * `volume` aus Fläche und Höhe) — zwei Räume mit gleichem Polygon und
+ * gleicher Höhe haben dieselben abgeleiteten Zahlen, und ein Vergleich
+ * darüber wäre doppelt gemoppelt und keine zusätzliche Sicherheit.
+ *
+ * Bewusst **kein** allgemeiner Tiefenvergleich: Der wäre langsamer als das
+ * Raumerkennen selbst und würde bei jeder neuen Eigenschaft still falsch —
+ * er verglichen ja auch die neue mit. Diese Liste muss wachsen, wenn `Room`
+ * wächst; dass man sie dabei übersieht, ist der Preis. Er ist sichtbar: Ein
+ * vergessenes Feld führt dazu, dass eine Änderung daran im Bild nicht
+ * ankommt, und das fällt beim ersten Ausprobieren auf.
+ */
+/**
+ * Die Dachkennwerte eines Raums vergleichen.
+ *
+ * Eigene Funktion, weil `roof` bei jedem Erkennen neu gerechnet wird und
+ * deshalb nie kennungsgleich ist. Ein Kennungsvergleich hätte an dieser
+ * Stelle bedeutet: In jedem Haus mit geneigtem Dach wäre jeder Raum bei
+ * jeder Änderung „neu" — und die ganze Ersparnis dahin, ausgerechnet dort,
+ * wo das Rechnen am teuersten ist.
+ */
+function gleicheDachwerte(a: Room['roof'], b: Room['roof']): boolean {
+  if (a === b) return true;
+  if (!a || !b) return false;
+  return (
+    a.volume === b.volume &&
+    a.averageHeight === b.averageHeight &&
+    a.minHeight === b.minHeight &&
+    a.maxHeight === b.maxHeight &&
+    a.slopedArea === b.slopedArea &&
+    a.flatCeilingArea === b.flatCeilingArea &&
+    a.gableArea === b.gableArea &&
+    a.livingArea === b.livingArea &&
+    a.skylightArea === b.skylightArea &&
+    a.dormerFrontArea === b.dormerFrontArea &&
+    a.slopedAreaByFace.length === b.slopedAreaByFace.length &&
+    a.slopedAreaByFace.every(
+      (f, i) => f.azimuth === b.slopedAreaByFace[i].azimuth && f.area === b.slopedAreaByFace[i].area,
+    )
+  );
+}
+
+function gleicherRaum(a: Room, b: Room): boolean {
+  if (a === b) return true;
+  const punkteGleich = (p: readonly Vec2[], q: readonly Vec2[]): boolean => {
+    if (p.length !== q.length) return false;
+    for (let i = 0; i < p.length; i++) {
+      if (p[i].x !== q[i].x || p[i].y !== q[i].y) return false;
+    }
+    return true;
+  };
+  return (
+    a.id === b.id &&
+    a.name === b.name &&
+    a.usage === b.usage &&
+    a.levelId === b.levelId &&
+    a.area === b.area &&
+    a.perimeter === b.perimeter &&
+    a.height === b.height &&
+    a.volume === b.volume &&
+    a.setpointTemperature === b.setpointTemperature &&
+    a.airChangeRate === b.airChangeRate &&
+    a.ventilationRole === b.ventilationRole &&
+    a.isHeated === b.isHeated &&
+    a.floorUValue === b.floorUValue &&
+    a.floorBoundary === b.floorBoundary &&
+    a.ceilingUValue === b.ceilingUValue &&
+    a.ceilingBoundary === b.ceilingBoundary &&
+    a.groundContactPerimeter === b.groundContactPerimeter &&
+    a.exposedFacadeCount === b.exposedFacadeCount &&
+    a.heightOverride === b.heightOverride &&
+    a.floorCovering === b.floorCovering &&
+    a.floorOpeningArea === b.floorOpeningArea &&
+    a.openToAboveArea === b.openToAboveArea &&
+    a.solidArea === b.solidArea &&
+    a.grossArea === b.grossArea &&
+    a.normHeatLoad === b.normHeatLoad &&
+    gleicheDachwerte(a.roof, b.roof) &&
+    a.boundaries.length === b.boundaries.length &&
+    /*
+     * Alle Felder des Wandabschnitts, nicht eine Auswahl.
+     *
+     * Die naheliegende Abkürzung — Länge und U-Wert genügen doch — ist
+     * falsch: Ein eingesetztes Fenster ändert `openingArea` und `netArea`,
+     * die Länge aber nicht. Der Raum sähe damit gleich aus, behielte seinen
+     * alten Verweis, und im Modell stünde ein Wandabschnitt ohne das
+     * Fenster, das man gerade gesetzt hat. Die Heizlast rechnete dann über
+     * die volle Wandfläche.
+     */
+    a.boundaries.every((s1, i) => {
+      const s2 = b.boundaries[i];
+      return (
+        s1.wallId === s2.wallId &&
+        s1.length === s2.length &&
+        s1.netArea === s2.netArea &&
+        s1.grossArea === s2.grossArea &&
+        s1.openingArea === s2.openingArea &&
+        s1.orientation === s2.orientation &&
+        s1.azimuth === s2.azimuth &&
+        s1.isExterior === s2.isExterior &&
+        s1.uValue === s2.uValue &&
+        s1.boundary === s2.boundary &&
+        s1.neighbourRoomId === s2.neighbourRoomId &&
+        s1.gableArea === s2.gableArea
+      );
+    }) &&
+    punkteGleich(a.polygon, b.polygon) &&
+    punkteGleich(a.innerPolygon, b.innerPolygon) &&
+    a.centroid.x === b.centroid.x &&
+    a.centroid.y === b.centroid.y
+  );
+}
+
+function recomputeRooms(doc: BimDocument, nurAktivesGeschoss = false): void {
   const previousAll = Object.values(doc.rooms);
   const allWalls = Object.values(doc.walls);
   const allOpenings = Object.values(doc.openings);
   const rooms: Room[] = [];
+  /** Räume, die unverändert übernommen werden — schon abgezogen. */
+  const uebernommen: Room[] = [];
   const openEnds: Vec2[] = [];
   // Topologie-Befunde nur des sichtbaren Geschosses — genau wie `openEnds`.
   // Sie werden im Plan gezeichnet, und der Plan zeigt ein Geschoss.
   const closure: ClosureIssue[] = [];
 
   for (const level of Object.values(doc.levels)) {
+    if (nurAktivesGeschoss && level.id !== doc.activeLevelId) {
+      uebernommen.push(...previousAll.filter((r) => r.levelId === level.id));
+      continue;
+    }
     const walls = allWalls.filter((w) => w.levelId === level.id);
     if (!walls.length) continue;
     const wallIds = new Set(walls.map((w) => w.id));
@@ -857,6 +1304,16 @@ function recomputeRooms(doc: BimDocument): void {
         walls,
         nodes: doc.nodes,
         openings,
+        /*
+         * Die Bauteilaufbauten gehören mit hinein.
+         *
+         * Ohne sie führt jeder Wandabschnitt eines Raums nur den am Bauteil
+         * erfassten U-Wert — ein zugewiesener Aufbau mit gerechnetem U-Wert
+         * wurde gar nicht erst gesehen. Die Heizlast stimmte trotzdem, weil
+         * sie `doc.walls` direkt fragt; alles, was den Abschnitt-Schnappschuss
+         * liest, arbeitete dagegen mit einer veralteten Zahl.
+         */
+        constructions: doc.constructions,
         levelId: level.id,
         defaultHeight: level.height,
         northAngle: doc.meta.northAngle,
@@ -894,7 +1351,26 @@ function recomputeRooms(doc: BimDocument): void {
    * das Bauteil mit seiner Schraffur. Wer das Bauteil wieder löscht, bekommt
    * beim nächsten Rechnen seinen Raum zurück.
    */
-  const echteRaeume = rooms.filter((r) => !isMassiveArea(r));
+  /*
+   * Ein unveränderter Raum behält seinen alten Verweis.
+   *
+   * `detectRooms` baut bei jedem Durchlauf neue Raumobjekte — auch dann,
+   * wenn sich an ihnen nichts geändert hat. Für die Rechnung ist das egal,
+   * für die Anzeige nicht: Die 3D-Ansicht baut ihren ganzen Inhalt neu auf,
+   * sobald `rooms` eine neue Kennung hat. Beim Verschieben eines Heizkörpers
+   * ändert sich kein Raum, und trotzdem entstand fünfzigmal je Sekunde das
+   * ganze Haus neu.
+   *
+   * Verglichen wird auf Inhalt, nicht auf Kennung — die Punkte eines
+   * Polygons sind bei jedem Durchlauf neue Objekte mit denselben Zahlen.
+   * Der Vergleich kostet zwei Durchläufe über die Stützpunkte; `detectRooms`
+   * kostet ein Vielfaches davon.
+   */
+  const vorherNach = new Map(previousAll.map((r) => [r.id, r]));
+  const echteRaeume = [...rooms.filter((r) => !isMassiveArea(r)), ...uebernommen].map((r) => {
+    const alt = vorherNach.get(r.id);
+    return alt && gleicherRaum(alt, r) ? alt : r;
+  });
   doc.rooms = Object.fromEntries(echteRaeume.map((r) => [r.id, r]));
   doc.diagnostics = { openEnds, closure };
 
@@ -1016,8 +1492,30 @@ function belegeRaum(get: () => BimState, roomId: string): FloorLoopBatchResult |
       loopPattern: DEFAULT_LOOP_PATTERN,
       loopEdgeClearance: DEFAULT_EDGE_CLEARANCE,
       powerW: Math.round(design.output),
+      /*
+       * Die Zahl kommt aus dem Kennfeld nach DIN EN 1264-2, nicht von einem
+       * Datenblatt. Ohne diese Zeile fiele sie auf „eingetragen" zurück —
+       * `addFixture` setzt `powerSource` nur für die Katalogvorbelegung, und
+       * `...options` überschreibt das ganze `params`-Objekt. Der Inspektor
+       * behauptete dann, ein Mensch habe die Zahl abgelesen.
+       *
+       * `'katalog'` und nicht `'heizlast'`: Der Heizkreis ist von der
+       * Umrechnung nach EN 442-2 ausgenommen (er ist keine Heizfläche in
+       * deren Sinn), soll aber nachziehbar bleiben.
+       */
+      powerSource: 'katalog',
       flowTemperature: 35,
       returnTemperature: 28,
+      /*
+       * Der Belagswiderstand kommt aus dem Raum, wenn dort einer erfasst
+       * ist. Ist keiner erfasst, bleibt das Feld leer — und nicht etwa bei
+       * null: „unter Fliesen" und „nicht erfasst" sind zwei verschiedene
+       * Aussagen, und die Flächenheizung trägt unter Teppich ein Drittel
+       * weniger.
+       */
+      ...(belagsWiderstand(room.floorCovering) !== undefined
+        ? { floorCoveringResistance: belagsWiderstand(room.floorCovering) }
+        : {}),
     },
   });
   if (!erstellt) return null;
@@ -1042,11 +1540,36 @@ export const useBimStore = create<BimState>()((set, get) => {
   let gestureRecorded = false;
 
   /** Führt eine Dokumentmutation aus, schreibt Historie und erneuert Räume. */
-  const mutate = (fn: (doc: BimDocument) => void, options?: { skipRooms?: boolean }) => {
+  const mutate = (
+    fn: (doc: BimDocument) => void,
+    options?: { skipRooms?: boolean; ziehenachHeizflaechen?: boolean },
+  ) => {
     const { doc, past } = get();
     const next = cloneDoc(doc);
     fn(next);
-    if (!options?.skipRooms) recomputeRooms(next);
+    // Während einer Geste nur das sichtbare Geschoss — siehe `recomputeRooms`.
+    if (!options?.skipRooms) recomputeRooms(next, gestureActive);
+    // Unveränderte Sammlungen behalten ihre Kennung — siehe oben.
+    teileUnveraendertes(doc, next);
+    /*
+     * **Heizflächen nachziehen — aber nicht bei jedem Tastendruck.**
+     *
+     * `heizflaechenBefunde` rechnet die Heizlast aller Räume neu; das kostet
+     * am Referenzhaus einige Millisekunden und am großen Projekt ein
+     * Vielfaches davon. In `mutate` hängt aber *jede* Eingabe — jede
+     * verschobene Wand, jeder getippte Buchstabe im Raumnamen. Blind
+     * mitzurechnen hieße, die Oberfläche für eine Zahl zu verlangsamen, die
+     * sich in neun von zehn Fällen gar nicht geändert hat.
+     *
+     * Deshalb muss der Aufrufer es ausdrücklich verlangen — und zwar an den
+     * Stellen, an denen sich die Heizlast oder die Zahl der Heizflächen
+     * wirklich ändern kann: beim Setzen und Löschen einer Heizfläche, beim
+     * Ändern der Systemtemperaturen und auf Zuruf aus dem Anlagenblatt.
+     * Läuft eine Änderung durch, die keiner dieser Fälle ist, bleibt die
+     * Abweichung stehen — und wird in der Prüfliste gemeldet statt still
+     * korrigiert.
+     */
+    if (options?.ziehenachHeizflaechen) zieheHeizflaechenNach(next);
     next.meta.modifiedAt = new Date().toISOString();
     // Innerhalb einer Geste wandert nur der erste Zwischenstand in die
     // Historie — alle folgenden Schritte gehören zu derselben Bewegung.
@@ -1068,6 +1591,7 @@ export const useBimStore = create<BimState>()((set, get) => {
     viewMode: '2d',
     cameraMode: 'orbit',
     selection: null,
+    auswahlQuelle: 'plan',
     selections: [],
     clipboard: null,
     hover: null,
@@ -1077,18 +1601,41 @@ export const useBimStore = create<BimState>()((set, get) => {
     showDimensions: true,
     showRoofLines: true,
     pipeService: 'heating-flow',
+    doppelleitung: true,
     roomTemplate: 'rechteck',
     roomTemplateOptions: { ...DEFAULT_TEMPLATE_OPTIONS },
     verticalKind: 'stair-straight',
     solidKind: 'chimney',
-    annotationKind: 'dimension',
+    durchbruchKind: 'kernbohrung',
+    durchbruchPreset: DURCHBRUCH_PRESETS[4],
+    /*
+     * Vorgabe ist **Text**, nicht die Maßkette.
+     *
+     * Das Werkzeug heißt „Text & Maßkette", und wer es greift, will in den
+     * allermeisten Fällen etwas auf den Plan schreiben. Stand die Vorgabe auf
+     * „Maßkette", bekam er beim ersten Tippen eine angefangene Bemaßung und
+     * musste erst einen Umschalter finden, der auf dem Tablet aus der
+     * Kopfzeile herausgescrollt war.
+     */
+    annotationKind: 'text',
     siteKind: 'boundary',
     showRoomLabels: true,
-    // Der Einstieg ist der einfache Modus. Wer mehr braucht, schaltet um —
-    // umgekehrt sucht niemand nach dem Schalter, der ihm die Hälfte wegnimmt.
-    uiMode: (typeof localStorage !== 'undefined' && localStorage.getItem('ravia-ui-mode') === 'profi'
-      ? 'profi'
-      : 'einfach') as 'einfach' | 'profi',
+    /*
+     * Der Einstieg ist der einfache Modus. Wer mehr braucht, schaltet um —
+     * umgekehrt sucht niemand nach dem Schalter, der ihm die Hälfte wegnimmt.
+     *
+     * Der Handwerkermodus ist **nicht** der Einstieg, obwohl er der
+     * schmalste ist: Wer das Programm zum ersten Mal öffnet, weiß noch
+     * nicht, ob er nur aufmisst. Eine Oberfläche, die von sich aus die
+     * Hälfte wegnimmt, wirkt kaputt; eine, die man bewusst schmaler stellt,
+     * wirkt aufgeräumt.
+     */
+    uiMode: ((): UiModus => {
+      const gespeichert = typeof localStorage !== 'undefined' ? localStorage.getItem('ravia-ui-mode') : null;
+      return gespeichert === 'profi' || gespeichert === 'handwerker' || gespeichert === 'einfach'
+        ? gespeichert
+        : 'einfach';
+    })(),
     showDiagnostics: true,
     showGuides: true,
     orthoLock: false,
@@ -1105,6 +1652,9 @@ export const useBimStore = create<BimState>()((set, get) => {
     aiState: { status: 'idle' },
     statusMessage: 'Bereit',
     trace: null,
+    skizze: null,
+    radiergummi: false,
+    notizenSichtbar: true,
 
     // ----------------------------------------------------------------- UI
     setTool: (tool) => {
@@ -1119,7 +1669,8 @@ export const useBimStore = create<BimState>()((set, get) => {
     },
     setViewMode: (viewMode) => set({ viewMode }),
     setCameraMode: (cameraMode) => set({ cameraMode }),
-    setSelection: (selection) => set({ selection, selections: selection ? [selection] : [] }),
+    setSelection: (selection, quelle = 'plan') =>
+      set({ selection, selections: selection ? [selection] : [], auswahlQuelle: quelle }),
 
     setSelections: (selections) =>
       set({ selections, selection: selections.length ? selections[selections.length - 1] : null }),
@@ -1150,6 +1701,17 @@ export const useBimStore = create<BimState>()((set, get) => {
       for (const f of Object.values(doc.fixtures)) {
         if (f.levelId !== doc.activeLevelId) continue;
         if (inBox(f.position)) found.push({ kind: 'fixture', id: f.id });
+      }
+      /*
+       * Von Hand gesetzte Armaturen fasst der Rahmen mit, erzeugte nicht.
+       *
+       * Dieselbe Regel wie beim Antippen im Grundriss: Was der Rohrausleger
+       * beim nächsten Auslegen ohnehin neu anlegt, darf nicht in einer
+       * Auswahl stehen, die man danach löschen oder verschieben will.
+       */
+      for (const a of Object.values(doc.pipeAccessories ?? {})) {
+        if (a.levelId !== doc.activeLevelId || a.generated) continue;
+        if (inBox(a.position)) found.push({ kind: 'accessory', id: a.id });
       }
       // Die Außenanlage gehört keinem Geschoss an und wird in jedem gezeigt —
       // also ist sie auch in jedem Geschoss mit dem Rahmen zu fassen.
@@ -1193,9 +1755,24 @@ export const useBimStore = create<BimState>()((set, get) => {
       set((st) => ({ roomTemplateOptions: { ...st.roomTemplateOptions, ...patch } })),
     setPipeService: (service) =>
       set({ pipeService: service, statusMessage: PIPE_SERVICE_LABELS[service] }),
+
+    setDoppelleitung: (an) =>
+      set({
+        doppelleitung: an,
+        statusMessage: an
+          ? 'Doppelleitung: ein Zug legt Vor- und Rücklauf nebeneinander'
+          : 'Einzelleitung: ein Zug legt eine Leitung',
+      }),
     setVerticalKind: (kind) => set({ verticalKind: kind, statusMessage: VERTICAL_LABELS[kind] }),
 
     setSolidKind: (kind) => set({ solidKind: kind, statusMessage: SOLID_LABELS[kind] }),
+
+    setDurchbruchPreset: (preset) =>
+      set({
+        durchbruchPreset: preset,
+        durchbruchKind: preset.kind,
+        statusMessage: preset.label,
+      }),
     setAnnotationKind: (kind) => set({ annotationKind: kind, statusMessage: ANNOTATION_LABELS[kind] }),
     setSiteKind: (kind) => set({ siteKind: kind, statusMessage: SITE_ELEMENT_LABELS[kind] }),
     toggleRoomLabels: () => set({ showRoomLabels: !get().showRoomLabels }),
@@ -1513,6 +2090,58 @@ export const useBimStore = create<BimState>()((set, get) => {
     addFixture: (type, position, options) => {
       const def = FIXTURE_BY_TYPE[type];
       if (!def) return null;
+
+      /*
+       * Eine Fußbodenheizung ist keine Kachel im Raum — sie ist der Raum.
+       *
+       * Wer aus der Palette „Fußbodenheizung" nimmt und in ein Zimmer
+       * tippt, meint: dieses Zimmer bekommt Fußbodenheizung. Bis hierher
+       * entstand daraus ein 40 mal 40 Zentimeter großes Symbol in der
+       * Mitte — ein Objekt, das im Plan wie eine Heizfläche aussieht, im
+       * Massenauszug 0,16 m² Verlegefläche trägt und in der Heizlast
+       * nichts leistet. Man sieht ihm nicht an, dass es falsch ist; man
+       * merkt es erst, wenn die Zahlen nicht stimmen.
+       *
+       * Deshalb legt derselbe Klick jetzt die ganze Raumfläche aus — mit
+       * Verlegeabstand, Kreiszahl und Leistung aus der Raumheizlast, also
+       * genau das, was der Knopf „Raum belegen" tut. Liegt der Punkt in
+       * keinem Raum, bleibt es beim einzelnen Objekt: dann ist es eine
+       * Anbindeleitung im Flur, kein Zimmer.
+       */
+      if (type === 'underfloor' && options?.params?.roomCoverage === undefined) {
+        const d0 = get().doc;
+        const raum = Object.values(d0.rooms).find(
+          (r) =>
+            r.levelId === d0.activeLevelId &&
+            r.innerPolygon.length >= 3 &&
+            pointInPolygon(position, r.innerPolygon),
+        );
+        if (raum) {
+          const schon = Object.values(d0.fixtures).find(
+            (f) => f.type === 'underfloor' && f.params.roomCoverage === true && f.roomId === raum.id,
+          );
+          if (schon) {
+            set({ statusMessage: `„${raum.name}" trägt bereits eine Fußbodenheizung` });
+            return schon;
+          }
+          const gelegt = belegeRaum(get, raum.id);
+          if (!gelegt) {
+            set({ statusMessage: `„${raum.name}" ist für eine Fußbodenheizung zu klein` });
+            return null;
+          }
+          set({
+            statusMessage:
+              `Fußbodenheizung „${raum.name}": ${gelegt.area.toFixed(1).replace('.', ',')} m² belegt · ` +
+              `${gelegt.loops} ${gelegt.loops === 1 ? 'Kreis' : 'Kreise'} · ${gelegt.powerW} W`,
+          });
+          return (
+            Object.values(get().doc.fixtures).find(
+              (f) => f.type === 'underfloor' && f.params.roomCoverage === true && f.roomId === raum.id,
+            ) ?? null
+          );
+        }
+      }
+
       let created: Fixture | null = null;
 
       mutate(
@@ -1528,7 +2157,20 @@ export const useBimStore = create<BimState>()((set, get) => {
             depth: def.depth,
             elevation: def.elevation,
             label: def.label,
-            params: { ...def.params },
+            /*
+             * **Die Vorbelegung bleibt als Vorbelegung erkennbar.**
+             *
+             * Bis 1.23.0 stand hier nur `{ ...def.params }` — die Katalogzahl
+             * wurde damit zu einem Wert, der von einem abgelesenen
+             * Datenblattwert nicht mehr zu unterscheiden war. Die Folgen
+             * trafen ausgerechnet die Stellen, die Herkunft ausweisen
+             * wollen: Der hydraulische Abgleich meldete `assumed: false`,
+             * weil ja eine Zahl dastand; die Übergabe an RaVia behauptete
+             * `herkunft: 'eingegeben'` für etwas, das niemand eingegeben
+             * hatte; und die Prüfung „Heizfläche ohne Leistung" konnte nie
+             * zutreffen. Ein Feld mehr, und alle drei stimmen wieder.
+             */
+            params: { ...def.params, ...(def.params.powerW !== undefined ? { powerSource: 'katalog' as const } : {}) },
             ...options,
           };
           // Raumzuordnung sofort setzen, damit der Export ohne weitere
@@ -1540,7 +2182,17 @@ export const useBimStore = create<BimState>()((set, get) => {
           doc.fixtures[fixture.id] = fixture;
           created = fixture;
         },
-        { skipRooms: true },
+        /*
+         * Beim Setzen einer Heizfläche wird nachgezogen — und zwar in
+         * demselben Schritt.
+         *
+         * Das betrifft **auch die schon vorhandenen**: Steht in einem Raum
+         * bisher ein Heizkörper mit der vollen Raumlast und kommt ein
+         * zweiter dazu, muss der erste von 100 auf 50 Prozent herunter.
+         * Täte das erst der nächste Rechenlauf, stünde der Raum bis dahin
+         * mit doppelter Heizfläche im Heft.
+         */
+        { skipRooms: true, ziehenachHeizflaechen: istHeizflaeche(type) },
       );
       return created;
     },
@@ -1656,7 +2308,49 @@ export const useBimStore = create<BimState>()((set, get) => {
       mutate(
         (doc) => {
           const fixture = doc.fixtures[id];
-          if (fixture) doc.fixtures[id] = { ...fixture, ...patch };
+          if (!fixture) return;
+          const neu: Fixture = { ...fixture, ...patch };
+          /*
+           * **Wer die Leistung anfasst, macht sie zu seiner.**
+           *
+           * Ändert jemand `powerW` über diesen Weg — im Inspektor, aus einem
+           * Datenblattimport, über die Einbettungsschnittstelle —, dann ist
+           * das keine Vorbelegung und keine Schätzung mehr, sondern eine
+           * Angabe. Ab hier zieht das Programm sie nicht mehr nach.
+           *
+           * Ohne diese Zeile wäre das automatische Nachziehen eine Falle:
+           * Man trägt den Wert aus dem Datenblatt ein, ändert später eine
+           * Dämmstärke, und die Zahl ist wieder weg — ersetzt durch eine
+           * Schätzung, die schlechter ist als das, was man abgelesen hatte.
+           *
+           * Ausdrücklich mitgegebene Herkunft (etwa `'ravia'` oder
+           * `'heizlast'`) gewinnt: Die kennt ihren eigenen Ursprung besser
+           * als diese Regel.
+           */
+          /*
+           * **Geprüft wird, ob die Herkunft *mitgeändert* wurde — nicht, ob
+           * sie im Patch steht.**
+           *
+           * Der erste Versuch fragte `patch.params?.powerSource === undefined`
+           * und war damit in der Praxis wirkungslos: Jede Oberfläche, die ein
+           * einzelnes Feld ändert, baut den Patch als `{ ...params, powerW: x }`
+           * — die alte Herkunft steht dann mit drin, und die Regel sah einen
+           * ausdrücklichen Wunsch, wo nur eine Kopie war. Gemessen: Ein von
+           * Hand auf 777 W gesetzter Heizkörper trug danach weiterhin
+           * `heizlast` und wurde beim nächsten Rechenlauf überschrieben.
+           *
+           * Ein *echter* Herkunftswunsch unterscheidet sich davon: Er setzt
+           * einen **anderen** Wert als den, der schon dastand.
+           */
+          const leistungGeaendert =
+            patch.params?.powerW !== undefined && patch.params.powerW !== fixture.params.powerW;
+          const herkunftAusdruecklich =
+            patch.params?.powerSource !== undefined &&
+            patch.params.powerSource !== fixture.params.powerSource;
+          if (leistungGeaendert && !herkunftAusdruecklich) {
+            neu.params = { ...neu.params, powerSource: 'datenblatt' };
+          }
+          doc.fixtures[id] = neu;
         },
         { skipRooms: true },
       ),
@@ -1679,6 +2373,17 @@ export const useBimStore = create<BimState>()((set, get) => {
             let bestDist = 1.0;
             let bestPoint = next.position;
             for (const wall of Object.values(doc.walls)) {
+              /*
+               * **Nur Wände desselben Geschosses.**
+               *
+               * Ohne diese Zeile rastet ein Heizkörper an eine Wand ein, die
+               * im Obergeschoss steht — der Suchradius beträgt einen Meter,
+               * und im Grundriss liegen die Geschosse übereinander. Das
+               * Objekt übernimmt dann `wallId` und Drehung einer Wand, die im
+               * Bild gar nicht zu sehen ist; beim nächsten Verschieben jener
+               * Wand wandert es mit, und niemand versteht, warum.
+               */
+              if (wall.levelId !== next.levelId) continue;
               const a = doc.nodes[wall.a];
               const b = doc.nodes[wall.b];
               if (!a || !b) continue;
@@ -1715,8 +2420,12 @@ export const useBimStore = create<BimState>()((set, get) => {
             }
           }
 
+          // Auch der Raum gehört zum eigenen Geschoss — aus demselben Grund.
           const room = Object.values(doc.rooms).find(
-            (r) => r.innerPolygon.length >= 3 && pointInPolygon(next.position, r.innerPolygon),
+            (r) =>
+              r.levelId === next.levelId &&
+              r.innerPolygon.length >= 3 &&
+              pointInPolygon(next.position, r.innerPolygon),
           );
           next.roomId = room?.id;
           doc.fixtures[id] = next;
@@ -1873,6 +2582,7 @@ export const useBimStore = create<BimState>()((set, get) => {
             openings: Object.values(doc.openings),
             verticals: Object.values(doc.verticals ?? {}),
             solids: Object.values(doc.solids ?? {}),
+            durchbrueche: Object.values(doc.durchbrueche ?? {}),
             newId: uid,
           });
           for (const node of kopie.nodes) doc.nodes[node.id] = node;
@@ -1882,6 +2592,11 @@ export const useBimStore = create<BimState>()((set, get) => {
             const solids = doc.solids ?? {};
             for (const massiv of kopie.solids) solids[massiv.id] = massiv;
             doc.solids = solids;
+          }
+          if (kopie.durchbrueche.length > 0) {
+            const durchbrueche = doc.durchbrueche ?? {};
+            for (const db of kopie.durchbrueche) durchbrueche[db.id] = db;
+            doc.durchbrueche = durchbrueche;
           }
 
           // Räume einmal vorab erkennen und beschriften. Der anschließende
@@ -1913,6 +2628,9 @@ export const useBimStore = create<BimState>()((set, get) => {
         for (const n of Object.values(d.nodes)) if (n.levelId === id) delete d.nodes[n.id];
         for (const v of Object.values(d.verticals)) if (v.levelId === id) delete d.verticals[v.id];
         for (const b of Object.values(d.solids ?? {})) if (b.levelId === id) delete d.solids?.[b.id];
+        for (const db of Object.values(d.durchbrueche ?? {})) {
+          if (db.levelId === id) delete d.durchbrueche?.[db.id];
+        }
         for (const pr of Object.values(d.pipes)) if (pr.levelId === id) delete d.pipes[pr.id];
         for (const an of Object.values(d.annotations)) if (an.levelId === id) delete d.annotations[an.id];
         for (const ro of Object.values(d.roofOpenings)) if (ro.levelId === id) delete d.roofOpenings[ro.id];
@@ -1923,6 +2641,81 @@ export const useBimStore = create<BimState>()((set, get) => {
         }
       });
       set({ selection: null, selections: [] });
+    },
+
+    /**
+     * Ein Geschoss im Modell ein- oder ausblenden.
+     *
+     * Das **aktive** Geschoss lässt sich nicht ausblenden: Man bearbeitet
+     * nicht, was man nicht sieht — und ein Klick, nach dem der Plan leer ist
+     * und niemand weiß warum, ist schlimmer als ein Klick, der nichts tut.
+     */
+    zeigeGeschoss: (id, sichtbar) => {
+      const level = get().doc.levels[id];
+      if (!level) return;
+      if (!sichtbar && id === get().doc.activeLevelId) {
+        set({ statusMessage: `${level.name} ist das aktive Geschoss und bleibt sichtbar` });
+        return;
+      }
+      mutate(
+        (doc) => {
+          const l = doc.levels[id];
+          if (l) doc.levels[id] = { ...l, visible: sichtbar };
+        },
+        { skipRooms: true },
+      );
+      set({ statusMessage: `${level.name} ${sichtbar ? 'eingeblendet' : 'ausgeblendet'}` });
+    },
+
+    /**
+     * Die Außenwände eines Geschosses in ein anderes übernehmen.
+     *
+     * Der Fall, für den es das gibt: Der erste Grundriss steht, und das
+     * Obergeschoss hat dieselbe Hülle — was in aller Regel stimmt und was
+     * niemand ein zweites Mal zeichnen will. Übernommen werden Achse,
+     * Stärke, Wandart und Bauteilaufbau; **keine Öffnungen.** Fenster sitzen
+     * oben anders, und ein mitkopiertes Fenster wäre eine Behauptung über
+     * ein Geschoss, das niemand aufgemessen hat.
+     *
+     * Wände, die im Ziel schon an derselben Stelle liegen, entstehen nicht
+     * noch einmal: Zwei deckungsgleiche Wände sind im Plan nicht zu
+     * unterscheiden und verdoppeln jede Fläche in der Heizlast.
+     */
+    uebernehmeAussenwaende: (vonLevelId, nachLevelId) => {
+      const doc0 = get().doc;
+      const ziel = doc0.levels[nachLevelId];
+      const quelle = doc0.levels[vonLevelId];
+      if (!ziel || !quelle) return 0;
+
+      const plan = planeUebernahme({
+        walls: Object.values(doc0.walls),
+        nodes: doc0.nodes,
+        vonLevelId,
+        nachLevelId,
+        hoehe: ziel.height,
+        uid,
+      });
+      if (!plan.neueWaende.length) {
+        set({
+          statusMessage:
+            plan.schonDa > 0
+              ? `${ziel.name}: alle ${plan.schonDa} Außenwände stehen dort schon`
+              : `${quelle.name} hat keine Außenwände zum Übernehmen`,
+        });
+        return 0;
+      }
+
+      mutate((doc) => {
+        for (const k of plan.neueKnoten) doc.nodes[k.id] = k;
+        for (const w of plan.neueWaende) doc.walls[w.id] = w;
+      });
+      set({
+        statusMessage:
+          `${plan.neueWaende.length} Außenwände aus ${quelle.name} in ${ziel.name} übernommen` +
+          (plan.schonDa > 0 ? ` · ${plan.schonDa} standen schon` : '') +
+          ' · Öffnungen wurden nicht mitgenommen',
+      });
+      return plan.neueWaende.length;
     },
 
     setActiveLevel: (id) => {
@@ -2091,11 +2884,25 @@ export const useBimStore = create<BimState>()((set, get) => {
     },
 
     moveSelection: (delta) => {
-      const { selections } = get();
+      const { selections, doc: doc0 } = get();
       if (!selections.length) return;
+      /*
+       * Gesperrtes wandert nicht mit.
+       *
+       * Der Treffertest lässt ein gesperrtes Bauteil gar nicht erst fassen —
+       * aber eine Auswahl kann auch aus einer Liste kommen, aus dem
+       * Auswahlrahmen oder aus einem Prüfbefund. Ein zweites Sieb hier kostet
+       * nichts und schließt den Weg, auf dem die Sperre sonst zu umgehen
+       * wäre, ohne dass jemand es merkt.
+       */
+      const beweglich = selections.filter((s2) => !auswahlGesperrt(doc0, s2));
+      if (!beweglich.length) {
+        set({ statusMessage: 'Gesperrt — im Reiter „Ebenen" freigeben' });
+        return;
+      }
       mutate((doc) => {
         const moved = new Set<string>();
-        for (const sel of selections) {
+        for (const sel of beweglich) {
           if (sel.kind === 'wall') {
             const wall = doc.walls[sel.id];
             if (!wall) continue;
@@ -2129,6 +2936,48 @@ export const useBimStore = create<BimState>()((set, get) => {
             doc.site.elements[sel.id] = {
               ...element,
               points: element.points.map((p) => ({ x: roundMm(p.x + delta.x), y: roundMm(p.y + delta.y) })),
+            };
+          } else if (sel.kind === 'accessory') {
+            /*
+             * Eine Armatur wandert mit — auch die ausgelegte.
+             *
+             * Sie zwar anklicken, aber nicht bewegen zu können ist die
+             * Sorte Halbheit, die man dem Programm anlastet und nicht der
+             * Absicht dahinter. Wer eine Armatur verschiebt, macht sie zu
+             * seiner: `generated` fällt weg, damit die nächste Auslegung
+             * seine Lage nicht wieder überschreibt.
+             */
+            const armatur = doc.pipeAccessories?.[sel.id];
+            if (!armatur || !doc.pipeAccessories) continue;
+            doc.pipeAccessories[sel.id] = {
+              ...armatur,
+              position: { x: roundMm(armatur.position.x + delta.x), y: roundMm(armatur.position.y + delta.y) },
+              generated: undefined,
+            };
+          } else if (sel.kind === 'pipe') {
+            // Die ganze Trasse wandert; die Form bleibt. Eine ausgelegte
+            // Leitung wird damit zur gezogenen — sonst stünde sie nach der
+            // nächsten Auslegung wieder an der alten Stelle.
+            const run = doc.pipes[sel.id];
+            if (!run) continue;
+            // Eine Doppelleitung wandert als Ganzes — sonst läge nach der
+            // Geste der Vorlauf im Flur und der Rücklauf im Zimmer.
+            const paar = partnerVon(doc.pipes, run);
+            for (const r of paar && !moved.has(paar.id) ? [run, paar] : [run]) {
+              if (moved.has(r.id)) continue;
+              doc.pipes[r.id] = {
+                ...r,
+                points: r.points.map((p) => ({ x: roundMm(p.x + delta.x), y: roundMm(p.y + delta.y) })),
+                generated: undefined,
+              };
+              moved.add(r.id);
+            }
+          } else if (sel.kind === 'annotation') {
+            const note = doc.annotations[sel.id];
+            if (!note) continue;
+            doc.annotations[sel.id] = {
+              ...note,
+              points: note.points.map((p) => ({ x: roundMm(p.x + delta.x), y: roundMm(p.y + delta.y) })),
             };
           }
         }
@@ -2313,13 +3162,94 @@ export const useBimStore = create<BimState>()((set, get) => {
         doc.solids[id] = { ...b, ...patch };
       }),
 
+    /**
+     * Einen Durchbruch setzen.
+     *
+     * Die Maße kommen aus dem Regelmaßkatalog und nicht aus einer Tabelle an
+     * dieser Stelle — dieselbe Entscheidung wie bei Fenstern und Türen, und
+     * aus demselben Grund: wer andere Bohrkronen vorhält, tauscht den Katalog
+     * und nicht diese Funktion.
+     *
+     * Der Name ist das Regelmaß, nicht die Art: „Kernbohrung Ø 152 (DN 100)"
+     * sagt in der Bauteilliste mehr als „Kernbohrung 3".
+     */
+    addDurchbruch: (preset, ziel) => {
+      const wandgebunden = durchbruchWirt(preset.kind) === 'wand';
+      if (wandgebunden && !('wallId' in ziel)) {
+        set({ statusMessage: 'Ein Wanddurchbruch braucht eine Wand — näher an eine Wand tippen.' });
+        return null;
+      }
+      const element: Durchbruch = {
+        id: uid('db'),
+        kind: preset.kind,
+        name: preset.label,
+        levelId: get().doc.activeLevelId,
+        form: preset.form,
+        diameter: preset.diameter,
+        width: preset.width,
+        height: preset.height,
+        service: preset.service,
+        dn: preset.dn,
+        brandschutz: 'keine',
+      };
+      if ('wallId' in ziel) {
+        element.wallId = ziel.wallId;
+        element.distance = roundMm(ziel.distance);
+        element.sillHeight = preset.sillHeight ?? 0.3;
+      } else {
+        element.position = { x: roundMm(ziel.position.x), y: roundMm(ziel.position.y) };
+        element.rotation = 0;
+      }
+      mutate((doc) => {
+        if (!doc.durchbrueche) doc.durchbrueche = {};
+        doc.durchbrueche[element.id] = element;
+      });
+      set({
+        selection: { kind: 'durchbruch', id: element.id },
+        selections: [{ kind: 'durchbruch', id: element.id }],
+        statusMessage: `${preset.label} gesetzt`,
+      });
+      return element;
+    },
+
+    updateDurchbruch: (id, patch) =>
+      mutate((doc) => {
+        const db = (doc.durchbrueche ?? {})[id];
+        if (!db || !doc.durchbrueche) return;
+        const neu: Durchbruch = { ...db, ...patch };
+        // Millimeter, nicht Mikrometer: alles, was hier gerundet wird, ist ein
+        // Maß, nach dem jemand anreißt.
+        if (neu.distance !== undefined) neu.distance = roundMm(neu.distance);
+        if (neu.sillHeight !== undefined) neu.sillHeight = roundMm(neu.sillHeight);
+        if (neu.diameter !== undefined) neu.diameter = roundMm(neu.diameter);
+        if (neu.width !== undefined) neu.width = roundMm(neu.width);
+        if (neu.height !== undefined) neu.height = roundMm(neu.height);
+        if (neu.position) {
+          neu.position = { x: roundMm(neu.position.x), y: roundMm(neu.position.y) };
+        }
+        doc.durchbrueche[id] = neu;
+      }),
+
     legeRohrnetzAus: (mode) => {
       const s = get();
+      let anzahlDurchbrueche = 0;
+      let ohneRegelmass = 0;
       const ergebnis = planPipeNetwork(s.doc, {
         mode,
         levelId: s.doc.activeLevelId,
-        flowTemperature: s.doc.plant?.design.flowTemperature,
-        returnTemperature: s.doc.plant?.design.returnTemperature,
+        /*
+         * Vorlauf und Rücklauf werden hier **nicht** übergeben.
+         *
+         * Das Anlagenblatt ist nur die Untergrenze: Ein Heizkörperkreis
+         * verlangt mindestens 50/40, und `planPipeNetwork` holt sich die
+         * maßgebliche Temperatur über `systemtemperaturVon` aus demselben
+         * Dokument, aus dem auch der Rohrnetzbericht sie nimmt. Bis 1.23.0
+         * standen hier `plant.design.flowTemperature` und `.returnTemperature`
+         * — an einem Heizkörperhaus mit 35/28 im Blatt legte die Trasse damit
+         * mit 7 K statt 10 K Spreizung aus, also mit 43 % zu viel
+         * Volumenstrom. Gemessen wanderten die Nennweiten dadurch eine bis
+         * zwei Stufen zu hoch.
+         */
         material: s.doc.plant?.design.material,
       });
 
@@ -2339,14 +3269,48 @@ export const useBimStore = create<BimState>()((set, get) => {
           ...armaturen.map((a) => [a.id, a] as const),
           ...ergebnis.accessories.map((a) => [a.id, a] as const),
         ]);
+
+        /*
+         * --- Durchbrüche ----------------------------------------------------
+         *
+         * Jede Wand, die die Trasse kreuzt, braucht ein Loch. Das war bis
+         * 1.25.0 eine Textnotiz im Bericht und sonst nichts: Der Rohbau bekam
+         * eine Leitungsführung ohne Bohrungen, und gebohrt wurde, wenn der
+         * Estrich lag.
+         *
+         * Gezählt wird gegen **alle** Leitungen dieses Geschosses, nicht nur
+         * gegen die eben erzeugten — eine von Hand gezogene Leitung geht
+         * genauso durch die Wand. Erzeugte Durchbrüche dieses Geschosses
+         * werden dabei ersetzt, von Hand gesetzte bleiben stehen.
+         */
+        const eigene = Object.values(doc.durchbrueche ?? {}).filter(
+          (d) => !(d.generated && d.levelId === doc.activeLevelId),
+        );
+        const leitungen = Object.values(doc.pipes).filter((r) => r.levelId === doc.activeLevelId);
+        const gebohrt = durchbruecheFuerTrassen(doc, leitungen, () => uid('db'));
+        doc.durchbrueche = Object.fromEntries([
+          ...eigene.map((d) => [d.id, d] as const),
+          ...gebohrt.durchbrueche.map((d) => [d.id, d] as const),
+        ]);
+        anzahlDurchbrueche = gebohrt.durchbrueche.length;
+        ohneRegelmass = gebohrt.ohneRegelmass;
       });
 
       const schwer = ergebnis.notes.find((n) => n.severity === 'error');
+      if (ohneRegelmass > 0) {
+        ergebnis.notes.push({
+          severity: 'warn',
+          text:
+            `${ohneRegelmass} ${ohneRegelmass === 1 ? 'Wandquerung hat' : 'Wandquerungen haben'} kein Regelmaß im Katalog — ` +
+            `dort ist von Hand ein Durchbruch zu setzen. Eine zu kleine Bohrung einzutragen wäre schlimmer als keine.`,
+        });
+      }
       set({
         statusMessage: schwer
           ? schwer.text
           : `Rohrnetz ausgelegt — ${ergebnis.served} Verbraucher, ${ergebnis.routeLength.toFixed(1)} m Trasse, ` +
-            `${ergebnis.pipeLength.toFixed(1)} m Rohr, ${ergebnis.accessories.length} Armaturen`,
+            `${ergebnis.pipeLength.toFixed(1)} m Rohr, ${ergebnis.accessories.length} Armaturen, ` +
+            `${anzahlDurchbrueche} ${anzahlDurchbrueche === 1 ? 'Durchbruch' : 'Durchbrüche'}`,
       });
       return ergebnis;
     },
@@ -2362,14 +3326,66 @@ export const useBimStore = create<BimState>()((set, get) => {
         insulation: service === 'heating-flow' || service === 'heating-return' || service === 'hot-water' ? 20 : 0,
         elevation: service === 'waste' ? -0.1 : 0.05,
       };
+
+      /*
+       * Doppelleitung: ein Zug, zwei Rohre.
+       *
+       * Der Partner entsteht durch Parallelverschiebung um denselben
+       * `PAARABSTAND`, den die automatische Auslegung benutzt — die beiden
+       * Wege dürfen nicht verschiedene Abstände haben, sonst liegt eine von
+       * Hand gezogene Trasse anders im Kanal als eine ausgelegte. Verschoben
+       * wird um den halben Abstand nach jeder Seite, damit der gezeichnete
+       * Zug die **Mitte** des Paares bleibt: Wer an einer Wand entlangzeichnet,
+       * meint die Trasse, nicht den Vorlauf.
+       *
+       * Nur für die Heizung. Ein Abwasserrohr hat keinen Rücklauf, und ein
+       * stillschweigend verdoppelter Zuluftkanal wäre ein Fehler, den man
+       * erst im Massenauszug fände.
+       */
+      const paarbar = service === 'heating-flow' || service === 'heating-return';
+      /*
+       * Die Trassenlänge **vor** der Paarbildung merken.
+       *
+       * `bildePaar` versetzt den übergebenen Zug an Ort und Stelle nach
+       * links; danach ist seine Länge nicht mehr die der gezeichneten
+       * Trasse, sondern die des inneren Rohrs. An einer rechtwinkligen Ecke
+       * sind das 50 mm Unterschied — und die Meldung sagte „7,95 m Trasse",
+       * wo der Anwender 8,00 m gezogen hatte. Eine Zahl, die um fünf
+       * Zentimeter neben dem liegt, was man gerade angerissen hat, ist
+       * schlimmer als keine.
+       */
+      const trasse = rohrlaenge(run);
+      const partner: PipeRun | null =
+        paarbar && get().doppelleitung ? bildePaar(run, uid('p'), uid('pp')) : null;
+
       mutate((doc) => {
         doc.pipes[run.id] = run;
+        if (partner) doc.pipes[partner.id] = partner;
       });
-      const length = pipeLength(run.points);
+      /*
+       * **Die wahre Länge in der Meldung, nicht die Trassenlänge.**
+       *
+       * `addPipe` legt einen waagerechten Abschnitt an, also sind beide
+       * Zahlen hier meist gleich. Meist — nicht immer: Die begehbare Ansicht
+       * legt den Abschnitt zuerst an und setzt die zweite Höhe unmittelbar
+       * danach. In der Abnahme von 1.24.0 stand deshalb am Bildschirm
+       * „0,02 m verlegt", während derselbe Strang im Export mit 2,40 m
+       * geführt wurde — zwei Zahlen für dieselbe Leitung, im Abstand von
+       * einer Sekunde. Gerechnet wird deshalb auch hier mit `rohrlaenge`.
+       */
+      const meter = (v: number): string => `${v.toFixed(2).replace('.', ',')} m`;
       set({
         selection: { kind: 'pipe', id: run.id },
-        selections: [{ kind: 'pipe', id: run.id }],
-        statusMessage: `${PIPE_SERVICE_LABELS[service]} DN ${run.nominalDiameter} · ${length.toFixed(2)} m verlegt`,
+        selections: partner
+          ? [
+              { kind: 'pipe', id: run.id },
+              { kind: 'pipe', id: partner.id },
+            ]
+          : [{ kind: 'pipe', id: run.id }],
+        statusMessage: partner
+          ? `Doppelleitung DN ${run.nominalDiameter} · ${meter(trasse)} Trasse · ` +
+            `${meter(2 * trasse)} Rohr (Vor- und Rücklauf)`
+          : `${PIPE_SERVICE_LABELS[service]} DN ${run.nominalDiameter} · ${meter(trasse)} verlegt`,
       });
       return run;
     },
@@ -2388,12 +3404,16 @@ export const useBimStore = create<BimState>()((set, get) => {
         points: points.map((p) => ({ x: roundMm(p.x), y: roundMm(p.y) })),
         ...SITE_DEFAULTS[kind],
       };
+      let ersetzt = false;
       mutate((doc) => {
         // Es gibt genau eine Grundstücksgrenze. Eine zweite wäre kein
         // zweites Grundstück, sondern ein Widerspruch.
         if (kind === 'boundary') {
           for (const existing of Object.values(doc.site.elements)) {
-            if (existing.kind === 'boundary') delete doc.site.elements[existing.id];
+            if (existing.kind === 'boundary') {
+              delete doc.site.elements[existing.id];
+              ersetzt = true;
+            }
           }
         }
         doc.site.elements[element.id] = element;
@@ -2401,7 +3421,19 @@ export const useBimStore = create<BimState>()((set, get) => {
       set({
         selection: { kind: 'site', id: element.id },
         selections: [{ kind: 'site', id: element.id }],
-        statusMessage: `${SITE_ELEMENT_LABELS[kind]} angelegt`,
+        /*
+         * Dass die alte Grenze dabei verschwindet, muss dastehen.
+         *
+         * Vorher hieß es nur „Grundstücksgrenze angelegt", während die zuvor
+         * gezeichnete stillschweigend gelöscht wurde. Wer nach dem Zeichnen
+         * einer zweiten Fläche die erste vermisst, hält das für einen Fehler
+         * im Programm — und sucht an der falschen Stelle. Die Vorgabe des
+         * Geländewerkzeugs ist „Grundstücksgrenze", der Fall tritt also
+         * ungewollt ein, sobald jemand zweimal hintereinander umfährt.
+         */
+        statusMessage: ersetzt
+          ? 'Grundstücksgrenze ersetzt — es gibt nur eine. Strg+Z holt die alte zurück.'
+          : `${SITE_ELEMENT_LABELS[kind]} angelegt`,
       });
       return element;
     },
@@ -2503,7 +3535,17 @@ export const useBimStore = create<BimState>()((set, get) => {
           circuits: { ...p.circuits },
           schematic: { ...p.schematic },
         };
-      }, { skipRooms: true }),
+      }, {
+        skipRooms: true,
+        /*
+         * Ändert sich die Auslegungstemperatur, ändert sich jede abgeleitete
+         * Heizflächenleistung mit — und zwar erheblich: zwischen 50/40 und
+         * 35/28 liegt beim selben Raum fast der Faktor drei. Genau deshalb
+         * wird hier nachgezogen, obwohl an der Geometrie nichts geschah.
+         */
+        ziehenachHeizflaechen:
+          patch.design?.flowTemperature !== undefined || patch.design?.returnTemperature !== undefined,
+      }),
 
     addPlantStorage: (storage) =>
       mutate((doc) => {
@@ -2697,6 +3739,33 @@ export const useBimStore = create<BimState>()((set, get) => {
         const run = doc.pipes[id];
         if (!run) return;
         doc.pipes[id] = { ...run, ...patch };
+
+        /*
+         * Was für die Trasse gilt, gilt für beide Rohre.
+         *
+         * Vor- und Rücklauf einer Doppelleitung liegen im selben Kanal, im
+         * selben Schlitz, im selben Loch: Sie haben dieselbe Höhe, dieselbe
+         * Nennweite, dieselbe Dämmung und denselben Werkstoff. Ohne dieses
+         * Nachziehen entstand genau der Fehler, den die Paarkennung
+         * verhindern soll — in der begehbaren Ansicht wurde die Höhe am
+         * angelegten Zug gesetzt, und der Rücklauf blieb auf der
+         * Voreinstellung 0,05 m liegen, während der Vorlauf auf 2,45 m
+         * stieg. Zwei Rohre in einem Kanal, zwei Meter auseinander.
+         *
+         * Lage, Leitungsart und Beschriftung wandern ausdrücklich **nicht**
+         * mit: Die Punkte sind die versetzten des jeweiligen Rohrs, und die
+         * Leitungsart ist das, was das Paar unterscheidet.
+         */
+        const paar = partnerVon(doc.pipes, doc.pipes[id]);
+        if (!paar) return;
+        const gemeinsam: Partial<PipeRun> = {};
+        if (patch.elevation !== undefined) gemeinsam.elevation = patch.elevation;
+        if (patch.elevationTo !== undefined) gemeinsam.elevationTo = patch.elevationTo;
+        if (patch.nominalDiameter !== undefined) gemeinsam.nominalDiameter = patch.nominalDiameter;
+        if (patch.insulation !== undefined) gemeinsam.insulation = patch.insulation;
+        if (patch.material !== undefined) gemeinsam.material = patch.material;
+        if (patch.outerDiameter !== undefined) gemeinsam.outerDiameter = patch.outerDiameter;
+        if (Object.keys(gemeinsam).length > 0) doc.pipes[paar.id] = { ...paar, ...gemeinsam };
       }),
 
     addRoofOpening: (kind, position) => {
@@ -2720,15 +3789,18 @@ export const useBimStore = create<BimState>()((set, get) => {
         // Raummitte gesetzt hätte sie gar keine Front — das Dach ist dort
         // schon höher als die Gaube, und alle Flächen kämen als Null heraus.
         if (!isSkylight && biggest) {
+          const levelWalls = Object.values(doc0.walls).filter((w) => w.levelId === level.id);
           const outline: Vec2[] = [];
-          for (const w of Object.values(doc0.walls)) {
-            if (w.levelId !== level.id) continue;
+          for (const w of levelWalls) {
             const na = doc0.nodes[w.a];
             const nb = doc0.nodes[w.b];
             if (na) outline.push({ x: na.x, y: na.y });
             if (nb) outline.push({ x: nb.x, y: nb.y });
           }
-          const frame = buildRoofFrame(level.roof, outline);
+          // Gesucht wird gleich die niedrigste Stelle im Raum. Ohne den
+          // geordneten Umriss wäre das beim L-Grundriss die niedrigste Stelle
+          // eines Daches, das es nicht gibt — die Gaube stünde dann irgendwo.
+          const frame = buildRoofFrame(level.roof, outline, [], gebaeudeUmriss(levelWalls, doc0.nodes));
           if (frame) {
             // Gesucht ist die *niedrigste* Stelle im Raum — dort steht man
             // nicht mehr, und genau dort hilft eine Gaube. Einfach in
@@ -2867,11 +3939,150 @@ export const useBimStore = create<BimState>()((set, get) => {
       return note;
     },
 
+    setVorhaben: (vorhaben) => {
+      const vorher = get().doc.meta.vorhaben;
+      const v = VORHABEN_VORBELEGUNG[vorhaben];
+      mutate(
+        (doc) => {
+          doc.meta = { ...doc.meta, vorhaben };
+          /*
+           * **Vorbelegungen nur beim ersten Festlegen.**
+           *
+           * Wechselt jemand später von „Neubau" auf „Sanierung", ist die
+           * Anlage in aller Regel schon bearbeitet. Alles zurückzustellen
+           * wäre dann kein Dienst, sondern Datenverlust — die
+           * Auslegungstemperatur, die jemand bewusst auf 45/38 gesetzt hat,
+           * spränge ohne Rückfrage auf 55/45. Beim *ersten* Mal dagegen
+           * steht überall noch die Vorgabe, und genau dort hilft die
+           * Ableitung.
+           */
+          if (vorher !== undefined) return;
+          doc.plant = {
+            ...doc.plant,
+            design: {
+              ...doc.plant.design,
+              flowTemperature: v.vorlauf,
+              returnTemperature: v.ruecklauf,
+            },
+          };
+          // Ohne Vorbelegung für die Luftdichtheit bleibt das Feld, wie es
+          // ist — beim unsanierten Bestand gibt es keine Zahl, die man
+          // annehmen darf (siehe `VORHABEN_VORBELEGUNG`).
+          doc.meta = { ...doc.meta, vorhaben, ...(v.n50 !== undefined ? { n50: v.n50 } : {}) };
+        },
+        { skipRooms: true, ziehenachHeizflaechen: vorher === undefined },
+      );
+      set({
+        statusMessage:
+          vorher === undefined
+            ? `${VORHABEN_LABELS[vorhaben]}: Vorbelegung ${v.vorlauf}/${v.ruecklauf} °C` +
+              (v.n50 !== undefined ? `, n50 ${String(v.n50).replace('.', ',')} 1/h` : '') +
+              ` — ${v.grund}`
+            : `${VORHABEN_LABELS[vorhaben]} — vorhandene Eingaben bleiben unverändert`,
+      });
+    },
+
+    setzeArmatur: (kind, position, elevation, label) => {
+      const s = get();
+      const levelId = s.doc.activeLevelId;
+      /*
+       * Die nächste Leitung in Reichweite bekommt die Armatur.
+       *
+       * **Warum eine halbe Meter breite Reichweite und nicht der genaue
+       * Punkt.** Wer im Haus steht und auf ein Rohr zeigt, trifft es auf
+       * wenige Zentimeter genau — aber der Strahl trifft die *Oberfläche*
+       * des Rohres, die Trasse läuft durch seine Achse, und eine Leitung
+       * unter der Decke wird aus zwei Metern Entfernung anvisiert. Ein
+       * exakter Vergleich fände nie etwas. Fünfzig Zentimeter ist die
+       * Entfernung, in der im Raum nichts anderes mehr in Frage kommt.
+       */
+      const REICHWEITE = 0.5;
+      let runId: string | undefined;
+      let naechste = REICHWEITE;
+      for (const r of Object.values(s.doc.pipes ?? {})) {
+        if (r.levelId !== levelId) continue;
+        for (let i = 0; i + 1 < r.points.length; i += 1) {
+          const d = distanceToSegment(position, r.points[i], r.points[i + 1]);
+          if (d < naechste) {
+            naechste = d;
+            runId = r.id;
+          }
+        }
+      }
+      const armatur: PipeAccessory = {
+        id: uid('ar'),
+        kind,
+        levelId,
+        position: { x: roundMm(position.x), y: roundMm(position.y) },
+        elevation: roundMm(elevation),
+        runId,
+        label: label ?? ACCESSORY_LABELS[kind],
+        reason: 'Von Hand gesetzt — Bestandsaufnahme',
+      };
+      mutate((doc) => {
+        if (!doc.pipeAccessories) doc.pipeAccessories = {};
+        doc.pipeAccessories[armatur.id] = armatur;
+      });
+      set({
+        selection: { kind: 'accessory', id: armatur.id },
+        selections: [{ kind: 'accessory', id: armatur.id }],
+        statusMessage: runId
+          ? `${armatur.label} gesetzt und an die Leitung gebunden`
+          : `${armatur.label} gesetzt — keine Leitung in Reichweite, steht frei`,
+      });
+      return armatur;
+    },
+
+    setzeBeschriftung3D: (anchor, punkt, elevation, text) => {
+      const note: Annotation = {
+        id: uid('a'),
+        kind: 'leader',
+        levelId: get().doc.activeLevelId,
+        /*
+         * Zwei Punkte, wie jede Hinweisfahne: Spitze und Textpunkt.
+         *
+         * Die Spitze sitzt am Bauteil, der Text 0,60 m schräg darüber. Ohne
+         * den Versatz läge die Schrift im Grundriss genau auf dem Symbol,
+         * das sie erklärt — und verdeckte es.
+         */
+        points: [
+          { x: roundMm(punkt.x), y: roundMm(punkt.y) },
+          { x: roundMm(punkt.x + 0.42), y: roundMm(punkt.y + 0.42) },
+        ],
+        offset: 0,
+        text,
+        scale: 1,
+        elevation: roundMm(elevation),
+        anchor,
+      };
+      mutate((doc) => {
+        doc.annotations[note.id] = note;
+      });
+      set({
+        selection: { kind: 'annotation', id: note.id },
+        selections: [{ kind: 'annotation', id: note.id }],
+        statusMessage: `Beschriftet: ${text} auf ${hoehenText(elevation)}`,
+      });
+      return note;
+    },
+
     updateAnnotation: (id, patch) =>
       mutate((doc) => {
         const note = doc.annotations[id];
         if (!note) return;
-        doc.annotations[id] = { ...note, ...patch };
+        // Punkte auf den Millimeter runden — dieselbe Regel wie beim Anlegen.
+        // Ohne sie sammelt eine verschobene Beschriftung Fließkommareste an,
+        // die später als krumme Koordinaten im Plan und im Export stehen.
+        const punkte = patch.points?.map((p) => ({ x: roundMm(p.x), y: roundMm(p.y) }));
+        doc.annotations[id] = { ...note, ...patch, ...(punkte ? { points: punkte } : {}) };
+      }),
+
+    deleteAnnotation: (id) =>
+      mutate((doc) => {
+        if (!doc.annotations[id]) return;
+        const rest = { ...doc.annotations };
+        delete rest[id];
+        doc.annotations = rest;
       }),
 
     setRoof: (levelId, patch) => {
@@ -2916,14 +4127,100 @@ export const useBimStore = create<BimState>()((set, get) => {
         { skipRooms: true },
       ),
 
-    deleteSelection: () => {
-      const { selections, selection } = get();
-      const targets = selections.length ? selections : selection ? [selection] : [];
-      if (!targets.length) return;
+    sperreEbene: (id, gesperrt) =>
+      mutate(
+        (doc) => {
+          const layer = doc.layers[id];
+          if (layer) doc.layers[id] = { ...layer, locked: gesperrt };
+        },
+        { skipRooms: true },
+      ),
 
+    /*
+     * Den Bestand sperren oder freigeben.
+     *
+     * Der Ablauf, für den es das gibt: Erst wird der Bestand aufgemessen,
+     * dann steht man im Haus und setzt die Technik. In der zweiten Hälfte ist
+     * jede Wandbewegung ein Unfall — und zwar einer, den man nicht bemerkt,
+     * weil eine um zwei Zentimeter verschobene Wand im Plan aussieht wie
+     * vorher und in der Heizlast nicht.
+     */
+    sperreBestand: (gesperrt) => {
+      mutate(
+        (doc) => {
+          for (const id of BESTANDS_EBENEN) {
+            const layer = doc.layers[id];
+            if (layer) doc.layers[id] = { ...layer, locked: gesperrt };
+          }
+        },
+        { skipRooms: true },
+      );
+      set({
+        statusMessage: gesperrt
+          ? 'Bestand gesperrt — Wände, Öffnungen, Räume und Durchbrüche lassen sich nicht mehr anfassen'
+          : 'Bestand freigegeben',
+      });
+    },
+
+    ebenenSatz: (satz) => {
+      mutate(
+        (doc) => {
+          const an = new Set<string>(satz.sichtbar);
+          for (const [id, layer] of Object.entries(doc.layers)) {
+            // Das Referenzbild bleibt außen vor: Es ist keine Zeichnungsebene,
+            // sondern die Vorlage, über der gezeichnet wird. Wer es
+            // eingeblendet hat, will es beim Umschalten des Gewerks nicht
+            // verlieren.
+            if (id === 'layer-image') continue;
+            doc.layers[id] = { ...layer, visible: an.has(id) };
+          }
+        },
+        { skipRooms: true },
+      );
+      set({ statusMessage: `${satz.label}: ${satz.auskunft}` });
+    },
+
+    deleteSelection: () => {
+      const { selections, selection, doc: doc0 } = get();
+      const gewaehlt = selections.length ? selections : selection ? [selection] : [];
+      // Gesperrtes wird nicht gelöscht — siehe `moveSelection`.
+      const targets = gewaehlt.filter((t) => !auswahlGesperrt(doc0, t));
+      if (!targets.length) {
+        if (gewaehlt.length) set({ statusMessage: 'Gesperrt — im Reiter „Ebenen" freigeben' });
+        return;
+      }
+
+      /*
+       * Gezählt wird, was wirklich weg ist.
+       *
+       * Vorher meldete die Statuszeile die Zahl der *angewählten* Objekte.
+       * Wer einen Raum anklickte und Entf drückte, las „1 Objekt gelöscht"
+       * und sah den Raum weiter im Plan stehen — eine Rückmeldung, die
+       * lügt, ist schlimmer als gar keine. Räume sind abgeleitet: sie
+       * verschwinden, wenn die Wände verschwinden, und nicht auf Zuruf.
+       */
+      let entfernt = 0;
+      let geblieben = 0;
+      /*
+       * Vor der Änderung zählen, nicht danach.
+       *
+       * Nach `mutate` ist die Armatur weg, und `doc0` — der Stand von vorher
+       * — führt sie nicht mehr, weil beide Stände sich dasselbe Verzeichnis
+       * teilten. Das ist seit dieser Fassung behoben (siehe `cloneDoc`);
+       * hier vorher zu zählen ist trotzdem das Richtige: Die Frage „war das
+       * eine ausgelegte Armatur?" ist eine Frage an den Stand von vorher.
+       */
+      const ausgelegte = targets.filter(
+        (t) => t.kind === 'accessory' && doc0.pipeAccessories?.[t.id]?.generated,
+      ).length;
       mutate((doc) => {
+        const zaehle = (weg: boolean): void => {
+          if (weg) entfernt += 1;
+          else geblieben += 1;
+        };
         for (const sel of targets) {
           if (sel.kind === 'wall') {
+            zaehle(sel.id in doc.walls);
             delete doc.walls[sel.id];
             for (const o of Object.values(doc.openings)) {
               if (o.wallId === sel.id) delete doc.openings[o.id];
@@ -2933,37 +4230,114 @@ export const useBimStore = create<BimState>()((set, get) => {
               if (f.wallId === sel.id) doc.fixtures[f.id] = { ...f, wallId: undefined };
             }
           } else if (sel.kind === 'opening') {
+            zaehle(sel.id in doc.openings);
             delete doc.openings[sel.id];
           } else if (sel.kind === 'fixture') {
+            zaehle(sel.id in doc.fixtures);
             delete doc.fixtures[sel.id];
           } else if (sel.kind === 'vertical') {
+            zaehle(sel.id in doc.verticals);
             delete doc.verticals[sel.id];
           } else if (sel.kind === 'solid') {
+            zaehle(Boolean(doc.solids && sel.id in doc.solids));
             if (doc.solids) delete doc.solids[sel.id];
+          } else if (sel.kind === 'durchbruch') {
+            zaehle(Boolean(doc.durchbrueche && sel.id in doc.durchbrueche));
+            if (doc.durchbrueche) delete doc.durchbrueche[sel.id];
           } else if (sel.kind === 'pipe') {
+            zaehle(sel.id in doc.pipes);
+            // Der Rücklauf geht mit dem Vorlauf. Eine Heizung, die nur
+            // hinführt, ist kein Zwischenstand, sondern ein Fehler — und
+            // einer, den man im Plan nicht sieht.
+            const paar = doc.pipes[sel.id] ? partnerVon(doc.pipes, doc.pipes[sel.id]) : undefined;
             delete doc.pipes[sel.id];
+            if (paar) {
+              // Auch der Partner wird gezählt. „1 Objekt gelöscht", wenn zwei
+              // verschwunden sind, ist genau die Sorte Rückmeldung, wegen der
+              // man dem Programm beim nächsten Mal nicht mehr glaubt.
+              zaehle(true);
+              delete doc.pipes[paar.id];
+              for (const a of Object.values(doc.pipeAccessories ?? {})) {
+                if (a.runId === paar.id) delete doc.pipeAccessories![a.id];
+              }
+            }
+            /*
+             * Mit der Leitung gehen die Armaturen, die auf ihr sitzen.
+             *
+             * Eine Armatur ohne Leitung ist kein Bauteil mehr, sondern ein
+             * Symbol, das im Plan hängen bleibt und in den Massenauszug
+             * geht. Von Hand gesetzte bleiben stehen, wenn sie keiner
+             * Leitung zugeordnet sind — sie gehören dann dem Anwender.
+             */
+            for (const a of Object.values(doc.pipeAccessories ?? {})) {
+              if (a.runId === sel.id) delete doc.pipeAccessories![a.id];
+            }
+          } else if (sel.kind === 'accessory') {
+            /*
+             * Auch eine ausgelegte Armatur lässt sich entfernen.
+             *
+             * Sie kommt bei der nächsten Rohrnetzauslegung wieder, weil die
+             * Rechnung sie fordert — das steht danach in der Statuszeile.
+             * Eine Armatur nicht löschen zu können, weil das Programm sie
+             * gesetzt hat, wäre die schlechtere Antwort: dann stünde sie im
+             * Plan, ohne dass jemand sie wegbekäme.
+             */
+            const armatur = doc.pipeAccessories?.[sel.id];
+            zaehle(Boolean(armatur));
+            // Die ζ-Liste eines Abschnitts (`PipeSegment.accessories`) wird
+            // beim Aufbau des Netzes aus `doc.pipeAccessories` neu
+            // gebildet — sie braucht hier kein Nachräumen.
+            if (armatur && doc.pipeAccessories) delete doc.pipeAccessories[sel.id];
           } else if (sel.kind === 'annotation') {
+            zaehle(sel.id in doc.annotations);
             delete doc.annotations[sel.id];
           } else if (sel.kind === 'roofOpening') {
+            zaehle(sel.id in doc.roofOpenings);
             delete doc.roofOpenings[sel.id];
           } else if (sel.kind === 'site') {
+            zaehle(sel.id in doc.site.elements);
             delete doc.site.elements[sel.id];
           } else if (sel.kind === 'heatpump') {
+            zaehle(sel.id in doc.site.pumps);
             delete doc.site.pumps[sel.id];
           } else if (sel.kind === 'node') {
+            let weg = false;
             for (const w of Object.values(doc.walls)) {
               if (w.a === sel.id || w.b === sel.id) {
+                weg = true;
                 delete doc.walls[w.id];
                 for (const o of Object.values(doc.openings)) {
                   if (o.wallId === w.id) delete doc.openings[o.id];
                 }
               }
             }
+            zaehle(weg);
+          } else {
+            // Raum, Bild, Spurkandidat: nichts zu löschen. Der Zähler
+            // merkt es sich, damit die Rückmeldung stimmt.
+            geblieben += 1;
           }
         }
         pruneNodes(doc);
+      }, {
+        // Fällt eine von zwei Heizflächen im Raum weg, muss die verbliebene
+        // wieder die ganze Last tragen. Ohne dieses Nachziehen bliebe der
+        // Raum mit halber Heizfläche im Heft stehen.
+        ziehenachHeizflaechen: targets.some(
+          (t) => t.kind === 'fixture' && istHeizflaeche(doc0.fixtures[t.id]?.type ?? 'radiator'),
+        ),
       });
-      set({ selection: null, selections: [], statusMessage: `${targets.length} Objekt(e) gelöscht` });
+      const meldung =
+        entfernt === 0
+          ? geblieben === 1
+            ? 'Nichts gelöscht — dieses Objekt entsteht aus anderen und verschwindet mit ihnen.'
+            : 'Nichts gelöscht — diese Objekte entstehen aus anderen und verschwinden mit ihnen.'
+          : `${entfernt} Objekt${entfernt === 1 ? '' : 'e'} gelöscht` +
+            (geblieben > 0 ? `, ${geblieben} unverändert` : '') +
+            (ausgelegte > 0
+              ? ` · ${ausgelegte === 1 ? 'die ausgelegte Armatur kommt' : 'ausgelegte Armaturen kommen'} bei der nächsten Rohrnetzauslegung wieder`
+              : '');
+      set({ selection: null, selections: [], statusMessage: meldung });
     },
 
     clearAll: () =>
@@ -2974,6 +4348,7 @@ export const useBimStore = create<BimState>()((set, get) => {
         doc.fixtures = {};
         doc.verticals = {};
         doc.solids = {};
+        doc.durchbrueche = {};
         doc.pipes = {};
         doc.annotations = {};
         doc.roofOpenings = {};
@@ -3468,9 +4843,12 @@ export const useBimStore = create<BimState>()((set, get) => {
             fixtures?: Fixture[];
             verticals?: VerticalElement[];
             solids?: SolidElement[];
+            durchbrueche?: Durchbruch[];
             pipes?: PipeRun[];
             annotations?: Annotation[];
             roofOpenings?: RoofOpening[];
+            site?: BimDocument['site'];
+            freihand?: Freihandstrich[];
           }
         | undefined;
       if (!geometry?.nodes || !geometry.walls) {
@@ -3526,6 +4904,15 @@ export const useBimStore = create<BimState>()((set, get) => {
       fresh.solids = Object.fromEntries(
         (geometry.solids ?? []).map((b) => [b.id, { ...b, levelId: b.levelId ?? fallbackLevel }]),
       );
+      // Und dasselbe für die Durchbrüche: ohne diese Zeile wäre nach dem
+      // Öffnen jede Kernbohrung fort — und niemand vermisst ein Loch, bis der
+      // Bohrer angesetzt ist.
+      fresh.durchbrueche = Object.fromEntries(
+        (geometry.durchbrueche ?? []).map((db) => [
+          db.id,
+          { ...db, levelId: db.levelId ?? fallbackLevel },
+        ]),
+      );
       fresh.pipes = Object.fromEntries(
         (geometry.pipes ?? []).map((pr) => [pr.id, { ...pr, levelId: pr.levelId ?? fallbackLevel }]),
       );
@@ -3535,12 +4922,50 @@ export const useBimStore = create<BimState>()((set, get) => {
       fresh.roofOpenings = Object.fromEntries(
         (geometry.roofOpenings ?? []).map((ro) => [ro.id, { ...ro, levelId: ro.levelId ?? fallbackLevel }]),
       );
+      /*
+       * Grundstück und Handnotizen zurücklesen.
+       *
+       * Bis 1.18.0 stand hier nichts: `emptyDocument()` legt ein leeres
+       * Gelände an, und niemand füllte es wieder. „Exportieren, wieder
+       * öffnen" hat damit Grundstücksgrenze, Nachbarbebauung und Wärmepumpe
+       * verloren — ohne Meldung, denn geladen wurde ja etwas.
+       *
+       * Ältere Dateien haben den Block noch nicht. Aus ihnen lassen sich
+       * wenigstens die gezeichneten Objekte retten; sie stehen im
+       * ausgewerteten Teil unter `heatPump.elements`. Die Wärmepumpen selbst
+       * stehen dort als Rechenfall und nicht als Gerät — die kommen nicht
+       * zurück, und das sagt die Meldung unten auch.
+       */
+      let altbestand = false;
+      if (geometry.site) {
+        fresh.site = {
+          ...fresh.site,
+          ...geometry.site,
+          elements: { ...(geometry.site.elements ?? {}) },
+          pumps: { ...(geometry.site.pumps ?? {}) },
+        };
+      } else {
+        const hp = raw.heatPump as { elements?: SiteElement[] } | undefined;
+        if (hp?.elements?.length) {
+          fresh.site = {
+            ...fresh.site,
+            elements: Object.fromEntries(hp.elements.map((el) => [el.id, el])),
+          };
+          altbestand = true;
+        }
+      }
+      if (geometry.freihand?.length) {
+        fresh.freihand = Object.fromEntries(
+          geometry.freihand.map((f) => [f.id, { ...f, levelId: f.levelId ?? fallbackLevel }]),
+        );
+      }
 
       const constructions = raw.constructions as Construction[] | undefined;
       if (constructions?.length) {
         fresh.constructions = Object.fromEntries(constructions.map((c) => [c.id, c]));
       }
 
+      ergaenzeEbenen(fresh);
       recomputeRooms(fresh);
 
       // Raumbezogene Angaben zuordnen — über den Schwerpunkt, weil sich die
@@ -3583,7 +5008,11 @@ export const useBimStore = create<BimState>()((set, get) => {
         selection: null,
         trace: null,
         einpassenZaehler: get().einpassenZaehler + 1,
-        statusMessage: `Projekt geladen: ${Object.keys(fresh.walls).length} Wände, ${Object.keys(fresh.rooms).length} Räume`,
+        statusMessage:
+          `Projekt geladen: ${Object.keys(fresh.walls).length} Wände, ${Object.keys(fresh.rooms).length} Räume` +
+          (altbestand
+            ? ' — aus einer älteren Datei: Geländeobjekte sind da, die Wärmepumpe muss neu gesetzt werden.'
+            : ''),
       });
       return { ok: true, message: 'Projekt geladen' };
     },
@@ -3772,6 +5201,250 @@ export const useBimStore = create<BimState>()((set, get) => {
     },
 
     /** Übernimmt alle nicht verworfenen Vorschläge als echte CAD-Objekte. */
+    // --- Freihand ---------------------------------------------------------
+
+    /**
+     * Einen Freihandstrich auswerten.
+     *
+     * Es entsteht ein **Vorschlag** und kein Modellinhalt. Die Wandstärke
+     * kommt aus der Werkzeugleiste, damit der Strich dieselbe Stärke bekommt
+     * wie eine von Hand gezogene Wand — wer 24 cm eingestellt hat, meint
+     * 24 cm, auch wenn er skizziert.
+     *
+     * Die Ausrichtung folgt dem **Bestand**, wenn welcher da ist: eine
+     * angebaute Wand soll zum Haus passen und nicht zu dem Strich, mit dem
+     * sie gerade gezogen wurde.
+     */
+    skizziere: (punkte) => {
+      const st = get();
+      const levelId = st.doc.activeLevelId;
+      // Ein Vorschlag, der schon steht, wird **fortgeschrieben** und nicht
+      // ersetzt — solange er zum selben Geschoss gehört.
+      const vorher = st.skizze && st.skizze.levelId === levelId ? st.skizze : null;
+      const bestand = Object.values(st.doc.walls).filter((w) => w.levelId === levelId);
+      const richtungGrad =
+        bestand.length > 0
+          ? (vorzugsrichtung(
+              bestand
+                .map((w) => {
+                  const a = st.doc.nodes[w.a];
+                  const b = st.doc.nodes[w.b];
+                  if (!a || !b) return null;
+                  return { dx: b.x - a.x, dy: b.y - a.y, laenge: Math.hypot(b.x - a.x, b.y - a.y) };
+                })
+                .filter((x): x is { dx: number; dy: number; laenge: number } => x !== null),
+            ) *
+              180) /
+            Math.PI
+          : undefined;
+
+      /*
+       * Steht schon ein Vorschlag, gilt **seine** Richtung — nicht die des
+       * neuen Strichs. Sonst richtete sich die Innenwand nach sich selbst
+       * aus, während die Außenwand daneben eine andere Vorzugsrichtung
+       * behielt, und die beiden stünden im Plan schief zueinander.
+       */
+      const richtung = richtungGrad ?? vorher?.drehungGrad;
+      const ergebnis = erkenneSkizze(punkte, richtung !== undefined ? { richtungGrad: richtung } : {});
+      if (ergebnis.strecken.length === 0) {
+        // Ein misslungener Strich nimmt den guten davor **nicht** mit. Wer
+        // beim vierten Zug abrutscht, hat sonst die ersten drei verloren.
+        const grund = ergebnis.hinweise[0] ?? 'Aus dem Strich ließ sich keine Wand lesen.';
+        const zusatz = vorher ? ' Der bisherige Vorschlag bleibt stehen.' : '';
+        if (!vorher) set({ skizze: null });
+        get().setStatus(grund + zusatz);
+        return { ok: false, message: grund + zusatz };
+      }
+
+      // Hinweise zusammenführen, ohne sie zu wiederholen: „2 sehr kurze
+      // Stücke …" dreimal untereinander sagt nicht mehr als einmal.
+      const hinweise = [...new Set([...(vorher?.hinweise ?? []), ...ergebnis.hinweise])];
+      const strecken = [...(vorher?.strecken ?? []), ...ergebnis.strecken];
+      const zuege = [
+        ...(vorher?.zuege ?? []),
+        { strich: [...punkte], anzahl: ergebnis.strecken.length, ring: ergebnis.ring },
+      ];
+
+      set({
+        skizze: {
+          strecken,
+          zuege,
+          levelId,
+          ring: (vorher?.ring ?? false) || ergebnis.ring,
+          drehungGrad: vorher?.drehungGrad ?? ergebnis.drehungGrad,
+          hinweise,
+          // Stärke und Art bleiben, was der Anwender am Vorschlag eingestellt
+          // hat — sonst setzte jeder neue Zug seine Wahl zurück.
+          staerke: vorher?.staerke ?? st.wallDefaults.thickness,
+          art: vorher?.art ?? st.wallDefaults.type,
+        },
+      });
+      const message =
+        `${strecken.length} Wände erkannt` +
+        (zuege.length > 1 ? ` aus ${zuege.length} Zügen` : '') +
+        (ergebnis.ring ? ', geschlossener Umriss' : '') +
+        ' — noch nicht übernommen';
+      get().setStatus(message);
+      return { ok: true, message };
+    },
+
+    /**
+     * Den zuletzt gezogenen Strich aus dem Vorschlag nehmen.
+     *
+     * Der Gegenzug zum Sammeln: Wer vier Züge gezeichnet hat und mit dem
+     * vierten unzufrieden ist, soll nicht alles verwerfen müssen.
+     */
+    nimmZugZurueck: () => {
+      const v = get().skizze;
+      if (!v || v.zuege.length === 0) return;
+      if (v.zuege.length === 1) {
+        set({ skizze: null });
+        get().setStatus('Skizze verworfen.');
+        return;
+      }
+      const letzter = v.zuege[v.zuege.length - 1];
+      const zuege = v.zuege.slice(0, -1);
+      const strecken = v.strecken.slice(0, v.strecken.length - letzter.anzahl);
+      set({
+        skizze: { ...v, zuege, strecken, ring: zuege.some((z) => z.ring) },
+      });
+      get().setStatus(`Letzter Zug zurückgenommen — ${strecken.length} Wände bleiben im Vorschlag.`);
+    },
+
+    /**
+     * Die vorgeschlagenen Wände anlegen.
+     *
+     * **Ein** Schritt in der Rückgängig-Kette, nicht einer je Wand: Wer eine
+     * Skizze übernimmt und es sich anders überlegt, will die Skizze zurück
+     * und nicht sechsmal Strg+Z drücken.
+     *
+     * Angeschlossen wird an den Bestand: Endpunkte, die nah genug an einem
+     * vorhandenen Knoten liegen, bekommen diesen Knoten. Sonst stünde die
+     * skizzierte Wand neben der gezeichneten statt an ihr, und die
+     * Raumerkennung fände keinen geschlossenen Umriss.
+     */
+    uebernimmSkizze: () => {
+      const vorschlag = get().skizze;
+      if (!vorschlag || vorschlag.strecken.length === 0) {
+        return { ok: false, message: 'Es liegt keine Skizze vor.' };
+      }
+      let angelegt = 0;
+      mutate((doc) => {
+        const level = doc.levels[doc.activeLevelId];
+        for (const strecke of vorschlag.strecken) {
+          // 12 cm: großzügiger als beim Bildimport (8 cm), weil eine
+          // Handskizze gröber ist als eine erkannte Linie — aber enger als
+          // die halbe kleinste Wand, damit nichts zusammenfällt, was
+          // getrennt gemeint war.
+          const a = nodeAt(doc, strecke.a, 0.12);
+          const b = nodeAt(doc, strecke.b, 0.12);
+          if (a.id === b.id) continue;
+          const gibtEs = Object.values(doc.walls).some(
+            (w) => (w.a === a.id && w.b === b.id) || (w.a === b.id && w.b === a.id),
+          );
+          if (gibtEs) continue;
+          const wall: Wall = {
+            id: uid('w'),
+            levelId: doc.activeLevelId,
+            a: a.id,
+            b: b.id,
+            thickness: vorschlag.staerke,
+            height: level?.height ?? 2.75,
+            type: vorschlag.art,
+            layerId: 'layer-walls',
+            uValue: vorschlag.art === 'exterior' ? 0.24 : 1.2,
+          };
+          doc.walls[wall.id] = wall;
+          angelegt += 1;
+        }
+      });
+      set({ skizze: null });
+      const message =
+        angelegt === vorschlag.strecken.length
+          ? `${angelegt} Wände aus der Skizze übernommen.`
+          : `${angelegt} von ${vorschlag.strecken.length} Wänden übernommen — die übrigen gab es schon.`;
+      get().setStatus(message);
+      return { ok: true, message };
+    },
+
+    verwirfSkizze: () => {
+      set({ skizze: null });
+      get().setStatus('Skizze verworfen.');
+    },
+
+    setzeSkizzenwand: (patch) => {
+      const s2 = get().skizze;
+      if (s2) set({ skizze: { ...s2, ...patch } });
+    },
+
+    /**
+     * Eine Freihandnotiz ablegen.
+     *
+     * Sie geht ins Dokument und damit in die Projektdatei — eine Notiz, die
+     * beim Speichern verschwindet, schreibt niemand ein zweites Mal. Sie geht
+     * **nicht** in Massenauszug, Heizlast oder Export: sie ist eine
+     * Randbemerkung und keine Geometrie.
+     */
+    notiere: (punkte, druck) => {
+      if (punkte.length < 2) return;
+      mutate((doc) => {
+        const strich: Freihandstrich = {
+          id: uid('fh'),
+          levelId: doc.activeLevelId,
+          punkte: punkte.map((p) => ({ x: p.x, y: p.y })),
+          ...(druck && druck.length === punkte.length ? { druck: [...druck] } : {}),
+          createdAt: new Date().toISOString(),
+        };
+        doc.freihand = { ...(doc.freihand ?? {}), [strich.id]: strich };
+      });
+    },
+
+    loescheNotiz: (id) => {
+      mutate((doc) => {
+        if (!doc.freihand?.[id]) return;
+        const rest = { ...doc.freihand };
+        delete rest[id];
+        doc.freihand = rest;
+      });
+    },
+
+    loescheNotizen: () => {
+      const aktiv = get().doc.activeLevelId;
+      let weg = 0;
+      mutate((doc) => {
+        const rest: Record<string, Freihandstrich> = {};
+        for (const [id, f] of Object.entries(doc.freihand ?? {})) {
+          if (f.levelId === aktiv) weg += 1;
+          else rest[id] = f;
+        }
+        doc.freihand = rest;
+      });
+      get().setStatus(weg > 0 ? `${weg} Notizen gelöscht.` : 'Keine Notizen in diesem Geschoss.');
+    },
+
+    radiere: (bahn) => {
+      if (bahn.length === 0) return;
+      const doc0 = get().doc;
+      const treffer = getroffene(doc0.freihand ?? {}, bahn, doc0.activeLevelId);
+      if (treffer.length === 0) {
+        // Kein Treffer ist kein Fehler — aber auch kein Schritt in der
+        // Historie. Wer daneben radiert, soll mit „Rückgängig" nicht ins
+        // Leere greifen.
+        get().setStatus('Nichts getroffen.');
+        return;
+      }
+      mutate((doc) => {
+        const rest = { ...(doc.freihand ?? {}) };
+        for (const id of treffer) delete rest[id];
+        doc.freihand = rest;
+      });
+      get().setStatus(treffer.length === 1 ? 'Notiz radiert.' : `${treffer.length} Notizen radiert.`);
+    },
+
+    setzeRadiergummi: (an) => set({ radiergummi: an }),
+
+    setzeNotizenSichtbar: (sichtbar) => set({ notizenSichtbar: sichtbar }),
+
     acceptTrace: () => {
       const trace = get().trace;
       if (!trace) return;
@@ -3899,8 +5572,28 @@ export const useBimStore = create<BimState>()((set, get) => {
       gestureRecorded = false;
     },
     endGesture: () => {
+      const lief = gestureActive;
       gestureActive = false;
       gestureRecorded = false;
+      /*
+       * Einmal vollständig nachrechnen.
+       *
+       * Während des Zuges lief die Raumerkennung nur über das sichtbare
+       * Geschoss. Das ist richtig, solange gezogen wird — aber nur solange:
+       * Eine Wand, die zwei Geschosse begrenzt (ein Luftraum über dem
+       * Wohnzimmer), oder ein verschobener Schacht wirkt nach oben, und
+       * dieser Anteil muss nach dem Loslassen stimmen. Ohne diesen Durchlauf
+       * bliebe die Abweichung bis zur nächsten beliebigen Änderung stehen —
+       * und niemand sähe sie.
+       *
+       * Ohne Geste passiert nichts: `endGesture` wird auch dann gerufen,
+       * wenn gar nicht gezogen wurde.
+       */
+      if (!lief) return;
+      const doc = cloneDoc(get().doc);
+      recomputeRooms(doc);
+      // Kein Historieneintrag: Die Geste hat ihren schon.
+      set({ doc });
     },
 
     undo: () => {

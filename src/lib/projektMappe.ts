@@ -795,6 +795,43 @@ function schemaBlaetter(
     colour: false,
     componentTable: false,
   });
+  // **Eine Leseanleitung vor die Zeichnung.** Die Mappe geht an Leute, die das
+  // Blatt zum ersten Mal sehen — den Junggesellen, der die Anlage füllt, den
+  // Eigentümer, der wissen will, was da im Keller steht. Ein Fließbild ist
+  // eine Fachsprache; ein Absatz, der sie erklärt, kostet ein Viertelblatt und
+  // erspart den Rückruf. Was drinsteht, richtet sich nach dem Blatt, das
+  // tatsächlich entstanden ist — bei Positionsnummern anders als bei Namen.
+  const mitNummern = schema.labelMode === 'position';
+  entwuerfe.push({
+    kapitel: 'schema',
+    titel: 'Anlagenschema — wie das Blatt zu lesen ist',
+    art: 'text',
+    inhalt:
+      h2('Anlagenschema') +
+      p(
+        'Das Schema zeigt, wie die Anlage zusammenhängt — nicht, wo die Teile im Haus stehen. Gelesen wird es ' +
+          'wie ein Netzplan: jedes Sinnbild ist ein Bauteil, jeder Strich eine Leitung, jeder Pfeil die Richtung, ' +
+          'in die das Wasser läuft.',
+      ) +
+      p(
+        mitNummern
+          ? 'Jedes Bauteil trägt eine eingekreiste Nummer. Was sie bedeutet, steht im Positionsblatt dahinter: ' +
+            'Nummer, Sinnbild, Bezeichnung, Anzahl und die technische Angabe in einer Zeile. Ein Bauteil suchen ' +
+            'heißt deshalb: Nummer auf der Zeichnung ablesen, Zeile im Positionsblatt nachschlagen.'
+          : 'Die Bezeichnung steht über dem Sinnbild, die technische Angabe darunter. Die Legende führt jedes ' +
+            'benutzte Sinnbild mit seinem Namen auf.',
+      ) +
+      p(
+        'Die Leitungen unterscheiden sich nicht nur durch die Farbe, sondern durch die Strichart — durchgezogen, ' +
+          'gestrichelt, strichpunktiert. Das ist Absicht: auf einem Schwarzweißdrucker bleibt das Blatt dadurch ' +
+          `lesbar. Welche Strichart wofür steht, sagt die ${mitNummern ? 'Leiste unter dem Positionsblatt' : 'Legende'}.`,
+      ) +
+      kasten(
+        'Prinzipschema, kein Ausführungsplan. Die Lage der Bauteile auf dem Blatt ist ein Rasterplatz und kein Ort ' +
+          'im Gebäude. Für den Einbau gelten die Unterlagen der Hersteller.',
+      ),
+  });
+
   schema.sheets.forEach((svg, i) => {
     entwuerfe.push({
       kapitel: 'schema',
@@ -1535,6 +1572,34 @@ function deckblatt(bericht: RohrnetzBericht, d: DeckblattDaten): string {
       ? `Gegen die Restförderhöhe des Geräts geprüft — ${pumpe.sufficient ? 'ausreichend' : 'nicht ausreichend'}`
       : `Erforderlich am Schlechtpunkt · ${de(pumpe.pressureKpa, 1)} kPa`;
 
+  /*
+   * Die Auslegungstemperatur auf dem Deckblatt **mit Absender**.
+   *
+   * Das Deckblatt ist die erste Stelle, an der die Zahl auftaucht, und für
+   * die meisten Leser die einzige. Wer hier „50/40 °C" liest und im
+   * Anlagenblatt 35/28 °C findet, hält eines von beiden für falsch — es ist
+   * aber die Rechnung, die recht hat: Ein Heizkörperkreis verlangt mehr, als
+   * das Anlagenblatt nennt, und der Erzeuger liefert nur eine einzige
+   * Vorlauftemperatur. Herunter mischen lässt sich, hinauf nicht.
+   *
+   * Der Vermerk in der Kachel ist die Warnlampe, der Satz darunter die
+   * Erklärung; `systemtemperatur.begruendung` nennt beide Temperaturpaare
+   * und den Kreis, der den Ton angibt. Der Nachweiskatalog am Ende der Mappe
+   * führt dieselbe Begründung noch einmal — dort, weil § 60c Abs. 4 GModG
+   * die Auslegungstemperatur zu den schriftlich mitzuteilenden Angaben
+   * zählt. Steht die Zahl unverändert im Anlagenblatt, entfallen Vermerk und
+   * Satz: Ein Hinweis ohne Anlass entwertet die Hinweise mit Anlass.
+   */
+  const temperaturVermerk =
+    bericht.temperaturen.herkunft === 'angehoben'
+      ? ' · vom heißesten Kreis angehoben'
+      : bericht.temperaturen.herkunft === 'vorgabe'
+        ? ' · Vorbelegung des Programms'
+        : '';
+  const temperaturSatz = temperaturVermerk
+    ? `<p class="fussnote">${escapeHtml(`Zur Auslegungstemperatur: ${bericht.temperaturen.begruendung}`)}</p>`
+    : '';
+
   const herkunftText =
     a.heatLoadProvenance === 'raumweise'
       ? 'Summe der raumweise gerechneten Heizlasten'
@@ -1606,10 +1671,11 @@ function deckblatt(bericht: RohrnetzBericht, d: DeckblattDaten): string {
       `${de(bericht.temperaturen.vorlauf, 0)}/${de(bericht.temperaturen.ruecklauf, 0)} °C · Spreizung ${de(
         bericht.temperaturen.spreizung,
         1,
-      )} K · ${PIPE_MATERIAL_LABELS[bericht.werkstoff]}`,
+      )} K · ${PIPE_MATERIAL_LABELS[bericht.werkstoff]}${temperaturVermerk}`,
     ) +
     kachel('Förderhöhe', foerderhoehe, foerderNotiz) +
     `</div>` +
+    temperaturSatz +
     `<h3>Was diese Mappe ist und was nicht</h3>` +
     vorbehalt.map((t) => p(t)).join('') +
     `</div>`

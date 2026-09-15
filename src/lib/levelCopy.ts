@@ -24,18 +24,34 @@
  * mitführen, also Zustand halten, und wäre nicht mehr wiederholbar prüfbar.
  */
 
-import type { BimNode, Opening, SolidElement, VerticalElement, Wall } from '../types/bim';
+import type {
+  BimNode,
+  Durchbruch,
+  Opening,
+  SolidElement,
+  VerticalElement,
+  Wall,
+} from '../types/bim';
+import { durchbruchWirt } from '../types/bim';
 
 /** Warum ein Bauteil beim Übernehmen liegen bleibt. */
 export type LevelCopySkipReason =
   /** Verbindet zwei Geschosse — eine Treppe gibt es einmal, nicht je Geschoss. */
   | 'verbindet-geschosse'
   /** Läuft ohnehin durch alle Geschosse darüber (Schornstein, Steigschacht). */
-  | 'durchgehend';
+  | 'durchgehend'
+  /**
+   * Gehört zur Decke und nicht zum Grundriss.
+   *
+   * Ein Deckendurchbruch sitzt in der Platte *über* dem Geschoss. Übernimmt
+   * man den Grundriss nach oben, ist diese Platte dieselbe geblieben — ein
+   * zweiter Durchbruch darin wäre ein zweites Loch an derselben Stelle.
+   */
+  | 'gehoert-zur-decke';
 
 export interface LevelCopySkip {
   id: string;
-  art: 'vertikal' | 'massiv';
+  art: 'vertikal' | 'massiv' | 'durchbruch';
   grund: LevelCopySkipReason;
 }
 
@@ -55,6 +71,7 @@ export interface LevelCopyInput {
   openings: readonly Opening[];
   verticals: readonly VerticalElement[];
   solids: readonly SolidElement[];
+  durchbrueche: readonly Durchbruch[];
   /** ID-Erzeuger des Aufrufers; bekommt das übliche Präfix ('n', 'w', 'o', 'm'). */
   newId: (prefix: string) => string;
 }
@@ -64,6 +81,7 @@ export interface LevelCopyResult {
   walls: Wall[];
   openings: Opening[];
   solids: SolidElement[];
+  durchbrueche: Durchbruch[];
   /** Was bewusst nicht kopiert wurde, mit Begründung. */
   skipped: LevelCopySkip[];
 }
@@ -88,7 +106,14 @@ export function copiesWithLevel(solid: Pick<SolidElement, 'throughAllLevels'>): 
  */
 export function copyLevelContents(input: LevelCopyInput): LevelCopyResult {
   const { sourceLevelId, targetLevelId, targetHeight, newId } = input;
-  const result: LevelCopyResult = { nodes: [], walls: [], openings: [], solids: [], skipped: [] };
+  const result: LevelCopyResult = {
+    nodes: [],
+    walls: [],
+    openings: [],
+    solids: [],
+    durchbrueche: [],
+    skipped: [],
+  };
 
   // Knoten zuerst: die Wände brauchen die neuen IDs ihrer Endpunkte.
   const nodeMap = new Map<string, string>();
@@ -113,6 +138,15 @@ export function copyLevelContents(input: LevelCopyInput): LevelCopyResult {
       if (op.wallId !== wall.id) continue;
       result.openings.push({ ...op, id: newId('o'), wallId: id });
     }
+    // Wanddurchbrüche gehören zur Wand und wandern mit ihr — und zwar
+    // umgehängt auf die neue Wand-ID. Bliebe die alte stehen, säße die Kopie
+    // im neuen Geschoss auf der Wand des alten: sichtbar an der richtigen
+    // Stelle, gemeint an der falschen.
+    for (const db of input.durchbrueche) {
+      if (db.wallId !== wall.id) continue;
+      if (durchbruchWirt(db.kind) !== 'wand') continue;
+      result.durchbrueche.push({ ...db, id: newId('db'), wallId: id, levelId: targetLevelId });
+    }
   }
 
   // Treppen und Schächte gehen nie mit hoch — siehe Kopfkommentar.
@@ -128,6 +162,13 @@ export function copyLevelContents(input: LevelCopyInput): LevelCopyResult {
       continue;
     }
     result.solids.push({ ...massiv, id: newId('m'), levelId: targetLevelId });
+  }
+
+  // Deckendurchbrüche bleiben, wo sie sind — siehe `gehoert-zur-decke`.
+  for (const db of input.durchbrueche) {
+    if (db.levelId !== sourceLevelId) continue;
+    if (durchbruchWirt(db.kind) !== 'decke') continue;
+    result.skipped.push({ id: db.id, art: 'durchbruch', grund: 'gehoert-zur-decke' });
   }
 
   return result;

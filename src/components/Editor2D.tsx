@@ -26,6 +26,7 @@ import type {
   FixtureType,
   PipeService,
   Room,
+  SelectionKind,
   SiteElementKind,
   SnapResult,
   SolidKind,
@@ -41,8 +42,24 @@ import {
   SITE_ELEMENT_LABELS,
   SOLID_LABELS,
   VERTICAL_LABELS,
+  DURCHBRUCH_LABELS,
+  durchbruchWirt,
 } from '../types/bim';
 import { drawFixture, drawFloorLoops, floorLoopBadge, hitTestFixture } from '../lib/fixtureSymbols';
+import { EBENE_DURCHBRUECHE, EBENE_GELAENDE, ebeneFuerMedium, istGesperrt, istSichtbar } from '../lib/ebenen';
+import { belagNach } from '../lib/bodenbelag';
+import { ECKART_LABELS, naechsterEckpunkt, sammleEckpunkte } from '../lib/eckpunkte';
+import { RADIER_RADIUS } from '../lib/notizen';
+import type { Eingabeeinstellung, Fingerpaar, Zeigerlage } from '../lib/zeigereingabe';
+import {
+  EINGABE_VORGABE,
+  FANG_FAKTOR,
+  ZEIGERLAGE_LEER,
+  absicht,
+  eingabeart,
+  fortschreiben,
+  gestenschritt,
+} from '../lib/zeigereingabe';
 import {
   DEFAULT_EDGE_CLEARANCE,
   DEFAULT_LOOP_PATTERN,
@@ -82,6 +99,7 @@ import {
   roofContourLines,
   roofOpeningCorners,
 } from '../lib/roofGeometry';
+import { gebaeudeUmriss } from '../lib/roomDetection';
 import {
   distanceToPipe,
   drawCeilingOpening,
@@ -95,7 +113,12 @@ import {
   solidFootprint,
   verticalCorners,
 } from '../lib/verticalSymbols';
-import { distanceToAnnotation, drawAnnotation } from '../lib/annotationSymbols';
+import {
+  durchbruecheAufGeschoss,
+  trifftDurchbruch,
+  zeichneDurchbruch,
+} from '../lib/durchbruchSymbols';
+import { distanceToAnnotation, drawAnnotation, textKasten } from '../lib/annotationSymbols';
 import type { RoofFrame } from '../lib/roofGeometry';
 import { useBimStore } from '../store/useBimStore';
 import { drawHeatPump, drawSiteElement, hitTestPump, hitTestSiteArea, hitTestSiteElement } from '../lib/siteSymbols';
@@ -103,6 +126,8 @@ import { ROOM_TEMPLATES, ROOM_TEMPLATE_BY_KIND, ROOM_SIZE_PRESETS, polygonArea, 
 import { acousticReport, protectionIssues, requiredDistance, ROOM_ANGLE, ratedSoundPower, IRRELEVANCE_MARGIN, IMMISSION_LIMITS } from '../lib/heatPump';
 import CalibrationOverlay from './CalibrationOverlay';
 import TraceReviewBar from './TraceReviewBar';
+import SkizzenLeiste from './SkizzenLeiste';
+import NotizLeiste from './NotizLeiste';
 
 // ---------------------------------------------------------------------------
 // Farbpalette der Zeichenfläche
@@ -154,6 +179,52 @@ const LINE_SITE_KINDS = new Set<SiteElementKind>(['trench', 'utility-line']);
 /** Fangradius in Bildschirmpixeln für den Schlusspunkt einer Fläche. */
 const CLOSE_PIXELS = 14;
 
+/**
+ * Fassradius eines Griffs [Bildpunkte], bevor die Zeigerart ihn streckt.
+ *
+ * 11 px mal 2,5 für den Finger ergibt knapp 28 px — das liegt in der
+ * Größenordnung einer Fingerkuppe und zugleich unter dem Abstand, den zwei
+ * Griffe an einer Beschriftung mindestens haben.
+ */
+const GRIFF_PIXEL = 11;
+
+/**
+ * Reichweite des Durchbruchwerkzeugs [m].
+ *
+ * Großzügiger als beim Fenster (1,20 m): eine Kernbohrung wird auf dem Tablet
+ * mit dem Finger gesetzt, und der Finger trifft eine 24er Wand nicht auf
+ * zwanzig Zentimeter genau. Zu groß darf sie trotzdem nicht sein — sonst
+ * springt der Durchbruch bei einem Klick in der Raummitte an eine Wand, die
+ * gar nicht gemeint war.
+ */
+const DURCHBRUCH_REICHWEITE = 1.5;
+
+/**
+ * Objektarten, die `moveSelection` gemeinsam versetzen kann.
+ *
+ * Die Liste steht hier und nicht als Bedingungskette im Ereignis, weil sie
+ * mit dem Store zusammenhängt: was hier fehlt, lässt sich anklicken, aber
+ * nicht bewegen — und genau diese Halbheit fällt dem Anwender als Fehler
+ * auf, nicht als Absicht.
+ */
+const MIT_AUSWAHL_ZIEHBAR = new Set<SelectionKind>([
+  'wall',
+  'fixture',
+  'heatpump',
+  'site',
+  'accessory',
+  'pipe',
+  'annotation',
+]);
+/**
+ * Wie nah man an den Anfangspunkt muss, um einen Raumzug zu schließen —
+ * je nachdem, womit gezeigt wird. Mit dem Finger ist der Anfangspunkt unter
+ * der eigenen Kuppe nicht mehr zu sehen; wäre der Radius derselbe wie bei
+ * der Maus, ginge der Ring nie zu.
+ */
+const schlussPixel = (art: 'maus' | 'stift' | 'finger'): number => CLOSE_PIXELS * FANG_FAKTOR[art];
+
+
 type Draft =
   | { mode: 'idle' }
   | { mode: 'wall'; start: Vec2 }
@@ -163,6 +234,7 @@ type Draft =
   | { mode: 'dragFixture'; fixtureId: string }
   | { mode: 'dragVertical'; verticalId: string }
   | { mode: 'dragSolid'; solidId: string }
+  | { mode: 'dragDurchbruch'; durchbruchId: string }
   | { mode: 'dragRoofOpening'; openingId: string }
   | { mode: 'pipe'; points: Vec2[] }
   | { mode: 'site'; points: Vec2[] }
@@ -171,9 +243,28 @@ type Draft =
   | { mode: 'dragSite'; elementId: string; lastWorld: Vec2 }
   | { mode: 'annotation'; start: Vec2 }
   | { mode: 'dragAnnotation'; annotationId: string; lastWorld: Vec2 }
+  /**
+   * Ein einzelner Punkt einer Beschriftung wird gezogen.
+   *
+   * Bis 1.19.0 verschob das Ziehen **alle** Punkte zugleich. Eine Maßkette
+   * ließ sich damit versetzen, aber nicht verlängern; wer den falschen
+   * Messpunkt gesetzt hatte, musste löschen und neu ansetzen.
+   */
+  | { mode: 'dragAnnotationPoint'; annotationId: string; index: number }
+  /** Die Schriftgröße einer Beschriftung wird am Griff aufgezogen. */
+  | { mode: 'scaleAnnotation'; annotationId: string; anker: Vec2; startAbstand: number; startScale: number }
   | { mode: 'marquee'; from: Vec2 }
   | { mode: 'dragSelection'; lastWorld: Vec2 }
-  | { mode: 'dragImage'; lastWorld: Vec2 };
+  | { mode: 'dragImage'; lastWorld: Vec2 }
+  /**
+   * Ein laufender Freihandstrich.
+   *
+   * `punkte` sind Weltkoordinaten und **nicht gefangen**: Ein Strich, der
+   * beim Zeichnen aufs Raster springt, fühlt sich an wie ein Stift, der über
+   * Kieselsteine geführt wird. Gefangen wird erst das Ergebnis der
+   * Erkennung. `zweck` sagt, was daraus wird: Wandvorschläge oder eine Notiz.
+   */
+  | { mode: 'freihand'; punkte: Vec2[]; druck: number[]; zweck: 'skizze' | 'notiz' | 'radieren' };
 
 /** Eine eingeblendete Ausrichtungs-Hilfslinie (Figma-artige Smart Guide). */
 interface Guide {
@@ -208,6 +299,28 @@ export default function Editor2D({ className = '' }: { className?: string }) {
   const guidesRef = useRef<Guide[]>([]);
   /** Leertaste gedrückt → temporärer Pan-Modus. */
   const spaceRef = useRef(false);
+  /** Spiegel des Radiergummi-Schalters — Zeigerereignisse lesen keinen Store. */
+  const radiergummiRef = useRef(false);
+  /**
+   * Welchem Zeiger der laufende Vorgang gehört.
+   *
+   * **Warum das nötig ist.** Auf dem Tablet sind mehrere Zeiger gleichzeitig
+   * unterwegs: der Stift zeichnet, der Handballen liegt auf, ein Finger
+   * rutscht nach. Der Handballen wird beim Aufsetzen richtig verworfen — beim
+   * *Abheben* aber landete sein `pointerup` in derselben Behandlung wie das
+   * des Stifts. Und dort steht: „Freihandstrich fertig, auswerten." Der Strich
+   * des Stifts wurde damit mitten im Zeichnen abgeschlossen, die folgenden
+   * Bewegungen liefen ins Leere, und aus einem Zug wurde ein Bruchstück.
+   *
+   * Genau das meldet der Anwender als „man kann nicht in einem durchzeichnen".
+   *
+   * Seither trägt jeder Vorgang die Kennung des Zeigers, der ihn angefangen
+   * hat. Wer nicht dazugehört, wird beim Bewegen, Abheben und Abbrechen
+   * ignoriert. Ketten, die das Loslassen überleben (Wand, Leitung, Gelände),
+   * geben den Besitz beim Abheben wieder frei — dort ist der nächste Zeiger
+   * ein anderer und soll weiterzeichnen dürfen.
+   */
+  const draftZeigerRef = useRef<number | null>(null);
   /** Startpunkt eines Rechtsklicks, um Pan von Kontextabbruch zu trennen. */
   const rightDownRef = useRef<Vec2 | null>(null);
   /** Aufgezogener Auswahlrahmen in Weltkoordinaten. */
@@ -216,8 +329,12 @@ export default function Editor2D({ className = '' }: { className?: string }) {
   // --- Store ---------------------------------------------------------------
   const doc = useBimStore((s) => s.doc);
   const trace = useBimStore((s) => s.trace);
+  const skizze = useBimStore((s) => s.skizze);
+  const radiergummi = useBimStore((s) => s.radiergummi);
+  const notizenSichtbar = useBimStore((s) => s.notizenSichtbar);
   const tool = useBimStore((s) => s.tool);
   const solidKind = useBimStore((s) => s.solidKind);
+  const durchbruchPreset = useBimStore((s) => s.durchbruchPreset);
   const snap = useBimStore((s) => s.snap);
   const viewport = useBimStore((s) => s.viewport);
   const einpassenZaehler = useBimStore((s) => s.einpassenZaehler);
@@ -242,6 +359,22 @@ export default function Editor2D({ className = '' }: { className?: string }) {
    * jedes Klicken.
    */
   const [lengthInput, setLengthInput] = useState<string | null>(null);
+  /**
+   * Texteingabe unmittelbar auf der Zeichenfläche.
+   *
+   * **Warum das sein muss.** Eine Beschriftung entstand bisher mit dem
+   * Platzhalter „Text", und der richtige Text war nur im Inspektor
+   * einzutippen. Am Rechner ist das ein Blick nach rechts; auf dem Tablet ist
+   * der Inspektor eine Schublade, die geschlossen startet und sich beim
+   * Anlegen **nicht** öffnet. Die Statuszeile sagte „Text im Inspektor
+   * eingeben", und im Plan stand „Text". Für den Anwender heißt das: „Text
+   * schreiben fehlt."
+   *
+   * Jetzt erscheint das Eingabefeld dort, wo getippt wurde — wie die
+   * Längeneingabe beim Wandzeichnen, nach demselben Muster und mit denselben
+   * Tasten (Enter setzt, Esc bricht ab).
+   */
+  const [textEingabe, setTextEingabe] = useState<{ id: string; wert: string; screen: Vec2 } | null>(null);
   /**
    * Die Legende am Bildschirm.
    *
@@ -312,6 +445,23 @@ export default function Editor2D({ className = '' }: { className?: string }) {
       })
       .filter((e) => e.visible);
   }, [doc.solids, level, levelRank]);
+  /**
+   * Die Durchbrüche dieses Geschosses.
+   *
+   * `vonUnten` sind die Deckendurchbrüche des Geschosses darunter — im
+   * Fußboden sichtbar, aber nicht hier zu Hause. Die Regel steht in
+   * `durchbruecheAufGeschoss` und nicht hier, weil Bildschirm und Ausdruck
+   * dieselbe Antwort brauchen.
+   */
+  const durchbrueche = useMemo(
+    () => durchbruecheAufGeschoss(doc, level),
+    // `doc.walls` und `doc.nodes` stehen bewusst im Abhängigkeitsfeld: ein
+    // Wanddurchbruch sitzt parametrisch in seiner Wand, sein Umriss ändert
+    // sich also, wenn die Wand sich ändert — ohne dass sich am Durchbruch
+    // selbst etwas geändert hätte.
+    [doc, level],
+  );
+
   /**
    * Die Verlegekurven der raumfüllenden Fußbodenheizungen.
    *
@@ -432,7 +582,17 @@ export default function Editor2D({ className = '' }: { className?: string }) {
       if (na) outline.push({ x: na.x, y: na.y });
       if (nb) outline.push({ x: nb.x, y: nb.y });
     }
-    return buildRoofFrame(doc.levels[level]?.roof, outline, roofOpenings);
+    const dach = doc.levels[level]?.roof;
+    // Der geordnete Gebäudeumriss ist das, was aus der Punktwolke oben nicht
+    // zu gewinnen ist: Ohne ihn bekommt ein L-förmiges Haus ein Walmdach über
+    // seiner Bounding Box, First und Höhenlinien stehen im Plan an Stellen,
+    // an denen das Dach gar nicht liegt.
+    return buildRoofFrame(
+      dach,
+      outline,
+      roofOpenings,
+      dach && dach.kind !== 'flat' ? gebaeudeUmriss(walls, doc.nodes) : [],
+    );
   }, [doc.levels, doc.nodes, level, roofOpenings, walls]);
   const nodesOfLevel = useMemo(() => {
     const out: Record<string, BimNode> = {};
@@ -491,9 +651,24 @@ export default function Editor2D({ className = '' }: { className?: string }) {
   // Snapping
   // -------------------------------------------------------------------------
 
+  /**
+   * Alle fangbaren Ecken des Geschosses — ohne die des laufenden Zuges.
+   *
+   * Die kommen erst im Fang dazu: Sie stehen in `draftRef` und ändern sich mit
+   * jedem gesetzten Punkt. Ein Memo darüber liefe bei jedem Klick neu und
+   * brächte nichts; die Liste aus dem Dokument dagegen ist zwischen zwei
+   * Änderungen stabil und darf stehen bleiben.
+   */
+  const eckpunkte = useMemo(
+    () => (snap.points === false ? [] : sammleEckpunkte(doc, doc.activeLevelId)),
+    [doc, snap.points],
+  );
+
   const computeSnap = useCallback(
     (world: Vec2): SnapResult => {
-      const tolWorld = snap.pixelTolerance / viewport.zoom;
+      // Der Fangradius wächst mit der Eingabeart: eine Fingerkuppe ist rund
+      // einen Zentimeter breit, ein Mauszeiger einen Bildpunkt.
+      const tolWorld = (snap.pixelTolerance * FANG_FAKTOR[letzteArtRef.current]) / viewport.zoom;
       const draft = draftRef.current;
       const drawingFrom = draft.mode === 'wall' ? draft.start : null;
 
@@ -510,6 +685,38 @@ export default function Editor2D({ className = '' }: { className?: string }) {
           }
         }
         if (best) return { point: { x: best.x, y: best.y }, kind: 'node', nodeId: best.id };
+      }
+
+      /*
+       * 1b) Eckpunkte, die keine Wandknoten sind.
+       *
+       * Gleich hinter den Knoten und **vor** Winkel, Wandachse und Raster:
+       * Wer nah genug an eine vorhandene Ecke zeigt, meint diese Ecke. Das
+       * Raster ist die Notlösung für „irgendwo dort", nicht die Regel.
+       *
+       * Die Punkte des laufenden Zuges kommen hier dazu, nicht im Memo — sie
+       * entstehen ja gerade erst. Sie sind das häufigste Ziel überhaupt: der
+       * vierte Punkt einer Umfahrung soll auf die Höhe des ersten.
+       */
+      if (snap.points !== false) {
+        const laufend =
+          draft.mode === 'site' || draft.mode === 'pipe'
+            ? draft.points
+            : draft.mode === 'wall'
+              ? [draft.start]
+              : draft.mode === 'annotation'
+                ? [draft.start]
+                : [];
+        const treffer =
+          naechsterEckpunkt(eckpunkte, world, tolWorld) ??
+          naechsterEckpunkt(
+            laufend.map((p) => ({ punkt: p, art: 'zug' as const })),
+            world,
+            tolWorld,
+          );
+        if (treffer) {
+          return { point: { ...treffer.punkt }, kind: 'point', eckart: treffer.art };
+        }
       }
 
       // 2) Winkelrasterung relativ zum Startpunkt (0/45/90 …).
@@ -551,7 +758,7 @@ export default function Editor2D({ className = '' }: { className?: string }) {
       if (snap.grid) return { point: snapToGrid(world, snap.gridSize), kind: 'grid' };
       return { point: world, kind: 'free' };
     },
-    [nodesOfLevel, orthoLock, snap, viewport.zoom, walls],
+    [eckpunkte, nodesOfLevel, orthoLock, snap, viewport.zoom, walls],
   );
 
   // -------------------------------------------------------------------------
@@ -570,7 +777,10 @@ export default function Editor2D({ className = '' }: { className?: string }) {
         guidesRef.current = [];
         return point;
       }
-      const tol = 10 / viewport.zoom;
+      // Dieselbe Streckung wie beim Fang: Die Flucht ist für den Stift
+      // gedacht, und mit festen 10 Bildpunkten war sie mit dem Finger
+      // genauso eng wie mit der Maus — also praktisch nicht zu treffen.
+      const tol = (10 * FANG_FAKTOR[letzteArtRef.current]) / viewport.zoom;
       const found: Guide[] = [];
       let x = point.x;
       let y = point.y;
@@ -605,7 +815,28 @@ export default function Editor2D({ className = '' }: { className?: string }) {
 
   const pickAt = useCallback(
     (world: Vec2) => {
-      const tol = snap.pixelTolerance / viewport.zoom;
+      const tol = (snap.pixelTolerance * FANG_FAKTOR[letzteArtRef.current]) / viewport.zoom;
+
+      /*
+       * Gesperrt heißt: sichtbar, aber nicht anfassbar.
+       *
+       * Die Prüfung sitzt **im** Treffertest und nicht in den Aktionen
+       * dahinter. Der Unterschied ist der ganze Zweck: Wird ein gesperrtes
+       * Bauteil gar nicht erst getroffen, greift der Zeiger durch es hindurch
+       * auf das, was dahinter liegt. Prüfte erst die Aktion, wäre es gewählt,
+       * der Inspektor stünde davor, und beim Ziehen passierte nichts — das
+       * sieht nach einem kaputten Programm aus statt nach einer Sperre.
+       *
+       * Genau das ist der häufigste Unfall beim Aufmaß: Erst wird der Bestand
+       * erfasst, dann steht man im Raum und setzt die Technik — und verschiebt
+       * beim Zielen auf den Heizkörper die Wand dahinter.
+       *
+       * Ausgeblendetes wird aus demselben Grund nicht getroffen: Was man nicht
+       * sieht, will man nicht anfassen.
+       */
+      const anfassbar = (art: SelectionKind, id: string): boolean =>
+        istSichtbar(doc, art, id) && !istGesperrt(doc, art, id);
+
 
       // Auto-Trace-Vorschläge liegen ganz oben: ein Klick soll eine
       // Fehlerkennung sofort erreichbar machen, nicht die Wand darunter.
@@ -627,7 +858,7 @@ export default function Editor2D({ className = '' }: { className?: string }) {
       if (roofFrame) {
         for (const o of roofOpenings) {
           if (hitTestRoofOpening(roofFrame, o, world)) {
-            return { kind: 'roofOpening' as const, id: o.id };
+            if (anfassbar('roofOpening', o.id)) return { kind: 'roofOpening' as const, id: o.id };
           }
         }
       }
@@ -635,8 +866,51 @@ export default function Editor2D({ className = '' }: { className?: string }) {
       // Beschriftungen ganz oben: sie liegen im Plan über allem und sollen
       // sich auch dort greifen lassen, wo sie ein Bauteil überdecken.
       for (const note of annotations) {
-        if (distanceToAnnotation(note, world) < Math.max(tol * 0.8, 0.08)) {
-          return { kind: 'annotation' as const, id: note.id };
+        // Mit `zoom` zählt bei einer Beschriftung die ganze Textfläche und
+        // nicht nur der Ankerpunkt — sonst ist das Wort, das man antippt,
+        // auf 95 % seiner Fläche tot.
+        if (distanceToAnnotation(note, world, viewport.zoom) < Math.max(tol * 0.8, 0.08)) {
+          if (anfassbar('annotation', note.id)) return { kind: 'annotation' as const, id: note.id };
+        }
+      }
+
+      /*
+       * Armaturen vor den Leitungen — aus demselben Grund, aus dem
+       * Durchbrüche vor den Wänden geprüft werden: die Armatur sitzt *auf*
+       * der Trasse und wird über sie gezeichnet. Käme die Leitung zuerst,
+       * fände jeder Klick auf ein Thermostatventil die Leitung darunter, und
+       * die Armatur wäre im Plan zwar sichtbar, aber nicht anfassbar.
+       *
+       * **Warum nur die von Hand gesetzten.** Was der Rohrausleger erzeugt
+       * (`generated`), entsteht beim nächsten Auslegen neu — mit neuer Id.
+       * Eine Auswahl darauf zeigte einen Knopfdruck später ins Leere: das
+       * Eigenschaftenfeld stünde auf einem Objekt, das es nicht mehr gibt,
+       * und ein Löschen brächte die Armatur beim nächsten Lauf ungefragt
+       * zurück. Das ist schlimmer als gar keine Auswahl, weil es aussieht,
+       * als hätte man etwas geändert. Von Hand gesetzte Armaturen sind
+       * Bestandsaufnahme — sie bleiben, also darf man sie auch anfassen.
+       *
+       * Die Reichweite ist das halbe Symbolmaß: `drawPipeAccessory` malt das
+       * Symbol mit derselben Formel (±0,5 lokale Einheiten mal `groesse`).
+       * Beide Zahlen stehen hier bewusst nebeneinander — liefe die
+       * Trefferfläche vom Bild weg, träfe man neben dem, was man sieht.
+       */
+      const armaturGroessePx = Math.max(10, Math.min(26, 0.22 * viewport.zoom));
+      const armaturReichweite = Math.max((armaturGroessePx * 0.5) / viewport.zoom, tol * 0.4);
+      /*
+       * Auch die ausgelegten Armaturen sind treffbar.
+       *
+       * Vorher waren sie es nicht — mit der Begründung, sie gehörten der
+       * Rechnung und nicht dem Anwender. Das hält der Praxis nicht stand:
+       * wer im Plan ein Ventil sieht, will wissen, was es ist, und es
+       * gegebenenfalls loswerden. Ein Symbol, das sich nicht anfassen
+       * lässt, ist für den, der davorsitzt, schlicht kaputt. Dass eine
+       * ausgelegte Armatur bei der nächsten Auslegung wiederkommt, sagt
+       * die Statuszeile beim Löschen.
+       */
+      for (const armatur of pipeAccessories) {
+        if (distance(armatur.position, world) < armaturReichweite) {
+          if (anfassbar('accessory', armatur.id)) return { kind: 'accessory' as const, id: armatur.id };
         }
       }
 
@@ -644,7 +918,7 @@ export default function Editor2D({ className = '' }: { className?: string }) {
       // schwer zu treffen.
       for (const run of pipes) {
         if (distanceToPipe(run, world) < Math.max(tol * 0.6, 0.06)) {
-          return { kind: 'pipe' as const, id: run.id };
+          if (anfassbar('pipe', run.id)) return { kind: 'pipe' as const, id: run.id };
         }
       }
 
@@ -652,12 +926,12 @@ export default function Editor2D({ className = '' }: { className?: string }) {
       // getroffen — sie ist das Objekt, das man beim Planen bewegt.
       for (const pump of pumps) {
         if (pump.form === 'indoor') continue;
-        if (hitTestPump(pump, world)) return { kind: 'heatpump' as const, id: pump.id };
+        if (hitTestPump(pump, world)) if (anfassbar('heatpump', pump.id)) return { kind: 'heatpump' as const, id: pump.id };
       }
 
       for (const element of siteElements) {
         if (hitTestSiteElement(element, world, Math.max(tol * 0.6, 0.12))) {
-          return { kind: 'site' as const, id: element.id };
+          if (anfassbar('site', element.id)) return { kind: 'site' as const, id: element.id };
         }
       }
 
@@ -665,15 +939,26 @@ export default function Editor2D({ className = '' }: { className?: string }) {
       // sollen auch dann greifbar sein, wenn sie auf einer Wand sitzen.
       for (const f of fixtures) {
         if (!isFixtureLayerVisible(doc, f)) continue;
-        if (hitTestFixture(f, world, tol * 0.4)) return { kind: 'fixture' as const, id: f.id };
+        if (hitTestFixture(f, world, tol * 0.4)) if (anfassbar('fixture', f.id)) return { kind: 'fixture' as const, id: f.id };
       }
 
       for (const v of verticals) {
-        if (hitTestVertical(v, world)) return { kind: 'vertical' as const, id: v.id };
+        if (hitTestVertical(v, world)) if (anfassbar('vertical', v.id)) return { kind: 'vertical' as const, id: v.id };
       }
 
       for (const b of solids) {
-        if (hitTestSolid(b.solid, world)) return { kind: 'solid' as const, id: b.solid.id };
+        if (hitTestSolid(b.solid, world)) if (anfassbar('solid', b.solid.id)) return { kind: 'solid' as const, id: b.solid.id };
+      }
+
+      // Durchbrüche vor den Wänden: sie liegen *in* der Wand und wären sonst
+      // nie zu treffen — jeder Klick landete auf dem Bauteil, das sie
+      // durchstoßen. Was von unten durchscheint, ist nicht greifbar; es
+      // gehört dem Geschoss darunter.
+      for (const e of durchbrueche) {
+        if (e.vonUnten) continue;
+        if (trifftDurchbruch(e.durchbruch, doc, world)) {
+          if (anfassbar('durchbruch', e.durchbruch.id)) return { kind: 'durchbruch' as const, id: e.durchbruch.id };
+        }
       }
 
       // Öffnungen zuerst — sie liegen visuell obenauf und sind klein.
@@ -684,13 +969,13 @@ export default function Editor2D({ className = '' }: { className?: string }) {
         if (!g) continue;
         const center = { x: g.a.x + g.dir.x * op.distance, y: g.a.y + g.dir.y * op.distance };
         if (distance(center, world) < Math.max(tol, op.width / 2)) {
-          return { kind: 'opening' as const, id: op.id };
+          if (anfassbar('opening', op.id)) return { kind: 'opening' as const, id: op.id };
         }
       }
 
       // Knoten
       for (const node of Object.values(nodesOfLevel)) {
-        if (distance(node, world) < tol) return { kind: 'node' as const, id: node.id };
+        if (distance(node, world) < tol) if (anfassbar('node', node.id)) return { kind: 'node' as const, id: node.id };
       }
 
       // Wände (Trefferbreite = halbe Wandstärke + Toleranz)
@@ -702,14 +987,14 @@ export default function Editor2D({ className = '' }: { className?: string }) {
         const px = g.a.x + g.dir.x * u;
         const py = g.a.y + g.dir.y * u;
         if (Math.hypot(px - world.x, py - world.y) < g.halfThickness + tol * 0.5) {
-          return { kind: 'wall' as const, id: wall.id };
+          if (anfassbar('wall', wall.id)) return { kind: 'wall' as const, id: wall.id };
         }
       }
 
       // Räume
       for (const room of rooms) {
         if (room.innerPolygon.length >= 3 && pointInPolygon(world, room.innerPolygon)) {
-          return { kind: 'room' as const, id: room.id };
+          if (anfassbar('room', room.id)) return { kind: 'room' as const, id: room.id };
         }
       }
 
@@ -718,7 +1003,7 @@ export default function Editor2D({ className = '' }: { className?: string }) {
       // Ihre Kante wurde oben schon geprüft — hier geht es nur noch um den
       // Klick mitten hinein, der nichts anderes getroffen hat.
       for (const element of siteElements) {
-        if (hitTestSiteArea(element, world)) return { kind: 'site' as const, id: element.id };
+        if (hitTestSiteArea(element, world)) if (anfassbar('site', element.id)) return { kind: 'site' as const, id: element.id };
       }
 
       // Referenzbild ganz zuletzt — und nur, wenn es entsperrt ist.
@@ -732,7 +1017,7 @@ export default function Editor2D({ className = '' }: { className?: string }) {
           world.y <= img.origin.y &&
           world.y >= img.origin.y - h
         ) {
-          return { kind: 'image' as const, id: img.id };
+          if (anfassbar('image', img.id)) return { kind: 'image' as const, id: img.id };
         }
       }
       return null;
@@ -834,7 +1119,16 @@ export default function Editor2D({ className = '' }: { className?: string }) {
           ctx.lineTo(sx(room.innerPolygon[i].x), sy(room.innerPolygon[i].y));
         }
         ctx.closePath();
-        ctx.fillStyle = isSel ? C.roomSel : C.room;
+        /*
+         * Ein erfasster Bodenbelag färbt den Raum ein.
+         *
+         * Sehr blass — der Grundriss bleibt ein Grundriss und wird kein
+         * Belagsplan. Aber wer über den Plan schaut, sieht ohne einen
+         * einzigen Klick, in welchen Räumen der Belag steht und in welchen
+         * nicht: die grauen sind die offenen.
+         */
+        const belag = belagNach(room.floorCovering);
+        ctx.fillStyle = isSel ? C.roomSel : belag ? `${belag.farbe}22` : C.room;
         ctx.fill();
         ctx.strokeStyle = C.roomStroke;
         ctx.lineWidth = 1;
@@ -845,6 +1139,12 @@ export default function Editor2D({ className = '' }: { className?: string }) {
     // -------------------------------------------------------- Außenanlage
     // Vor den Wänden gezeichnet: das Grundstück ist der Untergrund, auf dem
     // das Gebäude steht, nicht etwas, das darüber liegt.
+    //
+    // Die eigene Ebene macht aus „liegt unter allem" eine Entscheidung: Im
+    // Kellergeschoss ist ein Rasen über der Bodenplatte schlicht falsch, und
+    // wer ihn dort nicht sehen will, blendet ihn aus, statt dass das
+    // Programm eine Geschossregel erfindet.
+    if (doc.layers[EBENE_GELAENDE]?.visible !== false)
     for (const element of siteElements) {
       drawSiteElement(
         ctx,
@@ -937,7 +1237,20 @@ export default function Editor2D({ className = '' }: { className?: string }) {
       });
     }
 
+    // Durchbrüche nach den massiven Bauteilen: ein Durchbruch durch einen
+    // Kamin ist selten, aber wenn es ihn gibt, gehört das Loch obenauf.
+    for (const e of doc.layers[EBENE_DURCHBRUECHE]?.visible === false ? [] : durchbrueche) {
+      zeichneDurchbruch(ctx, e.durchbruch, doc, sx, sy, zoom, {
+        selected: selections.some((s2) => s2.kind === 'durchbruch' && s2.id === e.durchbruch.id),
+        vonUnten: e.vonUnten,
+      });
+    }
+
+    // Die Leitung liegt auf der Ebene ihres Mediums, nicht auf der des
+    // Werkzeugs, mit dem sie gezogen wurde — sonst stünde auf dem
+    // Heizungsblatt die Abwasserleitung.
     for (const run of pipes) {
+      if (doc.layers[ebeneFuerMedium(run.service)]?.visible === false) continue;
       drawPipe(ctx, run, sx, sy, zoom, {
         selected: selections.some((s2) => s2.kind === 'pipe' && s2.id === run.id),
       });
@@ -946,7 +1259,14 @@ export default function Editor2D({ className = '' }: { className?: string }) {
     // Armaturen über den Leitungen: sie sitzen auf der Trasse und wären
     // darunter nicht zu sehen.
     for (const armatur of pipeAccessories) {
-      drawPipeAccessory(ctx, armatur, sx, sy, zoom);
+      // Geprüft wird `selections` und nicht `selection` — wie bei Wand,
+      // TGA-Objekt und Wärmepumpe. Einzeln angetippt sind beide gleich; wenn
+      // der Auswahlrahmen eines Tages auch Armaturen fasst, ist die
+      // Hervorhebung schon richtig, statt still zu fehlen.
+      if (!istSichtbar(doc, 'accessory', armatur.id)) continue;
+      drawPipeAccessory(ctx, armatur, sx, sy, zoom, {
+        selected: selections.some((s2) => s2.kind === 'accessory' && s2.id === armatur.id),
+      });
     }
 
     // ------------------------------------------------- Fußbodenheizflächen
@@ -1029,14 +1349,58 @@ export default function Editor2D({ className = '' }: { className?: string }) {
 
     // ---------------------------------------------------------- Beschriftung
     for (const note of annotations) {
-      drawAnnotation(ctx, note, sx, sy, {
-        selected: selections.some((s2) => s2.kind === 'annotation' && s2.id === note.id),
-      });
+      const gefasst = selections.some((s2) => s2.kind === 'annotation' && s2.id === note.id);
+      drawAnnotation(ctx, note, sx, sy, { selected: gefasst });
+      if (!gefasst) continue;
+
+      /*
+       * Die Griffe der gefassten Beschriftung.
+       *
+       * Ohne sie ist „verschiebbar und in der Größe änderbar" eine Behauptung:
+       * Man sieht der Beschriftung nicht an, dass man sie anfassen kann, und
+       * wo. Ein Griff ist die sichtbare Zusage, dass dort etwas geht.
+       *
+       * Weiße Quadrate an den Punkten (verschieben), ein gefülltes an der
+       * oberen rechten Ecke der Textfläche (Größe). Alles in Bildpunkten, also
+       * beim Herauszoomen genauso groß — ein Griff, der mitschrumpft, ist
+       * genau dann weg, wenn man ihn braucht.
+       */
+      ctx.save();
+      ctx.lineWidth = 1.4;
+      ctx.strokeStyle = '#38BDF8';
+      ctx.fillStyle = '#0B1120';
+      for (const p of note.points) {
+        const q = toScreenLocal(p, sx, sy);
+        ctx.beginPath();
+        ctx.rect(q.x - 4, q.y - 4, 8, 8);
+        ctx.fill();
+        ctx.stroke();
+      }
+      const kasten = textKasten(note, viewport.zoom);
+      if (kasten) {
+        const g = toScreenLocal({ x: kasten.x1, y: kasten.y0 }, sx, sy);
+        ctx.fillStyle = '#38BDF8';
+        ctx.beginPath();
+        ctx.rect(g.x - 4.5, g.y - 4.5, 9, 9);
+        ctx.fill();
+        // Zwei Striche im Griff — das Zeichen für „ziehen ändert die Größe".
+        ctx.strokeStyle = '#0B1120';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(g.x - 2, g.y + 2);
+        ctx.lineTo(g.x + 2, g.y - 2);
+        ctx.moveTo(g.x, g.y + 2.5);
+        ctx.lineTo(g.x + 2.5, g.y);
+        ctx.stroke();
+      }
+      ctx.restore();
     }
 
     // ------------------------------------------------- Entwurf & Vorschauen
-    if (draft.mode === 'pipe' && ptr.inside) {
-      const preview = [...draft.points, ptr.snap.point];
+    // Wie beim Gelände: die gesetzten Punkte bleiben stehen, das Gummiband
+    // hängt am Zeiger.
+    if (draft.mode === 'pipe' && (ptr.inside || draft.points.length > 1)) {
+      const preview = ptr.inside ? [...draft.points, ptr.snap.point] : [...draft.points];
       drawPipe(
         ctx,
         {
@@ -1061,7 +1425,108 @@ export default function Editor2D({ className = '' }: { className?: string }) {
       ctx.font = '11px ui-monospace, monospace';
       ctx.fillStyle = C.draft;
       ctx.textAlign = 'left';
-      ctx.fillText(`${total.toFixed(2)} m`, sx(ptr.snap.point.x) + 12, sy(ptr.snap.point.y) - 10);
+      ctx.fillText(`${de(total, 2)} m`, sx(ptr.snap.point.x) + 12, sy(ptr.snap.point.y) - 10);
+      ctx.restore();
+    }
+
+    /*
+     * Abgelegte Freihandnotizen — unter allem, was danach kommt, damit eine
+     * Notiz die Zeichnung nicht verdeckt. Sie werden mit fester Strichstärke
+     * in Bildpunkten gezeichnet und nicht in Metern: eine Notiz ist eine
+     * Randbemerkung und soll beim Hineinzoomen nicht zum Balken werden.
+     */
+    for (const strich of Object.values(notizenSichtbar ? (doc.freihand ?? {}) : {})) {
+      if (strich.levelId !== doc.activeLevelId || strich.punkte.length < 2) continue;
+      ctx.save();
+      ctx.strokeStyle = 'rgba(251, 191, 36, 0.85)';
+      ctx.lineWidth = 2;
+      ctx.lineJoin = 'round';
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.moveTo(sx(strich.punkte[0].x), sy(strich.punkte[0].y));
+      for (let i = 1; i < strich.punkte.length; i++) ctx.lineTo(sx(strich.punkte[i].x), sy(strich.punkte[i].y));
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    /*
+     * Der Skizzenvorschlag: der rohe Strich blass, die erkannten Wände als
+     * kräftige gestrichelte Achsen darüber.
+     *
+     * **Warum der rohe Strich stehen bleibt.** Ohne ihn ist nicht zu
+     * beurteilen, ob die Erkennung getroffen hat, was gemeint war — man sieht
+     * nur ein Ergebnis und muss es glauben. Mit ihm sieht man den Unterschied
+     * und kann verwerfen.
+     */
+    const vorschlag = skizze;
+    if (vorschlag && vorschlag.levelId === doc.activeLevelId) {
+      ctx.save();
+      // Jeder gezogene Strich bleibt blass stehen — auch die früheren. Erst
+      // dadurch sieht man bei mehreren Zügen, welcher Vorschlag zu welchem
+      // Strich gehört.
+      ctx.strokeStyle = 'rgba(148, 163, 184, 0.35)';
+      ctx.lineWidth = 1.5;
+      ctx.lineJoin = 'round';
+      for (const zug of vorschlag.zuege) {
+        if (zug.strich.length < 2) continue;
+        ctx.beginPath();
+        ctx.moveTo(sx(zug.strich[0].x), sy(zug.strich[0].y));
+        for (let i = 1; i < zug.strich.length; i++) {
+          ctx.lineTo(sx(zug.strich[i].x), sy(zug.strich[i].y));
+        }
+        ctx.stroke();
+      }
+      for (const strecke of vorschlag.strecken) {
+        // Ausgerichtete Strecken magenta wie jeder Vorschlag; bewusst schräg
+        // gebliebene bernsteinfarben, damit man sie im Bild wiederfindet und
+        // nicht für einen Erkennungsfehler hält.
+        ctx.strokeStyle = strecke.ausgerichtet ? '#E879F9' : '#FBBF24';
+        ctx.lineWidth = 2.4;
+        ctx.setLineDash([9, 5]);
+        ctx.beginPath();
+        ctx.moveTo(sx(strecke.a.x), sy(strecke.a.y));
+        ctx.lineTo(sx(strecke.b.x), sy(strecke.b.y));
+        ctx.stroke();
+        ctx.setLineDash([]);
+        for (const p of [strecke.a, strecke.b]) {
+          ctx.beginPath();
+          ctx.arc(sx(p.x), sy(p.y), 3.5, 0, Math.PI * 2);
+          ctx.fillStyle = '#E879F9';
+          ctx.fill();
+        }
+      }
+      ctx.restore();
+    }
+
+    // Der laufende Freihandstrich — unmittelbar unter dem Stift.
+    if (draft.mode === 'freihand' && draft.punkte.length > 1) {
+      const radiert = draft.zweck === 'radieren';
+      ctx.save();
+      ctx.strokeStyle = radiert
+        ? 'rgba(148, 163, 184, 0.9)'
+        : draft.zweck === 'skizze'
+          ? 'rgba(232, 121, 249, 0.9)'
+          : 'rgba(251, 191, 36, 0.9)';
+      ctx.lineWidth = 2.2;
+      ctx.lineJoin = 'round';
+      ctx.lineCap = 'round';
+      if (radiert) ctx.setLineDash([4, 4]);
+      ctx.beginPath();
+      ctx.moveTo(sx(draft.punkte[0].x), sy(draft.punkte[0].y));
+      for (let i = 1; i < draft.punkte.length; i++) ctx.lineTo(sx(draft.punkte[i].x), sy(draft.punkte[i].y));
+      ctx.stroke();
+      ctx.setLineDash([]);
+      // Der Fassradius als Kreis an der Spitze: Radieren löscht ganze
+      // Striche, und wie weit der Griff reicht, muss man sehen können,
+      // bevor der Nachbarstrich mitgeht.
+      if (radiert) {
+        const spitze = draft.punkte[draft.punkte.length - 1];
+        ctx.beginPath();
+        ctx.arc(sx(spitze.x), sy(spitze.y), RADIER_RADIUS * viewport.zoom, 0, Math.PI * 2);
+        ctx.strokeStyle = 'rgba(148, 163, 184, 0.55)';
+        ctx.lineWidth = 1;
+        ctx.stroke();
+      }
       ctx.restore();
     }
 
@@ -1105,7 +1570,7 @@ export default function Editor2D({ className = '' }: { className?: string }) {
         ctx.fillStyle = C.draft;
         ctx.textAlign = 'center';
         ctx.fillText(
-          `${polygonArea(poly).toFixed(2)} m² Achsfläche`,
+          `${de(polygonArea(poly), 2)} m² Achsfläche`,
           sx((x0 + x1) / 2),
           sy((y0 + y1) / 2) + 4,
         );
@@ -1113,23 +1578,46 @@ export default function Editor2D({ className = '' }: { className?: string }) {
       }
     }
 
-    if (draft.mode === 'site' && ptr.inside) {
-      const preview = [...draft.points, ptr.snap.point];
+    /*
+     * Der angefangene Zug wird **immer** gezeichnet, auch wenn der Zeiger
+     * gerade nicht über dem Bild ist.
+     *
+     * Vorher hing die ganze Vorschau an `ptr.inside`. Mit der Maus fiel das
+     * kaum auf; mit Stift und Finger ist es fatal: Der Browser meldet nach
+     * *jedem* Abheben, dass der Zeiger das Bild verlassen hat — es gibt ihn
+     * dann ja nicht mehr. Nach jedem gesetzten Eckpunkt verschwand damit die
+     * gesamte bisherige Umfahrung und kam erst beim nächsten Aufsetzen zurück.
+     * Genau das meldet der Anwender: „das Grundstück wird immer wieder
+     * unsichtbar."
+     *
+     * Am Zeiger hängt nur noch das, was ohne ihn keinen Sinn ergibt: das
+     * Gummiband zum nächsten Punkt, der Schlussring und die mitlaufende Maß-
+     * oder Flächenangabe.
+     */
+    if (draft.mode === 'site') {
+      const zeigerDa = ptr.inside;
+      const preview = zeigerDa ? [...draft.points, ptr.snap.point] : [...draft.points];
       const kind = useBimStore.getState().siteKind;
       const isArea = AREA_SITE_KINDS.has(kind);
       // Liegt der Zeiger auf dem Startpunkt, wird der nächste Klick die
       // Fläche schließen. Das muss man sehen, bevor man klickt.
       const startScreen = { x: sx(draft.points[0].x), y: sy(draft.points[0].y) };
-      const canClose = isArea && draft.points.length >= 3 && distance(startScreen, ptr.screen) <= CLOSE_PIXELS;
+      const canClose =
+        zeigerDa &&
+        isArea &&
+        draft.points.length >= 3 &&
+        distance(startScreen, ptr.screen) <= schlussPixel(letzteArtRef.current);
       ctx.save();
       ctx.strokeStyle = C.draft;
       ctx.setLineDash([8, 5]);
       ctx.lineWidth = 1.6;
-      ctx.beginPath();
-      ctx.moveTo(sx(preview[0].x), sy(preview[0].y));
-      for (let i = 1; i < preview.length; i++) ctx.lineTo(sx(preview[i].x), sy(preview[i].y));
-      if (isArea && preview.length >= 3) ctx.closePath();
-      ctx.stroke();
+      if (preview.length > 1) {
+        ctx.beginPath();
+        ctx.moveTo(sx(preview[0].x), sy(preview[0].y));
+        for (let i = 1; i < preview.length; i++) ctx.lineTo(sx(preview[i].x), sy(preview[i].y));
+        if (isArea && preview.length >= 3) ctx.closePath();
+        ctx.stroke();
+      }
       for (const pt of draft.points) {
         ctx.beginPath();
         ctx.arc(sx(pt.x), sy(pt.y), 3, 0, Math.PI * 2);
@@ -1141,7 +1629,7 @@ export default function Editor2D({ className = '' }: { className?: string }) {
         // Der Startpunkt bekommt einen Fangring, sobald ein Schluss möglich
         // ist — grün, wenn der Zeiger ihn erreicht hat.
         ctx.beginPath();
-        ctx.arc(startScreen.x, startScreen.y, CLOSE_PIXELS * 0.6, 0, Math.PI * 2);
+        ctx.arc(startScreen.x, startScreen.y, schlussPixel(letzteArtRef.current) * 0.6, 0, Math.PI * 2);
         ctx.strokeStyle = canClose ? '#4ADE80' : C.draft;
         ctx.lineWidth = canClose ? 2.4 : 1.2;
         ctx.stroke();
@@ -1155,17 +1643,20 @@ export default function Editor2D({ className = '' }: { className?: string }) {
       ctx.font = '11px ui-monospace, monospace';
       ctx.fillStyle = C.draft;
       ctx.textAlign = 'left';
-      if (isArea && preview.length >= 3) {
+      if (!zeigerDa) {
+        // Ohne Zeiger keine mitlaufende Zahl — sie stünde an der Stelle, an
+        // der der Zeiger zuletzt war, und das wäre eine Zahl ohne Bezug.
+      } else if (isArea && preview.length >= 3) {
         let sum = 0;
         for (let i = 0; i < preview.length; i++) {
           const a = preview[i];
           const b = preview[(i + 1) % preview.length];
           sum += a.x * b.y - b.x * a.y;
         }
-        ctx.fillText(`${(Math.abs(sum) / 2).toFixed(1)} m²`, sx(ptr.snap.point.x) + 12, sy(ptr.snap.point.y) - 10);
+        ctx.fillText(`${de(Math.abs(sum) / 2, 1)} m²`, sx(ptr.snap.point.x) + 12, sy(ptr.snap.point.y) - 10);
       } else {
         const total = preview.reduce((acc, p2, i) => (i ? acc + distance(preview[i - 1], p2) : 0), 0);
-        ctx.fillText(`${total.toFixed(2)} m`, sx(ptr.snap.point.x) + 12, sy(ptr.snap.point.y) - 10);
+        ctx.fillText(`${de(total, 2)} m`, sx(ptr.snap.point.x) + 12, sy(ptr.snap.point.y) - 10);
       }
       ctx.restore();
     }
@@ -1203,6 +1694,62 @@ export default function Editor2D({ className = '' }: { className?: string }) {
       ctx.restore();
     }
 
+    /*
+     * Vorschau des Durchbruchs.
+     *
+     * Sie zeigt nicht den Zeiger, sondern die **Wand unter dem Zeiger**: ein
+     * Wanddurchbruch landet dort, wo die Wandachse ihm am nächsten kommt, und
+     * nicht dort, wo der Finger war. Wer das nicht sieht, tippt dreimal daneben
+     * und hält das Werkzeug für ungenau.
+     *
+     * Findet sich keine Wand in Reichweite, wird nichts gezeigt — und das ist
+     * die richtige Auskunft: hier entsteht kein Durchbruch.
+     */
+    if (tool === 'durchbruch' && ptr.inside) {
+      const wirt = durchbruchWirt(durchbruchPreset.kind);
+      const entwurf = {
+        id: 'draft',
+        kind: durchbruchPreset.kind,
+        name: durchbruchPreset.label,
+        levelId: doc.activeLevelId,
+        form: durchbruchPreset.form,
+        diameter: durchbruchPreset.diameter,
+        width: durchbruchPreset.width,
+        height: durchbruchPreset.height,
+        sillHeight: durchbruchPreset.sillHeight,
+      };
+      if (wirt === 'decke') {
+        ctx.save();
+        ctx.globalAlpha = 0.6;
+        zeichneDurchbruch(
+          ctx,
+          { ...entwurf, position: ptr.snap.point, rotation: 0 },
+          doc,
+          sx,
+          sy,
+          zoom,
+          { selected: false },
+        );
+        ctx.restore();
+      } else {
+        const treffer = pickWallForOpening(ptr.world, walls, nodesOfLevel, DURCHBRUCH_REICHWEITE);
+        if (treffer) {
+          ctx.save();
+          ctx.globalAlpha = 0.6;
+          zeichneDurchbruch(
+            ctx,
+            { ...entwurf, wallId: treffer.wall.id, distance: treffer.distanceAlong },
+            doc,
+            sx,
+            sy,
+            zoom,
+            { selected: false },
+          );
+          ctx.restore();
+        }
+      }
+    }
+
     if ((tool === 'stair' || tool === 'shaft') && ptr.inside) {
       const isShaft = tool === 'shaft';
       ctx.save();
@@ -1231,6 +1778,8 @@ export default function Editor2D({ className = '' }: { className?: string }) {
     }
 
     if (draft.mode === 'annotation' && ptr.inside) {
+      // (Die Beschriftung hat nur einen gesetzten Punkt; ohne Zeiger gibt es
+      // kein zweites Ende zu zeigen — der Ring unten übernimmt das.)
       drawAnnotation(
         ctx,
         {
@@ -1247,12 +1796,36 @@ export default function Editor2D({ className = '' }: { className?: string }) {
       );
     }
 
-    if (draft.mode === 'wall' && ptr.inside) {
-      const end = ptr.snap.point;
-      const thickness = store.getState().wallDefaults.thickness;
-      drawDraftWall(ctx, draft.start, end, thickness, sx, sy);
-      drawDimension(ctx, draft.start, end, thickness / 2 + 0.32, sx, sy, C.draft, C.draft);
-      drawCursorHud(ctx, ptr, draft.start, w, h);
+    if (draft.mode === 'wall') {
+      if (ptr.inside) {
+        const end = ptr.snap.point;
+        const thickness = store.getState().wallDefaults.thickness;
+        drawDraftWall(ctx, draft.start, end, thickness, sx, sy);
+        drawDimension(ctx, draft.start, end, thickness / 2 + 0.32, sx, sy, C.draft, C.draft);
+        drawCursorHud(ctx, ptr, draft.start, w, h);
+      } else {
+        // Der Zeiger ist weg, der angefangene Zug nicht. Ein Ring am
+        // Anfangspunkt sagt: hier geht es weiter, sobald du wieder aufsetzt.
+        // Ohne ihn sah ein unterbrochener Wandzug aus wie „nichts passiert",
+        // und der nächste Tipp legte eine Wand an, die niemand erwartete.
+        ctx.save();
+        ctx.strokeStyle = C.draft;
+        ctx.lineWidth = 1.6;
+        ctx.beginPath();
+        ctx.arc(sx(draft.start.x), sy(draft.start.y), 6, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.restore();
+      }
+    }
+
+    if (draft.mode === 'annotation' && !ptr.inside) {
+      ctx.save();
+      ctx.strokeStyle = C.draft;
+      ctx.lineWidth = 1.6;
+      ctx.beginPath();
+      ctx.arc(sx(draft.start.x), sy(draft.start.y), 6, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.restore();
     }
 
     if ((tool === 'door' || tool === 'window' || tool === 'passage') && ptr.inside) {
@@ -1360,8 +1933,40 @@ export default function Editor2D({ className = '' }: { className?: string }) {
     }
 
     // ------------------------------------------------------- Snap-Indikator
-    if (ptr.inside && tool !== 'select' && tool !== 'pan') {
-      drawSnapMarker(ctx, toScreenLocal(ptr.snap.point, sx, sy), ptr.snap.kind);
+    /*
+     * Der Fangmarker steht nur dort, wo der Fang auch wirkt.
+     *
+     * Vorher stand er bei **jedem** Werkzeug außer Auswahl und Schwenken —
+     * auch bei Tür, Fenster und Durchgang (die ihren eigenen Wandfang haben)
+     * und bei Freihand und Notiz (die bewusst ungefangen zeichnen). Dort zeigt
+     * er auf eine Stelle, an der nichts entsteht. Ein Marker, der etwas
+     * anderes verspricht, als passiert, ist schlimmer als keiner: Man
+     * verlässt sich auf ihn und misst hinterher nach.
+     */
+    const fangWirkt = !(
+      tool === 'select' ||
+      tool === 'pan' ||
+      tool === 'door' ||
+      tool === 'window' ||
+      tool === 'passage' ||
+      tool === 'sketch' ||
+      tool === 'ink'
+    );
+    if (ptr.inside && fangWirkt) {
+      drawSnapMarker(
+        ctx,
+        toScreenLocal(ptr.snap.point, sx, sy),
+        ptr.snap.kind,
+        ptr.snap.kind === 'point'
+          ? ECKART_LABELS[(ptr.snap.eckart ?? 'zug') as keyof typeof ECKART_LABELS]
+          : ptr.snap.kind === 'node'
+            ? 'Wandknoten'
+            : ptr.snap.kind === 'wall'
+              ? 'Wandachse'
+              : ptr.snap.kind === 'angle' && ptr.snap.angleDeg !== undefined
+                ? `${Math.round(ptr.snap.angleDeg)}°`
+                : undefined,
+      );
     }
     // Die Zeichenfläche hängt am *Dokument als Ganzem*, nicht an einer Liste
     // seiner Felder. Der frühere Aufzählungsstil hatte einen eingebauten
@@ -1385,6 +1990,8 @@ export default function Editor2D({ className = '' }: { className?: string }) {
     ceilingOpenings,
     solids,
     solidKind,
+    durchbrueche,
+    durchbruchPreset,
     openingPreset,
     selection,
     selections,
@@ -1396,20 +2003,60 @@ export default function Editor2D({ className = '' }: { className?: string }) {
     store,
     tool,
     trace,
+    skizze,
+    notizenSichtbar,
     viewport,
   ]);
+
+  // Der Schalter aus der Notizleiste, gespiegelt: die Zeigerbehandlung läuft
+  // außerhalb des Renderzyklus und darf den Store nicht abfragen.
+  useEffect(() => {
+    radiergummiRef.current = radiergummi;
+  }, [radiergummi]);
+
+  /*
+   * --- Warum hier ein Ref steht und nicht die Funktion selbst ---------------
+   *
+   * **Das war das Flackern.**
+   *
+   * Der Ablauf, der es erzeugt hat: Beim Ziehen schreibt die Zeigerbehandlung
+   * in den Store und ruft danach `scheduleRender`. Das eingehängte
+   * `requestAnimationFrame` hielt dabei *die Fassung von `render` fest, die es
+   * beim Einhängen sah* — also die mit dem **alten** Dokument. Unmittelbar
+   * darauf lief React durch, `render` bekam eine neue Identität, der Effekt
+   * rief `scheduleRender` erneut — und die Sperre `if (rafRef.current) return`
+   * verwarf genau diesen neueren Anstoß. Gezeichnet wurde der alte Stand.
+   *
+   * Die Folge war nicht etwa gleichmäßiger Nachlauf, sondern ein Wechselbild:
+   * Ob der React-Durchlauf vor oder nach dem Bildaufruf fertig wurde, hing an
+   * Zehntelmillisekunden und wechselte von Ereignis zu Ereignis. Fangmarke,
+   * Vorschau und Statuszeile kamen aus `pointerRef`/`draftRef` und waren
+   * immer aktuell — die Wand darunter sprang zwischen zwei Ständen hin und
+   * her. Das liest man als Flackern, und es ist keins: es ist ein
+   * verschluckter Anstoß.
+   *
+   * Die Abhilfe kostet drei Zeilen: Der Bildaufruf liest `render` erst *im*
+   * Bild aus einem Ref. Damit zeichnet er immer den neuesten Stand, und die
+   * Sperre darf verwerfen, so viel sie will — verworfen wird dann nur noch
+   * ein überzähliger Anstoß, nicht der einzige richtige.
+   */
+  const renderRef = useRef(render);
+  renderRef.current = render;
 
   const scheduleRender = useCallback(() => {
     if (rafRef.current) return;
     rafRef.current = requestAnimationFrame(() => {
       rafRef.current = 0;
-      render();
+      renderRef.current();
     });
-  }, [render]);
+  }, []);
 
+  // Nach jeder Änderung an Dokument oder Ansicht ein Bild anfordern. Die
+  // Abhängigkeit ist `render` (nicht `scheduleRender`, das jetzt stabil ist)
+  // — sie wechselt genau dann, wenn sich etwas Gezeichnetes geändert hat.
   useEffect(() => {
     scheduleRender();
-  }, [scheduleRender]);
+  }, [render, scheduleRender]);
 
   // -------------------------------------------------------------------------
   // Größe & DPR
@@ -1489,14 +2136,24 @@ export default function Editor2D({ className = '' }: { className?: string }) {
   const fittedRef = useRef(-1);
   useEffect(() => {
     if (fittedRef.current === einpassenZaehler) return;
-    if (Object.keys(nodesOfLevel).length < 3) return;
+    /*
+     * Eingepasst wird, sobald **irgendetwas** da ist, das eine Ausdehnung hat.
+     *
+     * Die Bedingung lautete „mindestens drei Wandknoten". Wer nur das
+     * Grundstück gezeichnet hatte — ein häufiger erster Schritt, wenn die
+     * Wärmepumpe geplant wird, bevor das Haus steht — bekam nie ein
+     * Einpassen. Die Grenze lag außerhalb des Ausschnitts, und das sieht
+     * genauso aus, als wäre sie verschwunden.
+     */
+    const etwasDa = Object.keys(nodesOfLevel).length >= 3 || siteElements.length > 0 || pumps.length > 0;
+    if (!etwasDa) return;
     // Ein Frame warten, damit der ResizeObserver die Canvasgröße gesetzt hat.
     const id = requestAnimationFrame(() => {
       fitToContent();
       fittedRef.current = einpassenZaehler;
     });
     return () => cancelAnimationFrame(id);
-  }, [nodesOfLevel, fitToContent, einpassenZaehler]);
+  }, [nodesOfLevel, siteElements, pumps, fitToContent, einpassenZaehler]);
 
   // -------------------------------------------------------------------------
   // Referenzbild laden
@@ -1520,6 +2177,29 @@ export default function Editor2D({ className = '' }: { className?: string }) {
   // -------------------------------------------------------------------------
   // Pointer-Handling
   // -------------------------------------------------------------------------
+
+  /**
+   * Der Stand des Glases: wie viele Finger liegen auf, arbeitet der Stift.
+   * Bewusst ein Ref und kein Zustand — er ändert sich bei jedem Ereignis und
+   * darf keinen Neuaufbau auslösen.
+   */
+  const zeigerLageRef = useRef<Zeigerlage>(ZEIGERLAGE_LEER);
+  const eingabe: Eingabeeinstellung = useMemo(
+    () => ({ fingerZeichnet: snap.fingerZeichnet ?? EINGABE_VORGABE.fingerZeichnet }),
+    [snap.fingerZeichnet],
+  );
+  /**
+   * Womit zuletzt gezeigt wurde — für die Fangradien.
+   *
+   * Ein Ref und keine Zustandsgröße: der Fangradius wird beim Auswerten
+   * gebraucht, nicht beim Zeichnen des Bildes. Eine Zustandsänderung je
+   * Zeigerbewegung baute die Oberfläche sechzigmal in der Sekunde neu auf.
+   */
+  const letzteArtRef = useRef<ReturnType<typeof eingabeart>>('maus');
+  /** Wo die Finger gerade liegen, je Zeigerkennung [Bildpunkte]. */
+  const fingerRef = useRef<Map<number, Vec2>>(new Map());
+  /** Die letzte Fingerlage einer laufenden Zwei-Finger-Geste. */
+  const gesteRef = useRef<Fingerpaar | null>(null);
 
   const updatePointer = useCallback(
     (e: React.PointerEvent<HTMLCanvasElement>) => {
@@ -1594,8 +2274,94 @@ export default function Editor2D({ className = '' }: { className?: string }) {
     return false;
   }, [store]);
 
+  /**
+   * Zwei-Finger-Geste und Handballen.
+   *
+   * Die Regel selbst steht in `zeigereingabe.ts` und kennt weder DOM noch
+   * React; hier wird sie nur angewandt. `zeigerLageRef` ist der Stand des
+   * Glases: wie viele Finger liegen auf, arbeitet der Stift. `fingerRef`
+   * merkt sich, wo die Finger sind — für die Geste braucht es beide Punkte.
+   */
+  /**
+   * Sitzt der Zeiger auf einem Griff der gefassten Beschriftung?
+   *
+   * Griffe sind bewusst **in Bildpunkten** bemessen und nicht in Metern: Ein
+   * Griff, der beim Herauszoomen mitschrumpft, ist genau dann nicht mehr zu
+   * treffen, wenn man ihn am nötigsten braucht. Die Zeigerart streckt den
+   * Radius wie überall sonst — mit dem Finger greift man gröber als mit der
+   * Maus.
+   */
+  const griffTreffer = useCallback(
+    (world: Vec2): Draft | null => {
+      const sel = store.getState().selection;
+      if (!sel || sel.kind !== 'annotation') return null;
+      const note = store.getState().doc.annotations[sel.id];
+      if (!note) return null;
+      const fassRadius = (GRIFF_PIXEL * FANG_FAKTOR[letzteArtRef.current]) / viewport.zoom;
+
+      // Einzelne Punkte: bei Maßkette und Hinweisfahne sind es zwei, beim
+      // Text ist es der Anker.
+      for (let i = 0; i < note.points.length; i++) {
+        if (distance(note.points[i], world) <= fassRadius) {
+          return { mode: 'dragAnnotationPoint', annotationId: note.id, index: i };
+        }
+      }
+
+      // Der Größengriff — nur beim Text, denn nur dort gibt es eine Fläche,
+      // an deren Ecke er sitzen kann.
+      const kasten = textKasten(note, viewport.zoom);
+      if (kasten) {
+        const ecke = { x: kasten.x1, y: kasten.y0 };
+        if (distance(ecke, world) <= fassRadius) {
+          return {
+            mode: 'scaleAnnotation',
+            annotationId: note.id,
+            anker: note.points[0],
+            startAbstand: Math.max(distance(note.points[0], world), 1e-6),
+            startScale: note.scale,
+          };
+        }
+      }
+      return null;
+    },
+    [store, viewport.zoom],
+  );
+
   const handlePointerDown = (e: React.PointerEvent<HTMLCanvasElement>) => {
+    const art = eingabeart(e.pointerType);
+    letzteArtRef.current = art;
+    const jetzt = e.timeStamp;
+    const was = absicht(art, zeigerLageRef.current, jetzt, eingabe);
+    zeigerLageRef.current = fortschreiben(zeigerLageRef.current, art, 'runter', jetzt);
+    if (art === 'finger') {
+      const r = e.currentTarget.getBoundingClientRect();
+      fingerRef.current.set(e.pointerId, { x: e.clientX - r.left, y: e.clientY - r.top });
+    }
+
+    // Der Handballen. Er darf nicht einmal den laufenden Zug anfassen —
+    // deshalb hier heraus und nicht erst später abfangen.
+    if (was === 'verwerfen') return;
+
+    // Zwei Finger: der laufende Zug bleibt stehen, wo er ist, und das Bild
+    // wird geschoben. Ein angefangener Wandzug geht dabei nicht verloren —
+    // wer zoomt, will weiterzeichnen.
+    if (was === 'geste') {
+      const paar = [...fingerRef.current.values()];
+      if (paar.length >= 2) gesteRef.current = { a: paar[0], b: paar[1] };
+      return;
+    }
+
     e.currentTarget.setPointerCapture(e.pointerId);
+    draftZeigerRef.current = e.pointerId;
+
+    // Ein Finger schiebt — wie die mittlere Maustaste, nur ohne Maus.
+    if (was === 'schieben') {
+      const r = e.currentTarget.getBoundingClientRect();
+      draftRef.current = { mode: 'pan', lastScreen: { x: e.clientX - r.left, y: e.clientY - r.top } };
+      scheduleRender();
+      return;
+    }
+
     const ptr = updatePointer(e);
     const s = store.getState();
     // Alles zwischen Drücken und Loslassen ist *eine* Handlung. Ohne diese
@@ -1615,13 +2381,31 @@ export default function Editor2D({ className = '' }: { className?: string }) {
     }
 
     switch (tool) {
+      // Freihand — skizzieren oder notieren. Beides derselbe Strich, nur mit
+      // verschiedenem Zweck.
+      case 'sketch':
+      case 'ink': {
+        // Das Radierende mancher Stifte meldet der Browser als Taste 5 —
+        // der Apple Pencil hat keines, deshalb gibt es zusätzlich den
+        // Schalter in der Notizleiste. Wer ein Radierende hat, soll es
+        // benutzen können, ohne den Schalter zu suchen.
+        const radiert = tool === 'ink' && (radiergummiRef.current || e.button === 5 || e.buttons === 32);
+        draftRef.current = {
+          mode: 'freihand',
+          punkte: [ptr.world],
+          druck: [e.pressure > 0 ? e.pressure : 0.5],
+          zweck: tool === 'sketch' ? 'skizze' : radiert ? 'radieren' : 'notiz',
+        };
+        scheduleRender();
+        break;
+      }
       case 'wall': {
         const draft = draftRef.current;
         if (draft.mode === 'wall') {
           const created = s.addWall(draft.start, ptr.snap.point);
           // Kettenzeichnen: der Endpunkt wird zum neuen Startpunkt.
           draftRef.current = { mode: 'wall', start: ptr.snap.point };
-          if (created) s.setStatus(`Wand ${distance(draft.start, ptr.snap.point).toFixed(2)} m erstellt`);
+          if (created) s.setStatus(`Wand ${de(distance(draft.start, ptr.snap.point), 2)} m erstellt`);
         } else {
           draftRef.current = { mode: 'wall', start: ptr.snap.point };
           s.setStatus('Endpunkt setzen — ESC beendet die Kette');
@@ -1676,8 +2460,17 @@ export default function Editor2D({ className = '' }: { className?: string }) {
         }
         const created = s.addFixture(activeFixture, ptr.snap.point);
         if (created) {
-          // Direkt einmal „bewegen": das richtet wandgebundene Objekte aus.
-          s.moveFixture(created.id, ptr.world);
+          /*
+           * Direkt einmal „bewegen": das richtet wandgebundene Objekte aus.
+           *
+           * Und zwar mit dem **gefangenen** Punkt. Vorher stand hier
+           * `ptr.world`, und damit war der Fang für TGA-Objekte wirkungslos:
+           * Der Marker zeigte auf die Raumecke, angelegt wurde auf dem
+           * Raster, und der nächste Aufruf schob das Objekt wieder auf den
+           * rohen Zeigerpunkt. Ein Fangmarker, der etwas anderes anzeigt, als
+           * passiert, ist schlimmer als keiner — man verlässt sich darauf.
+           */
+          s.moveFixture(created.id, ptr.snap.point);
           s.setStatus(`${FIXTURE_BY_TYPE[activeFixture]?.label ?? 'Objekt'} platziert`);
         }
         break;
@@ -1692,6 +2485,24 @@ export default function Editor2D({ className = '' }: { className?: string }) {
 
       case 'solid': {
         s.addSolid(s.solidKind, ptr.snap.point);
+        break;
+      }
+
+      case 'durchbruch': {
+        const preset = s.durchbruchPreset;
+        const treffer =
+          durchbruchWirt(preset.kind) === 'wand'
+            ? pickWallForOpening(ptr.world, walls, nodesOfLevel, DURCHBRUCH_REICHWEITE)
+            : null;
+        // Ohne Wand wird trotzdem gerufen: die Aktion weist den Fall ab und
+        // schreibt den Grund in die Statuszeile. Eine zweite Meldung an dieser
+        // Stelle wäre eine zweite Wahrheit über denselben Sachverhalt.
+        s.addDurchbruch(
+          preset,
+          treffer
+            ? { wallId: treffer.wall.id, distance: treffer.distanceAlong }
+            : { position: ptr.snap.point },
+        );
         break;
       }
 
@@ -1777,7 +2588,8 @@ export default function Editor2D({ className = '' }: { className?: string }) {
         // Metern: ein Grundstück wird ausgezoomt umfahren, und dort wären
         // 0,50 m weniger als ein Mauszeiger breit.
         const startScreen = toScreen(draft.points[0]);
-        const closing = isArea && draft.points.length >= 3 && distance(startScreen, ptr.screen) <= CLOSE_PIXELS;
+        const closing =
+          isArea && draft.points.length >= 3 && distance(startScreen, ptr.screen) <= schlussPixel(letzteArtRef.current);
         // Zweimal auf dieselbe Stelle heißt ebenfalls „fertig" — das ist die
         // Geste, die der Doppelklick auslöst.
         const lastScreen = toScreen(draft.points[draft.points.length - 1]);
@@ -1811,7 +2623,29 @@ export default function Editor2D({ className = '' }: { className?: string }) {
       case 'annotation': {
         const draft = draftRef.current;
         if (s.annotationKind === 'text') {
-          s.addAnnotation('text', [ptr.snap.point], 'Text');
+          /*
+           * Erst schauen, ob dort schon eine Beschriftung liegt.
+           *
+           * Die Trefferprüfung misst den Abstand zum Ankerpunkt; mit dem
+           * Finger trifft man den selten auf Anhieb. Jeder Fehlversuch legte
+           * bisher eine **weitere** Beschriftung an, und im Plan sammelten
+           * sich Platzhalter. Wer eine bestehende trifft, ändert sie.
+           */
+          const treffer = pickAt(ptr.world);
+          if (treffer?.kind === 'annotation') {
+            const vorhanden = s.doc.annotations[treffer.id];
+            if (vorhanden?.kind === 'text') {
+              s.setSelection({ kind: 'annotation', id: vorhanden.id });
+              setTextEingabe({ id: vorhanden.id, wert: vorhanden.text ?? '', screen: { ...ptr.screen } });
+              s.setStatus('Text ändern — Enter setzt ihn, Esc bricht ab.');
+              break;
+            }
+          }
+          const neu = s.addAnnotation('text', [ptr.snap.point], '');
+          if (neu) {
+            setTextEingabe({ id: neu.id, wert: '', screen: { ...ptr.screen } });
+            s.setStatus('Text eingeben — Enter setzt ihn, Esc bricht ab.');
+          }
           break;
         }
         if (draft.mode === 'annotation') {
@@ -1835,6 +2669,22 @@ export default function Editor2D({ className = '' }: { className?: string }) {
 
       case 'select':
       default: {
+        /*
+         * Zuerst die Griffe der gefassten Beschriftung — sie liegen über
+         * allem anderen.
+         *
+         * **Warum vor `pickAt`.** Der Größengriff sitzt am Rand der Textbox,
+         * und die Box ist selbst ein Trefferziel. Käme `pickAt` zuerst,
+         * würde der Griff nie erreicht: man verschöbe den Text, statt ihn zu
+         * skalieren. Die Reihenfolge ist also kein Zufall, sondern die
+         * Regel „das Feinere schlägt das Gröbere".
+         */
+        const griff = griffTreffer(ptr.world);
+        if (griff) {
+          draftRef.current = griff;
+          scheduleRender();
+          break;
+        }
         const hit = pickAt(ptr.world);
         // Alt+Klick auf einen KI-Vorschlag verwirft ihn direkt.
         if (hit?.kind === 'trace' && (e.altKey || e.ctrlKey || e.metaKey)) {
@@ -1862,19 +2712,19 @@ export default function Editor2D({ className = '' }: { className?: string }) {
         if (!already) s.setSelection(target);
 
         // Mehrere Objekte gefasst → gemeinsam verschieben statt einzeln.
-        // `moveSelection` beherrscht Wand, TGA-Objekt, Wärmepumpe und
-        // Geländeobjekt; alles andere bleibt beim Einzelziehen.
+        // `moveSelection` beherrscht Wand, TGA-Objekt, Wärmepumpe,
+        // Geländeobjekt, Armatur, Leitung und Beschriftung; alles andere
+        // bleibt beim Einzelziehen.
         const multi = (already ? s.selections : [target]).length > 1;
-        if (
-          multi &&
-          (hit.kind === 'wall' || hit.kind === 'fixture' || hit.kind === 'heatpump' || hit.kind === 'site')
-        ) {
+        if (multi && MIT_AUSWAHL_ZIEHBAR.has(hit.kind)) {
           draftRef.current = { mode: 'dragSelection', lastWorld: ptr.world };
         } else if (hit.kind === 'node') draftRef.current = { mode: 'dragNode', nodeId: hit.id };
         else if (hit.kind === 'opening') draftRef.current = { mode: 'dragOpening', openingId: hit.id };
         else if (hit.kind === 'fixture') draftRef.current = { mode: 'dragFixture', fixtureId: hit.id };
         else if (hit.kind === 'vertical') draftRef.current = { mode: 'dragVertical', verticalId: hit.id };
         else if (hit.kind === 'solid') draftRef.current = { mode: 'dragSolid', solidId: hit.id };
+        else if (hit.kind === 'durchbruch')
+          draftRef.current = { mode: 'dragDurchbruch', durchbruchId: hit.id };
         else if (hit.kind === 'heatpump') draftRef.current = { mode: 'dragPump', pumpId: hit.id };
         else if (hit.kind === 'site') {
           draftRef.current = { mode: 'dragSite', elementId: hit.id, lastWorld: ptr.world };
@@ -1883,7 +2733,12 @@ export default function Editor2D({ className = '' }: { className?: string }) {
         else if (hit.kind === 'annotation') {
           draftRef.current = { mode: 'dragAnnotation', annotationId: hit.id, lastWorld: ptr.world };
         }
-        else if (hit.kind === 'wall') draftRef.current = { mode: 'dragSelection', lastWorld: ptr.world };
+        else if (hit.kind === 'wall' || hit.kind === 'accessory' || hit.kind === 'pipe') {
+          // Armatur und Leitung wandern über dieselbe Geste wie die Wand:
+          // Versatz auf die ganze Auswahl. Wer sie anklicken kann, soll sie
+          // auch bewegen können.
+          draftRef.current = { mode: 'dragSelection', lastWorld: ptr.world };
+        }
         else if (hit.kind === 'image') draftRef.current = { mode: 'dragImage', lastWorld: ptr.world };
         break;
       }
@@ -1892,6 +2747,37 @@ export default function Editor2D({ className = '' }: { className?: string }) {
   };
 
   const handlePointerMove = (e: React.PointerEvent<HTMLCanvasElement>) => {
+    const art = eingabeart(e.pointerType);
+    letzteArtRef.current = art;
+
+    // Finger nachführen — auch die, die gerade nur die Geste tragen.
+    if (art === 'finger') {
+      const r = e.currentTarget.getBoundingClientRect();
+      const jetztPunkt = { x: e.clientX - r.left, y: e.clientY - r.top };
+      const bekannt = fingerRef.current.has(e.pointerId);
+      fingerRef.current.set(e.pointerId, jetztPunkt);
+
+      const geste = gesteRef.current;
+      if (geste && bekannt) {
+        const paar = [...fingerRef.current.values()];
+        if (paar.length >= 2) {
+          const neuePaarlage = { a: paar[0], b: paar[1] };
+          const feld = sizeRef.current;
+          const naechster = gestenschritt(geste, neuePaarlage, viewport, feld);
+          gesteRef.current = neuePaarlage;
+          store.getState().setViewport(naechster);
+          scheduleRender();
+        }
+        return;
+      }
+      // Ein Finger, der weder schiebt noch Teil einer Geste ist, ist der
+      // Handballen. Er bewegt nichts.
+      if (!bekannt) return;
+    }
+
+    // Solange der Stift arbeitet, rührt kein Finger etwas an.
+    if (art === 'finger' && zeigerLageRef.current.stiftUnten) return;
+
     const ptr = updatePointer(e);
     const draft = draftRef.current;
     const s = store.getState();
@@ -1907,6 +2793,23 @@ export default function Editor2D({ className = '' }: { className?: string }) {
           },
         });
         draftRef.current = { mode: 'pan', lastScreen: ptr.screen };
+        break;
+      }
+      case 'freihand': {
+        // Nur der Zeiger, der den Strich angefangen hat, schreibt hinein —
+        // und nur, solange er wirklich aufliegt. Ein schwebender Stift meldet
+        // `buttons === 0`; ohne die Prüfung sammelte ein Strich, dessen
+        // `pointerup` verlorenging, beim bloßen Darüberfahren weiter Punkte.
+        if (draftZeigerRef.current !== null && e.pointerId !== draftZeigerRef.current) break;
+        if (e.buttons === 0) break;
+        // Punkte erst ab einem Millimeter Abstand sammeln. Ein Tablet meldet
+        // 120-mal in der Sekunde; ohne diese Schwelle stünden tausende
+        // Punkte auf demselben Fleck, sobald die Hand kurz ruht.
+        const letzter = draft.punkte[draft.punkte.length - 1];
+        if (!letzter || Math.hypot(ptr.world.x - letzter.x, ptr.world.y - letzter.y) > 0.001) {
+          draft.punkte.push(ptr.world);
+          draft.druck.push(e.pressure > 0 ? e.pressure : 0.5);
+        }
         break;
       }
       case 'roomTemplate': {
@@ -1948,6 +2851,34 @@ export default function Editor2D({ className = '' }: { className?: string }) {
         s.updateSolid(draft.solidId, {
           position: ptr.snap.point,
           outline: current.outline?.map((q) => ({ x: q.x + dx, y: q.y + dy })),
+        });
+        break;
+      }
+      case 'dragDurchbruch': {
+        /*
+         * Ein Wanddurchbruch bewegt sich **auf seiner Wand**, nicht frei.
+         *
+         * Gezogen wird deshalb nur der Abstand auf der Achse: der Zeiger wird
+         * auf die Wandachse projiziert, und der Fußpunkt ist der neue Abstand.
+         * Nähme man statt dessen den Zeigerpunkt, sprünge der Durchbruch aus
+         * der Wand heraus und das Loch säße neben dem Bauteil.
+         *
+         * Zieht man weit genug weg, wechselt er auf die nächstgelegene andere
+         * Wand — dieselbe Geste wie beim Verschieben eines Fensters, und aus
+         * demselben Grund: ein Durchbruch, den man nur löschen und neu setzen
+         * kann, wird nicht verschoben, sondern verdoppelt.
+         */
+        const current = s.doc.durchbrueche?.[draft.durchbruchId];
+        if (!current) break;
+        if (durchbruchWirt(current.kind) === 'decke') {
+          s.updateDurchbruch(draft.durchbruchId, { position: ptr.snap.point });
+          break;
+        }
+        const treffer = pickWallForOpening(ptr.world, walls, nodesOfLevel, DURCHBRUCH_REICHWEITE);
+        if (!treffer) break;
+        s.updateDurchbruch(draft.durchbruchId, {
+          wallId: treffer.wall.id,
+          distance: treffer.distanceAlong,
         });
         break;
       }
@@ -2007,6 +2938,29 @@ export default function Editor2D({ className = '' }: { className?: string }) {
         draftRef.current = { ...draft, lastWorld: ptr.world };
         break;
       }
+      case 'dragAnnotationPoint': {
+        // Ein einzelner Punkt — und der **fängt**, im Gegensatz zum
+        // Verschieben der ganzen Beschriftung: Wer einen Messpunkt umsetzt,
+        // meint eine Ecke und nicht eine Stelle in ihrer Nähe.
+        const note = store.getState().doc.annotations[draft.annotationId];
+        if (note) {
+          const punkte = note.points.map((p2, i) => (i === draft.index ? ptr.snap.point : p2));
+          s.updateAnnotation(note.id, { points: punkte });
+        }
+        break;
+      }
+      case 'scaleAnnotation': {
+        const note = store.getState().doc.annotations[draft.annotationId];
+        if (note && draft.startAbstand > 1e-6) {
+          const jetzt = distance(draft.anker, ptr.world);
+          // Dieselben Grenzen wie im Inspektor (0,5 bis 3) — zwei Wege zur
+          // selben Größe dürfen nicht zwei verschiedene Bereiche haben.
+          const faktor = jetzt / draft.startAbstand;
+          const neu = Math.max(0.5, Math.min(3, draft.startScale * faktor));
+          s.updateAnnotation(note.id, { scale: Math.round(neu * 100) / 100 });
+        }
+        break;
+      }
       case 'marquee': {
         marqueeRef.current = { from: draft.from, to: ptr.world };
         break;
@@ -2044,13 +2998,43 @@ export default function Editor2D({ className = '' }: { className?: string }) {
     if (draft.mode === 'wall') {
       const len = distance(draft.start, ptr.snap.point);
       const ang = Math.atan2(ptr.snap.point.y - draft.start.y, ptr.snap.point.x - draft.start.x) * TO_DEG;
-      s.setStatus(`L = ${len.toFixed(3)} m   ∠ ${((ang + 360) % 360).toFixed(1)}°`);
+      s.setStatus(`L = ${de(len, 3)} m   ∠ ${de((ang + 360) % 360, 1)}°`);
     }
 
     scheduleRender();
   };
 
   const handlePointerUp = (e: React.PointerEvent<HTMLCanvasElement>) => {
+    const art = eingabeart(e.pointerType);
+    if (art !== 'maus') {
+      zeigerLageRef.current = fortschreiben(zeigerLageRef.current, art, 'hoch', e.timeStamp);
+    }
+    if (art === 'finger') {
+      fingerRef.current.delete(e.pointerId);
+      // Die Geste endet, sobald der zweite Finger geht. Der verbliebene
+      // Finger schiebt **nicht** weiter: wer nach dem Zoomen einen Finger
+      // liegen lässt, will das Bild nicht auch noch verschieben.
+      if (fingerRef.current.size < 2 && gesteRef.current) {
+        gesteRef.current = null;
+        draftZeigerRef.current = null;
+        if (draftRef.current.mode === 'pan') draftRef.current = { mode: 'idle' };
+        return;
+      }
+    }
+
+    /*
+     * Gehört dieses Abheben überhaupt zum laufenden Vorgang?
+     *
+     * Der Handballen, der neben dem zeichnenden Stift abhebt, darf den Strich
+     * nicht beenden. Er hat ihn nicht angefangen, also hat er hier nichts zu
+     * melden — außer der Buchführung oben, die schon gelaufen ist.
+     */
+    if (draftZeigerRef.current !== null && e.pointerId !== draftZeigerRef.current) {
+      scheduleRender();
+      return;
+    }
+    draftZeigerRef.current = null;
+
     // Rechte Maustaste: wurde nicht geschwenkt, war es ein Abbruch-Klick.
     if (e.button === 2 && rightDownRef.current) {
       const moved = distance(rightDownRef.current, pointerRef.current.screen);
@@ -2065,6 +3049,20 @@ export default function Editor2D({ className = '' }: { className?: string }) {
       }
       rightDownRef.current = null;
     }
+    // Freihand: beim Abheben wird ausgewertet. Vorher passiert nichts — ein
+    // Strich, der schon während des Ziehens Wände vorschlägt, flackert.
+    if (draftRef.current.mode === 'freihand') {
+      const draft = draftRef.current;
+      draftRef.current = { mode: 'idle' };
+      const s2 = store.getState();
+      if (draft.zweck === 'skizze') s2.skizziere(draft.punkte);
+      else if (draft.zweck === 'radieren') s2.radiere(draft.punkte);
+      else s2.notiere(draft.punkte, draft.druck);
+      s2.endGesture();
+      scheduleRender();
+      return;
+    }
+
     // Raumvorlage: beim Loslassen entsteht der Wandring. Zu kleines
     // Aufziehen gilt als Klick — dann bleibt der Zug offen und der nächste
     // Klick setzt die zweite Ecke. So funktioniert beides: ziehen und klicken.
@@ -2293,6 +3291,16 @@ export default function Editor2D({ className = '' }: { className?: string }) {
         case 'W':
           s.setTool('wall');
           break;
+        case 'q':
+        case 'Q':
+          // Neben dem W: skizzieren und zeichnen liegen nebeneinander, weil
+          // sie dasselbe meinen — nur mit verschiedener Genauigkeit.
+          s.setTool('sketch');
+          break;
+        case 'k':
+        case 'K':
+          s.setTool('ink');
+          break;
         case 'd':
         case 'D':
           s.setTool('door');
@@ -2323,7 +3331,26 @@ export default function Editor2D({ className = '' }: { className?: string }) {
           break;
         case 'm':
         case 'M':
-          s.setTool('solid');
+          /*
+           * Zwei Dinge auf einer Taste, und zwar mit Absicht.
+           *
+           * Bis 1.20.3 stand die Bemaßungsumschaltung als zweite `case 'm'`
+           * weiter unten in *demselben* switch — und war damit toter Code:
+           * die erste Verzweigung greift, die zweite wird nie erreicht. Die
+           * Taste tat also nur eines, und im Handbuch stand beides. Der
+           * Übersetzer hat es die ganze Zeit gemeldet.
+           *
+           * Statt eines neuen Buchstabens bekommt die Bemaßung den
+           * Zusatzgriff: M für „massives Bauteil", Strg+M für „Maße". Der
+           * Merksatz bleibt damit derselbe, und kein weiterer Buchstabe ist
+           * verbraucht.
+           */
+          if (e.ctrlKey || e.metaKey) s.toggleDimensions();
+          else s.setTool('solid');
+          break;
+        case 'u':
+        case 'U':
+          s.setTool('durchbruch');
           break;
         case 'l':
         case 'L':
@@ -2357,10 +3384,6 @@ export default function Editor2D({ className = '' }: { className?: string }) {
         case 'h':
         case 'H':
           s.toggleGuides();
-          break;
-        case 'm':
-        case 'M':
-          s.toggleDimensions();
           break;
         case 'Home':
         case '0':
@@ -2399,6 +3422,33 @@ export default function Editor2D({ className = '' }: { className?: string }) {
     };
   }, [fitToContent, scheduleRender, store]);
 
+  /**
+   * Den eingegebenen Text übernehmen — oder die leere Beschriftung wieder
+   * wegnehmen.
+   *
+   * Eine Beschriftung ohne Text ist kein Zwischenstand, sondern Müll im Plan:
+   * unsichtbar bis auf den Anker, und beim nächsten Antippen fängt man sich
+   * eine zweite ein. Wer abbricht, soll den Plan so vorfinden wie vorher.
+   */
+  const schliesseTextEingabe = useCallback(
+    (uebernehmen: boolean) => {
+      const eingabe = textEingabe;
+      if (!eingabe) return;
+      const s2 = store.getState();
+      const text = eingabe.wert.trim();
+      if (uebernehmen && text.length > 0) {
+        s2.updateAnnotation(eingabe.id, { text });
+        s2.setStatus(`Beschriftung „${text}" gesetzt.`);
+      } else {
+        s2.deleteAnnotation(eingabe.id);
+        s2.setStatus(uebernehmen ? 'Leere Beschriftung wieder entfernt.' : 'Beschriftung abgebrochen.');
+      }
+      setTextEingabe(null);
+      scheduleRender();
+    },
+    [textEingabe, scheduleRender, store],
+  );
+
   /** Setzt die Wand mit exakt der eingegebenen Länge in der aktuellen Richtung. */
   const commitLengthInput = useCallback(() => {
     const draft = draftRef.current;
@@ -2423,7 +3473,7 @@ export default function Editor2D({ className = '' }: { className?: string }) {
     const s2 = store.getState();
     s2.addWall(draft.start, end);
     draftRef.current = { mode: 'wall', start: end };
-    s2.setStatus(`Wand ${value.toFixed(3)} m gesetzt`);
+    s2.setStatus(`Wand ${de(value, 3)} m gesetzt`);
     setLengthInput(null);
     scheduleRender();
   }, [lengthInput, scheduleRender, store]);
@@ -2451,8 +3501,56 @@ export default function Editor2D({ className = '' }: { className?: string }) {
         // Verliert der Zeiger die Erfassung (Fenster wechselt, Geste bricht
         // ab), kommt kein `pointerup` mehr — die Klammer muss trotzdem zu,
         // sonst wüchse die nächste Änderung in die abgebrochene Geste hinein.
-        onPointerCancel={() => store.getState().endGesture()}
+        onPointerCancel={(e) => {
+          // Der Browser nimmt uns den Zeiger weg — Fokusverlust, Systemgeste,
+          // Anruf. Ohne Aufräumen bliebe ein Finger für immer „aufliegend"
+          // und danach zeichnete nie wieder etwas.
+          const art = eingabeart(e.pointerType);
+          if (art !== 'maus') {
+            zeigerLageRef.current = fortschreiben(zeigerLageRef.current, art, 'hoch', e.timeStamp);
+          }
+          if (art === 'finger') {
+            fingerRef.current.delete(e.pointerId);
+            if (fingerRef.current.size < 2) gesteRef.current = null;
+          }
+          /*
+           * Der abgebrochene Freihandstrich wird **weggeworfen**, nicht
+           * ausgewertet. Ein Strich, den das System uns aus der Hand nimmt,
+           * ist keine Aussage über einen Grundriss — würde er ausgewertet,
+           * stünden Wandvorschläge im Bild, die niemand gezogen hat.
+           *
+           * Ohne dieses Aufräumen blieb der Entwurf auf 'freihand' stehen: der
+           * Strich sammelte beim bloßen Darüberfahren weiter Punkte und wurde
+           * beim nächstbesten Abheben — auch dem eines Handballens — als
+           * Geisterzug ausgewertet.
+           */
+          if (draftZeigerRef.current === null || draftZeigerRef.current === e.pointerId) {
+            draftZeigerRef.current = null;
+            if (draftRef.current.mode === 'freihand') {
+              draftRef.current = { mode: 'idle' };
+              store.getState().setStatus('Strich abgebrochen.');
+            }
+          }
+          store.getState().endGesture();
+          scheduleRender();
+        }}
         onLostPointerCapture={() => store.getState().endGesture()}
+        /*
+         * Doppeltippen auf eine Beschriftung öffnet sie zum Ändern — auch mit
+         * dem Auswahlwerkzeug. Das ist der Griff, den jeder zuerst probiert.
+         */
+        onDoubleClick={(e) => {
+          const r = e.currentTarget.getBoundingClientRect();
+          const screen = { x: e.clientX - r.left, y: e.clientY - r.top };
+          const welt = toWorld(screen);
+          const treffer = pickAt(welt);
+          if (treffer?.kind !== 'annotation') return;
+          const note = store.getState().doc.annotations[treffer.id];
+          if (!note || note.kind !== 'text') return;
+          e.preventDefault();
+          store.getState().setSelection({ kind: 'annotation', id: note.id });
+          setTextEingabe({ id: note.id, wert: note.text ?? '', screen });
+        }}
         onContextMenu={(e) => e.preventDefault()}
       />
 
@@ -2468,6 +3566,45 @@ export default function Editor2D({ className = '' }: { className?: string }) {
         >
           Legende
         </button>
+      )}
+
+      {/* Text unmittelbar im Plan eingeben — der Weg über den Inspektor ist
+          auf dem Tablet keiner. */}
+      {textEingabe !== null && (
+        <div
+          className="absolute z-20"
+          style={{
+            left: Math.min(textEingabe.screen.x + 14, Math.max(8, sizeRef.current.w - 260)),
+            top: Math.min(textEingabe.screen.y + 14, Math.max(8, sizeRef.current.h - 64)),
+          }}
+        >
+          <div className="panel flex items-center gap-2 px-2.5 py-2">
+            <span className="label-xs">Text</span>
+            <input
+              autoFocus
+              className="field w-44"
+              placeholder="z. B. Steigleitung"
+              value={textEingabe.wert}
+              onChange={(e) => setTextEingabe((v) => (v ? { ...v, wert: e.target.value } : v))}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  schliesseTextEingabe(true);
+                } else if (e.key === 'Escape') {
+                  e.preventDefault();
+                  schliesseTextEingabe(false);
+                }
+              }}
+            />
+            <button
+              className="chip bg-accent/15 text-accent"
+              onClick={() => schliesseTextEingabe(true)}
+              title="Text setzen"
+            >
+              Setzen
+            </button>
+          </div>
+        </div>
       )}
 
       {/* Numerische Längeneingabe beim Zeichnen */}
@@ -2529,6 +3666,8 @@ export default function Editor2D({ className = '' }: { className?: string }) {
 
       {/* Kontrollleiste der Auto-Trace-Vorschau */}
       <TraceReviewBar />
+      <SkizzenLeiste />
+      <NotizLeiste />
     </div>
   );
 }
@@ -2720,25 +3859,95 @@ function drawRoomLabel(
   if (room.area < 0.8) return;
   const cx = sx(room.centroid.x);
   const cy = sy(room.centroid.y);
-  const compact = zoom < 34;
+
+  /*
+   * --- Der Stempel muss in den Raum passen ---------------------------------
+   *
+   * Bis 1.26.0 stand er in voller Größe in jedem Raum, egal wie klein der
+   * war. Im Bad las man dann „Kinderzimmer 1" quer über die Wand hinweg in
+   * den Flur hinein, und zwei Stempel benachbarter Räume überlagerten sich
+   * zu einem unleserlichen Wort. Auf einem Ausdruck fällt so etwas nicht
+   * auf — dort sorgt `beschriftungsLage` für Ordnung —, am Bildschirm
+   * schaut man dagegen die ganze Zeit darauf.
+   *
+   * Drei Stufen, je nachdem, wie viel Platz da ist:
+   *   • voller Stempel — Name, Fläche, Volumen und Höhe
+   *   • nur Name und Fläche
+   *   • nur der Name
+   * Und passt nicht einmal der, wird er gekürzt statt über die Wand
+   * geschrieben. Ein abgeschnittener Name mit Auslassungszeichen sagt
+   * „hier steht mehr"; ein überstehender sagt gar nichts und verdeckt
+   * obendrein den Nachbarn.
+   *
+   * Gemessen wird gegen die **lichte** Breite und Höhe des Raums, nicht
+   * gegen seine Fläche: Ein zwei Meter langer, achtzig Zentimeter breiter
+   * Flur hat 1,6 m² und trotzdem keinen Platz für eine Zeile.
+   */
+  const xs = room.innerPolygon.map((p) => sx(p.x));
+  const ys = room.innerPolygon.map((p) => sy(p.y));
+  const breitePx = xs.length ? Math.max(...xs) - Math.min(...xs) : 0;
+  const hoehePx = ys.length ? Math.max(...ys) - Math.min(...ys) : 0;
+  // 8 px Luft zu jeder Seite — direkt an der Wand gelesen wirkt eine
+  // Beschriftung wie ein Teil davon.
+  const platzBreit = Math.max(0, breitePx - 16);
 
   ctx.save();
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
 
   ctx.font = '500 12px Inter, system-ui, sans-serif';
-  ctx.fillStyle = C.text;
-  ctx.fillText(room.name, cx, cy - (compact ? 0 : 9));
+  const namensBreite = ctx.measureText(room.name).width;
+  /** So viele Zeilen trägt der Raum in der Höhe. */
+  const zeilen = hoehePx >= 46 ? 3 : hoehePx >= 28 ? 2 : 1;
+  const passtName = namensBreite <= platzBreit;
+  const flaeche = `${de(room.area, 2)} m²`;
+  const passtFlaeche = ctx.measureText(flaeche).width <= platzBreit;
 
-  if (!compact) {
+  const voll = zoom >= 34 && zeilen >= 3 && passtName && passtFlaeche;
+  const mittel = !voll && zeilen >= 2 && passtName && passtFlaeche;
+
+  ctx.fillStyle = C.text;
+  ctx.fillText(
+    passtName ? room.name : kuerze(ctx, room.name, platzBreit),
+    cx,
+    cy - (voll ? 9 : mittel ? 6 : 0),
+  );
+
+  if (voll || mittel) {
     ctx.font = '400 11px JetBrains Mono, ui-monospace, monospace';
     ctx.fillStyle = C.textDim;
-    ctx.fillText(`${room.area.toFixed(2)} m²`, cx, cy + 6);
+    ctx.fillText(flaeche, cx, cy + (voll ? 6 : 7));
+  }
+  if (voll) {
+    const dritte = `${de(room.volume, 2)} m³ · h ${de(room.height, 2)} m`;
     ctx.font = '400 9.5px JetBrains Mono, ui-monospace, monospace';
-    ctx.fillStyle = 'rgba(148,163,184,0.6)';
-    ctx.fillText(`${room.volume.toFixed(2)} m³ · h ${room.height.toFixed(2)} m`, cx, cy + 20);
+    if (ctx.measureText(dritte).width <= platzBreit) {
+      ctx.fillStyle = 'rgba(148,163,184,0.6)';
+      ctx.fillText(dritte, cx, cy + 20);
+    }
   }
   ctx.restore();
+}
+
+/**
+ * Einen Text auf eine Breite kürzen, mit Auslassungszeichen.
+ *
+ * Nicht zeichenweise gemessen, sondern halbierend gesucht: Bei einem
+ * Raumnamen sind das vier Messungen statt zwanzig, und `measureText` ist der
+ * teuerste Aufruf in dieser Schleife.
+ */
+function kuerze(ctx: CanvasRenderingContext2D, text: string, breite: number): string {
+  if (breite <= 0) return '';
+  const punkt = '…';
+  if (ctx.measureText(punkt).width > breite) return '';
+  let lo = 0;
+  let hi = text.length;
+  while (lo < hi) {
+    const mitte = Math.ceil((lo + hi) / 2);
+    if (ctx.measureText(text.slice(0, mitte) + punkt).width <= breite) lo = mitte;
+    else hi = mitte - 1;
+  }
+  return lo === text.length ? text : text.slice(0, lo) + punkt;
 }
 
 /** Auf welcher Seite der Wand ist "außen"? (Seite, die in keinem Raum liegt) */
@@ -2819,7 +4028,7 @@ function drawDimension(
   ctx.font = '500 10.5px JetBrains Mono, ui-monospace, monospace';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'bottom';
-  const label = `${len.toFixed(3)}`;
+  const label = de(len, 3);
   const wText = ctx.measureText(label).width;
   ctx.fillStyle = C.bg;
   ctx.fillRect(-wText / 2 - 3, -13, wText + 6, 13);
@@ -2877,7 +4086,7 @@ function drawCursorHud(
 ): void {
   const len = distance(start, ptr.snap.point);
   const ang = (Math.atan2(ptr.snap.point.y - start.y, ptr.snap.point.x - start.x) * TO_DEG + 360) % 360;
-  const lines = [`${len.toFixed(3)} m`, `${ang.toFixed(1)}°`];
+  const lines = [`${de(len, 3)} m`, `${de(ang, 1)}°`];
 
   ctx.save();
   ctx.font = '500 11px JetBrains Mono, ui-monospace, monospace';
@@ -2993,7 +4202,17 @@ function drawTraceLayer(
 /** Warnfarbe der Diagnose — dieselbe wie beim offenen Wandende. */
 const C_GAP = { line: 'rgba(251,146,60,0.95)', area: 'rgba(251,146,60,0.13)', hint: 'rgba(251,146,60,0.4)' };
 
-/** Zahl in deutscher Schreibweise — im Plan steht kein Dezimalpunkt. */
+/**
+ * Zahl in deutscher Schreibweise — im Plan steht kein Dezimalpunkt.
+ *
+ * **Warum das mehr ist als Kosmetik.** Bis 1.26.0 benutzte nur die
+ * Lückenmarkierung diesen Helfer; Maßketten, Raumstempel und Statuszeile
+ * schrieben „6.000". Für einen deutschen Leser ist das sechstausend,
+ * gemeint sind sechs Meter. Auf einem Blatt, das auf die Baustelle geht,
+ * steht damit neben der Wand eine Zahl, die um den Faktor tausend falsch
+ * gelesen werden kann — und der Druckpfad schrieb daneben längst mit Komma.
+ * Zwei Schreibweisen für dasselbe Maß sind der zusätzliche Ärger.
+ */
 const de = (n: number, digits: number): string => n.toFixed(digits).replace('.', ',');
 
 /**
@@ -3102,13 +4321,40 @@ function drawMinorClosureMarker(ctx: CanvasRenderingContext2D, issue: ClosureIss
   ctx.restore();
 }
 
-function drawSnapMarker(ctx: CanvasRenderingContext2D, p: Vec2, kind: SnapResult['kind']): void {
+/**
+ * Der Fangmarker — und seit 1.20.0 sagt er auch, **was** er gefangen hat.
+ *
+ * Vorher waren alle Arten türkis und unterschieden sich nur in der Form;
+ * „Raster" und „frei" sahen sogar identisch aus, obwohl das eine gefangen ist
+ * und das andere nicht. Wer mit dem Stift auf eine Ecke zielt, muss vor dem
+ * Aufsetzen sehen, ob er sie hat — nachher ist der Punkt gesetzt.
+ */
+function drawSnapMarker(
+  ctx: CanvasRenderingContext2D,
+  p: Vec2,
+  kind: SnapResult['kind'],
+  beschriftung?: string,
+): void {
   ctx.save();
   ctx.strokeStyle = C.snap;
   ctx.lineWidth = 1.5;
   switch (kind) {
     case 'node':
       ctx.strokeRect(p.x - 5, p.y - 5, 10, 10);
+      break;
+    case 'point':
+      // Gefülltes Dreieck: deutlich anders als Quadrat (Knoten) und Raute
+      // (Wandachse), damit man die drei nicht verwechselt.
+      ctx.beginPath();
+      ctx.moveTo(p.x, p.y - 6.5);
+      ctx.lineTo(p.x + 6, p.y + 4.5);
+      ctx.lineTo(p.x - 6, p.y + 4.5);
+      ctx.closePath();
+      ctx.fillStyle = C.snap;
+      ctx.globalAlpha = 0.25;
+      ctx.fill();
+      ctx.globalAlpha = 1;
+      ctx.stroke();
       break;
     case 'wall':
       ctx.beginPath();
@@ -3132,6 +4378,15 @@ function drawSnapMarker(ctx: CanvasRenderingContext2D, p: Vec2, kind: SnapResult
       ctx.lineTo(p.x, p.y + 5);
       ctx.globalAlpha = 0.7;
       ctx.stroke();
+  }
+  // Der Klartext daneben. Nur wo es etwas zu sagen gibt: bei „frei" stünde
+  // dort „frei", und das ist keine Auskunft, sondern Lärm.
+  if (beschriftung) {
+    ctx.font = '10px ui-monospace, monospace';
+    ctx.fillStyle = C.snap;
+    ctx.textAlign = 'left';
+    ctx.globalAlpha = 0.9;
+    ctx.fillText(beschriftung, p.x + 10, p.y - 8);
   }
   ctx.restore();
 }
@@ -3302,7 +4557,7 @@ function drawRoofLines(
     drawClipped(line, 'rgba(56,189,248,0.5)', 1, [5, 4], '2,00 m');
   }
 
-  drawClipped(ridgeLine(frame), 'rgba(226,232,240,0.55)', 1.2, [9, 3, 2, 3], `First ${frame.ridgeHeight.toFixed(2)} m`);
+  drawClipped(ridgeLine(frame), 'rgba(226,232,240,0.55)', 1.2, [9, 3, 2, 3], `First ${de(frame.ridgeHeight, 2)} m`);
 
   ctx.setLineDash([]);
   ctx.restore();
@@ -3465,7 +4720,7 @@ function RoomTemplateBar() {
           <button
             key={preset.label}
             className="chip whitespace-nowrap bg-white/[0.05] text-slate-300 hover:bg-white/[0.1]"
-            title={`${preset.width.toFixed(2)} × ${preset.depth.toFixed(2)} m Achsmaß${preset.note ? ` — ${preset.note}` : ''}`}
+            title={`${de(preset.width, 2)} × ${de(preset.depth, 2)} m Achsmaß${preset.note ? ` — ${preset.note}` : ''}`}
             onClick={() =>
               addTemplate(
                 kind,
@@ -3505,9 +4760,36 @@ function PlanLegende({ onClose }: { onClose: () => void }) {
 
   const inhalt = useMemo(() => {
     const fixtures = new Map<FixtureType, number>();
+    /*
+     * Zeichnet in diesem Geschoss überhaupt jemand Anschlusspunkte?
+     *
+     * Die beiden Punkte unter dem Heizkörper malt `anschlussPunkte` in
+     * `fixtureSymbols` nur bei Gliederheizkörper und Röhrenradiator, und auch
+     * dort nur, wenn eine **Anschlussart** hinterlegt ist. Die Erklärung dazu
+     * erscheint deshalb unter genau derselben Bedingung: eine Legende, die
+     * ein Zeichen erklärt, das im Plan nicht vorkommt, lässt einen auf dem
+     * Blatt nach etwas suchen, das es nicht gibt.
+     */
+    let anschlusspunkte = false;
     for (const f of Object.values(doc.fixtures)) {
       if (f.levelId !== level) continue;
       fixtures.set(f.type, (fixtures.get(f.type) ?? 0) + 1);
+      /*
+       * **Auch die Ventilseite allein lässt die Punkte erscheinen.**
+       *
+       * `anschlussPunkte` zeichnet seit 1.23.0 schon dann, wenn nur die
+       * Ventilseite erfasst ist — das ist der Regelfall im Bestand: Man
+       * sieht auf der Baustelle, wo das Ventil sitzt, die Anschlussart
+       * ergibt sich erst beim Ausbau. Fragte die Legende weiterhin nur nach
+       * der Anschlussart, stünden in diesem Fall zwei Kreise im Plan, die
+       * niemand erklärt.
+       */
+      if (
+        (f.type === 'radiator' || f.type === 'radiator-tube') &&
+        (f.params.radiatorConnection || f.params.valveSide)
+      ) {
+        anschlusspunkte = true;
+      }
     }
     const services = new Map<PipeService, number>();
     for (const p of Object.values(doc.pipes ?? {})) {
@@ -3530,11 +4812,33 @@ function PlanLegende({ onClose }: { onClose: () => void }) {
       if (!sichtbar) continue;
       massiv.set(b.kind, (massiv.get(b.kind) ?? 0) + 1);
     }
+    // Durchbrüche nach Maß und nicht nach Art: „3 × Ø 152" sagt auf einer
+    // Legende mehr als „3 × Kernbohrung".
+    const durchbrueche = new Map<string, number>();
+    for (const e of durchbruecheAufGeschoss(doc, level)) {
+      if (e.vonUnten) continue;
+      const d = e.durchbruch;
+      const mass =
+        d.form === 'rund'
+          ? `Ø ${Math.round((d.diameter ?? 0) * 1000)}`
+          : `${Math.round((d.width ?? 0) * 1000)} × ${Math.round((d.height ?? 0) * 1000)}`;
+      const schluessel = `${DURCHBRUCH_LABELS[d.kind]} ${mass}`;
+      durchbrueche.set(schluessel, (durchbrueche.get(schluessel) ?? 0) + 1);
+    }
     const site = new Map<SiteElementKind, number>();
     for (const e of Object.values(doc.site?.elements ?? {})) {
       site.set(e.kind, (site.get(e.kind) ?? 0) + 1);
     }
-    return { fixtures, services, verticals, massiv, site, pumps: Object.keys(doc.site?.pumps ?? {}).length };
+    return {
+      fixtures,
+      anschlusspunkte,
+      services,
+      verticals,
+      massiv,
+      durchbrueche,
+      site,
+      pumps: Object.keys(doc.site?.pumps ?? {}).length,
+    };
   }, [doc, level]);
 
   const leer =
@@ -3542,6 +4846,7 @@ function PlanLegende({ onClose }: { onClose: () => void }) {
     inhalt.services.size === 0 &&
     inhalt.verticals.size === 0 &&
     inhalt.massiv.size === 0 &&
+    inhalt.durchbrueche.size === 0 &&
     inhalt.site.size === 0 &&
     inhalt.pumps === 0;
 
@@ -3573,6 +4878,7 @@ function PlanLegende({ onClose }: { onClose: () => void }) {
                   <span className="shrink-0 text-[10px] tabular-nums text-slate-600">{n}×</span>
                 </div>
               ))}
+              {inhalt.anschlusspunkte && <Ventilseitenhinweis />}
             </div>
           )}
 
@@ -3622,6 +4928,18 @@ function PlanLegende({ onClose }: { onClose: () => void }) {
             </div>
           )}
 
+          {inhalt.durchbrueche.size > 0 && (
+            <div className="border-t border-white/[0.06] pt-1.5">
+              <div className="label-xs mb-1">Durchbrüche</div>
+              {[...inhalt.durchbrueche.entries()].map(([bez, n]) => (
+                <div key={bez} className="flex items-baseline gap-1.5 py-0.5">
+                  <span className="min-w-0 flex-1 truncate text-[10px] text-slate-400">{bez}</span>
+                  <span className="shrink-0 text-[10px] tabular-nums text-slate-600">{n}×</span>
+                </div>
+              ))}
+            </div>
+          )}
+
           {(inhalt.site.size > 0 || inhalt.pumps > 0) && (
             <div className="border-t border-white/[0.06] pt-1.5">
               <div className="label-xs mb-1">Außengelände</div>
@@ -3647,6 +4965,52 @@ function PlanLegende({ onClose }: { onClose: () => void }) {
           )}
         </div>
       )}
+    </div>
+  );
+}
+
+/**
+ * Die beiden Punkte unter dem Heizkörper, in Worten.
+ *
+ * **Warum das in die Legende gehört.** Anschlussart und Ventilseite
+ * entscheiden, auf welcher Seite die Leitung aus dem Estrich kommen muss.
+ * Das Symbol beantwortet die Frage längst — ein gefüllter und ein offener
+ * Punkt unter dem Heizkörper —, aber nur für den, der die Zeichenregel
+ * kennt. Wer sie nicht kennt, hält die beiden Punkte für Schmuck und legt
+ * die Leitung auf die falsche Seite; gemerkt wird das, wenn der Estrich zu
+ * ist. Drei Zeilen Legende kosten nichts und verhindern genau das.
+ *
+ * Der dritte Fall ist der wichtigste: **kein** gefüllter Punkt heißt nicht
+ * „mittig" oder „egal", sondern „nicht erfasst". Eine erfundene Seite wäre
+ * schlimmer als keine — deshalb zeichnet `anschlussPunkte` in diesem Fall
+ * beide Punkte offen, und deshalb steht das hier ausdrücklich dabei.
+ *
+ * Die Blickrichtung steht dazu, weil „links" ohne sie mehrdeutig ist: von
+ * vorn auf den Heizkörper gesehen — so, wie man im Raum davorsteht, und so,
+ * wie der Grundriss ihn bei 0° Drehung zeigt.
+ */
+function Ventilseitenhinweis() {
+  return (
+    <div className="mt-1 border-t border-white/[0.06] pt-1">
+      <div className="label-xs mb-1">Anschlusspunkte am Heizkörper</div>
+      <div className="flex items-center gap-1.5 py-0.5">
+        <span
+          className="h-2 w-2 shrink-0 rounded-full"
+          style={{ background: '#F87171' }}
+        />
+        <span className="min-w-0 flex-1 text-[10px] text-slate-400">Gefüllt: Ventilseite (Vorlauf)</span>
+      </div>
+      <div className="flex items-center gap-1.5 py-0.5">
+        <span
+          className="h-2 w-2 shrink-0 rounded-full border"
+          style={{ borderColor: '#F87171' }}
+        />
+        <span className="min-w-0 flex-1 text-[10px] text-slate-400">Offen: Rücklauf</span>
+      </div>
+      <p className="mt-1 text-[9.5px] leading-relaxed text-slate-600">
+        Sind beide Punkte offen, ist die Ventilseite nicht erfasst — sie ist dann auf der Baustelle festzulegen, nicht
+        aus dem Plan abzulesen. Blickrichtung: von vorn auf den Heizkörper.
+      </p>
     </div>
   );
 }

@@ -40,6 +40,7 @@ import ProjektDialog from './components/ProjektDialog';
 import { clearAutosave, loadAutosave, relativeTime, scheduleAutosave } from './lib/autosave';
 import type { AutosaveEntry, SicherungsErgebnis } from './lib/autosave';
 import { aktivesProjekt, setzeAktivesProjekt } from './lib/projectStore';
+import { zeigtReiter } from './lib/uimodus';
 import { useBimStore } from './store/useBimStore';
 
 const Viewer3D = lazy(() => import('./components/Viewer3D'));
@@ -80,7 +81,14 @@ const TABS: { id: InspectorTab; label: string; simple?: boolean }[] = [
   { id: 'anlage', label: 'Anlage', simple: true },
   { id: 'check', label: 'Prüfung', simple: true },
   { id: 'reference', label: 'Referenz', simple: true },
-  { id: 'layers', label: 'Ebenen' },
+  /*
+    Der Ebenen-Reiter trägt das Augensymbol — die einzige Stelle, an der sich
+    Handnotizen und Ebenen ein- und ausblenden lassen. Ohne `simple` fehlte er
+    auf dem Tablet vollständig: dort läuft das Programm im einfachen Modus,
+    solange niemand etwas anderes einstellt, und ein Schalter, den man nur im
+    Fachplanermodus findet, ist auf einem Gerät ohne Tastatur unauffindbar.
+  */
+  { id: 'layers', label: 'Ebenen', simple: true },
 ];
 
 export default function App() {
@@ -154,10 +162,20 @@ export default function App() {
     );
   }, [doc, restore, projektId]);
 
-  // Eine Auswahl schaltet automatisch auf den Eigenschaften-Tab; das
-  // TGA-Werkzeug öffnet umgekehrt die Symbolpalette.
+  /*
+   * Eine Auswahl schaltet automatisch auf den Eigenschaften-Tab; das
+   * TGA-Werkzeug öffnet umgekehrt die Symbolpalette.
+   *
+   * Nicht aber, wenn die Auswahl aus einer Liste kam. Wer die Prüfliste
+   * abarbeitet, klickt einen Befund an, um die Stelle im Plan zu sehen —
+   * und stand danach vor dem Objektreiter, ohne die Liste, die er gerade
+   * durchgeht. Nach jedem Befund zurückklicken zu müssen macht aus einem
+   * Werkzeug eine Zumutung. Die Liste behält darum den Reiter; der Plan
+   * springt trotzdem an die Stelle.
+   */
   useEffect(() => {
     if (!selection) return;
+    if (useBimStore.getState().auswahlQuelle === 'liste') return;
     // Außenanlage und Wärmepumpe haben ihren eigenen Reiter — dorthin zu
     // springen ist richtiger, als den Inspektor zu öffnen, der für sie
     // nichts zu zeigen hat.
@@ -178,12 +196,53 @@ export default function App() {
   // gerade nicht mehr zur Verfügung, landet man auf „Start" statt vor einer
   // leeren Fläche.
   const visibleTabs = useMemo(
-    () => TABS.filter((t) => uiMode === 'profi' || t.simple),
+    () => TABS.filter((t) => zeigtReiter(uiMode, t.id, t.simple === true)),
     [uiMode],
   );
   useEffect(() => {
     if (!visibleTabs.some((t) => t.id === tab)) setTab('guide');
   }, [visibleTabs, tab]);
+
+  /*
+   * Schmal heißt: der Inspektor passt nicht mehr neben die Zeichnung.
+   *
+   * 1024 px ist die Grenze, weil ein iPad hochkant 820 px breit ist und quer
+   * 1180. Hochkant nähme das 300-Pixel-Feld mehr als ein Drittel der Breite
+   * weg — dann bleibt für den Grundriss weniger Platz als für die Liste
+   * daneben. Quer ist genug Raum, und der Inspektor bleibt stehen.
+   *
+   * Gemessen wird das Fenster und nicht das Gerät: wer am Rechner das
+   * Fenster schmal zieht, bekommt dieselbe Anordnung, und das ist richtig.
+   */
+  const [schmal, setSchmal] = useState(
+    () => typeof window !== 'undefined' && window.matchMedia('(max-width: 1024px)').matches,
+  );
+  useEffect(() => {
+    const mq = window.matchMedia('(max-width: 1024px)');
+    const merke = (e: MediaQueryListEvent | MediaQueryList) => setSchmal(e.matches);
+    merke(mq);
+    mq.addEventListener('change', merke);
+    return () => mq.removeEventListener('change', merke);
+  }, []);
+  const [inspektorOffen, setInspektorOffen] = useState(false);
+
+  /*
+   * Im schmalen Layout ist der Inspektor eine Schublade, die geschlossen
+   * startet. Auf den richtigen Reiter zu schalten, während niemand ihn sieht,
+   * hilft keinem: Meldungen wie „im Inspektor eingeben" liefen auf dem Tablet
+   * ins Leere. Wer mit dem **Auswahlwerkzeug** etwas anfasst, will die
+   * Eigenschaften sehen — dann geht die Schublade auf. Beim Zeichnen bleibt
+   * sie zu, sonst verdeckte sie nach jedem gesetzten Objekt den Plan.
+   */
+  useEffect(() => {
+    if (!selection || !schmal) return;
+    if (useBimStore.getState().tool === 'select') setInspektorOffen(true);
+  }, [selection, schmal]);
+  // Beim Wechsel ins Breite geht die Schublade zu — sonst bliebe der
+  // Verdunkler über einem Inspektor stehen, der ohnehin schon danebensteht.
+  useEffect(() => {
+    if (!schmal) setInspektorOffen(false);
+  }, [schmal]);
 
   const show2D = viewMode === '2d' || viewMode === 'split';
   const show3D = viewMode === '3d' || viewMode === 'split';
@@ -222,8 +281,37 @@ export default function App() {
           )}
         </main>
 
-        {/* Inspektor */}
-        <aside className="panel my-2 mr-2 flex w-[300px] shrink-0 flex-col overflow-hidden">
+        {/*
+          * Inspektor. Breit steht er daneben, schmal fährt er als Schublade
+          * über die Zeichnung — 88 % der Breite, damit der Plan dahinter
+          * sichtbar bleibt und klar ist, dass die Schublade wieder zugeht.
+          */}
+        {schmal && inspektorOffen && (
+          <button
+            aria-label="Inspektor schließen"
+            className="fixed inset-0 z-30 bg-graphite-950/60 backdrop-blur-[2px]"
+            onClick={() => setInspektorOffen(false)}
+          />
+        )}
+        <aside
+          className={
+            schmal
+              ? `panel fixed inset-y-2 right-2 z-40 flex w-[88vw] max-w-[420px] flex-col overflow-hidden transition-transform duration-200 ${
+                  inspektorOffen ? 'translate-x-0' : 'translate-x-[calc(100%+1rem)]'
+                }`
+              : 'panel my-2 mr-2 flex w-[300px] shrink-0 flex-col overflow-hidden'
+          }
+          aria-hidden={schmal && !inspektorOffen}
+        >
+          {schmal && (
+            <button
+              className="flex h-11 shrink-0 items-center justify-between border-b border-white/[0.06] px-3 text-[12px] text-slate-300"
+              onClick={() => setInspektorOffen(false)}
+            >
+              <span>Inspektor</span>
+              <span className="text-slate-500">schließen ✕</span>
+            </button>
+          )}
           <div className="flex shrink-0 flex-wrap gap-0.5 border-b border-white/[0.06] p-1.5">
             {visibleTabs.map((t) => (
               <button
@@ -267,6 +355,22 @@ export default function App() {
             {tab === 'layers' && <LayerPanel />}
           </div>
         </aside>
+
+        {/*
+          * Der Griff zur Schublade. Er sitzt am rechten Rand auf halber Höhe,
+          * weil dort der Daumen liegt, wenn man das Tablet hält — und nicht
+          * oben in einer Leiste, wo man hingreifen müsste.
+          */}
+        {schmal && !inspektorOffen && (
+          <button
+            className="panel fixed right-2 top-1/2 z-30 flex h-24 w-11 -translate-y-1/2 flex-col items-center justify-center gap-1 text-[11px] text-slate-300"
+            onClick={() => setInspektorOffen(true)}
+            aria-label="Inspektor öffnen"
+          >
+            <span aria-hidden="true">‹</span>
+            <span className="[writing-mode:vertical-rl] tracking-wide">Inspektor</span>
+          </button>
+        )}
       </div>
 
       <StatusBar />

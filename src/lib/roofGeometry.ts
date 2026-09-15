@@ -28,6 +28,237 @@ const TO_RAD = Math.PI / 180;
 /** Rasterweite der numerischen Integration [m]. */
 export const ROOF_SAMPLE_STEP = 0.05;
 
+// ---------------------------------------------------------------------------
+// Der Gebäudeumriss als Rechengrundlage
+// ---------------------------------------------------------------------------
+
+/**
+ * Eine Kante des Gebäudeumrisses, für den Punkt-Strecken-Abstand vorbereitet.
+ *
+ * **Warum vorberechnet.** Die Raumerkennung rastert das Dach mit 5 cm; ein
+ * Zimmer von 20 m² sind 8000 Rasterpunkte, und für jeden wird der Abstand zu
+ * *jeder* Umrisskante gebraucht — beim Walmdach für die Höhe, beim Sattel- und
+ * Pultdach für die Traufe, und noch einmal für die Himmelsrichtung der
+ * Dachfläche. Richtungsvektor und Längenquadrat je Kante immer wieder neu zu
+ * bilden wäre der ganze Unterschied zwischen „unmerklich" und „das Werkzeug
+ * hakt beim Zeichnen". Sie ändern sich nur mit dem Grundriss, also gehören sie
+ * in den Rahmen und nicht in die Schleife.
+ */
+interface UmrissKante {
+  ax: number;
+  ay: number;
+  /** b − a. */
+  dx: number;
+  dy: number;
+  /** |b − a|², nie 0 (Nullkanten werden beim Aufbau verworfen). */
+  len2: number;
+  /** Außennormale, normiert. Gilt nur für einen Umriss gegen den Uhrzeigersinn. */
+  nx: number;
+  ny: number;
+}
+
+/**
+ * Bereitet die Kanten eines Umrisspolygons auf.
+ *
+ * Die Außennormale folgt aus dem Umlaufsinn: bei CCW zeigt (dy, −dx) nach
+ * außen. `gebaeudeUmriss` liefert genau diesen Umlaufsinn — deshalb steht die
+ * Bedingung dort im Kommentar und hier in der Formel.
+ */
+function umrissKanten(umriss: readonly Vec2[]): UmrissKante[] {
+  const kanten: UmrissKante[] = [];
+  const n = umriss.length;
+  if (n < 3) return kanten;
+  for (let i = 0; i < n; i++) {
+    const a = umriss[i];
+    const b = umriss[(i + 1) % n];
+    const dx = b.x - a.x;
+    const dy = b.y - a.y;
+    const len2 = dx * dx + dy * dy;
+    if (len2 < 1e-12) continue;
+    const len = Math.sqrt(len2);
+    kanten.push({ ax: a.x, ay: a.y, dx, dy, len2, nx: dy / len, ny: -dx / len });
+  }
+  return kanten;
+}
+
+/**
+ * Quadrierter Abstand eines Punktes zu *einer* Umrisskante — Punkt zu
+ * Strecke, nicht zu Gerade.
+ *
+ * Quadriert, weil beide Aufrufer unten nur Abstände *vergleichen*: Bei acht
+ * Kanten und 8000 Rasterpunkten je Zimmer sind das 64 000 Wurzeln, von denen
+ * genau eine gebraucht wird. Gezogen wird sie deshalb erst am Ende, außerhalb
+ * der Kantenschleife.
+ */
+function abstandQuadratZuKante(k: UmrissKante, px: number, py: number): number {
+  let u = ((px - k.ax) * k.dx + (py - k.ay) * k.dy) / k.len2;
+  // Die Begrenzung auf [0,1] ist der ganze Unterschied zur Geraden: ohne sie
+  // läge ein Punkt im Innenwinkel eines L näher an der *Verlängerung* einer
+  // weit entfernten Kante als an der Kante, die wirklich neben ihm liegt.
+  if (u < 0) u = 0;
+  else if (u > 1) u = 1;
+  const qx = k.ax + k.dx * u - px;
+  const qy = k.ay + k.dy * u - py;
+  return qx * qx + qy * qy;
+}
+
+/**
+ * Kleinster Abstand zum Rand des Umrisses.
+ *
+ * Das ist die Höhenfunktion des Walmdachs, bis auf Kniestock und Steigung:
+ * ein Walm steigt von *jeder* Traufkante mit derselben Neigung an, also liegt
+ * die Dachhaut über jedem Punkt so hoch, wie dieser Punkt von der nächsten
+ * Kante entfernt ist. Grate und Kehlen entstehen dabei von selbst — dort, wo
+ * zwei Kanten gleich nah sind. Das ist genau das Straight Skeleton, nur ohne
+ * dass eines gebaut werden müsste.
+ */
+function abstandZumRand(kanten: readonly UmrissKante[], p: Vec2): number {
+  let best = Infinity;
+  for (let i = 0; i < kanten.length; i++) {
+    const d = abstandQuadratZuKante(kanten[i], p.x, p.y);
+    if (d < best) best = d;
+  }
+  return best === Infinity ? Infinity : Math.sqrt(best);
+}
+
+/** Die Umrisskante, die einem Punkt am nächsten liegt — sie trägt die Dachfläche. */
+function naechsteKante(kanten: readonly UmrissKante[], p: Vec2): UmrissKante | undefined {
+  let best: UmrissKante | undefined;
+  let bestD = Infinity;
+  for (let i = 0; i < kanten.length; i++) {
+    const d = abstandQuadratZuKante(kanten[i], p.x, p.y);
+    if (d < bestD) {
+      bestD = d;
+      best = kanten[i];
+    }
+  }
+  return best;
+}
+
+/**
+ * Weg von `p` bis zum Umriss, gemessen in Richtung (fx, fy).
+ *
+ * Für Sattel- und Pultdach: dort fällt das Dach in einer festen Richtung, und
+ * die Traufe liegt da, wo der Grundriss in dieser Richtung endet. Bei einem
+ * L-Grundriss ist das je nach Punkt verschieden weit — genau diese Strecke
+ * ersetzt die feste Halbspannweite des umschließenden Rechtecks.
+ *
+ * Genommen wird der *erste* Austritt. Ein Strahl durch einen einspringenden
+ * Grundriss kann ihn wieder betreten; die Traufe ist trotzdem die erste Kante,
+ * an der das Gebäude aufhört. Gezählt wird deshalb nur, wo der Strahl nach
+ * *außen* durchtritt — erkennbar daran, dass er mit der Außennormalen der
+ * Kante einen spitzen Winkel bildet.
+ *
+ * Genau diese Bedingung macht auch den Randfall richtig: `wallProfileUnderRoof`
+ * integriert die Wandhöhe **auf der Wandachse**, also auf dem Umriss selbst.
+ * Dort ist der Weg bis zur Traufe null, und ohne die Prüfung auf die
+ * Durchtrittsrichtung wäre nicht zu unterscheiden, ob der Strahl die Kante
+ * unter den Füßen gerade verlässt oder in das Gebäude hinein zeigt. Im ersten
+ * Fall steht die Wand an der Traufe, im zweiten trägt sie den Giebel — und
+ * die beiden Flächen bekommen verschiedene U-Werte.
+ *
+ * `Infinity`, wenn der Strahl keine Kante trifft — dann liegt der Punkt
+ * außerhalb des Umrisses, und der Aufrufer bleibt bei der Rechteckformel.
+ */
+function randAbstandInRichtung(
+  kanten: readonly UmrissKante[],
+  p: Vec2,
+  fx: number,
+  fy: number,
+): number {
+  let best = Infinity;
+  for (const k of kanten) {
+    // Nur Kanten, durch die der Strahl nach außen tritt. Das schließt
+    // zugleich den parallelen Fall aus: dort steht der Strahl senkrecht auf
+    // der Normalen, und die Nachbarkanten fangen ihn auf.
+    if (fx * k.nx + fy * k.ny <= 1e-12) continue;
+    const nenner = fx * k.dy - fy * k.dx;
+    if (Math.abs(nenner) < 1e-12) continue;
+    const diffx = k.ax - p.x;
+    const diffy = k.ay - p.y;
+    const u = (diffx * k.dy - diffy * k.dx) / nenner;
+    // Eine winzige Toleranz nach unten: ein Punkt genau auf der Kante soll
+    // null herausbekommen und nicht den Austritt auf der Gegenseite.
+    if (u < -1e-6 || u >= best) continue;
+    const v = (diffx * fy - diffy * fx) / nenner;
+    if (v < -1e-9 || v > 1 + 1e-9) continue;
+    best = u > 0 ? u : 0;
+  }
+  return best;
+}
+
+/**
+ * Der höchste Punkt eines Walmdachs: die Stelle mit dem größten Abstand zum
+ * Rand — der Mittelpunkt des größten einbeschriebenen Kreises.
+ *
+ * **Warum gesucht und nicht gerechnet.** Geschlossen lässt sich diese Stelle
+ * nur über das Straight Skeleton bestimmen, und das zu bauen ist genau der
+ * Aufwand, den die Abstandsformel oben vermeidet. Gesucht wird deshalb: ein
+ * Raster über den Umriss, danach ein Nachführen aus dem besten Rasterpunkt
+ * heraus mit halbierender Schrittweite.
+ *
+ * Das Raster hat mindestens 40 Schritte über die schmalere Seite. Es muss nur
+ * fein genug sein, um den richtigen „Berg" zu treffen — ein Grundriss, dessen
+ * breiteste Stelle schmaler ist als ein Vierzigstel seiner kleineren
+ * Bounding-Box-Seite, ist kein Gebäude mehr. Das Nachführen bringt die Stelle
+ * danach auf unter einen Millimeter, und ein Millimeter am First ist bei jeder
+ * Neigung unter 89° weniger als ein Millimeter Höhe.
+ */
+function hoechsterPunkt(
+  kanten: readonly UmrissKante[],
+  umriss: readonly Vec2[],
+): { punkt: Vec2; abstand: number } {
+  let minX = Infinity;
+  let minY = Infinity;
+  let maxX = -Infinity;
+  let maxY = -Infinity;
+  for (const p of umriss) {
+    if (p.x < minX) minX = p.x;
+    if (p.y < minY) minY = p.y;
+    if (p.x > maxX) maxX = p.x;
+    if (p.y > maxY) maxY = p.y;
+  }
+
+  const schritt = Math.max(0.02, Math.min(maxX - minX, maxY - minY) / 40);
+  let punkt: Vec2 = { x: (minX + maxX) / 2, y: (minY + maxY) / 2 };
+  let abstand = -1;
+
+  for (let y = minY + schritt / 2; y < maxY; y += schritt) {
+    for (let x = minX + schritt / 2; x < maxX; x += schritt) {
+      const q = { x, y };
+      if (!pointInPolygon(q, umriss)) continue;
+      const d = abstandZumRand(kanten, q);
+      if (d > abstand) {
+        abstand = d;
+        punkt = q;
+      }
+    }
+  }
+  // Kein einziger Rasterpunkt im Umriss: ein entarteter oder winziger
+  // Grundriss. Dann ist der First die Traufe, und das ist die ehrliche
+  // Antwort — nicht ein aus der Bounding Box geratener Wert.
+  if (abstand < 0) return { punkt, abstand: 0 };
+
+  let weite = schritt;
+  for (let runde = 0; runde < 200 && weite > 1e-4; runde++) {
+    let besser = false;
+    for (let i = 0; i < 8; i++) {
+      const w = (i * Math.PI) / 4;
+      const q = { x: punkt.x + Math.cos(w) * weite, y: punkt.y + Math.sin(w) * weite };
+      if (!pointInPolygon(q, umriss)) continue;
+      const d = abstandZumRand(kanten, q);
+      if (d > abstand) {
+        abstand = d;
+        punkt = q;
+        besser = true;
+      }
+    }
+    if (!besser) weite /= 2;
+  }
+
+  return { punkt, abstand };
+}
+
 /**
  * Vorberechneter Bezugsrahmen eines Daches: Richtung, Firstachse und die
  * Ausdehnung des Grundrisses in Neigungsrichtung. Einmal je Geschoss gebildet,
@@ -52,17 +283,42 @@ export interface RoofFrame {
   slope: number;
   /** Gauben und Dachflächenfenster dieses Geschosses. */
   openings: RoofOpening[];
+  /**
+   * Der Gebäudeumriss als geordnetes Polygon gegen den Uhrzeigersinn.
+   * Leer heißt: keiner bekannt — dann rechnet alles wie vor 1.26.0 auf dem
+   * umschließenden Rechteck. Siehe `gebaeudeUmriss` in `roomDetection.ts`.
+   */
+  umriss: Vec2[];
+  /** Derselbe Umriss, kantenweise für den Abstandstest vorbereitet. */
+  kanten: UmrissKante[];
+  /**
+   * Der höchste Punkt der Dachfläche. Beim Walmdach mit Umriss die Stelle mit
+   * dem größten Randabstand, sonst der Punkt der Firstachse im Mittelpunkt.
+   */
+  firstPunkt: Vec2;
 }
 
 /**
  * Baut den Bezugsrahmen aus der Dachdefinition und den Eckpunkten des
  * Geschossgrundrisses. Ohne Punkte oder ohne Neigung gibt es kein Dach —
  * dann liefert die Funktion `null` und alle Aufrufer rechnen wie bisher.
+ *
+ * `outline` ist eine **Punktwolke** — je Wand Anfangs- und Endknoten, mit
+ * Duplikaten und ohne Reihenfolge. Daraus entsteht nur das umschließende
+ * Rechteck, und das ist die Rückfallebene: sie bleibt für jeden Aufrufer
+ * erhalten, der keinen geordneten Umriss beschaffen kann.
+ *
+ * `umriss` ist der geordnete Gebäudeumriss aus `gebaeudeUmriss`. Liegt er vor,
+ * rechnet das Walmdach auf ihm statt auf dem Rechteck — und erst dann bekommt
+ * ein L-förmiges Haus seine Kehle, statt dass das Dach über den Innenwinkel
+ * hinwegläuft. Er steht bewusst hinten und hat einen Vorgabewert: die
+ * Signatur bleibt damit für alle bisherigen Aufrufer gültig.
  */
 export function buildRoofFrame(
   roof: RoofDefinition | undefined,
   outline: readonly Vec2[],
   openings: readonly RoofOpening[] = [],
+  umriss: readonly Vec2[] = [],
 ): RoofFrame | null {
   if (!roof || roof.kind === 'flat') return null;
   if (!(roof.pitch > 0) || roof.pitch >= 89) return null;
@@ -104,14 +360,36 @@ export function buildRoofFrame(
   const slope = Math.tan(roof.pitch * TO_RAD);
   const knee = Math.max(0, roof.kneeHeight);
 
+  const umrissPolygon = umriss.length >= 3 ? umriss.map((p) => ({ x: p.x, y: p.y })) : [];
+  const kanten = umrissKanten(umrissPolygon);
+
   let ridgeT: number;
   let rise: number;
+  // Vorbelegung für alle Fälle ohne eigenen Firstpunkt: der Punkt der
+  // Firstachse in der Mitte des Grundrisses. Beim Walmdach mit Umriss wird er
+  // unten durch die wirklich höchste Stelle ersetzt.
+  let firstPunkt: Vec2 | undefined;
 
   if (roof.kind === 'monopitch') {
     // Pultdach: der First sitzt an der oberen Kante, das Dach fällt in
     // Richtung `azimuth` bis zur gegenüberliegenden Traufe.
     ridgeT = minT;
     rise = (maxT - minT) * slope;
+  } else if (roof.kind === 'hip' && kanten.length >= 3) {
+    // Walmdach über einem bekannten Umriss: Die Firsthöhe ist kein Ergebnis
+    // der Gebäudeseiten mehr, sondern des größten Randabstands — das ist die
+    // Stelle, an der sich alle Walme treffen. Bei einem Rechteck kommt dabei
+    // die halbe kürzere Seite heraus, also genau die alte Formel; bei einem L
+    // dagegen ein deutlich niedrigerer First, weil der schmale Schenkel
+    // nirgends so weit vom Rand entfernt ist wie die Bounding Box glaubt.
+    //
+    // `ridgeOffset` bleibt die Lage der Firstachse und trennt weiterhin die
+    // Gaubenseiten (`dormerSide`), verschiebt aber die Firsthöhe nicht mehr:
+    // wo der First liegt, entscheidet beim Walmdach der Grundriss.
+    ridgeT = roof.ridgeOffset;
+    const hoch = hoechsterPunkt(kanten, umrissPolygon);
+    rise = hoch.abstand * slope;
+    firstPunkt = hoch.punkt;
   } else if (roof.kind === 'hip') {
     // Walmdach: von allen vier Seiten geneigt. Der First liegt mittig, seine
     // Höhe folgt der *kürzeren* Gebäudeseite — dort treffen sich die Walme.
@@ -141,7 +419,42 @@ export function buildRoofFrame(
     ridgeHeight,
     slope,
     openings: [...openings],
+    umriss: umrissPolygon,
+    kanten,
+    firstPunkt: firstPunkt ?? {
+      x: centre.x + dir.x * ridgeT,
+      y: centre.y + dir.y * ridgeT,
+    },
   };
+}
+
+/**
+ * Höhe der Traufe über einem bekannten Umriss, in Fallrichtung gemessen.
+ *
+ * Sattel- und Pultdach haben eine *gerade* Firstlinie — das ist ihre
+ * Definition, und daran ändert ein verwinkelter Grundriss nichts. Die Traufe
+ * dagegen sitzt auf der Außenwand und folgt deshalb dem Umriss. Statt der
+ * festen Halbspannweite des umschließenden Rechtecks wird hier je Punkt
+ * gemessen, wie weit es in Fallrichtung bis zur Außenkante ist; von dort
+ * steigt das Dach mit seiner Neigung an.
+ *
+ * Bei einem Rechteck, dessen Seiten in Fallrichtung liegen, kommt exakt die
+ * bisherige Formel heraus. Erst wo der Grundriss einspringt, greift sie: dort
+ * lag die Dachhaut bisher meterweit über der Wand, auf der sie aufliegen soll.
+ *
+ * `Infinity` heißt „keine Aussage" — ohne Umriss oder wenn der Strahl den
+ * Umriss nicht trifft. Der Aufrufer bildet das Minimum, also bleibt es dann
+ * bei der Rechteckformel.
+ */
+function traufhoeheInFallrichtung(frame: RoofFrame, p: Vec2, t: number): number {
+  if (frame.kanten.length < 3) return Infinity;
+  // Talwärts: beim Pultdach immer in `dir`, beim Satteldach je nach Seite des
+  // Firsts. Ohne dieses Vorzeichen würde die eine Dachhälfte am First
+  // gemessen statt an ihrer Traufe.
+  const seite = frame.roof.kind === 'monopitch' || t >= frame.ridgeT ? 1 : -1;
+  const weg = randAbstandInRichtung(frame.kanten, p, frame.dir.x * seite, frame.dir.y * seite);
+  if (!Number.isFinite(weg)) return Infinity;
+  return Math.max(0, frame.roof.kneeHeight) + weg * frame.slope;
 }
 
 /**
@@ -154,21 +467,36 @@ export function baseRoofHeightAt(frame: RoofFrame, p: Vec2): number {
   const dy = p.y - frame.centre.y;
   const t = dx * frame.dir.x + dy * frame.dir.y;
 
-  let drop: number;
-  if (frame.roof.kind === 'monopitch') {
-    drop = Math.max(0, t - frame.ridgeT) * frame.slope;
+  let h: number;
+  if (frame.roof.kind === 'hip' && frame.kanten.length >= 3) {
+    // Walmdach über einem bekannten Umriss — die eine Zeile, um die es bei
+    // diesem ganzen Umbau geht:
+    //
+    //     h(p) = Kniestock + Abstand(p, Umriss) · Steigung
+    //
+    // Sie ist die Höhenfunktion des Straight Skeleton. Grate entstehen dort,
+    // wo zwei Kanten gleich weit weg sind, **Kehlen** im einspringenden
+    // Winkel eines L — beides von selbst, ohne dass ein Skelett gebaut würde.
+    // Die Firsthöhe ist kein Eingangswert mehr, sondern das Maximum dieser
+    // Funktion; sie steht als `ridgeHeight` im Rahmen.
+    h = Math.max(0, frame.roof.kneeHeight) + abstandZumRand(frame.kanten, p) * frame.slope;
+  } else if (frame.roof.kind === 'monopitch') {
+    h = frame.ridgeHeight - Math.max(0, t - frame.ridgeT) * frame.slope;
+    h = Math.min(h, traufhoeheInFallrichtung(frame, p, t));
   } else if (frame.roof.kind === 'hip') {
-    // Abstand zur nächsten Traufkante im gedrehten Rechteck.
+    // Rückfallebene ohne Umriss: Abstand zur nächsten Traufkante im
+    // gedrehten Rechteck.
     const s = dx * frame.along.x + dy * frame.along.y;
     const toEaveT = frame.halfSpanT - Math.abs(t - frame.ridgeT);
     const toEaveS = frame.halfSpanS - Math.abs(s);
     const nearest = Math.min(toEaveT, toEaveS);
-    drop = (Math.min(frame.halfSpanT, frame.halfSpanS) - Math.max(0, nearest)) * frame.slope;
+    h =
+      frame.ridgeHeight -
+      (Math.min(frame.halfSpanT, frame.halfSpanS) - Math.max(0, nearest)) * frame.slope;
   } else {
-    drop = Math.abs(t - frame.ridgeT) * frame.slope;
+    h = frame.ridgeHeight - Math.abs(t - frame.ridgeT) * frame.slope;
+    h = Math.min(h, traufhoeheInFallrichtung(frame, p, t));
   }
-
-  let h = frame.ridgeHeight - drop;
 
   // Kehlbalkenlage: darüber wird die Decke waagerecht.
   const collar = frame.roof.collarHeight;
@@ -301,6 +629,12 @@ function isCollarZone(frame: RoofFrame, h: number): boolean {
  * Welche Dachfläche liegt über diesem Punkt? Für das Satteldach die Seite
  * links oder rechts des Firsts, für das Walmdach zusätzlich die beiden Walme.
  * Der Rückgabewert ist der Azimut der Dachfläche [°].
+ *
+ * Beim Walmdach über einem bekannten Umriss ist die Antwort nicht mehr
+ * „eine von vier", sondern so viele Flächen, wie der Umriss Kanten hat: Jede
+ * Traufkante trägt ihre eigene Dachfläche, und ihr Azimut ist deren
+ * Außennormale. Bei einem L sind das sechs — und erst damit landen die
+ * solaren Gewinne auf den Flächen, die es wirklich gibt.
  */
 export function roofFaceAzimuthAt(frame: RoofFrame, p: Vec2): number {
   const dx = p.x - frame.centre.x;
@@ -311,12 +645,24 @@ export function roofFaceAzimuthAt(frame: RoofFrame, p: Vec2): number {
   if (frame.roof.kind === 'monopitch') return norm360(base);
   if (frame.roof.kind === 'gable') return norm360(t >= frame.ridgeT ? base : base + 180);
 
-  // Walmdach: die nächstgelegene der vier Traufkanten bestimmt die Fläche.
+  if (frame.kanten.length >= 3) {
+    const k = naechsteKante(frame.kanten, p);
+    if (k) return norm360((Math.atan2(k.nx, k.ny) * 180) / Math.PI);
+  }
+
+  // Rückfallebene: die nächstgelegene der vier Traufkanten des gedrehten
+  // Rechtecks bestimmt die Fläche.
   const s = dx * frame.along.x + dy * frame.along.y;
   const toEaveT = frame.halfSpanT - Math.abs(t - frame.ridgeT);
   const toEaveS = frame.halfSpanS - Math.abs(s);
   if (toEaveT <= toEaveS) return norm360(t >= frame.ridgeT ? base : base + 180);
-  return norm360(s >= 0 ? base - 90 : base + 90);
+  // `along` = (dir.y, −dir.x) zeigt nach Azimut `base + 90`: bei einem Dach,
+  // das nach Norden fällt (base 0, dir = (0|1)), ist along = (1|0) und damit
+  // Osten. Bis 1.26.0 stand hier `base − 90` für `s ≥ 0` — die beiden Walme
+  // waren also um 180° vertauscht, und mit ihnen die solaren Gewinne der
+  // Seitenflächen jedes Walmdachs. Bemerkt hat es nichts: für Walmdächer gab
+  // es im ganzen Prüflauf keine einzige Zeile.
+  return norm360(s >= 0 ? base + 90 : base - 90);
 }
 
 const norm360 = (deg: number): number => ((deg % 360) + 360) % 360;
@@ -384,8 +730,13 @@ export function measureRoomUnderRoof(
       if (!pointInPolygon(p, polygon)) continue;
       hits++;
 
-      const h = roofHeightAt(frame, p);
+      // Reihenfolge und Fallunterscheidung sind Absicht: `roofHeightAt` ruft
+      // `baseRoofHeightAt` selbst auf, und über einem Umriss kostet das einen
+      // Durchlauf durch alle Umrisskanten. Ohne Gaube ist die lichte Höhe
+      // ohnehin die Dachhöhe — dann darf sie nicht ein zweites Mal berechnet
+      // werden, nur damit die Abfrage danach immer gleich aussieht.
       const base = baseRoofHeightAt(frame, p);
+      const h = frame.openings.length === 0 ? base : roofHeightAt(frame, p);
       volume += h;
       // Was über der reinen Dachebene liegt, hat eine Gaube dazugewonnen.
       if (h > base + 1e-6) {
@@ -579,6 +930,23 @@ export function wallProfileUnderRoof(
  *
  * Geliefert werden Strecken in Weltkoordinaten, lang genug, um über den
  * ganzen Grundriss zu reichen; der Zeichner klippt sie am Raumpolygon.
+ *
+ * **Bewusst nicht umgestellt auf den Umriss.** Beim Walmdach über einem
+ * bekannten Umriss sind die Höhenlinien keine Geraden mehr, sondern
+ * Parallelkurven zum Umriss — bei einem L mit einer einspringenden Ecke, an
+ * der sie um den Innenwinkel herumlaufen. Das sauber zu erzeugen hieße, das
+ * Polygon je Linie nach innen zu versetzen und die dabei entstehenden
+ * Selbstüberschneidungen aufzulösen; `offsetPolygonPerEdge` kann das für
+ * kleine Versätze, für die halbe Gebäudetiefe nicht.
+ *
+ * Der Preis ist bekannt und begrenzt: Diese Linien werden ausschließlich
+ * gezeichnet, am Raumpolygon geklippt und beschriftet. In keine Zahl gehen
+ * sie ein — Wohnfläche nach WoFlV, Fläche unter 1,00 m und Volumen kommen
+ * alle aus dem 5-cm-Raster über `roofHeightAt` und damit über den Umriss. Im
+ * Plan eines L-Hauses ist die Abweichung sichtbar, in der Rechnung nicht. Wer
+ * sie beseitigen will, fängt bei einem echten Straight Skeleton an; bis dahin
+ * ist eine falsche Linie mit richtiger Zahl besser als der Aufwand, den ihre
+ * Beseitigung heute kostet.
  */
 export function roofContourLines(frame: RoofFrame, height: number): { a: Vec2; b: Vec2 }[] {
   if (height <= frame.roof.kneeHeight || height >= frame.ridgeHeight) return [];
@@ -620,8 +988,47 @@ export function roofContourLines(frame: RoofFrame, height: number): { a: Vec2; b
   return [lineAt(distance), lineAt(-distance), perpAt(distance), perpAt(-distance)];
 }
 
-/** Die Firstlinie als Strecke — für Plan und Modell. */
+/**
+ * Die Firstlinie als Strecke — für Plan und Modell.
+ *
+ * **Warum das Walmdach hier eigens behandelt wird.** Bisher war die Firstlinie
+ * immer `halfSpanS` lang, also so lang wie das umschließende Rechteck. Beim
+ * Walmdach ist das falsch, und zwar sichtbar: Über einem Quadrat gibt es
+ * überhaupt keinen First, sondern eine Spitze — das Dach ist eine Pyramide.
+ * Die gezeichnete Linie behauptete trotzdem einen First über die halbe
+ * Gebäudelänge, und daneben stand seine Höhe. Beides gelesen heißt: „hier
+ * oben ist überall Stehhöhe", und das stimmt nur im Mittelpunkt.
+ *
+ * Mit Umriss läuft die Linie deshalb durch den *wirklich* höchsten Punkt und
+ * wird dort gekappt, wo das Dach wieder fällt. Abgetastet wird in 5 cm, der
+ * Rasterweite des ganzen Moduls; als „noch First" gilt, was höchstens 2 cm
+ * unter der Firsthöhe liegt — auf dem Papier ist das eine halbe Strichstärke.
+ *
+ * Was sie **nicht** leistet: Der wahre First eines L-förmigen Walmdachs ist
+ * ein verzweigter Kantenzug, kein Strich. Geliefert wird nur sein längster
+ * gerader Ast. Das ist keine Vollständigkeit, aber es ist keine Behauptung
+ * mehr über Stellen, an denen gar kein First liegt.
+ */
 export function ridgeLine(frame: RoofFrame): { a: Vec2; b: Vec2 } {
+  if (frame.roof.kind === 'hip' && frame.kanten.length >= 3) {
+    const o = frame.firstPunkt;
+    const schritt = ROOF_SAMPLE_STEP;
+    const grenze = frame.ridgeHeight - 0.02;
+    const maxSchritte = Math.ceil((Math.max(frame.halfSpanT, frame.halfSpanS) * 2 + 2) / schritt);
+    const bei = (u: number): Vec2 => ({
+      x: o.x + frame.along.x * u,
+      y: o.y + frame.along.y * u,
+    });
+
+    let vor = 0;
+    while (vor < maxSchritte && baseRoofHeightAt(frame, bei((vor + 1) * schritt)) >= grenze) vor++;
+    let zurueck = 0;
+    while (zurueck < maxSchritte && baseRoofHeightAt(frame, bei(-(zurueck + 1) * schritt)) >= grenze) {
+      zurueck++;
+    }
+    return { a: bei(-zurueck * schritt), b: bei(vor * schritt) };
+  }
+
   const reach = frame.halfSpanS;
   const o = {
     x: frame.centre.x + frame.dir.x * frame.ridgeT,

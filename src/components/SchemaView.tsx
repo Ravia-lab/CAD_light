@@ -19,6 +19,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import type { PipeService, SchematicComponent, SchematicKind, SchematicLink, Vec2 } from '../types/bim';
 import { PIPE_SERVICE_COLORS, PIPE_SERVICE_LABELS } from '../types/bim';
 import { useBimStore } from '../store/useBimStore';
+import type { SchemaBeschriftungsart } from '../lib/schemaBeschriftung';
 import { SCHEMATIC_LEGEND, drawSymbol, hitTestSymbol, pickPortPair, symbolPortPoints } from '../lib/schematicSymbols';
 import {
   buildComponentTable,
@@ -779,6 +780,12 @@ function SchematicPrintDialog({
   // Das Datum kommt von hier, nicht aus dem Rechenmodul — dort ist keine Uhr.
   const today = new Date().toLocaleDateString('de-DE');
 
+  // Die Beschriftungsart bleibt beim Dialog: sie gehört zu diesem Ausdruck,
+  // nicht zum Modell. Vorgabe ist die Messung („automatisch"), weil sie in
+  // fast allen Fällen richtig entscheidet — wer es anders will, sieht sofort,
+  // was es kostet.
+  const [labelMode, setLabelMode] = useState<SchemaBeschriftungsart>('auto');
+
   const result = useMemo(
     () =>
       buildSchematicSvg(components, links, {
@@ -792,8 +799,9 @@ function SchematicPrintDialog({
         showLegend: true,
         colour,
         componentTable: table,
+        labelMode,
       }),
-    [colour, components, links, paper, projectName, table, today],
+    [colour, components, labelMode, links, paper, projectName, table, today],
   );
 
   const rows = useMemo(() => buildComponentTable(components), [components]);
@@ -860,6 +868,42 @@ function SchematicPrintDialog({
             </div>
           </div>
 
+          <div>
+            <span className="label-xs">Bauteile benennen</span>
+            <div className="mt-1 flex gap-1">
+              {(
+                [
+                  ['auto', 'automatisch'],
+                  ['position', 'Nummern'],
+                  ['name', 'Namen'],
+                ] as [SchemaBeschriftungsart, string][]
+              ).map(([id, label]) => (
+                <button
+                  key={id}
+                  title={
+                    id === 'auto'
+                      ? 'Namen ans Symbol, solange sie sich nicht überdecken — sonst Positionsnummern.'
+                      : id === 'position'
+                        ? 'Nummer ans Symbol, Name ins Positionsblatt. Bei kleinem Maßstab die einzige lesbare Darstellung.'
+                        : 'Namen ans Symbol, auch wenn sie sich überdecken.'
+                  }
+                  className={`chip flex-1 ${
+                    labelMode === id ? 'bg-accent/15 text-accent' : 'bg-white/[0.05] text-slate-300 hover:bg-white/[0.1]'
+                  }`}
+                  onClick={() => setLabelMode(id)}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+            {result.labelMode === 'name' && result.labelCollisions > 0 && (
+              <div className="mt-1 text-[10.5px] leading-snug text-rose-300">
+                {result.labelCollisions} Bauteilnamen überdecken einander. Mit „Nummern" steht jeder Name lesbar im
+                Positionsblatt.
+              </div>
+            )}
+          </div>
+
           <label className="flex items-center gap-2 text-[11px] text-slate-400">
             <input type="checkbox" checked={colour} onChange={(e) => onColour(e.target.checked)} />
             Leitungen farbig
@@ -867,8 +911,16 @@ function SchematicPrintDialog({
           </label>
 
           <label className="flex items-center gap-2 text-[11px] text-slate-400">
-            <input type="checkbox" checked={table} onChange={(e) => onTable(e.target.checked)} />
+            <input
+              type="checkbox"
+              checked={table}
+              disabled={result.labelMode === 'position'}
+              onChange={(e) => onTable(e.target.checked)}
+            />
             Stückliste anhängen
+            {result.labelMode === 'position' && (
+              <span className="text-slate-600">— steckt schon im Positionsblatt</span>
+            )}
           </label>
 
           <div className="rounded-lg bg-graphite-900/60 px-2.5 py-2 text-[10.5px] leading-relaxed text-slate-400">

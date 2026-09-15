@@ -9,6 +9,7 @@
 import { useMemo } from 'react';
 import type { ValidationIssue } from '../types/bim';
 import { validateModel } from '../lib/validation';
+import { mindestens } from '../lib/uimodus';
 import { useBimStore } from '../store/useBimStore';
 
 const SEVERITY_STYLE: Record<ValidationIssue['severity'], { dot: string; text: string; bg: string; label: string }> = {
@@ -107,7 +108,9 @@ export default function ValidationPanel() {
                   onClick={() => {
                     if (!issue.target && !issue.position) return;
                     if (issue.position) setViewport({ center: { ...issue.position } });
-                    if (issue.target) setSelection(issue.target);
+                    // 'liste': der Inspektor bleibt auf der Prüfung stehen,
+                    // damit man den nächsten Befund noch findet.
+                    if (issue.target) setSelection(issue.target, 'liste');
                     // Die Marke im Plan nützt nichts, wenn die Diagnoseanzeige
                     // gerade aus ist — wer den Befund anspringt, will ihn sehen.
                     if (issue.position && !showDiagnostics) toggleDiagnostics();
@@ -128,7 +131,7 @@ export default function ValidationPanel() {
                     )}
                     {/* Der Code ist für die Fehlersuche im Programm da, nicht
                         für den Anwender — im einfachen Modus bleibt er weg. */}
-                    {uiMode === 'profi' && (
+                    {mindestens(uiMode, 'profi') && (
                       <span className="mt-0.5 block font-mono text-[9px] text-slate-700">{issue.code}</span>
                     )}
                     {clickable && (

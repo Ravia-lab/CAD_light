@@ -26,7 +26,11 @@
  */
 
 import type { BimDocument, Wall } from '../types/bim';
+import { durchbruchWirt } from '../types/bim';
+import { deckendurchbruchUmriss } from './durchbruchSymbols';
 import { getWallGeometry, openingSpan, indexOpeningsByWall, openingsOf } from './wallGeometry';
+import { ERZEUGER, FASSUNG } from './fassung';
+import { pointInPolygon } from './geometry';
 
 /** Schreibt STEP-Zeilen und vergibt fortlaufende Entity-IDs. */
 class StepWriter {
@@ -152,7 +156,7 @@ export function buildIfc(doc: BimDocument, options: IfcExportOptions = {}): stri
   const org = w.add("IFCORGANIZATION($,'RaVia',$,$,$)");
   const personOrg = w.add(`IFCPERSONANDORGANIZATION(${person},${org},$)`);
   const application = w.add(
-    `IFCAPPLICATION(${org},'1.16.0','RaVia CAD Light','RAVIA-CAD-LIGHT')`,
+    `IFCAPPLICATION(${org},'${FASSUNG}','RaVia CAD Light','RAVIA-CAD-LIGHT')`,
   );
   const seconds = Math.floor(new Date(stamp).getTime() / 1000) || 0;
   const ownerHistory = w.add(
@@ -181,7 +185,7 @@ export function buildIfc(doc: BimDocument, options: IfcExportOptions = {}): stri
   const levels = Object.values(doc.levels).sort((a, b) => a.order - b.order);
   const storeyRefs: string[] = [];
 
-  for (const level of levels) {
+  for (const [levelIndex, level] of levels.entries()) {
     const lp = w.add(`IFCCARTESIANPOINT((0.,0.,${n(level.elevation)}))`);
     const lax = w.add(`IFCAXIS2PLACEMENT3D(${lp},${dirZ},${dirX})`);
     const lplace = w.add(`IFCLOCALPLACEMENT(${worldPlacement},${lax})`);
@@ -193,6 +197,12 @@ export function buildIfc(doc: BimDocument, options: IfcExportOptions = {}): stri
     const products: string[] = [];
 
     // --- Wände ---------------------------------------------------------------
+    //
+    // Die Wandkennungen werden gemerkt: die Durchbrüche weiter unten müssen
+    // sie wiederfinden, um sich aus der Wand schneiden zu lassen, und ein
+    // zweiter Durchlauf über alle Wände nur dafür wäre Verschwendung.
+    const wallEntities = new Map<string, string>();
+    const roomSlabs = new Map<string, string>();
     for (const wall of Object.values(doc.walls)) {
       if (wall.levelId !== level.id) continue;
       const g = getWallGeometry(wall, doc.nodes);
@@ -207,6 +217,7 @@ export function buildIfc(doc: BimDocument, options: IfcExportOptions = {}): stri
         `IFCWALLSTANDARDCASE(${own(`wall-${wall.id}`)},${s(wallName(wall))},$,$,${lplace},${product},$,.STANDARD.)`,
       );
       products.push(wallEntity);
+      wallEntities.set(wall.id, wallEntity);
 
       // --- Öffnungen ---------------------------------------------------------
       for (const op of openingsOf(openingIndex, wall.id)) {
@@ -283,11 +294,93 @@ export function buildIfc(doc: BimDocument, options: IfcExportOptions = {}): stri
         `IFCSHAPEREPRESENTATION(${bodyContext},'Body','SweptSolid',(${slabSolid}))`,
       );
       const slabProduct = w.add(`IFCPRODUCTDEFINITIONSHAPE($,$,(${slabShape}))`);
-      products.push(
-        w.add(
-          `IFCSLAB(${own(`slab-${room.id}`)},'Bodenplatte',$,$,${lplace},${slabProduct},$,.FLOOR.)`,
-        ),
+      const slabEntity = w.add(
+        `IFCSLAB(${own(`slab-${room.id}`)},'Bodenplatte',$,$,${lplace},${slabProduct},$,.FLOOR.)`,
       );
+      products.push(slabEntity);
+      roomSlabs.set(room.id, slabEntity);
+    }
+
+    // --- Deckendurchbrüche ----------------------------------------------------
+    //
+    // Ein Deckendurchbruch gehört dem Geschoss *unter* der Decke — geschnitten
+    // wird er aber aus der Platte, auf der das Geschoss *darüber* steht. Er
+    // wird deshalb hier bearbeitet, im Durchlauf des oberen Geschosses: nur
+    // dort existiert die Platte, aus der das Loch entsteht. Wer ihn eine
+    // Schleife früher schnitte, bekäme ein Loch im falschen Bauteil.
+    const darunter = levelIndex > 0 ? levels[levelIndex - 1] : undefined;
+    if (darunter) {
+      for (const db of Object.values(doc.durchbrueche ?? {})) {
+        if (db.levelId !== darunter.id) continue;
+        if (durchbruchWirt(db.kind) !== 'decke' || !db.position) continue;
+        const raum = Object.values(doc.rooms).find(
+          (r) =>
+            r.levelId === level.id &&
+            r.innerPolygon.length >= 3 &&
+            pointInPolygon(db.position as { x: number; y: number }, r.innerPolygon),
+        );
+        const platte = raum ? roomSlabs.get(raum.id) : undefined;
+        // Ohne Platte kein Loch. Ein Durchbruch über freiem Feld ist kein
+        // Fehler des Exports, sondern eine Aussage des Modells — die Prüfung
+        // sagt es, nicht die IFC-Datei.
+        if (!platte) continue;
+        const umriss = deckendurchbruchUmriss(db);
+        if (umriss.length < 3) continue;
+        const solid = extrudedPolygon(w, dirZ, dirX, umriss, -0.25, 0.5);
+        const shape = w.add(`IFCSHAPEREPRESENTATION(${bodyContext},'Body','SweptSolid',(${solid}))`);
+        const product = w.add(`IFCPRODUCTDEFINITIONSHAPE($,$,(${shape}))`);
+        const entity = w.add(
+          `IFCOPENINGELEMENT(${own(`durchbruch-${db.id}`)},${s(db.name)},'Deckendurchbruch',$,${lplace},${product},$,.OPENING.)`,
+        );
+        w.add(`IFCRELVOIDSELEMENT(${own(`void-db-${db.id}`)},$,$,${platte},${entity})`);
+      }
+    }
+
+    // --- Durchbrüche in Wänden ------------------------------------------------
+    //
+    // Genau derselbe Mechanismus wie bei Fenster und Tür: ein
+    // IFCOPENINGELEMENT, das per IFCRELVOIDSELEMENT aus der Wand geschnitten
+    // wird. Was fehlt, ist das IFCRELFILLSELEMENT — ein Durchbruch bekommt
+    // kein Bauteil, er bleibt ein Loch. Wer ein Schott als Bauteil erwartet,
+    // findet es im Massenauszug; in der Geometrie steht es nicht, weil seine
+    // Bauart erst der Ausführende festlegt.
+    //
+    // `.RECESS.` statt `.OPENING.` beim Schlitz: ein Wandschlitz geht nicht
+    // durch, er ist eine Vertiefung. Der Unterschied steht in IFC4 und wird
+    // von jedem Empfänger ausgewertet, der Massen rechnet.
+    for (const db of Object.values(doc.durchbrueche ?? {})) {
+      if (db.levelId !== level.id) continue;
+      if (durchbruchWirt(db.kind) !== 'wand' || !db.wallId) continue;
+      const wall = doc.walls[db.wallId];
+      const wallEntity = wallEntities.get(db.wallId);
+      if (!wall || !wallEntity) continue;
+      const g = getWallGeometry(wall, doc.nodes);
+      if (!g) continue;
+      const breite = db.form === 'rund' ? (db.diameter ?? 0) : (db.width ?? 0);
+      const hoch = db.form === 'rund' ? (db.diameter ?? 0) : (db.height ?? 0);
+      const unten = db.form === 'rund' ? (db.sillHeight ?? 0) - hoch / 2 : (db.sillHeight ?? 0);
+      const u = Math.min(Math.max(db.distance ?? 0, 0), g.length);
+      const centre = { x: g.a.x + g.dir.x * u, y: g.a.y + g.dir.y * u };
+      const tiefe = db.kind === 'schlitz' ? wall.thickness / 2 : wall.thickness + 0.02;
+      const solid = extrudedBox(
+        w,
+        bodyContext,
+        dirZ,
+        dirX,
+        centre,
+        Math.atan2(g.dir.y, g.dir.x),
+        breite,
+        tiefe,
+        unten,
+        hoch,
+      );
+      const shape = w.add(`IFCSHAPEREPRESENTATION(${bodyContext},'Body','SweptSolid',(${solid}))`);
+      const product = w.add(`IFCPRODUCTDEFINITIONSHAPE($,$,(${shape}))`);
+      const art = db.kind === 'schlitz' ? '.RECESS.' : '.OPENING.';
+      const entity = w.add(
+        `IFCOPENINGELEMENT(${own(`durchbruch-${db.id}`)},${s(db.name)},'Durchbruch',$,${lplace},${product},$,${art})`,
+      );
+      w.add(`IFCRELVOIDSELEMENT(${own(`void-db-${db.id}`)},$,$,${wallEntity},${entity})`);
     }
 
     // --- Treppen und Schächte ------------------------------------------------
@@ -385,7 +478,7 @@ export function buildIfc(doc: BimDocument, options: IfcExportOptions = {}): stri
     `ISO-10303-21;\nHEADER;\n` +
     `FILE_DESCRIPTION(('ViewDefinition [CoordinationView_V2.0]'),'2;1');\n` +
     `FILE_NAME('${doc.meta.name.replace(/'/g, '')}.ifc','${stamp}',('RaVia CAD Light'),('RaVia'),` +
-    `'RaVia CAD Light 1.16.0','RaVia CAD Light','');\n` +
+    `'${ERZEUGER}','RaVia CAD Light','');\n` +
     `FILE_SCHEMA(('IFC4'));\nENDSEC;\nDATA;\n`;
 
   return `${header}${w.body()}\nENDSEC;\nEND-ISO-10303-21;\n`;

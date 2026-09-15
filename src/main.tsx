@@ -54,6 +54,24 @@ import type { RaviaCadApi } from './lib/embedApi';
 declare global {
   interface Window {
     __ravia: typeof useBimStore;
+    /**
+     * Wo der Betrachter im Begehmodus steht — dieselbe Sorte Haken wie
+     * `__ravia` und aus demselben Grund: Der Standort ändert sich sechzigmal
+     * in der Sekunde und hat deshalb im Zustand-Store nichts zu suchen, muss
+     * aber prüfbar sein. Ohne ihn ließe sich „hält die Wand?" im echten
+     * Browser nur am Bild beurteilen, und ein Bild beweist nichts.
+     */
+    __raviaGeher?: { x: number; y: number; gier: number; nick: number };
+    /**
+     * Was in der 3D-Ansicht unter einem Bildschirmpunkt liegt — derselbe
+     * Strahl, den auch der Klick benutzt. Ebenfalls nur für Prüfläufe: Ohne
+     * ihn ließe sich „trifft der Klick das Objekt, das ich sehe?" nur am Bild
+     * beurteilen, und ein Bild beweist nichts.
+     */
+    __raviaTreffer?: (
+      x: number,
+      y: number,
+    ) => { fixtureId?: string; punkt?: { x: number; y: number }; hoehe?: number } | null;
     RaViaCAD?: RaviaCadApi;
   }
 }

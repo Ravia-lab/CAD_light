@@ -10,9 +10,49 @@
   html,
   body,
   #root {
+    /*
+     * `dvh` statt `vh` — und `100%` als Rückfall für alles Ältere.
+     *
+     * Auf dem iPad wächst und schrumpft die Adressleiste von Safari beim
+     * Rollen. `100vh` meint dort die Höhe *ohne* Leiste; die untere
+     * Werkzeugzeile liegt damit unter dem Bildschirmrand und ist nicht mehr
+     * erreichbar. `dvh` ist die Höhe, die gerade wirklich sichtbar ist.
+     */
     height: 100%;
+    height: 100dvh;
     margin: 0;
     overflow: hidden;
+    /*
+     * Kein Gummiband und kein Doppeltipp-Zoom.
+     *
+     * Beides ist auf einer Seite richtig und in einem Zeichenprogramm
+     * falsch: Wer eine Wand nachzieht, schiebt sonst die ganze Anwendung auf
+     * und ab, und wer zweimal auf einen Knopf tippt, zoomt den Browser
+     * statt den Plan.
+     */
+    overscroll-behavior: none;
+    touch-action: manipulation;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  /*
+   * Kein Lupen-Popup und keine Textauswahl beim Halten.
+   *
+   * Safari blendet beim längeren Auflegen des Fingers ein Kontextmenü und
+   * eine Lupe ein. In einem Zeichenprogramm heißt längeres Auflegen aber
+   * „genau zielen", und das Popup verdeckt genau die Stelle, die man trifft.
+   * Eingabefelder sind ausgenommen — dort will man auswählen können.
+   */
+  body {
+    -webkit-touch-callout: none;
+  }
+  input,
+  textarea,
+  select,
+  [contenteditable] {
+    -webkit-touch-callout: default;
+    user-select: text;
+    -webkit-user-select: text;
   }
 
   body {
@@ -96,4 +136,93 @@ canvas {
   display: block;
   touch-action: none;
   user-select: none;
+  -webkit-user-select: none;
+}
+
+/* ===========================================================================
+ * Berührung — nicht Bildschirmbreite
+ * ---------------------------------------------------------------------------
+ * Maßgeblich ist, **womit** gezeigt wird, nicht wie breit der Bildschirm ist.
+ * Ein 13-Zoll-iPad ist breiter als ein kleiner Laptop und braucht trotzdem
+ * große Schaltflächen; ein schmales Browserfenster auf dem Rechner nicht.
+ * `pointer: coarse` fragt genau das ab.
+ *
+ * 44 Bildpunkte sind die kleinste Kantenlänge, die Apple für eine
+ * Schaltfläche nennt (Google nennt 48). Der strengere Wert ist der richtige.
+ * ======================================================================== */
+@media (pointer: coarse) {
+  .tool-btn {
+    height: 44px;
+    width: 44px;
+    /*
+     * `flex: none` ist hier kein Feinschliff, sondern der eigentliche Punkt.
+     * Eine Höhe von 44 px hilft nichts, solange der Knopf in einer
+     * Flex-Leiste sitzt: `flex-shrink` steht in CSS auf 1, und sobald mehr
+     * Knöpfe da sind als Platz, drückt der Browser sie zusammen. Gemessen
+     * auf dem iPad quer: die Werkzeugleiste war 44 × **20** px, die obere
+     * Leiste **18** × 44 px — beide weit unter dem Maß, unter dem der
+     * Finger danebengreift. Mit `flex: none` bleiben sie groß, und die
+     * Leiste scrollt stattdessen; dafür ist sie scrollbar gemacht.
+     */
+    flex: none;
+  }
+  .chip {
+    min-height: 36px;
+    padding-inline: 12px;
+    display: inline-flex;
+    align-items: center;
+    font-size: 12px;
+    /* Aus demselben Grund wie oben: lieber scrollen als schrumpfen. */
+    flex: none;
+  }
+  .field {
+    /*
+     * 16 px ist keine Geschmacksfrage: Safari zoomt auf dem iPad in jedes
+     * Eingabefeld hinein, dessen Schrift kleiner ist. Danach steht der Plan
+     * schief und muss von Hand zurückgezoomt werden.
+     */
+    font-size: 16px;
+    padding-block: 8px;
+    /*
+     * 44 px ist dasselbe Maß wie bei `.tool-btn` und aus demselben Grund: Ein
+     * Eingabefeld ist ein Tippziel. Ohne diese Zeile ergeben 16 px Schrift
+     * plus zweimal 8 px Innenabstand rund 37 px — gemessen; darunter greift
+     * der Finger auf dem iPad regelmäßig ins Nachbarfeld, und im Inspektor
+     * stehen die Felder dicht untereinander.
+     */
+    min-height: 44px;
+  }
+  button,
+  [role='button'] {
+    touch-action: manipulation;
+  }
+  /*
+   * Was nur beim Überfahren erscheint, gibt es auf dem Tablet nicht — es
+   * gibt kein Überfahren. Die Zustände bleiben stehen, statt zu blinken.
+   */
+  .tool-btn:hover {
+    background: transparent;
+  }
+  .tool-btn:active {
+    background: rgba(255, 255, 255, 0.1);
+  }
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+}
+
+/* Sichtbarer Fokus — auf dem Tablet die einzige Rückmeldung vor dem Tippen */
+:focus-visible {
+  outline: 2px solid rgba(56, 189, 248, 0.7);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
 }

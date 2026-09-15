@@ -49,7 +49,13 @@ WURZEL="${RAVIA_WURZEL:-/opt/ravia-cad-light}"
 PAKET="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 BEHALTEN=5                       # so viele alte Fassungen bleiben stehen
 OHNE_NEULADEN=0
-[[ "${1:-}" == "--ohne-neuladen" ]] && OHNE_NEULADEN=1
+BASISWECHSEL=0
+for arg in "$@"; do
+  case "$arg" in
+    --ohne-neuladen) OHNE_NEULADEN=1 ;;
+    --basiswechsel)  BASISWECHSEL=1 ;;
+  esac
+done
 
 rot()  { printf '\033[31m%s\033[0m\n' "$*"; }
 gruen(){ printf '\033[32m%s\033[0m\n' "$*"; }
@@ -129,6 +135,44 @@ while read -r datei; do
 done < <(grep -oE '(src|href)="/[^"]*"' "$ZIEL/index.html" | sed 's/.*="//;s/"$//' | grep -v '^/$' || true)
 if [[ -n "$BASIS_IM_HTML" && "$BASIS_IM_HTML" != "/" ]]; then
   grau "  · Build für Basispfad $BASIS_IM_HTML"
+fi
+
+# Der Basispfad muss zum Ziel passen — und das lässt sich hier prüfen.
+#
+# **Warum das eine eigene Prüfung wert ist.** Ein Build ohne `RAVIA_BASE`
+# schreibt `/assets/…` in die index.html. Unter einem Unterpfad ausgeliefert,
+# sucht der Browser die Dateien dann in der Wurzel der Domain, findet die
+# SPA-Rückfallseite und bekommt HTML, wo er JavaScript erwartet. Das Ergebnis
+# ist eine **weiße Seite ohne Fehlermeldung**: der Server antwortet ja, nur
+# mit der falschen Datei. Alle Dateien sind vollständig da, die Prüfsummen
+# stimmen, die Vollständigkeitsprüfung oben ist zufrieden — und trotzdem
+# läuft nichts.
+#
+# Genau so ist es passiert: aufgespielt, umgeschaltet, und erst die Abnahme
+# von außen hat es gefunden. Die Wurzel steht im Verzeichnisnamen, der
+# Basispfad in der index.html; beides hier zu vergleichen kostet nichts und
+# fängt den Fehler **vor** dem Umschalten ab.
+#
+# Verglichen wird mit der **laufenden** Fassung. Das braucht keine Einrichtung
+# und keine Umgebungsvariable, die jemand setzen muss: was heute ausgeliefert
+# wird, ist die beste Auskunft darüber, unter welchem Pfad ausgeliefert wird.
+# Beim allerersten Aufspielen gibt es nichts zu vergleichen — dann greift die
+# Prüfung nicht, und das ist richtig so.
+LAEUFT="$(readlink -f "$WURZEL/aktuell" 2>/dev/null || true)"
+if [[ -n "$LAEUFT" && -f "$LAEUFT/index.html" ]]; then
+  BASIS_BISHER="$(grep -oE '(src|href)="[^"]*assets/' "$LAEUFT/index.html" | head -1 | sed 's/.*="//;s/assets\/$//')"
+  if [[ "$BASIS_IM_HTML" != "$BASIS_BISHER" ]]; then
+    rot "  ✗ Der Basispfad wechselt: bisher „${BASIS_BISHER:-/}", jetzt „${BASIS_IM_HTML:-/}"."
+    rot "    Neu bauen mit:  RAVIA_BASE=${BASIS_BISHER:-/} npm run build"
+    rot "    Ein Build für die Wurzel liefert unter einem Unterpfad eine weiße Seite"
+    rot "    ohne Fehlermeldung — der Browser bekommt HTML, wo er Skript erwartet,"
+    rot "    weil er die Dateien in der Wurzel der Domain sucht."
+    rot "    Ist der Wechsel gewollt:  bin/aufspielen.sh --basiswechsel"
+    [[ "$BASISWECHSEL" -eq 1 ]] || fehler=1
+    [[ "$BASISWECHSEL" -eq 1 ]] && grau "  · Basiswechsel ausdrücklich erlaubt"
+  else
+    grau "  ✓ Basispfad wie bisher"
+  fi
 fi
 if [[ $fehler -eq 1 ]]; then
   rot "  ✗ Abbruch. Die laufende Fassung bleibt unverändert."

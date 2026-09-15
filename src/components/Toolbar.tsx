@@ -12,6 +12,8 @@ import type {
   PipeService,
   ToolId,
   SolidKind,
+  DurchbruchKind,
+  DurchbruchPreset,
   VerticalKind,
   ViewMode,
   WallType,
@@ -22,9 +24,12 @@ import {
   PIPE_SERVICE_COLORS,
   PIPE_SERVICE_LABELS,
   SOLID_LABELS,
+  DURCHBRUCH_PRESETS,
   VERTICAL_LABELS,
   WALL_THICKNESS_PRESETS,
 } from '../types/bim';
+import { verlegeartAus } from '../lib/plantDefaults';
+import { zeigtWerkzeug } from '../lib/uimodus';
 import { useBimStore } from '../store/useBimStore';
 import { useRef, useState } from 'react';
 import { buildRaviaExport, downloadJson, exportFilename } from '../lib/raviaExport';
@@ -48,6 +53,10 @@ const Icon = ({ children }: { children: ReactNode }) => (
 const icons: Record<string, ReactNode> = {
   select: <><path d="M4 3l6.2 13 1.9-5.4 5.4-1.9L4 3z" /></>,
   wall: <><path d="M2 13h16M2 13V7h16v6" /><path d="M8 7v6M13 7v6" /></>,
+  /* Ein Stift über einer krakeligen Linie — Skizzieren. */
+  sketch: <><path d="M3 16c2-4 4 2 6-2s3 3 5-1" /><path d="M13 8l4-4 2 2-4 4-3 1 1-3z" /></>,
+  /* Derselbe Stift ohne Linie, dafür mit Notizblatt — Anmerkung. */
+  ink: <><path d="M4 4h8l4 4v8H4z" /><path d="M12 4v4h4" /><path d="M7 12c1.5-2 2.5 1 4-1" /></>,
   door: <><path d="M3 17h14" /><path d="M6 17V4l8 2v11" /><circle cx="8.4" cy="11" r=".7" fill="currentColor" /></>,
   window: <><rect x="3" y="5" width="14" height="10" rx="1" /><path d="M10 5v10M3 10h14" /></>,
   dimension: <><path d="M3 10h14" /><path d="M3 6v8M17 6v8" /></>,
@@ -71,6 +80,7 @@ const icons: Record<string, ReactNode> = {
   stair: <><path d="M3 17V13h4V9h4V5h6" /><path d="M3 17h14" /></>,
   shaft: <><rect x="6" y="3" width="8" height="14" rx="1" /><path d="M6 7l8 6M6 12l8 6M6 3l8 6" /></>,
   solid: <><path d="M4 4.5h12" strokeWidth="2" /><rect x="6" y="4.5" width="8" height="12.5" /><path d="M6 10l8-5.5M6 14l8-5.5M6 17.5l8-5.5" /></>,
+  durchbruch: <><path d="M3 5h14M3 15h14" /><circle cx="10" cy="10" r="3.6" /><path d="M7.5 7.5l5 5M12.5 7.5l-5 5" /></>,
   pipe: <><path d="M3 14h5a3 3 0 003-3V7a3 3 0 013-3h3" /><circle cx="3" cy="14" r="1.6" fill="currentColor" /><circle cx="17" cy="4" r="1.6" fill="currentColor" /></>,
   annotation: <><path d="M3 14h14" /><path d="M3 11.5v5M17 11.5v5" /><path d="M4 6h9M4 3h6" /></>,
   ifc: <><path d="M10 2.5l7 4v7l-7 4-7-4v-7l7-4z" /><path d="M3 6.5l7 4 7-4M10 10.5v7" /></>,
@@ -110,6 +120,10 @@ const TOOLS: ToolDef[] = [
     hint: 'Anklicken, verschieben, Eigenschaften ändern. Mit gezogenem Rahmen mehrere auf einmal.' },
   { id: 'wall', icon: 'wall', label: 'Wand zeichnen', hotkey: 'W', simple: true,
     hint: 'Klick für Klick einen Zug setzen, Esc beendet ihn. Geschlossene Umrisse werden von selbst als Raum erkannt.' },
+  { id: 'sketch', icon: 'sketch', label: 'Freihand skizzieren', hotkey: 'Q', simple: true,
+    hint: 'Mit dem Stift den Grundriss hinkrakeln — das Programm liest daraus gerade Wände und schlägt sie vor. Erst „Übernehmen" legt sie an.' },
+  { id: 'ink', icon: 'ink', label: 'Auf den Plan schreiben', hotkey: 'K', simple: false,
+    hint: 'Notizen, Pfeile, Maße von Hand. Bleibt als eigene Ebene über der Zeichnung und wird nie zu Geometrie.' },
   { id: 'room', icon: 'room', label: 'Raum aufziehen', hotkey: 'Z', simple: true,
     hint: 'Fertige Grundform wählen und im Plan aufziehen — die Wände entstehen von selbst und lassen sich danach einzeln ändern.' },
   { id: 'door', icon: 'door', label: 'Tür einsetzen', hotkey: 'D', simple: true,
@@ -126,10 +140,16 @@ const TOOLS: ToolDef[] = [
     hint: 'Wie eine Treppe eine Fläche, die kein Raum ist — Aufzug, Installationsschacht, Luftraum.' },
   { id: 'solid', icon: 'solid', label: 'Massives Bauteil setzen', hotkey: 'M', simple: true,
     hint: 'Kamin, Pfeiler, Wandversatz — Mauerwerk ohne Raumfunktion. Nimmt Fläche und Luftvolumen weg und wird von der Fußbodenheizung ausgespart.' },
+  { id: 'durchbruch', icon: 'durchbruch', label: 'Durchbruch setzen', hotkey: 'U', simple: true,
+    hint: 'Kernbohrung, Wanddurchbruch, Schlitz oder Deckenloch. Auf eine Wand tippen — der Durchbruch sitzt dann in der Wand und wandert mit ihr. Er mindert keine Wandfläche, aber er steht auf dem Plan und im Massenauszug.' },
   { id: 'pipe', icon: 'pipe', label: 'Leitung verlegen', hotkey: 'L',
     hint: 'Punkte im Plan setzen; ein Klick auf ein Symbol schließt die Leitung dort an.' },
-  { id: 'annotation', icon: 'annotation', label: 'Maßkette & Beschriftung', hotkey: 'B',
-    hint: 'Freie Maße und Texte für den Ausdruck. Sie gehen nicht in die Berechnung ein.' },
+  // Auch im einfachen Modus: „Text schreiben" ist keine Fachplanerfunktion,
+  // sondern das Erste, was jemand auf einem Plan tun will. Ohne den Eintrag
+  // war Beschriften auf dem Tablet gar nicht erreichbar — der Hotkey B hilft
+  // nur dem, der eine Tastatur hat.
+  { id: 'annotation', icon: 'annotation', label: 'Text & Maßkette', hotkey: 'B', simple: true,
+    hint: 'Text auf den Plan schreiben, Maße von Hand ansetzen, Hinweisfahnen. Das Eingabefeld erscheint dort, wo Sie tippen. Geht nicht in die Berechnung ein.' },
   { id: 'calibrate', icon: 'calibrate', label: 'Maßstab kalibrieren', hotkey: 'C',
     hint: 'Nur bei hinterlegtem Grundriss-Bild: eine bekannte Strecke abfahren und ihre Länge eintragen.' },
   { id: 'heatpump', icon: 'heatpump', label: 'Wärmepumpe aufstellen', hotkey: 'P', simple: true,
@@ -164,9 +184,22 @@ export default function ToolRail() {
   const clearAll = useBimStore((s) => s.clearAll);
   const loadDemo = useBimStore((s) => s.loadDemo);
 
+  /*
+      * Die Leiste darf rollen.
+      *
+      * Im Fachplanermodus stehen hier über zwanzig Werkzeuge. Auf einem
+      * Rechner mit 1080 Bildpunkten Höhe passen sie; auf einem Tablet quer
+      * (820 px) und erst recht mit 44-Pixel-Schaltflächen passen sie nicht,
+      * und die letzten — darunter Rückgängig — wären nicht mehr erreichbar.
+      * `overscroll-contain` hält das Rollen in der Leiste, statt es an die
+      * Seite weiterzugeben.
+     */
   return (
-    <div className="panel m-2 flex w-[52px] flex-col items-center gap-1 rounded-xl px-1.5 py-2">
-      {TOOLS.filter((t) => uiMode === 'profi' || t.simple).map((t) => (
+    <div
+      className="panel m-2 flex w-[52px] shrink-0 flex-col items-center gap-1 overflow-y-auto overscroll-contain rounded-xl px-1.5 py-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+      style={{ touchAction: 'pan-y' }}
+    >
+      {TOOLS.filter((t) => zeigtWerkzeug(uiMode, t.id, t.simple === true)).map((t) => (
         <RailButton
           key={t.id}
           active={tool === t.id}
@@ -317,13 +350,23 @@ export function TopBar({ onProjekte }: { onProjekte: () => void }) {
   /** Die Projektmappe — sie setzt die vier Druckwege zu einem Dokument zusammen. */
   const [mappeOpen, setMappeOpen] = useState(false);
   /**
-   * Zuletzt gewählte Verlegeart.
+   * Die Verlegeart.
    *
    * Sie steht bewusst nicht im Dokument: sie beschreibt, wie der Anwender
-   * arbeitet, nicht das Gebäude. Wer ein Bestandsgebäude aufmisst, drückt
-   * einmal „Sanierung" und danach nur noch den Knopf.
+   * arbeitet, nicht das Gebäude. Ihre **Vorbelegung** kommt aber sehr wohl
+   * aus dem Gebäude — wer als Vorhaben „Sanierung" eingetragen hat, will
+   * nicht bei jedem Auslegen daran denken, den Schalter umzulegen. Bis
+   * 1.25.0 stand hier fest „Neubau"; eine Bestandssanierung wurde damit
+   * stillschweigend mit Leitungen auf der Rohdecke ausgelegt, quer durch
+   * Räume, in denen längst Estrich liegt.
+   *
+   * Ein Klick auf einen der beiden Knöpfe gewinnt ab dann. `null` heißt:
+   * noch nichts gewählt, es gilt das Vorhaben.
    */
-  const [verlegeart, setVerlegeart] = useState<PipeRoutingMode>('neubau');
+  const vorhaben = useBimStore((s) => s.doc.meta.vorhaben);
+  const [verlegeartWahl, setVerlegeartWahl] = useState<PipeRoutingMode | null>(null);
+  const verlegeart: PipeRoutingMode = verlegeartWahl ?? verlegeartAus(vorhaben);
+  const setVerlegeart = setVerlegeartWahl;
   const legeRohrnetzAus = useBimStore((s) => s.legeRohrnetzAus);
 
   const handleExport = () => {
@@ -400,180 +443,275 @@ export function TopBar({ onProjekte }: { onProjekte: () => void }) {
     }
   };
 
+  /*
+   * Die Kopfzeile bricht um, statt nach rechts zu wachsen.
+   * -------------------------------------------------------------------------
+   * Bisher lag alles in **einer** Reihe, die waagerecht rollte. Auf einem iPad
+   * hochkant (820 px) hieß das: die Kontextleiste des gewählten Werkzeugs —
+   * vierzehn Regelmaße beim Durchbruch — schob Ansichtswahl und Ausgabeknöpfe
+   * aus dem Bild, und wer sie brauchte, musste erst wischen. Gefunden hat das
+   * niemand, der es nicht wusste.
+   *
+   * Jetzt sind es drei Blöcke, die **umbrechen** statt sich zu schieben:
+   *
+   *   1. Marke, Projektname, Geschoss   — bleibt immer links oben,
+   *   2. die Kontextleiste zum Werkzeug — wächst in die Breite und, wenn die
+   *      nicht reicht, in Reihen untereinander,
+   *   3. Ansicht und Ausgabe            — bleibt zusammen, notfalls in einer
+   *                                       eigenen Zeile.
+   *
+   * Kein Block schrumpft: die Knöpfe behalten ihre 44 px (siehe `index.css`,
+   * `pointer: coarse`), und was nicht mehr in die Breite passt, rückt eine
+   * Reihe tiefer. Jede Reihe ist deshalb gleich hoch.
+   *
+   * Ein Block wird dabei nur dann **in sich** umgebrochen, wenn er allein
+   * schon breiter ist als das Gerät — auf dem iPad hochkant trifft das Block 3
+   * mit seinen zehn Ausgabeknöpfen. Sonst wandert der ganze Block als Einheit
+   * nach unten, und Zusammengehöriges bleibt beieinander.
+   *
+   * `flex-auto` an Block 2 ist die tragende Einstellung. Mit `flex-1`
+   * (Grundbreite 0) fiele der Block nie in eine neue Zeile, sondern würde in
+   * den Rest der ersten gequetscht — eine schmale Spalte mit fünf Reihen.
+   * Mit `flex-auto` ist seine Grundbreite der Inhalt: passt er nicht mehr
+   * daneben, rückt er ganz nach unten und füllt dort die volle Breite. Er
+   * ersetzt zugleich den früheren Platzhalter (`flex-1`), der die rechte
+   * Gruppe an den Rand geschoben hat.
+   *
+   * Die Höhe ist deshalb nicht mehr fest (`h-12`), sondern eine Untergrenze
+   * (`min-h-[3rem]`). Das ist ungefährlich: die Kopfzeile sitzt in einer
+   * senkrechten Flex-Spalte, die Zeichenfläche darunter bekommt den Rest
+   * (`flex-1`) und meldet ihre neue Größe über den ResizeObserver an das
+   * Canvas. Überlappen kann da nichts; die Zeichenfläche wird nur kleiner.
+   *
+   * Das waagerechte Rollen bleibt als letzter Rückfall stehen. Gebraucht wird
+   * es nach dem Umbau nicht mehr (nachgemessen: 640 bis 1920 px, alle sieben
+   * Werkzeuge, nichts liegt außerhalb) — aber ein Geschossumschalter mit acht
+   * Geschossen ist irgendwann breiter als jedes Gerät, und dann ist Wischen
+   * besser als Abschneiden.
+   */
   return (
-    <header className="flex h-12 shrink-0 items-center gap-3 px-3">
-      {/* Marke */}
-      <div className="flex items-center gap-2.5 pl-1">
-        <div className="relative flex h-6 w-6 items-center justify-center">
-          <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="#38BDF8" strokeWidth="1.5">
-            <path d="M4 20V9l8-5 8 5v11" strokeLinejoin="round" />
-            <path d="M4 20h16" strokeLinecap="round" />
-            <path d="M10 20v-6h4v6" />
-          </svg>
+    <header
+      className="flex min-h-[3rem] shrink-0 flex-wrap items-center gap-x-3 gap-y-1 overflow-x-auto overscroll-x-contain px-3 py-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+      style={{ touchAction: 'pan-x' }}
+    >
+      {/* Block 1 — Marke, Projektname, Geschoss. */}
+      <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1">
+        {/* Marke */}
+        <div className="flex items-center gap-2.5 pl-1">
+          <div className="relative flex h-6 w-6 items-center justify-center">
+            <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="#38BDF8" strokeWidth="1.5">
+              <path d="M4 20V9l8-5 8 5v11" strokeLinejoin="round" />
+              <path d="M4 20h16" strokeLinecap="round" />
+              <path d="M10 20v-6h4v6" />
+            </svg>
+          </div>
+          {/*
+            Unter dem Schriftzug steht die Fassungsnummer.
+
+            Sie ist keine Zierde, sondern das einzige, woran sich eine Meldung
+            aus dem Feld festmachen lässt: „geht nicht" ist ohne Fassung nicht
+            nachstellbar. Deshalb steht sie dort, wo der Anwender ohnehin
+            hinsieht, und nicht in einem Dialog unter „Über".
+
+            Die Nummer kommt aus `package.json` (siehe `__RAVIA_FASSUNG__` in
+            `vite.config.ts`) und steht bewusst **nicht** als Zeichenkette hier —
+            eine von Hand gepflegte zweite Stelle wäre spätestens bei der
+            übernächsten Auslieferung falsch.
+
+            Klein, in Grau und eine Stufe unter dem Zusatz „Light": erkennbar für
+            den, der sie sucht, und übersehbar für alle anderen.
+            `whitespace-nowrap` hält sie auch auf dem schmalsten Gerät in einer
+            Zeile — „1.23." über „0" wäre schlimmer als gar keine Angabe.
+          */}
+          <div className="leading-tight">
+            <div className="text-[13px] font-semibold tracking-tight text-slate-100">RaVia CAD</div>
+            <div className="text-[9px] font-medium uppercase tracking-[0.18em] text-accent/70">Light</div>
+            <div
+              className="whitespace-nowrap text-[9px] font-medium tabular-nums text-slate-500"
+              title={`Fassung ${__RAVIA_FASSUNG__} — diese Nummer bitte bei jeder Rückmeldung mitschicken`}
+            >
+              {__RAVIA_FASSUNG__}
+            </div>
+          </div>
         </div>
-        <div className="leading-tight">
-          <div className="text-[13px] font-semibold tracking-tight text-slate-100">RaVia CAD</div>
-          <div className="text-[9px] font-medium uppercase tracking-[0.18em] text-accent/70">Light</div>
-        </div>
-      </div>
 
-      <div className="divider-v" />
+        <div className="divider-v" />
 
-      {/* Projektname */}
-      <input
-        className="w-48 rounded-md bg-transparent px-2 py-1 text-xs text-slate-200 outline-none transition-colors hover:bg-white/[0.04] focus:bg-white/[0.06]"
-        value={doc.meta.name}
-        onChange={(e) => updateMeta({ name: e.target.value })}
-        spellCheck={false}
-      />
-
-      {/* Der Name im Feld ist zugleich der Projektname — deshalb steht der
-          Zugang zur Projektliste unmittelbar daneben. */}
-      <button
-        onClick={onProjekte}
-        className="tool-btn h-8 w-8"
-        title="Projekte — mehrere Grundrisse nebeneinander, umschalten ohne Dateidialog. Liegt nur in diesem Browser; zum Mitnehmen die Projektdatei sichern."
-      >
-        <Icon>{icons.projects}</Icon>
-      </button>
-
-      <div className="divider-v" />
-
-      <LevelBar />
-
-      <div className="divider-v" />
-
-      {/* Kontextleiste: bei aktivem Öffnungswerkzeug der Typenkatalog,
-          sonst die Wand-Voreinstellungen. Die Leiste zeigt immer das,
-          was zum gerade gewählten Werkzeug gehört. */}
-      {tool === 'door' || tool === 'window' || tool === 'passage' ? (
-        <OpeningTypeBar
-          kind={tool as OpeningKind}
-          activeId={openingPreset.id}
-          onSelect={(preset) => setOpeningPreset(preset)}
+        {/* Projektname */}
+        <input
+          className="w-48 rounded-md bg-transparent px-2 py-1 text-xs text-slate-200 outline-none transition-colors hover:bg-white/[0.04] focus:bg-white/[0.06]"
+          value={doc.meta.name}
+          onChange={(e) => updateMeta({ name: e.target.value })}
+          spellCheck={false}
         />
-      ) : tool === 'pipe' ? (
-        <PipeServiceBar />
-      ) : tool === 'stair' ? (
-        <VerticalKindBar />
-      ) : tool === 'solid' ? (
-        <SolidKindBar />
-      ) : tool === 'annotation' ? (
-        <AnnotationKindBar />
-      ) : (
-        <WallDefaultsBar />
-      )}
 
-      <div className="flex-1" />
+        {/* Der Name im Feld ist zugleich der Projektname — deshalb steht der
+            Zugang zur Projektliste unmittelbar daneben. */}
+        <button
+          onClick={onProjekte}
+          className="tool-btn h-8 w-8"
+          title="Projekte — mehrere Grundrisse nebeneinander, umschalten ohne Dateidialog. Liegt nur in diesem Browser; zum Mitnehmen die Projektdatei sichern."
+        >
+          <Icon>{icons.projects}</Icon>
+        </button>
 
-      {/* Ansichtsmodus */}
-      <div className="flex gap-0.5 rounded-lg bg-graphite-900/60 p-0.5">
-        {VIEW_MODES.map((mode) => (
-          <button
-            key={mode.id}
-            className={`chip px-2.5 ${
-              viewMode === mode.id ? 'bg-accent/15 text-accent' : 'text-slate-500 hover:text-slate-300'
-            }`}
-            onClick={() => setViewMode(mode.id)}
-          >
-            {mode.label}
-          </button>
-        ))}
+        <div className="divider-v" />
+
+        <LevelBar />
       </div>
-
-      <input
-        ref={fileRef}
-        type="file"
-        accept="application/json,.json,.ifc,.step,.stp"
-        className="hidden"
-        onChange={(e) => {
-          const file = e.target.files?.[0];
-          if (file) void handleOpen(file);
-          e.target.value = '';
-        }}
-      />
-      <button
-        onClick={() => fileRef.current?.click()}
-        className="tool-btn h-8 w-8"
-        title="Öffnen — RaVia-Projektdatei (JSON), IFC4-Modell vom Architekten oder Raumscan vom iPhone (RoomPlan)"
-      >
-        <Icon>{icons.open}</Icon>
-      </button>
-
-      <button
-        onClick={handleIfc}
-        className="tool-btn h-8 w-8"
-        title="Modell als IFC4 exportieren — für Architektur-CAD und Fachplanung"
-      >
-        <Icon>{icons.ifc}</Icon>
-      </button>
 
       {/*
-        Rohrausleger in der Kopfzeile.
-        ---------------------------------------------------------------
-        Er stand bisher nur im Anlagenblatt. Das ist der falsche Ort für
-        etwas, das den **Grundriss** verändert: wer die Trasse sehen will,
-        steht im Plan und nicht im Formular. Der Knopf legt in der zuletzt
-        gewählten Verlegeart aus; die Wahl zwischen Neubau und Sanierung
-        steht daneben, weil sie das Ergebnis vollständig bestimmt und nicht
-        in einem Untermenü versteckt gehört.
+        Block 2 — die Kontextleiste zum gewählten Werkzeug.
+
+        `flex-auto`: sie füllt die Breite, die neben Block 1 übrig ist, und
+        rückt ganz nach unten, sobald dort nichts mehr übrig ist. `min-w-0`
+        gehört zwingend dazu — ein Flex-Element schrumpft von sich aus nie
+        unter seine Inhaltsbreite, und ohne diese Angabe käme der Umbruch im
+        Inneren der Leiste gar nicht erst zum Zuge.
       */}
-      <div className="flex items-center gap-0.5 rounded-lg bg-graphite-900/60 p-0.5">
-        {(['neubau', 'sanierung'] as const).map((m) => (
-          <button
-            key={m}
-            onClick={() => setVerlegeart(m)}
-            title={
-              m === 'neubau'
-                ? 'Neubau — Leitungen auf der Rohdecke im Fußbodenaufbau, der Weg darf quer durch den Raum'
-                : 'Sanierung — Leitungen sichtbar an der Wand im Sockelleistenkanal, die Trasse folgt den Wänden'
-            }
-            className={`chip px-2 ${verlegeart === m ? 'bg-accent/15 text-accent' : 'text-slate-500 hover:text-slate-300'}`}
-          >
-            {m === 'neubau' ? 'Neubau' : 'Sanierung'}
-          </button>
-        ))}
-        <button
-          onClick={() => legeRohrnetzAus(verlegeart)}
-          className="tool-btn h-8 w-8"
-          title="Rohrnetz automatisch auslegen — Trasse, Nennweiten, Dämmung nach Anlage 8 GEG und Armaturen. Von Hand gezogene Leitungen bleiben stehen."
-        >
-          <Icon>{icons.rohrnetz}</Icon>
-        </button>
+      <div className="flex min-w-0 flex-auto flex-wrap items-center gap-x-3 gap-y-1">
+        {/* Kontextleiste: bei aktivem Öffnungswerkzeug der Typenkatalog,
+            sonst die Wand-Voreinstellungen. Die Leiste zeigt immer das,
+            was zum gerade gewählten Werkzeug gehört. */}
+        {tool === 'door' || tool === 'window' || tool === 'passage' ? (
+          <OpeningTypeBar
+            kind={tool as OpeningKind}
+            activeId={openingPreset.id}
+            onSelect={(preset) => setOpeningPreset(preset)}
+          />
+        ) : tool === 'pipe' ? (
+          <PipeServiceBar />
+        ) : tool === 'stair' ? (
+          <VerticalKindBar />
+        ) : tool === 'solid' ? (
+          <SolidKindBar />
+        ) : tool === 'durchbruch' ? (
+          <DurchbruchBar />
+        ) : tool === 'annotation' ? (
+          <AnnotationKindBar />
+        ) : (
+          <WallDefaultsBar />
+        )}
       </div>
 
-      <button
-        onClick={() => setBerichtOpen(true)}
-        className="tool-btn h-8 w-8"
-        title="Rohrnetzberechnung — Grundriss, Teilstreckentabelle, Einstellwerte und Nachweis nach § 60c GModG als PDF"
-      >
-        <Icon>{icons.bericht}</Icon>
-      </button>
+      {/*
+        Block 3 — Ansicht und Ausgabe.
 
-      <button
-        onClick={() => setMappeOpen(true)}
-        className="tool-btn h-8 w-8"
-        title="Projektmappe — Grundrisse, Anlagenschema, Rohrnetz, Einstellwerte, Massenauszug, Anlagenbuch, Quellen und Nachweis in einem Dokument mit durchlaufender Blattnummer"
-      >
-        <Icon>{icons.mappe}</Icon>
-      </button>
+        Rechtsbündig, damit „RaVia JSON" dort bleibt, wo es immer stand: am
+        rechten Rand. Auch dieser Block bricht im Inneren um — auf dem iPad
+        hochkant ist er mit 44-px-Knöpfen breiter als das Gerät, und ohne
+        Umbruch läge genau der Ausgabeknopf hinter dem Rand.
+      */}
+      <div className="flex min-w-0 flex-wrap items-center justify-end gap-x-3 gap-y-1">
+        {/* Ansichtsmodus */}
+        <div className="flex gap-0.5 rounded-lg bg-graphite-900/60 p-0.5">
+          {VIEW_MODES.map((mode) => (
+            <button
+              key={mode.id}
+              className={`chip px-2.5 ${
+                viewMode === mode.id ? 'bg-accent/15 text-accent' : 'text-slate-500 hover:text-slate-300'
+              }`}
+              onClick={() => setViewMode(mode.id)}
+            >
+              {mode.label}
+            </button>
+          ))}
+        </div>
 
-      <button
-        onClick={() => setPrintOpen(true)}
-        className="tool-btn h-8 w-8"
-        title="Grundriss maßstäblich drucken (1:50, 1:100 …) — A4/A3, komplettes Geschoss"
-      >
-        <Icon>{icons.print}</Icon>
-      </button>
+        <input
+          ref={fileRef}
+          type="file"
+          accept="application/json,.json,.ifc,.step,.stp"
+          className="hidden"
+          onChange={(e) => {
+            const file = e.target.files?.[0];
+            if (file) void handleOpen(file);
+            e.target.value = '';
+          }}
+        />
+        <button
+          onClick={() => fileRef.current?.click()}
+          className="tool-btn h-8 w-8"
+          title="Öffnen — RaVia-Projektdatei (JSON), IFC4-Modell vom Architekten oder Raumscan vom iPhone (RoomPlan)"
+        >
+          <Icon>{icons.open}</Icon>
+        </button>
 
-      <button
-        onClick={handleExport}
-        className="flex items-center gap-1.5 rounded-lg bg-accent/15 px-3 py-1.5 text-[11px] font-medium text-accent shadow-glow transition-colors hover:bg-accent/25"
-        title="Gebäudedaten als RaVia-BIM-JSON exportieren (DIN EN 12831) — dient zugleich als Projektdatei"
-      >
-        <Icon>{icons.export}</Icon>
-        RaVia JSON
-      </button>
+        <button
+          onClick={handleIfc}
+          className="tool-btn h-8 w-8"
+          title="Modell als IFC4 exportieren — für Architektur-CAD und Fachplanung"
+        >
+          <Icon>{icons.ifc}</Icon>
+        </button>
+
+        {/*
+          Rohrausleger in der Kopfzeile.
+          ---------------------------------------------------------------
+          Er stand bisher nur im Anlagenblatt. Das ist der falsche Ort für
+          etwas, das den **Grundriss** verändert: wer die Trasse sehen will,
+          steht im Plan und nicht im Formular. Der Knopf legt in der zuletzt
+          gewählten Verlegeart aus; die Wahl zwischen Neubau und Sanierung
+          steht daneben, weil sie das Ergebnis vollständig bestimmt und nicht
+          in einem Untermenü versteckt gehört.
+        */}
+        <div className="flex items-center gap-0.5 rounded-lg bg-graphite-900/60 p-0.5">
+          {(['neubau', 'sanierung'] as const).map((m) => (
+            <button
+              key={m}
+              onClick={() => setVerlegeart(m)}
+              title={
+                m === 'neubau'
+                  ? 'Neubau — Leitungen auf der Rohdecke im Fußbodenaufbau, der Weg darf quer durch den Raum'
+                  : 'Sanierung — Leitungen sichtbar an der Wand im Sockelleistenkanal, die Trasse folgt den Wänden'
+              }
+              className={`chip px-2 ${verlegeart === m ? 'bg-accent/15 text-accent' : 'text-slate-500 hover:text-slate-300'}`}
+            >
+              {m === 'neubau' ? 'Neubau' : 'Sanierung'}
+            </button>
+          ))}
+          <button
+            onClick={() => legeRohrnetzAus(verlegeart)}
+            className="tool-btn h-8 w-8"
+            title="Rohrnetz automatisch auslegen — Trasse, Nennweiten, Dämmung nach Anlage 8 GEG und Armaturen. Von Hand gezogene Leitungen bleiben stehen."
+          >
+            <Icon>{icons.rohrnetz}</Icon>
+          </button>
+        </div>
+
+        <button
+          onClick={() => setBerichtOpen(true)}
+          className="tool-btn h-8 w-8"
+          title="Rohrnetzberechnung — Grundriss, Teilstreckentabelle, Einstellwerte und Nachweis nach § 60c GModG als PDF"
+        >
+          <Icon>{icons.bericht}</Icon>
+        </button>
+
+        <button
+          onClick={() => setMappeOpen(true)}
+          className="tool-btn h-8 w-8"
+          title="Projektmappe — Grundrisse, Anlagenschema, Rohrnetz, Einstellwerte, Massenauszug, Anlagenbuch, Quellen und Nachweis in einem Dokument mit durchlaufender Blattnummer"
+        >
+          <Icon>{icons.mappe}</Icon>
+        </button>
+
+        <button
+          onClick={() => setPrintOpen(true)}
+          className="tool-btn h-8 w-8"
+          title="Grundriss maßstäblich drucken (1:50, 1:100 …) — A4/A3, komplettes Geschoss"
+        >
+          <Icon>{icons.print}</Icon>
+        </button>
+
+        <button
+          onClick={handleExport}
+          className="flex items-center gap-1.5 rounded-lg bg-accent/15 px-3 py-1.5 text-[11px] font-medium text-accent shadow-glow transition-colors hover:bg-accent/25"
+          title="Gebäudedaten als RaVia-BIM-JSON exportieren (DIN EN 12831) — dient zugleich als Projektdatei"
+        >
+          <Icon>{icons.export}</Icon>
+          RaVia JSON
+        </button>
+      </div>
 
       {printOpen && <PlanPrintDialog onClose={() => setPrintOpen(false)} />}
       {berichtOpen && <RohrnetzDialog onClose={() => setBerichtOpen(false)} />}
@@ -582,7 +720,28 @@ export function TopBar({ onProjekte }: { onProjekte: () => void }) {
   );
 }
 
-/** Typenkatalog für Fenster, Türen und Durchgänge. */
+/**
+ * Typenkatalog für Fenster, Türen und Durchgänge.
+ *
+ * **Warum die Reihe umbricht und nicht rollt.** Alle Kontextleisten hier
+ * folgen demselben Bauplan: eine Aufschrift und daneben eine Reihe Knöpfe in
+ * einem gemeinsamen Feld. Bis 1.23.0 war dieses Feld seitlich rollbar und der
+ * Rahmen `shrink-0` — die Reihe wuchs also immer weiter nach rechts, und was
+ * nicht mehr hineinpasste, lag hinter dem Rand. Auf dem Tablet hat das
+ * niemand gefunden: eine Rollleiste ist dort nicht zu sehen, und dass man
+ * innerhalb eines zwei Zentimeter hohen Streifens wischen kann, ahnt man
+ * nicht.
+ *
+ * Deshalb: `flex-wrap` statt `overflow-x-auto`, und `min-w-0` statt
+ * `shrink-0`. Beides gehört zusammen — ein Flex-Element schrumpft von sich
+ * aus nie unter seine Inhaltsbreite, also käme es ohne `min-w-0` gar nicht
+ * erst in die Lage, umbrechen zu müssen.
+ *
+ * Die Knöpfe selbst bleiben unangetastet: `.chip` steht unter
+ * `pointer: coarse` auf `flex: none` und mindestens 36 px Höhe (`index.css`).
+ * Sie werden also nicht gequetscht, sondern rücken eine Reihe tiefer — und
+ * jede Reihe ist gleich hoch.
+ */
 function OpeningTypeBar({
   kind,
   activeId,
@@ -598,7 +757,7 @@ function OpeningTypeBar({
   return (
     <div className="flex min-w-0 items-center gap-1.5">
       <span className="label-xs shrink-0">{label}</span>
-      <div className="flex min-w-0 gap-0.5 overflow-x-auto rounded-lg bg-graphite-900/60 p-0.5">
+      <div className="flex min-w-0 flex-wrap gap-0.5 rounded-lg bg-graphite-900/60 p-0.5">
         {presets.map((preset) => (
           <button
             key={preset.id}
@@ -625,9 +784,9 @@ function WallDefaultsBar() {
 
   return (
     <>
-      <div className="flex items-center gap-1.5">
-        <span className="label-xs">Wandstärke</span>
-        <div className="flex gap-0.5 rounded-lg bg-graphite-900/60 p-0.5">
+      <div className="flex min-w-0 items-center gap-1.5">
+        <span className="label-xs shrink-0">Wandstärke</span>
+        <div className="flex min-w-0 flex-wrap gap-0.5 rounded-lg bg-graphite-900/60 p-0.5">
           {WALL_THICKNESS_PRESETS.map((t) => (
             <button
               key={t}
@@ -667,12 +826,18 @@ function WallDefaultsBar() {
 function PipeServiceBar() {
   const service = useBimStore((s) => s.pipeService);
   const setService = useBimStore((s) => s.setPipeService);
+  const doppel = useBimStore((s) => s.doppelleitung);
+  const setDoppel = useBimStore((s) => s.setDoppelleitung);
   const services = Object.keys(PIPE_SERVICE_LABELS) as PipeService[];
+  // Nur die Heizung hat einen Rücklauf. Bei Abwasser oder Zuluft stünde hier
+  // ein Schalter, der nichts tut — und ein Schalter, der nichts tut, ist eine
+  // Behauptung.
+  const paarbar = service === 'heating-flow' || service === 'heating-return';
 
   return (
     <div className="flex min-w-0 items-center gap-1.5">
       <span className="label-xs shrink-0">Leitung</span>
-      <div className="flex min-w-0 gap-0.5 overflow-x-auto rounded-lg bg-graphite-900/60 p-0.5">
+      <div className="flex min-w-0 flex-wrap gap-0.5 rounded-lg bg-graphite-900/60 p-0.5">
         {services.map((s2) => (
           <button
             key={s2}
@@ -690,6 +855,21 @@ function PipeServiceBar() {
           </button>
         ))}
       </div>
+      {paarbar && (
+        <button
+          onClick={() => setDoppel(!doppel)}
+          title={
+            doppel
+              ? 'Doppelleitung: ein Zug legt Vor- und Rücklauf nebeneinander (Achsabstand 5 cm). Sie wandern und verschwinden gemeinsam.'
+              : 'Einzelleitung: ein Zug legt eine Leitung.'
+          }
+          className={`chip shrink-0 whitespace-nowrap ${
+            doppel ? 'bg-accent/15 text-accent' : 'text-slate-500 hover:text-slate-300'
+          }`}
+        >
+          {doppel ? 'Doppelleitung' : 'Einzelleitung'}
+        </button>
+      )}
     </div>
   );
 }
@@ -703,7 +883,7 @@ function VerticalKindBar() {
   return (
     <div className="flex min-w-0 items-center gap-1.5">
       <span className="label-xs shrink-0">Treppe</span>
-      <div className="flex min-w-0 gap-0.5 overflow-x-auto rounded-lg bg-graphite-900/60 p-0.5">
+      <div className="flex min-w-0 flex-wrap gap-0.5 rounded-lg bg-graphite-900/60 p-0.5">
         {kinds.map((k) => (
           <button
             key={k}
@@ -737,7 +917,7 @@ function SolidKindBar() {
   return (
     <div className="flex min-w-0 items-center gap-1.5">
       <span className="label-xs shrink-0">Massiv</span>
-      <div className="flex min-w-0 gap-0.5 overflow-x-auto rounded-lg bg-graphite-900/60 p-0.5">
+      <div className="flex min-w-0 flex-wrap gap-0.5 rounded-lg bg-graphite-900/60 p-0.5">
         {kinds.map((k) => (
           <button
             key={k}
@@ -755,6 +935,74 @@ function SolidKindBar() {
   );
 }
 
+/**
+ * Die Regelmaße der Durchbrüche.
+ *
+ * Anders als bei den massiven Bauteilen stehen hier **Regelmaße** und nicht
+ * Arten zur Wahl — dieselbe Bauform wie beim Öffnungskatalog, und aus
+ * demselben Grund: bei einer Kernbohrung entscheidet nicht die Art, sondern
+ * die Bohrkrone. „Kernbohrung" allein sagt nichts; „Ø 152 (DN 100)" sagt alles.
+ *
+ * Gruppiert wird nach Art, damit die Liste bei vierzehn Einträgen noch
+ * lesbar bleibt.
+ */
+function DurchbruchBar() {
+  const preset = useBimStore((s) => s.durchbruchPreset);
+  const setPreset = useBimStore((s) => s.setDurchbruchPreset);
+  const arten: DurchbruchKind[] = ['kernbohrung', 'wanddurchbruch', 'schlitz', 'deckendurchbruch'];
+
+  return (
+    <div className="flex min-w-0 items-center gap-1.5">
+      <span className="label-xs shrink-0">Durchbruch</span>
+      {/*
+        Vierzehn Regelmaße sind zu viele für eine Reihe. Bis 1.23.0 bekam das
+        Feld deshalb eine Breitengrenze und rollte darin für sich — der Kopf
+        blieb schmal, aber zehn der vierzehn Maße lagen außerhalb des Bildes,
+        und gesucht hat sie dort niemand.
+
+        Jetzt bricht die Reihe um: die vier Gruppen (Kernbohrung, Wand-
+        durchbruch, Schlitz, Deckendurchbruch) rutschen untereinander, sobald
+        die Breite nicht reicht. Die Gruppen selbst bleiben `shrink-0`, damit
+        eine Gruppe nicht mitten in den Maßen auseinandergerissen wird.
+      */}
+      <div className="flex min-w-0 flex-wrap gap-1.5">
+        {arten.map((art) => {
+          const masse = DURCHBRUCH_PRESETS.filter((v) => v.kind === art);
+          if (!masse.length) return null;
+          return (
+            <div key={art} className="flex shrink-0 gap-0.5 rounded-lg bg-graphite-900/60 p-0.5">
+              {masse.map((v) => (
+                <button
+                  key={v.id}
+                  onClick={() => setPreset(v)}
+                  title={v.label}
+                  className={`chip whitespace-nowrap ${
+                    preset.id === v.id ? 'bg-accent/15 text-accent' : 'text-slate-500 hover:text-slate-300'
+                  }`}
+                >
+                  {kurzmass(v)}
+                </button>
+              ))}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Das Maß als Knopfbeschriftung.
+ *
+ * Auf dem Knopf steht das Maß und nicht der Name: „Ø 152" ist in einer Reihe
+ * von sieben Bohrkronen unterscheidbar, „Kernbohrung" siebenmal nicht. Der
+ * vollständige Name steht im Tooltip.
+ */
+function kurzmass(v: DurchbruchPreset): string {
+  if (v.form === 'rund') return `Ø ${Math.round((v.diameter ?? 0) * 1000)}`;
+  return `${Math.round((v.width ?? 0) * 1000)}×${Math.round((v.height ?? 0) * 1000)}`;
+}
+
 /** Art der Beschriftung: Maßkette, Text oder Hinweisfahne. */
 function AnnotationKindBar() {
   const kind = useBimStore((s) => s.annotationKind);
@@ -764,7 +1012,8 @@ function AnnotationKindBar() {
   return (
     <div className="flex min-w-0 items-center gap-1.5">
       <span className="label-xs shrink-0">Beschriftung</span>
-      <div className="flex min-w-0 gap-0.5 rounded-lg bg-graphite-900/60 p-0.5">
+      {/* Wie die übrigen Kontextleisten umbrechend — siehe `OpeningTypeBar`. */}
+      <div className="flex min-w-0 flex-wrap gap-0.5 rounded-lg bg-graphite-900/60 p-0.5">
         {kinds.map((k) => (
           <button
             key={k}

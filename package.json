@@ -1,7 +1,7 @@
 {
   "name": "ravia-cad-light",
   "private": true,
-  "version": "1.16.0",
+  "version": "1.28.0",
   "type": "module",
   "description": "RaVia CAD Light – ultraleichter 2D-Grundriss-Editor mit 3D-Realtime-View, Anlagenauslegung und BIM/TGA-Export",
   "scripts": {
@@ -9,6 +9,7 @@
     "build": "tsc -b && vite build",
     "preview": "vite preview",
     "build:einzeldatei": "vite build --config vite.config.einzeldatei.ts",
+    "paket": "node scripts/paket.mjs",
     "typecheck": "tsc --noEmit",
     "typecheck:pruefung": "tsc --noEmit -p tsconfig.pruefung.json",
     "verify": "esbuild scripts/verify.ts --bundle --platform=node --format=esm --outfile=node_modules/.cache/verify.mjs --log-level=warning && node node_modules/.cache/verify.mjs",
@@ -18,9 +19,12 @@
     "smoke:export": "node scripts/smoke-export.mjs",
     "smoke:round2": "node scripts/smoke-round2.mjs",
     "smoke:tga": "node scripts/smoke-tga.mjs",
+    "smoke:griffe": "node scripts/smoke-griffe.mjs",
+    "smoke:ebenen": "node scripts/smoke-ebenen.mjs",
     "smoke:embed": "node scripts/smoke-embed.mjs",
     "smoke:scan": "node scripts/smoke-raumscan.mjs",
     "smoke:ux": "node scripts/smoke-bedienung.mjs",
+    "smoke:tablet": "node scripts/smoke-tablet.mjs",
     "smoke:wp": "node scripts/smoke-waermepumpe.mjs",
     "smoke:raum": "node scripts/smoke-raum.mjs",
     "smoke:anlage": "node scripts/smoke-anlage.mjs",
@@ -31,6 +35,8 @@
     "smoke:mappe": "node scripts/smoke-mappe.mjs",
     "smoke:einzeldatei": "node scripts/pruef-einzeldatei.mjs",
     "smoke:einzeldatei-scan": "node scripts/pruef-einzeldatei-scan.mjs",
+    "handbuch:bilder": "node scripts/handbuch-bilder.mjs",
+    "handbuch:abhilfen": "esbuild scripts/handbuch-abhilfen.ts --bundle --platform=node --format=esm --outfile=node_modules/.cache/handbuch-abhilfen.mjs --log-level=warning && node node_modules/.cache/handbuch-abhilfen.mjs",
     "bench": "esbuild scripts/bench.ts --bundle --platform=node --format=esm --outfile=node_modules/.cache/bench.mjs --log-level=warning && node node_modules/.cache/bench.mjs",
     "reference:update": "esbuild scripts/update-reference.ts --bundle --platform=node --format=esm --outfile=node_modules/.cache/update-reference.mjs --log-level=warning && node node_modules/.cache/update-reference.mjs"
   },

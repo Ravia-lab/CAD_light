@@ -644,7 +644,73 @@ interface RoomRow {
   setpoint?: number;
   load?: number;
   specific?: number;
+  /**
+   * Bauteile dieses Raums ohne U-Wert — aus `RoomHeatLoad.unvollstaendig`.
+   *
+   * Die Heizlast daneben ist dann **da**, aber zu klein. Das ist der
+   * unangenehmere der beiden Lückenfälle: Eine fehlende Zahl sieht man, eine
+   * zu kleine nicht.
+   */
+  luecken?: readonly string[];
 }
+
+/**
+ * Eine Spaltensumme — und worüber sie **nicht** gebildet wurde.
+ *
+ * **Warum das nicht `reduce((s, r) => s + (r.volume ?? 0), 0)` bleiben durfte.**
+ * Die Einzelzelle schreibt bei fehlendem Wert einen Strich, wie es die Zusage
+ * dieses Hefts verlangt. Die Summe darunter rechnete mit Null weiter. Sie war
+ * damit zu klein und trug keinen Vorbehalt: Wer die Spalte nachaddiert, findet
+ * den Fehler; wer nur die Summe liest — und das ist der Regelfall —, nicht.
+ *
+ * Die gewählte Linie ist **Summe mit Vorbehalt** und nicht Strich statt
+ * Summe. Ein Strich in der Fußzeile der Heizlastspalte nähme dem Heft die
+ * Probe, für die die Summenzeile da ist: Sie soll sich gegen die
+ * Gebäudeheizlast im Kennwertblock halten lassen. Ein Teilbetrag mit Stern und
+ * namentlich genannten Lücken leistet das und sagt zugleich, was fehlt. Ein
+ * Strich sagt nur, dass etwas fehlt — und lässt den Leser raten, wie viel.
+ */
+interface Spaltensumme {
+  /** Summe über die Räume, die einen Wert tragen. */
+  wert: number;
+  /** Wie viele Räume darin stecken. */
+  mit: number;
+  /** Namen der Räume ohne Angabe — sie fehlen in `wert`. */
+  ohneAngabe: string[];
+}
+
+function spaltensumme(
+  rows: readonly RoomRow[],
+  auswahl: (row: RoomRow) => number | undefined,
+): Spaltensumme {
+  let wert = 0;
+  let mit = 0;
+  const ohneAngabe: string[] = [];
+  for (const row of rows) {
+    const v = auswahl(row);
+    // `Number.isFinite` und nicht nur `!== undefined`: Ein NaN aus einer
+    // vorgelagerten Rechnung machte die ganze Summe zu NaN, und die stünde
+    // nach `de()` als Strich da — ununterscheidbar von „keine Räume erfasst".
+    if (v === undefined || !Number.isFinite(v)) {
+      ohneAngabe.push(row.name);
+      continue;
+    }
+    wert += v;
+    mit += 1;
+  }
+  return { wert, mit, ohneAngabe };
+}
+
+/**
+ * Eine Zahl mit Sternchen, wenn ein Vorbehalt an ihr hängt.
+ *
+ * Als Markup und nicht als angehängtes Sternchen im Text: In der rechts
+ * ausgerichteten Zahlenspalte würde ein „ * " die Ziffern gegeneinander
+ * verschieben, und eine Spalte, deren Einer nicht untereinander stehen, liest
+ * sich nicht mehr.
+ */
+const vorbehalt = (text: string, gilt: boolean): Cell =>
+  gilt ? { html: `${escapeHtml(text)}<sup>*</sup>` } : text;
 
 /**
  * Ein Geschoss, zu dem weder Export noch Raumliste einen Namen liefern.
@@ -707,6 +773,7 @@ function collectRooms(options: PlantBookOptions): RoomRow[] {
       setpoint: room.setpointTemperature,
       load: load?.total,
       specific: load?.specific,
+      luecken: load?.unvollstaendig,
     });
   }
 
@@ -719,6 +786,7 @@ function collectRooms(options: PlantBookOptions): RoomRow[] {
       setpoint: load.setpoint,
       load: load.total,
       specific: load.specific,
+      luecken: load.unvollstaendig,
     });
   }
 
@@ -728,6 +796,27 @@ function collectRooms(options: PlantBookOptions): RoomRow[] {
     if (ha !== undefined && hb !== undefined && ha !== hb) return ha - hb;
     return a.level.localeCompare(b.level, 'de') || a.name.localeCompare(b.name, 'de');
   });
+}
+
+/**
+ * Der Satz, der an der Gebäudeheizlast steht, wenn sie zu klein ist.
+ *
+ * `undefined`, solange nichts fehlt — dann bleibt es beim gewohnten
+ * Herkunftssatz. Genannt werden bis zu drei Raumnamen: Die Fußnote steht in
+ * kleiner Schrift unter einem Kennwert, und eine Liste von zwölf Räumen macht
+ * daraus einen Absatz, den niemand liest. Die vollständige Liste steht in der
+ * Fußnote der Raumtabelle darüber.
+ */
+function lueckenHinweis(design: PlantDesignResult): string | undefined {
+  const fehlend = design.estimate?.unvollstaendigeRaeume ?? [];
+  if (fehlend.length === 0) return undefined;
+  const namen = fehlend.slice(0, 3).join(', ');
+  const rest = fehlend.length > 3 ? ` und ${de(fehlend.length - 3, 0)} weiteren` : '';
+  return (
+    `Überschlag aus Geometrie, U-Werten und Mindestluftwechsel. Achtung: In ${namen}${rest} ` +
+    'fehlt der U-Wert einzelner Bauteile; diese Flächen gehen mit 0 W ein. Die Zahl ist damit zu ' +
+    'klein — sie taugt nicht als Grundlage der Gerätewahl, bevor die U-Werte nachgetragen sind.'
+  );
 }
 
 function chapterBuilding(options: PlantBookOptions, rows: readonly RoomRow[]): string {
@@ -740,8 +829,13 @@ function chapterBuilding(options: PlantBookOptions, rows: readonly RoomRow[]): s
   }
 
   const areaSum = rows.reduce((sum, r) => sum + r.area, 0);
-  const volumeSum = rows.reduce((sum, r) => sum + (r.volume ?? 0), 0);
-  const loadSum = rows.reduce((sum, r) => sum + (r.load ?? 0), 0);
+  const volumen = spaltensumme(rows, (r) => r.volume);
+  const last = spaltensumme(rows, (r) => r.load);
+  // Räume, deren Heizlast zwar dasteht, aber zu klein ist. Sie zählen für den
+  // Vorbehalt genauso wie die fehlenden — die Summe stimmt in beiden Fällen
+  // nicht —, nur sind sie beim Nachaddieren der Spalte **nicht** zu finden.
+  const zuKlein = rows.filter((r) => (r.luecken?.length ?? 0) > 0).map((r) => r.name);
+  const lastVorbehalt = last.ohneAngabe.length > 0 || zuKlein.length > 0;
   const totals = options.raviaExport?.totals;
 
   const table = dataTable(
@@ -760,28 +854,72 @@ function chapterBuilding(options: PlantBookOptions, rows: readonly RoomRow[]): s
       de(r.area, 2),
       r.volume === undefined ? '—' : de(r.volume, 2),
       r.setpoint === undefined ? '—' : de(r.setpoint, 0),
-      r.load === undefined ? '—' : de(r.load, 0),
-      r.specific === undefined ? '—' : de(r.specific, 0),
+      // Der Stern am Einzelwert steht dort, wo die Zahl da ist und trotzdem
+      // nicht stimmt. Ohne ihn müsste der Leser die Fußnote lesen, um zu
+      // erfahren, dass sie ihn betrifft — und er liest sie nicht, weil die
+      // Zeile ja unauffällig aussieht.
+      r.load === undefined ? '—' : vorbehalt(de(r.load, 0), (r.luecken?.length ?? 0) > 0),
+      r.specific === undefined ? '—' : vorbehalt(de(r.specific, 0), (r.luecken?.length ?? 0) > 0),
     ]),
     [
       plural(rows.length, 'beheizter Raum', 'beheizte Räume'),
       '',
       de(areaSum, 2),
-      volumeSum > 0 ? de(volumeSum, 2) : '—',
+      volumen.wert > 0 ? vorbehalt(de(volumen.wert, 2), volumen.ohneAngabe.length > 0) : '—',
       '',
-      loadSum > 0 ? de(loadSum, 0) : '—',
-      loadSum > 0 && areaSum > 0 ? de(loadSum / areaSum, 0) : '—',
+      last.wert > 0 ? vorbehalt(de(last.wert, 0), lastVorbehalt) : '—',
+      // Die spezifische Heizlast der Summenzeile bekommt **keinen** Stern,
+      // sondern einen Strich. Ein Vorbehalt taugt für eine Summe, die man um
+      // die fehlenden Posten ergänzen kann; ein Quotient aus einer
+      // vollständigen Fläche und einer unvollständigen Last ist dagegen keine
+      // um etwas zu kleine Kennzahl, sondern eine falsche — und sie wird
+      // gelesen wie eine Einordnung des Gebäudes.
+      last.wert > 0 && areaSum > 0 && !lastVorbehalt ? de(last.wert / areaSum, 0) : '—',
     ],
   );
+
+  // Die Fußnote zur Tabelle. Sie nennt Namen: „3 Räume ohne Angabe" schickt
+  // den Leser suchen, und gesucht wird in einem ausgedruckten Heft von Hand.
+  const fussnoten: string[] = [];
+  if (volumen.ohneAngabe.length > 0) {
+    fussnoten.push(
+      `Die Volumensumme umfasst ${volumen.mit} von ${rows.length} Räumen. Ohne Angabe: ` +
+        `${volumen.ohneAngabe.join(', ')}.`,
+    );
+  }
+  if (last.ohneAngabe.length > 0) {
+    fussnoten.push(
+      `Die Heizlastsumme umfasst ${last.mit} von ${rows.length} Räumen. Ohne Angabe: ` +
+        `${last.ohneAngabe.join(', ')}.`,
+    );
+  }
+  if (zuKlein.length > 0) {
+    fussnoten.push(
+      `In ${zuKlein.join(', ')} fehlt der U-Wert einzelner Bauteile. Diese Flächen gehen mit 0 W in die ` +
+        'Rechnung ein; die dort ausgewiesene Heizlast ist also zu klein, und die Summe mit ihr.',
+    );
+  }
+  const fussnote = fussnoten.length > 0 ? `<p class="fussnote">* ${escapeHtml(fussnoten.join(' '))}</p>` : '';
 
   const facts = factTable([
     {
       label: 'Gebäudeheizlast',
       value: `${de(design.heatLoad, 2)} kW`,
+      /*
+       * Der Vorbehalt muss bis hierher durchschlagen, sonst trägt ihn niemand
+       * weiter: An dieser einen Zahl hängt die Gerätegröße, und wer sie liest,
+       * liest die Raumtabelle zwei Absätze weiter oben nicht noch einmal nach.
+       *
+       * Er gilt aber nur, wenn diese Zahl auch aus dem Überschlag stammt. Ist
+       * sie als Norm-Heizlast übergeben oder von Hand gesetzt, ist sie von den
+       * fehlenden U-Werten gar nicht berührt — dann wäre der Vorbehalt falsch,
+       * und ein falscher Vorbehalt ist so schädlich wie ein fehlender.
+       */
       note:
         design.heatLoadSource === 'norm'
           ? 'Als Norm-Heizlast übergeben.'
-          : 'Überschlag aus Geometrie, U-Werten und Mindestluftwechsel.',
+          : lueckenHinweis(design) ??
+            'Überschlag aus Geometrie, U-Werten und Mindestluftwechsel.',
     },
     // `HeatLoadEstimate.total` steht in kW, `transmission` und `ventilation`
     // stehen in W — die beiden Teilbeträge kommen ungeteilt aus der Summe über
@@ -850,7 +988,7 @@ function chapterBuilding(options: PlantBookOptions, rows: readonly RoomRow[]): s
       : undefined,
   ]);
 
-  return heading('Räume') + table + heading('Gebäudesummen') + facts;
+  return heading('Räume') + table + fussnote + heading('Gebäudesummen') + facts;
 }
 
 // ---------------------------------------------------------------------------

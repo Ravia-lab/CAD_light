@@ -21,7 +21,10 @@
 import { writeFileSync } from 'node:fs';
 import type {
   Annotation,
+  BimDocument,
   BimNode,
+  Durchbruch,
+  DurchbruchPreset,
   Fixture,
   Opening,
   PipeAccessoryKind,
@@ -35,6 +38,9 @@ import type {
 } from '../src/types/bim';
 import {
   ANNOTATION_LABELS,
+  DURCHBRUCH_LABELS,
+  DURCHBRUCH_PRESETS,
+  durchbruchWirt,
   FIXTURE_LIBRARY,
   OPENING_PRESETS,
   PIPE_SERVICE_COLORS,
@@ -48,6 +54,7 @@ import { SCHEMATIC_LEGEND, drawSymbol } from '../src/lib/schematicSymbols';
 import { ACCESSORY_LABELS, ACCESSORY_LEGEND, accessorySymbol } from '../src/lib/pipeAccessorySymbols';
 import { openingSymbol } from '../src/lib/openingSymbols';
 import { drawSolid, drawVertical } from '../src/lib/verticalSymbols';
+import { durchbruchBeschriftung, zeichneDurchbruch } from '../src/lib/durchbruchSymbols';
 import { drawAnnotation } from '../src/lib/annotationSymbols';
 import { getWallGeometry } from '../src/lib/wallGeometry';
 
@@ -444,6 +451,114 @@ const rahmen = (inhalt: string, w: number, h: number): string =>
   tafeln.bauteile = {
     grund: 'schirm',
     hinweis: 'Massive Bauteile werden schraffiert dargestellt — sie sind voll, nicht hohl. Anders als ein Schacht führt hier nichts hindurch.',
+    kacheln,
+  };
+}
+
+// ===========================================================================
+// 7b — Durchbrüche und Bohrungen
+// ===========================================================================
+//
+// Diese Tafel braucht mehr als ein Bauteil: ein Wanddurchbruch ist ohne seine
+// Wand keine Zeichnung, denn sein Umriss folgt aus der Wanddicke. Für jede
+// Kachel wird deshalb ein Miniaturmodell aus einer Wand und einem Durchbruch
+// gebaut und durch dieselbe Zeichenroutine geschickt, die auch am Bildschirm
+// läuft.
+{
+  const kacheln: Kachel[] = [];
+  const faelle: { preset: DurchbruchPreset; text: string }[] = [
+    {
+      preset: DURCHBRUCH_PRESETS.find((v) => v.id === 'kb-dn100')!,
+      text: 'Die Rundbohrung. Das Rechteck ist der Umriss über die volle Wanddicke, der Kreis darin die Bohrkrone. Die Höhenangabe ist bei runder Form die Achshöhe — danach wird angerissen.',
+    },
+    {
+      preset: DURCHBRUCH_PRESETS.find((v) => v.id === 'wd-mittel')!,
+      text: 'Der rechteckige Ausbruch. Hier ist die Höhenangabe die Unterkante — danach wird gestemmt.',
+    },
+    {
+      preset: DURCHBRUCH_PRESETS.find((v) => v.id === 'sz-waagerecht')!,
+      text: 'Der Schlitz geht nicht durch die Wand, er ist eine Vertiefung. In 3D bleibt die Wand deshalb geschlossen, und im IFC-Export steht er als RECESS und nicht als OPENING.',
+    },
+    {
+      preset: DURCHBRUCH_PRESETS.find((v) => v.id === 'dd-schacht')!,
+      text: 'Der Deckendurchbruch steht frei im Grundriss statt in einer Wand. Er gehört dem Geschoss unter der Decke; im Geschoss darüber erscheint er gestrichelt als Loch im Fußboden.',
+    },
+  ];
+
+  for (const fall of faelle) {
+    const v = fall.preset;
+    const r = new SvgRecorder();
+    const ctx = alsCtx(r);
+    const wandgebunden = durchbruchWirt(v.kind) === 'wand';
+    const laenge = 2;
+    const nodes: Record<string, BimNode> = {
+      a: { id: 'a', x: 0, y: 0, levelId: 'l' },
+      b: { id: 'b', x: laenge, y: 0, levelId: 'l' },
+    };
+    const wand: Wall = {
+      id: 'w',
+      a: 'a',
+      b: 'b',
+      levelId: 'l',
+      type: 'exterior',
+      thickness: 0.24,
+      uValue: 0.28,
+      height: 2.75,
+      layerId: 'layer-walls',
+    };
+    const db: Durchbruch = {
+      id: `db-${v.id}`,
+      kind: v.kind,
+      name: v.label,
+      levelId: 'l',
+      form: v.form,
+      diameter: v.diameter,
+      width: v.width,
+      height: v.height,
+      service: v.service,
+      dn: v.dn,
+      brandschutz: 'keine',
+      ...(wandgebunden
+        ? { wallId: 'w', distance: laenge / 2, sillHeight: v.sillHeight ?? 0.3 }
+        : { position: { x: laenge / 2, y: 0 }, rotation: 0 }),
+    };
+    const doc = {
+      walls: { w: wand },
+      nodes,
+      levels: { l: { id: 'l', name: 'EG', order: 0 } },
+      durchbrueche: { [db.id]: db },
+    } as unknown as BimDocument;
+
+    // Die Wand zuerst, damit man sieht, worin das Loch sitzt. Gezeichnet wird
+    // sie hier als schlichtes Rechteck und nicht über `planWallPieces`: die
+    // Kachel zeigt das Durchbruchsymbol, nicht die Wandzerlegung.
+    const zoom = 150;
+    const sx = (x: number) => 20 + x * zoom * 0.3;
+    const sy = (y: number) => 55 - y * zoom * 0.3;
+    if (wandgebunden) {
+      const halb = wand.thickness / 2;
+      ctx.save();
+      ctx.strokeStyle = '#64748B';
+      ctx.lineWidth = 1.1;
+      ctx.beginPath();
+      ctx.rect(sx(0), sy(halb), sx(laenge) - sx(0), sy(-halb) - sy(halb));
+      ctx.stroke();
+      ctx.restore();
+    }
+    zeichneDurchbruch(ctx, db, doc, sx, sy, zoom * 0.3, { selected: false });
+
+    kacheln.push({
+      titel: DURCHBRUCH_LABELS[v.kind],
+      spitze: durchbruchBeschriftung(db),
+      text: fall.text,
+      svg: rahmen(r.finish(), 120, 90),
+    });
+  }
+
+  tafeln.durchbrueche = {
+    grund: 'schirm',
+    hinweis:
+      'Ein Durchbruch ist im Plan ein gekreuztes Feld mit einer Fahne daneben. Das Kreuz sagt „hier ist nichts" — ohne es liest jeder Prüfer das Rechteck in der Wand als Vormauerung.',
     kacheln,
   };
 }

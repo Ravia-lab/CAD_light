@@ -30,6 +30,21 @@ import { join } from 'node:path';
 
 const OUT = 'dist-einzeldatei';
 
+/**
+ * Die Fassungsnummer — dieselbe Quelle wie im normalen Build.
+ *
+ * **Warum das hier noch einmal steht.** Diese Datei ist eine *eigene*
+ * Vite-Konfiguration; sie erbt nichts aus `vite.config.ts`. Eine Festlegung,
+ * die nur dort stünde, wäre in der Einzeldatei-Fassung schlicht nicht
+ * vorhanden: `__RAVIA_FASSUNG__` bliebe ein unbekannter Bezeichner, und die
+ * Anwendung bliebe beim Start mit „__RAVIA_FASSUNG__ is not defined" weiß.
+ * Gerade diese Fassung geht als einzelne Datei zum Kunden — sie ist die, bei
+ * der niemand mehr nachschauen kann, welcher Stand darin steckt.
+ */
+const paket = JSON.parse(
+  readFileSync(new URL('./package.json', import.meta.url), 'utf-8'),
+) as { version: string };
+
 export default defineConfig({
   plugins: [
     react(),
@@ -88,6 +103,21 @@ export default defineConfig({
         html = html
           .replace(/<link rel="preconnect" href="https:\/\/fonts\.[^"]*"[^>]*>\s*/g, '')
           .replace(/<link\s[^>]*fonts\.googleapis\.com[^>]*>\s*/g, '');
+
+        /*
+         * Kachelbild und Web-App-Manifest fliegen hier ebenfalls heraus.
+         *
+         * Sie verweisen auf **Nachbardateien**, und die gibt es in dieser
+         * Fassung nicht: Sie ist eine einzige Datei, die vom USB-Stick oder
+         * aus dem Download-Ordner geöffnet wird. Beide Verweise gingen ins
+         * Leere und erzeugten je einen Fehler in der Konsole — bei einer
+         * Datei, die ausdrücklich ohne Server auskommen soll, ist das der
+         * falsche erste Eindruck. Das SVG-Favicon bleibt: es steht als
+         * data:-Adresse in der Datei selbst.
+         */
+        html = html
+          .replace(/<link\s[^>]*rel="apple-touch-icon"[^>]*>\s*/g, '')
+          .replace(/<link\s[^>]*rel="manifest"[^>]*>\s*/g, '');
         if (html.includes('fonts.googleapis.com')) {
           throw new Error('Einzeldatei enthält noch einen Schriftverweis ins Netz.');
         }
@@ -98,6 +128,7 @@ export default defineConfig({
       },
     },
   ],
+  define: { __RAVIA_FASSUNG__: JSON.stringify(paket.version) },
   // Ohne relative Basis stehen absolute Pfade wie `/assets/app.js` im HTML —
   // aus einer `file://`-Adresse zeigen die auf die Wurzel der Festplatte.
   base: './',

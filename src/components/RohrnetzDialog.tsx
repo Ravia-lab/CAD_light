@@ -19,7 +19,9 @@ import { useMemo, useState } from 'react';
 import { buildPipeReport, berichtsUrteil, wissensbasis } from '../lib/pipeReport';
 import { buildPipeReportSheets, printPipeReport } from '../lib/pipeReportPrint';
 import type { PaperFormat } from '../lib/planPrint';
+import type { PipeRoutingMode } from '../types/bim';
 import { BELASTBARKEIT_LABELS, KORPUS_LABELS, type KorpusId } from '../lib/wissensbasis';
+import { verlegeartAus } from '../lib/plantDefaults';
 import { useBimStore } from '../store/useBimStore';
 
 const SCALES = [50, 100, 200];
@@ -27,6 +29,14 @@ const SCALES = [50, 100, 200];
 export default function RohrnetzDialog({ onClose }: { onClose: () => void }) {
   const doc = useBimStore((s) => s.doc);
   const setStatus = useBimStore((s) => s.setStatus);
+  const legeRohrnetzAus = useBimStore((s) => s.legeRohrnetzAus);
+  /*
+   * Dieselbe Ableitung wie in der Werkzeugleiste: Das Vorhaben des Projekts
+   * bestimmt die Verlegeart. Eine Bestandssanierung mit Leitungen auf der
+   * Rohdecke auszulegen, weil ein Schalter irgendwo anders auf „Neubau"
+   * steht, wäre eine Falle mit Ansage.
+   */
+  const verlegeart: PipeRoutingMode = verlegeartAus(doc.meta.vorhaben);
 
   const [format, setFormat] = useState<PaperFormat>('A4');
   const [planScale, setPlanScale] = useState(50);
@@ -97,6 +107,24 @@ export default function RohrnetzDialog({ onClose }: { onClose: () => void }) {
 
             {reiter === 'bericht' ? (
               <>
+                {/*
+                  Auslegen, wo man das Ergebnis liest.
+
+                  Der Knopf steht seit jeher in der Werkzeugleiste — als
+                  Sinnbild, zwischen zwanzig anderen. Hier steht er dort, wo
+                  jemand gerade sieht, dass eine Zahl nicht stimmt: Man liest
+                  den Bericht, ändert im Plan etwas, und legt aus, ohne die
+                  Leiste zu suchen. Die Verlegeart kommt aus dem Vorhaben des
+                  Projekts; wer sie anders will, stellt sie in der Leiste um.
+                */}
+                <button
+                  className="w-full rounded-lg bg-white/[0.06] px-3 py-2 text-[11px] font-medium text-slate-200 transition-colors hover:bg-white/[0.10]"
+                  onClick={() => legeRohrnetzAus(verlegeart)}
+                  title="Trasse, Nennweiten, Dämmung nach Anlage 8 GEG, Armaturen und Wanddurchbrüche in einem Schritt. Von Hand gezogene Leitungen und gesetzte Durchbrüche bleiben stehen."
+                >
+                  Rohrnetz auslegen · {verlegeart === 'neubau' ? 'Neubau' : 'Sanierung'}
+                </button>
+
                 <div
                   className={`rounded-lg px-2.5 py-2 ${
                     urteil.nachweisfaehig ? 'bg-emerald-500/10' : 'bg-orange-500/10'

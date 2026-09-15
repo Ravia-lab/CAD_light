@@ -41,6 +41,8 @@ import type {
   FixtureCategory,
   Orientation,
   ExportPipe,
+  Durchbruch,
+  ExportDurchbruch,
   ExportSolid,
   ExportSubsoil,
   ExportVertical,
@@ -54,11 +56,35 @@ import type {
   Vec2,
   VentilationRole,
   VentilationTotals,
+  UWertQuelle,
   Room,
   SolidElement,
   VerticalElement,
 } from '../types/bim';
-import { SOIL_LABELS } from '../types/bim';
+import { SOIL_LABELS, durchbruchWirt } from '../types/bim';
+import { durchbruchFlaeche, durchbruchMitte } from './durchbruchSymbols';
+import { rohrlaenge, steiganteil } from './rohrlaenge';
+import { pruefsumme } from './pruefsumme';
+import { ERZEUGER } from './fassung';
+/*
+ * Der U-Wert kommt aus `uwert.ts` und nicht mehr aus einem eigenen Katalog.
+ *
+ * Bis 1.23.0 stand hier ein `DEFAULT_U` mit denselben sieben Zahlen wie
+ * `VORGABE_U` — zwei Kataloge mit demselben Inhalt, und damit zwei Häuser,
+ * sobald einer von beiden gepflegt wird und der andere nicht. Der Export war
+ * dabei die Stelle, die es *richtig* machte (Aufbau, dann Bauteil, dann
+ * Vorgabe); genau diese Rangfolge ist nach `uwert.ts` gewandert, damit
+ * Stückliste, Heft und Prüfbericht auf dieselbe Zahl kommen.
+ *
+ * Ein Unterschied bleibt und ist beabsichtigt: `?? DEFAULT_U[...]` sprang nur
+ * bei `undefined` ein, `uWertWand` zusätzlich bei 0, `NaN` und `Infinity`.
+ * Eine Wand mit `uValue: 0` wurde deshalb bis 1.23.0 mit U = 0 übergeben —
+ * sie war in der Bilanz der Gegenstelle nicht etwa schlecht gedämmt, sondern
+ * gar nicht vorhanden. Jetzt bekommt sie den Vorgabewert ihrer Bauteilart,
+ * und `validation.ts` meldet die Eingabe als Fehler.
+ */
+import type { UWertAuskunft } from './uwert';
+import { VORGABE_U, istErfasst, uWertOeffnung, uWertWand } from './uwert';
 import {
   azimuthFromNormal,
   distance,
@@ -73,7 +99,7 @@ import {
 } from './geometry';
 import { solidFootprint } from './verticalSymbols';
 import { getWallGeometry, indexOpeningsByWall, openingsOf, openingSpan } from './wallGeometry';
-import { gradeSplit, isMassiveArea } from './roomDetection';
+import { gebaeudeUmriss, gradeSplit, isMassiveArea } from './roomDetection';
 import { validateModel } from './validation';
 import { buildRoofFrame, roofFaceAzimuthAt } from './roofGeometry';
 import {
@@ -84,6 +110,8 @@ import {
   roomBridgeHeatLoss,
 } from './thermalBridges';
 import { buildPipeNetwork } from './pipeNetwork';
+import { buildEmitters, buildHydraulics } from './auslegungExport';
+import { balanceNetwork } from './hydraulicBalance';
 import { designPlant } from './plantDesign';
 import {
   acousticReport,
@@ -94,19 +122,7 @@ import {
   sourceDemand,
 } from './heatPump';
 
-export const GENERATOR = 'RaVia CAD Light 1.16.0';
-
-/** Fallback-U-Werte [W/(m²·K)], falls am Bauteil nichts hinterlegt ist. */
-const DEFAULT_U = {
-  exterior: 0.24,
-  interior: 1.2,
-  partition: 1.4,
-  shaft: 1.4,
-  window: 0.95,
-  door: 1.6,
-  /** Ein Durchgang ist keine Bauteilfläche — er wird nur als Loch abgezogen. */
-  passage: 0,
-} as const;
+export const GENERATOR = ERZEUGER;
 
 export function buildRaviaExport(doc: BimDocument): RaviaExport {
   /*
@@ -122,14 +138,58 @@ export function buildRaviaExport(doc: BimDocument): RaviaExport {
   const openingIndex = indexOpeningsByWall(Object.values(doc.openings));
   const heatedByLevel = heatedTemperatureByLevel(doc);
   const fixturesByRoom = groupFixturesByRoom(doc);
-  const exportRooms = rooms.map((room) =>
-    buildRoom(doc, room, openingIndex, heatedByLevel, fixturesByRoom),
-  );
+  const exportRooms = rooms
+    .map((room) => buildRoom(doc, room, openingIndex, heatedByLevel, fixturesByRoom))
+    // Die Prüfsumme steht bewusst *nach* `buildRoom` und nicht darin: Sie soll
+    // über genau das gebildet werden, was die Gegenstelle am Ende sieht, und
+    // nicht über eine Zwischenstufe, die sich später davon entfernen kann.
+    .map((r) => ({ ...r, checksum: raumPruefsumme(r) }));
   const subsoil = buildSubsoil(doc, exportRooms);
+
+  /*
+   * Die Vorbemessung der Hydraulik — nur, wenn überhaupt ein Rohrnetz
+   * gezeichnet ist. Ohne Leitungen gibt es nichts abzugleichen, und ein
+   * leerer Block wäre eine Behauptung über eine Anlage, die es nicht gibt.
+   *
+   * Die Spreizung kommt aus der Anlagenauslegung, wenn eine da ist; sonst
+   * bleibt es bei der Vorgabe des Rechenwegs. Sie hier zu erfinden hieße,
+   * jedem Volumenstrom eine Zahl zugrunde zu legen, die niemand gesetzt hat.
+   */
+  const netz = buildPipeNetwork(doc);
+  const auslegung = doc.plant?.design;
+  /*
+   * Die Erzeugerseite kommt aus der Anlagenauslegung, nicht aus dem Rohrnetz:
+   * Δp des Geräts und Restförderhöhe stehen im Gerätekatalog, nicht in der
+   * Zeichnung. Ohne Anlage bleibt der Block weg — ein Erzeugerposten ohne
+   * Erzeuger wäre eine Behauptung.
+   */
+  const erzeuger = designPlant(doc, {}).generator;
+  const hydraulik =
+    netz.paths.length > 0
+      ? buildHydraulics(
+          balanceNetwork({
+            network: netz,
+            fixtures: doc.fixtures,
+            ...(auslegung
+              ? {
+                  spread: Math.max(2, auslegung.flowTemperature - auslegung.returnTemperature),
+                  material: auslegung.material,
+                  maxVelocity: auslegung.maxVelocity,
+                  maxGradient: auslegung.maxGradient,
+                }
+              : {}),
+            // Derselbe Verbraucherwiderstand wie im Anlagenblatt — sonst
+            // stünde im Export ein anderer ungünstigster Strang als auf dem
+            // Bildschirm, und beide wären „richtig".
+            terminalLoss: 10000,
+          }),
+          erzeuger,
+        )
+      : undefined;
 
   return {
     schema: 'ravia.bim.light',
-    version: '2.0.0',
+    version: '2.1.0',
     generator: GENERATOR,
     exportedAt: new Date().toISOString(),
     units: {
@@ -157,6 +217,8 @@ export function buildRaviaExport(doc: BimDocument): RaviaExport {
         'rooms[].airChangeRate ist n_min, der hygienische Mindestluftwechsel aus der Nutzung [1/h] — nicht die Infiltration. rooms[].ventilation.minimumAirflow ist derselbe Wert als Volumenstrom (Raumvolumen · n_min), dieselbe Größe und keine zweite. supplyAirflow, exhaustAirflow und transferAirflow sind die Summen der im Plan platzierten Zuluft-, Abluft- und Überströmelemente des Raums, also der Anlagenstrom. Mindeststrom und Anlagenstrom beschreiben denselben Luftwechsel und werden nicht addiert: maßgebend ist der größere von beiden — ein Mindeststrom ist eine Untergrenze, keine Zugabe. Bei Wärmerückgewinnung gilt entweder effectiveSupplyAirflow = supplyAirflow · (1 − η) — nur dieser Anteil trägt noch Außenlufttemperatur — oder supplyAirflow mit einer eigenen Rückgewinnungsrechnung aus totals.ventilation.heatRecovery; beides zusammen zieht η zweimal ab. η ist nur bei totals.ventilation.kind = "balanced" von 0 verschieden, weil eine reine Abluftanlage nichts zurückzugewinnen hat. Ein Abluftraum (ventilation.role = "exhaust", also Bad, WC, Küche) bezieht seine Luft über den Überströmweg aus den Zulufträumen; sie ist dort bereits erwärmt worden. Sein exhaustAirflow ist deshalb Fortluft und kein Außenluftstrom — wer ihn als Außenluft ansetzt, überschätzt die Heizlast dieses Raums erheblich. Die Außenluftbilanz des Gebäudes steht in totals.ventilation: balance = supplyAirflow − exhaustAirflow, und was dort nicht bei 0 steht, geht ungewärmt durch die Gebäudehülle. Die Infiltration rechnet dieser Export nicht; geliefert werden nur ihre Eingangsgrößen project.n50, project.shielding, rooms[].exposedFacadeCount und rooms[].levelElevation.',
       subsoil:
         'subsoil sind die Erfassungsgrößen des Baugrunds, nicht seine Kennwerte. soil ist die Bodenart aus dem Lageplan (dry = trocken/sandig, normal = bindig-feucht, conductive = Festgestein, saturated = wassergesättigter Sand/Kies), soilLabel derselbe Wert im Klartext; sie ist eine Eingabe mit der Vorbelegung "normal" — ob sie erkundet oder belassen wurde, unterscheidet dieser Export nicht und behauptet es auch nicht. groundwaterDepth dagegen hat keine Vorbelegung: es ist der Grundwasserstand als Tiefe unter Geländeoberkante [m], positiv nach unten, und fehlt, solange er nicht erfasst ist. Ohne ihn lässt sich nicht entscheiden, ob die Korrektur G_w nach DIN EN ISO 13370 überhaupt greift — zu halten ist er gegen deepestEmbedment, die größte Einbindetiefe eines erdberührten Bauteils. Wärmeleitfähigkeiten λ des Bodens liefert dieser Export nicht: ihre Tabelle gehört zur Norm und ist nicht frei zitierbar, die Bodenart benennt nur die Zeile. Der ganze Block fehlt, wenn das Gebäude das Erdreich nirgends berührt und kein Grundwasserstand erfasst ist — dann gibt es nichts zu korrigieren und nichts zu berichten.',
+      durchbrueche:
+        'durchbrueche sind Durchbrüche und Bohrungen für Leitungen — Kernbohrung, Wanddurchbruch, Wandschlitz, Deckendurchbruch. Sie sind Ausführungsangaben und keine Rechengrößen: eine Kernbohrung mindert **keine** Wandfläche und erscheint in keiner Hüllflächenliste — sie wird geschottet, nicht gerechnet. Wer sie dennoch abzieht, rechnet ein Loch zweimal: einmal als fehlende Wand und einmal als Wärmebrücke. openArea ist der lichte Querschnitt [m²] für den Schottungsaufwand. wirt sagt, ob die Wand (wallId gesetzt) oder die Decke durchstoßen wird; beim Deckendurchbruch ist level das Geschoss **unter** der Decke. sillHeight ist bei runder Form die Achshöhe, bei rechteckiger die Unterkante — jeweils über OK Fertigfußboden. brandschutz ist die Anforderung an die Schottung, nicht das verbaute Produkt; "keine" heißt, dass keine Anforderung erfasst wurde, und nicht, dass keine besteht.',
       solids:
         'solids sind massive Bauteile ohne Raumfunktion — Kamin, Pfeiler, Wandversatz, Installationsblock. Ihre Grundfläche ist aus der Raumfläche und aus dem Luftvolumen herausgerechnet (rooms[].floorOpeningArea enthält sie, rooms[].solidArea nennt ihren Anteil); die Deckenfläche des Raums bleibt ungeschmälert, weil dort Mauerwerk und kein Luftraum steht. thermalBridge liefert nur Eingangsgrößen: atExteriorWall und die Berührungslänge contactLength [m]. Ein ψ-Wert wird hier nicht gebildet — er hängt an Aufbau, Zug und Dämmung des Bauteils und steht in keiner frei zitierbaren Tabelle.',
     },
@@ -166,9 +228,12 @@ export function buildRaviaExport(doc: BimDocument): RaviaExport {
     constructions: Object.values(doc.constructions ?? {}),
     verticals: buildVerticals(doc),
     solids: buildSolids(doc),
+    durchbrueche: buildDurchbrueche(doc),
     pipes: buildPipes(doc),
     pipeSchedule: buildPipeSchedule(doc),
-    pipeNetwork: buildPipeNetwork(doc),
+    pipeNetwork: netz,
+    emitters: buildEmitters(doc),
+    ...(hydraulik ? { hydraulics: hydraulik } : {}),
     ...(Object.keys(doc.site?.pumps ?? {}).length || Object.keys(doc.site?.elements ?? {}).length
       ? { heatPump: buildHeatPumpExport(doc) }
       : {}),
@@ -183,9 +248,25 @@ export function buildRaviaExport(doc: BimDocument): RaviaExport {
       fixtures: Object.values(doc.fixtures),
       verticals: Object.values(doc.verticals ?? {}),
       solids: Object.values(doc.solids ?? {}),
+      durchbrueche: Object.values(doc.durchbrueche ?? {}),
       pipes: Object.values(doc.pipes ?? {}),
       annotations: Object.values(doc.annotations ?? {}),
       roofOpenings: Object.values(doc.roofOpenings ?? {}),
+      /*
+       * Gelände und Handnotizen gehören in die Rohgeometrie.
+       *
+       * `heatPump.elements` weiter oben ist die **ausgewertete** Sicht für den
+       * Rechenkern — Schallnachweis, Schutzbereich, Grundstücksfläche. Zum
+       * Zurücklesen taugt sie nicht: die Wärmepumpen stehen dort als
+       * Rechenfall und nicht als Gerät im Modell.
+       *
+       * Ohne diesen Block verlor „exportieren, wieder öffnen" das gesamte
+       * Grundstück samt Wärmepumpe — ohne Fehlermeldung, denn die Datei
+       * enthielt die Zahlen ja, nur eben in einer Form, aus der das Modell
+       * nicht wieder entsteht.
+       */
+      site: doc.site,
+      ...(Object.keys(doc.freihand ?? {}).length ? { freihand: Object.values(doc.freihand ?? {}) } : {}),
     },
   };
 }
@@ -435,19 +516,131 @@ function slabBoundary(
  * sie zum Giebel — ein Giebelfenster sitzt sonst rechnerisch in einer Wand,
  * die an dieser Stelle gar nicht mehr existiert.
  */
+/**
+ * Übersetzt die Herkunft aus `uwert.ts` in die Quelle des Exports.
+ *
+ * Ein Unterschied bleibt und ist beabsichtigt: `'fehlt'` gibt es hier nicht.
+ * Wand und Öffnung enden in `uwert.ts` beide bei `VORGABE_U`, und genau diesen
+ * Rückfall schreiben die Aufrufer hin — die Zahl kommt dann aus dem Katalog,
+ * nicht aus dem Nichts, und heißt deshalb `'katalog'`.
+ */
+/**
+ * Die heizlastrelevante Sicht auf einen Raum — Grundlage seiner Prüfsumme.
+ *
+ * Aufgezählt statt ausgeschlossen: Eine Liste, die sagt „alles außer Name und
+ * Farbe", nimmt jedes künftige Feld automatisch mit auf — auch das nächste
+ * Darstellungsfeld, und dann springt die Summe wieder ohne Grund an. Diese
+ * Liste muss beim Erweitern von Hand angefasst werden, und das ist der Zweck:
+ * Wer ein Feld hinzufügt, entscheidet dabei, ob es eine Heizlast ungültig
+ * macht.
+ *
+ * Die Flächen werden **nach Kennung sortiert**. Ihre Reihenfolge entsteht aus
+ * dem Umlauf des Raumpolygons, und dessen Startpunkt kann sich beim
+ * Neuerkennen drehen, ohne dass sich am Haus etwas geändert hätte — ohne die
+ * Sortierung wäre das ein Fehlalarm.
+ */
+function raumPruefsumme(r: ExportRoom): string {
+  return pruefsumme({
+    level: r.level,
+    usage: r.usage,
+    isHeated: r.isHeated,
+    levelElevation: r.levelElevation,
+    area: r.area,
+    netFloorArea: r.netFloorArea,
+    floorOpeningArea: r.floorOpeningArea,
+    solidArea: r.solidArea,
+    height: r.height,
+    volume: r.volume,
+    perimeter: r.perimeter,
+    roof: r.roof,
+    setpointTemperature: r.setpointTemperature,
+    airChangeRate: r.airChangeRate,
+    minimumAirflow: r.minimumAirflow,
+    ventilation: r.ventilation,
+    exposedFacadeCount: r.exposedFacadeCount,
+    groundContactPerimeter: r.groundContactPerimeter,
+    groundContactArea: r.groundContactArea,
+    characteristicGroundDimension: r.characteristicGroundDimension,
+    thermalBridges: r.thermalBridges,
+    thermalBridgeHeatLoss: r.thermalBridgeHeatLoss,
+    surfaces: [...r.surfaces]
+      .sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0))
+      .map((f) => ({
+        id: f.id,
+        kind: f.kind,
+        component: f.component,
+        tilt: f.tilt,
+        azimuth: f.azimuth,
+        netArea: f.netArea,
+        grossArea: f.grossArea,
+        uValue: f.uValue,
+        uValueSource: f.uValueSource,
+        thermalBridgeSupplement: f.thermalBridgeSupplement,
+        boundary: f.boundary,
+        neighbourRoomId: f.neighbourRoomId,
+        neighbourTemperature: f.neighbourTemperature,
+        groundContact: f.groundContact,
+        openings: [...f.openings]
+          .sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0))
+          .map((o) => ({
+            id: o.id,
+            kind: o.kind,
+            area: o.area,
+            sillHeight: o.sillHeight,
+            azimuth: o.azimuth,
+            uValue: o.uValue,
+            uValueSource: o.uValueSource,
+            gValue: o.gValue,
+          })),
+      })),
+  });
+}
+
+function quelleVon(a: UWertAuskunft): UWertQuelle {
+  switch (a.herkunft) {
+    case 'aufbau':
+      return 'aufbau';
+    case 'bauteil':
+      return 'bauteil';
+    case 'katalog':
+      return 'katalog';
+    case 'fehlt':
+      return 'katalog';
+  }
+}
+
+/**
+ * Der U-Wert einer Fläche aus einer Rangfolge von Trägern — mit seiner Quelle.
+ *
+ * Genommen wird der erste Träger, dessen Wert **erfasst** ist. `istErfasst`
+ * und nicht `??`: ein `uValue` von 0 ist keine Angabe, sondern eine Lücke —
+ * so entstehen über `hostPatch` angelegte Aufbauten. Mit `??` verdrängte die
+ * Lücke den nächsten Träger, und die Fläche verschwände mit U = 0 lautlos aus
+ * der Bilanz. Genau diese Überlegung steht beim Giebel weiter unten; Boden
+ * und Decke hatten sie bis hierher nicht.
+ *
+ * Greift kein Träger, steht `ersatz`. Dessen Quelle ist normalerweise
+ * `'annahme'` — ein fester Wert dieses Exports, den niemand erfasst und kein
+ * Katalog geliefert hat; genau diese Zeilen gehören auf der Gegenseite ins
+ * Annahmenverzeichnis. `ersatzQuelle` gibt es für den einen Fall, in dem der
+ * Rückfall selbst schon eine Herkunft hat: Der Giebel fällt auf die Wand
+ * darunter zurück, und deren Quelle ist dann auch seine.
+ */
+function uWertAus(
+  stufen: readonly (readonly [number | undefined, UWertQuelle])[],
+  ersatz: number,
+  ersatzQuelle: UWertQuelle = 'annahme',
+): { uValue: number; uValueSource: UWertQuelle } {
+  for (const [wert, quelle] of stufen) {
+    if (istErfasst(wert)) return { uValue: wert, uValueSource: quelle };
+  }
+  return { uValue: ersatz, uValueSource: ersatzQuelle };
+}
+
 function isGableOpening(op: ExportOpening, roof: RoofDefinition | undefined): boolean {
   if (!roof) return false;
   const centre = (op.sillHeight ?? 0) + op.height / 2;
   return centre > roof.kneeHeight;
-}
-
-/** Trassenlänge einer Polylinie [m]. */
-function polylineLength(points: readonly { x: number; y: number }[]): number {
-  let total = 0;
-  for (let i = 1; i < points.length; i++) {
-    total += Math.hypot(points[i].x - points[i - 1].x, points[i].y - points[i - 1].y);
-  }
-  return total;
 }
 
 function buildVerticals(doc: BimDocument): ExportVertical[] {
@@ -562,6 +755,62 @@ function buildSolids(doc: BimDocument): ExportSolid[] {
   });
 }
 
+/**
+ * Die Durchbrüche für den Export.
+ *
+ * Kurz, und das mit Absicht. Ein Durchbruch trägt keine Rechengröße, die
+ * hier erst gebildet werden müsste — er trägt Maße, eine Lage und eine
+ * Anforderung. Was diese Funktion tut, ist deshalb vor allem: die Lage aus
+ * dem parametrischen Sitz in der Wand in einen Weltpunkt übersetzen, damit
+ * die Gegenstelle den Durchbruch auf ihrem Plan wiederfindet, ohne die
+ * Wandgeometrie nachbauen zu müssen.
+ *
+ * Ein verwaister Durchbruch — die Wand ist fort — bekommt keinen Punkt und
+ * wird trotzdem geliefert. Er verschwindet nicht aus dem Export, nur weil er
+ * unvollständig ist; die Prüfung meldet ihn als `durchbruch.orphan`, und die
+ * Gegenstelle sieht ihn in derselben Liste wie der Zeichner.
+ */
+/**
+ * Der lichte Querschnitt auf den Quadratzentimeter.
+ *
+ * `roundCm2` heißt zwar so, rundet aber auf 1/100 m² — das sind hundert
+ * Quadratzentimeter. Bei einer Wandfläche ist das die richtige Auflösung; bei
+ * einer Kernbohrung Ø 152 ist es die falsche: 0,0181 m² würden zu 0,02, ein
+ * Fehler von zehn Prozent, und zwar bei jeder einzelnen Bohrung. Deshalb hier
+ * eine eigene, feinere Rundung statt einer Änderung an der allgemeinen — die
+ * wirkte auf jedes Bauteil im Export, und dafür gibt es keinen Anlass.
+ */
+const rundeQuerschnitt = (v: number): number => Math.round(v * 10000) / 10000;
+
+function buildDurchbrueche(doc: BimDocument): ExportDurchbruch[] {
+  return Object.values(doc.durchbrueche ?? {}).map((d: Durchbruch) => {
+    const wirt = durchbruchWirt(d.kind);
+    const mitte = durchbruchMitte(d, doc) ?? d.position ?? { x: 0, y: 0 };
+    const level = doc.levels[d.levelId];
+    return {
+      id: d.id,
+      kind: d.kind,
+      name: d.name,
+      wirt,
+      level: level?.name ?? d.levelId,
+      ...(d.wallId ? { wallId: d.wallId } : {}),
+      form: d.form,
+      ...(d.diameter !== undefined ? { diameter: roundMm(d.diameter) } : {}),
+      ...(d.width !== undefined ? { width: roundMm(d.width) } : {}),
+      ...(d.height !== undefined ? { height: roundMm(d.height) } : {}),
+      openArea: rundeQuerschnitt(durchbruchFlaeche(d)),
+      position: { x: roundMm(mitte.x), y: roundMm(mitte.y) },
+      ...(wirt === 'wand' && d.sillHeight !== undefined
+        ? { sillHeight: roundMm(d.sillHeight) }
+        : {}),
+      ...(d.service ? { service: d.service } : {}),
+      ...(d.dn !== undefined ? { dn: d.dn } : {}),
+      brandschutz: d.brandschutz ?? 'keine',
+      ...(d.note ? { note: d.note } : {}),
+    };
+  });
+}
+
 function buildPipes(doc: BimDocument): ExportPipe[] {
   return Object.values(doc.pipes ?? {}).map((run: PipeRun) => ({
     id: run.id,
@@ -570,7 +819,9 @@ function buildPipes(doc: BimDocument): ExportPipe[] {
     nominalDiameter: run.nominalDiameter,
     insulation: run.insulation,
     elevation: roundMm(run.elevation),
-    length: roundCm2(polylineLength(run.points)),
+    // Wahre Länge, Trasse und Höhenversatz zusammen — siehe `rohrlaenge`.
+    length: roundCm2(rohrlaenge(run)),
+    elevationTo: run.elevationTo === undefined ? undefined : roundMm(run.elevationTo),
     points: run.points,
     fromFixtureId: run.fromFixtureId,
     toFixtureId: run.toFixtureId,
@@ -589,10 +840,12 @@ function buildPipeSchedule(doc: BimDocument): PipeScheduleEntry[] {
   const map = new Map<string, PipeScheduleEntry>();
   for (const run of Object.values(doc.pipes ?? {})) {
     const key = `${run.service}|${run.nominalDiameter}|${run.insulation}`;
-    const length = polylineLength(run.points);
+    const length = rohrlaenge(run);
+    const steig = steiganteil(run);
     const entry = map.get(key);
     if (entry) {
       entry.length = roundCm2(entry.length + length);
+      entry.riseLength = roundCm2((entry.riseLength ?? 0) + steig);
       entry.runs += 1;
     } else {
       map.set(key, {
@@ -600,6 +853,7 @@ function buildPipeSchedule(doc: BimDocument): PipeScheduleEntry[] {
         nominalDiameter: run.nominalDiameter,
         insulation: run.insulation,
         length: roundCm2(length),
+        riseLength: roundCm2(steig),
         runs: 1,
       });
     }
@@ -622,15 +876,23 @@ function skylightAzimuth(doc: BimDocument, room: Room, opening: { position: Vec2
   const roof = level?.roof;
   if (!roof) return 0;
 
+  const levelWalls = Object.values(doc.walls).filter((w) => w.levelId === room.levelId);
   const outline: Vec2[] = [];
-  for (const w of Object.values(doc.walls)) {
-    if (w.levelId !== room.levelId) continue;
+  for (const w of levelWalls) {
     const a = doc.nodes[w.a];
     const b = doc.nodes[w.b];
     if (a) outline.push({ x: a.x, y: a.y });
     if (b) outline.push({ x: b.x, y: b.y });
   }
-  const frame = buildRoofFrame(roof, outline);
+  // Ohne den geordneten Umriss landete beim Walmdach jedes Dachfenster auf
+  // einer der vier Flächen des umschließenden Rechtecks — bei einem L also
+  // regelmäßig auf einer Fassade, die es dort gar nicht gibt.
+  const frame = buildRoofFrame(
+    roof,
+    outline,
+    [],
+    roof.kind !== 'flat' ? gebaeudeUmriss(levelWalls, doc.nodes) : [],
+  );
   return frame ? roofFaceAzimuthAt(frame, opening.position) : roof.azimuth;
 }
 
@@ -697,7 +959,16 @@ function buildRoom(
         sillHeight: roundMm(op.sillHeight),
         orientation: boundary.orientation,
         azimuth: Math.round(boundary.azimuth * 10) / 10,
-        uValue: opConstruction?.uValue ?? op.uValue ?? DEFAULT_U[op.kind],
+        // `wert` ist hier nie undefiniert: `uWertOeffnung` endet für jede
+        // Öffnungsart bei einem Vorgabewert, und `'fehlt'` gibt es nur ohne
+        // Öffnung. Der Rückfall steht trotzdem da, weil `ExportOpening.uValue`
+        // eine Zahl verlangt und ein `?? 0` an dieser Stelle genau der Fehler
+        // wäre, den `uwert.ts` verhindern soll — 0 rechnet sich klaglos
+        // weiter und macht das Fenster aus der Bilanz verschwinden.
+        ...(() => {
+          const a = uWertOeffnung(op, doc.constructions);
+          return { uValue: a.wert ?? VORGABE_U[op.kind], uValueSource: quelleVon(a) };
+        })(),
         gValue: op.gValue,
         construction: opConstruction?.name,
         constructionId: op.constructionId,
@@ -715,14 +986,42 @@ function buildRoom(
     const netArea = roundCm2(Math.max(0, grossArea - openingArea));
     const wallConstruction = wall.constructionId ? (doc.constructions ?? {})[wall.constructionId] : undefined;
     const gable = roof ? (boundary.gableArea ?? 0) : 0;
-    const wallOpenings = segmentOpenings.filter((o) => !isGableOpening(o, roof));
+    /*
+     * Öffnungen über dem Kniestock gehören zum Giebel — **wenn die Wand
+     * einen hat**.
+     *
+     * Ohne diese Bedingung ging eine solche Öffnung verloren: `isGableOpening`
+     * fragt allein nach der Höhe ihrer Mitte, die Giebelfläche entsteht aber
+     * nur, wenn `boundary.gableArea` etwas hergibt. Bei einem Satteldach hat
+     * genau die Hälfte der Außenwände einen Giebel — die anderen liegen an der
+     * Traufe. Ein Fenster hoch in einer Traufwand wurde deshalb aus der
+     * Wandliste gefiltert und landete auf einer Giebelfläche, die für diese
+     * Wand nie gebaut wurde.
+     *
+     * Der Verlust war doppelt und in beide Richtungen zu klein: Das Fenster
+     * fehlte in der Bilanz **und** seine Fläche war von der Wand längst
+     * abgezogen (`netArea` rechnet mit `segmentOpenings`, nicht mit
+     * `wallOpenings`). Übergeben wurde also eine kleinere Wand ohne das
+     * Fenster darin — bei U 1,1 gegen U 0,28 fällt die Heizlast des Raums
+     * spürbar zu niedrig aus, und nichts daran sieht falsch aus.
+     *
+     * Die Gegenprobe steht im Prüfblock „Exportvertrag": Über alle Flächen
+     * eines Raums muss jede Öffnung genau einmal vorkommen.
+     */
+    const hatGiebel = gable > 0.05;
+    const wallOpenings = segmentOpenings.filter((o) => !(hatGiebel && isGableOpening(o, roof)));
     // Unter einer Dachschräge endet die eigentliche Wand am Kniestock;
     // was darüber liegt, ist der Giebel und wird gleich eigens ausgewiesen.
     const wallGross = gable > 0 ? roundCm2(grossArea - gable) : grossArea;
     // Ist dem Bauteil ein Aufbau aus dem Katalog zugewiesen, gilt dessen
     // U-Wert. Sonst gäbe es zwei Wahrheiten, und die Katalogpflege ginge
-    // an den Wänden vorbei, die sie eigentlich beschreibt.
-    const wallU = wallConstruction?.uValue ?? wall.uValue ?? DEFAULT_U[wall.type];
+    // an den Wänden vorbei, die sie eigentlich beschreibt. Die Rangfolge
+    // steht in `uwert.ts` und gilt für Export, Stückliste und Heft
+    // gemeinsam — dieselbe Wand darf nicht in zwei Papieren zwei U-Werte
+    // haben. Zum Rückfall auf `VORGABE_U` siehe die Öffnung oben.
+    const wallAuskunft = uWertWand(wall, doc.constructions);
+    const wallU = wallAuskunft.wert ?? VORGABE_U[wall.type];
+    const wallUQuelle = quelleVon(wallAuskunft);
     const wallTb = detailedBridges ? 0 : (wall.thermalBridgeSupplement ?? defaultTb);
 
     // --- Geländeoberkante: steckt ein Teil dieser Wand im Erdreich? -------
@@ -770,6 +1069,7 @@ function buildRoom(
         grossArea: wallGross,
         netArea,
         uValue: wallU,
+        uValueSource: wallUQuelle,
         construction: wallConstruction?.name,
         constructionId: wall.constructionId,
         thermalBridgeSupplement: wallTb,
@@ -809,6 +1109,7 @@ function buildRoom(
           grossArea: aboveGross,
           netArea: aboveNet,
           uValue: wallU,
+          uValueSource: wallUQuelle,
           construction: wallConstruction?.name,
           constructionId: wall.constructionId,
           thermalBridgeSupplement: wallTb,
@@ -836,6 +1137,7 @@ function buildRoom(
         grossArea: buriedGross,
         netArea: roundCm2(Math.max(0, buriedGross - belowOpeningArea)),
         uValue: wallU,
+        uValueSource: wallUQuelle,
         construction: wallConstruction?.name,
         constructionId: wall.constructionId,
         thermalBridgeSupplement: wallTb,
@@ -852,7 +1154,9 @@ function buildRoom(
     // Giebel als eigenes Bauteil: er ist in der Regel anders aufgebaut als
     // die Wand darunter (Holz, Vorhangfassade) und hat einen eigenen U-Wert.
     if (gable > 0.05) {
-      const gableOpenings = segmentOpenings.filter((o) => isGableOpening(o, roof));
+      // Dieselbe Bedingung wie bei `wallOpenings`, nur andersherum — die
+      // beiden Listen müssen zusammen wieder `segmentOpenings` ergeben.
+      const gableOpenings = segmentOpenings.filter((o) => hatGiebel && isGableOpening(o, roof));
       const gableOpeningArea = gableOpenings.reduce((sum, o) => sum + o.area, 0);
       surfaces.push({
         id: `${wall.id}-gable`,
@@ -864,7 +1168,24 @@ function buildRoom(
         azimuth: Math.round(boundary.azimuth * 10) / 10,
         grossArea: roundCm2(gable),
         netArea: roundCm2(Math.max(0, gable - gableOpeningArea)),
-        uValue: gableConstruction?.uValue ?? roof?.gableUValue ?? wallConstruction?.uValue ?? wall.uValue ?? DEFAULT_U[wall.type],
+        // Der Giebel hat eine eigene Rangfolge über zwei zusätzliche
+        // Träger — Giebelaufbau, dann der am Dach erfasste Giebel-U-Wert —
+        // und fällt erst danach auf die Wand darunter zurück. Deren Kette
+        // ist `wallU` und damit schon die aus `uwert.ts`; hier steht sie
+        // nicht noch einmal.
+        //
+        // `istErfasst` statt `??` bei den ersten beiden: Ein Giebelaufbau
+        // mit `uValue: 0` ist keine Angabe, sondern eine Lücke (so entstehen
+        // über `hostPatch` angelegte Aufbauten). Mit `??` hätte er die Wand
+        // darunter verdrängt und den ganzen Giebel mit U = 0 übergeben.
+        ...uWertAus(
+          [
+            [gableConstruction?.uValue, 'aufbau'],
+            [roof?.gableUValue, 'bauteil'],
+          ],
+          wallU,
+          wallUQuelle,
+        ),
         construction: gableConstruction?.name,
         constructionId: roof?.gableConstructionId,
         thermalBridgeSupplement: detailedBridges ? 0 : (wall.thermalBridgeSupplement ?? defaultTb),
@@ -925,7 +1246,14 @@ function buildRoom(
     tilt: 0,
     grossArea: floorArea,
     netArea: floorArea,
-    uValue: room.floorUValue ?? floorConstruction?.uValue ?? level?.floorUValue ?? 0.3,
+    ...uWertAus(
+      [
+        [room.floorUValue, 'bauteil'],
+        [floorConstruction?.uValue, 'aufbau'],
+        [level?.floorUValue, 'bauteil'],
+      ],
+      0.3,
+    ),
     construction: floorConstruction?.name,
     constructionId: floorConstruction?.id,
     thermalBridgeSupplement: defaultTb,
@@ -977,7 +1305,13 @@ function buildRoom(
         azimuth,
         grossArea: roundCm2(face.area),
         netArea: roundCm2(Math.max(0, face.area - windowArea)),
-        uValue: roofConstruction?.uValue ?? roof.uValue,
+        ...uWertAus(
+          [
+            [roofConstruction?.uValue, 'aufbau'],
+            [roof.uValue, 'bauteil'],
+          ],
+          roof.uValue,
+        ),
         construction: roofConstruction?.name,
         constructionId: roof.constructionId,
         thermalBridgeSupplement: defaultTb,
@@ -998,6 +1332,9 @@ function buildRoom(
             orientation: orient,
             azimuth,
             uValue: o.uValue,
+            // Ein Dachfenster trägt seinen U-Wert am Bauteil; einen Katalog
+            // für Dachflächenfenster gibt es nicht.
+            uValueSource: 'bauteil' as const,
             gValue: o.gValue,
             construction: o.constructionId ? (doc.constructions ?? {})[o.constructionId]?.name : undefined,
             constructionId: o.constructionId,
@@ -1035,7 +1372,7 @@ function buildRoom(
           azimuth,
           grossArea: roundCm2(metrics.dormerFrontArea),
           netArea: roundCm2(Math.max(0, metrics.dormerFrontArea - glass)),
-          uValue: dormer.frontUValue ?? 0.24,
+          ...uWertAus([[dormer.frontUValue, 'bauteil']], 0.24),
           thermalBridgeSupplement: defaultTb,
           boundary: 'exterior',
           neighbourTemperature: doc.meta.designOutdoorTemperature,
@@ -1052,6 +1389,7 @@ function buildRoom(
                     orientation: orient,
                     azimuth,
                     uValue: dormer.uValue,
+                    uValueSource: 'bauteil' as const,
                     gValue: dormer.gValue ?? 0.5,
                   },
                 ]
@@ -1069,7 +1407,7 @@ function buildRoom(
           azimuth: (azimuth + 90) % 360,
           grossArea: roundCm2(metrics.dormerCheekArea),
           netArea: roundCm2(metrics.dormerCheekArea),
-          uValue: dormer.frontUValue ?? 0.24,
+          ...uWertAus([[dormer.frontUValue, 'bauteil']], 0.24),
           thermalBridgeSupplement: defaultTb,
           boundary: 'exterior',
           neighbourTemperature: doc.meta.designOutdoorTemperature,
@@ -1093,7 +1431,7 @@ function buildRoom(
           azimuth,
           grossArea: roundCm2(metrics.dormerRoofArea),
           netArea: roundCm2(metrics.dormerRoofArea),
-          uValue: dormer.uValue,
+          ...uWertAus([[dormer.uValue, 'bauteil']], dormer.uValue),
           thermalBridgeSupplement: defaultTb,
           boundary: 'exterior',
           neighbourTemperature: doc.meta.designOutdoorTemperature,
@@ -1113,13 +1451,16 @@ function buildRoom(
         tilt: 0,
         grossArea: roundCm2(metrics.flatCeilingArea),
         netArea: roundCm2(metrics.flatCeilingArea),
-        uValue:
-          collarConstruction?.uValue ??
-          roof.collarUValue ??
-          room.ceilingUValue ??
-          ceilingConstruction?.uValue ??
-          level?.ceilingUValue ??
+        ...uWertAus(
+          [
+            [collarConstruction?.uValue, 'aufbau'],
+            [roof.collarUValue, 'bauteil'],
+            [room.ceilingUValue, 'bauteil'],
+            [ceilingConstruction?.uValue, 'aufbau'],
+            [level?.ceilingUValue, 'bauteil'],
+          ],
           0.2,
+        ),
         construction: collarConstruction?.name ?? ceilingConstruction?.name,
         constructionId: roof.collarConstructionId ?? ceilingConstruction?.id,
         thermalBridgeSupplement: defaultTb,
@@ -1136,7 +1477,14 @@ function buildRoom(
       tilt: 0,
       grossArea: ceilingArea,
       netArea: ceilingArea,
-      uValue: room.ceilingUValue ?? ceilingConstruction?.uValue ?? level?.ceilingUValue ?? 0.2,
+      ...uWertAus(
+        [
+          [room.ceilingUValue, 'bauteil'],
+          [ceilingConstruction?.uValue, 'aufbau'],
+          [level?.ceilingUValue, 'bauteil'],
+        ],
+        0.2,
+      ),
       construction: ceilingConstruction?.name,
       constructionId: ceilingConstruction?.id,
       thermalBridgeSupplement: defaultTb,
@@ -1187,6 +1535,9 @@ function buildRoom(
 
   return {
     id: room.id,
+    // Steht hier nur, damit der Typ vollständig ist; gebildet wird sie eine
+    // Ebene höher über den fertigen Raum. Siehe `raumPruefsumme`.
+    checksum: '',
     name: room.name,
     usage: room.usage,
     level: level?.name ?? room.levelId,

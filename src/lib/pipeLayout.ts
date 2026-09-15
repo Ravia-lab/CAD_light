@@ -47,6 +47,11 @@ import { insulationForDimension } from './pipeInsulation';
 import { routePipes, type RoutedNetwork, type PlanningNote } from './pipeRouting';
 import { pointInPolygon } from './geometry';
 import { estimateHeatLoad } from './heatLoadEstimate';
+import { systemtemperaturVon } from './systemtemperatur';
+import { anschlussNotiz, anschlussVonGeraet, pruefeAnschluss } from './anschlussgroesse';
+import { findModel } from './deviceCatalog';
+import { plantOf } from './plantDefaults';
+import { PAARABSTAND } from './doppelleitung';
 
 export type { PlanningNote };
 
@@ -100,21 +105,8 @@ const HOEHE = {
   heizkoerper: 0.15,
 } as const;
 
-/**
- * Abstand der beiden Rohre einer Trasse [m].
- *
- * Vorlauf und Rücklauf laufen nebeneinander. Die Trassierung liefert **einen**
- * Weg — die Achse des Kanals bzw. des Rohrpaars; hier wird daraus das Paar,
- * seitlich um je die Hälfte versetzt, damit man im Plan zwei Leitungen sieht
- * und nicht eine.
- *
- * 50 mm passen zur Lage, die `pipeRouting` der Trasse gibt: in der Sanierung
- * liegt deren Achse 50 mm vor der Wandfläche, die beiden Rohre also bei 25 mm
- * und 75 mm — beide innerhalb der 105 mm des Sockelleistenkanals. Der Versatz
- * ist eine reine Parallelverschiebung; er ändert die Länge eines Abschnitts
- * nicht, und deshalb gilt weiterhin: Rohrlänge = 2 × Trassenlänge.
- */
-const PAARABSTAND = 0.05;
+// Der Achsabstand der beiden Rohre steht in `lib/doppelleitung.ts` — dieselbe
+// Zahl gilt für die von Hand gezogene Doppelleitung.
 
 export interface PipeLayoutOptions {
   mode: PipeRoutingMode;
@@ -136,6 +128,20 @@ export interface PipeLayoutOptions {
    * gerechneten Last und nicht am Überschlag.
    */
   roomLoads?: Map<string, number>;
+  /**
+   * Anschlussnennweite des Erzeugers [mm] — die Untergrenze für den ersten
+   * Abschnitt.
+   *
+   * Ohne Angabe holt sich das Modul die Größe selbst aus dem Dokument
+   * (aufgestellte Wärmepumpe, sonst das gewählte Katalogmodell). Der
+   * Parameter ist für den Fall da, dass der Aufrufer die Anlagenauslegung
+   * ohnehin schon gerechnet hat und deren Ergebnis durchreichen will — dann
+   * ist ausgeschlossen, dass zwei Stellen zu verschiedenen Antworten kommen.
+   *
+   * `0` oder eine negative Zahl heißt „ausdrücklich keine Untergrenze" und
+   * schaltet die Anhebung ab; `undefined` heißt „selbst nachsehen".
+   */
+  anschlussDn?: number;
 }
 
 /**
@@ -336,6 +342,38 @@ function raumAn(p: Vec2, rooms: Room[]): Room | undefined {
 }
 
 /**
+ * Wie nah ein Trassenpunkt am Erzeuger liegen muss, um sein Anschluss zu sein [m].
+ *
+ * `routePipes` übernimmt den Aufstellpunkt der Quelle **unverändert** als
+ * ersten Punkt der Trasse — gemessen am Referenzhaus ist der Abstand exakt
+ * 0,0000 m. Die Schranke ist deshalb keine Suchweite, sondern nur ein Schutz
+ * gegen Rundungsreste aus der Feinjustierung der Trasse. Sie bewusst klein
+ * zu halten ist wichtig: Eine großzügige Schranke würde bei einem Erzeuger
+ * dicht an einem Abzweig auch den **abgehenden** Strang erfassen und ihn auf
+ * Anschlussgröße aufblasen, obwohl er nur noch einen Teil des Volumenstroms
+ * trägt. Zu groß ist an dieser Stelle nicht „sicher", sondern teuer.
+ */
+const ERZEUGER_TOLERANZ = 1e-6;
+
+/**
+ * Die Anschlussnennweite des Erzeugers aus dem Modell [mm] — oder `undefined`.
+ *
+ * Dieselbe Rangfolge wie in `plantDesign`: das aufgestellte Gerät vor dem
+ * gewählten Katalogmodell, und ohne beides **nichts**. Sie hier noch einmal
+ * zu ermitteln statt `designPlant` aufzurufen, ist Absicht — die
+ * Trassenauslegung läuft bei jedem Zeichenschritt, die Anlagenauslegung
+ * rechnet ein ganzes Gebäude durch, und die Antwort auf diese eine Frage
+ * hängt an zwei Feldern.
+ */
+function erzeugerAnschluss(doc: BimDocument): ReturnType<typeof anschlussVonGeraet> {
+  const pumps = doc.site?.pumps ?? {};
+  const plant = plantOf(doc);
+  const pump = plant.pumpId ? pumps[plant.pumpId] : Object.values(pumps)[0];
+  const modell = plant.generatorModelId ? findModel(plant.generatorModelId, plant.extraModels) : undefined;
+  return anschlussVonGeraet(pump, modell);
+}
+
+/**
  * Das Rohrnetz auslegen.
  *
  * Die Reihenfolge ist zwingend: erst die Trasse (sie bestimmt, welcher
@@ -348,31 +386,60 @@ function raumAn(p: Vec2, rooms: Room[]): Room | undefined {
 export function planPipeNetwork(doc: BimDocument, options: PipeLayoutOptions): PipeLayoutResult {
   const notes: PlanningNote[] = [];
   const material: PipeMaterial = options.material ?? 'verbund';
-  const vorlauf = options.flowTemperature ?? 55;
-  const ruecklauf = options.returnTemperature ?? 45;
+  /*
+   * Mit welcher Spreizung wird dimensioniert?
+   *
+   * Bis 1.23.0 standen hier 55/45 als Rückfall und sonst das, was der
+   * Aufrufer übergab — im Regelfall das Anlagenblatt. An einem reinen
+   * Heizkörperhaus mit 35/28 im Anlagenblatt legte die Trasse damit mit 7 K
+   * aus, während die Anlagenauslegung ihre Kreise mit 10 K rechnete: 43 %
+   * Volumenstrom Unterschied, eine Nennweite daneben, und zwei Blätter über
+   * dieselbe Leitung, die sich widersprechen.
+   *
+   * `systemtemperaturVon` nimmt die Übergabe als **Untergrenze** und hebt sie
+   * an, wo ein Heizkörperkreis mehr verlangt. Eine ausdrückliche Vorgabe
+   * bleibt damit wirksam (55/45 bleiben 55/45), eine zu niedrige wird
+   * korrigiert statt übernommen — sonst wäre der Befund über den Aufrufer
+   * wieder hereingeholt.
+   */
+  const temperatur = systemtemperaturVon(doc, {
+    vorlauf: options.flowTemperature,
+    ruecklauf: options.returnTemperature,
+  });
+  const vorlauf = temperatur.vorlauf;
+  const ruecklauf = temperatur.ruecklauf;
 
   const rooms = Object.values(doc.rooms).filter((r) => r.levelId === options.levelId);
   const fixtures = Object.values(doc.fixtures).filter((f) => f.levelId === options.levelId);
   const walls = Object.values(doc.walls).filter((w) => w.levelId === options.levelId);
   const openings = Object.values(doc.openings).filter((o) => doc.walls[o.wallId]?.levelId === options.levelId);
 
-  // --- Quelle --------------------------------------------------------------
-  // Der Wärmeerzeuger, sonst der Verteiler. Ohne beides gibt es nichts
-  // auszulegen — geraten wird kein Standort.
+  /*
+   * --- Quelle --------------------------------------------------------------
+   *
+   * Der Ausgangspunkt der Trasse, in dieser Reihenfolge: Wärmeerzeuger,
+   * Speicher, Verteiler. Der Speicher steht bewusst vor dem Verteiler —
+   * bei einer Wärmepumpe steht der Erzeuger draußen, und im Haus beginnt
+   * das Netz am Puffer. Ein Verteiler ist dort keine Pflicht: ein
+   * Heizkörpernetz wird auch als Zweirohrsystem direkt vom Speicher
+   * gefahren. Geraten wird kein Standort — ohne eines dieser drei Geräte
+   * gibt es nichts auszulegen.
+   */
   const erzeuger = fixtures.find((f) => f.type === 'boiler');
+  const speicher = fixtures.filter((f) => f.type === 'storage');
   const verteiler = fixtures.filter((f) => f.type === 'manifold');
-  const quelle = erzeuger ?? verteiler[0];
+  const quelle = erzeuger ?? speicher[0] ?? verteiler[0];
   if (!quelle) {
     notes.push({
       severity: 'error',
-      text: 'Kein Wärmeerzeuger und kein Verteiler auf diesem Geschoss. Ohne Ausgangspunkt lässt sich keine Trasse führen — Erzeuger oder Verteiler setzen.',
+      text: 'Kein Wärmeerzeuger, kein Speicher und kein Verteiler auf diesem Geschoss. Ohne Ausgangspunkt lässt sich keine Trasse führen — eines davon setzen.',
     });
     return { runs: [], accessories: [], routeLength: 0, pipeLength: 0, served: 0, notes };
   }
   if (!erzeuger) {
     notes.push({
       severity: 'info',
-      text: `Kein Wärmeerzeuger gesetzt — die Trasse beginnt am Verteiler „${quelle.label ?? 'Verteiler'}".`,
+      text: `Kein Wärmeerzeuger auf diesem Geschoss — die Trasse beginnt an „${quelle.label ?? (quelle.type === 'storage' ? 'Speicher' : 'Verteiler')}".`,
     });
   }
 
@@ -446,6 +513,26 @@ export function planPipeNetwork(doc: BimDocument, options: PipeLayoutOptions): P
   notes.push(...netz.notes);
 
   // --- Abschnitte dimensionieren ------------------------------------------
+  /*
+   * Die Untergrenze für den ersten Abschnitt ab dem Erzeuger.
+   *
+   * **Der Befund, den das verhindert.** Bis 1.23.0 legte diese Schleife jeden
+   * Abschnitt rein hydraulisch aus — auch den, der unmittelbar am
+   * Gerätestutzen hängt. Am Referenzhaus mit 8-kW-Gerät kam dort Verbundrohr
+   * 20 × 2 (DN 15) heraus, während das Gerät G 1¼ AG (DN 32) hat: eine
+   * Leitung, halb so weit wie ihr Anschluss, und der Massenauszug bestellte
+   * sie so.
+   *
+   * **Nur der Erzeuger, nicht der Verteiler.** Ist kein Wärmeerzeuger
+   * gesetzt, beginnt die Trasse am Verteiler (siehe oben) — und ein
+   * Verteilerbalken hat mit dem Anschlussmaß einer Wärmepumpe nichts zu tun.
+   * Dann wird nicht angehoben.
+   */
+  const anschluss = erzeuger ? erzeugerAnschluss(doc) : undefined;
+  const mindestDn = options.anschlussDn ?? anschluss?.dn;
+  const anhebungGilt = erzeuger !== undefined && mindestDn !== undefined && mindestDn > 0;
+  let angehoben: { von: number; auf: number } | undefined;
+
   const hoehe = options.mode === 'sanierung' ? HOEHE.sanierung : HOEHE.neubau;
   const runs: PipeRun[] = [];
   const accessories: PipeAccessory[] = [];
@@ -473,12 +560,49 @@ export function planPipeNetwork(doc: BimDocument, options: PipeLayoutOptions): P
       seg.targets.length === 1 ? 'anbindung' : raum && raum.isHeated ? 'wohnraum' : 'verteilung';
     const grenze = SIZING_LIMITS[rolle] as { maxVelocity: number; quelle: string };
 
+    /*
+     * Hängt dieser Abschnitt am Erzeuger?
+     *
+     * Geprüft wird an **beiden** Enden: Die Trassierung fasst gerade Stücke
+     * zusammen und legt dabei nicht fest, in welcher Richtung ein Abschnitt
+     * gespeichert wird. Nur eines der beiden Enden auf den Aufstellpunkt zu
+     * prüfen hieße, die Anhebung von einer Laufrichtung abhängig zu machen,
+     * die niemand sieht.
+     */
+    const amErzeuger =
+      anhebungGilt &&
+      (Math.hypot(seg.from.x - quelle.position.x, seg.from.y - quelle.position.y) <= ERZEUGER_TOLERANZ ||
+        Math.hypot(seg.to.x - quelle.position.x, seg.to.y - quelle.position.y) <= ERZEUGER_TOLERANZ);
+
     const dim = sizePipe(strom, {
       material,
       maxVelocity: grenze.maxVelocity,
       maxGradient: options.maxGradient ?? SIZING_LIMITS.maxGradient,
       fluid: fluidProperties((vorlauf + ruecklauf) / 2),
+      // `sizePipe` kennt `minDn` seit jeher — gesetzt hat es vom Erzeuger aus
+      // bis 1.23.0 niemand. Übergeben wird die Nennweite und nicht die
+      // fertige Dimension: Welches Rohr der gewählte Werkstoff dafür
+      // hergibt, entscheidet die Tabelle in `hydraulics` und nicht diese
+      // Schleife. Bei Verbundrohr ist DN 32 das Maß 40 × 3,5.
+      minDn: amErzeuger ? mindestDn : undefined,
     });
+
+    if (amErzeuger && mindestDn !== undefined) {
+      // Was die Hydraulik allein ergeben hätte — für die Begründung. Sie
+      // wird mit denselben Grenzwerten gerechnet, sonst verglichen wir zwei
+      // verschiedene Fragen miteinander.
+      const ohneVorgabe = sizePipe(strom, {
+        material,
+        maxVelocity: grenze.maxVelocity,
+        maxGradient: options.maxGradient ?? SIZING_LIMITS.maxGradient,
+        fluid: fluidProperties((vorlauf + ruecklauf) / 2),
+      });
+      // Gehen mehrere Stränge unmittelbar vom Erzeuger ab, zählt der
+      // stärkste Eingriff: Er ist der, den der Leser am wenigsten erwartet.
+      if (ohneVorgabe.dimension.dn < dim.dimension.dn && (!angehoben || ohneVorgabe.dimension.dn < angehoben.von)) {
+        angehoben = { von: ohneVorgabe.dimension.dn, auf: dim.dimension.dn };
+      }
+    }
 
     if (options.mode === 'sanierung' && dim.dimension.outer > SOCKELLEISTE_MAX_AUSSEN) zuGross += 1;
 
@@ -503,6 +627,9 @@ export function planPipeNetwork(doc: BimDocument, options: PipeLayoutOptions): P
     const nx = -dy * (PAARABSTAND / 2);
     const ny = dx * (PAARABSTAND / 2);
 
+    // Beide Rohre eines Abschnitts tragen dieselbe Paarkennung: im Bau sind
+    // sie eine Trasse, ein Kanal, ein Loch durch die Wand.
+    const paarId = `pp-${laufendeNummer + 1}`;
     for (const [service, vz] of [
       ['heating-flow', 1],
       ['heating-return', -1],
@@ -510,6 +637,7 @@ export function planPipeNetwork(doc: BimDocument, options: PipeLayoutOptions): P
       laufendeNummer += 1;
       runs.push({
         id: `pr-${laufendeNummer}`,
+        pairId: paarId,
         levelId: options.levelId,
         service,
         points: [
@@ -529,6 +657,33 @@ export function planPipeNetwork(doc: BimDocument, options: PipeLayoutOptions): P
         material,
         label: `${seg.targets.length === 1 ? 'Anbindung' : 'Verteilung'} DN ${dim.dimension.dn}`,
       });
+    }
+  }
+
+  /*
+   * Die Begründung der Anhebung — genau einmal, am Ende.
+   *
+   * Im Bericht steht sonst eine Nennweite, die zum Volumenstrom daneben
+   * nicht passt; ein Leser, der sie nachrechnet, hält sie für einen Fehler.
+   * Gemeldet wird die Nennweite, die die Tabelle des Werkstoffs tatsächlich
+   * hergibt (bei Verbundrohr kann sie über der geforderten liegen), und die,
+   * die ohne die Vorgabe herausgekommen wäre.
+   */
+  if (angehoben && anschluss) {
+    const notiz = anschlussNotiz(
+      pruefeAnschluss(angehoben.von, mindestDn),
+      anschluss,
+      'Der erste Abschnitt ab dem Erzeuger',
+    );
+    if (notiz) {
+      notes.push(
+        angehoben.auf === mindestDn
+          ? notiz
+          : {
+              severity: notiz.severity,
+              text: `${notiz.text} Ausgeführt wird DN ${angehoben.auf} — die nächste Größe, die ${material} hergibt.`,
+            },
+      );
     }
   }
 

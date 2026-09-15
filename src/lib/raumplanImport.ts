@@ -36,6 +36,8 @@
  * Er wird als Nordrichtung mitgeführt, wo er hingehört.
  */
 
+import { vorzugsrichtung } from './geometry';
+import { VORGABE_U } from './uwert';
 import type {
   BimNode,
   Opening,
@@ -63,6 +65,12 @@ interface RoomPlanFlaeche {
   confidence?: Record<string, unknown>;
   category?: Record<string, unknown>;
   polygonCorners?: number[][];
+  /**
+   * Gekrümmte Wand (seit iOS 16). Ist das Feld gesetzt, ist `dimensions[0]`
+   * die **Sehne** und nicht die Bogenlänge — die Wand ist dann länger, als
+   * sie hier gemeldet wird.
+   */
+  curve?: { startAngle?: number; endAngle?: number; radius?: number } | null;
 }
 
 interface RoomPlanAbschnitt {
@@ -80,6 +88,22 @@ interface CapturedRoom {
   floors?: RoomPlanFlaeche[];
   sections?: RoomPlanAbschnitt[];
   objects?: RoomPlanFlaeche[];
+}
+
+/**
+ * Ein Mehrraum-Scan (`CapturedStructure`, seit iOS 17).
+ *
+ * Der `StructureBuilder` fügt mehrere Einzelscans zu einem Gebäude zusammen.
+ * Das Ergebnis trägt **beides**: die Einzelräume unter `rooms` und dieselbe
+ * Geometrie noch einmal zusammengeführt auf der obersten Ebene. Wer beides
+ * liest, bekommt jede Wand doppelt; wer nur `rooms` liest, verliert die
+ * Zusammenführung, die der Builder gerade geleistet hat.
+ *
+ * Gelesen wird deshalb die **oberste Ebene, wenn sie Wände trägt** — das ist
+ * der zusammengeführte Stand —, und nur sonst die Einzelräume.
+ */
+interface CapturedStructure extends CapturedRoom {
+  rooms?: CapturedRoom[];
 }
 
 /** Die Hülle, die „Room Scanner" um das Modell legt. */
@@ -197,6 +221,33 @@ const STAERKE_INNEN = 0.115;
 /** Unterhalb dieser Höhe ist es keine raumhohe Wand, sondern eine Brüstung [m]. */
 const BRUESTUNGS_HOEHE = 1.6;
 
+/*
+ * U-Werte beim Import — dieselbe Regel wie beim IFC-Import.
+ *
+ * Die ausführliche Begründung steht in `ifcImport.ts` über denselben beiden
+ * Konstanten; sie gilt hier unverändert, weil ein RoomPlan-Scan genauso wenig
+ * über den Aufbau eines Bauteils weiß wie eine IFC-Datei ohne Pset. In
+ * Kurzform:
+ *
+ *   • Die **Wand** nimmt `VORGABE_U[typ]` aus `uwert.ts`. Vorher stand hier
+ *     `aussen ? 0.24 : 1.2` — die Brüstung (`typ === 'partition'`) bekam
+ *     damit den Wert der Innenwand statt den der Trennwand, obwohl der
+ *     Katalog für sie 1,4 führt. Ein Katalog an einer Stelle kann nicht
+ *     auseinanderlaufen, zwei Schreibweisen desselben Katalogs schon.
+ *   • Die **Öffnung** folgt bewusst nicht `VORGABE_U` (0,95 / 1,6): Das sind
+ *     Neubauwerte, und ein Scan zeigt Bestand. 1,3 ist das
+ *     Zweischeiben-Fenster, 1,8 die Innentür — beide zu senken hieße, die
+ *     Heizlast nach unten zu schätzen, also in die Richtung, in der ein zu
+ *     kleines Gerät herauskommt.
+ *   • Der **Durchgang** bekommt gar keinen mehr; `uWertOeffnung` beantwortet
+ *     ihn selbst mit 0. Eine erfasste 0 am Bauteil ist seit 1.23.0 die
+ *     Eingabe, die `validation.ts` als unplausibel meldet.
+ */
+/** U-Wert eines importierten Fensters [W/(m²·K)] — Zweischeiben-Bestand. */
+const U_FENSTER_BESTAND = 1.3;
+/** U-Wert einer importierten Tür [W/(m²·K)] — Innentür aus dem Aufbaukatalog. */
+const U_TUER_BESTAND = 1.8;
+
 /**
  * Querabstand, bis zu dem ein Wandende als *auf* einer fremden Wand sitzend
  * gilt und diese dort geteilt wird [m].
@@ -285,17 +336,6 @@ const drehe = (p: Vec2, sin: number, cos: number): Vec2 => ({
  * „her" gemessen wurde. Der klassische Fehler ist, Winkel arithmetisch zu
  * mitteln — 1° und 359° ergeben dann 180° statt 0°.
  */
-function vorzugsrichtung(stuecke: { dx: number; dy: number; laenge: number }[]): number {
-  let sx = 0;
-  let sy = 0;
-  for (const s of stuecke) {
-    const w = Math.atan2(s.dy, s.dx) * 4;
-    sx += Math.cos(w) * s.laenge;
-    sy += Math.sin(w) * s.laenge;
-  }
-  if (sx === 0 && sy === 0) return 0;
-  return Math.atan2(sy, sx) / 4;
-}
 
 /** Punkt-zu-Strecke-Abstand. */
 function abstandZurStrecke(p: Vec2, a: Vec2, b: Vec2): number {
@@ -387,12 +427,23 @@ export function istRaumplanDatei(text: string): boolean {
   // Millisekunde — `indexOf` ist in jeder Laufzeit ein Maschinenwortscan.
   // Gespart hätte man hier nichts und eine Fehlerquelle eingebaut.
   if (text.includes('"roomData"')) return true;
-  // Direkt serialisiertes CapturedRoom: Wände und Boden zusammen kommen in
-  // keinem anderen Format dieser Anwendung vor.
+  // Direkt serialisiertes CapturedRoom oder CapturedStructure.
+  //
+  // **Warum die Kennzeichen so gewählt sind.** Die erste Fassung verlangte
+  // neben `walls` noch `floors` oder `sections`. Beide Felder gibt es aber
+  // erst seit iOS 17 — ein Scan von einem iPhone mit iOS 16 hat weder das
+  // eine noch das andere und fiel deshalb durch die Erkennung, obwohl er ein
+  // vollkommen brauchbarer RoomPlan-Scan ist. Verlangt wird jetzt `walls`
+  // zusammen mit `transform` und einem Merkmal, das **jede** Fassung hat:
+  // `openings` (die vierte Flächenart, seit iOS 16), `completedEdges` (an
+  // jeder Fläche) oder `parentIdentifier` (an jeder Fläche).
+  if (!text.includes('"walls"') || !text.includes('"transform"')) return false;
   return (
-    text.includes('"walls"') &&
-    (text.includes('"floors"') || text.includes('"sections"')) &&
-    text.includes('"transform"')
+    text.includes('"openings"') ||
+    text.includes('"completedEdges"') ||
+    text.includes('"parentIdentifier"') ||
+    text.includes('"floors"') ||
+    text.includes('"sections"')
   );
 }
 
@@ -400,17 +451,45 @@ export function istRaumplanDatei(text: string): boolean {
 // Import
 // ---------------------------------------------------------------------------
 
+/**
+ * Aus einem Mehrraum-Scan einen einzigen Raum machen.
+ *
+ * Trägt die oberste Ebene selbst Wände, ist sie der zusammengeführte Stand
+ * des `StructureBuilder` und wird unverändert genommen. Trägt sie keine,
+ * werden die Einzelräume aneinandergehängt — die Wände stehen ohnehin alle im
+ * selben Weltkoordinatensystem, das ist ja der Zweck des Zusammenführens.
+ * Doppelte Wände an den Berührungsstellen fängt `fasseZusammen` ab, so wie es
+ * die Mehrfachflächen einer einzelnen Wand abfängt.
+ */
+function vereinige(struktur: CapturedStructure): CapturedRoom {
+  if ((struktur.walls?.length ?? 0) > 0) return struktur;
+  const raeume = struktur.rooms ?? [];
+  if (raeume.length === 0) return struktur;
+  const sammle = (nimm: (r: CapturedRoom) => RoomPlanFlaeche[] | undefined): RoomPlanFlaeche[] =>
+    raeume.flatMap((r) => nimm(r) ?? []);
+  return {
+    version: struktur.version,
+    walls: sammle((r) => r.walls),
+    doors: sammle((r) => r.doors),
+    windows: sammle((r) => r.windows),
+    openings: sammle((r) => r.openings),
+    floors: sammle((r) => r.floors),
+    objects: sammle((r) => r.objects),
+    sections: raeume.flatMap((r) => r.sections ?? []),
+  };
+}
+
 export function importRaumplan(text: string): RaumplanImportErgebnis {
   // --- 1 · Auspacken ---------------------------------------------------------
   let huelle: ScannerHuelle = {};
   let raum: CapturedRoom;
   try {
-    const roh = JSON.parse(text) as ScannerHuelle & CapturedRoom;
+    const roh = JSON.parse(text) as ScannerHuelle & CapturedStructure;
     if (typeof roh.roomData === 'string' && roh.roomData.length > 0) {
       huelle = roh;
-      raum = JSON.parse(ausBase64(roh.roomData)) as CapturedRoom;
+      raum = vereinige(JSON.parse(ausBase64(roh.roomData)) as CapturedStructure);
     } else {
-      raum = roh;
+      raum = vereinige(roh);
     }
   } catch {
     return { ...LEER, message: 'Die Datei ist kein lesbares JSON.' };
@@ -438,6 +517,8 @@ export function importRaumplan(text: string): RaumplanImportErgebnis {
 
   // --- 3 · Wandstücke --------------------------------------------------------
   const stuecke: Wandstueck[] = [];
+  let gekruemmt = 0;
+  let unsicher = 0;
   for (const w of rohWaende) {
     const laenge = w.dimensions[0];
     const hoehe = w.dimensions[1];
@@ -445,6 +526,20 @@ export function importRaumplan(text: string): RaumplanImportErgebnis {
       merke('Wand ohne brauchbares Maß');
       continue;
     }
+    // **Unmaß statt Maß.** RoomPlan gibt Meter, immer. Eine Wand von 120 m
+    // oder 9 m Höhe ist deshalb kein großes Zimmer, sondern eine Datei in
+    // einer anderen Einheit oder ein verunglückter Zusammenbau. Apple selbst
+    // nennt rund 9 m je Einzelscan als Grenze. Eine solche Wand stumm zu
+    // übernehmen hieße, den ganzen Plan an ihr aufzuhängen.
+    if (laenge > 60 || hoehe > 8) {
+      merke('Wand mit unglaubwürdigem Maß (über 60 m lang oder 8 m hoch)');
+      continue;
+    }
+    // Eine gekrümmte Wand meldet ihre **Sehne** als Länge. Gezeichnet wird
+    // hier die Sehne — das ist die Stelle, an der der Scan mehr weiß als
+    // dieses Modell, und der Nutzer erfährt es, statt es zu übersehen.
+    if (w.curve && typeof w.curve.radius === 'number' && w.curve.radius > 0) gekruemmt += 1;
+    if (vertrauenAus(w.confidence) < 0.5) unsicher += 1;
     const a = achse(w.transform);
     const mitte = drehe(a.mitte, sin, cos);
     const richt = drehe({ x: a.dx, y: a.dy }, sin, cos);
@@ -545,7 +640,7 @@ export function importRaumplan(text: string): RaumplanImportErgebnis {
       height: rund(s.hoehe),
       type: typ,
       layerId: 'layer-walls',
-      uValue: aussen ? 0.24 : 1.2,
+      uValue: VORGABE_U[typ],
       confidence: rund(s.vertrauen, 2),
     };
     walls.push(wand);
@@ -648,7 +743,11 @@ export function importRaumplan(text: string): RaumplanImportErgebnis {
         height: rund(hoehe),
         sillHeight: rund(sill),
         layerId: 'layer-openings',
-        uValue: kind === 'window' ? 1.3 : kind === 'door' ? 1.8 : 0,
+        ...(kind === 'window'
+          ? { uValue: U_FENSTER_BESTAND }
+          : kind === 'door'
+            ? { uValue: U_TUER_BESTAND }
+            : {}),
         gValue: kind === 'window' ? 0.6 : undefined,
         confidence: rund(vertrauenAus(o.confidence), 2),
         ...bauart(kind, breite, hoehe, sill),
@@ -688,6 +787,24 @@ export function importRaumplan(text: string): RaumplanImportErgebnis {
       begruendung: 'Vorgabewerte der Anwendung; ein Scan misst keine Bauteilaufbauten.',
     },
   ];
+  if (gekruemmt > 0) {
+    geschaetzt.push({
+      was: 'Gekrümmte Wände',
+      anzahl: gekruemmt,
+      begruendung:
+        'Der Scan meldet eine Krümmung, die dieses Modell nicht kennt. Gezeichnet ist die Sehne — die Wand ist ' +
+        'in Wirklichkeit länger und läuft im Bogen. Mit dem Wandwerkzeug nachziehen, wenn es auf die Fläche ankommt.',
+    });
+  }
+  if (unsicher > 0) {
+    geschaetzt.push({
+      was: 'Unsicher erfasste Wände',
+      anzahl: unsicher,
+      begruendung:
+        'RoomPlan selbst gibt diesen Wänden geringes Vertrauen — meist kurze Stücke, verdeckte Stellen oder ' +
+        'Glasflächen. Übernommen sind sie trotzdem; ein Blick darauf lohnt, bevor gerechnet wird.',
+    });
+  }
   const tueren = openings.filter((o) => o.kind === 'door').length;
   if (tueren > 0) {
     geschaetzt.push({

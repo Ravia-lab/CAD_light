@@ -25,6 +25,9 @@ export const FIXTURE_COLORS: Record<FixtureCategory, string> = {
 
 /** Kurzer Kennwert unter dem Symbol — das, was im Plan wirklich zählt. */
 export function fixtureBadge(fixture: Fixture): string | null {
+  if (fixture.type === 'storage' && fixture.params.volumeL) {
+    return `${fixture.params.volumeL} l`;
+  }
   if (fixture.category === 'heating' && fixture.params.powerW) {
     return `${fixture.params.powerW} W`;
   }
@@ -87,7 +90,67 @@ const drawRadiator: SymbolDrawer = (ctx, f) => {
   ctx.globalAlpha = 0.6;
   ctx.stroke();
   ctx.globalAlpha = 1;
+
+  anschlussPunkte(ctx, f);
 };
+
+/**
+ * Die Anschlusspunkte unter dem Heizkörper.
+ *
+ * **Warum sie ins Symbol gehören.** Anschlussart und Ventilseite entscheiden,
+ * auf welcher Seite die Leitung hochkommen muss. Wer das erst auf der
+ * Baustelle merkt, hat den Estrich schon geschlossen. Zwei Punkte unter dem
+ * Heizkörper kosten im Plan nichts und beantworten die Frage von selbst.
+ *
+ * Gezeichnet wird in Objektkoordinaten: −y ist die Wandseite, +y der Raum.
+ * Der gefüllte Punkt ist das **Ventil** (Vorlauf), der offene der Rücklauf.
+ * Fehlt die Angabe der Seite, wird kein Punkt gefüllt — eine erfundene Seite
+ * wäre schlimmer als keine.
+ */
+function anschlussPunkte(ctx: Ctx, f: Fixture): void {
+  const art = f.params.radiatorConnection;
+  /*
+   * Ohne Anschlussart wird trotzdem gezeichnet, sobald eine Ventilseite
+   * eingetragen ist.
+   *
+   * **Der Fehler, den das verhindert.** Wer im Inspektor nur „Ventil links"
+   * einträgt — weil er auf der Baustelle genau das gesehen hat und die
+   * Anschlussart noch nicht kennt —, sah im Plan bisher gar nichts. Die
+   * Angabe war erfasst, aber unsichtbar, und beim nächsten Aufmaß wurde sie
+   * ein zweites Mal aufgenommen. Fehlt die Anschlussart, gilt das
+   * Regelpaar an den Enden; das ist eine Darstellung, keine Behauptung
+   * über die Anschlussart, und der Inspektor zeigt sie weiterhin als leer.
+   */
+  if (!art && !f.params.valveSide) return;
+  const w = f.length;
+  const h = f.depth;
+  const y = h / 2 + Math.min(0.045, h * 0.45);
+  const r = Math.min(0.028, w * 0.05);
+
+  // Wo die beiden Anschlüsse sitzen — in Bruchteilen der Baulänge.
+  const paare: Record<string, [number, number]> = {
+    // Mittelanschluss: 50 mm auseinander, mittig.
+    mitte: [-0.025 / w, 0.025 / w],
+    // Seitenanschluss unten beidseitig: an den Enden, ein Zehntel eingerückt.
+    unten: [-0.4, 0.4],
+    // Gleichseitig und wechselseitig: oben/unten an einer bzw. beiden Seiten;
+    // im Grundriss ist davon nur die Seite zu sehen.
+    gleichseitig: [-0.4, -0.32],
+    wechselseitig: [-0.4, 0.4],
+  };
+  const [a, b] = (art ? paare[art] : undefined) ?? [-0.4, 0.4];
+  // Das Ventil sitzt auf der angegebenen Seite; ohne Angabe bleibt beides offen.
+  const ventilLinks = f.params.valveSide === 'links';
+  const ventilRechts = f.params.valveSide === 'rechts';
+
+  for (const [t, istLinks] of [[a, a <= b], [b, b < a]] as [number, boolean][]) {
+    const gefuellt = (istLinks && ventilLinks) || (!istLinks && ventilRechts);
+    ctx.beginPath();
+    ctx.arc(t * w, y, r, 0, Math.PI * 2);
+    if (gefuellt) ctx.fill();
+    else ctx.stroke();
+  }
+}
 
 const drawRadiatorTube: SymbolDrawer = (ctx, f) => {
   const w = f.length;
@@ -104,6 +167,8 @@ const drawRadiatorTube: SymbolDrawer = (ctx, f) => {
   line(ctx, -w / 2, -h / 2, w / 2, -h / 2);
   line(ctx, -w / 2, h / 2, w / 2, h / 2);
   ctx.stroke();
+
+  anschlussPunkte(ctx, f);
 };
 
 const drawConvector: SymbolDrawer = (ctx, f) => {
@@ -176,6 +241,27 @@ const drawBoiler: SymbolDrawer = (ctx, f) => {
   ctx.moveTo(0, r);
   ctx.quadraticCurveTo(-r, 0, 0, -r);
   ctx.quadraticCurveTo(r, 0, 0, r);
+  ctx.stroke();
+};
+
+/**
+ * Der Speicher: stehender Behälter mit Schichtungslinien.
+ *
+ * Drei waagerechte Linien, unten enger als oben — das ist die übliche
+ * Kurzschrift für einen geschichteten Speicher und unterscheidet ihn auf
+ * einen Blick vom Erzeuger daneben, der ein Flammensymbol trägt.
+ */
+const drawStorage: SymbolDrawer = (ctx, f) => {
+  const w = f.length;
+  const h = f.depth;
+  ctx.beginPath();
+  rect(ctx, w, h);
+  ctx.stroke();
+  ctx.beginPath();
+  for (const t of [-0.26, 0, 0.28]) {
+    ctx.moveTo(-w * 0.32, h * t);
+    ctx.lineTo(w * 0.32, h * t);
+  }
   ctx.stroke();
 };
 
@@ -444,6 +530,7 @@ const DRAWERS: Record<FixtureType, SymbolDrawer> = {
   underfloor: drawUnderfloor,
   manifold: drawManifold,
   boiler: drawBoiler,
+  storage: drawStorage,
   'riser-heating': drawRiser,
   thermostat: drawThermostat,
   wc: drawWc,

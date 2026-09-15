@@ -130,6 +130,42 @@ export function lineIntersection(p1: Vec2, d1: Vec2, p2: Vec2, d2: Vec2): Vec2 |
 // Winkel & Snapping-Hilfen
 // ---------------------------------------------------------------------------
 
+/**
+ * Die Vorzugsrichtung einer Menge von Strecken [rad].
+ *
+ * **Wozu.** Ein Aufmaß — gescannt oder mit dem Stift skizziert — liegt nie
+ * achsparallel. Bevor irgendetwas ausgerichtet werden kann, muss feststehen,
+ * *wonach*: nach dem Norden? Nach der ersten Wand? Nach der längsten? Alle
+ * drei Antworten sind willkürlich. Richtig ist die Richtung, in der der
+ * größte Teil der Gesamtlänge liegt.
+ *
+ * **Warum der vierfache Winkel.** Ein Rechteck hat vier Seiten in zwei
+ * Richtungen, die 90° auseinanderliegen. Mittelt man die Winkel unmittelbar,
+ * heben sich 0° und 90° zu 45° auf — also genau zur falschen Richtung. Mit
+ * dem vierfachen Winkel fallen 0°, 90°, 180° und 270° auf demselben
+ * Einheitskreis zusammen; der Mittelwert wird dadurch richtig, und das
+ * anschließende Vierteln bringt ihn zurück.
+ *
+ * Gewichtet wird mit der Länge: eine sechs Meter lange Außenwand sagt mehr
+ * über die Ausrichtung des Hauses als ein 40 cm langer Mauervorsprung.
+ *
+ * Das Ergebnis liegt zwischen −45° und +45° — mehr braucht es nicht, weil
+ * jede weitere Vierteldrehung dieselbe Ausrichtung ist.
+ */
+export function vorzugsrichtung(
+  stuecke: readonly { dx: number; dy: number; laenge: number }[],
+): number {
+  let sx = 0;
+  let sy = 0;
+  for (const s of stuecke) {
+    const w = Math.atan2(s.dy, s.dx) * 4;
+    sx += Math.cos(w) * s.laenge;
+    sy += Math.sin(w) * s.laenge;
+  }
+  if (sx === 0 && sy === 0) return 0;
+  return Math.atan2(sy, sx) / 4;
+}
+
 export const TO_DEG = 180 / Math.PI;
 export const TO_RAD = Math.PI / 180;
 

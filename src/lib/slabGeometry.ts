@@ -26,7 +26,9 @@
  * Überlappung ist bei einem Volumenkörper folgenlos.
  */
 
-import type { BimNode, Level, Room, Vec2, VerticalElement, Wall } from '../types/bim';
+import type { BimNode, Durchbruch, Level, Room, Vec2, VerticalElement, Wall } from '../types/bim';
+import { durchbruchWirt } from '../types/bim';
+import { deckendurchbruchUmriss } from './durchbruchSymbols';
 import { getWallGeometry } from './wallGeometry';
 import { verticalCorners } from './verticalSymbols';
 import { DEFAULT_LEVEL_HEIGHT } from './levelGeometry';
@@ -119,6 +121,11 @@ export interface SlabInput {
   walls: readonly Wall[];
   nodes: Record<string, BimNode>;
   verticals: readonly VerticalElement[];
+  /**
+   * Durchbrüche. Nur die Deckendurchbrüche wirken hier — ein Wanddurchbruch
+   * ist ein Loch in der Wand und nicht in der Platte.
+   */
+  durchbrueche?: readonly Durchbruch[];
   /** Höhenlage je Geschoss aus `levelBaseHeights`. */
   base: Map<string, number>;
 }
@@ -170,6 +177,16 @@ export function levelSlabs(input: SlabInput): SlabPlan[] {
       // Decke bis zu seinem Zielgeschoss.
       if (!durchdringt(v, unten.id, sortiert)) continue;
       const ecken = verticalCorners(v);
+      if (ecken.length >= 3) holes.push(ecken);
+    }
+    // Deckendurchbrüche schneiden dieselbe Platte. Sie gehören dem Geschoss
+    // **unter** der Decke — deshalb `unten.id` und nicht `oben.id`; genau die
+    // Verwechslung liefe sonst ein Geschoss zu hoch, und zwar unbemerkt, weil
+    // in beiden Fällen ein Loch entsteht.
+    for (const db of input.durchbrueche ?? []) {
+      if (db.levelId !== unten.id) continue;
+      if (durchbruchWirt(db.kind) !== 'decke') continue;
+      const ecken = deckendurchbruchUmriss(db);
       if (ecken.length >= 3) holes.push(ecken);
     }
 

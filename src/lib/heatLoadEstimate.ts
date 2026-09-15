@@ -38,6 +38,14 @@
 
 import type { BimDocument, Room, RoomBoundary, RoomHeatLoad as NormRoomHeatLoad } from '../types/bim';
 import { gradeSplit, isMassiveArea } from './roomDetection';
+import {
+  BAUTEIL_BEZEICHNUNG,
+  istErfasst,
+  uWertBoden,
+  uWertDecke,
+  uWertWand,
+  type UWertAuskunft,
+} from './uwert';
 
 /**
  * Volumenbezogener Wärmekapazitätsstrom der Luft [Wh/(m³·K)].
@@ -74,6 +82,26 @@ export interface RoomHeatLoad {
    * bessere Zahl will, nimmt sie sich hier ab.
    */
   normHeatLoad?: NormRoomHeatLoad;
+  /**
+   * Bauteile dieses Raums, für die kein U-Wert zu ermitteln war — weder aus
+   * einem Aufbau, noch am Bauteil, noch aus dem Vorgabekatalog.
+   *
+   * **Warum das eine eigene Angabe ist und nicht bloß ein Hinweis.** Ein
+   * Bauteil ohne U-Wert geht mit 0 W in die Bilanz; die Zahl daneben ist
+   * damit zu klein, und zwar unsichtbar zu klein. Gemessen am Referenzhaus:
+   * 5,47 kW mit U-Werten, 3,88 kW ohne — Gerät 8 kW statt 6 kW. Wer `total`
+   * liest, muss deshalb auch lesen können, ob `total` vollständig ist.
+   *
+   * Aufgeführt wird die **Bauteilart** („Außenwand", „Boden"), nicht jedes
+   * einzelne Bauteil: Eine Liste mit vierzehnmal „Außenwand" sagt nichts, was
+   * einmal „Außenwand" nicht auch sagt. Die einzelnen Bauteile benennt die
+   * Modellprüfung, die dafür da ist.
+   *
+   * Leer, solange nichts fehlt. Gemeldet wird nur, was auch wirkt: ein Bauteil
+   * ohne Temperaturunterschied oder ohne Fläche verfälscht nichts, und eine
+   * Meldung ohne Folgen entwertet die daneben, die Folgen hat.
+   */
+  unvollstaendig: string[];
   /**
    * Die gerechnete Last wurde für einen anderen Modellstand ermittelt.
    *
@@ -129,6 +157,22 @@ export interface HeatLoadEstimate {
   designOutdoor: number;
   /** Einordnung der Kennzahl in bekannte Baualtersklassen. */
   klassifizierung: string;
+  /**
+   * Namen der Räume, in denen mindestens ein Bauteil ohne U-Wert steckt.
+   *
+   * Der Vorbehalt der Einzelzeile muss an der Summe ankommen, sonst trägt ihn
+   * niemand weiter: Wer nur `total` weiterreicht — die Anlagenauslegung tut
+   * genau das —, sähe eine glatte Zahl ohne Makel. Die Gerätewahl hinge dann
+   * an einer Heizlast, die um ein Viertel zu klein ist.
+   */
+  unvollstaendigeRaeume: string[];
+  /**
+   * Ist die Gebäudeheizlast aus lückenlosen Angaben entstanden?
+   *
+   * `false` heißt nicht „falsch", sondern „zu klein" — und das ist die
+   * gefährlichere der beiden Aussagen, weil sie plausibel aussieht.
+   */
+  vollstaendig: boolean;
 }
 
 /**
@@ -174,6 +218,31 @@ function roomLoad(
   let transmission = 0;
   let openings = 0;
 
+  /*
+   * Die Lücken dieses Raums.
+   *
+   * Ein `Set`, weil hier Bauteil**arten** gesammelt werden: vierzehn
+   * Außenwände ohne U-Wert sind eine Aussage, nicht vierzehn.
+   */
+  const luecken = new Set<string>();
+
+  /**
+   * Eine Lücke festhalten — aber nur, wenn sie die Zahl auch verfälscht.
+   *
+   * Die beiden Bedingungen sind kein Feinschliff. Ohne die Flächenprüfung
+   * meldete jede Wandscheibe, die vollständig aus Fenster besteht, einen
+   * fehlenden Wand-U-Wert; ohne die Temperaturprüfung meldete jede Innenwand
+   * zwischen zwei gleich temperierten Räumen dasselbe. Beides ändert an der
+   * Heizlast kein Watt — und ein Heft, in dem unter jedem Raum eine Handvoll
+   * folgenloser Vorbehalte steht, wird nach der zweiten Seite überblättert.
+   * Dann fällt auch der eine auf, der zählt, nicht mehr auf.
+   */
+  const meldeLuecke = (auskunft: UWertAuskunft, flaeche: number, bezeichnung: string): void => {
+    if (auskunft.herkunft !== 'fehlt') return;
+    if (flaeche <= 1e-6) return;
+    luecken.add(bezeichnung);
+  };
+
   // Höhenlage des Geschosses und Geländeoberkante entscheiden, welcher Teil
   // einer Außenwand gegen Erdreich statt gegen Außenluft grenzt. Das ist
   // kein Feinschliff: bei −12 °C außen, 10 °C im Erdreich und 20 °C innen
@@ -186,7 +255,30 @@ function roomLoad(
   for (const b of room.boundaries) {
     const outside = neighbourTemperature(doc, b);
     const dt = inside - outside;
-    const u = (b.uValue ?? 0) + flat;
+    /*
+     * Der U-Wert kommt aus `uwert.ts` und nicht mehr aus `b.uValue ?? 0`.
+     *
+     * Zwei Fehler stecken in dem alten Ausdruck. Der eine: Die Raumerkennung
+     * reichte bis 1.23.0 nur `wall.uValue` durch — ein zugewiesener
+     * Bauteilaufbau mit gerechnetem U-Wert wurde hier nie gesehen, obwohl die
+     * Übergabe an RaVia ihn längst benutzte. Dieselbe Wand hatte damit im Heft
+     * und in der Gegenstelle verschiedene U-Werte. Der andere: `?? 0` machte
+     * aus einer fehlenden Angabe ein Bauteil ohne Verlust. Die Wand fiel aus
+     * der Bilanz, statt eine Lücke zu melden.
+     *
+     * Gefragt wird deshalb die Wand selbst, nicht der mitgeführte Abschnitt:
+     * sie kennt ihren Aufbau. Nur wenn es keine Wand mehr gibt — eine
+     * Raumkante, deren Wand zwischenzeitlich gelöscht wurde —, bleibt der im
+     * Abschnitt festgehaltene Wert die letzte Auskunft.
+     */
+    const wand = b.wallId ? doc.walls[b.wallId] : undefined;
+    const auskunft: UWertAuskunft = wand
+      ? uWertWand(wand, doc.constructions)
+      : istErfasst(b.uValue)
+        ? { wert: b.uValue, herkunft: 'bauteil' }
+        : { herkunft: 'fehlt' };
+    const bauteilName = wand ? BAUTEIL_BEZEICHNUNG[wand.type] : 'Raumkante ohne Wand';
+    const u = (auskunft.wert ?? 0) + flat;
     // Öffnungen stecken in `openingArea`; ihr U-Wert liegt an der Öffnung
     // selbst. Ohne Zugriff darauf wird hier der Flächenanteil mit dem
     // Fenster-Regelwert gerechnet — deshalb ist das ein Überschlag.
@@ -204,6 +296,7 @@ function roomLoad(
 
     if (split.buriedHeight <= 1e-6) {
       if (dt <= 0) continue;
+      meldeLuecke(auskunft, b.netArea, bauteilName);
       transmission += b.netArea * u * dt;
       openings += b.openingArea * uOpening * dt;
       continue;
@@ -222,10 +315,12 @@ function roomLoad(
     const dtGround = inside - groundTemperature;
 
     if (dt > 0) {
+      meldeLuecke(auskunft, Math.max(0, aboveGross - openingsAbove), bauteilName);
       transmission += Math.max(0, aboveGross - openingsAbove) * u * dt;
       openings += openingsAbove * uOpening * dt;
     }
     if (dtGround > 0) {
+      meldeLuecke(auskunft, Math.max(0, buriedGross - openingsBelow), bauteilName);
       transmission += Math.max(0, buriedGross - openingsBelow) * u * dtGround;
       openings += openingsBelow * uOpening * dtGround;
     }
@@ -234,9 +329,16 @@ function roomLoad(
   // Boden und Decke des Raums.
   const level = doc.levels[room.levelId];
   if (level) {
-    const floorU = room.floorUValue ?? level.floorUValue;
+    // Auch hier über `uwert.ts`: Boden und Decke tragen am Geschoss einen
+    // Bauteilaufbau (`floorConstructionId`, `ceilingConstructionId`), den
+    // dieses Modul bis 1.23.0 nicht einmal angesehen hat. Und ein
+    // `floorUValue: 0` — der Vorgabewert eines frisch angelegten Geschosses —
+    // lief als gültige Zahl durch und machte die Bodenplatte verlustfrei.
+    const bodenU = uWertBoden(room, level, doc.constructions);
+    const deckeU = uWertDecke(room, level, doc.constructions);
+    const floorU = bodenU.wert ?? 0;
     const floorBoundary = room.floorBoundary ?? level.floorBoundary;
-    const ceilingU = room.ceilingUValue ?? level.ceilingUValue;
+    const ceilingU = deckeU.wert ?? 0;
     const ceilingBoundary = room.ceilingBoundary ?? level.ceilingBoundary;
     // Was hinter Boden und Decke liegt.
     //
@@ -267,8 +369,14 @@ function roomLoad(
     };
     const dtFloor = inside - temperatureOf(floorBoundary, 'floor');
     const dtCeiling = inside - temperatureOf(ceilingBoundary, 'ceiling');
-    if (dtFloor > 0) transmission += room.area * (floorU + flat) * dtFloor;
-    if (dtCeiling > 0) transmission += room.area * (ceilingU + flat) * dtCeiling;
+    if (dtFloor > 0) {
+      meldeLuecke(bodenU, room.area, 'Boden');
+      transmission += room.area * (floorU + flat) * dtFloor;
+    }
+    if (dtCeiling > 0) {
+      meldeLuecke(deckeU, room.area, 'Decke');
+      transmission += room.area * (ceilingU + flat) * dtCeiling;
+    }
   }
 
   const dtOutside = inside - doc.meta.designOutdoorTemperature;
@@ -285,6 +393,11 @@ function roomLoad(
     total: Math.round(total),
     area: room.area,
     specific: room.area > 0 ? Math.round(total / room.area) : 0,
+    // Sortiert, damit zwei Läufe über dasselbe Modell dieselbe Reihenfolge
+    // liefern: Die Liste wird gedruckt und gegen einen Sollstand gehalten,
+    // und eine Reihenfolge, die an der Einfügereihenfolge einer Menge hängt,
+    // erzeugt Abweichungen ohne Sachgrund.
+    unvollstaendig: [...luecken].sort((a, b2) => a.localeCompare(b2, 'de')),
     normHeatLoad: room.normHeatLoad,
     normOutdated: room.normHeatLoad ? !istAktuell(room.normHeatLoad) : undefined,
   };
@@ -308,8 +421,22 @@ export const DEFAULT_WINDOW_U = 1.3;
  * bevor er ein Gerät zu groß macht. 250 W/m² ist keine Heizlast, sondern ein
  * vergessener U-Wert.
  */
-function classify(specific: number): string {
+function classify(specific: number, vollstaendig: boolean): string {
   if (specific <= 0) return 'Keine beheizten Räume erkannt.';
+  /*
+   * Fehlt irgendwo ein U-Wert, ist die Kennzahl zu klein — und damit genau
+   * die Einordnung falsch, für die sie da ist: Ein Altbau, dem die Hälfte der
+   * Bauteile fehlt, landet in der Klasse „Neubau nach heutigem Standard" und
+   * bestätigt dem Leser, dass alles stimmt. Die Einordnung deshalb gar nicht
+   * erst zu drucken wäre der falsche Weg — die Zahl steht ohnehin daneben —,
+   * aber sie muss sagen, worauf sie beruht.
+   */
+  if (!vollstaendig) {
+    return (
+      `${specific} W/m² — ohne Einordnung: In mindestens einem Raum fehlt der U-Wert eines Bauteils, ` +
+      'die Kennzahl ist deshalb zu klein. Erst nachtragen, dann einordnen.'
+    );
+  }
   if (specific < 25) return `${specific} W/m² — Passivhausniveau. Ungewöhnlich niedrig; U-Werte prüfen.`;
   if (specific < 45) return `${specific} W/m² — Neubau nach heutigem Standard.`;
   if (specific < 70) return `${specific} W/m² — saniert oder Baujahr ab etwa 1995.`;
@@ -447,6 +574,9 @@ export function estimateHeatLoad(doc: BimDocument): HeatLoadEstimate {
   const heatedArea = rooms.reduce((s, r) => s + r.area, 0);
   const totalW = transmission + ventilation;
   const specific = heatedArea > 0 ? Math.round(totalW / heatedArea) : 0;
+  // Die Namen und nicht die Anzahl: Wer den Vorbehalt liest, will wissen, wo
+  // er nachtragen muss. „3 Räume unvollständig" schickt ihn suchen.
+  const unvollstaendigeRaeume = rooms.filter((r) => r.unvollstaendig.length > 0).map((r) => r.name);
 
   return {
     istUeberschlag: true,
@@ -457,7 +587,9 @@ export function estimateHeatLoad(doc: BimDocument): HeatLoadEstimate {
     heatedArea: Math.round(heatedArea * 100) / 100,
     specific,
     designOutdoor: doc.meta.designOutdoorTemperature,
-    klassifizierung: classify(specific),
+    klassifizierung: classify(specific, unvollstaendigeRaeume.length === 0),
+    unvollstaendigeRaeume,
+    vollstaendig: unvollstaendigeRaeume.length === 0,
   };
 }
 

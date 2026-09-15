@@ -486,12 +486,77 @@ function electricDesign(kw: number, cop: number, form: PumpForm): HeatPumpModel[
   };
 }
 
-/** Anschlussgröße heizungsseitig aus dem Volumenstrom. */
+/**
+ * Heizungsseitige Anschlussgröße einer **generischen Typklasse**.
+ * ---------------------------------------------------------------------------
+ * **Was hier steht und was nicht.** Die Anschlussgröße einer Wärmepumpe ist
+ * **nicht genormt**. Es gibt keine Tabelle, aus der sie sich ableiten ließe,
+ * und zwei Geräte gleicher Leistung haben regelmäßig verschiedene Stutzen.
+ * Die Stufen unten sind deshalb eine *Vorbelegung* für Typklassen — für
+ * Geräte also, die es so nicht zu kaufen gibt. Sobald ein Datenblatt
+ * hinterlegt ist (`provenance: 'hersteller'`, siehe `deviceImport`), gilt
+ * dessen Wert und nicht dieser hier; `plantDesign` nimmt ohnehin zuerst die
+ * Eintragung am aufgestellten Gerät.
+ *
+ * **Warum die Stufen 1.24.0 verschoben wurden.** Bis dahin galt
+ * `kw <= 8 → G 1 AG`, und das liegt an der unteren Kante dessen, was der
+ * Markt liefert. Belegt aus den frei veröffentlichten Planungsunterlagen:
+ *
+ *   Vaillant   aroTHERM plus VWL 75/8.1 A   ~7 kW          G 1¼ AG
+ *   Vaillant   aroTHERM VWL 105/6           ~10 kW         G 1¼ AG
+ *   Daikin     Altherma 4 H Hydrosplit      6 – 14 kW      DN 32, mit der
+ *              ausdrücklichen Empfehlung, die angeschlossenen Rohrleitungen
+ *              in diesem Durchmesser auszuführen
+ *   Viessmann  Vitocal 250-A                2,6 – 18,5 kW  Cu 28 × 1,0 (≈ DN 25)
+ *
+ * Im Bereich 5 bis 16 kW ist marktüblich also **G 1" bis G 1¼" (DN 25 bis
+ * DN 32)** mit deutlichem Schwerpunkt auf 1¼"/DN 32 — und auffällig ist, dass
+ * drei der vier Hersteller die Größe über eine ganze Baureihe **konstant**
+ * halten, statt sie mit der Leistung wachsen zu lassen. Genau das bildet die
+ * breite mittlere Stufe unten ab.
+ *
+ * Der Fehler, den die Verschiebung verhindert: Ein 8-kW-Gerät bekam „G 1 AG"
+ * (DN 25), während Vaillant schon bei 7 kW und Daikin über die ganze Spanne
+ * 6–14 kW eine Stufe größer anschließen. Mit der Anhebungsregel aus
+ * `anschlussgroesse` wirkt diese Zahl jetzt auf die Rohrauslegung — eine zu
+ * kleine Vorbelegung wäre damit nicht mehr bloß eine falsche Zeile im
+ * Anlagenbuch, sondern eine zu enge Leitung im Massenauszug.
+ *
+ * **Eine Tabelle, zwei Ausgaben.** Klartext und Nennweite stehen in
+ * derselben Zeile und können nicht auseinanderlaufen. Getrennt geführt wären
+ * sie derselbe Fehler, den dieses Projekt beim Heizstab schon hatte: zwei
+ * Zahlen für dieselbe Größe, die sich bei 17 von 36 Geräten widersprachen.
+ */
+const ANSCHLUSS_STUFEN: readonly { bisKw: number; gewinde: string; dn: number }[] = [
+  // Bis 5 kW: die kleinsten Geräte. Viessmann fährt seine ganze Baureihe ab
+  // 2,6 kW mit Cu 28 ≈ DN 25; darunter geht kein Hersteller.
+  { bisKw: 5, gewinde: 'G 1', dn: 25 },
+  // 5 bis 16 kW: der Einfamilienhausbereich und der Schwerpunkt des Marktes.
+  // Vaillant ab 7 kW, Daikin über 6–14 kW.
+  { bisKw: 16, gewinde: 'G 1¼', dn: 32 },
+  // Darüber die Fortschreibung der Reihe. Hier gibt es kaum noch
+  // Typklassenbedarf — Geräte dieser Größe werden einzeln projektiert.
+  { bisKw: 25, gewinde: 'G 1½', dn: 40 },
+  { bisKw: Infinity, gewinde: 'G 2', dn: 50 },
+];
+
+/**
+ * Anschlussgröße einer Typklasse als Klartext **und** Nennweite.
+ *
+ * Öffentlich, weil `plantDesign` und der Prüfblock dieselbe Zuordnung
+ * brauchen und eine zweite Abschrift der Stufen der sichere Weg wäre, sie
+ * auseinanderlaufen zu lassen.
+ */
+export function anschlussStufe(kw: number): { text: string; dn: number } {
+  const stufe = ANSCHLUSS_STUFEN.find((s) => kw <= s.bisKw) ?? ANSCHLUSS_STUFEN[ANSCHLUSS_STUFEN.length - 1];
+  // „AG" — Außengewinde. Am Gerätestutzen ist das der Regelfall; die
+  // Verschraubung im Materialauszug hängt daran, deshalb steht es im Text.
+  return { text: `${stufe.gewinde} AG`, dn: stufe.dn };
+}
+
+/** Anschlussgröße heizungsseitig als Klartext — die Fassung fürs Datenblatt. */
 function connectionOf(kw: number): string {
-  if (kw <= 8) return 'G 1 AG';
-  if (kw <= 16) return 'G 1¼ AG';
-  if (kw <= 25) return 'G 1½ AG';
-  return 'G 2 AG';
+  return anschlussStufe(kw).text;
 }
 
 /** Kältemittelleitungen bei Split — Größen aus dem üblichen Sortiment. */

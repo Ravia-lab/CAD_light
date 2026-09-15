@@ -25,14 +25,17 @@ import type {
   PipeMaterial,
   PumpForm,
   SecondGenerator,
+  Vorhaben,
   ZweitErzeugerArt,
 } from '../types/bim';
 import {
   HEAT_SOURCE_LABELS,
   PIPE_MATERIAL_LABELS,
   PUMP_FORM_LABELS,
+  VORHABEN_LABELS,
   ZWEITERZEUGER_LABELS,
 } from '../types/bim';
+import { mindestens } from '../lib/uimodus';
 import { useBimStore } from '../store/useBimStore';
 import type { PipeLayoutResult } from '../lib/pipeLayout';
 import { HEAT_PUMP_SERIES, REFRIGERANTS, minimumRoomVolume } from '../lib/deviceCatalog';
@@ -46,6 +49,8 @@ import { buildMaterialSchedule, materialScheduleCsv } from '../lib/materialSched
 import { buildPlantBook, printPlantBook } from '../lib/plantBook';
 import { buildRaviaExport } from '../lib/raviaExport';
 import { buildPipeNetwork } from '../lib/pipeNetwork';
+import { VORHABEN_VORBELEGUNG } from '../lib/plantDefaults';
+import { systemtemperaturVon, type Temperaturherkunft } from '../lib/systemtemperatur';
 import Erklaerung from './Erklaerung';
 
 const fmt = (v: number | undefined, d = 1): string =>
@@ -86,6 +91,30 @@ const LOAD_SOURCE_LABELS: Record<CircuitDesign['loadSource'], string> = {
   vorgabe: 'Last am Kreis vorgegeben',
 };
 
+/**
+ * Eine Temperatur so, wie sie auf dem Blatt steht: 35, nicht 35,0 — aber 32,5.
+ *
+ * `fmt(v, 0)` wäre hier falsch: Es rundet, und aus einer Spreizung von 7,5 K
+ * würde lautlos „8 K". Auf dem Blatt stünde dann eine Zahl, die sich mit
+ * keinem Volumenstrom daneben nachrechnen lässt.
+ */
+const grad = (v: number): string => fmt(v, Number.isInteger(v) ? 0 : 1);
+
+/**
+ * Woher die maßgebliche Systemtemperatur stammt, in drei Worten.
+ *
+ * Die Angabe gehört neben die Zahl, weil die Zahl sonst wie eine Eintragung
+ * aussieht. Wer im Anlagenblatt „50/40" liest, ohne zu erfahren, dass ein
+ * Heizkörperkreis sie angehoben hat, sucht die 50 im Eingabefeld, findet dort
+ * 35 und hält das Programm für kaputt — genau der Weg, auf dem der Befund
+ * „sechs Spreizungen" bis 1.23.0 unentdeckt blieb.
+ */
+const TEMPERATURHERKUNFT_LABELS: Record<Temperaturherkunft, string> = {
+  anlagenblatt: 'wie eingetragen',
+  angehoben: 'von einem Heizkreis angehoben',
+  vorgabe: 'Vorbelegung, noch nichts erfasst',
+};
+
 const SEVERITY_STYLE = {
   error: 'border-l-2 border-rose-400/70 bg-rose-400/[0.07] text-rose-200',
   warn: 'border-l-2 border-amber-400/70 bg-amber-400/[0.07] text-amber-200',
@@ -95,6 +124,7 @@ const SEVERITY_STYLE = {
 export default function AnlagenPanel() {
   const doc = useBimStore((s) => s.doc);
   const updatePlant = useBimStore((s) => s.updatePlant);
+  const setVorhaben = useBimStore((s) => s.setVorhaben);
   const addPlantStorage = useBimStore((s) => s.addPlantStorage);
   const removePlantStorage = useBimStore((s) => s.removePlantStorage);
   const setPlantCircuits = useBimStore((s) => s.setPlantCircuits);
@@ -131,6 +161,28 @@ export default function AnlagenPanel() {
   );
 
   /**
+   * Die **maßgebliche** Temperatur der Anlage — nicht die Zahl im Blatt.
+   *
+   * Sie steht hier einmal und wird im Panel an zwei Stellen gebraucht: in der
+   * Anzeige neben den Eingabefeldern und im hydraulischen Abgleich. Zwei
+   * getrennte Aufrufe wären fachlich dasselbe, aber genau so ist der Befund
+   * entstanden, den `systemtemperatur.ts` behebt — eine Stelle, eine Zahl.
+   */
+  const systemtemp = useMemo(() => systemtemperaturVon(doc), [doc]);
+
+  /**
+   * Weicht die Rechnung von der Eintragung ab?
+   *
+   * Der Vergleich läuft über beide Zahlen und nicht über `herkunft`: Die
+   * Herkunft `vorgabe` bedeutet „im Modell steht nichts", und dann kann die
+   * Vorbelegung zufällig dieselbe sein wie das Feld. Abweichung ist, was man
+   * sieht, nicht wie sie zustande kam.
+   */
+  const temperaturWeichtAb =
+    systemtemp.vorlauf !== plant.design.flowTemperature ||
+    systemtemp.ruecklauf !== plant.design.returnTemperature;
+
+  /**
    * Was ohne eigene Eintragung gälte — der Platzhalter im Eingabefeld.
    *
    * Seit die raumweisen Norm-Heizlasten die Gebäudeheizlast tragen können, ist
@@ -151,7 +203,20 @@ export default function AnlagenPanel() {
     return balanceNetwork({
       network,
       fixtures: doc.fixtures,
-      spread: Math.max(2, plant.design.flowTemperature - plant.design.returnTemperature),
+      /*
+       * Die Spreizung kommt aus `systemtemperaturVon` und **nicht** aus der
+       * Differenz der beiden Eingabefelder.
+       *
+       * Hier stand bis 1.23.0 `Math.max(2, flowTemperature - returnTemperature)`
+       * — die sechste Stelle desselben Fehlers. An einem Heizkörperhaus mit
+       * 35/28 im Blatt rechnete dieser Abgleich mit 7 K, während der
+       * Rohrnetzbericht zwei Abschnitte tiefer mit 10 K rechnete: derselbe
+       * Knopf, zwei Volumenströme, und zwischen ihnen die 43 %, die über
+       * V̇ = Q/(1,163·Δϑ) aus 10/7 folgen. Ein Voreinstellwert, der auf der
+       * einen Seite passt und auf der anderen nicht, ist auf der Baustelle
+       * schlimmer als gar keiner.
+       */
+      spread: systemtemp.spreizung,
       material: plant.design.material,
       maxVelocity: plant.design.maxVelocity,
       maxGradient: plant.design.maxGradient,
@@ -159,7 +224,7 @@ export default function AnlagenPanel() {
       // Strang der größte Einzelposten und der Abgleich fällt zu gut aus.
       terminalLoss: 10000,
     });
-  }, [doc, plant.design]);
+  }, [doc, plant.design, systemtemp]);
 
   /**
    * Befunde der Schemaprüfung.
@@ -196,6 +261,104 @@ export default function AnlagenPanel() {
 
   return (
     <div className="space-y-3 p-3">
+      {/* ---------------------------------------------------------------- */}
+      {/* 0 — Vorhaben                                                      */}
+      {/* ---------------------------------------------------------------- */}
+      {/*
+        * **Warum das ganz oben steht und nicht in den Projektdaten.**
+        * Aus dem Vorhaben folgt die Auslegungstemperatur, und die
+        * Auslegungstemperatur ist die erste Zahl, mit der alles darunter
+        * rechnet. Wer sie erst nach der Geräteauswahl festlegt, hat das
+        * Gerät nach 35/28 gewählt und baut anschließend Heizkörper — die
+        * Reihenfolge im Blatt ist die Reihenfolge der Abhängigkeit.
+        *
+        * **Warum es nicht abgeleitet wird.** Ein vollständig entkerntes
+        * Bestandsgebäude sieht im Modell aus wie ein Neubau; das Programm
+        * kann die Frage nicht beantworten und behauptet deshalb nichts.
+        * Solange niemand gewählt hat, steht hier „noch nicht festgelegt" —
+        * eine offene Angabe, kein Fehler: Ein rot markiertes Feld für etwas,
+        * das im frühen Aufmaß noch offen sein *darf*, erzieht nur dazu, rote
+        * Felder zu übersehen.
+        */}
+      <div className="rounded-lg bg-graphite-900/60 p-2.5">
+        <div className="mb-1.5 flex items-baseline justify-between">
+          <span className="label-xs">Vorhaben</span>
+          {doc.meta.vorhaben === undefined && (
+            <span className="text-[10px] text-slate-500">noch nicht festgelegt</span>
+          )}
+        </div>
+        {/*
+          Mindestens 44 px hoch: Die drei Knöpfe stehen nebeneinander und sind
+          im 300 px breiten Inspektor entsprechend schmal. Auf dem Tablet ist
+          die Höhe dann das Einzige, was den Finger noch trifft — `.chip`
+          käme mit 36 px darunter, deshalb hier ausdrücklich das Maß.
+        */}
+        <div className="grid grid-cols-3 gap-1">
+          {(Object.keys(VORHABEN_LABELS) as Vorhaben[]).map((v) => (
+            <button
+              key={v}
+              onClick={() => setVorhaben(v)}
+              className={`min-h-[44px] rounded-lg px-1.5 py-2 text-[11px] leading-tight transition-colors ${
+                doc.meta.vorhaben === v
+                  ? 'bg-accent/12 text-accent ring-1 ring-accent/40'
+                  : 'bg-white/[0.03] text-slate-400 hover:bg-white/[0.06]'
+              }`}
+            >
+              {VORHABEN_LABELS[v]}
+            </button>
+          ))}
+        </div>
+        {doc.meta.vorhaben === undefined ? (
+          <p className={`mt-2 rounded px-2.5 py-1.5 text-[10px] leading-relaxed ${SEVERITY_STYLE.info}`}>
+            Ohne Vorhaben leitet das Programm nichts ab — es bleibt bei den Vorgaben des Anlagenblatts
+            (35/28 °C) und bei der eingetragenen Luftdichtheit. Das ist keine Fehleingabe, sondern eine
+            offene Angabe. Die Wahl setzt Auslegungstemperatur und n50 einmalig auf den Regelfall des
+            Vorhabens; danach ist jede Zahl frei zu ändern.
+          </p>
+        ) : (
+          <>
+            {/*
+              Angezeigt wird die **Vorbelegung des Vorhabens**, nicht der Stand
+              im Blatt. Beides kann auseinanderlaufen, sobald jemand von Hand
+              eingreift oder das Vorhaben wechselt — und genau das sagt der
+              Hinweis darunter. Die maßgebliche Temperatur steht im Abschnitt
+              „Verteilung", dort, wo sie gebraucht wird.
+            */}
+            <div className="mt-2 border-t border-white/[0.06] pt-2">
+              <Readout
+                label="Vorbelegung Auslegung"
+                value={`${VORHABEN_VORBELEGUNG[doc.meta.vorhaben].vorlauf}/${
+                  VORHABEN_VORBELEGUNG[doc.meta.vorhaben].ruecklauf
+                } °C`}
+              />
+              {/*
+                Ohne Vorbelegung steht hier „messen" und keine Zahl.
+                Beim unsanierten Bestand liegt n50 zwischen 4 und 6; eine
+                Zahl in diesem Bereich hinzuschreiben sähe danach wie eine
+                Angabe aus und verschöbe die Heizlast zweistellig.
+              */}
+              <Readout
+                label="Vorbelegung Luftdichtheit n50"
+                value={
+                  VORHABEN_VORBELEGUNG[doc.meta.vorhaben].n50 !== undefined
+                    ? `${fmt(VORHABEN_VORBELEGUNG[doc.meta.vorhaben].n50 as number, 1)} 1/h`
+                    : 'keine — messen'
+                }
+              />
+            </div>
+            <p className="mt-1.5 text-[10px] leading-relaxed text-slate-500">
+              {VORHABEN_VORBELEGUNG[doc.meta.vorhaben].grund}
+            </p>
+            <p className="mt-1 text-[10px] leading-relaxed text-slate-500">
+              Gesetzt werden diese Werte nur beim <span className="text-slate-300">ersten</span> Festlegen.
+              Ein späterer Wechsel ändert allein das Vorhaben und lässt vorhandene Eingaben stehen — eine
+              Auslegungstemperatur, die jemand bewusst gewählt hat, springt nicht ohne Rückfrage um. Was hier
+              steht, ist deshalb der Regelfall des Vorhabens und nicht zwingend der Stand im Blatt.
+            </p>
+          </>
+        )}
+      </div>
+
       {/* ---------------------------------------------------------------- */}
       {/* 1 — Leistung                                                      */}
       {/* ---------------------------------------------------------------- */}
@@ -484,9 +647,9 @@ export default function AnlagenPanel() {
         Wer die Zahlen dahinter braucht, schaltet auf „Fachplaner"; wer sie
         nicht braucht, soll sie nicht wegklicken müssen.
       */}
-      {uiMode === 'einfach' && <KurzFassung design={design} />}
+      {!mindestens(uiMode, 'profi') && <KurzFassung design={design} />}
 
-      {uiMode === 'einfach' && design.notes.some((n) => n.severity === 'error') && (
+      {!mindestens(uiMode, 'profi') && design.notes.some((n) => n.severity === 'error') && (
         <div className="space-y-1">
           <span className="label-xs block">Das muss noch geklärt werden</span>
           {design.notes
@@ -499,15 +662,60 @@ export default function AnlagenPanel() {
         </div>
       )}
 
-      {uiMode === 'profi' && (
+      {mindestens(uiMode, 'profi') && (
       <>
       {/* ---------------------------------------------------------------- */}
       {/* 3 — Auslegung der Verteilung                                      */}
       {/* ---------------------------------------------------------------- */}
       <Fold title="Verteilung" open={open.verteilung} onToggle={() => toggle('verteilung')}>
+        {/*
+          * **Warum über den beiden Feldern eine Überschrift steht.**
+          * Bis 1.23.0 stand hier nur „Vorlauf [°C] 35", und diese eine Zahl
+          * bedeutete zweierlei: die Temperatur der Flächenheizung *und* die
+          * Untergrenze, ab der die Erzeugertemperatur gerechnet wird. Wer 35
+          * las, schloss zu Recht, die ganze Anlage werde mit 35 gerechnet —
+          * ein Heizkörperkreis läuft aber mindestens mit 50/40, weil ein
+          * Heizkörper durch eine Eintragung im Anlagenblatt nicht größer
+          * wird. Das Feld ist ab jetzt ausdrücklich die **Angabe des
+          * Blatts**; womit gerechnet wird, steht darunter und ist nicht
+          * bedienbar, weil es niemand von Hand setzen kann.
+          */}
+        <span className="label-xs mb-1 block">Angabe des Anlagenblatts</span>
         <div className="grid grid-cols-2 gap-2">
           <Num label="Vorlauf" unit="°C" term="spreizung" value={plant.design.flowTemperature} onChange={(v) => updatePlant({ design: { flowTemperature: v } })} />
           <Num label="Rücklauf" unit="°C" value={plant.design.returnTemperature} onChange={(v) => updatePlant({ design: { returnTemperature: v } })} />
+        </div>
+
+        {/*
+          * Die maßgebliche Systemtemperatur — dieselbe Zahl, mit der
+          * Rohrnetzbericht, Trassenauslegung und der Abgleich weiter oben
+          * rechnen.
+          *
+          * **Zwei Darstellungen, weil es zwei Fälle sind.** Stimmen beide
+          * überein, wäre ein hervorgehobener Kasten Lärm — eine Zeile
+          * genügt, und sie muss trotzdem da sein, damit man sieht, dass
+          * geprüft wurde. Weichen sie ab, ist das die wichtigste Auskunft
+          * auf dem ganzen Blatt: Dann steht im Eingabefeld eine andere Zahl
+          * als in jedem Nachweis, und ohne Hinweis hält der Leser den
+          * Nachweis für falsch.
+          */}
+        <div className="mt-2 border-t border-white/[0.06] pt-2">
+          <Readout
+            label="gerechnet wird mit"
+            value={`${grad(systemtemp.vorlauf)}/${grad(systemtemp.ruecklauf)} °C · ${grad(systemtemp.spreizung)} K`}
+            accent={temperaturWeichtAb}
+          />
+          <Readout label="Herkunft" value={TEMPERATURHERKUNFT_LABELS[systemtemp.herkunft]} />
+          {temperaturWeichtAb ? (
+            <p className={`mt-1 rounded px-2.5 py-1.5 text-[10px] leading-relaxed ${SEVERITY_STYLE.warn}`}>
+              {systemtemp.begruendung}
+            </p>
+          ) : (
+            <p className="mt-1 text-[10px] leading-relaxed text-slate-500">{systemtemp.begruendung}</p>
+          )}
+        </div>
+
+        <div className="mt-2 grid grid-cols-2 gap-2">
           <Num label="v max" unit="m/s" step={0.1} value={plant.design.maxVelocity} onChange={(v) => updatePlant({ design: { maxVelocity: v } })} />
           <Num label="R max" unit="Pa/m" step={10} value={plant.design.maxGradient} onChange={(v) => updatePlant({ design: { maxGradient: v } })} />
         </div>
@@ -1343,7 +1551,7 @@ export default function AnlagenPanel() {
         </p>
       </div>
 
-      {uiMode === 'profi' && design.notes.length > 0 && (
+      {mindestens(uiMode, 'profi') && design.notes.length > 0 && (
         <div className="space-y-1">
           <span className="label-xs block">Hinweise ({design.notes.length})</span>
           {design.notes.map((n, i) => (

@@ -69,9 +69,26 @@ import {
   type PumpDesign,
 } from './hydraulics';
 import { designDomesticHotWater, type DomesticWaterResult } from './domesticWater';
+import {
+  anschlussNotiz,
+  anschlussVonGeraet,
+  deutungsNotiz,
+  pruefeAnschluss,
+  type Anschlusspruefung,
+} from './anschlussgroesse';
 import { connectionDiameter, designSafety, systemVolume, type SystemVolumeInput } from './safetyFittings';
 import { erzeugerBilanz, type Erzeugerbilanz } from './erzeugerHydraulik';
 import { plantOf } from './plantDefaults';
+import {
+  SYSTEMTEMPERATUR_VORGABE,
+  heizflaechenArten,
+  heizflaechenart,
+  kreistemperatur,
+  systemtemperatur,
+  type Auslegungstemperatur,
+  type Heizflaechenart,
+  type Systemtemperatur,
+} from './systemtemperatur';
 
 export type PlanningNote = { severity: 'info' | 'warn' | 'error'; text: string };
 
@@ -184,6 +201,37 @@ export interface PlantDesignResult {
   selected?: ModelMatch;
   /** Heizkreise mit Volumenstrom und Rohrdimension. */
   circuits: CircuitDesign[];
+  /**
+   * Die maßgebliche Auslegungstemperatur der Anlage — mit Herkunft.
+   *
+   * Bis 1.23.0 gab es sie im Ergebnis nicht. Wer darunter rechnete — der
+   * Rohrnetzbericht, die Trassenauslegung —, griff deshalb auf
+   * `plant.design` zurück und bekam an einem Heizkörperhaus 35/28, während
+   * die Kreise darüber mit 50/40 ausgelegt waren. Das Feld ist die Antwort
+   * darauf: eine Zahl, ein Absender, ein Satz zur Begründung.
+   */
+  systemtemperatur: Systemtemperatur;
+  /**
+   * Nennweite der Erzeugeranbindung [mm].
+   *
+   * Sie stand bis 1.23.0 an zwei Stellen: einmal hier für die
+   * Erzeugerbilanz, einmal im Rohrnetzbericht als eigene Rechnung. Beide
+   * nahmen dieselbe Formel und dieselbe falsche Spreizung — dass sie
+   * übereinstimmten, war Zufall und kein Beleg. Jetzt rechnet sie eine
+   * Stelle, und der Bericht liest sie ab.
+   */
+  anschlussDn: number;
+  /**
+   * Wie diese Nennweite zustande kam — hydraulisch oder vom Gerät erzwungen.
+   *
+   * Das Feld ist optional, damit die Prüffixtures, die ein
+   * `PlantDesignResult` von Hand aufbauen, weiter übersetzen. Die Auslegung
+   * selbst setzt es immer. Wer nur die Zahl braucht, nimmt `anschlussDn`;
+   * wer sie **begründen** muss — Anlagenbuch, Rohrnetzbericht —, braucht
+   * `angehoben` und `hydraulisch` dazu, sonst steht im Nachweis eine
+   * Nennweite, die zur Rechnung daneben nicht passt.
+   */
+  anschluss?: Anschlusspruefung;
   /** Gesamtvolumenstrom im Auslegungsfall [m³/h]. */
   totalFlow: number;
   /** Wasserinhalt der Anlage. */
@@ -216,82 +264,79 @@ export interface PlantDesignResult {
 // ---------------------------------------------------------------------------
 
 /**
- * Welche Wärmeübergabe steckt in einem Raum?
- *
- * Gesucht wird nach den TGA-Objekten: ein Verteiler oder eine Fläche spricht
- * für Fußbodenheizung, ein Heizkörper für Radiatoren. Steht nichts im Raum,
- * gilt die Vorgabe aus dem Anlagenblatt — die meisten Wärmepumpenanlagen sind
- * Flächenheizungen, und wer es anders hat, sagt es.
- */
-function emitterOfRoom(byRoom: Map<string, 'floor' | 'radiator'>, roomId: string): 'floor' | 'radiator' | null {
-  return byRoom.get(roomId) ?? null;
-}
-
-/**
- * Die Wärmeübergabe aller Räume in einem Durchgang.
- *
- * Vorher lief je Raum eine Schleife über alle TGA-Objekte. Bei einem Gebäude
- * mit 720 Räumen und 984 Objekten sind das 700 000 Vergleiche — und weil die
- * Auslegung bei jeder Eingabe im Anlagenblatt neu läuft, hing die
- * Tippgeschwindigkeit daran. Ein Durchgang über die Objekte genügt.
- */
-function emittersByRoom(doc: BimDocument): Map<string, 'floor' | 'radiator'> {
-  const map = new Map<string, 'floor' | 'radiator'>();
-  for (const f of Object.values(doc.fixtures)) {
-    if (!f.roomId) continue;
-    // Eine Fläche schlägt den Heizkörper: wo beides steht, ist der
-    // Heizkörper in aller Regel die Ergänzung im Bad, nicht der Kreis.
-    if (f.type === 'underfloor' || f.type === 'manifold') {
-      map.set(f.roomId, 'floor');
-    } else if (
-      (f.type === 'radiator' || f.type === 'radiator-tube' || f.type === 'convector') &&
-      map.get(f.roomId) !== 'floor'
-    ) {
-      map.set(f.roomId, 'radiator');
-    }
-  }
-  return map;
-}
-
-/**
  * Heizkreise erzeugen, wenn keine gepflegt sind.
  *
  * Ein Kreis je Wärmeübergabeart und Geschoss — das ist die Aufteilung, die in
  * einem Einfamilienhaus tatsächlich gebaut wird: ein Verteiler je Etage. Wer
  * es anders will, legt die Kreise im Anlagenblatt selbst an; dann wird hier
  * nichts erzeugt.
+ *
+ * **Die Temperaturen stehen nicht mehr hier.** Bis 1.23.0 stand die Regel
+ * „Heizkörper bekommt mindestens 50/40" als Ausdruck mitten in dieser
+ * Funktion — und genau deshalb kannte sie außer dieser Funktion niemand. Der
+ * Rohrnetzbericht, die Anschlussnennweite, die Sicherheitsausrüstung und die
+ * Trassenauslegung griffen weiter auf `plant.design` zu und rechneten an
+ * einem reinen Heizkörperhaus mit 35/28 statt 50/40. Die Regel steht jetzt in
+ * `systemtemperatur.kreistemperatur`, und alle fünf Stellen lesen dort.
+ *
+ * **Räume ohne Heizfläche** gelten weiterhin als Fläche — man muss etwas
+ * annehmen, um zu rechnen, und bei einer Wärmepumpe ist die Fläche der
+ * Regelfall. Neu ist, dass die Annahme sichtbar wird: `designPlant` zählt sie
+ * und meldet sie als Warnung.
  */
 export function deriveCircuits(doc: BimDocument, loads: HeatLoadEstimate): HeatingCircuit[] {
   const existing = Object.values(doc.plant?.circuits ?? {});
   if (existing.length) return existing;
 
   const design = doc.plant?.design;
-  const emitters = emittersByRoom(doc);
-  const byKey = new Map<string, { kind: 'floor' | 'radiator'; levelId: string; roomIds: string[] }>();
+  const blatt: Auslegungstemperatur = {
+    vorlauf: design?.flowTemperature ?? SYSTEMTEMPERATUR_VORGABE.vorlauf,
+    ruecklauf: design?.returnTemperature ?? SYSTEMTEMPERATUR_VORGABE.ruecklauf,
+  };
+  const arten = heizflaechenArten(doc);
+  const byKey = new Map<string, { art: Heizflaechenart; kind: 'floor' | 'radiator'; levelId: string; roomIds: string[] }>();
   for (const room of loads.rooms) {
-    const kind = emitterOfRoom(emitters, room.roomId) ?? 'floor';
+    const art = heizflaechenart(arten, room.roomId);
+    // `unbekannt` wird zur Fläche zusammengefasst — sonst entstünde ein
+    // dritter Kreis je Geschoss, den niemand baut. Gemeldet wird die Annahme
+    // trotzdem, siehe `unbekannteHeizflaechen`.
+    const kind: 'floor' | 'radiator' = art === 'heizkoerper' ? 'radiator' : 'floor';
     const key = `${kind}-${room.levelId}`;
-    const entry = byKey.get(key) ?? { kind, levelId: room.levelId, roomIds: [] };
+    const entry = byKey.get(key) ?? { art, kind, levelId: room.levelId, roomIds: [] };
     entry.roomIds.push(room.roomId);
     byKey.set(key, entry);
   }
 
   const levelName = (id: string) => doc.levels[id]?.name ?? id;
-  const abgeleitet = [...byKey.entries()].map(([key, entry]) => ({
-    id: `circuit-${key}`,
-    label: `${entry.kind === 'floor' ? 'Fußbodenheizung' : 'Heizkörper'} ${levelName(entry.levelId)}`,
-    kind: entry.kind,
-    roomIds: entry.roomIds,
-    // Heizkörper brauchen mehr Temperatur als eine Fläche. Ohne eigene
-    // Angabe bekommt der Heizkörperkreis 50/40, die Fläche das, was im
-    // Anlagenblatt steht.
-    flowTemperature: entry.kind === 'radiator' ? Math.max(design?.flowTemperature ?? 35, 50) : (design?.flowTemperature ?? 35),
-    returnTemperature: entry.kind === 'radiator' ? Math.max(design?.returnTemperature ?? 28, 40) : (design?.returnTemperature ?? 28),
-    material: (design?.material ?? 'kupfer') as PipeMaterial,
-    mixed: false,
-  }));
+  const abgeleitet = [...byKey.entries()].map(([key, entry]) => {
+    const t = kreistemperatur(entry.kind === 'radiator' ? 'heizkoerper' : 'flaeche', blatt, doc.meta?.vorhaben);
+    return {
+      id: `circuit-${key}`,
+      label: `${entry.kind === 'floor' ? 'Fußbodenheizung' : 'Heizkörper'} ${levelName(entry.levelId)}`,
+      kind: entry.kind,
+      roomIds: entry.roomIds,
+      flowTemperature: t.vorlauf,
+      returnTemperature: t.ruecklauf,
+      material: (design?.material ?? 'kupfer') as PipeMaterial,
+      mixed: false,
+    };
+  });
 
   return markiereGemischteKreise(abgeleitet);
+}
+
+/**
+ * Räume, in denen noch keine Heizfläche steht.
+ *
+ * Sie sind der Grund, warum `Heizflaechenart` einen dritten Zustand hat. Die
+ * Liste ist nicht für die Rechnung da — für die gelten sie als Fläche —,
+ * sondern für den Satz, der das sagt.
+ */
+function unbekannteHeizflaechen(doc: BimDocument, loads: HeatLoadEstimate): string[] {
+  const arten = heizflaechenArten(doc);
+  return loads.rooms
+    .filter((r) => heizflaechenart(arten, r.roomId) === 'unbekannt')
+    .map((r) => r.name);
 }
 
 /**
@@ -333,7 +378,24 @@ const LAYABLE_FRACTION = 0.85;
 export function designCircuit(
   circuit: HeatingCircuit,
   loads: HeatLoadEstimate,
-  options: { material: PipeMaterial; maxVelocity: number; maxGradient: number; glycol?: { fraction: number; kind: 'ethylen' | 'propylen' } },
+  options: {
+    material: PipeMaterial;
+    maxVelocity: number;
+    maxGradient: number;
+    glycol?: { fraction: number; kind: 'ethylen' | 'propylen' };
+    /**
+     * Ist eine Wärmepumpe im Spiel?
+     *
+     * Der Hinweis „jedes Grad kostet 2,5 % Arbeitszahl" gilt für die
+     * Wärmepumpe und für nichts sonst. An einem Bestandskessel, der mit
+     * 75/60 fährt, ist er nicht nur überflüssig, sondern falsch: Ein Kessel
+     * hat keine Arbeitszahl, und die Heizkörper „kommen" dort nicht „mit
+     * weniger aus" — sie sind vor vierzig Jahren dafür ausgelegt worden.
+     * Wer einen Befund liest, der auf seinen Fall nicht zutrifft, liest den
+     * nächsten nicht mehr.
+     */
+    waermepumpe?: boolean;
+  },
 ): CircuitDesign {
   const notes: PlanningNote[] = [];
   const rooms = loads.rooms.filter((r) => circuit.roomIds.includes(r.roomId));
@@ -419,7 +481,7 @@ export function designCircuit(
   }
   const loops = roomDesigns ? roomDesigns.reduce((s, r) => s + r.floor.loops, 0) : undefined;
 
-  if (circuit.kind === 'radiator' && circuit.flowTemperature > 55) {
+  if (options.waermepumpe !== false && circuit.kind === 'radiator' && circuit.flowTemperature > 55) {
     notes.push({
       severity: 'warn',
       text: `${circuit.label}: ${circuit.flowTemperature} °C Vorlauf. Jedes Grad kostet rund 2,5 % Arbeitszahl — vor der Geräteauswahl prüfen, ob die Heizkörper nicht doch mit weniger auskommen.`,
@@ -572,10 +634,53 @@ export function designPlant(doc: BimDocument, options: PlantDesignOptions = {}):
   // 50 °C an die Heizkörper; zwischen W35 und W55 liegt rund ein Drittel
   // Leistung.
   const circuits = deriveCircuits(doc, estimate);
-  const flowTemperature = Math.max(
-    design.flowTemperature,
-    ...circuits.map((c) => c.flowTemperature),
-  );
+  /*
+   * Die eine Temperatur, mit der diese Anlage ausgelegt wird.
+   *
+   * Sie stand bis 1.23.0 hier als `Math.max(design.flowTemperature, …)` — und
+   * zwar **nur** hier: Die Geräteauswahl benutzte sie, alles darunter nicht.
+   * Sie kommt jetzt aus `systemtemperatur`, steht als `systemtemperatur` im
+   * Ergebnis und ist damit für den Rohrnetzbericht, die Anschlussnennweite
+   * und die Sicherheitsausrüstung dieselbe Zahl. Die Rücklauftemperatur wird
+   * dort mitgeführt, nicht nur der Vorlauf — ohne sie gäbe es keine
+   * Spreizung, und die Spreizung ist die Größe, an der der Volumenstrom
+   * hängt.
+   */
+  const temperatur = systemtemperatur({
+    anlagenblatt: { vorlauf: design.flowTemperature, ruecklauf: design.returnTemperature },
+    kreise: circuits.map((c) => ({
+      label: c.label,
+      vorlauf: c.flowTemperature,
+      ruecklauf: c.returnTemperature,
+    })),
+  });
+  const flowTemperature = temperatur.vorlauf;
+  if (temperatur.herkunft === 'angehoben') {
+    notes.push({ severity: 'info', text: temperatur.begruendung });
+  }
+  /*
+   * Räume ohne Heizfläche — die Annahme, die bis 1.23.0 stumm blieb.
+   *
+   * `?? 'floor'` hieß: Ein Heizkörperprojekt, an dem die TGA-Objekte noch
+   * fehlen, wurde durchgehend mit 35/28 ausgelegt, Gerät nach W35 gewählt,
+   * Nennweiten danach — und niemand erfuhr davon. Die Annahme bleibt (etwas
+   * muss man annehmen), aber sie steht jetzt am Ergebnis. Nur bei
+   * abgeleiteten Kreisen: Wer seine Kreise selbst pflegt, hat die Frage
+   * bereits beantwortet.
+   */
+  if (Object.values(plant.circuits).length === 0) {
+    const ohne = unbekannteHeizflaechen(doc, estimate);
+    if (ohne.length) {
+      notes.push({
+        severity: 'warn',
+        text:
+          `In ${ohne.length} ${ohne.length === 1 ? 'Raum' : 'Räumen'} steht noch keine Heizfläche: ${aufzaehlung(ohne)}. ` +
+          `Für die Auslegung wurde Fläche angenommen; solange das so ist, gilt die Anlage als Flächenheizsystem und ` +
+          `rechnet mit ${temperatur.vorlauf}/${temperatur.ruecklauf} °C. Kommt dort ein Heizkörper hin, ändern sich ` +
+          `Vorlauftemperatur, Volumenstrom, Nennweiten und die Gerätewahl.`,
+      });
+    }
+  }
   // Ein gepflegter Kreis, der kälter fährt als der Erzeuger und trotzdem
   // nicht als gemischt geführt ist, kann seine Auslegungstemperatur nicht
   // halten. Das ist kein Hinweis, sondern ein Fehler in der Anlage.
@@ -636,6 +741,9 @@ export function designPlant(doc: BimDocument, options: PlantDesignOptions = {}):
       maxVelocity: design.maxVelocity,
       maxGradient: design.maxGradient,
       glycol,
+      // Im unsanierten Bestand wird nicht über die Arbeitszahl belehrt —
+      // siehe `waermepumpe` in `designCircuit`.
+      waermepumpe: doc.meta.vorhaben !== 'bestand',
     }),
   );
   for (const d of designs) notes.push(...d.notes);
@@ -785,21 +893,60 @@ export function designPlant(doc: BimDocument, options: PlantDesignOptions = {}):
    * 3-Wege-Umschaltventil. Was das Gerät selbst schon mitbringt, wird nicht
    * doppelt gezählt.
    */
+  /*
+   * Die Anschlussnennweite des Erzeugers — hydraulisch gerechnet, am Gerät
+   * geprüft.
+   *
+   * Bis 1.23.0 stand hier nur die erste Zeile. Sie sucht die kleinste
+   * Nennweite, die Geschwindigkeit und Druckgefälle einhält, und kennt den
+   * Stutzen nicht, an dem die Leitung hängt: Am Referenzhaus mit 8-kW-Gerät
+   * und 10 K Spreizung kam DN 20 heraus, während das Gerät G 1¼ AG (DN 32)
+   * hat. Der Massenauszug bestellte daraufhin eine Leitung, die schmaler ist
+   * als ihr Anschluss.
+   *
+   * Maßgeblich ist zuerst das **aufgestellte** Gerät (`HeatPump`), dann das
+   * **ausdrücklich gewählte** Katalogmodell. Fehlt beides, bleibt es bei der
+   * hydraulischen Zahl — angenommen wird nichts. Die Begründung steht in
+   * `anschlussgroesse.pruefeAnschluss`.
+   *
+   * **Warum der Vorschlag nicht zählt.** `selected` ist ohne Eintrag im
+   * Anlagenblatt der beste Treffer aus `matchModels` — ein Vorschlag des
+   * Programms und keine Aussage über das Gerät, das gebaut wird. Ihn hier
+   * gelten zu lassen, hätte an einem 2,4-kW-Prüfhaus die Erzeugeranbindung
+   * von DN 15 auf DN 25 gehoben, nur weil das Programm sich versuchsweise
+   * für ein 4-kW-Gerät entschieden hat. Das ist genau die Annahme, die
+   * dieses Modul nicht treffen soll — und es wäre zudem eine andere Antwort
+   * als die der Trassenauslegung, die ebenfalls nur das gewählte Modell
+   * kennt.
+   */
+  const hydraulischDn = connectionDiameter(capacity, { spread: temperatur.spreizung, velocity: 0.8 });
+  const gewaehltesModell = chosen ? selected?.model : undefined;
+  const anschluss = anschlussVonGeraet(pump, gewaehltesModell);
+  const anschlussPruefung = pruefeAnschluss(hydraulischDn, anschluss.dn);
+  const anschlussDn = anschlussPruefung.dn;
+  const anhebung = anschlussNotiz(anschlussPruefung, anschluss);
+  if (anhebung) notes.push(anhebung);
+  const unlesbar = deutungsNotiz(anschluss);
+  if (unlesbar) notes.push(unlesbar);
   const erzeuger = erzeugerBilanz({
     model: selected?.model,
-    flow: totalFlow || capacity / (1.163 * Math.max(2, design.flowTemperature - design.returnTemperature)),
-    dn: connectionDiameter(capacity, {
-      spread: Math.max(2, design.flowTemperature - design.returnTemperature),
-      velocity: 0.8,
-    }),
+    // `temperatur.spreizung` statt `design.…`: Durch den Erzeuger fließt, was
+    // die Kreise verlangen. An einem reinen Heizkörperhaus mit 35/28 im
+    // Anlagenblatt waren das 7 K statt 10 K — 43 % zu viel Volumenstrom und
+    // eine Nennweite zu groß.
+    flow: totalFlow || capacity / (1.163 * temperatur.spreizung),
+    dn: anschlussDn,
     umschaltung: Boolean(dhwStorage) && !selected?.model.contains?.diverter,
     waermezaehler: true,
     abscheiderVorhanden: !selected?.model.contains?.dirtSeparator,
   });
   for (const n of erzeuger.hinweise) notes.push(n);
 
+  // Stoffwerte bei der **mittleren** Temperatur der Anlage, nicht bei der des
+  // Anlagenblatts: Die Zähigkeit ändert sich zwischen 31,5 °C und 45 °C um
+  // rund ein Drittel und geht über die Reynoldszahl in jeden Druckverlust ein.
   const fluid = glycol
-    ? fluidProperties((design.flowTemperature + design.returnTemperature) / 2, {
+    ? fluidProperties((temperatur.vorlauf + temperatur.ruecklauf) / 2, {
         glycolFraction: glycol.fraction,
         glycolKind: glycol.kind,
       })
@@ -875,7 +1022,11 @@ export function designPlant(doc: BimDocument, options: PlantDesignOptions = {}):
                 secured: plant.safety.dhwSecured,
               }
             : undefined,
-        spread: Math.max(2, design.flowTemperature - design.returnTemperature),
+        // Die Spreizung bestimmt hier die Nennweite des Überströmventils.
+        // Mit der des Anlagenblatts fiel es an einem Heizkörperhaus eine
+        // Stufe zu groß aus — ein zu großes Überströmventil schließt nicht
+        // sauber und schließt den Vorlauf in den Rücklauf kurz.
+        spread: temperatur.spreizung,
       })
     : undefined;
   for (const n of safety?.notes ?? []) notes.push(n);
@@ -892,6 +1043,9 @@ export function designPlant(doc: BimDocument, options: PlantDesignOptions = {}):
     matches: matches.slice(0, 8),
     selected,
     circuits: designs,
+    systemtemperatur: temperatur,
+    anschlussDn,
+    anschluss: anschlussPruefung,
     totalFlow,
     volume: { total: Math.round(totalVolume), parts: volume.parts },
     buffer: { required: bufferNeed.required, selected: bufferStorage, reason: bufferNeed.reason },

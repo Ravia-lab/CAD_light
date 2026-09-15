@@ -6,16 +6,25 @@
 
 import type {
   Annotation,
+  AnnotationAnchor,
+  BimDocument,
   BoundaryCondition,
   DoorType,
   Fixture,
+  FixtureType,
   Opening,
   PassageType,
+  PipeAccessory,
   PipeRun,
   PipeService,
+  RadiatorConnection,
+  VentilSeite,
   RoofOpening,
   Room,
   ShaftService,
+  Brandschutzklasse,
+  Durchbruch,
+  DurchbruchKind,
   VerticalElement,
   VerticalKind,
   SolidElement,
@@ -27,23 +36,43 @@ import type {
 } from '../types/bim';
 import {
   ANNOTATION_LABELS,
+  ANNOTATION_QUELLE_LABELS,
   BOUNDARY_LABELS,
   FIXTURE_BY_TYPE,
+  LEISTUNG_HERKUNFT_LABELS,
+  leistungNachziehbar,
   PIPE_SERVICE_LABELS,
+  RADIATOR_CONNECTION_LABELS,
   ROOF_OPENING_LABELS,
   SHAFT_SERVICE_LABELS,
   SOLID_LABELS,
+  VENTILSEITE_LABELS,
   VERTICAL_LABELS,
   WALL_THICKNESS_PRESETS,
+  BRANDSCHUTZ_LABELS,
+  DURCHBRUCH_LABELS,
+  durchbruchWirt,
 } from '../types/bim';
+import { useMemo } from 'react';
+import { ACCESSORY_LABELS } from '../lib/pipeAccessorySymbols';
+import { beschriftungVeraltet, hoehenText, modellwert, planText } from '../lib/beschriftung3d';
 import { FIXTURE_COLORS } from '../lib/fixtureSymbols';
+import { BELAG_WIDERSTAND, BODENBELAEGE } from '../lib/bodenbelag';
 import { distanceToSegment, pointInPolygon, polygonArea, polygonPerimeter } from '../lib/geometry';
 import { annotationLength } from '../lib/annotationSymbols';
 import { defaultGableRise } from '../lib/roofGeometry';
 import { solidFootprint, stairRunLength } from '../lib/verticalSymbols';
+import {
+  durchbruchFlaeche,
+  durchbruchMitte,
+  durchbruchPasst,
+} from '../lib/durchbruchSymbols';
+import { getWallGeometry } from '../lib/wallGeometry';
 import { useBimStore } from '../store/useBimStore';
 import Erklaerung from './Erklaerung';
 import { buildRaviaExport } from '../lib/raviaExport';
+import { heizflaechenbefundFuer, type Heizflaechenbefund } from '../lib/heizflaechenAbgleich';
+import { uWertOeffnung, uWertWand, type UWertAuskunft } from '../lib/uwert';
 
 const USAGE_LABELS: Record<RoomUsage, string> = {
   living: 'Wohnen',
@@ -96,9 +125,17 @@ export default function PropertiesPanel() {
       const b = doc.solids?.[selection.id];
       return b ? <SolidProperties element={b} /> : <BuildingSummary />;
     }
+    case 'durchbruch': {
+      const db = doc.durchbrueche?.[selection.id];
+      return db ? <DurchbruchProperties element={db} /> : <BuildingSummary />;
+    }
     case 'pipe': {
       const run = doc.pipes?.[selection.id];
       return run ? <PipeProperties run={run} /> : <BuildingSummary />;
+    }
+    case 'accessory': {
+      const armatur = doc.pipeAccessories?.[selection.id];
+      return armatur ? <AccessoryProperties armatur={armatur} /> : <BuildingSummary />;
     }
     case 'annotation': {
       const note = doc.annotations?.[selection.id];
@@ -133,13 +170,153 @@ export default function PropertiesPanel() {
 
 // ---------------------------------------------------------------------------
 
+/**
+ * Die drei Stufen, in denen dieses Panel Befunde einfärbt.
+ * ---------------------------------------------------------------------------
+ * Dieselben Klassen wie im Anlagenblatt und in der Prüfliste — bewusst
+ * abgeschrieben und nicht importiert: Dort ist die Konstante privat, und sie
+ * hier auszuleihen hieße, zwei Dateien aneinanderzubinden, die sonst nichts
+ * miteinander zu tun haben. Wer die Farben ändert, ändert sie an beiden
+ * Stellen; das ist der Preis, und er ist kleiner als eine neue Abhängigkeit
+ * quer durch die Oberfläche.
+ *
+ * `info` ist kein Fehler, sondern eine Auskunft. `warn` heißt: hier steht eine
+ * **Annahme**, keine Angabe. `error` heißt: hier steht gar nichts.
+ */
+const SEVERITY_STYLE = {
+  error: 'border-l-2 border-rose-400/70 bg-rose-400/[0.07] text-rose-200',
+  warn: 'border-l-2 border-amber-400/70 bg-amber-400/[0.07] text-amber-200',
+  info: 'border-l-2 border-white/15 bg-white/[0.03] text-slate-400',
+} as const;
+
+/** Eine Zahl mit deutschem Dezimalkomma — „0,21" statt „0.21". */
+function kommaZahl(wert: number, stellen: number): string {
+  return wert.toFixed(stellen).replace('.', ',');
+}
+
+/** Eine Wattzahl mit Tausenderpunkt — „2.040 W" statt „2040 W". */
+function watt(wert: number): string {
+  return `${Math.round(wert).toLocaleString('de-DE')} W`;
+}
+
+/**
+ * Was am Bauteil wirklich gerechnet wird — und woher es kommt.
+ * ---------------------------------------------------------------------------
+ * **Der Fehler, den diese Zeile beendet.** Das Eingabefeld daneben zeigte bis
+ * 1.23.0 `wall.uValue ?? 0,24` beziehungsweise `opening.uValue ?? (Tür ? 1,6 :
+ * 0,95)`. Das war ein **fünfter Vorgabekatalog** neben Export, Stückliste,
+ * Heizlastüberschlag und Raumerkennung — und der einzige, der den
+ * Bauteilaufbau nicht sah: Eine Wand mit zugewiesenem Aufbau „AW 36,5 + WDVS"
+ * (U = 0,21) zeigte im Inspektor 0,24, während Export und Stückliste 0,21
+ * druckten. Wer die Zahlen verglich, fand zwei verschiedene Häuser und keinen
+ * Hinweis darauf, welches gilt.
+ *
+ * Schlimmer war die zweite Wirkung: Der Vorgabewert stand nicht nur da, er war
+ * **bedienbar**. Ein Fingertipp ins Feld, und 0,24 wanderte als erfasster Wert
+ * ins Modell — aus „nicht erfasst" wurde „erfasst als Vorgabewert", und die
+ * Prüfung, die genau diese Lücke meldet, konnte nie wieder zutreffen.
+ *
+ * Deshalb gilt jetzt die Trennung: **Das Feld zeigt, was erfasst ist** (und
+ * bleibt leer, wenn nichts erfasst ist). **Diese Zeile zeigt, was gerechnet
+ * wird** — mit Herkunft, unbedienbar, und damit ohne die Möglichkeit, eine
+ * Annahme versehentlich zur Angabe zu machen.
+ */
+function UWertBefund({
+  auskunft,
+  imFeld,
+}: {
+  auskunft: UWertAuskunft;
+  /** Der am Bauteil erfasste Wert — also das, was im Feld daneben steht. */
+  imFeld: number | undefined;
+}) {
+  const stil =
+    auskunft.herkunft === 'fehlt'
+      ? SEVERITY_STYLE.error
+      : auskunft.herkunft === 'katalog'
+        ? SEVERITY_STYLE.warn
+        : SEVERITY_STYLE.info;
+
+  let satz: string;
+  switch (auskunft.herkunft) {
+    case 'aufbau':
+      satz =
+        `Aus dem Aufbau ${auskunft.aufbau ? `„${auskunft.aufbau}“` : 'im Katalog'}. ` +
+        'Der Aufbau schlägt den Wert am Bauteil — wer ihn im Katalog ändert, ändert alle ' +
+        'Bauteile mit diesem Aufbau mit.';
+      break;
+    case 'bauteil':
+      satz = 'Am Bauteil erfasst — die Zahl im Feld daneben ist maßgebend.';
+      break;
+    case 'katalog':
+      satz =
+        'Vorgabewert nach Bauteilart (angenommen). Er steht bewusst nicht im Modell: ' +
+        'Eine angenommene Zahl einzutragen machte aus der Annahme eine Angabe, und die Prüfung ' +
+        'könnte die Lücke nicht mehr melden. Sobald jemand eine Zahl einträgt oder einen Aufbau ' +
+        'zuweist, gilt diese.';
+      break;
+    case 'fehlt':
+      satz =
+        'Nicht erfasst — und es gibt für diese Bauteilart keinen begründbaren Vorgabewert. ' +
+        'Export und Stückliste drucken hier einen Strich und führen das Bauteil als Lücke.';
+      break;
+  }
+
+  return (
+    <div className={`rounded px-2.5 py-1.5 text-[10px] leading-relaxed ${stil}`}>
+      <div className="flex items-baseline justify-between gap-2">
+        <span className="label-xs">Gerechnet wird</span>
+        <span className="shrink-0 whitespace-nowrap font-mono text-[11px]">
+          {auskunft.wert === undefined ? '—' : `${kommaZahl(auskunft.wert, 2)} W/m²K`}
+        </span>
+      </div>
+      <p className="mt-0.5">{satz}</p>
+
+      {/*
+       * Der Widerspruch, den man sonst erst im gedruckten Plan bemerkt: Am
+       * Bauteil steht eine Zahl, gerechnet und gedruckt wird aber die aus dem
+       * Aufbau. Beides ist für sich richtig — nur muss man es sehen.
+       */}
+      {auskunft.herkunft === 'aufbau' &&
+        auskunft.wert !== undefined &&
+        imFeld !== undefined &&
+        imFeld > 0 &&
+        Math.abs(imFeld - auskunft.wert) > 1e-9 && (
+          <p className="mt-1">
+            Im Feld stehen {kommaZahl(imFeld, 2)} — gerechnet wird trotzdem{' '}
+            {kommaZahl(auskunft.wert, 2)}. Wer den Wert am Bauteil gelten lassen will, muss dem
+            Bauteil den Aufbau nehmen.
+          </p>
+        )}
+
+      {/*
+       * Eine 0 im Feld ist kein U-Wert, sondern ein nicht ausgefülltes oder
+       * falsch ausgefülltes Feld: Ein Bauteil, das nichts durchlässt, gibt es
+       * nicht. `istErfasst` in `uwert.ts` verwirft sie deshalb — und ohne
+       * diesen Hinweis stünde die 0 sichtbar im Feld, während unbemerkt der
+       * Vorgabewert gerechnet wird.
+       */}
+      {imFeld !== undefined && imFeld <= 0 && (
+        <p className="mt-1">
+          {kommaZahl(imFeld, 2)} im Feld gilt nicht als erfasst — ein Bauteil ohne
+          Wärmedurchgang gibt es nicht. Feld leeren oder den wirklichen Wert eintragen.
+        </p>
+      )}
+    </div>
+  );
+}
+
 function WallProperties({ wall }: { wall: Wall }) {
   const updateWall = useBimStore((s) => s.updateWall);
   const nodes = useBimStore((s) => s.doc.nodes);
+  // Der Katalog der Bauteilaufbauten — ohne ihn beantwortet `uWertWand` die
+  // Frage nach dem U-Wert anders als Export und Stückliste, und genau diese
+  // Abweichung war der Befund.
+  const constructions = useBimStore((s) => s.doc.constructions);
   const a = nodes[wall.a];
   const b = nodes[wall.b];
   const length = a && b ? Math.hypot(b.x - a.x, b.y - a.y) : 0;
   const area = length * wall.height;
+  const uWert = uWertWand(wall, constructions);
 
   return (
     <Section title="Wand">
@@ -169,14 +346,25 @@ function WallProperties({ wall }: { wall: Wall }) {
           step={0.05}
           onChange={(v) => updateWall(wall.id, { height: v })}
         />
+        {/*
+          * **Kein `?? 0,24` mehr.** Der Vorgabewert stand hier als bedienbare
+          * Zahl im Feld: Ein Tipp hinein, und aus „nicht erfasst" wurde
+          * „erfasst als 0,24" — unumkehrbar, weil die 0,24 danach von einem
+          * abgelesenen Wert nicht mehr zu unterscheiden ist. Was gerechnet
+          * wird, steht unter dem Feld; hier steht nur, was erfasst ist.
+          */}
         <NumberField
           label="U-Wert [W/m²K]"
           term="u-wert"
-          value={wall.uValue ?? 0.24}
+          value={wall.uValue}
           step={0.01}
+          platzhalter={uWert.wert !== undefined ? kommaZahl(uWert.wert, 2) : 'nicht erfasst'}
+          onLeeren={() => updateWall(wall.id, { uValue: undefined })}
           onChange={(v) => updateWall(wall.id, { uValue: v })}
         />
       </div>
+
+      <UWertBefund auskunft={uWert} imFeld={wall.uValue} />
 
       <Field label="Bauteiltyp">
         <select
@@ -257,9 +445,14 @@ const PASSAGE_TYPE_LABELS: Record<PassageType, string> = {
 
 function OpeningProperties({ opening }: { opening: Opening }) {
   const updateOpening = useBimStore((s) => s.updateOpening);
+  const constructions = useBimStore((s) => s.doc.constructions);
   const isDoor = opening.kind === 'door';
   const isPassage = opening.kind === 'passage';
   const title = isPassage ? 'Durchgang' : isDoor ? 'Tür' : 'Fenster';
+  // Dieselbe Auskunft, die Export und Stückliste benutzen — Aufbau vor
+  // Bauteilwert vor Vorgabewert. Der Durchgang wird darin als Loch behandelt
+  // und braucht deshalb gar keine Zeile (siehe unten).
+  const uWert = uWertOeffnung(opening, constructions);
 
   return (
     <Section title={title}>
@@ -349,16 +542,27 @@ function OpeningProperties({ opening }: { opening: Opening }) {
           step={0.05}
           onChange={(v) => updateOpening(opening.id, { sillHeight: Math.max(0, v) })}
         />
+        {/*
+          * **Kein `?? (Tür ? 1,6 : 0,95)` mehr** — derselbe Grund wie an der
+          * Wand: Der Vorgabewert war bedienbar und wurde beim ersten Antippen
+          * zur erfassten Angabe. Ein Fenster mit zugewiesenem Aufbau
+          * „Fenster 3-fach" zeigte hier außerdem 0,95, während im Plan 0,90
+          * stand.
+          */}
         {!isPassage && (
           <NumberField
             label="U-Wert"
             term="u-wert"
-            value={opening.uValue ?? (isDoor ? 1.6 : 0.95)}
+            value={opening.uValue}
             step={0.05}
+            platzhalter={uWert.wert !== undefined ? kommaZahl(uWert.wert, 2) : 'nicht erfasst'}
+            onLeeren={() => updateOpening(opening.id, { uValue: undefined })}
             onChange={(v) => updateOpening(opening.id, { uValue: v })}
           />
         )}
       </div>
+
+      {!isPassage && <UWertBefund auskunft={uWert} imFeld={opening.uValue} />}
 
       {isPassage && (
         <p className="text-[10px] leading-relaxed text-slate-600">
@@ -430,6 +634,32 @@ function RoomProperties({ room }: { room: Room }) {
           {(Object.keys(USAGE_LABELS) as RoomUsage[]).map((u) => (
             <option key={u} value={u} className="bg-graphite-850">
               {USAGE_LABELS[u]}
+            </option>
+          ))}
+        </select>
+      </Field>
+
+      {/*
+        Der Bodenbelag gehört zum Raum, nicht zum Heizkreis.
+
+        Er entscheidet über den Belagswiderstand einer Flächenheizung — und
+        er steht im Massenauszug. Beides gilt auch für einen Raum ohne
+        Fußbodenheizung, deshalb steht die Auswahl hier und nicht nur am
+        Heizkreis. „—" heißt: nichts erfasst, und das ist etwas anderes als
+        „ohne Belag".
+      */}
+      <Field label="Bodenbelag">
+        <select
+          className="field"
+          value={room.floorCovering ?? ''}
+          onChange={(e) => updateRoom(room.id, { floorCovering: e.target.value || undefined })}
+        >
+          <option value="" className="bg-graphite-850">
+            — nicht erfasst —
+          </option>
+          {BODENBELAEGE.map((b) => (
+            <option key={b.id} value={b.id} className="bg-graphite-850">
+              {b.name} · R {b.wert.toFixed(2).replace('.', ',')} m²K/W
             </option>
           ))}
         </select>
@@ -580,12 +810,213 @@ function RoomProperties({ room }: { room: Room }) {
 }
 
 /** Eigenschaften eines platzierten TGA-Objekts. */
+/**
+ * Die Bauarten, an denen „Leistung / Bauart / Vorlauf / Rücklauf" etwas
+ * bedeuten.
+ * ---------------------------------------------------------------------------
+ * **Warum eine Typliste und nicht `category === 'heating'`.** Die Kategorie
+ * fasst alles zusammen, was zur Heizung gehört — auch den Speicher, den
+ * Heizkreisverteiler, den Steigstrang und den Raumthermostat. Für einen Puffer
+ * ist „Leistung [W]" schlicht falsch: Er erzeugt keine Wärme, er hält sie
+ * vorrätig; die Leistung gehört an den Erzeuger. Das Feld stand trotzdem an
+ * ihm, zeigte „0 W", und ein Fingertipp hinein schrieb `powerW: 0` an ein
+ * Objekt, das nie eine Leistung haben wird. Dieselbe Null, die im Rechenkern
+ * gerade abgeschafft wurde, entstand hier neu — und zwar an einer Stelle, an
+ * der niemand nach ihr sucht.
+ *
+ * **Was die Einschränkung kostet — nachgezählt, Bauart für Bauart:**
+ *
+ *   • `storage` verliert Leistung, Bauart, Vorlauf und Rücklauf. Genau so
+ *     gewollt; sein Block „Aufstellort" mit dem Inhalt bleibt.
+ *   • `manifold`, `riser-heating`, `thermostat` tragen im Katalog `params: {}`
+ *     — an ihnen stand nie ein erfasster Wert, sondern immer nur die
+ *     Vorbelegung der Felder selbst (0 W, 55 °C, 45 °C). Es geht also nichts
+ *     verloren; es hört nur auf, welche zu erfinden.
+ *   • `boiler` ist der eine Fall, in dem etwas verlorenginge: Er trägt im
+ *     Katalog 15 000 W, und beim Wärmeerzeuger ist eine Leistung richtig. Er
+ *     bekommt sie deshalb unten in einem eigenen Block zurück — ohne Vorlauf
+ *     und Rücklauf, denn die legt die Anlage fest und nicht der Aufstellort.
+ *
+ * `underfloor` steht bewusst mit in der Liste, obwohl `istHeizflaeche` in
+ * `heizflaechenLeistung.ts` es ausschließt. Die beiden Listen beantworten
+ * verschiedene Fragen: dort „lässt sich diese Bauart über DIN EN 442-2 auf den
+ * Normpunkt umrechnen" (ein Fußbodenheizkreis nicht — für ihn gilt
+ * DIN EN 1264-2), hier „hat diese Bauart eine Leistung, die man erfassen
+ * kann". Ein Heizkreis hat eine, und sie steht im Export.
+ */
+const HEIZFLAECHEN_TYPEN: readonly FixtureType[] = [
+  'radiator',
+  'radiator-tube',
+  'convector',
+  'underfloor',
+];
+
+/**
+ * Woher die Leistung dieser Heizfläche stammt — und was das bedeutet.
+ * ---------------------------------------------------------------------------
+ * **Warum diese Zeile nötig ist.** Das Programm zieht abgeleitete Leistungen
+ * automatisch nach, eingetragene nie. Ob die Zahl im Feld also beim nächsten
+ * Rechenlauf noch dieselbe ist, hängt einzig an ihrer Herkunft — und die stand
+ * bisher nur im Datensatz, nirgends auf dem Bildschirm. Wer 1.400 W aus einem
+ * Datenblatt eintrug, konnte nicht sehen, dass sie bleiben; wer eine
+ * Katalogvorbelegung von 1.200 W vor sich hatte, konnte nicht sehen, dass sie
+ * verschwinden.
+ *
+ * **Und der zweite Zweck:** Eine eingetragene Leistung, die kleiner ist als
+ * die nötige, ist kein Fehler des Anwenders und keine Warnung des Programms —
+ * sie ist das Ergebnis, wegen dessen saniert wird. Deshalb steht hier
+ * „Vorhanden …, nötig … — die Heizfläche deckt die Raumheizlast nicht" und
+ * nicht „falsche Eingabe".
+ */
+function LeistungBefund({ fixture, befund }: { fixture: Fixture; befund?: Heizflaechenbefund }) {
+  const leistung = fixture.params.powerW;
+  /*
+   * Fehlt die Herkunft, gilt die Leistung als **eingetragen** — nicht als
+   * Katalogwert. Dieselbe Festlegung wie in `FixtureParams.powerSource`:
+   * Projekte aus älteren Fassungen führen das Feld nicht, und in ihnen hat der
+   * Anwender die Zahlen tatsächlich gepflegt. Sie im Nachhinein für
+   * überschreibbar zu erklären, wäre der eine Fehler, den man hier nicht
+   * machen darf.
+   */
+  const herkunft = fixture.params.powerSource ?? 'datenblatt';
+  const nachziehbar = leistungNachziehbar(fixture.params.powerSource);
+  const unterdeckt = befund?.ist !== undefined && befund.ist < befund.soll;
+
+  const kopf = (titel: string, wert: string) => (
+    <div className="flex items-baseline justify-between gap-2">
+      <span className="label-xs shrink-0">{titel}</span>
+      <span className="min-w-0 text-right text-[10.5px] leading-snug">{wert}</span>
+    </div>
+  );
+
+  /*
+   * Noch nichts erfasst. Der Vorschlag steht als Platzhalter im Feld — er ist
+   * sichtbar, aber er ist kein Wert: Im Modell steht weiterhin nichts, und die
+   * Prüfung führt die Heizfläche weiter als Lücke. Genau dieser Unterschied
+   * ging verloren, solange das Feld „0 W" zeigte.
+   */
+  if (leistung === undefined) {
+    return (
+      <div
+        className={`rounded px-2.5 py-1.5 text-[10px] leading-relaxed ${
+          befund ? SEVERITY_STYLE.info : SEVERITY_STYLE.warn
+        }`}
+      >
+        {kopf('Leistung', 'noch nicht erfasst')}
+        {befund ? (
+          <>
+            <p className="mt-0.5">
+              Vorgeschlagen sind {watt(befund.soll)}. Der Vorschlag steht nur als Platzhalter im
+              Feld, nicht im Modell — eingetragen wird er erst, wenn ihn jemand übernimmt oder das
+              Programm ihn nachzieht.
+            </p>
+            <p className="mt-1 opacity-80">{befund.begruendung}</p>
+          </>
+        ) : fixture.type === 'underfloor' ? (
+          /*
+           * Der Fußbodenheizkreis bekommt bewusst keinen Vorschlag aus der
+           * Raumheizlast: Seine Leistung folgt dem Kennfeld nach DIN EN 1264-2
+           * (Verlegeabstand, Estrichüberdeckung, Belagswiderstand) und nicht
+           * der Umrechnung auf den Normpunkt nach DIN EN 442-2 — deshalb
+           * schließt ihn `istHeizflaeche` in `heizflaechenLeistung.ts` aus.
+           * Den allgemeinen Satz „lässt sich nichts ableiten" hier stehen zu
+           * lassen wäre eine falsche Begründung für ein richtiges Ergebnis.
+           */
+          <p className="mt-0.5">
+            Für einen Heizkreis schlägt das Programm hier nichts vor: Seine Leistung folgt dem
+            Kennfeld nach DIN EN 1264-2 und entsteht beim Belegen der Raumfläche, nicht aus der
+            Umrechnung auf den Normpunkt. Ein leeres Feld ist die richtige Auskunft — 0 W wäre ein
+            Heizkreis, der nicht heizt.
+          </p>
+        ) : (
+          <p className="mt-0.5">
+            Aus der Raumheizlast lässt sich hier nichts ableiten — dem Raum fehlt die Heizlast, oder
+            das Objekt liegt in keinem erkannten Raum. Ein leeres Feld ist trotzdem die richtige
+            Auskunft: 0 W wäre eine Heizfläche, die nicht heizt.
+          </p>
+        )}
+      </div>
+    );
+  }
+
+  const schluss = nachziehbar
+    ? 'Diese Zahl zieht das Programm selbst nach. Sobald jemand sie von Hand ändert, gilt sie als eingetragen und bleibt stehen.'
+    : unterdeckt
+      ? 'Die Zahl bleibt stehen: Sie beschreibt den vorhandenen Heizkörper. Der Widerspruch zur Heizlast ist kein Eingabefehler, sondern der Befund, wegen dessen saniert wird.'
+      : herkunft === 'ravia'
+        ? 'Gerechnet wurde in RaVia, nicht hier. Das Programm überschreibt die Zahl nicht.'
+        : 'Eingetragene Leistungen zieht das Programm nie nach — sie beschreiben das vorhandene Gerät.';
+
+  return (
+    <div
+      className={`rounded px-2.5 py-1.5 text-[10px] leading-relaxed ${
+        unterdeckt || herkunft === 'katalog' ? SEVERITY_STYLE.warn : SEVERITY_STYLE.info
+      }`}
+    >
+      {kopf('Herkunft', LEISTUNG_HERKUNFT_LABELS[herkunft])}
+
+      {befund?.ist !== undefined && (
+        <p className="mt-0.5">
+          Vorhanden {watt(befund.ist)}, nötig {watt(befund.soll)} —{' '}
+          {befund.ist < befund.soll
+            ? 'die Heizfläche deckt die Raumheizlast nicht.'
+            : 'die Heizfläche ist größer als nötig.'}
+        </p>
+      )}
+
+      {/*
+       * Die Begründung steht im Befund und wird hier nur weitergereicht.
+       * Sie hier ein zweites Mal auszurechnen hieße, eine zweite Antwort auf
+       * dieselbe Frage zu führen — Systemtemperatur, Lastaufteilung und
+       * Exponent würden dann irgendwann auseinanderlaufen, und niemand
+       * bemerkte, welche der beiden Zahlen im Heft steht.
+       */}
+      {befund && <p className="mt-1 opacity-80">{befund.begruendung}</p>}
+
+      <p className="mt-1">{schluss}</p>
+    </div>
+  );
+}
+
 function FixtureProperties({ fixture }: { fixture: Fixture }) {
   const updateFixture = useBimStore((s) => s.updateFixture);
   const rooms = useBimStore((s) => s.doc.rooms);
+  const doc = useBimStore((s) => s.doc);
   const def = FIXTURE_BY_TYPE[fixture.type];
   const room = fixture.roomId ? rooms[fixture.roomId] : undefined;
   const color = FIXTURE_COLORS[fixture.category];
+  const zeigtHeizflaeche = HEIZFLAECHEN_TYPEN.includes(fixture.type);
+
+  /*
+   * Der Abgleich gegen die Raumheizlast — nur für die Bauarten, die einen
+   * haben können.
+   *
+   * `heizflaechenBefunde` rechnet die Heizlast **aller** Räume neu. Das ist
+   * nicht gratis, und das Panel zeichnet bei jeder Eingabe im Dokument neu.
+   * Deshalb zwei Bremsen: die Typprüfung davor (an einem Waschtisch gibt es
+   * nichts abzugleichen) und `useMemo` auf das Dokument — so kostet ein
+   * Wechsel der Auswahl oder ein Neuzeichnen aus anderem Anlass nichts.
+   *
+   * Ein Befund entsteht nur bei einer Abweichung über zwei Prozent. Kein
+   * Befund heißt also entweder „passt" oder „lässt sich nicht vergleichen";
+   * `LeistungBefund` formuliert beides so, dass es nicht verwechselt werden
+   * kann.
+   */
+  /*
+   * **Der Einzelabruf, nicht die gefilterte Gesamtliste.**
+   *
+   * `heizflaechenBefunde` unterdrückt Abweichungen unter zwei Prozent, weil
+   * es entscheidet, *ob nachgezogen wird*. Der Inspektor stellt die andere
+   * Frage — *warum steht diese Zahl da* —, und für eine gerade nachgezogene
+   * Leistung ist die Abweichung null. Über die Gesamtliste gefiltert fehlte
+   * die Begründung also ausgerechnet bei den Zahlen, die das Programm selbst
+   * gesetzt hat. Nebenbei spart der Einzelabruf den Durchlauf über alle
+   * Räume, und der hängt hier an jeder Auswahl.
+   */
+  const befund = useMemo(
+    () => (zeigtHeizflaeche ? heizflaechenbefundFuer(doc, fixture.id) : undefined),
+    [doc, fixture.id, zeigtHeizflaeche],
+  );
 
   return (
     <Section title="TGA-Objekt">
@@ -629,15 +1060,60 @@ function FixtureProperties({ fixture }: { fixture: Fixture }) {
         />
       </div>
 
-      {/* Gewerkespezifische Kennwerte — genau die, die im Export landen. */}
-      {fixture.category === 'heating' && (
-        <div className="grid grid-cols-2 gap-2">
+      {/*
+       * Gewerkespezifische Kennwerte — genau die, die im Export landen.
+       *
+       * Die Bedingung fragt die **Bauart** ab und nicht mehr die Kategorie;
+       * warum, steht bei `HEIZFLAECHEN_TYPEN`.
+       */}
+      {zeigtHeizflaeche && (
+        <div className="space-y-2">
+          {/*
+           * **Das Feld darf leer bleiben — darum geht es hier.**
+           *
+           * `value={fixture.params.powerW ?? 0}` zeigte an einem nie erfassten
+           * Heizkörper „0 W". Wer das Feld dann auch nur anfasste, schrieb
+           * `powerW: 0` ins Modell: Aus „nicht erfasst" wurde „erfasst als
+           * 0 W", und das ist nicht umkehrbar — die Prüfung „Heizfläche ohne
+           * Leistung" trifft danach nie wieder zu, der Abgleich hält 0 W für
+           * eine Angabe, und im Heft steht eine Heizfläche, die nicht heizt.
+           *
+           * Jetzt: leer heißt leer. Geleert wird zu `undefined`, und die
+           * Herkunft geht mit — eine Herkunft ohne Wert beschriebe nichts.
+           */}
           <NumberField
             label="Leistung [W]"
-            value={fixture.params.powerW ?? 0}
+            value={fixture.params.powerW}
             step={50}
-            onChange={(v) => updateFixture(fixture.id, { params: { ...fixture.params, powerW: Math.max(0, v) } })}
+            platzhalter={
+              befund && fixture.params.powerW === undefined
+                ? `aus der Raumheizlast: ${watt(befund.soll)}`
+                : 'nicht erfasst'
+            }
+            onLeeren={() =>
+              updateFixture(fixture.id, {
+                params: { ...fixture.params, powerW: undefined, powerSource: undefined },
+              })
+            }
+            /*
+             * Eine 0 oder eine negative Zahl ist keine Leistung, sondern ein
+             * leeres Feld mit einem Tastendruck darin. Sie wird deshalb wie
+             * „geleert" behandelt statt als `Math.max(0, v)` ins Modell
+             * geschrieben — genau dieses `Math.max` war der alte Weg, auf dem
+             * die 0 hineinkam.
+             */
+            onChange={(v) =>
+              updateFixture(fixture.id, {
+                params:
+                  v > 0
+                    ? { ...fixture.params, powerW: v }
+                    : { ...fixture.params, powerW: undefined, powerSource: undefined },
+              })
+            }
           />
+
+          <LeistungBefund fixture={fixture} befund={befund} />
+
           <Field label="Bauart">
             <input
               className="field"
@@ -647,27 +1123,294 @@ function FixtureProperties({ fixture }: { fixture: Fixture }) {
               }
             />
           </Field>
+
+          <div className="grid grid-cols-2 gap-2">
+            <NumberField
+              label="Vorlauf [°C]"
+              value={fixture.params.flowTemperature ?? 55}
+              step={1}
+              onChange={(v) => updateFixture(fixture.id, { params: { ...fixture.params, flowTemperature: v } })}
+            />
+            <NumberField
+              label="Rücklauf [°C]"
+              value={fixture.params.returnTemperature ?? 45}
+              step={1}
+              onChange={(v) => updateFixture(fixture.id, { params: { ...fixture.params, returnTemperature: v } })}
+            />
+          </div>
+        </div>
+      )}
+
+      {/*
+       * Der Wärmeerzeuger behält seine Leistung — er ist der eine Fall, dem
+       * die Einschränkung oben etwas wegnähme, das er zu Recht zeigt: Im
+       * Katalog steht er mit 15 kW, und beim Erzeuger *ist* eine Leistung
+       * richtig. Vorlauf und Rücklauf bekommt er nicht zurück; die legt die
+       * Anlage fest (`PlantDefinition`), nicht der Aufstellort — dieselbe
+       * Trennung wie beim Speicher darunter.
+       */}
+      {fixture.type === 'boiler' && (
+        <div className="space-y-2 rounded-lg border border-white/[0.07] bg-white/[0.02] p-2.5">
+          <div className="label-xs">Aufstellort</div>
           <NumberField
-            label="Vorlauf [°C]"
-            value={fixture.params.flowTemperature ?? 55}
-            step={1}
-            onChange={(v) => updateFixture(fixture.id, { params: { ...fixture.params, flowTemperature: v } })}
+            label="Nennwärmeleistung [W]"
+            value={fixture.params.powerW}
+            step={500}
+            platzhalter="nicht erfasst"
+            onLeeren={() =>
+              updateFixture(fixture.id, {
+                params: { ...fixture.params, powerW: undefined, powerSource: undefined },
+              })
+            }
+            onChange={(v) =>
+              updateFixture(fixture.id, {
+                params:
+                  v > 0
+                    ? { ...fixture.params, powerW: v }
+                    : { ...fixture.params, powerW: undefined, powerSource: undefined },
+              })
+            }
           />
+          <p className="text-[10px] leading-relaxed text-slate-600">
+            Die Zahl beschreibt das Gerät, das hier steht. Ausgelegt wird der Erzeuger in der
+            Anlage — dort steht die maßgebende Leistung. Leer heißt „noch nicht erfasst"; eine 0
+            behauptete einen Erzeuger, der nichts erzeugt.
+          </p>
+        </div>
+      )}
+
+      {/*
+       * Die Angaben, ohne die der Rechenkern nicht auslegen kann.
+       *
+       * `powerW` oben ist die Normleistung bei 55/45/20 °C. Eine Wärmepumpe
+       * fährt 35/28 — und ohne den **Exponenten n** aus dem Datenblatt lässt
+       * sich die eine Zahl nicht in die andere umrechnen (DIN EN 442-2). Das
+       * war der eine harte Blocker der Übergabe an RaVia; deshalb steht das
+       * Feld hier und nicht in einem Untermenü.
+       *
+       * Der Röhrenradiator gehört in dieselbe Bedingung: er ist ein Heizkörper
+       * wie Platte und Konvektor, hat denselben Exponenten aus dem Datenblatt
+       * und dieselbe Anbindung. Solange er hier fehlte, ließ sich an einem
+       * Röhrenradiator weder n noch Anschlussart noch Ventilseite eintragen —
+       * der Export gab für ihn stillschweigend den Richtwert aus.
+       */}
+      {fixture.category === 'heating' &&
+        (fixture.type === 'radiator' || fixture.type === 'radiator-tube' || fixture.type === 'convector') && (
+        <div className="space-y-2 rounded-lg border border-white/[0.07] bg-white/[0.02] p-2.5">
+          <div className="label-xs">Fürs Auslegen</div>
+          <div className="grid grid-cols-2 gap-2">
+            <NumberField
+              label="Exponent n [-]"
+              value={fixture.params.radiatorExponent ?? 1.3}
+              step={0.01}
+              onChange={(v) =>
+                updateFixture(fixture.id, {
+                  params: { ...fixture.params, radiatorExponent: Math.min(1.6, Math.max(1, v)) },
+                })
+              }
+            />
+            <NumberField
+              label="Bauhöhe [m]"
+              value={fixture.params.radiatorHeight ?? 0.6}
+              step={0.05}
+              onChange={(v) =>
+                updateFixture(fixture.id, { params: { ...fixture.params, radiatorHeight: Math.max(0.1, v) } })
+              }
+            />
+          </div>
+          <Field label="Anschlussart">
+            <select
+              className="field"
+              value={fixture.params.radiatorConnection ?? 'wechselseitig'}
+              onChange={(e) =>
+                updateFixture(fixture.id, {
+                  params: { ...fixture.params, radiatorConnection: e.target.value as RadiatorConnection },
+                })
+              }
+            >
+              {(Object.keys(RADIATOR_CONNECTION_LABELS) as RadiatorConnection[]).map((k) => (
+                <option key={k} value={k} className="bg-graphite-850">
+                  {RADIATOR_CONNECTION_LABELS[k]}
+                </option>
+              ))}
+            </select>
+          </Field>
+
+          {/*
+           * Ventilseite — und der leere Eintrag ist der wichtige.
+           *
+           * `valveSide` ist optional, und „nicht erfasst" ist ein eigener
+           * Zustand, nicht etwa eine verkappte Vorgabe „rechts". Würde die
+           * Liste beim Fehlen der Angabe einfach auf „rechts" springen, hätte
+           * jeder Heizkörper, den nie jemand angeschaut hat, eine Ventilseite
+           * im Plan stehen — der Monteur bindet danach an, der Estrich ist zu,
+           * und das Ventil sitzt auf der anderen Seite. Deshalb bleibt die
+           * Auswahl leer, bis jemand sich festlegt, und der Hinweistext sagt
+           * ausdrücklich, dass leer nichts behauptet.
+           *
+           * Der leere String ist nur die Darstellung im <select>; ins Modell
+           * geht `undefined`, damit Export und Prüfung die Lücke sehen.
+           */}
+          <Field label="Ventilseite">
+            <select
+              className="field"
+              value={fixture.params.valveSide ?? ''}
+              onChange={(e) => {
+                const wert = e.target.value;
+                updateFixture(fixture.id, {
+                  params: {
+                    ...fixture.params,
+                    valveSide: wert === '' ? undefined : (wert as VentilSeite),
+                  },
+                });
+              }}
+            >
+              <option value="" className="bg-graphite-850">
+                — nicht erfasst
+              </option>
+              {(Object.keys(VENTILSEITE_LABELS) as VentilSeite[]).map((s) => (
+                <option key={s} value={s} className="bg-graphite-850">
+                  {VENTILSEITE_LABELS[s]}
+                </option>
+              ))}
+            </select>
+          </Field>
+          <p className="text-[10px] leading-relaxed text-slate-600">
+            Links und rechts gelten <em>von vorn auf den Heizkörper gesehen, aus dem Raum</em>. Ohne
+            diese Festlegung heißt „links“ bei zwei Leuten zweierlei.{' '}
+            {fixture.params.valveSide === undefined
+              ? 'Solange hier „nicht erfasst“ steht, behauptet der Plan keine Seite — das ist etwas anderes als „rechts“.'
+              : 'Gerechnet wird damit nichts; die Angabe geht in Plan, Massenauszug und Export, damit die Anbindung auf der richtigen Seite hochkommt.'}
+          </p>
+
+          <p className="text-[10px] leading-relaxed text-slate-600">
+            {fixture.params.radiatorExponent === undefined ? (
+              <>
+                Solange n nicht eingetragen ist, geht der Richtwert{' '}
+                {fixture.type === 'convector' ? '1,40' : '1,30'} in den Export — ausdrücklich als Annahme. Der
+                wirkliche Wert steht im Datenblatt des Heizkörpers.
+              </>
+            ) : (
+              <>
+                n aus dem Datenblatt. Damit rechnet der Rechenkern die Normleistung (55/45/20&nbsp;°C) auf den
+                Betriebspunkt der Wärmepumpe um.
+              </>
+            )}
+          </p>
+        </div>
+      )}
+
+      {/*
+       * Speicher: hier steht der **Aufstellort**, nicht die Auslegung.
+       *
+       * Ausgelegt wird der Speicher in der Anlage (`PlantDefinition.storages`)
+       * — dort hängen Bedarf, Schichtung und Erzeuger zusammen, und dort steht
+       * die maßgebende Zahl. Der Grundriss beantwortet die andere Frage: *wo*
+       * steht er, und passt er da hin. Der Inhalt steht trotzdem hier, weil
+       * die Stellfläche vom Volumen abhängt und man im Raum eine Zahl sehen
+       * will — ein 800-l-Speicher geht nicht in die Nische, in die ein
+       * 300-l-Speicher passt.
+       *
+       * Weichen Aufstellort und Auslegung voneinander ab, ist das kein Fehler
+       * dieses Feldes, sondern eine Meldung der Prüfung: maßgebend bleibt die
+       * Anlage.
+       */}
+      {fixture.type === 'storage' && (
+        <div className="space-y-2 rounded-lg border border-white/[0.07] bg-white/[0.02] p-2.5">
+          <div className="label-xs">Aufstellort</div>
+          {/*
+           * Dieselbe 0-Falle wie bei der Leistung: „0 l" ist kein Speicher,
+           * sondern ein nicht ausgefülltes Feld — und `Math.max(0, …)` war der
+           * Weg, auf dem die 0 ins Modell kam.
+           */}
           <NumberField
-            label="Rücklauf [°C]"
-            value={fixture.params.returnTemperature ?? 45}
-            step={1}
-            onChange={(v) => updateFixture(fixture.id, { params: { ...fixture.params, returnTemperature: v } })}
+            label="Inhalt [l]"
+            value={fixture.params.volumeL}
+            step={50}
+            platzhalter="nicht erfasst"
+            onLeeren={() => updateFixture(fixture.id, { params: { ...fixture.params, volumeL: undefined } })}
+            onChange={(v) =>
+              updateFixture(fixture.id, {
+                params: { ...fixture.params, volumeL: v > 0 ? Math.round(v) : undefined },
+              })
+            }
           />
+          <p className="text-[10px] leading-relaxed text-slate-600">
+            Der Inhalt beschreibt, was hier im Raum steht, und bestimmt die Stellfläche. Ausgelegt
+            wird der Speicher in der Anlage — dort steht die maßgebende Zahl. Weicht beides ab,
+            meldet es die Prüfung, statt eine der beiden Zahlen stillschweigend zu überschreiben.
+          </p>
+        </div>
+      )}
+
+      {/*
+       * Das Kennfeld nach DIN EN 1264-2 hängt an drei Eingängen:
+       * Verlegeabstand, Estrichüberdeckung und Belagswiderstand R_λB. Zwei
+       * davon standen im Export, der dritte nicht — und derselbe Kreis trägt
+       * unter Fliesen rund ein Drittel mehr als unter Teppich.
+       */}
+      {fixture.type === 'underfloor' && (
+        <div className="space-y-2 rounded-lg border border-white/[0.07] bg-white/[0.02] p-2.5">
+          <div className="label-xs">Fürs Auslegen (DIN EN 1264-2)</div>
+          <div className="grid grid-cols-2 gap-2">
+            <NumberField
+              label="Estrichüberdeckung [m]"
+              value={fixture.params.screedCover ?? 0.045}
+              step={0.005}
+              onChange={(v) =>
+                updateFixture(fixture.id, { params: { ...fixture.params, screedCover: Math.max(0.01, v) } })
+              }
+            />
+            <NumberField
+              label="Rohr außen [m]"
+              value={fixture.params.pipeOuterDiameter ?? 0.017}
+              step={0.001}
+              onChange={(v) =>
+                updateFixture(fixture.id, { params: { ...fixture.params, pipeOuterDiameter: Math.max(0.005, v) } })
+              }
+            />
+          </div>
+          <Field label="Bodenbelag">
+            <select
+              className="field"
+              value={String(fixture.params.floorCoveringResistance ?? '')}
+              onChange={(e) =>
+                updateFixture(fixture.id, {
+                  params: {
+                    ...fixture.params,
+                    floorCoveringResistance: e.target.value === '' ? undefined : Number(e.target.value),
+                  },
+                })
+              }
+            >
+              <option value="">— noch nicht festgelegt</option>
+              {BELAG_WIDERSTAND.map((b) => (
+                <option key={b.wert} value={b.wert}>
+                  {b.name} — R_λB {b.wert.toFixed(2).replace('.', ',')}
+                </option>
+              ))}
+            </select>
+          </Field>
+          <p className="text-[10px] leading-relaxed text-slate-600">
+            Der Belag entscheidet mit, wie viel der Kreis trägt: unter Fliesen rund ein Drittel mehr als unter
+            Teppich. Solange er nicht feststeht, bleibt das Feld leer und der Export sagt, dass er fehlt — das ist
+            ehrlicher, als eine Zahl zu setzen, die niemand gewählt hat.
+          </p>
         </div>
       )}
 
       {fixture.category === 'ventilation' && (
+        /* Dieselbe 0-Falle: Ein Ventil mit 0 m³/h ist kein erfasster Wert,
+           sondern ein Ventil, nach dem noch niemand gefragt hat. */
         <NumberField
           label="Volumenstrom [m³/h]"
-          value={fixture.params.airflow ?? 0}
+          value={fixture.params.airflow}
           step={5}
-          onChange={(v) => updateFixture(fixture.id, { params: { ...fixture.params, airflow: Math.max(0, v) } })}
+          platzhalter="nicht erfasst"
+          onLeeren={() => updateFixture(fixture.id, { params: { ...fixture.params, airflow: undefined } })}
+          onChange={(v) =>
+            updateFixture(fixture.id, { params: { ...fixture.params, airflow: v > 0 ? v : undefined } })
+          }
         />
       )}
 
@@ -870,6 +1613,238 @@ function SolidProperties({ element }: { element: SolidElement }) {
           An der Außenwand ist dieses Bauteil eine Wärmebrücke. Gerechnet wird sie hier nicht — ihr
           ψ-Wert hängt an Aufbau, Zug und Dämmung. Der Export übergibt Berührungslänge und
           Wandkennung, damit die Heizlastrechnung sie ansetzen kann.
+        </p>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Die Eigenschaften eines Durchbruchs.
+ *
+ * Die Leiste ist danach geordnet, wonach auf der Baustelle gefragt wird: Wo?
+ * Wie groß? Wie hoch? Und muss geschottet werden? Was sie **nicht** anbietet,
+ * ist ein U-Wert — ein Durchbruch trägt keinen, und ein Feld dafür wäre eine
+ * Einladung, eine Zahl zu erfinden.
+ */
+function DurchbruchProperties({ element }: { element: Durchbruch }) {
+  const update = useBimStore((s) => s.updateDurchbruch);
+  const doc = useBimStore((s) => s.doc);
+  const levels = doc.levels;
+  const level = levels[element.levelId];
+  const wirt = durchbruchWirt(element.kind);
+  const wand = element.wallId ? doc.walls[element.wallId] : undefined;
+  const geometrie = wand ? getWallGeometry(wand, doc.nodes) : null;
+  const urteil = durchbruchPasst(element, doc, wand?.height ?? level?.height ?? 2.75);
+  const querschnitt = durchbruchFlaeche(element);
+  const mitte = durchbruchMitte(element, doc);
+  const rund = element.form === 'rund';
+
+  return (
+    <div className="space-y-3 p-3">
+      <Section title={DURCHBRUCH_LABELS[element.kind]}>
+        <label className="block">
+          <span className="label-xs mb-1 block">Bezeichnung</span>
+          <input
+            className="field"
+            value={element.name}
+            onChange={(e) => update(element.id, { name: e.target.value })}
+          />
+        </label>
+
+        <div>
+          <span className="label-xs mb-1 block">Art</span>
+          <div className="flex flex-wrap gap-0.5 rounded-lg bg-graphite-900/60 p-0.5">
+            {(['kernbohrung', 'wanddurchbruch', 'schlitz', 'deckendurchbruch'] as DurchbruchKind[]).map(
+              (k) => (
+                <button
+                  key={k}
+                  onClick={() => update(element.id, { kind: k })}
+                  title={DURCHBRUCH_LABELS[k]}
+                  className={`chip flex-1 whitespace-nowrap ${
+                    element.kind === k ? 'bg-accent/15 text-accent' : 'text-slate-500 hover:text-slate-300'
+                  }`}
+                >
+                  {DURCHBRUCH_LABELS[k].replace('durchbruch', 'd.').replace('Wand', 'W.')}
+                </button>
+              ),
+            )}
+          </div>
+        </div>
+
+        <div>
+          <span className="label-xs mb-1 block">Form</span>
+          <div className="flex gap-0.5 rounded-lg bg-graphite-900/60 p-0.5">
+            {(['rund', 'rechteckig'] as const).map((f) => (
+              <button
+                key={f}
+                onClick={() =>
+                  update(element.id, {
+                    form: f,
+                    // Beim Wechsel wird das fehlende Maß aus dem vorhandenen
+                    // abgeleitet, statt auf null zu fallen: ein leeres
+                    // Maßfeld ist schlimmer als ein ungefähres.
+                    diameter:
+                      f === 'rund'
+                        ? (element.diameter ?? Math.min(element.width ?? 0.1, element.height ?? 0.1))
+                        : element.diameter,
+                    width: f === 'rechteckig' ? (element.width ?? element.diameter ?? 0.1) : element.width,
+                    height: f === 'rechteckig' ? (element.height ?? element.diameter ?? 0.1) : element.height,
+                  })
+                }
+                className={`chip flex-1 ${
+                  element.form === f ? 'bg-accent/15 text-accent' : 'text-slate-500 hover:text-slate-300'
+                }`}
+              >
+                {f === 'rund' ? 'rund' : 'rechteckig'}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {rund ? (
+          <NumberField
+            label="Durchmesser [m]"
+            value={element.diameter ?? 0}
+            step={0.01}
+            onChange={(v) => update(element.id, { diameter: Math.max(0.01, v) })}
+          />
+        ) : (
+          <div className="grid grid-cols-2 gap-2">
+            <NumberField
+              label={wirt === 'wand' ? 'Breite [m]' : 'Maß x [m]'}
+              value={element.width ?? 0}
+              step={0.01}
+              onChange={(v) => update(element.id, { width: Math.max(0.01, v) })}
+            />
+            <NumberField
+              label={wirt === 'wand' ? 'Höhe [m]' : 'Maß y [m]'}
+              value={element.height ?? 0}
+              step={0.01}
+              onChange={(v) => update(element.id, { height: Math.max(0.01, v) })}
+            />
+          </div>
+        )}
+
+        {wirt === 'wand' ? (
+          <>
+            <NumberField
+              label={rund ? 'Achshöhe über FFB [m]' : 'Unterkante über FFB [m]'}
+              value={element.sillHeight ?? 0}
+              step={0.05}
+              onChange={(v) => update(element.id, { sillHeight: Math.max(0, v) })}
+            />
+            <NumberField
+              label="Abstand auf der Wandachse [m]"
+              value={element.distance ?? 0}
+              step={0.05}
+              onChange={(v) => update(element.id, { distance: Math.max(0, v) })}
+            />
+          </>
+        ) : (
+          <NumberField
+            label="Drehung [°]"
+            value={element.rotation ?? 0}
+            step={15}
+            onChange={(v) => update(element.id, { rotation: v })}
+          />
+        )}
+      </Section>
+
+      <Section title="Ausführung">
+        <div>
+          <span className="label-xs mb-1 block">Gewerk</span>
+          <div className="flex flex-wrap gap-0.5 rounded-lg bg-graphite-900/60 p-0.5">
+            {(Object.keys(SHAFT_SERVICE_LABELS) as ShaftService[]).map((sv) => (
+              <button
+                key={sv}
+                onClick={() => update(element.id, { service: sv })}
+                className={`chip flex-1 whitespace-nowrap ${
+                  element.service === sv ? 'bg-accent/15 text-accent' : 'text-slate-500 hover:text-slate-300'
+                }`}
+              >
+                {SHAFT_SERVICE_LABELS[sv]}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <NumberField
+          label="Nennweite DN [mm]"
+          value={element.dn ?? 0}
+          step={5}
+          onChange={(v) => update(element.id, { dn: Math.max(0, Math.round(v)) })}
+        />
+
+        <div>
+          <span className="label-xs mb-1 block">Brandschutz</span>
+          <div className="flex flex-wrap gap-0.5 rounded-lg bg-graphite-900/60 p-0.5">
+            {(Object.keys(BRANDSCHUTZ_LABELS) as Brandschutzklasse[]).map((k) => (
+              <button
+                key={k}
+                onClick={() => update(element.id, { brandschutz: k })}
+                className={`chip flex-1 whitespace-nowrap ${
+                  (element.brandschutz ?? 'keine') === k
+                    ? 'bg-accent/15 text-accent'
+                    : 'text-slate-500 hover:text-slate-300'
+                }`}
+              >
+                {k === 'keine' ? 'ohne' : k.replace('R', 'R ')}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <label className="block">
+          <span className="label-xs mb-1 block">Bemerkung</span>
+          <input
+            className="field"
+            placeholder="z. B. nach Rücksprache Statik"
+            value={element.note ?? ''}
+            onChange={(e) => update(element.id, { note: e.target.value })}
+          />
+        </label>
+      </Section>
+
+      <Section title="Wirkung auf die Rechnung">
+        <p className="rounded-lg bg-graphite-900/60 px-2.5 py-2 text-[10px] leading-relaxed text-slate-400">
+          Keine. Ein Durchbruch mindert weder Wandfläche noch Raumfläche und trägt keinen U-Wert —
+          er wird geschottet, nicht gerechnet. Was er leistet, steht auf dem Plan und im
+          Massenauszug: Lage, Maß, Höhe und die Anforderung an die Schottung.
+        </p>
+      </Section>
+
+      <Section title="Ergibt sich daraus">
+        <Readout label="Lichter Querschnitt" value={`${(querschnitt * 10000).toFixed(0)} cm²`} accent />
+        <Readout
+          label="Lage"
+          value={mitte ? `${mitte.x.toFixed(2)} | ${mitte.y.toFixed(2)}` : '—'}
+        />
+        <Readout label="Geschoss" value={level?.name ?? '—'} />
+        {wirt === 'wand' && (
+          <>
+            <Readout label="In Wand" value={wand ? (wand.type === 'exterior' ? 'Außenwand' : 'Innenwand') : '—'} />
+            <Readout
+              label="Wandlänge"
+              value={geometrie ? `${geometrie.length.toFixed(2)} m` : '—'}
+            />
+            <Readout label="Wanddicke" value={wand ? `${(wand.thickness * 100).toFixed(0)} cm` : '—'} />
+          </>
+        )}
+      </Section>
+
+      {!urteil.passt && (
+        <p className="rounded-lg bg-red-500/10 px-2.5 py-2 text-[10px] leading-relaxed text-red-300">
+          {urteil.grund} Solange das so steht, lässt sich der Durchbruch nicht ausführen — und er
+          steht als Fehler in der Prüfung.
+        </p>
+      )}
+
+      {wirt === 'wand' && wand?.type === 'exterior' && (
+        <p className="rounded-lg bg-orange-500/10 px-2.5 py-2 text-[10px] leading-relaxed text-orange-300">
+          Dieser Durchbruch geht durch eine Außenwand. Die Dämmebene wird dabei durchstoßen; die
+          Abdichtung gegen Schlagregen und die luftdichte Ausbildung gehören in die Ausschreibung.
+          Gerechnet wird das hier nicht.
         </p>
       )}
     </div>
@@ -1135,6 +2110,88 @@ function PipeProperties({ run }: { run: PipeRun }) {
 }
 
 /**
+ * Eine Armatur am Rohrnetz — **nur zum Nachsehen**.
+ *
+ * Warum hier nichts eingetragen werden kann: Für Armaturen gibt es im Store
+ * (noch) keine Änderungsaktion. Ein Eingabefeld, das beim Tippen nichts
+ * speichert, ist schlimmer als gar keins — man trägt den Einstellwert der
+ * Rücklaufverschraubung ein, sieht ihn im Feld stehen, und beim nächsten
+ * Auswählen ist er weg. Deshalb stehen die Werte hier als Anzeige, und
+ * geändert wird die Armatur dort, wo sie entsteht: am Rohrnetz.
+ *
+ * Was die Leiste beantwortet, ist die Frage, die man vor der Armatur wirklich
+ * hat: Was ist das, wie hoch sitzt sie, hängt sie an einem Abschnitt — und
+ * warum sitzt sie überhaupt hier.
+ */
+function AccessoryProperties({ armatur }: { armatur: PipeAccessory }) {
+  const doc = useBimStore((s) => s.doc);
+  const deleteSelection = useBimStore((s) => s.deleteSelection);
+
+  // Der gebundene Abschnitt wird über `runId` nachgeschlagen. Er kann fehlen:
+  // eine von Hand gesetzte Armatur steht frei im Plan, bis sie jemand auf eine
+  // Trasse zieht — und ein gelöschter Abschnitt lässt die Bindung als
+  // toten Verweis zurück. Beide Fälle heißen hier „steht frei“, statt eine
+  // Leitung zu behaupten, die es nicht mehr gibt.
+  const run = armatur.runId ? doc.pipes?.[armatur.runId] : undefined;
+  const level = doc.levels[armatur.levelId];
+
+  return (
+    <div className="space-y-3 p-3">
+      <Section title={ACCESSORY_LABELS[armatur.kind]}>
+        <div className="rounded-lg bg-graphite-900/60 px-2.5 py-2">
+          <Readout label="Art" value={ACCESSORY_LABELS[armatur.kind]} accent />
+          <Readout label="Bezeichnung" value={armatur.label || '—'} />
+          {armatur.spec && <Readout label="Technisch" value={armatur.spec} />}
+          <Readout label="Höhe über FFB" value={hoehenText(armatur.elevation)} />
+          <Readout label="Geschoss" value={level?.name ?? '—'} />
+          <Readout
+            label="Lage"
+            value={`${armatur.position.x.toFixed(2)} | ${armatur.position.y.toFixed(2)}`}
+          />
+        </div>
+
+        <div className="rounded-lg bg-graphite-900/60 px-2.5 py-2">
+          <Readout
+            label="Am Abschnitt"
+            value={run ? `${PIPE_SERVICE_LABELS[run.service]} DN ${run.nominalDiameter}` : 'steht frei'}
+            accent={Boolean(run)}
+          />
+          {run?.label && <Readout label="Strang" value={run.label} />}
+          <Readout label="Gesetzt" value={armatur.generated ? 'aus einer Regel' : 'von Hand'} />
+        </div>
+
+        {armatur.reason && (
+          <p className="rounded-lg bg-graphite-900/60 px-2.5 py-2 text-[10px] leading-relaxed text-slate-400">
+            {armatur.reason}
+          </p>
+        )}
+
+        {!run && (
+          <p className="text-[10px] leading-relaxed text-slate-600">
+            Ohne gebundenen Abschnitt taucht die Armatur in keinem Strangauszug auf: Nennweite und
+            Medium kommen von der Leitung, auf der sie sitzt. Auf eine Trasse gezogen, bekommt sie
+            beides automatisch.
+          </p>
+        )}
+
+        <p className="text-[10px] leading-relaxed text-slate-600">
+          Die Angaben stehen hier nur zum Nachsehen. Geändert wird die Armatur am Rohrnetz — dort
+          entsteht sie und dort hängen Nennweite, Einstellwert und Lage am Abschnitt zusammen.
+        </p>
+
+        <button
+          className="chip w-full bg-red-500/10 text-red-300 hover:bg-red-500/20"
+          title="Entfernt die Armatur aus dem Plan"
+          onClick={() => deleteSelection()}
+        >
+          Armatur löschen
+        </button>
+      </Section>
+    </div>
+  );
+}
+
+/**
  * Dachflächenfenster oder Gaube. Die entscheidende Zahl steht unten: was das
  * Bauteil an der Hülle ändert. Ein Dachfenster tauscht Dachfläche gegen Glas,
  * eine Gaube bringt Volumen und drei neue Bauteile mit.
@@ -1262,10 +2319,38 @@ function RoofOpeningProperties({ opening }: { opening: RoofOpening }) {
   );
 }
 
+/**
+ * Wie das beschriftete Bauteil im Klartext heißt.
+ *
+ * Der Anker speichert nur `kind` und `id` — eine Kennung, die niemandem etwas
+ * sagt. Wer die Fahne anfasst, will wissen, woran sie hängt, und zwar so, wie
+ * das Bauteil im Plan heißt. Ist das Bauteil gelöscht, steht das ausdrücklich
+ * da: eine Fahne, die ins Leere zeigt, muss man sehen können, sonst bleibt sie
+ * bis zum Druck im Plan stehen.
+ */
+function ankerBezeichnung(doc: BimDocument, anchor: AnnotationAnchor): string {
+  if (anchor.kind === 'fixture') {
+    const f = doc.fixtures[anchor.id];
+    if (!f) return 'gelöschtes Objekt';
+    return f.label ?? FIXTURE_BY_TYPE[f.type]?.label ?? 'TGA-Objekt';
+  }
+  if (anchor.kind === 'pipe') {
+    const r = doc.pipes?.[anchor.id];
+    if (!r) return 'gelöschte Leitung';
+    return `${PIPE_SERVICE_LABELS[r.service]} DN ${r.nominalDiameter}`;
+  }
+  const d = doc.durchbrueche?.[anchor.id];
+  if (!d) return 'gelöschter Durchbruch';
+  return d.name || DURCHBRUCH_LABELS[d.kind];
+}
+
 /** Freie Maßkette, Text oder Hinweisfahne. */
 function AnnotationProperties({ note }: { note: Annotation }) {
   const update = useBimStore((s) => s.updateAnnotation);
+  const doc = useBimStore((s) => s.doc);
   const measured = annotationLength(note);
+  const veraltet = beschriftungVeraltet(doc, note);
+  const aktuell = note.anchor ? modellwert(doc, note.anchor) : null;
 
   return (
     <div className="space-y-3 p-3">
@@ -1298,6 +2383,88 @@ function AnnotationProperties({ note }: { note: Annotation }) {
           onChange={(v) => update(note.id, { scale: Math.max(0.5, Math.min(3, v)) })}
         />
       </Section>
+
+      {/*
+       * Beschriftungen aus der begehbaren Ansicht.
+       *
+       * `elevation` ist das Erkennungsmerkmal: Wer im Haus steht und einen
+       * Heizkörper beschriftet, setzt die Fahne auf eine Höhe. Der Grundriss
+       * kennt nur x und y — ohne die Höhe stünden zwei übereinander liegende
+       * Bauteile mit zwei Texten an derselben Stelle, und niemand wüsste,
+       * welcher Text zu welchem gehört. Fehlt das Feld, ist es eine gewöhnliche
+       * Planbeschriftung und dieser Abschnitt bleibt aus — nicht etwa eine
+       * Beschriftung auf Höhe 0.
+       */}
+      {note.elevation !== undefined && (
+        <Section title="In der Ansicht gesetzt">
+          <NumberField
+            label="Höhe über FFB [m]"
+            value={note.elevation}
+            step={0.05}
+            onChange={(v) => update(note.id, { elevation: v })}
+          />
+          <p className="text-[9.5px] leading-relaxed text-slate-600">
+            Die Höhe steht im Plan hinter dem Text: „{planText(note)}“. Negative Werte sind
+            zulässig und gewollt — was unter dem Estrich liegt, hat eine Höhe unter null.
+          </p>
+
+          {note.anchor && (
+            <div className="rounded-lg bg-graphite-900/60 px-2.5 py-2">
+              <Readout label="Hängt an" value={ankerBezeichnung(doc, note.anchor)} accent />
+              <Readout
+                label="Quelle"
+                value={
+                  note.anchor.quelle ? ANNOTATION_QUELLE_LABELS[note.anchor.quelle] : 'frei getippt'
+                }
+              />
+              {note.anchor.quelle && aktuell !== null && (
+                <Readout label="Modell sagt" value={aktuell} />
+              )}
+            </div>
+          )}
+
+          {/*
+           * Der Grund, warum dieser ganze Abschnitt existiert.
+           *
+           * Eine abgeschriebene Zahl ist ab dem Moment des Abschreibens eine
+           * zweite, unabhängige Wahrheit. Wird der Heizkörper später von
+           * 2000 W auf 1600 W geändert — im Inspektor, beim Einlesen eines
+           * Datenblatts, durch den Rohrausleger —, bleibt auf der Fahne
+           * 2000 W stehen. Es fällt niemandem auf, weil beide Zahlen für sich
+           * plausibel aussehen; gemerkt wird es erst, wenn der Plan gedruckt
+           * auf der Baustelle liegt und der Monteur nach dem 2000-W-Heizkörper
+           * sucht, den es nicht gibt.
+           *
+           * Deshalb zieht das Programm die Abschrift **nicht** stillschweigend
+           * nach: Vielleicht war die alte Zahl Absicht — ein Bestandswert, eine
+           * Angabe des Bauherrn, ein bewusst abweichender Vermerk. Es meldet
+           * den Widerspruch und legt die Entscheidung dem vor, der sie treffen
+           * kann. Was es auf keinen Fall tut, ist beides zu unterlassen und die
+           * veraltete Zahl zu drucken.
+           */}
+          {veraltet && aktuell !== null && (
+            <div className="space-y-2 rounded-lg bg-orange-500/10 px-2.5 py-2">
+              <p className="text-[10px] leading-relaxed text-orange-300">
+                Die Beschriftung stimmt nicht mehr mit dem Modell überein: hier steht „{note.text}“,
+                am Bauteil steht inzwischen „{aktuell}“. Abgeschrieben wurde sie, als das Bauteil
+                noch den alten Wert hatte.
+              </p>
+              <button
+                className="chip w-full bg-white/[0.06] text-orange-200 hover:bg-white/[0.12]"
+                title={`Setzt den Text auf den aktuellen Modellwert „${aktuell}“`}
+                onClick={() => update(note.id, { text: aktuell })}
+              >
+                Wert nachziehen: {aktuell}
+              </button>
+              <p className="text-[9.5px] leading-relaxed text-orange-200/70">
+                Nachziehen nur, wenn der Modellwert der richtige ist. War die Abweichung Absicht —
+                ein Bestandswert, eine Angabe des Bauherrn —, bleibt der Text stehen; der Hinweis
+                bleibt dann ebenfalls stehen, und das ist so gewollt.
+              </p>
+            </div>
+          )}
+        </Section>
+      )}
 
       {note.kind === 'dimension' && (
         <Section title="Gemessen">
@@ -1573,19 +2740,58 @@ function Field({
   );
 }
 
+/**
+ * Ein Zahlenfeld — das jetzt auch **leer** sein darf.
+ * ---------------------------------------------------------------------------
+ * **Warum diese Erweiterung nötig war.** Die alte Fassung nahm `value: number`
+ * entgegen und zeigte für alles Nichtendliche eine 0. Jeder Aufrufer mit einem
+ * wahlfreien Wert musste deshalb ein `?? 0` oder ein `?? 0,24` davorsetzen —
+ * und genau diese Vorgabewerte waren das Problem: Sie standen als bedienbare
+ * Zahl im Feld, und beim ersten Antippen wanderten sie als erfasster Wert ins
+ * Modell. Aus „nicht erfasst" wurde „erfasst als Vorgabewert", unumkehrbar.
+ *
+ * **Warum `onLeeren` und nicht `onChange(undefined)`.** Mit einer Unterschrift
+ * `(value: number | undefined) => void` müsste jeder der rund dreißig
+ * vorhandenen Aufrufer seinen Ausdruck (`Math.max(0, v)`, `Math.round(v)`,
+ * `Math.min(1.6, …)`) gegen `undefined` absichern — dreißig Änderungen für
+ * eine Erweiterung, die drei Felder brauchen. Ein zweiter, wahlfreier Rückruf
+ * erweitert das Feld, ohne eine einzige bestehende Aufrufstelle anzufassen,
+ * und macht zugleich an der Aufrufstelle lesbar, wo „leer" überhaupt ein
+ * zulässiger Zustand ist. Fehlt `onLeeren`, verhält sich das Feld exakt wie
+ * bisher: Eine leere Eingabe ändert nichts.
+ */
 function NumberField({
   label,
   term,
   value,
   onChange,
   step = 1,
+  onLeeren,
+  platzhalter,
 }: {
   label: string;
   term?: string;
-  value: number;
+  /** Der erfasste Wert. `undefined` heißt „nicht erfasst" — siehe `onLeeren`. */
+  value: number | undefined;
   onChange: (value: number) => void;
   step?: number;
+  /**
+   * Meldet, dass der Anwender das Feld geleert hat. Ist der Rückruf gesetzt,
+   * darf das Feld leer bleiben; sonst zeigt es wie bisher eine 0.
+   */
+  onLeeren?: () => void;
+  /**
+   * Grauer Text im leeren Feld — ein **Vorschlag**, kein Wert.
+   *
+   * Er ist bewusst ein Platzhalter und kein Vorgabewert: Er ist sichtbar, aber
+   * er steht nicht im Modell, er geht in keine Rechnung, und er wird nicht
+   * dadurch zur Angabe, dass jemand das Feld antippt.
+   */
+  platzhalter?: string;
 }) {
+  const leerErlaubt = onLeeren !== undefined;
+  const anzeige = value !== undefined && Number.isFinite(value) ? value : leerErlaubt ? '' : 0;
+
   return (
     <label className="block">
       <span className="label-xs mb-1 flex items-center gap-1">
@@ -1594,10 +2800,31 @@ function NumberField({
       </span>
       <input
         type="number"
-        className="field font-mono"
-        value={Number.isFinite(value) ? value : 0}
+        /*
+         * Auf dem Tablet mindestens 44 px hoch — das kleinste Maß, unter dem
+         * der Finger danebengreift. `.field` kommt unter `pointer: coarse` auf
+         * rund 37 px; die Ergänzung gilt deshalb nur dort und lässt die
+         * Maus-Oberfläche unverändert kompakt.
+         */
+        className="field font-mono [@media(pointer:coarse)]:min-h-[44px]"
+        value={anzeige}
+        placeholder={platzhalter}
         step={step}
         onChange={(e) => {
+          /*
+           * **Die leere Eingabe ist ein eigener Fall — und der wichtigste.**
+           *
+           * Ohne diesen Zweig fiel sie in `parseFloat('') === NaN` und wurde
+           * verworfen: Der Anwender löschte das Feld, im Modell blieb die alte
+           * Zahl stehen, und beim nächsten Neuzeichnen stand sie wieder da.
+           * „Ich kann das nicht wieder leer bekommen" ist genau der Grund,
+           * warum die Nullen und Vorgabewerte im Projektbuch überhaupt kleben
+           * blieben.
+           */
+          if (e.target.value.trim() === '') {
+            onLeeren?.();
+            return;
+          }
           const parsed = parseFloat(e.target.value);
           if (Number.isFinite(parsed)) onChange(parsed);
         }}

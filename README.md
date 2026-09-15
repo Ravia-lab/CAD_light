@@ -291,8 +291,10 @@ Geometrieänderung.
 | `Strg+D` | Duplizieren | | `Strg+Umschalt+H` / `+V` | Spiegeln waagerecht / senkrecht |
 | `Pfeiltasten` | Auswahl verschieben | | `Bild↑` / `Bild↓` | Geschoss wechseln |
 | `R` | Treppe | | `S` | Schacht |
-| `L` | Leitung verlegen | | `B` | Maßkette & Beschriftung |
+| `L` | Leitung verlegen | | `B` | Text & Maßkette |
 | `Z` | Raum aufziehen | | `A` / `P` | Außengelände / Wärmepumpe |
+| `Q` | Freihand skizzieren | | `K` | Auf den Plan schreiben (Notiz) |
+| `W A S D` | Gehen im Begehmodus | | `Esc` | Begehmodus beenden |
 | `Enter` | Zug abschließen | | `Rücktaste` | letzten Punkt zurücknehmen |
 
 **Navigation.** Schwenken geht auf vier Wegen — rechte Maustaste ziehen,
@@ -358,6 +360,230 @@ Gegen schräge und überstehende Wände arbeiten drei Mechanismen zusammen:
 der Cursor mit einem bestehenden Knoten fluchtet und ziehen ihn exakt darauf,
 und das **automatische Teilen** bindet jedes Wandende topologisch an, statt es
 danebenstehen zu lassen.
+
+---
+
+## Tablet und Stift
+
+Auf der Baustelle liegt kein Laptop. Gearbeitet wird mit dem iPad in der einen
+und dem Stift in der anderen Hand — und dafür reicht es nicht, die Oberfläche
+schmaler zu machen. Drei Dinge mussten stimmen: **wer zeichnen darf**, **was
+aus einem krummen Strich wird**, und **wo die Finger hinfassen**.
+
+### Die Eingaberegel steht an einer Stelle
+
+`src/lib/zeigereingabe.ts` beantwortet für jedes Zeigerereignis eine einzige
+Frage: *zeichnen, schieben, Geste oder verwerfen?* Die Regel ist bewusst aus
+der Leinwand herausgezogen, denn sie ist prüfbar und wird geprüft (33 Punkte
+in `npm run verify`) — eine Regel, die in Ereignisbehandlern verstreut liegt,
+ist es nicht.
+
+- **Der Stift zeichnet.** Immer, und er hat Vorrang vor allem anderen.
+- **Der Handballen zeichnet nie.** Ein Finger, der aufsetzt, während der Stift
+  unten ist oder ihn gerade erst verlassen hat (500 ms Karenz), wird
+  verworfen — nicht abgefangen, sondern gar nicht erst beachtet, damit er den
+  laufenden Zug nicht anfasst.
+- **Ein Finger schiebt** das Bild, wie die mittlere Maustaste. Wer mit dem
+  Finger zeichnen will, schaltet das im Fang-Feld frei.
+- **Zwei Finger** schwenken und zoomen zugleich. Dabei gilt: der Weltpunkt
+  zwischen den Fingern bleibt liegen, wo er liegt.
+- **Der Fangradius wächst mit dem Zeiger** — Maus 1,0, Stift 1,35, Finger 2,5.
+  Die Toleranz in Bildpunkten ist dieselbe; was sich ändert, ist die Hand.
+
+### Aus dem Strich werden Wände (`Q`)
+
+Ein hingekrakelter Grundriss wird geglättet, vereinfacht (Ramer–Douglas–
+Peucker), auf eine **Vorzugsrichtung** ausgerichtet — die aus dem Strich
+selbst kommt, oder aus dem Bestand, wenn schon Wände stehen — und an den
+Ecken auf die Schnittpunkte der Geraden gezogen. Ein geschlossener Zug wird
+als Umriss erkannt und ergibt einen Raum.
+
+Der Vorschlag ist nur ein Vorschlag: er steht magenta gestrichelt über dem
+grauen Rohstrich, damit man sieht, ob die Erkennung getroffen hat, was gemeint
+war. Wandstärke und Wandart lassen sich in der Leiste noch ändern, ohne neu zu
+zeichnen. Erst **Übernehmen** legt Wände an — als **ein** Schritt in der
+Historie. Bewusst schräg gezeichnete Strecken bleiben schräg und werden
+bernsteinfarben markiert, damit man sie nicht für einen Erkennungsfehler hält.
+
+**In mehreren Zügen.** Ein Grundriss entsteht nicht in einem Strich: erst die
+Außenwände umfahren, dann die Innenwände einzeichnen. Jeder weitere Strich
+kommt zum Vorschlag **dazu** — bis 1.18.0 warf er den vorigen weg, und ein
+misslungener Kurzstrich löschte den fertigen Vorschlag gleich mit. „Letzter
+Zug zurück" nimmt nur den letzten Strich heraus. Die Leiste lässt sich
+zusammenklappen; sie liegt sonst über dem unteren Teil der Zeichenfläche und
+fängt dort jede Berührung ab.
+
+Zwei Fälle, die dabei nur so aussehen wie Wände und keine sind: sehr kurze
+Stücke (unter 35 cm) gelten als Ecke, die der Stift in zwei Zügen genommen
+hat; und ein **kurzes Schrägstück zwischen zwei ausgerichteten Wänden** fällt,
+wenn nach der Eckenrechnung weniger als 50 cm davon übrig bliebe. Eine
+gewollte Abschrägung überlebt beides — sie wird von ihren Nachbarn
+angeschnitten und bleibt lang.
+
+### Handnotizen als eigene Ebene (`K`)
+
+Was mit `K` geschrieben wird, ist eine **Randbemerkung** und wird nie
+Geometrie: Pfeile, Maße von Hand, „Steigleitung hier hoch". Die Striche
+liegen in der Projektdatei und im Geschoss, in dem sie geschrieben wurden —
+aber nicht in Massenauszug, Heizlast oder Export.
+
+- **Radieren** statt Zeichnen schaltet die Notizleiste um. Was die Bahn
+  berührt, fällt **ganz** — ein halb weggeriebener Strich sieht nach Zeichnung
+  aus und ist doch keine mehr. Der Fassradius liegt bei 12 cm und wird als
+  Kreis an der Spitze gezeigt. Auch das Radieren ist ein Schritt in der
+  Historie.
+- **Ein- und ausblenden** geht in der Notizleiste und bei den Ebenen; gelöscht
+  wird dabei nichts.
+- **Auf dem Plan** erscheinen sie nur, wenn im Druckdialog „Handnotizen"
+  angehakt ist. Vorgabe ist *aus*: ein Plan, der aus dem Haus geht, trägt
+  keine Bemerkung mit, die niemand bewusst dazugelegt hat.
+
+### Text auf dem Plan (`B`)
+
+Das Eingabefeld erscheint **dort, wo getippt wurde** — wie die Längeneingabe
+beim Wandzeichnen, mit denselben Tasten (Enter setzt, Esc bricht ab). Wer eine
+bestehende Beschriftung trifft, ändert sie, statt eine zweite anzulegen; ein
+Doppeltipp öffnet sie auch mit dem Auswahlwerkzeug. Eine Beschriftung ohne
+Text wird wieder entfernt, statt als Platzhalter im Plan zu bleiben.
+
+Vorher lag der einzige Weg über den Inspektor: angelegt wurde „Text", und die
+Statuszeile bat, den richtigen Text dort einzugeben. Am Rechner ist das ein
+Blick nach rechts — auf dem Tablet ist der Inspektor eine Schublade, die
+geschlossen startet. Das Werkzeug fehlte außerdem im einfachen Modus ganz.
+
+### Was der Zeiger nicht mehr mitnimmt
+
+Ein angefangener Zug — Grundstück, Leitung, Wand — bleibt sichtbar, auch wenn
+der Zeiger das Bild verlässt. Bei Maus fällt das kaum auf; mit Stift und
+Finger meldet der Browser nach *jedem* Abheben, dass der Zeiger weg ist, denn
+es gibt ihn dann nicht mehr. Die gesamte bisherige Umfahrung verschwand damit
+nach jedem gesetzten Eckpunkt und kam erst beim nächsten Aufsetzen zurück. Am
+Zeiger hängt jetzt nur noch das Gummiband zum nächsten Punkt.
+
+Dazu am Grundstück: eine zweite Grundstücksgrenze **ersetzt** die erste — es
+gibt nur eine —, und das steht jetzt in der Statuszeile, statt still zu
+geschehen. Ein Modell, in dem nur das Grundstück gezeichnet ist, wird
+eingepasst und beim Neustart zur Wiederherstellung angeboten; beides hing
+vorher an „mindestens drei Wandknoten".
+
+### Fangen auf Ecken
+
+Bis 1.19.0 war der **Wandknoten** das einzige Fangziel im ganzen Programm —
+von zwölf Objektfamilien im Dokument genau eine. Eine Grundstücksgrenze ließ
+sich nicht an die Ecke des Nachbargebäudes legen, eine Leitung nicht an den
+Punkt der Leitung daneben, und der vierte Punkt einer Umfahrung nicht auf die
+Höhe des ersten, obwohl das die häufigste Absicht überhaupt ist.
+
+`src/lib/eckpunkte.ts` sammelt jetzt alles, was eine Ecke ist: Geländepunkte,
+Leitungspunkte, Kamin- und Treppenecken, **lichte** Raumecken (nicht die
+Achse — die liegt eine halbe Wandstärke daneben), TGA-Objekte und die Punkte
+des gerade gezogenen Zuges. Priorisiert wird nach **Abstand**, nicht nach Art:
+eine Rangfolge wäre eine Behauptung darüber, was der Zeichner meint, der
+Abstand ist eine Messung. Geschossgebundenes wird gefiltert, das Gelände nicht
+— es gehört zum Grundstück und gilt in jeder Etage.
+
+Der Fangmarker sagt jetzt auch, **was** er gefangen hat („Raumecke",
+„Geländepunkt", „45°"). Vorher waren alle Arten türkis und unterschieden sich
+nur in der Form; Raster und frei sahen sogar identisch aus, obwohl das eine
+gefangen ist und das andere nicht. Abschalten lässt sich das Ganze unter
+„Fang & Raster" mit dem Schalter **Ecken**.
+
+### Beschriftungen anfassen
+
+Eine Textbeschriftung wird auf ihrer **ganzen Fläche** getroffen, nicht mehr
+nur am Ankerpunkt — bei zwanzig Zeichen waren vorher rund 95 % des sichtbaren
+Textes tot. Ist sie gefasst, zeigt sie **Griffe**: weiße Quadrate an ihren
+Punkten (verschieben, einzeln), ein blaues an der oberen rechten Ecke der
+Textfläche (Größe ziehen, 0,5 bis 3fach — dieselben Grenzen wie im Inspektor).
+
+Bei der Maßkette lässt sich damit ein **einzelner Messpunkt** umsetzen; vorher
+verschob das Ziehen immer beide zugleich, und wer den falschen Punkt gesetzt
+hatte, musste löschen und neu ansetzen. Der einzelne Punkt fängt dabei, die
+ganze Beschriftung nicht: Wer einen Messpunkt umsetzt, meint eine Ecke, wer
+den Text verschiebt, meint eine Stelle.
+
+### Auf den Home-Bildschirm
+
+`public/apple-touch-icon.png` (180 px) und das Web-App-Manifest liegen bei;
+erzeugt werden sie aus `scripts/kachelbild.py`, damit das Zeichen an **einer**
+Stelle geändert wird und nicht in drei Größen nachgezeichnet. Ohne
+`apple-touch-icon` macht iOS ein Bildschirmfoto der Seite und legt das auf den
+Home-Bildschirm — bei einer dunklen CAD-Oberfläche ein grauer Fleck.
+
+Die Verweise stehen **relativ** in der `index.html`: Die Anwendung liegt auf
+dem Server unter einem Unterpfad und als Einzeldatei unter `file://`, ein
+führender Schrägstrich zeigte in beiden Fällen ins Leere. In der Einzeldatei
+werden beide Verweise beim Bauen entfernt — dort gibt es keine Nachbardateien,
+und zwei Fehler in der Konsole sind der falsche erste Eindruck für eine Datei,
+die ausdrücklich ohne Server auskommt.
+
+### Die Oberfläche unter dem Finger
+
+Maßgeblich ist `pointer: coarse`, nicht die Fensterbreite: ein 13-Zoll-iPad
+ist breiter als ein kleiner Laptop und braucht trotzdem große Schaltflächen.
+Werkzeugknöpfe werden 44 px (Apples Mindestmaß; Google nennt 48), Chips 36 px,
+Eingabefelder 16 px Schrift — darunter zoomt Safari beim Antippen ins Feld und
+der Plan steht danach schief.
+
+`flex: none` gehört bei beidem dazu und ist nicht Feinschliff: eine Höhe von
+44 px hilft nichts, wenn der Knopf in einer Flex-Leiste sitzt und der Browser
+ihn zusammendrückt, sobald mehr Knöpfe da sind als Platz. Gemessen auf dem
+iPad quer: 44 × **20** px in der Werkzeugleiste, **18** × 44 px in der oberen.
+Beide Leisten scrollen jetzt, statt zu schrumpfen.
+
+Unter 1024 px Breite wird der Inspektor zur Schublade mit Griff am rechten
+Rand, damit der Plan die Fläche behält. Geprüft wird das nicht mit Klicks,
+sondern mit echten Zeigerereignissen in beiden Lagen des Geräts:
+
+```bash
+RAVIA_BASE=/Cad_light/ npm run build
+RAVIA_BASE=/Cad_light/ npx vite preview --port 4177 &
+npm run smoke:tablet     # iPad quer 1180×820 und hoch 820×1180
+```
+
+---
+
+## Begehen — im Modell stehen statt es anzusehen
+
+Die drei bisherigen Kameras (Orbit, Iso, Top) zeigen ein Modell auf dem Tisch.
+**Begehen** ist etwas anderes: Man steht auf **1,65 m Augenhöhe** darin, und
+die Frage lautet nicht mehr „wie sieht das aus", sondern „komme ich hier
+durch". Das ist die Frage, die der Anwender sofort gegen seine eigene
+Erfahrung prüft — und es ist die Grundlage für alles, was später im Raum
+gesetzt werden soll.
+
+**Am Rechner:** `W A S D` (oder die Pfeiltasten) gehen, Umschalt geht
+schneller, die Maus dreht den Blick. Ein Klick ins Bild nimmt den Zeiger ins
+Fangschloss, damit die Maus endlos dreht statt am Fensterrand anzustoßen; Esc
+beendet beides.
+
+**Auf dem Tablet:** unten links ein Schiebefeld zum Gehen — kein Steuerkreuz
+aus vier Knöpfen, denn ein Mensch geht schräg, und zwar ständig. Der Knopf
+kehrt beim Loslassen in die Mitte zurück; ohne das läuft man weiter, sobald
+der Finger abrutscht. Gedreht wird durch Ziehen im Bild.
+
+### Die Regel steht in einer Datei und wird geprüft
+
+`src/lib/begehen.ts` beantwortet drei Fragen, und keine davon hat mit Three.js
+zu tun:
+
+- **Woran stößt man an?** Wände des aktiven Geschosses, aufgetrennt an jeder
+  begehbaren Öffnung. Türen und Durchgänge sind Löcher, Fenster nicht — auch
+  eine bodentiefe Verglasung nicht, sie ist zu. Eine Türschwelle über 5 cm
+  gilt nicht mehr als Loch.
+- **Wie weit kommt man?** Der Körper ist ein Kreis von 28 cm Radius; er gleitet
+  an Kanten entlang, statt sich zu verhaken. Vor einer 24er-Wand steht die
+  Achse 0,12 + 0,28 = **40 cm** von der Wandachse entfernt — nachrechenbar,
+  nicht beobachtet.
+- **Kommt man durch?** Durch eine Regeltür ja, durch eine 50 cm breite Öffnung
+  nicht: Der Körper passt nicht, und die beiden Wandstücke heben sich beim
+  Herausdrücken gegenseitig auf. Ohne eine ausdrückliche Prüfung darauf
+  schlüpft man hindurch.
+
+Gegangen wird in **Teilschritten** von höchstens einem halben Körperradius.
+Die erste Fassung prüfte nur den Zielpunkt — und ließ einen bei 3,4 m/s durch
+jede Wand, die schmaler war als ein Bildschritt. Der Prüflauf hat es sofort
+gezeigt; 40 Punkte decken diese Regel ab.
 
 ---
 

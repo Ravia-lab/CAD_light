@@ -68,8 +68,16 @@ export default function StatusBar() {
   const fixtureCount = Object.keys(doc.fixtures).length;
   const heatingPower = Object.values(doc.fixtures).reduce((sum, f) => sum + (f.params.powerW ?? 0), 0);
 
+  /*
+      * Dieselbe Regel wie in der Kopfzeile: lieber wischen als abschneiden.
+      * `whitespace-nowrap` verhindert den Umbruch, der die Zeile sonst auf
+      * zwei Zeilen zieht und die untere unter den Bildschirmrand schiebt.
+     */
   return (
-    <footer className="flex h-7 shrink-0 items-center gap-3 px-3 font-mono text-[10px] text-slate-500">
+    <footer
+      className="flex h-7 shrink-0 items-center gap-3 overflow-x-auto overscroll-x-contain whitespace-nowrap px-3 font-mono text-[10px] text-slate-500 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+      style={{ touchAction: 'pan-x' }}
+    >
       <span className="flex items-center gap-1.5">
         <span className="h-1.5 w-1.5 rounded-full bg-accent" />
         <span className="text-slate-300">{TOOL_LABELS[tool] ?? tool}</span>
