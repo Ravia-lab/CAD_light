@@ -4081,7 +4081,10 @@ export default function Viewer3D({ className = '' }: { className?: string }) {
       */}
       <div
         ref={kompassRef}
-        className="pointer-events-none absolute left-3 top-3 h-[52px] w-[52px]"
+        // Unter der Ansichtsmarke „Modell 3D" (die sitzt links oben, siehe
+        // `ViewportBadge` in App.tsx) — sonst liegen beide übereinander und
+        // beide sind unlesbar.
+        className="pointer-events-none absolute left-3 top-12 h-[52px] w-[52px]"
         title="Norden"
       >
         <svg viewBox="0 0 100 100" className="h-full w-full">
