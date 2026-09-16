@@ -416,8 +416,22 @@
 <tr><td>IfcWall, IfcWallStandardCase, IfcWallElementedCase</td><td>Eine Wand. Die Achse kommt aus der Achsen-Darstellung, wenn es sie gibt, sonst aus der Mitte des Körpers; die Dicke immer aus dem Körper, denn die Achse allein sagt nichts darüber.</td></tr>
 <tr><td>IfcOpeningElement über IfcRelVoidsElement</td><td>Eine Öffnung, der richtigen Wand zugeordnet.</td></tr>
 <tr><td>IfcWindow / IfcDoor über IfcRelFillsElement</td><td>Die Art der Öffnung: Fenster oder Tür.</td></tr>
+<tr><td>Pset_WallCommon.IsExternal</td><td>Außen- oder Innenwand. Das ist die genormte Stelle, an der IFC die Frage beantwortet; sie geht jeder Schätzung vor.</td></tr>
+<tr><td>IfcSpace, Name und LongName</td><td>Der <b>Name</b> des Raums und daraus seine <b>Nutzung</b>. Die Geometrie des Raums kommt weiterhin aus den Wänden — siehe <a href="#k17-3-4">Abschnitt 17.3.4</a>.</td></tr>
 </tbody>
 </table>
+
+<h4 id="k17-3-1a">Die vier Schreibweisen, an denen ein Import scheitert</h4>
+
+<p>Eine IFC-Datei aus einem Architekturprogramm sieht anders aus als eine, die dieses Programm selbst geschrieben hat. Vier Unterschiede sind so verbreitet und so folgenreich, dass sie hier einzeln stehen — jeder von ihnen hat den Import einmal stillschweigend falsch machen lassen.</p>
+
+<p><b>Erstens: beschnittene Körper.</b> Eine Wand, die unter eine Dachschräge läuft, steht nicht als einfache Extrusion in der Datei. Der Architekt zieht sie als Quader hoch und schneidet die Schräge ab; geschrieben wird das als <code>IfcBooleanClippingResult</code>, oft zweifach geschachtelt, und die Darstellung heißt dann <code>Clipping</code> statt <code>SweptSolid</code>. Wer nur nach der Extrusion sucht, verliert genau die Wände, die unter dem Dach stehen — also regelmäßig das gesamte Obergeschoss. Der Import steigt jetzt durch die Verknüpfung hindurch. Was dabei verloren geht, ist die Beschneidung selbst: die Wandhöhe ist die des ungeschnittenen Quaders. Das wird gemeldet und ist hinnehmbar, weil die Wandhöhe unter dem Dach ohnehin selbst gerechnet wird — und weil man eine zu hohe Wand im Grundriss sieht, eine fehlende nicht.</p>
+
+<p><b>Zweitens: die Bezugslinie ist nicht die Mittellinie.</b> IFC nennt die Achsen-Darstellung <i>Bezugslinie</i>. Wo der Schichtaufbau relativ zu ihr liegt, sagt <code>IfcMaterialLayerSetUsage</code> — und ArchiCAD legt sie regelmäßig auf die <b>Außenfläche</b> der Wand. Wer sie für die Mitte hält, baut das Haus um eine halbe Wanddicke zu groß; an einer Beispieldatei des KIT waren das 113,49 statt 107,16 m² im Dachgeschoss, also knapp 6 % zu viel Fläche in jedem Raum. Der Import misst den Versatz jetzt geometrisch — den Abstand des Körpermittelpunkts von der Bezugslinie — und rückt die Knoten anschließend in einem Zug dorthin, wo sich die <i>Mittellinien</i> treffen. Die Topologie bleibt dabei die der Bezugslinien, denn nur die treffen sich in den Ecken punktgenau.</p>
+
+<p><b>Drittens: Öffnungen liegen anders herum.</b> Eine Wand wird aus ihrem Grundriss nach oben gezogen — das Profil liegt waagerecht, die Extrusionstiefe ist die Höhe. Eine Öffnung schreibt ArchiCAD umgekehrt: das Profil ist die <b>Ansicht</b>, Breite mal Höhe, und extrudiert wird quer durch die Wand. Wer das nicht unterscheidet, liest die Wanddicke als Öffnungshöhe — jedes Fenster wird 30 cm hoch. Die Fensterfläche trägt die Transmissionsverluste; ein Faktor vier darin ist keine Ungenauigkeit mehr, sondern eine andere Heizlast. Der Import prüft jetzt die Lage der Profilebene und liest entsprechend.</p>
+
+<p><b>Viertens: Umlaute stehen umschrieben da.</b> ISO 10303-21 lässt in einer Zeichenkette nur ASCII zu. „Küche" steht als <code>K\X2\00FC\X0\che</code> in der Datei. Ohne Auflösung hieße der Raum hinterher wörtlich so — im Raumbuch, im Ausdruck, in der Übergabe an RaVia. Gelesen werden alle vier gebräuchlichen Schreibweisen.</p>
 
 <p>Der Leser ist ein eigener, zeichenweiser STEP-Leser. Er kommt mit Objekten zurecht, die über mehrere Zeilen gehen, und mit Apostrophen und Semikolons innerhalb von Texten — genau daran scheitern einfache zeilenweise Leser. Beide in IFC4 gebräuchlichen Schreibweisen des Umrisses werden gelesen. Geprüft wurde gegen Fremddateien, nicht nur gegen den eigenen Export: in Fassung 0.5.0 fand der Import in Fremddateien überhaupt keine Wand, weil dort die zweite Schreibweise verwendet wurde.</p>
 
@@ -425,7 +439,7 @@
 
 <h4 id="k17-3-2">17.3.2 Was dabei verlorengeht</h4>
 
-<p>Der Import liefert einen <b>Vorschlag</b>, kein fertiges Modell. Nicht gelesen werden Materialien, Bauteilaufbauten, Bewehrung und Möblierung — das wäre Datenballast für ein Werkzeug, dessen Zweck die Heizlast ist. Nicht gelesen werden auch Räume: die Raumerkennung dieses Programms bildet sie aus den eingelesenen Wänden neu.</p>
+<p>Der Import liefert einen <b>Vorschlag</b>, kein fertiges Modell. Nicht gelesen werden Materialien, Bauteilaufbauten, Bewehrung und Möblierung — das wäre Datenballast für ein Werkzeug, dessen Zweck die Heizlast ist. Die <b>Raumgeometrie</b> kommt ebenfalls nicht aus der Datei: die Raumerkennung dieses Programms bildet sie aus den eingelesenen Wänden neu. Aus der Datei kommt nur der <b>Name</b> des Raums, und daraus seine Nutzung.</p>
 
 <p>Zwei Dinge werden <b>geschätzt</b>, und das muss man wissen:</p>
 
@@ -433,14 +447,32 @@
 <caption>Was der Import annimmt, weil IFC es nicht sagt</caption>
 <thead><tr><th>Angabe</th><th>Annahme</th></tr></thead>
 <tbody>
-<tr><td>Wandart</td><td>Steht „Außen", „Innen", „Schacht" oder ein englisches Gegenstück im Namen, entscheidet der Name. Sonst entscheidet die Dicke: ab 24 cm Außenwand, bis 12 cm Trennwand, dazwischen Innenwand.</td></tr>
+<tr><td>Wandart</td><td>Erste Wahl ist <code>Pset_WallCommon.IsExternal</code> — keine Schätzung, sondern das, was der Architekt angeklickt hat. Fehlt es, entscheidet der Name: „Außen", „Innen", „Schacht", ein englisches Gegenstück oder das Namensglied <code>Ext</code> beziehungsweise <code>Int</code>. Erst ohne beides entscheidet die Dicke: ab 24 cm Außenwand, bis 12 cm Trennwand, dazwischen Innenwand.</td></tr>
 <tr><td>U-Werte</td><td>Außenwand 0,24, alles andere 1,2 W/(m²·K). Fenster 1,3, Türen 1,8; g-Wert der Fenster 0,6.</td></tr>
 </tbody>
 </table>
 
+<div class="merke"><b>Merke</b><p>Die Dicke allein trägt nicht weit. An einer Beispieldatei des KIT sind die Innenwände genau 24,0 cm dick und die Außenwände 30,0 — mit der Dickenregel allein wurde <b>jede</b> Wand zur Außenwand, auch die, die in der Datei „Wand-Int-ERDG-1" heißt. Eine Innenwand gegen Außenluft zu rechnen erfindet Transmissionsverluste, die es nicht gibt.</p></div>
+
 <div class="warnung"><b>Achtung</b><p>Diese Vorgabewerte sind <b>Platzhalter, keine Bauteilangaben</b>. Wer nach einem IFC-Import sofort exportiert, übergibt an RaVia die U-Werte einer Annahme. Gehen Sie nach dem Import durch die Aufbauten (<a href="#k7-3">Abschnitt 7.3</a>) und setzen Sie die echten Werte.</p></div>
 
 <p>Was der Import nicht verwerten konnte, verschweigt er nicht: er zählt es und meldet es. Eine Wand ohne auswertbare Extrusionsgeometrie und eine Wand mit zusammenfallenden Enden werden ebenso genannt wie eine Öffnung mit unplausibler Breite. Nach dem Lesen steht in der Statuszeile, wie viele Wände, Öffnungen und Geschosse übernommen wurden — oder „Keine auswertbaren Wände gefunden — enthält die Datei Extrusionskörper?".</p>
+
+<p><b>Zwei verschiedene Meldungen.</b> Was <i>übersprungen</i> wurde, fehlt im Plan, und jemand muss es nachzeichnen. Was mit <i>Vorbehalt</i> übernommen wurde, ist da, trägt aber eine Annahme in sich — etwa die Wandhöhe einer unter dem Dach beschnittenen Wand. Beides in einen Satz zu werfen hieße, entweder Fehlendes zu verharmlosen oder Vorhandenes als Verlust zu melden; deshalb stehen die beiden getrennt in der Statuszeile.</p>
+
+<p>Ein Durchbruch in einer Decke oder einem Dach — die Treppenöffnung etwa — wird dabei ausdrücklich als solcher benannt und nicht als verlorene Wandöffnung. Dass er nicht übernommen wird, ist richtig: dieses Programm führt Öffnungen nur an Wänden, weil nur die in den Grundriss gehören.</p>
+
+<h4 id="k17-3-4">17.3.4 Die Raumnamen des Architekten</h4>
+
+<p><code>IfcSpace</code> ist die einzige Stelle einer IFC-Datei, an der steht, wie ein Raum <b>heißt</b>. Alles andere beschreibt Bauteile; erst der Raum sagt „Bad" oder „Schlafzimmer". Für ein Werkzeug, dessen Zweck die Heizlast ist, hängt daran mehr als eine Beschriftung: die Nutzung entscheidet nach DIN EN 12831 über die Solltemperatur — das Bad mit 24 °C, der Flur mit 15 °C — und über den Luftwechsel.</p>
+
+<p>Übernommen werden <b>Name und Nutzung</b>, nicht die Geometrie. Der Umriss aus der Datei dient nur dazu, den Raum wiederzufinden; würde er den erkannten Raum ersetzen, hätte das Modell zwei Wahrheiten, die beim ersten Verschieben einer Wand auseinanderlaufen. Zugeordnet wird über den Flächenschwerpunkt und nicht über die Deckung der beiden Umrisse — Architekt und Raumerkennung legen die Grenze mal an die Rohbau-, mal an die Putzkante, und gegen solche Zentimeter ist der Schwerpunkt unempfindlich.</p>
+
+<p>Aus dem Namen wird auf die Nutzung geschlossen. Zwei Regeln greifen dabei ineinander: <b>innerhalb</b> eines Wortes entscheidet der rechte Teil, weil deutsche Zusammensetzungen ihre Bedeutung hinten tragen — ein <i>Kellerflur</i> ist ein Flur, ein <i>Gästebad</i> ein Bad. <b>Zwischen</b> Wörtern entscheidet das erste, weil Raumschilder nach „Art, dann Lage" beschriftet sind: „Flur Keller West", „WC Damen", „Büro Studenten III". Festfügungen wie <i>Waschküche</i>, die etwas anderes meinen als ihr rechter Teil, stehen als Ganzes in einer eigenen Liste.</p>
+
+<div class="merke"><b>Merke</b><p>Ein Name, der nichts über die Nutzung sagt — „Galerie", „Raum 3", „Zimmer" —, bleibt ausdrücklich <b>unbestimmt</b> und wird nicht geraten. Unbestimmt heißt in der Prüfliste sichtbar „bitte einstufen". Ein falsch geratener Raum wäre schlechter: den sieht danach niemand mehr.</p></div>
+
+<p>Wo der Architekt eine Raumgrenze gezogen hat, an der <b>keine Wand</b> steht, erkennt dieses Programm zu Recht einen Raum. Die Datei kennt dort mehr Räume als der Grundriss. Der größte gibt dann den Namen, und die Statuszeile nennt die anderen — verschwiegen wird der Unterschied nicht. Wer ihn auflösen will, zieht eine Wand oder teilt den Raum von Hand.</p>
 
 <div class="warnung"><b>Achtung</b><p>Der IFC-Import <b>ersetzt das aktuelle Modell</b>. Steht schon etwas im Plan, fragt das Programm vorher nach und weist ausdrücklich darauf hin, dass <kbd>Strg</kbd> + <kbd>Z</kbd> den jetzigen Stand zurückholt.</p></div>
 
@@ -450,7 +482,7 @@
 <caption>Ehrliche Einordnung</caption>
 <thead><tr><th>Dafür taugt er</th><th>Dafür nicht</th></tr></thead>
 <tbody>
-<tr><td>Den Grundriss vom Architekten übernehmen, statt ihn abzuzeichnen — Wandachsen, Wandstärken, Fenster- und Türlagen maßhaltig.</td><td>Ein fertiges, rechenfähiges Modell zu bekommen. Nutzung, Solltemperaturen, Aufbauten und TGA fehlen und sind danach zu setzen.</td></tr>
+<tr><td>Den Grundriss vom Architekten übernehmen, statt ihn abzuzeichnen — Wandachsen, Wandstärken, Fenster- und Türlagen maßhaltig, dazu Raumnamen und daraus die Nutzung.</td><td>Ein fertiges, rechenfähiges Modell zu bekommen. Bauteilaufbauten, U-Werte und die gesamte TGA fehlen und sind danach zu setzen; auch eine übernommene Nutzung ist ein Vorschlag und gehört durchgesehen.</td></tr>
 <tr><td>Das Modell an ein Architekturprogramm oder in die Fachplanung zurückgeben.</td><td>Die Heizlastberechnung zu beliefern. Dafür ist das RaVia-JSON da, und nur dafür.</td></tr>
 <tr><td>Ein Modell archivieren, das auch in zehn Jahren noch lesbar ist.</td><td>Ein Modell verlustfrei zu sichern. Das kann nur die Übergabedatei, weil dort die Rohgeometrie mitwandert.</td></tr>
 <tr><td>Mehrere Geschosse aus einer Datei einlesen.</td><td>Mehrere IFC-Dateien räumlich zusammenzuführen — das geht bis heute nicht, siehe <a href="#k18-5">Abschnitt 18.5</a>.</td></tr>

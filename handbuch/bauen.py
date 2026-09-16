@@ -25,7 +25,7 @@ HIER = pathlib.Path(__file__).resolve().parent
 # Projekt liegt und von Hand kopiert werden muss, wird beim dritten Mal nicht
 # mehr kopiert.
 ZIEL = HIER.parent / 'server' / 'app' / 'handbuch.html'
-VERSION = '1.29.1'
+VERSION = '1.30.0'
 
 
 def pruefungen() -> str:

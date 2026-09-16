@@ -120,7 +120,7 @@
 <p>Die Reihenfolge ist zwingend, denn jeder Schritt braucht das Ergebnis des vorigen: die Dämmdicke hängt am Innendurchmesser, der Innendurchmesser an der Dimension, die Dimension am Volumenstrom, der Volumenstrom an der Frage, wer über diesen Abschnitt versorgt wird. Wer die Reihenfolge dreht, dämmt ein Rohr, das er noch nicht kennt.</p>
 
 <ol>
-<li><b>Quelle und Verbraucher bestimmen.</b> Quelle ist der Wärmeerzeuger, sonst der Verteiler. Verbraucher sind Heizkörper, Röhrenradiator, Unterflurkonvektor und Verteiler.</li>
+<li><b>Quelle und Verbraucher bestimmen.</b> Quelle ist der Wärmeerzeuger, sonst der Speicher, sonst der Verteiler. Verbraucher sind Heizkörper, Röhrenradiator, Unterflurkonvektor und Verteiler — und, wenn der Verteiler selbst die Quelle ist, auch die Flächenheizkreise (siehe unten).</li>
 <li><b>Die Trasse suchen</b> — von der Quelle zu jedem Verbraucher, mit gemeinsamem Stamm.</li>
 <li><b>Den Volumenstrom je Abschnitt aufsummieren</b> — jeder Abschnitt trägt die Summe der Verbraucher, die über ihn versorgt werden.</li>
 <li><b>Die Dimension wählen</b> — nach zulässiger Geschwindigkeit und Druckgefälle.</li>
@@ -128,6 +128,24 @@
 </ol>
 
 <p>Am Ende steht ein Bericht: wie viele Verbraucher versorgt sind, wie viele Meter Trasse, wie viele Meter Rohr (Vor- und Rücklauf zusammen) und wie viele Armaturen gesetzt wurden — dazu jede Warnung im Klartext.</p>
+
+<h4 id="k9-4-fbh">Fußbodenheizung: wann ein Heizkreis Verbraucher der Trasse ist</h4>
+
+<p>Ein Fußbodenheizkreis hängt <b>nie</b> am Erzeuger, sondern immer am Verteiler: die Anbindeleitung führt vom Verteiler in den Raum, und was davor liegt, ist der Stamm. Daraus folgt eine Fallunterscheidung, die man kennen muss, weil sie bestimmt, was die Auslegung zeichnet.</p>
+
+<table class="tab">
+<caption>Was auf diesem Geschoss steht — und was daraus wird</caption>
+<thead><tr><th>Auf dem Geschoss</th><th>Quelle</th><th>Verbraucher der Trasse</th></tr></thead>
+<tbody>
+<tr><td>Erzeuger oder Speicher, dazu ein Verteiler</td><td>Erzeuger, sonst Speicher</td><td>Der Verteiler. Die Kreise dahinter gehören in die zweite Stufe, die dieses Programm nicht trassiert — siehe unten.</td></tr>
+<tr><td>Nur ein Verteiler und Flächenheizkreise</td><td>Der Verteiler</td><td>Die Flächenheizkreise. Das ist der Regelfall im Neubau.</td></tr>
+<tr><td>Flächenheizkreise ohne Verteiler</td><td>—</td><td>Nichts. Die Meldung nennt den Verteiler als den Weg hinaus, denn eine Fußbodenheizung ohne Verteiler gibt es nicht.</td></tr>
+</tbody>
+</table>
+
+<div class="merke"><b>Merke</b><p>Die Kreise <i>immer</i> anzubinden wäre nicht unvollständig, sondern falsch: die Trasse liefe am Verteiler vorbei. Deshalb die Unterscheidung.</p></div>
+
+<div class="warnung"><b>Offener Punkt</b><p>Steht ein Speicher vor dem Verteiler, endet die Trasse am Verteiler. Die Anbindeleitungen vom Verteiler in die einzelnen Räume zeichnet dann niemand — weder das Programm noch die Prüfung ersetzt das. Wer sie braucht, zieht sie von Hand. Eine zweistufige Trassierung, die Stamm und Kreise in einem Lauf legt, gibt es bis heute nicht.</p></div>
 
 <h4 id="k9-4-3">9.4.3 Wie die Trasse gefunden wird</h4>
 

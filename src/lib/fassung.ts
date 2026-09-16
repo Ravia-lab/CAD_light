@@ -16,7 +16,7 @@
  * `scripts/pruefungen/fassung.ts` hält diese Zahl gegen `package.json`. Damit
  * kann sie nicht mehr auseinanderlaufen, ohne dass der Prüflauf fällt.
  */
-export const FASSUNG = '1.29.1';
+export const FASSUNG = '1.30.0';
 
 /** Der Erzeugervermerk, wie er in Exportdateien steht. */
 export const ERZEUGER = `RaVia CAD Light ${FASSUNG}`;
