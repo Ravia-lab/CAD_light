@@ -278,6 +278,44 @@ export const PROTECTED_FIELDS: Record<string, string> = {
  */
 export function applyHostPatch(doc: BimDocument, patch: HostPatch, now: string): HostPatchResult {
   const entries: PatchEntry[] = [];
+
+  /*
+   * **Auch der kaputte Aufruf bekommt einen Bericht, keine Ausnahme.**
+   *
+   * `applyPatch` ist ein Vertrag mit einer fremden Anwendung. Ein Aufruf mit
+   * `null` — weil eine Antwort leer zurückkam, weil ein `JSON.parse`
+   * danebenging — warf bisher einen `TypeError` auf der Gegenstelle.
+   * Wer ihn nicht abfängt, verliert an dieser Stelle seinen ganzen
+   * Vorgang, und die Fehlermeldung („Cannot read properties of null")
+   * sagt ihm nicht, was er falsch gemacht hat.
+   *
+   * Jede andere fehlerhafte Eingabe kommt hier als Bericht zurück. Dieser
+   * Fall gehört dazu.
+   */
+  if (patch === null || typeof patch !== 'object' || Array.isArray(patch)) {
+    return {
+      doc,
+      changed: false,
+      report: {
+        ok: false,
+        applied: 0,
+        unchanged: 0,
+        rejected: 1,
+        entries: [
+          {
+            path: 'patch',
+            label: 'Schreibvorgang',
+            verdict: 'abgelehnt',
+            reason:
+              'Erwartet wird ein Objekt mit mindestens einem Absender (`source`). ' +
+              `Angekommen ist ${patch === null ? 'null' : Array.isArray(patch) ? 'eine Liste' : typeof patch}.`,
+          },
+        ],
+        summary: 'Nicht übernommen: der Schreibvorgang ist kein Objekt.',
+      },
+    };
+  }
+
   const source = typeof patch.source === 'string' ? patch.source.trim() : '';
 
   if (source === '') {

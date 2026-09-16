@@ -277,6 +277,36 @@ export function pruefeEinbettung(check: CheckFn): void {
     );
     check('Ohne Absender wird nichts übernommen', bilanz(ohneAbsender.report), '0 übernommen, 0 unverändert, 1 abgelehnt');
     check('Und der Grund nennt den fehlenden Absender', grund(ohneAbsender.report, 'source').includes('wer schreibt'), true);
+
+    /*
+     * **Auch der kaputte Aufruf bekommt einen Bericht, keine Ausnahme.**
+     *
+     * `applyPatch` ist ein Vertrag mit einer fremden Anwendung. Kam eine
+     * Antwort leer zurück oder ging ein `JSON.parse` daneben, landete
+     * `null` in diesem Aufruf — und er warf einen `TypeError` auf der
+     * Gegenstelle. Wer ihn nicht abfängt, verliert seinen ganzen Vorgang,
+     * und „Cannot read properties of null" sagt ihm nicht, was er falsch
+     * gemacht hat. Jede andere fehlerhafte Eingabe kommt hier als Bericht
+     * zurück; dieser Fall gehört dazu.
+     */
+    for (const [name, wert] of [
+      ['null', null],
+      ['undefined', undefined],
+      ['eine Zahl', 42],
+      ['ein Text', 'RaVia'],
+      ['eine Liste', [{ source: ABSENDER }]],
+    ] as Array<[string, unknown]>) {
+      const kaputt = applyHostPatch(basis, wert as never, JETZT);
+      check(`Aufruf mit ${name}: Bericht statt Ausnahme`, kaputt.report.ok, false);
+      check(`Aufruf mit ${name}: nichts übernommen`, kaputt.report.applied, 0);
+      check(`Aufruf mit ${name}: das Dokument bleibt dasselbe`, kaputt.doc === basis, true);
+      check(`Aufruf mit ${name}: kein Historieneintrag`, kaputt.changed, false);
+      check(
+        `Aufruf mit ${name}: der Grund nennt, was erwartet wird`,
+        grund(kaputt.report, 'patch').includes('Objekt'),
+        true,
+      );
+    }
   }
 
   // -- Norm-Heizlast --------------------------------------------------------
