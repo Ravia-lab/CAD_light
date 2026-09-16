@@ -4655,13 +4655,24 @@ export const useBimStore = create<BimState>()((set, get) => {
       });
 
       const rooms = Object.keys(fresh.rooms).length;
-      const skipped = result.skipped.reduce((sum, s2) => sum + s2.count, 0);
+      // Alle Gründe nennen, nicht nur den ersten.
+      //
+      // Vorher stand hier `result.skipped[0].reason`. Beim FZK-Haus des KIT
+      // waren zwei Gründe im Spiel — vier Wände ohne auswertbare Geometrie
+      // und drei Öffnungen, die deshalb ihre Wand verloren hatten. Gemeldet
+      // wurde nur der erste, und damit fehlte gerade der Hinweis, dass das
+      // eine das andere nach sich zog. Die Liste ist kurz: es gibt nur eine
+      // Handvoll Gründe, und jeder steht mit seiner Anzahl da.
+      const uebersprungen = result.skipped.reduce((sum, s2) => sum + s2.count, 0);
+      const gruende = result.skipped.map((s2) => `${s2.count}× ${s2.reason}`).join(', ');
+      const vorbehalte = result.hinweise.map((h) => `${h.count}× ${h.reason}`).join(', ');
       return {
         ok: true,
         message:
           `IFC ${result.schema ?? ''}: ${result.walls.length} Wände, ${result.openings.length} Öffnungen, ` +
           `${rooms} Räume erkannt` +
-          (skipped ? ` — ${skipped} Bauteile übersprungen (${result.skipped[0].reason})` : ''),
+          (uebersprungen ? ` — ${uebersprungen} Bauteile übersprungen (${gruende})` : '') +
+          (vorbehalte ? ` · Hinweis: ${vorbehalte}` : ''),
       };
     },
 

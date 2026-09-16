@@ -353,6 +353,54 @@ function itemsOf(
 const solidsOf = (entities: Map<number, StepEntity>, ref: StepValue): StepEntity[] =>
   itemsOf(entities, ref);
 
+/** Boolesche Verknüpfungen, durch die zum Grundkörper durchgestiegen wird. */
+const BOOLESCHE_TYPEN = new Set(['IFCBOOLEANCLIPPINGRESULT', 'IFCBOOLEANRESULT']);
+
+/**
+ * Der Grundkörper eines Darstellungselements.
+ *
+ * Eine Wand, die unter eine Dachschräge läuft, steht in IFC nicht als
+ * einfache Extrusion in der Datei. Der Architekt zieht sie als Quader hoch
+ * und schneidet die Schräge ab; geschrieben wird das als
+ * `IfcBooleanClippingResult(.DIFFERENCE., <Körper>, <Halbraum>)`, und der
+ * erste Operand ist wieder ein solches Ergebnis, wenn zwei Schrägen sich
+ * schneiden. Die `IfcShapeRepresentation` heißt dann `'Clipping'` statt
+ * `'SweptSolid'`.
+ *
+ * Wer nur nach `IFCEXTRUDEDAREASOLID` sucht, findet in so einer Datei genau
+ * die Wände **nicht**, die unter dem Dach stehen — also regelmäßig das
+ * gesamte Obergeschoss. Am FZK-Haus des KIT (ArchiCAD 20, IFC4) waren das
+ * 4 von 13 Wänden: `Wand-Ext-OG-1..4`. Die Meldung las sich trotzdem wie
+ * ein Erfolg, weil unten neun Wände ankamen.
+ *
+ * Gestiegen wird immer in den **ersten** Operanden. Das ist bei
+ * `.DIFFERENCE.` der Körper, von dem abgezogen wird, und bei `.UNION.` ein
+ * Teil des Ganzen — in beiden Fällen der Körper, der die Wand meint. Der
+ * zweite Operand ist das Schneidewerkzeug (ein `IfcPolygonalBoundedHalfSpace`
+ * o. ä.) und sagt über die Wandachse nichts.
+ *
+ * Was dabei verloren geht, ist die Beschneidung selbst: zurück kommt die
+ * Höhe der *ungeschnittenen* Extrusion, also die Wand bis zum First statt
+ * bis zur Schräge. Das ist hinnehmbar und wird gemeldet — CAD Light rechnet
+ * die Wandhöhe unter dem Dach ohnehin selbst (`wallProfileUnderRoof`), und
+ * eine zu hohe Wand sieht man im Grundriss, eine fehlende nicht.
+ *
+ * Die Tiefenbremse bei 8 schützt vor einer Datei, die sich im Kreis
+ * referenziert; acht geschachtelte Schnitte an einer Wand gibt es nicht.
+ */
+function basisExtrusion(
+  entities: Map<number, StepEntity>,
+  item: StepEntity | undefined,
+  tiefe = 0,
+): StepEntity | null {
+  if (!item || tiefe > 8) return null;
+  if (item.type === 'IFCEXTRUDEDAREASOLID') return item;
+  if (!BOOLESCHE_TYPEN.has(item.type)) return null;
+  const erster = item.attributes[1];
+  if (!isRef(erster)) return null;
+  return basisExtrusion(entities, entities.get(erster.ref), tiefe + 1);
+}
+
 interface ProfileBox {
   /** Ausdehnung längs der lokalen x-Achse [m]. */
   xDim: number;
@@ -487,6 +535,17 @@ export interface IfcImportResult {
   openings: Opening[];
   /** Was gelesen, aber nicht übernommen wurde — für die Rückmeldung. */
   skipped: { reason: string; count: number }[];
+  /**
+   * Was übernommen wurde, aber mit Vorbehalt.
+   *
+   * Getrennt von `skipped`, weil beides Verschiedenes heißt: übersprungen
+   * ist ein Bauteil, das fehlt, und danach muss jemand nachzeichnen. Ein
+   * Hinweis betrifft ein Bauteil, das da ist, aber eine Annahme in sich
+   * trägt — etwa die Wandhöhe einer unter dem Dach beschnittenen Wand.
+   * Beides in einen Topf zu werfen hieße, entweder Fehlendes zu verharmlosen
+   * oder Vorhandenes als Verlust zu melden.
+   */
+  hinweise: { reason: string; count: number }[];
 }
 
 const EMPTY: IfcImportResult = {
@@ -497,6 +556,7 @@ const EMPTY: IfcImportResult = {
   walls: [],
   openings: [],
   skipped: [],
+  hinweise: [],
 };
 
 const WALL_TYPES = new Set([
@@ -505,20 +565,58 @@ const WALL_TYPES = new Set([
   'IFCWALLELEMENTEDCASE',
 ]);
 
-/** Wandart aus Dicke und Name schätzen — IFC sagt es nicht direkt. */
-function guessWallType(thickness: number, name: string): WallType {
+/**
+ * Wandart bestimmen — aus dem Bauteil-Pset, sonst aus Name und Dicke.
+ *
+ * **Warum `IsExternal` zuerst kommt.** IFC hat für „außen oder innen" eine
+ * eigene, genormte Stelle: `Pset_WallCommon.IsExternal`. Das ist keine
+ * Schätzung, sondern das, was der Architekt in seinem Programm angeklickt
+ * hat. Solange die Datei es mitliefert, hat keine Namens- oder Dickenregel
+ * daneben etwas zu suchen.
+ *
+ * **Warum die Dicke allein nicht reicht.** Die vorige Fassung entschied ab
+ * 24 cm auf Außenwand. Am FZK-Haus (KIT) sind die Innenwände genau 24,0 cm
+ * dick und die Außenwände 30,0 cm — damit wurden **alle** neun importierten
+ * Wände zu Außenwänden, einschließlich der fünf, die in der Datei
+ * `Wand-Int-ERDG-1..5` heißen. Für die Heizlast ist das kein Schönheits-
+ * fehler: eine Innenwand mit U = 0,24 gegen Außenluft zu rechnen erfindet
+ * Transmissionsverluste, die es nicht gibt, und verschiebt zugleich die
+ * Raumerkennung.
+ *
+ * **Warum nur `ext`/`int` als Kürzel.** Sie stehen als eigenes Namensglied
+ * in den Vorlagen von ArchiCAD und Revit und sind dort eindeutig. Kürzel wie
+ * `aw`/`iw` wären geraten: zwei Buchstaben treffen zu leicht etwas anderes,
+ * und eine falsch geratene Außenwand ist schlechter als eine, die über die
+ * Dicke in die richtige Richtung fällt. Geprüft wird auf das ganze
+ * Namensglied, nicht auf ein Vorkommen irgendwo — sonst würde „Print" zur
+ * Innenwand.
+ */
+function guessWallType(thickness: number, name: string, aussen?: boolean): WallType {
   const lower = name.toLowerCase();
+  // Der Schacht geht vor: `IsExternal` ist für ihn `false`, und damit wäre
+  // er ohne diese Zeile eine gewöhnliche Innenwand.
   if (lower.includes('schacht') || lower.includes('shaft')) return 'shaft';
+
+  const innen = (): WallType => (thickness <= 0.12 ? 'partition' : 'interior');
+
+  if (aussen === true) return 'exterior';
+  if (aussen === false) return innen();
+
   if (lower.includes('außen') || lower.includes('aussen') || lower.includes('exterior')) {
     return 'exterior';
   }
   if (lower.includes('innen') || lower.includes('interior') || lower.includes('partition')) {
-    return thickness <= 0.12 ? 'partition' : 'interior';
+    return innen();
   }
-  // Ohne Hinweis im Namen entscheidet die Dicke: ab 24 cm ist es in
-  // Wohngebäuden praktisch immer eine Außenwand.
+
+  const glieder = lower.split(/[^a-zäöüß]+/).filter(Boolean);
+  if (glieder.includes('ext')) return 'exterior';
+  if (glieder.includes('int')) return innen();
+
+  // Ohne jeden Hinweis entscheidet die Dicke: ab 24 cm ist es in
+  // Wohngebäuden häufiger eine Außenwand als eine Innenwand.
   if (thickness >= 0.24) return 'exterior';
-  return thickness <= 0.12 ? 'partition' : 'interior';
+  return innen();
 }
 
 export function importIfc(text: string): IfcImportResult {
@@ -575,6 +673,50 @@ export function importIfc(text: string): IfcImportResult {
     for (const r of related) if (isRef(r)) levelOfProduct.set(r.ref, storey.id);
   }
 
+  /**
+   * `IsExternal` je Bauteil aus seinen Property-Sets.
+   *
+   * Der Weg ist `IfcRelDefinesByProperties` → `IfcPropertySet` →
+   * `IfcPropertySingleValue('IsExternal', …, IFCBOOLEAN(.T.|.F.))`. Ein
+   * `IfcRelDefinesByProperties` hängt ein Pset an *mehrere* Bauteile auf
+   * einmal, deshalb die Schleife über `RelatedObjects`.
+   *
+   * Der Pset-Name wird bewusst nicht geprüft: `IsExternal` kommt in
+   * `Pset_WallCommon`, `Pset_DoorCommon`, `Pset_WindowCommon` und weiteren
+   * vor und bedeutet überall dasselbe. Eine Prüfung auf `Pset_WallCommon`
+   * würde nur Dateien ausschließen, die das Merkmal in einem eigenen Pset
+   * führen — und nichts gewinnen, denn gefragt wird die Karte ohnehin nur
+   * für Wände.
+   *
+   * `.U.` (unbekannt) landet als `undefined` in der Karte, nicht als
+   * `false` — „nicht gesetzt" ist etwas anderes als „innen", und nur beim
+   * ersten darf der Name entscheiden.
+   */
+  const istAussen = new Map<number, boolean>();
+  for (const rel of byType.get('IFCRELDEFINESBYPROPERTIES') ?? []) {
+    const related = rel.attributes[4];
+    const definition = rel.attributes[5];
+    if (!Array.isArray(related) || !isRef(definition)) continue;
+    const pset = entities.get(definition.ref);
+    if (!pset || pset.type !== 'IFCPROPERTYSET') continue;
+    const props = pset.attributes[4];
+    if (!Array.isArray(props)) continue;
+
+    let wert: boolean | undefined;
+    for (const pr of props) {
+      if (!isRef(pr)) continue;
+      const prop = entities.get(pr.ref);
+      if (!prop || prop.type !== 'IFCPROPERTYSINGLEVALUE') continue;
+      if (prop.attributes[0] !== 'IsExternal') continue;
+      const v = prop.attributes[2];
+      if (v === 'T') wert = true;
+      else if (v === 'F') wert = false;
+      break;
+    }
+    if (wert === undefined) continue;
+    for (const r of related) if (isRef(r)) istAussen.set(r.ref, wert);
+  }
+
   const fallbackLevel = levels[0]?.id ?? 'ifc-level-0';
   if (!levels.length) {
     levels.push({ id: fallbackLevel, name: 'Geschoss', elevation: 0, height: 2.75 });
@@ -586,6 +728,8 @@ export function importIfc(text: string): IfcImportResult {
   const openings: Opening[] = [];
   const skipped = new Map<string, number>();
   const note = (reason: string) => skipped.set(reason, (skipped.get(reason) ?? 0) + 1);
+  const hinweise = new Map<string, number>();
+  const hinweis = (reason: string) => hinweise.set(reason, (hinweise.get(reason) ?? 0) + 1);
 
   let nodeCounter = 0;
   const nodeAt = (x: number, y: number, levelId: string): BimNode => {
@@ -632,10 +776,24 @@ export function importIfc(text: string): IfcImportResult {
     return null;
   };
 
-  /** Mittelachse und Dicke eines Bauteils aus seiner Extrusion. */
+  /**
+   * Mittelachse und Dicke eines Bauteils aus seiner Extrusion.
+   *
+   * `beschnitten` sagt, ob der Körper erst durch eine Boolesche Verknüpfung
+   * hindurch erreichbar war — dann stimmt die Grundfläche, aber die Höhe ist
+   * die des ungeschnittenen Quaders. Siehe `basisExtrusion`.
+   */
   const axisOf = (e: StepEntity) => {
     const solids = solidsOf(entities, e.attributes[6]);
-    const extruded = solids.find((s) => s.type === 'IFCEXTRUDEDAREASOLID');
+    let extruded: StepEntity | null = null;
+    let beschnitten = false;
+    for (const s of solids) {
+      const basis = basisExtrusion(entities, s);
+      if (!basis) continue;
+      extruded = basis;
+      beschnitten = basis !== s;
+      break;
+    }
     if (!extruded) return null;
 
     const profile = profileBox(entities, extruded.attributes[0]);
@@ -666,24 +824,71 @@ export function importIfc(text: string): IfcImportResult {
       thickness,
       height: depth,
       zBase: objectPlacement.z + solidPlacement.z,
+      beschnitten,
     };
 
-    // Liegt eine Achsen-Repräsentation vor, gewinnt sie — die Dicke bleibt
-    // aber aus dem Körper, denn die Achse allein sagt nichts darüber.
+    // Liegt eine Achsen-Repräsentation vor, gewinnt sie für Richtung, Länge
+    // und Anschluss — die Dicke bleibt aus dem Körper, denn die Achse allein
+    // sagt nichts darüber.
+    //
+    // **Und sie liegt nicht zwangsläufig in der Wandmitte.** IFC nennt sie
+    // *Bezugslinie*, nicht Mittellinie: `IfcMaterialLayerSetUsage` sagt mit
+    // `OffsetFromReferenceLine` und `DirectionSense` dazu, wo der
+    // Schichtaufbau relativ zu ihr liegt. ArchiCAD schreibt für das FZK-Haus
+    // durchweg `(…, .AXIS2., .NEGATIVE., 0.)`: die Bezugslinie liegt auf der
+    // **Außenfläche**, die 30 cm Wand hängen vollständig daneben.
+    //
+    // Der Unterschied ist nicht kosmetisch. Wer die Bezugslinie für die
+    // Mitte hält, baut das FZK-Haus auf 12,00 × 10,00 m Achsmaß statt auf
+    // 11,70 × 9,70 — die Galerie im Dachgeschoss kommt dann mit 113,49 m²
+    // statt der 107,16 m² heraus, die in der Datei selbst als `IfcSpace`
+    // stehen. 5,9 % zu viel Fläche, und zwar in jedem Raum.
+    //
+    // Gemessen wird der Versatz hier **geometrisch**, nicht aus dem Pset:
+    // der Körpermittelpunkt ist die Wahrheit, und sein Abstand zur
+    // Bezugslinie — senkrecht gemessen — ist genau der gesuchte Wert. Das
+    // ist robuster, als `IfcMaterialLayerSetUsage` zu lesen, denn es gilt
+    // auch für Dateien, die gar keinen Schichtaufbau mitliefern, und es
+    // kann nicht widersprüchlich werden.
+    //
+    // Verschoben wird die Achse hier noch nicht: die Bezugslinien treffen
+    // sich in den Ecken exakt, und darauf beruht die ganze Knotenbildung.
+    // Der Versatz wird mitgeführt und erst danach in einem Zug angewandt
+    // (`ruecke Knoten auf die Mittellinien`).
     const curve = axisCurveOf(e);
     if (curve) {
       const dx = curve.b.x - curve.a.x;
       const dy = curve.b.y - curve.a.y;
+      const laenge = Math.hypot(dx, dy);
+      const nx = -dy / laenge;
+      const ny = dx / laenge;
+      const versatz = (cx - curve.a.x) * nx + (cy - curve.a.y) * ny;
       return {
         ...fromBody,
         centre: { x: (curve.a.x + curve.b.x) / 2, y: (curve.a.y + curve.b.y) / 2 },
         angle: Math.atan2(dy, dx),
-        length: Math.hypot(dx, dy),
+        length: laenge,
+        versatz,
       };
     }
 
-    return fromBody;
+    // Ohne Achsen-Repräsentation ist der Körpermittelpunkt bereits die
+    // Mittellinie — es bleibt nichts zu verschieben.
+    return { ...fromBody, versatz: 0 };
   };
+
+  /** Was eine Wand für die Knotenrückung beiträgt. */
+  interface Mittellinie {
+    a: string;
+    b: string;
+    /** Einheitsnormale der Bezugslinie. */
+    nx: number;
+    ny: number;
+    /** Abstand der Mittellinie von der Bezugslinie, in Richtung der Normale. */
+    versatz: number;
+    dicke: number;
+  }
+  const mittellinien: Mittellinie[] = [];
 
   for (const type of WALL_TYPES) {
     for (const e of byType.get(type) ?? []) {
@@ -704,8 +909,12 @@ export function importIfc(text: string): IfcImportResult {
         continue;
       }
 
+      if (axis.beschnitten) {
+        hinweis('Wandhöhe aus ungeschnittener Extrusion (Dachschräge o. ä.)');
+      }
+
       const name = typeof e.attributes[2] === 'string' ? e.attributes[2] : '';
-      const wallType = guessWallType(axis.thickness, name);
+      const wallType = guessWallType(axis.thickness, name, istAussen.get(e.id));
       walls.push({
         id: `ifc-w${e.id}`,
         a: a.id,
@@ -717,6 +926,208 @@ export function importIfc(text: string): IfcImportResult {
         uValue: VORGABE_U[wallType],
         levelId,
       });
+
+      if (Math.abs(axis.versatz) > 1e-9) {
+        mittellinien.push({
+          a: a.id,
+          b: b.id,
+          nx: -Math.sin(axis.angle),
+          ny: Math.cos(axis.angle),
+          versatz: axis.versatz,
+          dicke: axis.thickness,
+        });
+      }
+    }
+  }
+
+  rueckeKnotenAufMittellinien();
+
+  /**
+   * Knoten von den Bezugslinien auf die Mittellinien rücken.
+   *
+   * **Warum erst jetzt und nicht gleich beim Anlegen.** Die Bezugslinien
+   * treffen sich in den Gebäudeecken punktgenau — daran hängt, dass aus
+   * zwei Wandenden *ein* Knoten wird. Verschiebt man jede Wand für sich auf
+   * ihre Mittellinie, reißt genau das auf: am FZK-Haus klafften an jeder
+   * Ecke 15 cm, die Raumerkennung lief durch die Lücken hindurch und machte
+   * aus sechs Räumen im Erdgeschoss einen einzigen.
+   *
+   * **Was stattdessen geschieht.** Die Topologie bleibt, wie die
+   * Bezugslinien sie gestiftet haben; bewegt wird nur der Knoten, und zwar
+   * dorthin, wo sich die *Mittellinien* aller an ihm hängenden Wände
+   * treffen. Das ist dieselbe Operation, die ein CAD beim Verputzen einer
+   * Ecke ausführt.
+   *
+   * **Die Rechnung.** Jede Wand fordert vom verschobenen Knoten `p` nur
+   * eines: den richtigen senkrechten Abstand von ihrer Bezugslinie. Mit der
+   * Einheitsnormalen `n` und dem Versatz `v` heißt das
+   *
+   *     (p − p₀) · n = v
+   *
+   * für die Verschiebung `d = p − p₀`. Zwei Wände über Eck geben zwei
+   * solche Gleichungen und damit genau einen Punkt; ein freies Wandende gibt
+   * nur eine und lässt `d` längs der Wand offen. Beides — und jede Zahl
+   * dazwischen — löst dieselbe Formel, wenn man unter allen Lösungen die
+   * *kürzeste* Verschiebung wählt:
+   *
+   *     M = Σ n·nᵀ      b = Σ n·v      d = M⁺ b
+   *
+   * Bei zwei rechtwinkligen Wänden ist `M` die Einheitsmatrix und `d` der
+   * exakte Schnittpunkt. Bei einer einzigen Wand hat `M` den Rang 1, und
+   * `M⁺ = M / spur(M)²` liefert `d = v·n` — also genau das Parallel-
+   * verschieben, das dort richtig ist. Bei mehreren gleichgerichteten
+   * Wänden kommt der Mittelwert der Versätze heraus.
+   *
+   * *Gegenprobe von Hand, Ecke Süd-West des FZK-Hauses.* Wand 1 läuft in y,
+   * Normale (1|0), Versatz +0,15. Wand 2 läuft in x, Normale (0|1), Versatz
+   * +0,15. M = [[1,0],[0,1]], b = (0,15 | 0,15), d = (0,15 | 0,15). Der
+   * Knoten wandert von (0|0) nach (0,15|0,15) — die Innenkante liegt danach
+   * bei 0,30, und genau dort beginnt in der Datei der Raum „Buero".
+   *
+   * **Die Bremse.** Zwei fast gleichgerichtete Wände schneiden sich weit
+   * draußen: bei 15° Zwischenwinkel läge der Schnitt schon 58 cm vom
+   * Knoten entfernt. So spitze Anschlüsse sind in einem Grundriss keine
+   * Ecke mehr, sondern ein Artefakt. Mehr als das Doppelte der dicksten
+   * beteiligten Wand wird deshalb nicht gerückt; stattdessen wird parallel
+   * verschoben und der Fall gemeldet.
+   */
+  function rueckeKnotenAufMittellinien(): void {
+    if (!mittellinien.length) return;
+
+    // Erst alle Ausgangslagen festhalten. Würde man Knoten schon während
+    // der Rechnung verschieben, bekäme der zweite T-Stoß einer Wand eine
+    // andere Bezugslinie als der erste.
+    const vorher = new Map(nodes.map((n) => [n.id, { x: n.x, y: n.y }]));
+
+    /** Zwängt einen Knoten auf die Mittellinie einer Wand. */
+    interface Bedingung {
+      nx: number;
+      ny: number;
+      versatz: number;
+      dicke: number;
+    }
+    const bedingungen = new Map<string, Bedingung[]>();
+    const fordere = (knotenId: string, b: Bedingung) => {
+      const liste = bedingungen.get(knotenId);
+      if (liste) liste.push(b);
+      else bedingungen.set(knotenId, [b]);
+    };
+
+    /*
+     * Ein Raster über die Knoten, damit die T-Stoß-Suche nicht quadratisch
+     * wird.
+     *
+     * Jede Wand müsste sonst jeden Knoten prüfen. Bei den 121 Wänden und
+     * 180 Knoten des KIT-Institutsgebäudes wären das 22 000 Vergleiche —
+     * unbemerkt. Bei einer Klinik mit 10 000 Wänden wären es 150 Millionen,
+     * und aus einer halben Sekunde Import würden Minuten. Mit einer
+     * Zellweite von einem Meter liegen in jeder Zelle nur die Knoten, die
+     * für ein Wandstück dieser Zelle überhaupt in Frage kommen.
+     */
+    const ZELLE = 1;
+    const schluessel = (x: number, y: number) =>
+      `${Math.floor(x / ZELLE)}|${Math.floor(y / ZELLE)}`;
+    const raster = new Map<string, BimNode[]>();
+    for (const n of nodes) {
+      const p0 = vorher.get(n.id);
+      if (!p0) continue;
+      const k = schluessel(p0.x, p0.y);
+      const liste = raster.get(k);
+      if (liste) liste.push(n);
+      else raster.set(k, [n]);
+    }
+
+    for (const m of mittellinien) {
+      const b: Bedingung = { nx: m.nx, ny: m.ny, versatz: m.versatz, dicke: m.dicke };
+      fordere(m.a, b);
+      fordere(m.b, b);
+
+      // **T-Stöße.** Eine Innenwand, die mitten auf eine andere Wand trifft,
+      // hat dort keinen gemeinsamen Knoten — `nodeAt` legt nur für Wand-
+      // *enden* Knoten an. Solange alle Achsen Bezugslinien waren, lag das
+      // Ende exakt auf der fremden Achse und alles schloss. Nach dem Rücken
+      // täte es das nicht mehr: am FZK-Haus klaffte an jedem T-Stoß eine
+      // Lücke von 12 cm, und die Raumerkennung lief hindurch — aus Bad,
+      // Wohnen, Flur und Küche wurde ein Raum von 68 m².
+      //
+      // Deshalb bekommt ein Knoten, der auf dem Segment einer *anderen*
+      // Wand liegt, auch deren Bedingung. Die Toleranz von 1 cm ist die
+      // Rechengenauigkeit einer IFC-Datei, nicht ein Suchradius: was weiter
+      // weg liegt, war nie ein Anschluss.
+      const pa = vorher.get(m.a);
+      const pb = vorher.get(m.b);
+      if (!pa || !pb) continue;
+      const dx = pb.x - pa.x;
+      const dy = pb.y - pa.y;
+      const l2 = dx * dx + dy * dy;
+      if (l2 < 1e-9) continue;
+
+      // Nur die Zellen ablaufen, die das Wandstück berührt — einschließlich
+      // einer Randzelle, weil ein Knoten dicht neben der Zellgrenze liegen
+      // kann.
+      const kandidaten = new Set<BimNode>();
+      const x0 = Math.floor(Math.min(pa.x, pb.x) / ZELLE) - 1;
+      const x1 = Math.floor(Math.max(pa.x, pb.x) / ZELLE) + 1;
+      const y0 = Math.floor(Math.min(pa.y, pb.y) / ZELLE) - 1;
+      const y1 = Math.floor(Math.max(pa.y, pb.y) / ZELLE) + 1;
+      for (let gx = x0; gx <= x1; gx += 1) {
+        for (let gy = y0; gy <= y1; gy += 1) {
+          for (const n of raster.get(`${gx}|${gy}`) ?? []) kandidaten.add(n);
+        }
+      }
+
+      for (const n of kandidaten) {
+        if (n.id === m.a || n.id === m.b) continue;
+        const p0 = vorher.get(n.id);
+        if (!p0) continue;
+        const t = ((p0.x - pa.x) * dx + (p0.y - pa.y) * dy) / l2;
+        if (t <= 0.001 || t >= 0.999) continue;
+        const abstand = Math.abs((p0.x - pa.x) * m.nx + (p0.y - pa.y) * m.ny);
+        if (abstand > 0.01) continue;
+        fordere(n.id, b);
+      }
+    }
+
+    for (const [knotenId, liste] of bedingungen) {
+      const knoten = nodes.find((n) => n.id === knotenId);
+      const p0 = vorher.get(knotenId);
+      if (!knoten || !p0) continue;
+
+      let m00 = 0;
+      let m01 = 0;
+      let m11 = 0;
+      let b0 = 0;
+      let b1 = 0;
+      for (const c of liste) {
+        m00 += c.nx * c.nx;
+        m01 += c.nx * c.ny;
+        m11 += c.ny * c.ny;
+        b0 += c.nx * c.versatz;
+        b1 += c.ny * c.versatz;
+      }
+
+      const det = m00 * m11 - m01 * m01;
+      const spur = m00 + m11;
+      // Rang 1: die Pseudoinverse einer symmetrischen Rang-1-Matrix ist
+      // M / spur(M)².
+      const rang1 = (): { x: number; y: number } => ({
+        x: (m00 * b0 + m01 * b1) / (spur * spur),
+        y: (m01 * b0 + m11 * b1) / (spur * spur),
+      });
+
+      let d =
+        det > 1e-6
+          ? { x: (m11 * b0 - m01 * b1) / det, y: (m00 * b1 - m01 * b0) / det }
+          : rang1();
+
+      const grenze = Math.max(0.05, 2 * Math.max(...liste.map((c) => c.dicke)));
+      if (Math.hypot(d.x, d.y) > grenze) {
+        hinweis('Sehr spitzer Wandanschluss — Knoten nur parallel gerückt');
+        d = rang1();
+      }
+
+      knoten.x = Math.round((p0.x + d.x) * 1000) / 1000;
+      knoten.y = Math.round((p0.y + d.y) * 1000) / 1000;
     }
   }
 
@@ -747,7 +1158,25 @@ export function importIfc(text: string): IfcImportResult {
     const hostId = wallOfOpening.get(e.id);
     const wall = hostId !== undefined ? wallById.get(`ifc-w${hostId}`) : undefined;
     if (!wall) {
-      note('Öffnung ohne zugehörige Wand');
+      // Zwei verschiedene Sachverhalte, die sich in der Meldung nicht
+      // gleichen dürfen.
+      //
+      // Ein Durchbruch in einer Decke oder einem Dach — beim FZK-Haus die
+      // Treppenöffnung, `'Slab Opening'` in einem `IfcSlab` — ist **kein**
+      // Fehler: CAD Light führt Öffnungen nur an Wänden, weil nur die in den
+      // Grundriss gehören. Als „Öffnung ohne zugehörige Wand" gemeldet, sah
+      // das nach einem verlorenen Bauteil aus und schickte einen auf die
+      // Suche nach einem Fehler, den es nicht gibt.
+      //
+      // Fehlt der Wirt dagegen wirklich oder ist er eine Wand, die selbst
+      // nicht gelesen werden konnte, dann ist die Öffnung tatsächlich weg —
+      // und das muss anders klingen.
+      const wirt = hostId !== undefined ? entities.get(hostId) : undefined;
+      if (wirt && !WALL_TYPES.has(wirt.type)) {
+        note(`Öffnung in ${wirt.type.replace(/^IFC/, '')} statt in einer Wand`);
+      } else {
+        note('Öffnung ohne zugehörige Wand');
+      }
       continue;
     }
 
@@ -803,8 +1232,15 @@ export function importIfc(text: string): IfcImportResult {
     } as Opening);
   }
 
+  // Die Zahl der übersprungenen Bauteile gehört in **denselben** Satz wie
+  // die der gelesenen. Vorher stand hier nur die Erfolgsmeldung; ein Import,
+  // bei dem ein ganzes Obergeschoss fehlte, las sich damit wie ein
+  // gelungener. Wer die Wände nicht sofort vermisst, merkt es erst bei der
+  // Heizlast — und dann sucht er den Fehler in der Rechnung.
+  const uebersprungen = [...skipped.values()].reduce((a, b) => a + b, 0);
   const message = walls.length
-    ? `${walls.length} Wände, ${openings.length} Öffnungen und ${levels.length} Geschoss(e) gelesen`
+    ? `${walls.length} Wände, ${openings.length} Öffnungen und ${levels.length} Geschoss(e) gelesen` +
+      (uebersprungen ? ` — ${uebersprungen} Bauteile übersprungen` : '')
     : 'Keine auswertbaren Wände gefunden — enthält die Datei Extrusionskörper?';
 
   return {
@@ -817,5 +1253,6 @@ export function importIfc(text: string): IfcImportResult {
     walls,
     openings,
     skipped: [...skipped.entries()].map(([reason, count]) => ({ reason, count })),
+    hinweise: [...hinweise.entries()].map(([reason, count]) => ({ reason, count })),
   };
 }

@@ -122,6 +122,7 @@ import { pruefeImportgeschoss } from './pruefungen/importgeschoss';
 import { pruefeFlurfuehrung } from './pruefungen/flurfuehrung';
 import { pruefeDachformen } from './pruefungen/dachformen';
 import { pruefeKompass } from './pruefungen/kompass';
+import { pruefeIfcFremd } from './pruefungen/ifcfremd';
 import { pruefeProjektmappe } from './pruefungen/projektmappe';
 import { pruefeUiModus } from './pruefungen/uimodus';
 import { pruefeSchichtgrenze } from './pruefungen/schichtgrenze';
@@ -3707,6 +3708,9 @@ pruefeDachformen(check);
 
 console.log('\n▸ Kompass — wo Norden liegt, und dass alle dasselbe meinen');
 pruefeKompass(check);
+
+console.log('\n▸ Fremde IFC-Dateien — beschnittene Körper, IsExternal, Deckendurchbruch');
+pruefeIfcFremd(check);
 
 console.log('\n▸ Druckplan — Ecken, Symbolik, Maße');
 pruefeDruckplan(check);
