@@ -435,6 +435,72 @@ function itemsOf(
 const solidsOf = (entities: Map<number, StepEntity>, ref: StepValue): StepEntity[] =>
   itemsOf(entities, ref);
 
+/** Das vollständige Dreibein einer `IfcAxis2Placement3D`. */
+interface Dreibein {
+  /** Ursprung in den Koordinaten des Elternsystems. */
+  loc: [number, number, number];
+  /** Lokale x-Achse (`RefDirection`). */
+  ex: [number, number, number];
+  /** Lokale y-Achse = z × x. */
+  ey: [number, number, number];
+  /** Lokale z-Achse (`Axis`) — die Normale der Profilebene. */
+  ez: [number, number, number];
+}
+
+const EINHEIT: Dreibein = { loc: [0, 0, 0], ex: [1, 0, 0], ey: [0, 1, 0], ez: [0, 0, 1] };
+
+/**
+ * Das Dreibein einer Platzierung — nicht nur Lage und Drehung um die
+ * Hochachse.
+ *
+ * `resolvePlacement` verfolgt die Kette bis zum Weltsystem, wirft dabei aber
+ * alles weg, was nicht Verschiebung oder Drehung um z ist. Für Wände genügt
+ * das: ihr Profil liegt waagerecht, und sie werden nach oben extrudiert.
+ *
+ * Für **Öffnungen** genügt es nicht. ArchiCAD schreibt ein Fenster als
+ * Rechteck, das *senkrecht in der Wandebene* steht — Breite mal Höhe — und
+ * extrudiert es quer durch die Wand. Wer das für ein liegendes Profil hält,
+ * liest die Wanddicke als Fensterhöhe. Am FZK-Haus kam jedes Fenster mit
+ * 0,30 m Höhe an (das war die Wandstärke) und jede Tür mit 0,24 m. Die
+ * Fensterfläche ist die Größe, an der die Transmissionsverluste hängen;
+ * ein Faktor vier darin ist keine Ungenauigkeit mehr.
+ */
+function achsen3d(entities: Map<number, StepEntity>, ref: StepValue): Dreibein {
+  if (!isRef(ref)) return EINHEIT;
+  const e = entities.get(ref.ref);
+  if (!e || (e.type !== 'IFCAXIS2PLACEMENT3D' && e.type !== 'IFCAXIS2PLACEMENT2D')) return EINHEIT;
+
+  const l = point(entities, e.attributes[0]);
+  const loc: [number, number, number] = [l[0] ?? 0, l[1] ?? 0, l[2] ?? 0];
+  if (e.type === 'IFCAXIS2PLACEMENT2D') {
+    const d = direction(entities, e.attributes[1]) ?? [1, 0];
+    const n = Math.hypot(d[0] ?? 1, d[1] ?? 0) || 1;
+    const ex: [number, number, number] = [(d[0] ?? 1) / n, (d[1] ?? 0) / n, 0];
+    return { loc, ex, ey: [-ex[1], ex[0], 0], ez: [0, 0, 1] };
+  }
+
+  const norm = (v: number[] | null, vorgabe: [number, number, number]): [number, number, number] => {
+    if (!v) return vorgabe;
+    const l2 = Math.hypot(v[0] ?? 0, v[1] ?? 0, v[2] ?? 0);
+    if (l2 < 1e-9) return vorgabe;
+    return [(v[0] ?? 0) / l2, (v[1] ?? 0) / l2, (v[2] ?? 0) / l2];
+  };
+
+  const ez = norm(direction(entities, e.attributes[1]), [0, 0, 1]);
+  let ex = norm(direction(entities, e.attributes[2]), [1, 0, 0]);
+  // `RefDirection` muss nicht senkrecht auf `Axis` stehen; IFC verlangt
+  // ausdrücklich die Projektion. Ohne sie wäre das Dreibein schief und die
+  // Höhe eines schrägen Fensters falsch.
+  const proj = ex[0] * ez[0] + ex[1] * ez[1] + ex[2] * ez[2];
+  ex = norm([ex[0] - proj * ez[0], ex[1] - proj * ez[1], ex[2] - proj * ez[2]], [1, 0, 0]);
+  const ey: [number, number, number] = [
+    ez[1] * ex[2] - ez[2] * ex[1],
+    ez[2] * ex[0] - ez[0] * ex[2],
+    ez[0] * ex[1] - ez[1] * ex[0],
+  ];
+  return { loc, ex, ey, ez };
+}
+
 /** Vorzeichenbehaftete Fläche eines Polygons [m²] — Gaußsche Trapezformel. */
 function flaeche(p: Vec2[]): number {
   let a = 0;
@@ -902,6 +968,65 @@ export function importIfc(text: string): IfcImportResult {
   };
 
   /**
+   * Maße einer Öffnung, deren Profil senkrecht in der Wandebene steht.
+   *
+   * Die beiden Profilrichtungen heißen hier nicht mehr „längs" und „quer",
+   * sondern **waagerecht** und **senkrecht**: welche der beiden die Höhe
+   * ist, entscheidet die Neigung der jeweiligen Achse, nicht ihre Länge.
+   * Ein hohes schmales Fenster (0,60 × 1,80) käme sonst als 1,80 m breit
+   * und 0,60 m hoch heraus — und die Fläche stimmte trotzdem, was den
+   * Fehler unsichtbar machte, bis jemand den Rohbau danebenhält.
+   *
+   * Die **Brüstungshöhe** ist die Unterkante des Profils: der Profilmittel-
+   * punkt in Weltkoordinaten, minus die halbe Höhe. Beim Fenster
+   * `EG-Fenster-6` des FZK-Hauses sind das 0,80 (Geschosslage der Öffnung)
+   * + 0,60 (Profilmitte) − 1,20/2 = **0,80 m** — die Brüstung eines
+   * gewöhnlichen Wohnhausfensters.
+   */
+  const ausSenkrechtemProfil = (
+    e: StepEntity,
+    profil: ProfileBox,
+    dreibein: Dreibein,
+    tiefe: number,
+    objekt: { x: number; y: number; z: number; angle: number },
+  ) => {
+    const exSenkrecht = Math.abs(dreibein.ex[2]);
+    const eySenkrecht = Math.abs(dreibein.ey[2]);
+    const hoehe = exSenkrecht > eySenkrecht ? profil.xDim : profil.yDim;
+    const breite = exSenkrecht > eySenkrecht ? profil.yDim : profil.xDim;
+    const waagerecht = exSenkrecht > eySenkrecht ? dreibein.ey : dreibein.ex;
+
+    // Profilmitte: Ursprung des Profils plus sein Versatz, ausgedrückt in
+    // den beiden Profilrichtungen, danach die Drehung des Bauteils um die
+    // Hochachse.
+    const lx = dreibein.loc[0] + dreibein.ex[0] * profil.offset.x + dreibein.ey[0] * profil.offset.y;
+    const ly = dreibein.loc[1] + dreibein.ex[1] * profil.offset.x + dreibein.ey[1] * profil.offset.y;
+    const lz = dreibein.loc[2] + dreibein.ex[2] * profil.offset.x + dreibein.ey[2] * profil.offset.y;
+    const cos = Math.cos(objekt.angle);
+    const sin = Math.sin(objekt.angle);
+
+    const curve = axisCurveOf(e);
+    const richtung = curve
+      ? Math.atan2(curve.b.y - curve.a.y, curve.b.x - curve.a.x)
+      : Math.atan2(
+          waagerecht[0] * sin + waagerecht[1] * cos,
+          waagerecht[0] * cos - waagerecht[1] * sin,
+        );
+
+    return {
+      centre: { x: objekt.x + lx * cos - ly * sin, y: objekt.y + lx * sin + ly * cos },
+      angle: richtung,
+      length: breite,
+      thickness: tiefe,
+      height: hoehe,
+      // Für eine Öffnung wird `zBase` als Brüstungshöhe gelesen.
+      zBase: objekt.z + lz - hoehe / 2,
+      beschnitten: false,
+      versatz: 0,
+    };
+  };
+
+  /**
    * Mittelachse und Dicke eines Bauteils aus seiner Extrusion.
    *
    * `beschnitten` sagt, ob der Körper erst durch eine Boolesche Verknüpfung
@@ -927,6 +1052,35 @@ export function importIfc(text: string): IfcImportResult {
     const objectPlacement = resolvePlacement(entities, e.attributes[5]);
     const solidPlacement = resolvePlacement(entities, extruded.attributes[1]);
     const depth = typeof extruded.attributes[3] === 'number' ? extruded.attributes[3] : 0;
+
+    /*
+     * **Steht die Profilebene senkrecht?**
+     *
+     * Eine Wand wird aus ihrem Grundriss nach oben gezogen: das Profil liegt
+     * waagerecht, `Axis` zeigt nach oben, und die Extrusionstiefe ist die
+     * Wandhöhe. So liest der Rest dieser Funktion es.
+     *
+     * Eine **Öffnung** schreibt ArchiCAD anders herum. Das Profil ist die
+     * Ansicht — Breite mal Höhe —, es steht senkrecht in der Wandebene, und
+     * extrudiert wird quer durch die Wand. Die Tiefe ist dann die Wanddicke,
+     * nicht die Höhe.
+     *
+     * Am FZK-Haus des KIT steht die Innentür als
+     * `IFCRECTANGLEPROFILEDEF(…, 0.885, 2.01)` mit `Axis = (0,1,0)` und
+     * 0,24 m Tiefe. Ohne diese Unterscheidung kam sie als 2,01 m breite und
+     * **0,24 m hohe** Öffnung an; jedes Fenster wurde 0,30 m hoch, weil das
+     * die Wandstärke ist. Die Fensterfläche trägt die Transmissionsverluste
+     * — ein Faktor vier darin ist keine Ungenauigkeit mehr, sondern eine
+     * andere Heizlast.
+     *
+     * Die Schranke bei 0,7 ist großzügig: eine Profilebene, die mehr als
+     * 45° aus der Waagerechten gekippt ist, meint nicht mehr einen
+     * Grundriss. Dazwischen gibt es nichts, was in einem Gebäude vorkäme.
+     */
+    const dreibein = achsen3d(entities, extruded.attributes[1]);
+    if (Math.abs(dreibein.ez[2]) < 0.7) {
+      return ausSenkrechtemProfil(e, profile, dreibein, depth, objectPlacement);
+    }
 
     // Profilmitte in Weltkoordinaten.
     const angle = objectPlacement.angle + solidPlacement.angle + profile.angle;
@@ -1330,9 +1484,24 @@ export function importIfc(text: string): IfcImportResult {
     // Die Öffnungsbreite liegt längs der Wand, nicht quer — die kürzere
     // Profilseite ist die Wanddicke plus Zugabe.
     const width = axis.length;
-    const kind: OpeningKind = fillOfOpening.get(e.id) ?? (axis.zBase > 0.3 ? 'window' : 'passage');
+
+    /*
+     * **Die Brüstung zählt ab dem Fußboden, nicht ab dem Gelände.**
+     *
+     * `axis.zBase` steht in Weltkoordinaten: das Fenster im Dachgeschoss
+     * des FZK-Hauses kam mit 3,50 m heraus — 2,70 m Geschosslage plus
+     * 0,80 m Brüstung. Im Modell ist die Brüstungshöhe aber der Abstand
+     * vom Fußboden *dieses* Geschosses; sonst sitzt jedes Fenster ab dem
+     * ersten Obergeschoss über der Wand, und die Prüfung meldet zu Recht
+     * „Öffnung reicht über die Wandhöhe hinaus" — ohne dass jemand
+     * erraten könnte, woher die Zahl kommt.
+     */
+    const geschosslage = levels.find((l) => l.id === wall.levelId)?.elevation ?? 0;
+    const bruestung = axis.zBase - geschosslage;
+
+    const kind: OpeningKind = fillOfOpening.get(e.id) ?? (bruestung > 0.3 ? 'window' : 'passage');
     const height = axis.height || (kind === 'window' ? 1.4 : 2.01);
-    const sill = kind === 'window' ? Math.max(0, axis.zBase) : 0;
+    const sill = kind === 'window' ? Math.max(0, bruestung) : 0;
 
     if (width < 0.2 || width > wallLength) {
       note('Öffnung mit unplausibler Breite');

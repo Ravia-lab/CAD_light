@@ -74,6 +74,25 @@ interface WandVorgabe {
    * halbe Wanddicke, weil die Bezugslinie dort auf der Außenfläche liegt.
    */
   versatz?: number;
+  /** Index in die Geschossliste; ohne Angabe das unterste. */
+  geschoss?: number;
+  oeffnungen?: OeffnungVorgabe[];
+}
+
+/** Eine Öffnung in einer Wand. */
+interface OeffnungVorgabe {
+  art: 'fenster' | 'tuer';
+  /** Abstand vom Anfang der Bezugslinie [m]. */
+  bei: number;
+  breite: number;
+  hoehe: number;
+  /** Brüstung über dem Fußboden **dieses** Geschosses [m]. */
+  bruestung: number;
+}
+
+interface GeschossVorgabe {
+  name: string;
+  lage: number;
 }
 
 /**
@@ -96,7 +115,11 @@ interface RaumVorgabe {
   alsKoerper?: boolean;
 }
 
-function baueDatei(vorgaben: WandVorgabe[], raeume: RaumVorgabe[] = []): string {
+function baueDatei(
+  vorgaben: WandVorgabe[],
+  raeume: RaumVorgabe[] = [],
+  geschosse: GeschossVorgabe[] = [{ name: 'Erdgeschoss', lage: 0 }],
+): string {
   let n = 0;
   const zeilen: string[] = [];
   const e = (text: string) => {
@@ -108,13 +131,18 @@ function baueDatei(vorgaben: WandVorgabe[], raeume: RaumVorgabe[] = []): string 
   const dirZ = e('IFCDIRECTION((0.,0.,1.))');
   const dirX = e('IFCDIRECTION((1.,0.,0.))');
   const dirX2 = e('IFCDIRECTION((1.,0.))');
+  /** Die y-Achse als Profilnormale — damit steht die Profilebene senkrecht. */
+  const dirY = e('IFCDIRECTION((0.,1.,0.))');
   const nullpunkt = e('IFCCARTESIANPOINT((0.,0.,0.))');
   const weltachse = e(`IFCAXIS2PLACEMENT3D(#${nullpunkt},#${dirZ},#${dirX})`);
   const weltlage = e(`IFCLOCALPLACEMENT($,#${weltachse})`);
   e(`IFCPROJECT('0Projekt00000000000000',$,'Klippenhaus',$,$,$,$,$,$)`);
-  const geschoss = e(
-    `IFCBUILDINGSTOREY('0Geschoss000000000000',$,'Erdgeschoss',$,$,#${weltlage},$,$,.ELEMENT.,0.)`,
+  const geschossIds = geschosse.map((g, i) =>
+    e(
+      `IFCBUILDINGSTOREY('0Geschoss${String(i).padStart(13, '0')}',$,'${g.name}',$,$,#${weltlage},$,$,.ELEMENT.,${z(g.lage)})`,
+    ),
   );
+  const geschoss = geschossIds[0];
 
   /** Ein Volumenkörper mit optionalen Booleschen Schnitten darüber. */
   const koerper = (
@@ -156,7 +184,9 @@ function baueDatei(vorgaben: WandVorgabe[], raeume: RaumVorgabe[] = []): string 
   };
 
   const waende: number[] = [];
+  const imGeschoss: number[] = [];
   const psets: Array<{ wand: number; wert: boolean | 'U' }> = [];
+  let oeffnungZaehler = 0;
 
   for (const v of vorgaben) {
     const dx = v.bis[0] - v.von[0];
@@ -165,7 +195,8 @@ function baueDatei(vorgaben: WandVorgabe[], raeume: RaumVorgabe[] = []): string 
     // Die Wand steht in ihrem eigenen Koordinatensystem: Ursprung am
     // Anfang der Bezugslinie, lokale x-Achse längs der Wand.
     const richtung = e(`IFCDIRECTION((${z(dx / laenge)},${z(dy / laenge)},0.))`);
-    const punkt = e(`IFCCARTESIANPOINT((${z(v.von[0])},${z(v.von[1])},0.))`);
+    const stockwerk = geschosse[v.geschoss ?? 0] ?? geschosse[0];
+    const punkt = e(`IFCCARTESIANPOINT((${z(v.von[0])},${z(v.von[1])},${z(stockwerk.lage)}))`);
     const achse = e(`IFCAXIS2PLACEMENT3D(#${punkt},#${dirZ},#${richtung})`);
     const lage = e(`IFCLOCALPLACEMENT($,#${achse})`);
     const item = koerper(laenge, v.dicke, v.hoehe, v);
@@ -182,7 +213,44 @@ function baueDatei(vorgaben: WandVorgabe[], raeume: RaumVorgabe[] = []): string 
       `IFCWALLSTANDARDCASE('0Wand${String(waende.length).padStart(18, '0')}',$,'${v.name}',$,$,#${lage},#${pds},$)`,
     );
     waende.push(wand);
+    imGeschoss.push(v.geschoss ?? 0);
     if (v.aussen !== undefined) psets.push({ wand, wert: v.aussen });
+
+    /*
+     * Öffnungen so, wie ArchiCAD sie schreibt: das Profil ist die **Ansicht**
+     * — Breite mal Höhe — und steht senkrecht in der Wandebene; extrudiert
+     * wird quer durch die Wand. `Axis = (0,1,0)` dreht die Profilebene
+     * dorthin, `RefDirection = (1,0,0)` legt die lokale x-Achse längs der
+     * Wand. Damit ist die lokale y-Achse `Axis × RefDirection = (0,0,-1)`:
+     * senkrecht. Die Höhe steht also in `YDim`, nicht in der Extrusionstiefe.
+     *
+     * Die Öffnung hängt platzierungstechnisch an der Wand, nicht am
+     * Geschoss — auch das ist ArchiCADs Schreibweise, und daran hängt, dass
+     * die Geschosslage in der Kette steckt.
+     */
+    for (const o of v.oeffnungen ?? []) {
+      const oPunkt = e(`IFCCARTESIANPOINT((${z(o.bei)},0.,${z(o.bruestung)}))`);
+      const oAchse = e(`IFCAXIS2PLACEMENT3D(#${oPunkt},#${dirZ},#${dirX})`);
+      const oLage = e(`IFCLOCALPLACEMENT(#${lage},#${oAchse})`);
+
+      const pMitte = e('IFCCARTESIANPOINT((0.,0.))');
+      const p2d = e(`IFCAXIS2PLACEMENT2D(#${pMitte},#${dirX2})`);
+      const prof = e(`IFCRECTANGLEPROFILEDEF(.AREA.,$,#${p2d},${z(o.breite)},${z(o.hoehe)})`);
+      const sMitte = e(`IFCCARTESIANPOINT((0.,0.,${z(o.hoehe / 2)}))`);
+      const sAchse = e(`IFCAXIS2PLACEMENT3D(#${sMitte},#${dirY},#${dirX})`);
+      const solid = e(`IFCEXTRUDEDAREASOLID(#${prof},#${sAchse},#${dirZ},${z(v.dicke)})`);
+      const oRep = e(`IFCSHAPEREPRESENTATION($,'Body','SweptSolid',(#${solid}))`);
+      const oPds = e(`IFCPRODUCTDEFINITIONSHAPE($,$,(#${oRep}))`);
+      const oeffnung = e(
+        `IFCOPENINGELEMENT('0Oeffnung${String(oeffnungZaehler).padStart(13, '0')}',$,'${o.art}-${oeffnungZaehler}',$,$,#${oLage},#${oPds},$)`,
+      );
+      e(`IFCRELVOIDSELEMENT('0Voids${String(oeffnungZaehler).padStart(16, '0')}',$,$,$,#${wand},#${oeffnung})`);
+      const fueller = e(
+        `${o.art === 'fenster' ? 'IFCWINDOW' : 'IFCDOOR'}('0Fueller${String(oeffnungZaehler).padStart(14, '0')}',$,'${o.art}',$,$,#${oLage},$,$,${z(o.hoehe)},${z(o.breite)})`,
+      );
+      e(`IFCRELFILLSELEMENT('0Fills${String(oeffnungZaehler).padStart(16, '0')}',$,$,$,#${oeffnung},#${fueller})`);
+      oeffnungZaehler += 1;
+    }
   }
 
   // Decke mit Treppendurchbruch — die Öffnung sitzt bewusst in einem
@@ -205,11 +273,15 @@ function baueDatei(vorgaben: WandVorgabe[], raeume: RaumVorgabe[] = []): string 
     e(`IFCRELDEFINESBYPROPERTIES('0Defines${String(p.wand).padStart(15, '0')}',$,$,$,(#${p.wand}),#${pset})`);
   }
 
-  e(
-    `IFCRELCONTAINEDINSPATIALSTRUCTURE('0Enthalten00000000000',$,$,$,(${waende
-      .map((w) => `#${w}`)
-      .join(',')}),#${geschoss})`,
-  );
+  geschossIds.forEach((gid, i) => {
+    const meine = waende.filter((_, k) => imGeschoss[k] === i);
+    if (!meine.length) return;
+    e(
+      `IFCRELCONTAINEDINSPATIALSTRUCTURE('0Enthalten${String(i).padStart(11, '0')}',$,$,$,(${meine
+        .map((w) => `#${w}`)
+        .join(',')}),#${gid})`,
+    );
+  });
 
   // --- Räume ----------------------------------------------------------------
   // Der Raum hängt über `IfcRelAggregates` am Geschoss, nicht über
@@ -550,6 +622,132 @@ function pruefeBezugslinie(check: CheckFn): void {
   );
 
   pruefeRaeumeAusDatei(check);
+  pruefeOeffnungen(check);
+}
+
+/**
+ * Öffnungen, deren Profil senkrecht in der Wandebene steht.
+ * ---------------------------------------------------------------------------
+ * CAD Light zieht eine Wand aus ihrem Grundriss nach oben: das Profil liegt
+ * waagerecht, die Extrusionstiefe ist die Höhe. Für **Öffnungen** schreibt
+ * ArchiCAD es andersherum — das Profil ist die Ansicht, Breite mal Höhe, und
+ * extrudiert wird quer durch die Wand.
+ *
+ * Wer das nicht unterscheidet, liest die Wanddicke als Öffnungshöhe. Am
+ * FZK-Haus des KIT kam so jede Innentür als 2,01 m **breit** und 0,24 m
+ * **hoch** an — 0,24 war die Wandstärke — und jedes Fenster wurde 0,30 m
+ * hoch. Am Institutsgebäude betraf es alle 283 Öffnungen.
+ *
+ * Das ist nicht kosmetisch: die Fensterfläche trägt die
+ * Transmissionsverluste. Ein Fenster, das statt 2,00 × 1,20 m als
+ * 2,00 × 0,30 m gerechnet wird, verliert vier Fünftel seines Anteils an der
+ * Heizlast — und das Gerät wird zu klein.
+ *
+ * **Die Brüstung zählt ab dem Fußboden.** Deshalb das zweite Geschoss in
+ * diesem Prüffall: dasselbe Fenster, 3,00 m höher. Ohne Abzug der
+ * Geschosslage käme es mit 3,80 m Brüstung heraus und stünde damit über
+ * seiner eigenen Wand.
+ */
+function pruefeOeffnungen(check: CheckFn): void {
+  const geschosse = [
+    { name: 'Erdgeschoss', lage: 0 },
+    { name: 'Obergeschoss', lage: 3 },
+  ];
+
+  const wand = (
+    name: string,
+    von: [number, number],
+    bis: [number, number],
+    geschoss: number,
+    oeffnungen: OeffnungVorgabe[] = [],
+  ): WandVorgabe => ({
+    name, dicke: 0.3, hoehe: 2.75, von, bis, achse: true, versatz: 0, geschoss, oeffnungen,
+  });
+
+  // Ein Fenster 2,00 × 1,20 mit 0,80 m Brüstung und eine Tür 0,885 × 2,01 —
+  // die Maße des FZK-Hauses. Im Obergeschoss dasselbe Fenster noch einmal.
+  const fenster: OeffnungVorgabe = {
+    art: 'fenster', bei: 3, breite: 2, hoehe: 1.2, bruestung: 0.8,
+  };
+  const tuer: OeffnungVorgabe = {
+    art: 'tuer', bei: 7, breite: 0.885, hoehe: 2.01, bruestung: 0,
+  };
+
+  const r = importIfc(
+    baueDatei(
+      [
+        wand('EG-Sued', [0, 0], [10, 0], 0, [fenster, tuer]),
+        wand('EG-Ost', [10, 0], [10, 6], 0),
+        wand('EG-Nord', [10, 6], [0, 6], 0),
+        wand('EG-West', [0, 6], [0, 0], 0),
+        wand('OG-Sued', [0, 0], [10, 0], 1, [fenster]),
+        wand('OG-Ost', [10, 0], [10, 6], 1),
+        wand('OG-Nord', [10, 6], [0, 6], 1),
+        wand('OG-West', [0, 6], [0, 0], 1),
+      ],
+      [],
+      geschosse,
+    ),
+  );
+
+  check('Zwei Geschosse', r.levels.length, 2);
+  check('Höhenlage des OG [m]', r.levels[1].elevation, 3, 1e-9);
+  check('Acht Wände', r.walls.length, 8);
+  check('Drei Öffnungen', r.openings.length, 3);
+  // Übersprungen wird nur der Deckendurchbruch, den `baueDatei` immer
+  // mitschreibt — keine Wandöffnung.
+  check('Nur der Deckendurchbruch übersprungen', r.skipped.length, 1);
+  check(
+    'und der ist als solcher benannt',
+    /statt in einer Wand/.test(r.skipped[0]?.reason ?? ''),
+    true,
+  );
+
+  const fensterEg = r.openings.filter((o) => o.kind === 'window');
+  const tuerEg = r.openings.find((o) => o.kind === 'door');
+
+  check('Zwei Fenster', fensterEg.length, 2);
+  check('Eine Tür', Boolean(tuerEg), true);
+
+  // Breite und Höhe dürfen nicht vertauscht sein — und die Höhe darf nicht
+  // die Wandstärke sein. Beides prüft dieselbe Zeile, weil die drei Zahlen
+  // 2,00 / 1,20 / 0,30 alle verschieden sind.
+  check('Fensterbreite [m]', fensterEg[0].width, 2, 1e-9);
+  check('Fensterhöhe [m]', fensterEg[0].height, 1.2, 1e-9);
+  check('Fenster ist nicht so hoch wie die Wand dick', fensterEg[0].height === 0.3, false);
+  check('Brüstung [m]', fensterEg[0].sillHeight, 0.8, 1e-9);
+
+  check('Türbreite [m]', tuerEg?.width ?? 0, 0.885, 1e-9);
+  check('Türhöhe [m]', tuerEg?.height ?? 0, 2.01, 1e-9);
+  check('Tür ohne Brüstung', tuerEg?.sillHeight ?? -1, 0, 1e-9);
+
+  // Lage in der Wand: die Öffnung sitzt 3,00 m nach dem Wandanfang — das
+  // ist ihr *Mittelpunkt*, also muss `distance` 3,00 sein.
+  const anSued = r.openings
+    .filter((o) => {
+      const w = r.walls.find((x) => x.id === o.wallId);
+      return w && r.levels[0].id === w.levelId;
+    })
+    .sort((a, b) => a.distance - b.distance);
+  check('Fenster liegt bei 3,00 m', anSued[0]?.distance ?? 0, 3, 0.002);
+  check('Tür liegt bei 7,00 m', anSued[1]?.distance ?? 0, 7, 0.002);
+
+  // Das Fenster im Obergeschoss: dieselben Maße, dieselbe Brüstung.
+  const obereWand = r.walls.find((w) => w.levelId === r.levels[1].id && r.openings.some((o) => o.wallId === w.id));
+  const obereOeffnung = r.openings.find((o) => o.wallId === obereWand?.id);
+  check('Öffnung im Obergeschoss gefunden', Boolean(obereOeffnung), true);
+  check('Obergeschoss: Brüstung zählt ab dem Fußboden [m]', obereOeffnung?.sillHeight ?? -1, 0.8, 1e-9);
+  check(
+    'Obergeschoss: Öffnung bleibt innerhalb ihrer Wand',
+    (obereOeffnung?.sillHeight ?? 0) + (obereOeffnung?.height ?? 0) <= (obereWand?.height ?? 0),
+    true,
+  );
+
+  // Gegenprobe: das liegende Profil bleibt, wie es war. Ohne die
+  // Unterscheidung würde diese Wand als 0,30 m hoch gelesen — sie ist die
+  // Probe darauf, dass die Fallunterscheidung die Wände nicht anfasst.
+  check('Wandhöhe unberührt [m]', r.walls[0].height, 2.75, 1e-9);
+  check('Wanddicke unberührt [m]', r.walls[0].thickness, 0.3, 1e-9);
 }
 
 /**
