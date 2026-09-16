@@ -44,6 +44,7 @@
 import type { CheckFn } from './typ';
 import { importIfc } from '../../src/lib/ifcImport';
 import { detectRooms } from '../../src/lib/roomDetection';
+import { ordneRaumnamenZu } from '../../src/lib/raumnutzung';
 import type { BimNode } from '../../src/types/bim';
 
 /** Eine Zahl so schreiben, wie STEP sie erwartet (mit Dezimalpunkt). */
@@ -83,7 +84,19 @@ interface WandVorgabe {
  * den auch `ifcExport.ts` benutzt. Von Hand durchnummerierte Referenzen wären
  * bei fünfzig Entities die wahrscheinlichste Fehlerquelle dieses Blocks.
  */
-function baueDatei(vorgaben: WandVorgabe[]): string {
+/** Ein benannter Raum, wie ihn der Architekt in die Datei schreibt. */
+interface RaumVorgabe {
+  /** Kommt als `LongName` in die Datei — dort steht der sprechende Name. */
+  langname: string;
+  /** `Name` — bei ArchiCAD oft nur eine Nummer. */
+  kurzname?: string;
+  /** Umriss in Weltkoordinaten. */
+  umriss: Array<[number, number]>;
+  /** Als `FootPrint` (Vorgabe) oder als Extrusionskörper schreiben. */
+  alsKoerper?: boolean;
+}
+
+function baueDatei(vorgaben: WandVorgabe[], raeume: RaumVorgabe[] = []): string {
   let n = 0;
   const zeilen: string[] = [];
   const e = (text: string) => {
@@ -197,6 +210,40 @@ function baueDatei(vorgaben: WandVorgabe[]): string {
       .map((w) => `#${w}`)
       .join(',')}),#${geschoss})`,
   );
+
+  // --- Räume ----------------------------------------------------------------
+  // Der Raum hängt über `IfcRelAggregates` am Geschoss, nicht über
+  // `IfcRelContainedInSpatialStructure` — ein Geschoss *besteht aus* seinen
+  // Räumen, es enthält sie nicht wie ein Bauteil. Beide Testdateien des KIT
+  // schreiben es so.
+  const raumIds: number[] = [];
+  for (const r of raeume) {
+    const punkte = r.umriss.map((q) => e(`IFCCARTESIANPOINT((${z(q[0])},${z(q[1])}))`));
+    const linie = e(`IFCPOLYLINE((${punkte.map((q) => `#${q}`).join(',')},#${punkte[0]}))`);
+    let rep: number;
+    if (r.alsKoerper) {
+      const prof = e(`IFCARBITRARYCLOSEDPROFILEDEF(.AREA.,$,#${linie})`);
+      const solid = e(`IFCEXTRUDEDAREASOLID(#${prof},#${weltachse},#${dirZ},2.5)`);
+      rep = e(`IFCSHAPEREPRESENTATION($,'Body','SweptSolid',(#${solid}))`);
+    } else {
+      const satz = e(`IFCGEOMETRICCURVESET((#${linie}))`);
+      rep = e(`IFCSHAPEREPRESENTATION($,'FootPrint','GeometricCurveSet',(#${satz}))`);
+    }
+    const pds = e(`IFCPRODUCTDEFINITIONSHAPE($,$,(#${rep}))`);
+    const lage = e(`IFCLOCALPLACEMENT($,#${weltachse})`);
+    raumIds.push(
+      e(
+        `IFCSPACE('0Raum${String(raumIds.length).padStart(18, '0')}',$,'${r.kurzname ?? ''}',$,$,#${lage},#${pds},'${r.langname}',.ELEMENT.,$,$)`,
+      ),
+    );
+  }
+  if (raumIds.length) {
+    e(
+      `IFCRELAGGREGATES('0Aggregat000000000000',$,$,$,#${geschoss},(${raumIds
+        .map((r) => `#${r}`)
+        .join(',')}))`,
+    );
+  }
 
   return [
     'ISO-10303-21;',
@@ -500,5 +547,151 @@ function pruefeBezugslinie(check: CheckFn): void {
     'Spitzer Anschluss wird gemeldet',
     spitz.hinweise.some((h) => /spitzer Wandanschluss/.test(h.reason)),
     true,
+  );
+
+  pruefeRaeumeAusDatei(check);
+}
+
+/**
+ * Was der Architekt an Raumnamen mitliefert.
+ * ---------------------------------------------------------------------------
+ * `IfcSpace` ist die einzige Stelle einer IFC-Datei, an der steht, wie ein
+ * Raum heißt. Über den Namen hängt die Nutzung, über die Nutzung die
+ * Solltemperatur nach DIN EN 12831 — das Bad mit 24 °C, der Flur mit 15 °C.
+ * Ohne diese Angabe kommt jeder Raum als „Raum 3" mit 20 °C an; beim
+ * Institutsgebäude des KIT sind das 82 Räume, die jemand von Hand einstufen
+ * müsste.
+ *
+ * Geprüft wird an demselben Rechteck wie oben, mit zwei benannten Räumen:
+ * „Bad" im unteren, „Küche" im oberen. Die Küche steht in der Datei in der
+ * STEP-Umschreibung `K\X2\00FC\X0\che` — genau so, wie ArchiCAD einen
+ * Umlaut schreibt, und der Grund, warum der Import die Umschreibung
+ * auflösen können muss.
+ *
+ * Die Umrisse sind bewusst **nicht** deckungsgleich mit den erkannten
+ * Räumen: der eine ist 5 cm nach innen gesetzt, der andere als
+ * Extrusionskörper statt als `FootPrint` geschrieben. Beides kommt so in
+ * echten Dateien vor, und beides darf die Zuordnung nicht stören — sie geht
+ * über den Schwerpunkt, nicht über die Deckung.
+ */
+function pruefeRaeumeAusDatei(check: CheckFn): void {
+  const aussen = (name: string, von: [number, number], bis: [number, number]): WandVorgabe => ({
+    name, dicke: 0.3, hoehe: 2.6, von, bis, achse: true, versatz: 0.15,
+  });
+  const rechteck: WandVorgabe[] = [
+    aussen('Sued', [0, 0], [6, 0]),
+    aussen('Ost', [6, 0], [6, 4]),
+    aussen('Nord', [6, 4], [0, 4]),
+    aussen('West', [0, 4], [0, 0]),
+    { name: 'Trennwand', dicke: 0.2, hoehe: 2.6, von: [0, 2], bis: [6, 2], achse: true, versatz: 0 },
+  ];
+
+  // Unterer Raum: lichte Grenzen 0,30…5,70 × 0,30…1,90 (siehe oben).
+  // Der Umriss der Datei sitzt 5 cm weiter innen — der Architekt hat an der
+  // Rohbaukante gezeichnet, nicht an der Putzkante.
+  const unten: Array<[number, number]> = [[0.35, 0.35], [5.65, 0.35], [5.65, 1.85], [0.35, 1.85]];
+  // Oberer Raum: 0,30…5,70 × 2,10…3,70, als Extrusionskörper geschrieben.
+  const oben: Array<[number, number]> = [[0.3, 2.1], [5.7, 2.1], [5.7, 3.7], [0.3, 3.7]];
+
+  const r = importIfc(
+    baueDatei(rechteck, [
+      { langname: 'Bad', kurzname: '1', umriss: unten },
+      { langname: 'K\\X2\\00FC\\X0\\che', kurzname: '2', umriss: oben, alsKoerper: true },
+    ]),
+  );
+
+  check('Zwei Räume aus der Datei', r.spaces.length, 2);
+  const bad = r.spaces.find((x) => x.name === 'Bad');
+  const kueche = r.spaces.find((x) => x.name === 'Küche');
+  check('Bad gelesen', Boolean(bad), true);
+  check('Umlaut aufgelöst — „Küche", nicht „K\\X2\\00FC\\X0\\che"', Boolean(kueche), true);
+  // 5,30 × 1,50 = 7,95 m²   |   5,40 × 1,60 = 8,64 m²
+  check('Bad: Fläche aus dem Umriss [m²]', bad?.area ?? 0, 7.95, 0.005);
+  check('Küche: Fläche aus dem Körperprofil [m²]', kueche?.area ?? 0, 8.64, 0.005);
+  check('Beide im selben Geschoss', bad?.levelId === kueche?.levelId, true);
+  check('Geschoss ist das der Datei', bad?.levelId ?? '', r.levels[0].id);
+
+  // --- Zuordnung auf die erkannten Räume ----------------------------------
+  const knoten: Record<string, BimNode> = Object.fromEntries(r.nodes.map((n) => [n.id, n]));
+  const raeume = detectRooms({
+    walls: r.walls,
+    nodes: knoten,
+    openings: r.openings,
+    levelId: r.levels[0].id,
+    defaultHeight: 2.6,
+    northAngle: 0,
+  });
+  const zu = ordneRaumnamenZu(
+    raeume.map((x) => ({ id: x.id, levelId: x.levelId, polygon: x.polygon, area: x.area })),
+    r.spaces,
+  );
+  check('Beide Räume zugeordnet', zu.length, 2);
+  const badZu = zu.find((x) => x.name === 'Bad');
+  const kuecheZu = zu.find((x) => x.name === 'Küche');
+  check('Bad → Nutzung bath', badZu?.usage ?? '', 'bath');
+  check('Küche → Nutzung kitchen', kuecheZu?.usage ?? '', 'kitchen');
+  check('Kein Raum doppelt vergeben', new Set(zu.map((x) => x.roomId)).size, 2);
+  check('Keine Zusammenfassung gemeldet', zu.reduce((n2, x) => n2 + x.weitere.length, 0), 0);
+
+  // --- Zwei Räume der Datei in einem erkannten Raum ------------------------
+  // Der Architekt zieht eine Raumgrenze, wo keine Wand steht — beim
+  // FZK-Haus sind „Wohnen", „Flur" und „Küche" ein offener Bereich. Der
+  // größere gibt den Namen, der kleinere wird gemeldet und nicht
+  // verschwiegen.
+  const offen = importIfc(
+    baueDatei(rechteck.slice(0, 4), [
+      { langname: 'Wohnen', umriss: [[0.3, 0.3], [5.7, 0.3], [5.7, 2.3], [0.3, 2.3]] },
+      { langname: 'Flur', umriss: [[0.3, 2.3], [5.7, 2.3], [5.7, 3.7], [0.3, 3.7]] },
+    ]),
+  );
+  const offenKnoten: Record<string, BimNode> = Object.fromEntries(offen.nodes.map((n) => [n.id, n]));
+  const offenRaeume = detectRooms({
+    walls: offen.walls,
+    nodes: offenKnoten,
+    openings: offen.openings,
+    levelId: offen.levels[0].id,
+    defaultHeight: 2.6,
+    northAngle: 0,
+  });
+  check('Ohne Trennwand ein Raum', offenRaeume.length, 1);
+  const offenZu = ordneRaumnamenZu(
+    offenRaeume.map((x) => ({ id: x.id, levelId: x.levelId, polygon: x.polygon, area: x.area })),
+    offen.spaces,
+  );
+  check('Eine Zuordnung', offenZu.length, 1);
+  // Die beiden sind absichtlich **ungleich** groß, sonst entschiede die
+  // Reihenfolge in der Datei und nicht die Regel: Wohnen reicht von
+  // y = 0,30 bis 2,30 → 5,40 × 2,00 = 10,80 m², der Flur von 2,30 bis 3,70
+  // → 5,40 × 1,40 = 7,56 m². Zusammen 18,36 m² — die lichte Fläche des
+  // Raums ohne Trennwand, wie oben ausgerechnet.
+  check('Wohnen ist der größere [m²]',
+    offen.spaces.find((x) => x.name === 'Wohnen')?.area ?? 0, 10.8, 0.005);
+  check('Flur ist der kleinere [m²]',
+    offen.spaces.find((x) => x.name === 'Flur')?.area ?? 0, 7.56, 0.005);
+  check('Zusammen die ganze lichte Fläche [m²]', offenRaeume[0].area, 18.36, 0.01);
+  check('Der größere gibt den Namen', offenZu[0].name, 'Wohnen');
+  check('Der kleinere wird gemeldet', offenZu[0].weitere.join(','), 'Flur');
+
+  // Die Schranke: ein Raum der Datei, der größer ist als der erkannte,
+  // darf ihm seinen Namen nicht aufdrücken. Das wäre der Fall, wenn der
+  // Architekt eine ganze Wohnung als einen `IfcSpace` führt.
+  const zuGross = importIfc(
+    baueDatei(rechteck.slice(0, 4), [
+      { langname: 'Wohnung 1', umriss: [[-2, -2], [8, -2], [8, 6], [-2, 6]] },
+    ]),
+  );
+  const zuGrossKnoten: Record<string, BimNode> = Object.fromEntries(zuGross.nodes.map((n) => [n.id, n]));
+  const zuGrossRaeume = detectRooms({
+    walls: zuGross.walls, nodes: zuGrossKnoten, openings: zuGross.openings,
+    levelId: zuGross.levels[0].id, defaultHeight: 2.6, northAngle: 0,
+  });
+  check('Zu großer Raum wird gelesen', zuGross.spaces.length, 1);
+  check(
+    'Zu großer Raum wird nicht zugeordnet',
+    ordneRaumnamenZu(
+      zuGrossRaeume.map((x) => ({ id: x.id, levelId: x.levelId, polygon: x.polygon, area: x.area })),
+      zuGross.spaces,
+    ).length,
+    0,
   );
 }

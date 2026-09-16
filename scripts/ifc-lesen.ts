@@ -64,6 +64,14 @@ console.log(
 );
 console.log(`  Knoten    : ${e.nodes.length}`);
 
+if (e.spaces.length) {
+  console.log(`  Räume aus der Datei: ${e.spaces.length}`);
+  for (const r of e.spaces.slice(0, 12)) {
+    console.log(`    ${r.name.padEnd(22)} ${r.area.toFixed(2).padStart(7)} m²  ${r.levelId}`);
+  }
+  if (e.spaces.length > 12) console.log(`    … und ${e.spaces.length - 12} weitere`);
+}
+
 if (e.skipped.length) {
   console.log('  Übersprungen:');
   for (const s of e.skipped) console.log(`    ${String(s.count).padStart(4)}× ${s.reason}`);

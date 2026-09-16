@@ -123,6 +123,7 @@ import { pruefeFlurfuehrung } from './pruefungen/flurfuehrung';
 import { pruefeDachformen } from './pruefungen/dachformen';
 import { pruefeKompass } from './pruefungen/kompass';
 import { pruefeIfcFremd } from './pruefungen/ifcfremd';
+import { pruefeRaumnamen } from './pruefungen/raumnamen';
 import { pruefeProjektmappe } from './pruefungen/projektmappe';
 import { pruefeUiModus } from './pruefungen/uimodus';
 import { pruefeSchichtgrenze } from './pruefungen/schichtgrenze';
@@ -3711,6 +3712,9 @@ pruefeKompass(check);
 
 console.log('\n▸ Fremde IFC-Dateien — beschnittene Körper, IsExternal, Deckendurchbruch');
 pruefeIfcFremd(check);
+
+console.log('\n▸ Raumnamen — von der Umschrift in der Datei zur Solltemperatur');
+pruefeRaumnamen(check);
 
 console.log('\n▸ Druckplan — Ecken, Symbolik, Maße');
 pruefeDruckplan(check);

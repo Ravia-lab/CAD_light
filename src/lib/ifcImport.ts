@@ -222,10 +222,92 @@ function parseList(text: string): StepValue[] {
   return out;
 }
 
+/**
+ * Sonderzeichen in einer STEP-Zeichenkette auflösen.
+ *
+ * ISO 10303-21 lässt in einer Zeichenkette nur druckbare ASCII-Zeichen zu.
+ * Alles andere — und für einen deutschen Grundriss heißt das: jeder Umlaut —
+ * wird umschrieben. ArchiCAD schreibt den Raum „Küche" als
+ *
+ *     'K\X2\00FC\X0\che'
+ *
+ * Ohne Auflösung steht dieser Rohtext hinterher als Raumname im Modell, im
+ * Raumbuch, im Ausdruck und in der RaVia-Übergabe. Das ist kein
+ * Schönheitsfehler: „K\X2\00FC\X0\che" lässt sich nicht suchen, nicht
+ * sortieren und nicht wiedererkennen.
+ *
+ * Aufgelöst werden die vier Schreibweisen, die in freier Wildbahn vorkommen:
+ *
+ *   `\X2\HHHH…\X0\`   UTF-16-Codeeinheiten, beliebig viele hintereinander
+ *   `\X4\HHHHHHHH…\X0\` dasselbe mit 32 Bit
+ *   `\X\HH`             ein einzelnes Byte (Latin-1)
+ *   `\S\c`              das Zeichen `c` mit gesetztem achten Bit
+ *   `\\`                ein echter Rückwärtsstrich
+ *
+ * `\PX\` schaltet die Codepage um; für die Zeichen, die uns erreichen,
+ * ändert das nichts, also wird es überlesen statt fehlgedeutet.
+ *
+ * Gelesen wird von links nach rechts, und der doppelte Rückwärtsstrich
+ * kommt **zuerst** dran. Sonst würde ein Name, der die Zeichenfolge
+ * `\X2\` wörtlich enthält — vom eigenen Export als `\\X2\\` geschrieben
+ * — beim Lesen in eine Umschreibung verwandelt.
+ */
+function entschluessele(roh: string): string {
+  if (!roh.includes('\\')) return roh;
+  let aus = '';
+  let i = 0;
+  while (i < roh.length) {
+    const c = roh[i];
+    if (c !== '\\') {
+      aus += c;
+      i += 1;
+      continue;
+    }
+    const naechstes = roh[i + 1];
+    if (naechstes === '\\') {
+      aus += '\\';
+      i += 2;
+      continue;
+    }
+    if (naechstes === 'S' && roh[i + 2] === '\\' && roh[i + 3] !== undefined) {
+      aus += String.fromCharCode(roh.charCodeAt(i + 3) + 128);
+      i += 4;
+      continue;
+    }
+    if ((naechstes === 'X' || naechstes === 'x') && roh[i + 2] === '\\') {
+      const hex = roh.slice(i + 3, i + 5);
+      if (/^[0-9A-Fa-f]{2}$/.test(hex)) {
+        aus += String.fromCharCode(parseInt(hex, 16));
+        i += 5;
+        continue;
+      }
+    }
+    const lang = /^\\X([24])\\([0-9A-Fa-f]+)\\X0\\/.exec(roh.slice(i));
+    if (lang) {
+      const breite = lang[1] === '2' ? 4 : 8;
+      for (let k = 0; k + breite <= lang[2].length; k += breite) {
+        aus += String.fromCodePoint(parseInt(lang[2].slice(k, k + breite), 16));
+      }
+      i += lang[0].length;
+      continue;
+    }
+    const seite = /^\\P[A-Za-z]\\/.exec(roh.slice(i));
+    if (seite) {
+      i += seite[0].length;
+      continue;
+    }
+    // Unbekannte Folge: der Rückwärtsstrich bleibt stehen, damit nichts
+    // stillschweigend verschwindet.
+    aus += c;
+    i += 1;
+  }
+  return aus;
+}
+
 function parseValue(t: string): StepValue {
   if (t === '$' || t === '*') return null;
   if (t.startsWith('#')) return { ref: Number(t.slice(1)) };
-  if (t.startsWith("'")) return t.slice(1, -1).replace(/''/g, "'");
+  if (t.startsWith("'")) return entschluessele(t.slice(1, -1).replace(/''/g, "'"));
   if (t.startsWith('(')) return parseList(t.slice(1, -1));
   if (t.startsWith('.') && t.endsWith('.')) return t.slice(1, -1);
   // Typisierte Werte wie IFCLENGTHMEASURE(2.5) — der Inhalt zählt.
@@ -352,6 +434,16 @@ function itemsOf(
 
 const solidsOf = (entities: Map<number, StepEntity>, ref: StepValue): StepEntity[] =>
   itemsOf(entities, ref);
+
+/** Vorzeichenbehaftete Fläche eines Polygons [m²] — Gaußsche Trapezformel. */
+function flaeche(p: Vec2[]): number {
+  let a = 0;
+  for (let i = 0; i < p.length; i += 1) {
+    const q = p[(i + 1) % p.length];
+    a += p[i].x * q.y - q.x * p[i].y;
+  }
+  return a / 2;
+}
 
 /** Boolesche Verknüpfungen, durch die zum Grundkörper durchgestiegen wird. */
 const BOOLESCHE_TYPEN = new Set(['IFCBOOLEANCLIPPINGRESULT', 'IFCBOOLEANRESULT']);
@@ -524,6 +616,36 @@ export interface ImportedLevel {
   height: number;
 }
 
+/**
+ * Ein Raum, wie der Architekt ihn in die Datei geschrieben hat.
+ *
+ * `IfcSpace` ist der einzige Ort in einer IFC-Datei, an dem steht, **wie ein
+ * Raum heißt**. Alles andere — Wände, Öffnungen, Geschosse — beschreibt
+ * Bauteile; erst der Raum sagt „Bad" oder „Schlafzimmer". Für ein Werkzeug,
+ * dessen Zweck die Heizlast ist, hängt daran mehr als eine Beschriftung: die
+ * Nutzung entscheidet über die Solltemperatur (DIN EN 12831 rechnet das Bad
+ * mit 24 °C und den Flur mit 15 °C) und über den Luftwechsel.
+ *
+ * Ohne diese Angabe kommt jeder Raum als „Raum 3", Nutzung „sonstige",
+ * 20 °C an. Beim FZK-Haus sind das fünf Räume, die jemand von Hand benennen
+ * und einstufen muss; beim Institutsgebäude des KIT sind es 82.
+ *
+ * Die **Geometrie** des Raums wird bewusst nicht übernommen — sie dient nur
+ * dazu, den Raum wiederzufinden. CAD Light leitet Räume aus den Wänden ab,
+ * und das muss die eine Quelle bleiben: ein Raum, dessen Umriss aus der
+ * Datei stammt und dessen Wände daneben liegen, wäre in jeder späteren
+ * Bearbeitung eine Falle.
+ */
+export interface ImportedSpace {
+  /** `LongName`, sonst `Name` — das, was der Architekt lesbar hingeschrieben hat. */
+  name: string;
+  levelId: string;
+  /** Umriss in Weltkoordinaten, nur zur Zuordnung. */
+  polygon: Vec2[];
+  /** Fläche des Umrisses [m²]. */
+  area: number;
+}
+
 export interface IfcImportResult {
   ok: boolean;
   message: string;
@@ -533,6 +655,8 @@ export interface IfcImportResult {
   nodes: BimNode[];
   walls: Wall[];
   openings: Opening[];
+  /** Benannte Räume aus der Datei — für Name und Nutzung, nicht für Geometrie. */
+  spaces: ImportedSpace[];
   /** Was gelesen, aber nicht übernommen wurde — für die Rückmeldung. */
   skipped: { reason: string; count: number }[];
   /**
@@ -555,6 +679,7 @@ const EMPTY: IfcImportResult = {
   nodes: [],
   walls: [],
   openings: [],
+  spaces: [],
   skipped: [],
   hinweise: [],
 };
@@ -1238,6 +1363,97 @@ export function importIfc(text: string): IfcImportResult {
   // gelungener. Wer die Wände nicht sofort vermisst, merkt es erst bei der
   // Heizlast — und dann sucht er den Fehler in der Rechnung.
   const uebersprungen = [...skipped.values()].reduce((a, b) => a + b, 0);
+  // --- Räume aus der Datei ---------------------------------------------------
+  //
+  // Zugeordnet wird ein Raum seinem Geschoss über `IfcRelAggregates` — das
+  // Geschoss *enthält* seine Räume, es enthält sie nicht räumlich wie ein
+  // Bauteil. Manche Programme schreiben es trotzdem über
+  // `IfcRelContainedInSpatialStructure`; beides wird gelesen, die Aggregation
+  // gewinnt.
+  const geschossDesRaums = new Map<number, string>();
+  for (const rel of byType.get('IFCRELAGGREGATES') ?? []) {
+    const eltern = rel.attributes[4];
+    if (!isRef(eltern)) continue;
+    const storey = storeys.find((st) => st.entity.id === eltern.ref);
+    if (!storey) continue;
+    const kinder = rel.attributes[5];
+    if (!Array.isArray(kinder)) continue;
+    for (const k of kinder) if (isRef(k)) geschossDesRaums.set(k.ref, storey.id);
+  }
+
+  /**
+   * Der Umriss eines Raums in Weltkoordinaten.
+   *
+   * Erste Wahl ist die `FootPrint`-Repräsentation: eine Kurve auf dem Boden,
+   * genau das, was gesucht ist. ArchiCAD schreibt sie für jeden Raum. Fehlt
+   * sie, wird der `Body` herangezogen, sofern er eine Extrusion über einem
+   * Polygonprofil ist — die zweite verbreitete Schreibweise. Ein `Brep`-
+   * Körper bleibt außen vor: ihn in einen Grundriss zurückzurechnen wäre
+   * eine eigene Aufgabe, und ein falsch geschlossener Umriss würde einen
+   * Raumnamen an die falsche Stelle setzen.
+   */
+  const umrissVon = (e: StepEntity): Vec2[] => {
+    const place = resolvePlacement(entities, e.attributes[5]);
+    const cos = Math.cos(place.angle);
+    const sin = Math.sin(place.angle);
+    const welt = (c: number[]): Vec2 => ({
+      x: place.x + (c[0] ?? 0) * cos - (c[1] ?? 0) * sin,
+      y: place.y + (c[0] ?? 0) * sin + (c[1] ?? 0) * cos,
+    });
+
+    for (const item of itemsOf(entities, e.attributes[6], 'FootPrint')) {
+      const kurven =
+        item.type === 'IFCGEOMETRICCURVESET' || item.type === 'IFCGEOMETRICSET'
+          ? (Array.isArray(item.attributes[0]) ? item.attributes[0] : [])
+          : [{ ref: item.id }];
+      let beste: Vec2[] = [];
+      for (const c of kurven) {
+        if (!isRef(c)) continue;
+        const pts = curvePoints(entities, c).map(welt);
+        if (pts.length >= 3 && Math.abs(flaeche(pts)) > Math.abs(flaeche(beste))) beste = pts;
+      }
+      if (beste.length >= 3) return beste;
+    }
+
+    for (const solid of solidsOf(entities, e.attributes[6])) {
+      const basis = basisExtrusion(entities, solid);
+      if (!basis) continue;
+      const prof = isRef(basis.attributes[0]) ? entities.get(basis.attributes[0].ref) : undefined;
+      if (!prof || !prof.type.startsWith('IFCARBITRARYCLOSEDPROFILEDEF')) continue;
+      const lokal = resolvePlacement(entities, basis.attributes[1]);
+      const pts = curvePoints(entities, prof.attributes[2]).map((c) =>
+        welt([lokal.x + (c[0] ?? 0), lokal.y + (c[1] ?? 0)]),
+      );
+      if (pts.length >= 3) return pts;
+    }
+
+    return [];
+  };
+
+  const spaces: ImportedSpace[] = [];
+  for (const e of byType.get('IFCSPACE') ?? []) {
+    // `LongName` (Attribut 7) ist der sprechende Name, `Name` (Attribut 2)
+    // oft nur eine Nummer. Beim FZK-Haus steht in `Name` die „4" und in
+    // `LongName` das „Schlafzimmer".
+    const lang = typeof e.attributes[7] === 'string' ? e.attributes[7].trim() : '';
+    const kurz = typeof e.attributes[2] === 'string' ? e.attributes[2].trim() : '';
+    const name = lang || kurz;
+    if (!name) continue;
+
+    const polygon = umrissVon(e);
+    if (polygon.length < 3) {
+      note('Raum ohne auswertbaren Umriss');
+      continue;
+    }
+
+    spaces.push({
+      name,
+      levelId: geschossDesRaums.get(e.id) ?? levelOfProduct.get(e.id) ?? fallbackLevel,
+      polygon,
+      area: Math.round(Math.abs(flaeche(polygon)) * 100) / 100,
+    });
+  }
+
   const message = walls.length
     ? `${walls.length} Wände, ${openings.length} Öffnungen und ${levels.length} Geschoss(e) gelesen` +
       (uebersprungen ? ` — ${uebersprungen} Bauteile übersprungen` : '')
@@ -1252,6 +1468,7 @@ export function importIfc(text: string): IfcImportResult {
     nodes,
     walls,
     openings,
+    spaces,
     skipped: [...skipped.entries()].map(([reason, count]) => ({ reason, count })),
     hinweise: [...hinweise.entries()].map(([reason, count]) => ({ reason, count })),
   };

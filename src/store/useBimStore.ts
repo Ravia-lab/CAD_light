@@ -156,6 +156,7 @@ import { solidFootprint } from '../lib/verticalSymbols';
 import { planPipeNetwork, type PipeLayoutResult } from '../lib/pipeLayout';
 import { baseRoofHeightAt, buildRoofFrame, dormerSide } from '../lib/roofGeometry';
 import { importIfc } from '../lib/ifcImport';
+import { ordneRaumnamenZu } from '../lib/raumnutzung';
 import { importRaumplan } from '../lib/raumplanImport';
 import { begradige } from '../lib/begradigen';
 import { spiegleDokument } from '../lib/spiegeln';
@@ -4654,6 +4655,53 @@ export const useBimStore = create<BimState>()((set, get) => {
         einpassenZaehler: get().einpassenZaehler + 1,
       });
 
+      /*
+       * Die Namen, die der Architekt vergeben hat.
+       *
+       * `IfcSpace` ist die einzige Stelle in einer IFC-Datei, an der steht,
+       * wie ein Raum heißt. Ohne sie kommt jeder Raum als „Raum 3",
+       * Nutzung „sonstige", 20 °C an — beim FZK-Haus fünf Räume, beim
+       * Institutsgebäude des KIT 82. Die Nutzung entscheidet über die
+       * Solltemperatur nach DIN EN 12831; sie von Hand nachzutragen ist
+       * genau die Arbeit, die ein Import abnehmen soll.
+       *
+       * Die **Geometrie** kommt weiter aus den Wänden. Der Umriss aus der
+       * Datei dient nur dazu, den Raum wiederzufinden; würde er den
+       * erkannten ersetzen, hätte das Modell zwei Wahrheiten, die beim
+       * ersten Verschieben einer Wand auseinanderlaufen.
+       */
+      const zuordnung = ordneRaumnamenZu(
+        Object.values(fresh.rooms).map((r) => ({
+          id: r.id,
+          levelId: r.levelId,
+          polygon: r.polygon,
+          area: r.area,
+        })),
+        result.spaces,
+      );
+      let zusammengefasst = 0;
+      for (const z of zuordnung) {
+        const raum = fresh.rooms[z.roomId];
+        if (!raum) continue;
+        const vorgabe = z.usage ? usageDefaults(z.usage) : undefined;
+        fresh.rooms[z.roomId] = {
+          ...raum,
+          name: z.name,
+          ...(z.usage && vorgabe
+            ? {
+                usage: z.usage,
+                // Die Normwerte ziehen mit der Nutzung nach — sonst stünde
+                // im Bad der Name „Bad" und daneben 20 °C. Dieselbe Regel
+                // wie in `updateRoom`, nur ohne den Umweg über den Patch.
+                setpointTemperature: vorgabe.temp,
+                airChangeRate: vorgabe.ach,
+                ventilationRole: vorgabe.air,
+              }
+            : {}),
+        };
+        zusammengefasst += z.weitere.length;
+      }
+
       const rooms = Object.keys(fresh.rooms).length;
       // Alle Gründe nennen, nicht nur den ersten.
       //
@@ -4671,8 +4719,15 @@ export const useBimStore = create<BimState>()((set, get) => {
         message:
           `IFC ${result.schema ?? ''}: ${result.walls.length} Wände, ${result.openings.length} Öffnungen, ` +
           `${rooms} Räume erkannt` +
+          (zuordnung.length ? `, ${zuordnung.length} benannt` : '') +
           (uebersprungen ? ` — ${uebersprungen} Bauteile übersprungen (${gruende})` : '') +
-          (vorbehalte ? ` · Hinweis: ${vorbehalte}` : ''),
+          (vorbehalte ? ` · Hinweis: ${vorbehalte}` : '') +
+          // Wo der Architekt Raumgrenzen ohne Wand gezogen hat, erkennt
+          // CAD Light zu Recht einen Raum — aber der Nutzer soll erfahren,
+          // dass die Datei dort mehr Räume kennt als sein Grundriss.
+          (zusammengefasst
+            ? ` · ${zusammengefasst} Raum/Räume der Datei liegen ohne trennende Wand in einem erkannten Raum`
+            : ''),
       };
     },
 
