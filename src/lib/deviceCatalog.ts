@@ -231,6 +231,44 @@ const WATER_CURVE: { point: string; capacity: number; cop: number }[] = [
   { point: 'W10/W55', capacity: 0.96, cop: 0.62 },
 ];
 
+/*
+ * --- Gegenprobe der Typklassen an echten Datenblättern -----------------------
+ *
+ * Nachgeschlagen am 16.09.2026 an drei Geräten, um zu sehen, wo die
+ * Typklassen stehen. Die Werte sind **nicht** übernommen worden — eine
+ * Typklasse ist kein Mittelwert dreier Geräte. Sie stehen hier, damit der
+ * nächste, der eine Zahl ändern will, weiß, wogegen er sie hält.
+ *
+ *   Viessmann Vitocal 250-A, AWO-M-E-AC-AF 251.A08 (R290, Monoblock)
+ *     ErP-Datenblatt: ηs = 176 % bei 35 °C (A+++), 140 % bei 55 °C (A++)
+ *     → SCOP ≈ (1,76 + 0,03) · 2,5 = 4,48 bzw. (1,40 + 0,03) · 2,5 = 3,58
+ *     LWA außen 49 dB, innen 40 dB · R290 1,2 kg · Vorlauf max. 70 °C
+ *     COP A-7/W35 = 2,7 · A2/W35 = 3,7 · A7/W35 = 4,9
+ *
+ *   Bosch Compress AW 10 OR-T, Baureihe CS5800/6800i (R290, Monoblock)
+ *     SCOP 35 °C = 4,77 (A++), 55 °C = 3,64 · LWA außen 42 dB(A)
+ *     R290 1,6 kg · 9,6 kW bei A-7/W35, COP 2,5
+ *
+ *   Stiebel Eltron WPL 07/09 ACS classic (R410A, zum Vergleich der Bauart)
+ *     SCOP 35 °C = 4,23 … 4,61 · LWA 52 dB(A) · Vorlauf max. 60 °C
+ *     COP A-7/W35 = 2,81 / 2,72 · A2/W35 = 3,75 / 3,72 · A7/W35 = 4,54
+ *
+ * **Wie die Typklasse `mono-r290` dagegen steht.**
+ *
+ *   COP bei A-7/W35   2,75   gegen 2,7 / 2,5 / 2,81 — mittig, trifft.
+ *   Kältemittel       1,23 kg bei 8 kW gegen 1,2 kg (Viessmann);
+ *                     1,45 kg bei 10 kW gegen 1,6 kg (Bosch) — trifft.
+ *   Vorlauf max.      70 °C  gegen 70 °C (R290) — trifft.
+ *   Schallleistung    52 dB bei 6 kW gegen 42 … 52 dB — am **lauten** Ende.
+ *                     Das ist die richtige Richtung: der Schallnachweis nach
+ *                     TA Lärm fällt damit zu streng aus, nicht zu milde.
+ *   SCOP bei 35 °C    4,9    gegen 4,48 und 4,77 — **über beiden**.
+ *
+ * Die letzte Zeile ist die einzige, die auffällt. Geändert ist sie nicht:
+ * SCOP wird nirgends gerechnet, sondern nur im Anlagenblatt angezeigt, und
+ * drei Datenblätter einer Nacht sind keine Marktübersicht. Wer sie ändert,
+ * hat jetzt die Anker dafür.
+ */
 const SERIES: SeriesTemplate[] = [
   {
     key: 'mono-r290',

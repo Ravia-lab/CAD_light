@@ -602,6 +602,26 @@ export default function AnlagenPanel() {
             <div>
               <Readout label="Bauform" value={PUMP_FORM_LABELS[selected.model.form as PumpForm].split(',')[0]} />
               <Readout label="Wärmequelle" value={HEAT_SOURCE_LABELS[selected.model.source as HeatSourceKind]} />
+              {/*
+                **Die Nennleistung ohne ihren Betriebspunkt ist keine Zahl.**
+
+                Der Katalog benennt seine Typklassen nach der Leistung bei
+                A-7/W35 — dem Auslegungspunkt. Die meisten Hersteller
+                benennen ihre Geräte nach A7/W35 oder A2/W35: Viessmanns
+                „Vitocal 250-A 8 kW" leistet bei A7/W35 acht Kilowatt und
+                bei A-7/W35 noch 6,5. Wer die Typklasse „8 kW" wählt und
+                anschließend ein Gerät mit „8 kW" auf dem Schild kauft,
+                steht bei Auslegungstemperatur ein Fünftel zu klein da.
+
+                Gerechnet wird ohnehin mit `capacityAt` am Auslegungspunkt
+                des Projekts — der Deckungsgrad daneben nennt ihn auch. Zu
+                sehen war der Bezugspunkt der *Nennleistung* aber nirgends,
+                und genau der steht im Angebot des Herstellers.
+              */}
+              <Readout
+                label="Nennleistung"
+                value={`${fmt(selected.model.nominalCapacity, 1)} kW bei ${selected.model.nominalPoint}`}
+              />
               <Readout label="Kältemittel" value={`${selected.model.refrigerant} · ${fmt(selected.model.refrigerantMass, 2)} kg · GWP ${refrigerant?.gwp ?? '—'}`} />
               <Readout label="höchster Vorlauf" value={`${selected.model.maxFlowTemperature} °C`} />
               <Readout label="SCOP bei 35 °C" value={fmt(selected.model.scop35, 2)} term="cop" />
