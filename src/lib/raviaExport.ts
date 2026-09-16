@@ -1755,11 +1755,23 @@ function buildTotals(
     grossFloorArea += room.area + room.perimeter * 0.12;
   }
 
-  const envelope = exteriorWallArea + netFloorArea * 2; // Wände + Boden + Decke
-
-  // Für die Wärmebrücken-Bilanz zählt die Hüllfläche, wie sie auch das
-  // Panel bildet — sonst widerspräche der Vergleich auf dem Bildschirm dem
-  // in der Datei.
+  /*
+   * **Eine Hüllfläche, nicht zwei.**
+   *
+   * Hier stand `exteriorWallArea + 2 · netFloorArea`, und `exteriorWallArea`
+   * ist die **Nettofläche** der Außenwände — also ohne die Fenster. Damit
+   * fehlte in der Hüllfläche genau das Bauteil, über das ein Gebäude am
+   * meisten verliert. Am FZK-Haus waren das 595,65 statt 630,85 m²: die
+   * Kompaktheit, die das Eigenschaftenblatt als „A/V" ausweist, kam 6 %
+   * zu günstig heraus. A/V ist für den Energieberater eine Kopfzahl; sie
+   * darf nicht davon abhängen, welche der beiden Summen im Export gerade
+   * gegriffen hat.
+   *
+   * Benutzt wird deshalb dieselbe Fläche, die auch die Wärmebrückenbilanz
+   * und das Panel benutzen: `envelopeArea` zählt die Außenbauteile
+   * **brutto** — Wand samt Fenstern und Türen — plus Boden und Decke. Das
+   * ist die wärmeübertragende Hüllfläche, wie DIN EN ISO 13789 sie meint.
+   */
   const bridgeEnvelope = envelopeArea(doc);
 
   return {
@@ -1778,7 +1790,7 @@ function buildTotals(
       exteriorWallArea + windowArea > 0
         ? Math.round((windowArea / (exteriorWallArea + windowArea)) * 1000) / 1000
         : 0,
-    compactness: netVolume > 0 ? Math.round((envelope / netVolume) * 1000) / 1000 : 0,
+    compactness: netVolume > 0 ? Math.round((bridgeEnvelope / netVolume) * 1000) / 1000 : 0,
     installedHeatingPower,
     fixtureCount: countByCategory(allFixtures),
   };

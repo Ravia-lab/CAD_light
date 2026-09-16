@@ -485,4 +485,25 @@ export function pruefeExportvertrag(check: CheckFn): void {
   check('Die Wurzel übersteht die Datei', fehlende(zurueck, WURZEL_PFLICHT), '');
   check('… und bringt nichts Neues mit', unbekannte(zurueck, WURZEL_PFLICHT, WURZEL_WAHLFREI), '');
   check('Die Fassung steht auch danach da', zurueck.version, '2.2.0');
+
+  // === 7 — Eine Hüllfläche, nicht zwei ====================================
+  //
+  // `totals.compactness` weist das Eigenschaftenblatt als **A/V** aus, und
+  // A/V ist für den Energieberater eine Kopfzahl. Sie stand auf einer
+  // anderen Hüllfläche als `totals.thermalBridges.envelopeArea`: auf der
+  // **Nettofläche** der Außenwände plus Boden und Decke — also ohne die
+  // Fenster, ohne die Türen und ohne die Giebelflächen. Am Referenzhaus
+  // waren das 638,22 statt 695,85 m², und das Gebäude stand mit A/V 1,069
+  // statt 1,166 da: 8 % kompakter, als es ist.
+  //
+  // Die Prüfung bindet die beiden Zahlen aneinander. Sie prüft **nicht**,
+  // wie groß die Hüllfläche ist — das tut der Referenzstand —, sondern
+  // dass es nur eine gibt.
+  const hv = ex.totals.thermalBridges.envelopeArea / ex.totals.netVolume;
+  check('A/V steht auf der wärmeübertragenden Hüllfläche', ex.totals.compactness, Math.round(hv * 1000) / 1000, 1e-9);
+  check(
+    'Und die ist größer als die Wandnettofläche plus Boden und Decke',
+    ex.totals.thermalBridges.envelopeArea >= ex.totals.exteriorWallArea + 2 * ex.totals.netFloorArea,
+    true,
+  );
 }
