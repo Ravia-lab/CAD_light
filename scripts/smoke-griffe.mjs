@@ -167,6 +167,81 @@ const entfernt = await p.evaluate(async () => {
 pruef('Der Knopf entfernt genau ein Bauteil', entfernt.vor - entfernt.nach, 1);
 pruef('Ein Rückgängig bringt es zurück', entfernt.zurueck, entfernt.vor);
 
+/*
+ * Escape in zwei Stufen — und die Armatur, die daran haengt.
+ *
+ * Gemeldet wurde "gesetzte Armaturen sind nicht loeschbar". Das Loeschen war
+ * nie das Problem: Das Programm startet im Werkzeug "Wand", Escape beendete
+ * bis 1.28.1 nur die angefangene Kette und liess das Werkzeug stehen. Jeder
+ * Klick zeichnete also, statt auszuwaehlen — man kam an gar kein Bauteil
+ * heran, solange man nicht von Hand den Pfeil anklickte.
+ *
+ * Geprueft wird deshalb der ganze Weg mit echten Ereignissen: auslegen,
+ * zweimal Escape, auf das Symbol klicken, Entf. Im Store allein waere der
+ * Fehler unsichtbar geblieben — dort ging Loeschen die ganze Zeit.
+ */
+console.log('\n▸ Escape kehrt zur Auswahl zurueck');
+await p.evaluate(() => window.__ravia.getState().setViewMode('2d'));
+await p.waitForTimeout(600);
+await p.evaluate(() => window.__ravia.getState().legeRohrnetzAus());
+await p.waitForTimeout(1500);
+const werkzeug = () => p.evaluate(() => window.__ravia.getState().tool);
+const armaturen = () => p.evaluate(() => Object.keys(window.__ravia.getState().doc.pipeAccessories ?? {}).length);
+
+/*
+ * Zwei Faelle, und sie verhalten sich absichtlich verschieden.
+ *
+ * a) Nichts angefangen: EIN Escape genuegt. Wer ein Werkzeug aus Versehen
+ *    erwischt hat, ist mit einem Tastendruck wieder heraus.
+ * b) Kette laeuft: Das erste Escape beendet die Kette und laesst das
+ *    Werkzeug stehen — wer eine Wand fertig hat, will meist die naechste
+ *    zeichnen. Erst das zweite geht zur Auswahl.
+ */
+const mitte = await p.evaluate(() => {
+  const r = document.querySelector('canvas').getBoundingClientRect();
+  return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+});
+
+await p.evaluate(() => window.__ravia.getState().setTool('wall'));
+await p.waitForTimeout(200);
+pruef('a) Ein Zeichenwerkzeug ist aktiv', await werkzeug(), 'wall');
+await p.keyboard.press('Escape');
+await p.waitForTimeout(300);
+pruef('a) Ohne Kette genuegt ein Escape', await werkzeug(), 'select');
+
+await p.evaluate(() => window.__ravia.getState().setTool('wall'));
+await p.waitForTimeout(200);
+await p.mouse.click(mitte.x - 120, mitte.y - 120);
+await p.waitForTimeout(300);
+await p.mouse.move(mitte.x, mitte.y);
+await p.waitForTimeout(200);
+pruef('b) Werkzeug aktiv, Kette angefangen', await werkzeug(), 'wall');
+await p.keyboard.press('Escape');
+await p.waitForTimeout(300);
+pruef('b) Erstes Escape laesst das Werkzeug stehen', await werkzeug(), 'wall');
+await p.keyboard.press('Escape');
+await p.waitForTimeout(300);
+pruef('b) Zweites Escape kehrt zur Auswahl zurueck', await werkzeug(), 'select');
+
+console.log('\n▸ Armatur anklicken und entfernen');
+const vorArm = await armaturen();
+pruef('Die Auslegung hat Armaturen gesetzt', vorArm > 0, true);
+const ziel = await p.evaluate(() => {
+  const s = window.__ravia.getState();
+  const a = Object.values(s.doc.pipeAccessories)[0];
+  const vp = s.viewport;
+  const r = document.querySelector('canvas').getBoundingClientRect();
+  return { x: r.left + (a.position.x - vp.center.x) * vp.zoom + r.width / 2,
+           y: r.top + r.height / 2 - (a.position.y - vp.center.y) * vp.zoom };
+});
+await p.mouse.click(ziel.x, ziel.y);
+await p.waitForTimeout(500);
+const gewaehlt = await p.evaluate(() => window.__ravia.getState().selection?.kind ?? 'nichts');
+pruef('Der Klick trifft die Armatur', gewaehlt, 'accessory');
+await p.keyboard.press('Delete');
+await p.waitForTimeout(600);
+pruef('Entf entfernt genau eine', vorArm - (await armaturen()), 1);
+
 console.log('\nFEHLER auf der Seite:', errs.length ? errs.join(' | ') : 'keine');
 if (errs.length) f += errs.length;
 console.log(`\n${f===0 ? '✓ RAUCHTEST BESTANDEN' : `✗ ${f} FEHLER`}\n`);

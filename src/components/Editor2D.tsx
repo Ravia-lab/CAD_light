@@ -3244,11 +3244,36 @@ export default function Editor2D({ className = '' }: { className?: string }) {
           // schon zwei Punkte hat — sonst verliert man mit einem Tastendruck
           // die gesamte Trasse.
           const finished = finishDraft();
+          const warAmZeichnen = finished || draftRef.current.mode !== 'idle';
           draftRef.current = { mode: 'idle' };
           marqueeRef.current = null;
           setLengthInput(null);
           if (!finished) {
             s.setSelection(null);
+          }
+          /*
+           * Escape in zwei Stufen — und die zweite hat lange gefehlt.
+           *
+           * Bisher beendete Escape nur die angefangene Kette. Das Werkzeug
+           * blieb aktiv, und weil das Programm im Werkzeug „Wand" startet,
+           * hieß das: Jeder Klick zeichnete, statt auszuwählen. Man konnte
+           * nichts anfassen, nichts verschieben und vor allem nichts löschen,
+           * solange man nicht von Hand den Pfeil in der Werkzeugkiste
+           * anklickte. Gemeldet kam das als „gesetzte Armaturen sind nicht
+           * löschbar" — dabei war das Löschen nie das Problem, sondern das
+           * Anfassen.
+           *
+           * Jetzt: Die erste Stufe beendet, was gerade läuft. Ist nichts
+           * mehr zu beenden, geht die zweite zurück auf Auswahl. Das ist die
+           * Erwartung aus jedem CAD, und es kostet den, der weiterzeichnen
+           * will, genau nichts: Er drückt Escape einmal.
+           */
+          if (warAmZeichnen) {
+            s.setStatus('Bereit');
+          } else if (s.tool !== 'select') {
+            s.setTool('select');
+            s.setStatus('Auswahl — anklicken, um etwas anzufassen');
+          } else {
             s.setStatus('Bereit');
           }
           break;
