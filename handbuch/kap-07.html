@@ -303,4 +303,42 @@
 
 <div class="merke"><b>Merke</b><p>Arbeiten Sie die Liste von oben nach unten ab. Die Fehler zuerst, denn sie hängen oft zusammen: Ein einziges offenes Wandende erzeugt einen fehlenden Raum, mehrere Innenwände ohne Nachbarraum und ein halbes Dutzend Folgewarnungen. Ist es geschlossen, sind sie alle weg.</p></div>
 
+
+<h3 id="k7-6">7.6 Der Kompass: wo Norden liegt</h3>
+
+<p class="lead">Die Nordrichtung geht in keine Fläche ein und trotzdem in fast jede Zahl der Heizlast. Über sie bekommt jedes Außenbauteil seinen <b>Azimut</b>, und daraus folgen die solaren Gewinne nach DIN EN 12831-1, die Abschirmung gegen Wind und die Bewertung jeder Verglasung.</p>
+
+<div class="warnung"><b>Achtung</b><p>Ein Grundriss, der um neunzig Grad falsch liegt, rechnet die Südfassade als Westfassade. <b>Das sieht man der Zahl nicht an</b> — sie bleibt plausibel, und sie ist falsch.</p></div>
+
+<p class="wo">Im Programm: Reiter <b>Objekt</b> ohne Auswahl → Gebäude-Kennwerte → <b>Kompassrose</b> mit Zahlenfeld daneben.</p>
+
+<h4 id="k7-6-1">7.6.1 Drehen statt tippen</h4>
+
+<p>„Nordabweichung 37°" ist für niemanden anschaulich, und ob die Zahl stimmt, sieht man erst an den solaren Gewinnen — also viel zu spät. Deshalb steht neben dem Zahlenfeld eine Rose, deren <b>Nadel Sie auf Norden drehen</b>. Das entspricht dem Aufmaß: Sie haben vor Ort gesehen, wo Norden liegt, nicht eine Gradzahl abgelesen.</p>
+
+<p>Gedreht wird in 5°-Schritten; mit gedrückter <kbd>Umschalt</kbd>-Taste gradgenau. Ein Kompass am Telefon ist nicht genauer als ein paar Grad, und das Raster verhindert, dass aus einer abgelesenen 90 eine 88 wird. Wer die Abweichung aus dem Lageplan kennt, tippt sie ins Feld daneben.</p>
+
+<h4 id="k7-6-2">7.6.2 Wie die Zahl zu lesen ist</h4>
+
+<p>Die Nordabweichung ist der Winkel, um den der Plan gegenüber Norden verdreht ist, <b>gegen den Uhrzeigersinn positiv</b>. 0° heißt: Im Plan ist oben Norden.</p>
+
+<div class="beispiel"><b>Zwei Fälle zum Nachvollziehen</b>
+<p><b>0°</b> — Eine Außenwand, deren Außenseite nach oben zeigt, ist eine <b>Nordfassade</b>. Eine, die nach rechts zeigt, ist eine Ostfassade.</p>
+<p><b>90°</b> — Der Plan liegt eine Vierteldrehung verdreht, Norden liegt rechts. Dieselbe nach oben zeigende Wand ist jetzt eine <b>Westfassade</b>, die nach rechts zeigende eine Nordfassade.</p>
+</div>
+
+<h4 id="k7-6-3">7.6.3 Wo die Rose überall steht</h4>
+
+<table class="tab">
+<caption>Die Kompassrose an drei Orten</caption>
+<thead><tr><th>Ort</th><th>Verhalten</th><th>Warum</th></tr></thead>
+<tbody>
+<tr><td>Grundriss, rechts oben</td><td>Steht fest am Bildschirm, wird nicht mitgezoomt und nicht mitgeschoben.</td><td>Sie ist eine Angabe über den Plan, kein Gegenstand darin. Läge sie im Modell, müsste man sie suchen, sobald man an eine Ecke zoomt.</td></tr>
+<tr><td>3D-Ansicht, links oben</td><td>Die Nadel bleibt auf Norden, die Rose dreht sich darunter.</td><td>Im Modell ist die Frage eine andere: In welche Richtung schaue ich gerade? Genau das tut ein Kompass in der Hand.</td></tr>
+<tr><td>Gedrucktes Blatt, links oben im Zeichenfeld</td><td>Fester Nordpfeil.</td><td>Er gehört auf jeden Bauplan. Links und nicht rechts, weil rechts oben die Legende sitzt — zwei Dinge übereinander sind schlechter als eines am zweitbesten Platz.</td></tr>
+</tbody>
+</table>
+
+<p>Alle drei zeichnen dieselbe Rose aus <em>einer</em> Quelle. Zwei Zeichenwege liefen auseinander, und dann zeigte das Bild in die eine Richtung, während der Export mit der anderen rechnet — beide sähen für sich richtig aus.</p>
+
 </section>

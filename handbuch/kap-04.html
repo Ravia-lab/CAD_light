@@ -100,7 +100,7 @@
 
 <p>Beschriftet wird eine Öffnung nach Bauzeichnungsgebrauch: oben Rohbaubreite durch Rohbauhöhe, beim Fenster darunter die Brüstungshöhe mit vorangestelltem <b>B</b>. Aus dem Beispiel oben wird also <code>1,26/1,385</code> und darunter <code>B 0,90</code>.</p>
 
-<!--SYMBOLTAFEL:oeffnungen-->
+<!-- SYMBOLTAFEL:oeffnungen -->
 
 <div class="warnung"><b>Achtung</b><p>Eine Öffnung, die breiter ist als ihre Wand, ist ein Fehler und kein Rundungsproblem — die Modellprüfung meldet ihn und der Export ist gesperrt. Dasselbe gilt, wenn Brüstungshöhe plus Öffnungshöhe über die Wandhöhe hinausreichen, und wenn sich zwei Öffnungen in derselben Wand überlappen.</p></div>
 
@@ -264,7 +264,7 @@
 
 <h3 id="k4-6">4.6 Zeichenhilfen</h3>
 
-<p>Ohne Hilfen zeichnet niemand maßhaltig mit der Maus. Fünf Hilfen greifen ineinander:</p>
+<p>Ohne Hilfen zeichnet niemand maßhaltig mit der Maus. Sechs Hilfen greifen ineinander:</p>
 
 <table class="tab">
 <caption>Die Zeichenhilfen und ihre Voreinstellung</caption>
@@ -273,14 +273,46 @@
 <tr><td>Raster</td><td>Der Punkt rastet auf ein festes Maß ein.</td><td>an, 0,25 m</td></tr>
 <tr><td>Knotenfang</td><td>Der Punkt springt auf ein bestehendes Wandende.</td><td>an</td></tr>
 <tr><td>Achsfang</td><td>Der Punkt springt auf eine Wandachse — so entsteht ein sauberer T-Stoß.</td><td>an</td></tr>
+<tr><td>Eckenfang</td><td>Der Punkt springt auf jede andere Ecke im Plan — Gelände, Leitung, Kamin, Treppe, Durchbruch, Raum, TGA-Objekt und den eigenen Zug.</td><td>an</td></tr>
 <tr><td>Winkelraster</td><td>Die Richtung rastet in Stufen ein, bezogen auf den Startpunkt.</td><td>an, 45°</td></tr>
 <tr><td>Ortho-Zwang</td><td>Nur 0° und 90° — verhindert versehentlich schräge Wände.</td><td>aus</td></tr>
 </tbody>
 </table>
 
-<p>Der Fangradius liegt bei 12 Bildschirmpunkten und ist damit unabhängig vom Zoom: weiter herausgezoomt fängt das Programm über eine größere Strecke im Modell, hineingezoomt entsprechend feiner. Jedes Fangergebnis trägt seine eigene Begründung mit — frei, Raster, Knoten, Achse, Winkel oder Verlängerung —, und die Statuszeile sagt Ihnen, welche gerade gegriffen hat.</p>
+<p>Der Fangradius liegt bei 12 Bildschirmpunkten und ist damit unabhängig vom Zoom: weiter herausgezoomt fängt das Programm über eine größere Strecke im Modell, hineingezoomt entsprechend feiner. Jedes Fangergebnis trägt seine eigene Begründung mit — frei, Raster, Knoten, Achse, Winkel, Verlängerung oder Ecke —, und die Statuszeile sagt Ihnen, welche gerade gegriffen hat.</p>
 
-<h4 id="k4-6-1">4.6.1 Die Längeneingabe</h4>
+<h4 id="k4-6-1">4.6.1 Fangen auf Ecken, nicht nur auf Knoten</h4>
+
+<p>Lange war der Wandknoten das einzige Ziel, auf das sich fangen ließ — von einem Dutzend Objektarten im Modell genau eines. Eine Grundstücksgrenze ließ sich damit nicht an die Ecke des Nachbargebäudes legen, eine Leitung nicht an den Punkt der Leitung daneben, und der vierte Punkt einer Umfahrung nicht auf die Höhe des ersten, obwohl das die häufigste Absicht überhaupt ist.</p>
+
+<p>Der <b>Eckenfang</b> sammelt deshalb alles ein, was im aktiven Geschoss eine Ecke ist:</p>
+
+<table class="tab">
+<caption>Was der Eckenfang greift, und wie die Fangmarke es benennt</caption>
+<thead><tr><th>Herkunft</th><th>Welche Punkte</th><th>Beschriftung</th></tr></thead>
+<tbody>
+<tr><td>Außengelände</td><td>Jeder gesetzte Punkt von Grundstücksgrenze, Nachbarhaus, Kollektorfläche, Graben.</td><td>Geländepunkt</td></tr>
+<tr><td>Leitungen</td><td>Jeder Knickpunkt eines Rohrzugs.</td><td>Leitungspunkt</td></tr>
+<tr><td>Massive Bauteile</td><td>Die Ecken des Umrisses — ob aus Länge, Breite und Drehung oder aus einer freien Kontur.</td><td>Bauteilecke</td></tr>
+<tr><td>Treppen und Schächte</td><td>Die vier Ecken des Bauteils.</td><td>Treppe/Schacht</td></tr>
+<tr><td>Durchbrüche</td><td>Die Ecken des Umrisses <i>und</i> die Mitte — nach ihr wird eine Bohrung angerissen.</td><td>Durchbruch</td></tr>
+<tr><td>Räume</td><td>Die <b>lichten</b> Ecken, also die Innenkante der Wand.</td><td>Raumecke</td></tr>
+<tr><td>TGA-Objekte</td><td>Der Standort des Symbols.</td><td>TGA-Objekt</td></tr>
+<tr><td>Laufender Zug</td><td>Jeder Punkt, den Sie in diesem Zug schon gesetzt haben.</td><td>eigener Zug</td></tr>
+</tbody>
+</table>
+
+<p>Dass bei den Räumen die <b>lichten</b> Ecken gelten und nicht die Achspunkte, ist der Unterschied, auf den es ankommt. Wer eine Innenmaßkette ansetzt oder einen Heizkörper in die Ecke stellt, meint die Innenkante; der Wandknoten liegt dafür eine halbe Wandstärke daneben — bei einer 36,5er also 18,25 cm.</p>
+
+<div class="merke"><b>Merke</b><p>Es gewinnt der <b>nächstliegende</b> Punkt, nicht die vornehmere Kategorie. Eine Rangfolge — „Gelände schlägt Leitung" — wäre eine Behauptung darüber, was Sie meinen. Der Abstand ist eine Messung. Nur der Wandknoten steht davor, denn er allein erzeugt die topologische Verbindung, auf der die Raumerkennung aufbaut.</p></div>
+
+<p>Die Fangmarke ist beschriftet: neben dem Zeiger steht im Klartext, was gerade gegriffen wurde — <span class="zeichen">Raumecke</span>, <span class="zeichen">Geländepunkt</span>, <span class="zeichen">45°</span>. Vorher unterschieden sich die Arten nur in der Form der Marke, und „Raster" sah aus wie „frei", obwohl das eine gefangen ist und das andere nicht.</p>
+
+<div class="warnung"><b>Achtung</b><p>Geschossgebunden ist alles bis auf eines: das <b>Gelände</b>. Es gehört zum Grundstück und nicht zu einer Etage, und deshalb fangen Sie auch im Obergeschoss auf die Grundstücksgrenze. Umgekehrt ist der Heizkörper aus dem Erdgeschoss im Obergeschoss kein Fangziel — er steht dort nicht.</p></div>
+
+<p class="wo">Im Programm: Reiter <b>Ebenen</b>, Feld <b>Fang &amp; Raster</b>, Schalter <b>Ecken</b>. Ausschalten hebt nur den Eckenfang auf; Knoten, Achse, Raster und Winkel bleiben davon unberührt.</p>
+
+<h4 id="k4-6-2">4.6.2 Die Längeneingabe</h4>
 
 <p>Der schnellste und genaueste Weg zu einer Wand mit bestimmtem Maß führt nicht über die Maus.</p>
 
@@ -288,7 +320,7 @@
 
 <p>Eingegeben wird in Metern; ein Komma wird wie ein Punkt gelesen. Steht noch keine Richtung fest, geht die Wand nach Osten — das ist die Konvention beim Zeichnen.</p>
 
-<h4 id="k4-6-2">4.6.2 Raum kopieren und Gruppenoperationen</h4>
+<h4 id="k4-6-3">4.6.3 Raum kopieren und Gruppenoperationen</h4>
 
 <p>Ein Raum ist im Modell kein eigenes Objekt, sondern das Ergebnis seiner Wände. „Raum kopieren“ heißt deshalb konkret: seine Begrenzungswände, die Öffnungen darin und die TGA-Objekte (Technische Gebäudeausrüstung), deren Standort im lichten Polygon liegt. Eine Trennwand zwischen zwei Räumen gehört zu beiden und kommt mit — der Nachbar behält seine eigene.</p>
 
@@ -310,7 +342,7 @@
 
 <p>Die automatischen Wandmaße nehmen Ihnen die Fleißarbeit ab, aber sie beantworten nicht jede Frage: den Abstand zweier Fenster, die lichte Weite einer Nische, die Achse eines Schachts. Dafür gibt es Beschriftungen, die Sie bewusst setzen und die stehen bleiben, wo Sie sie gesetzt haben.</p>
 
-<p class="wo">Im Programm: Werkzeug <b>Maßkette &amp; Beschriftung</b> (Taste <kbd>B</kbd>).</p>
+<p class="wo">Im Programm: Werkzeug <b>Text &amp; Maßkette</b> (Taste <kbd>B</kbd>). In der Kontextleiste wählen Sie, welche der drei Arten der nächste Klick erzeugt.</p>
 
 <p>Es gibt drei Arten, und sie liegen absichtlich in derselben Objektart, weil sie dieselbe Rolle haben: Grafik auf dem Plan, <b>ohne jede Wirkung auf die Berechnung</b>.</p>
 
@@ -320,8 +352,170 @@
 <li><b>Hinweisfahne.</b> Ein Punkt, eine Zugstrecke und eine waagerechte Fahne unter dem Text. Die Fahne bleibt waagerecht, auch wenn die Zugrichtung schräg verläuft — sonst ließe sich der Hinweis nicht lesen.</li>
 </ul>
 
-<!--SYMBOLTAFEL:beschriftung-->
+<!-- SYMBOLTAFEL:beschriftung -->
 
 <div class="merke"><b>Merke</b><p>Eine Maßkette misst, was Sie angeklickt haben, nicht was gemeint war. Sie ist eine Zeichnung, kein Nachweis. Was in die Heizlast geht, sind ausschließlich die Maße der Bauteile selbst.</p></div>
+
+<h4 id="k4-7-1">4.7.1 Beschriftungen anfassen</h4>
+
+<p>Eine Beschriftung, die man nur anlegen und wieder löschen kann, ist keine. Auf einem Plan verrutscht Text, eine Maßkette greift den falschen Punkt, und die Schrift ist für den Maßstab zu klein. Deshalb lässt sich an einer gesetzten Beschriftung alles nachträglich ändern, und zwar im Plan und nicht über ein Eigenschaftsfenster.</p>
+
+<p>Der <b>Text</b> selbst: Das Eingabefeld erscheint dort, wo Sie getippt haben — wie die Längeneingabe beim Wandzeichnen und mit denselben Tasten. Ein Klick mit dem Beschriftungswerkzeug auf einen vorhandenen Text ändert diesen, statt einen zweiten daneben anzulegen; die Trefferprüfung ist dafür nötig, weil man den Ankerpunkt mit dem Finger selten auf Anhieb trifft und sich früher bei jedem Fehlversuch einen weiteren Platzhalter einfing. Mit dem Auswahlwerkzeug tut ein <b>Doppelklick</b> dasselbe; das ist der Griff, den jeder zuerst probiert. <kbd>Enter</kbd> setzt den Text, <kbd>Esc</kbd> bricht ab. Eine Beschriftung, die am Ende leer bleibt, wird wieder entfernt, statt als unsichtbarer Platzhalter im Plan zu bleiben.</p>
+
+<p>Getroffen wird der Text dabei auf seiner <b>ganzen Fläche</b>. Zuvor zählte allein der Ankerpunkt, und bei zwanzig Zeichen waren rund 95 % des sichtbaren Textes tot — man klickte auf das Wort und fasste nichts.</p>
+
+<p>Ist eine Beschriftung gefasst, zeigt sie ihre <b>Griffe</b>:</p>
+
+<table class="tab">
+<caption>Die Griffe einer gefassten Beschriftung</caption>
+<thead><tr><th>Griff</th><th>Wo er sitzt</th><th>Was er tut</th></tr></thead>
+<tbody>
+<tr><td>Punktgriff</td><td>An jedem Bezugspunkt: bei der Maßkette an beiden Messpunkten, bei der Hinweisfahne an Spitze und Textpunkt, beim Text am Anker.</td><td>Zieht diesen <b>einen</b> Punkt um. Bis dahin verschob das Ziehen immer alle zugleich: eine Maßkette ließ sich versetzen, aber nicht verlängern.</td></tr>
+<tr><td>Größengriff</td><td>An der oberen rechten Ecke der Textfläche — nur beim Text, denn nur dort gibt es eine Fläche.</td><td>Zieht die Schriftgröße auf, vom 0,5- bis zum 3fachen. Dieselben Grenzen wie im Reiter <b>Objekt</b>; zwei Wege zur selben Größe dürfen nicht zwei verschiedene Bereiche haben.</td></tr>
+</tbody>
+</table>
+
+<p>Die Griffe sind in <b>Bildpunkten</b> bemessen — 11 Bildpunkte Fassradius, mit dem Finger das Zweieinhalbfache davon. Ein Griff, der beim Herauszoomen mitschrumpft, ist genau dann nicht mehr zu treffen, wenn man ihn am nötigsten braucht.</p>
+
+<div class="merke"><b>Merke</b><p>Der einzelne Punktgriff <b>fängt</b>, das Verschieben der ganzen Beschriftung nicht. Das ist Absicht: Wer einen Messpunkt umsetzt, meint eine Ecke; wer den Text verschiebt, meint eine Stelle im Plan, an der er nicht stört.</p></div>
+
+<h3 id="k4-8">4.8 Skizzieren: aus dem Freihandstrich werden Wände</h3>
+
+<p>Wer in einer Wohnung steht und aufmisst, hat den Grundriss in dreißig Sekunden krakelig auf dem Tablet — und braucht danach zehn Minuten, um dieselben Linien Punkt für Punkt noch einmal zu setzen. Genau diese zehn Minuten nimmt das Skizzenwerkzeug weg.</p>
+
+<p class="wo">Im Programm: Werkzeug <b>Freihand skizzieren</b> (Taste <kbd>Q</kbd>), in der Werkzeugleiste unmittelbar unter <b>Wand zeichnen</b> — skizzieren und zeichnen meinen dasselbe, nur mit verschiedener Genauigkeit. Auch im einfachen Modus vorhanden. Der Vorschlag und seine Knöpfe stehen in der <b>Skizzenleiste</b> unten in der Mitte über der Zeichenfläche.</p>
+
+<p>Sie ziehen den Strich in einem Zug, ohne abzusetzen — mit dem Stift oder mit der Maus. Der Stift hat dabei immer Vorrang, und der Handballen, der beim Schreiben mit aufliegt, wird gar nicht erst beachtet; ein einzelner Finger schiebt das Bild, zwei Finger schwenken und zoomen. Der Strich <b>fängt bewusst nicht</b>: ein Stift, der beim Zeichnen aufs Raster springt, fühlt sich an, als führe man ihn über Kieselsteine. Gefangen wird erst das Ergebnis, und zwar beim Übernehmen.</p>
+
+<h4 id="k4-8-1">4.8.1 Was das Begradigen tut</h4>
+
+<p>Aus der Punktfolge unter dem Stift — bei 120 Abtastungen in der Sekunde sind das schnell einige hundert Punkte — wird eine Folge gerader Strecken. In dieser Reihenfolge:</p>
+
+<ol>
+<li><b>Glätten.</b> Ein gleitendes Mittel über je drei Punkte nimmt das Zittern der Hand heraus. Drei und nicht fünf: ab fünf werden echte Ecken sichtbar abgerundet, und die Ecke ist gerade das, was gesucht wird. Anfang und Ende bleiben unangetastet — dort haben Sie abgesetzt.</li>
+<li><b>Vereinfachen.</b> Nach Ramer–Douglas–Peucker bleiben nur die Punkte übrig, an denen der Strich wirklich die Richtung wechselt. Ein Punkt darf dafür bis zu <b>6 cm</b> von der Geraden abweichen. Das ist die Größenordnung, in der eine freihändig gezogene Linie schwankt, wenn sie gerade gemeint ist — und deutlich weniger als der kleinste Wandversatz, den jemand mit Absicht zeichnet.</li>
+<li><b>Kurzes schlucken.</b> Ein Stück unter <b>35 cm</b> ist keine Wand, sondern eine Ecke, die der Stift in zwei Zügen genommen hat. Es fällt weg; seine beiden Nachbarn treffen sich später ohnehin wieder.</li>
+<li><b>Ausrichten.</b> Das Programm bestimmt die Vorzugsrichtung und zieht jede Strecke darauf, die weniger als <b>18°</b> daneben liegt. Wer freihändig eine gerade Wand zieht, trifft die Richtung auf wenige Grad; wer eine Schräge meint — Erker, abgeschnittene Ecke —, zeichnet sie deutlich schräger als 18°, sonst wäre sie auch in Wirklichkeit keine.</li>
+<li><b>Ecken schließen.</b> Nach dem Ausrichten liegt jede Strecke auf ihrer eigenen Geraden, und die Geraden treffen sich nicht mehr in den gezeichneten Ecken. Die Ecke wandert auf den Schnittpunkt der beiden Geraden. Wandert sie dabei weiter als einen Meter, ist es kein Schnittpunkt zweier Wände mehr, sondern der zweier fast paralleler Geraden weit draußen — dann bleibt die gezeichnete Ecke stehen.</li>
+<li><b>Eckstücke entfernen.</b> Ein Stift, der eine Ecke in zwei Zügen nimmt, hinterlässt dort ein kurzes Stück quer zu beiden Wänden. Bleibt davon nach der Eckenrechnung weniger als <b>50 cm</b> übrig und sind beide Nachbarn ausgerichtet, fällt es weg.</li>
+</ol>
+
+<p>Warum das Eckstück nicht schon in Schritt 3 fällt, ist die Lehre aus einem gemessenen Fall: an einem mit dem Stift gezogenen Rechteck war es <b>47 cm</b> lang — über der Schwelle von 35 cm. Es überlebte, wurde wegen 20° Achsabweichung nicht ausgerichtet, und erst die Eckenrechnung schnitt es auf 28 cm zusammen. Im Vorschlag standen damit fünf Wände statt vier, eine davon diagonal in der Ecke. Entscheidend ist also nicht, wie lang das Stück gezeichnet wurde, sondern wie lang die Wand würde, die daraus entstünde — und das steht erst nach der Eckenrechnung fest.</p>
+
+<div class="beispiel">
+<b>Beispiel zum Nachrechnen</b>
+<p>Die 50 cm sind kein runder Wert, sondern eine gerechnete Grenze. Eine unter 45° abgeschrägte Ecke von 50 cm Länge schneidet von der rechtwinkligen Ecke ein Dreieck ab, dessen Katheten 0,50 / √2 = 0,354 m messen.</p>
+<p>Fehlende Fläche = 0,354 · 0,354 / 2</p>
+<p class="ergebnis">= 0,06 m² — weniger, als Heizlast, Massenauszug oder ein Plan im Maßstab 1:50 auflösen</p>
+</div>
+
+<p>Eine <b>gewollte</b> Abschrägung überlebt beide Schwellen. Sie wird von ihren Nachbarn angeschnitten statt hinter ihnen zu verschwinden, bleibt damit über 50 cm lang und bleibt stehen. Weggenommen wird nur, was ohnehin zusammenfällt.</p>
+
+<h4 id="k4-8-2">4.8.2 Mehrere Züge, und einen davon zurück</h4>
+
+<p>Ein Grundriss entsteht nicht in einem Strich: erst die Außenwände umfahren, dann die Innenwände einzeichnen. Jeder weitere Strich kommt zum Vorschlag <b>dazu</b>; die Skizzenleiste zeigt, aus wie vielen Zügen er besteht.</p>
+
+<p>Zwei Regeln hängen daran, und beide sind die Folge eines Fehlers:</p>
+
+<ul>
+<li>Ein <b>misslungener</b> Strich nimmt den guten davor nicht mit. Wer beim vierten Zug abrutscht, hat sonst die ersten drei verloren. Die Statuszeile sagt, warum aus dem Strich nichts wurde, und der bisherige Vorschlag bleibt stehen.</li>
+<li>Die <b>Vorzugsrichtung</b> des ersten Zuges gilt für alle weiteren. Sonst richtete sich die Innenwand nach sich selbst aus, während die Außenwand daneben eine andere Richtung behielte — und die beiden stünden im Plan schief zueinander. Stehen im Geschoss schon Wände, gilt deren Richtung von Anfang an: eine angebaute Wand soll zum Bestand passen und nicht zu dem Strich, mit dem sie gerade gezogen wurde.</li>
+</ul>
+
+<p><b>Letzter Zug zurück</b> nimmt genau den zuletzt gezogenen Strich aus dem Vorschlag und lässt die übrigen stehen. Wer vier Züge gezeichnet hat und nur mit dem vierten unzufrieden ist, muss nicht alles verwerfen.</p>
+
+<h4 id="k4-8-3">4.8.3 Der Vorschlag ist ein Vorschlag</h4>
+
+<p>Das Skizzenwerkzeug legt <b>nichts</b> im Modell an. Es zeigt den Vorschlag magentafarben über dem grauen Rohstrich, damit Sie sehen, ob die Erkennung getroffen hat, was gemeint war; deutlich schräge Strecken werden dabei eigens gekennzeichnet, damit Sie sie nicht für einen Erkennungsfehler halten.</p>
+
+<p>Dieselbe Regel gilt seit der ersten Fassung für die Bilderkennung, und sie gilt hier aus demselben Grund: eine Erkennung, die ungefragt Geometrie anlegt, ist beim ersten Fehlgriff nicht mehr zu bändigen. Nach drei Strichen stünde ein Modell da, das niemand gezeichnet hat.</p>
+
+<table class="tab">
+<caption>Was in der Skizzenleiste steht und was die Knöpfe tun</caption>
+<thead><tr><th>Element</th><th>Wirkung</th></tr></thead>
+<tbody>
+<tr><td>Zahl und Gesamtlänge</td><td>Wie viele Wände erkannt wurden und wie viele Meter das zusammen sind — die schnellste Kontrolle, ob der Maßstab stimmt.</td></tr>
+<tr><td>„Umriss zu"</td><td>Der Zug ist ein geschlossener Ring. Daraus wird beim Übernehmen ein Raum.</td></tr>
+<tr><td>„… × schräg"</td><td>So viele Strecken lagen über 18° neben der Vorzugsrichtung und bleiben, wie sie gezeichnet wurden.</td></tr>
+<tr><td>Stärke und Art</td><td>Wandstärke und Außen/Innen für alle Vorschläge zugleich — nachträglich änderbar, ohne neu zu zeichnen.</td></tr>
+<tr><td>Letzter Zug zurück</td><td>Nimmt den zuletzt gezogenen Strich heraus. Erscheint erst ab dem zweiten Zug.</td></tr>
+<tr><td>Verwerfen</td><td>Wirft den Vorschlag weg. Im Modell ändert sich nichts.</td></tr>
+<tr><td>Übernehmen</td><td>Legt die Wände an — als <b>ein</b> Schritt in der Historie.</td></tr>
+<tr><td>▼</td><td>Klappt die Leiste zu einer schmalen Zeile zusammen. Sie liegt sonst über dem unteren Teil der Zeichenfläche und fängt dort jede Berührung ab.</td></tr>
+</tbody>
+</table>
+
+<p>Beim Übernehmen werden die Enden an den Bestand angeschlossen: Ein Punkt, der weniger als <b>12 cm</b> von einem vorhandenen Knoten entfernt liegt, bekommt diesen Knoten. Das ist großzügiger als beim Bildimport, der mit 8 cm arbeitet: eine Handskizze ist gröber als eine erkannte Linie. Eine Wand, die es zwischen denselben beiden Knoten schon gibt, entsteht nicht noch einmal; die Leiste meldet dann, wie viele von wie vielen angelegt wurden.</p>
+
+<div class="baustelle"><b>Auf der Baustelle heißt das</b><p>In der Wohnung den Umriss in einem Zug umfahren, nicht absetzen und nicht nachbessern. Übernehmen, und erst dann die Maße richtigstellen — mit dem Auswahlwerkzeug an den Knoten und der Längeneingabe. Das ist schneller, als beim Zeichnen genau sein zu wollen, denn der Strich muss nur die Topologie treffen, nicht das Maß.</p></div>
+
+<h3 id="k4-9">4.9 Freihandnotizen: was neben dem Plan steht</h3>
+
+<p>Auf einem Plan, der auf die Baustelle geht, steht mehr als Geometrie: ein Pfeil und „Steigleitung hier hoch", ein handschriftliches Maß, ein Kringel um die Stelle, an der noch etwas zu klären ist. Dafür gibt es eine eigene Ebene.</p>
+
+<p class="wo">Im Programm: Werkzeug <b>Auf den Plan schreiben</b> (Taste <kbd>K</kbd>), nur im Fachplaner-Modus. Die <b>Notizleiste</b> unten in der Mitte sagt, was der Stift gerade tut.</p>
+
+<h4 id="k4-9-1">4.9.1 Warum sie neben den Beschriftungen liegen und nicht in ihnen</h4>
+
+<p>Eine Beschriftung ist ein Bemaßungs- oder Textobjekt mit Bedeutung für die Auswertung: sie hat Bezugspunkte, einen Versatz, eine Schriftgröße, und sie lässt sich auswerten. Ein Freihandstrich hat nichts davon — er ist eine Randbemerkung.</p>
+
+<div class="merke"><b>Merke</b><p>Wer beides in einen Topf wirft, bekommt Kringel in den Massenauszug. Deshalb liegen die Notizen im Dokument in einem eigenen Block: sie stehen in der Projektdatei und im Geschoss, in dem sie geschrieben wurden, gehen aber in <b>keine</b> Massenermittlung, in keine Heizlast und in keinen Export.</p></div>
+
+<h4 id="k4-9-2">4.9.2 Der Radiergummi</h4>
+
+<p>Radieren sieht nach einer Kleinigkeit aus und ist eine Entscheidung mit Folgen: Was der Radierer erwischt, ist weg. Einer, der zu gierig greift, löscht die Notiz daneben mit; einer, der zu genau ist, zwingt zum Zielen — und Zielen mit dem Stift auf einem wackelnden Tablet ist genau das, was dem Handwerker erspart bleiben soll.</p>
+
+<p>Der Fassradius liegt deshalb bei <b>12 cm</b> im Modell. Das klingt viel; auf einem Blatt 1:50 sind es 2,4 mm, etwa die Breite der Notizlinie selbst. Er wird während des Radierens als Kreis an der Spitze gezeigt — wie weit der Griff reicht, muss man sehen können.</p>
+
+<div class="merke"><b>Merke</b><p>Der Radierer arbeitet <b>strichweise</b>, nicht punktweise: Was die Bahn berührt, fällt ganz. Ein halb weggeriebener Strich sieht nach Zeichnung aus und ist doch keine mehr. Wer nur ein Stück weghaben will, löscht und schreibt neu — auf Papier ist das nicht anders.</p></div>
+
+<p>Geprüft wird der Treffer in <b>beide</b> Richtungen: jeder Punkt der Radierbahn gegen den Strich <i>und</i> jeder Punkt des Strichs gegen die Bahn. Nur so wird auch ein Kreuz erkannt, dessen Balken sich zwischen zwei aufgezeichneten Punkten schneiden. Bei schneller Bewegung liegen die Punkte weit auseinander, und eine einseitige Prüfung ließe genau den Fall durchrutschen, der am häufigsten vorkommt: einmal quer durchgestrichen.</p>
+
+<p>Umgeschaltet wird zwischen <b>Schreiben</b> und <b>Radieren</b> in der Notizleiste. Auf dem Tablet gibt es keine zweite Maustaste und keine Alt-Taste, und der Apple Pencil hat kein Radierende, das der Browser meldet — also muss auf dem Bildschirm stehen, was das Werkzeug gerade tut. Ein Stift, der ein Radierende meldet, wird trotzdem erkannt. Radieren ohne Treffer meldet <span class="zeichen">Nichts getroffen.</span> und ist kein Schritt in der Historie: Wer daneben radiert, soll mit Rückgängig nicht ins Leere greifen.</p>
+
+<h4 id="k4-9-3">4.9.3 Ein- und ausblenden, mitdrucken</h4>
+
+<p>Die Notizebene lässt sich jederzeit ausblenden — in der Notizleiste oder im Reiter <b>Ebenen</b>, wo sie mit der Zahl der Striche des aktiven Geschosses steht. Gelöscht wird dabei nichts. Sie steht dort bei den Ebenen und gehört doch nicht zu ihnen: die übrigen Ebenen sind Modellebenen und liegen im Dokument, die Notizebene ist eine Sache der Ansicht.</p>
+
+<p>„Alle löschen" räumt die Notizen des <b>aktiven Geschosses</b> ab — als ein Schritt, mit <kbd>Strg</kbd> + <kbd>Z</kbd> zurückzunehmen. Dasselbe gilt für jeden einzelnen Radiervorgang.</p>
+
+<div class="warnung"><b>Achtung</b><p>Auf den Ausdruck kommen Handnotizen nur, wenn im Druckdialog <b>Handnotizen</b> angehakt ist. Voreingestellt ist <b>aus</b>, und das mit Absicht: ein Plan, der aus dem Haus geht, trägt keine Bemerkung mit, die niemand bewusst dazugelegt hat.</p></div>
+
+
+<h3 id="k4-10">4.10 Den Grundriss spiegeln</h3>
+
+<p class="lead">Ein eingelesener Plan kommt öfter seitenverkehrt herein, als man denkt: von der Rückseite abfotografiert, aus einem Scanner mit vertauschter Achse, aus einem Raumscan, der die Wohnung gedreht gesehen hat. Bis Fassung 1.28.2 war das nicht zu retten — jedes Aufmaß darauf war spiegelbildlich, und es fiel erst auf, wenn man damit in der Wohnung stand und links rechts war.</p>
+
+<p class="wo">Im Programm: Reiter <b>Prüfung</b> → Abschnitt <b>Aufmaß nachziehen</b> → <b>„↔ links/rechts"</b> und <b>„↕ oben/unten"</b>. Ein Haken daneben stellt um zwischen <em>ganzem Gebäude</em> (samt Grundstück und Referenzbild) und <em>nur diesem Geschoss</em>.</p>
+
+<h4 id="k4-10-1">4.10.1 Was mitgeht — und was ausdrücklich nicht</h4>
+
+<p>Eine Spiegelung ist mehr als „x wird zu minus x". An einem Grundriss hängen Größen, die <b>kein Punkt sind und trotzdem eine Seite haben</b>:</p>
+
+<table class="tab">
+<caption>Was beim Spiegeln passiert</caption>
+<thead><tr><th>Größe</th><th>Was mit ihr geschieht</th><th>Warum</th></tr></thead>
+<tbody>
+<tr><td>Knotenlagen</td><td>gespiegelt</td><td>Das ist die eigentliche Rechnung.</td></tr>
+<tr><td>Öffnungsmitte (Abstand ab Wandanfang)</td><td><b>bleibt</b></td><td>Sie wird längs der Wandachse gemessen, und die Wand behält ihren Anfangs- und Endknoten. Wer sie mitspiegelt, verschiebt jede Tür an die falsche Stelle.</td></tr>
+<tr><td>Türanschlag (Bandseite)</td><td><b>bleibt</b></td><td>Auch er zählt längs der Achse.</td></tr>
+<tr><td>Aufschlagseite der Tür</td><td>kippt</td><td>Sie steht auf der Wandnormalen, und die kehrt sich um. Ohne das schlägt jede Tür nach dem Spiegeln in den Nachbarraum auf.</td></tr>
+<tr><td>Drehung von Heizkörper, Treppe, Deckendurchbruch</td><td>θ wird 180° − θ</td><td>Sonst zeigt der Heizkörper in die Wand statt in den Raum.</td></tr>
+<tr><td>Dachrichtung, Ausblasrichtung der Wärmepumpe</td><td>Azimut a wird −a</td><td>Ost und West tauschen. <b>Das ist nicht dieselbe Formel</b> wie bei der Drehung: Der Azimut zählt von Nord und im Uhrzeigersinn.</td></tr>
+<tr><td>Versatz einer Maßkette</td><td>Vorzeichen kippt</td><td>Links und rechts tauschen.</td></tr>
+<tr><td>Referenzbild</td><td>wird seitenverkehrt aufgetragen</td><td>Sonst passt der Plan nicht mehr zum Bild darunter.</td></tr>
+<tr><td>Räume, Flächen, Heizlast</td><td>werden neu erkannt</td><td>Sie sind abgeleitet. Eine Spiegelung legt nichts an und löscht nichts.</td></tr>
+</tbody>
+</table>
+
+<div class="merke"><b>Merke</b><p>Gespiegelt wird um die <b>Mitte dessen, was da ist</b>. Der Grundriss bleibt also liegen, wo er liegt — er springt nicht aus dem Bild. Und zweimal an derselben Achse spiegeln ist nichts tun: Das ist nicht bloß eine angenehme Eigenschaft, sondern die Definition. Wäre es nicht so, wäre es keine Spiegelung, sondern eine Drehung.</p></div>
+
+<p><b>Strg+Z nimmt es zurück</b>, in einem Schritt.</p>
+
+<h4 id="k4-10-2">4.10.2 Der Umfang: ganzes Gebäude oder ein Geschoss</h4>
+
+<p>Voreingestellt ist das ganze Gebäude, und das ist die Antwort, die nie schadet: Danach stehen die Geschosse wieder übereinander. Nur ein Geschoss zu spiegeln ist richtig, wenn Sie gerade <em>einen</em> Plan eingelesen haben und die übrigen schon stimmen — das weiß aber nur der Mensch davor, deshalb steht das Sichere als Vorgabe und das andere als Haken daneben.</p>
+
+<p>Das Grundstück wandert nur beim ganzen Gebäude mit. Es gehört keinem Geschoss; ein mitgedrehtes Grundstück beim Spiegeln eines einzelnen Geschosses wäre ein Fehler, den niemand sucht.</p>
 
 </section>

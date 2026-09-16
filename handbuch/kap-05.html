@@ -156,7 +156,7 @@
 
 <p>Aus der Lauflinie folgt alles Weitere: die Stufenlinien stehen senkrecht darauf und fächern deshalb an einem Knick auf, genau wie in einer Bauzeichnung. Der Richtungspfeil sitzt am Austritt, der Antritt ist die erste Stufe. Beides wird im Grundriss so gezeichnet, wie es auch auf dem Ausdruck erscheint — dieselbe Rechnung, nicht zwei.</p>
 
-<!--SYMBOLTAFEL:treppen-->
+<!-- SYMBOLTAFEL:treppen -->
 
 <h4 id="k5-5-2">5.5.2 Steigungsverhältnis und Austrittsmaß</h4>
 
@@ -210,7 +210,7 @@
 
 <p>Ein Schornstein steht im Obergeschoss genauso im Weg wie im Erdgeschoss. Er beginnt am Feuerraum und geht bis übers Dach; in den Geschossen dazwischen wird er als <b>Durchdringung</b> gezeichnet — dasselbe Bauteil, aber schwächer, damit man sieht, dass es nicht zu diesem Geschoss gehört. Er bleibt dabei massiv, denn dort <i>ist</i> Mauerwerk. Pfeiler und Wandversatz gehören dagegen zu genau einem Geschoss.</p>
 
-<!--SYMBOLTAFEL:bauteile-->
+<!-- SYMBOLTAFEL:bauteile -->
 
 <div class="warnung"><b>Achtung</b><p>Ein Schornstein an einer Außenwand ist eine Wärmebrücke. Das Programm führt ihn als Eingangsgröße, rechnet ihn aber <b>nicht</b> als Wärmebrücke mit. Wenn er ins Gewicht fällt, gehört er in den längenbezogenen Nachweis nach <a href="#k7-4">Abschnitt 7.4</a>.</p></div>
 
@@ -227,6 +227,7 @@
 <li>Schächte, massive Bauteile und das Dach über dem aktiven Geschoss.</li>
 <li>Die TGA-Objekte und das verlegte Rohrnetz.</li>
 <li>Auf Wunsch das Gelände mit Grundstück, Wärmepumpe und Wärmequelle.</li>
+<li>Durchbrüche als echte Aussparungen in Wand und Decke (<a href="#k5-8">Abschnitt 5.8</a>).</li>
 </ul>
 
 <h4 id="k5-7-2">5.7.2 Wie Sie sie steuern</h4>
@@ -239,16 +240,190 @@
 <tr><td>Iso</td><td>Klassische Isometrie von Südwesten, ohne Perspektive — für den Modellblick.</td></tr>
 <tr><td>Top</td><td>Senkrecht von oben, ebenfalls ohne Perspektive.</td></tr>
 <tr><td>Gelände</td><td>Blendet Grundstück und Außenanlagen aus. Bei einem großen Grundstück nimmt es sonst den größten Teil des Bildes ein.</td></tr>
+<tr><td>Begehen</td><td>Wechselt von der Umlaufkamera in die Ich-Perspektive. Siehe <a href="#k5-7-3">Abschnitt 5.7.3</a>.</td></tr>
 <tr><td>Einpassen</td><td>Setzt Kamera und Drehpunkt so, dass das Gebäude formatfüllend sitzt.</td></tr>
 </tbody>
 </table>
 
 <p>Die Geometrie wird nur dann neu gebaut, wenn sich Knoten, Wände, Öffnungen oder Räume ändern. Kamerabewegungen lösen keinen Neuaufbau aus, und im reinen 2D-Modus läuft die Ansicht gar nicht mit. Deshalb bleibt das Zeichnen flüssig, auch wenn beide Ansichten nebeneinander stehen.</p>
 
-<h4 id="k5-7-3">5.7.3 Was sie nicht ist</h4>
+<h4 id="k5-7-3">5.7.3 Begehen: durch das Haus laufen</h4>
+
+<p>„Begehen" setzt die Kamera auf Augenhöhe — 1,65 m über dem Fertigfußboden — und lässt Sie durch das Modell laufen. Das ist keine Spielerei: eine Tür, die beim Aufgehen gegen einen Heizkörper schlägt, ein Durchgang, der zu schmal ist, ein Sturz auf 1,90 m — das alles sieht man von oben nicht und im Grundriss auch nicht.</p>
+
+<table class="tab">
+<caption>Die Steuerung beim Begehen</caption>
+<thead><tr><th>Gerät</th><th>Gehen</th><th>Umsehen</th></tr></thead>
+<tbody>
+<tr><td>Rechner</td><td><kbd>W</kbd> <kbd>A</kbd> <kbd>S</kbd> <kbd>D</kbd> oder die Pfeiltasten; <kbd>Umschalt</kbd> beschleunigt</td><td>Maus ziehen, oder einmal klicken für den Mauszeigerfang</td></tr>
+<tr><td>Tablet</td><td>Das Steuerkreuz unten links — es folgt dem Daumen und springt beim Loslassen in die Mitte zurück</td><td>Mit dem Finger über das Bild wischen</td></tr>
+</tbody>
+</table>
+
+<p>Sie gehen nicht durch Wände. Das Programm zerlegt jede Wand in Hindernisse und lässt die Öffnungen aus, durch die man tatsächlich gehen kann — Durchgänge mit einer Schwelle unter 5 cm und <b>Türen, die offen stehen</b> (siehe unten). Ein Fenster mit 90 cm Brüstung ist keines. Die Bewegung wird dabei in Teilschritte zerlegt, die kleiner sind als der Körperradius; ohne das liefe man bei schneller Bewegung durch eine 24er Wand hindurch, weil der Start- und der Zielpunkt beide frei sind und nur die Strecke dazwischen nicht.</p>
+
+<p>Steckt man dennoch fest — zwischen zwei Wänden, die 50 cm auseinanderstehen —, bleibt die Bewegung stehen, statt sich freizurechnen. Das ist die ehrlichere Antwort: an dieser Stelle passt niemand durch, und genau das soll man merken.</p>
+
+<p>Die Kamera trägt eine kleine Leuchte mit sich. Ohne sie wäre ein innenliegendes Bad ein schwarzes Rechteck, denn die Szene hat nur Himmelslicht und keine Deckenleuchten.</p>
+
+<h4 id="k5-7-3b">5.7.3b Türen öffnen und schließen</h4>
+
+<p>Bis Fassung 1.28.2 war im Begehen-Modus jede Tür ein Loch: Man ging durch das Haus, als stünde überall nur die Zarge. Das ist bequem und beantwortet genau die Frage nicht, für die es diesen Modus gibt — ob das Haus sich richtig anfühlt.</p>
+
+<p><b>Beim Betreten sind alle Türen zu.</b> Sie öffnen und schließen die Tür, auf die Sie schauen, mit der Taste <kbd>E</kbd>.</p>
+
+<div class="merke"><b>Merke</b><p>Welche Tür gemeint ist, entscheidet der <b>Blick</b> und nicht der Abstand. In einem Flur stehen zwei Türen nebeneinander; ein reiner Abstandstest griffe bei jedem zweiten Versuch nach der falschen. Gewertet wird deshalb nach Abstand <em>und</em> Richtung: Eine Tür hinter dem Rücken zählt nicht, und unter zwei Türen vor einem gewinnt die, die näher an der Blickachse liegt. Reichweite: 1,60 m — Armlänge plus ein Schritt.</p></div>
+
+<p>Das Blatt braucht rund sieben Zehntelsekunden, bis es ganz aufsteht. Das ist keine Zierde: Wer es sofort auf 72° springen ließe, sähe nicht, <em>wohin</em> es aufgeht — und genau das ist im Modell die interessante Auskunft. Eine Tür, die gegen den Heizkörper schlägt, sieht man nur beim Aufgehen.</p>
+
+<p>Eine Tür gilt als offen, sobald sie mehr als halb aufsteht. Das ist eine Entscheidung und kein Kompromiss: Wer durch eine Tür geht, während sie aufschwingt, soll nicht am letzten Zentimeter hängenbleiben — und wer sie hinter sich zuzieht, soll nicht schon beim Anfassen ausgesperrt sein.</p>
+
+<div class="warnung"><b>Achtung</b><p>In der <b>Umlaufansicht</b> stehen alle Türen offen, und das ist Absicht. Dort ist die offene Tür ein <em>Zeichen</em>: Sie sagt auf einen Blick, wohin sie aufgeht, und dafür wird sie seit jeher mit 72° gezeichnet. Eine geschlossene Tür sähe dort aus wie eine Wand. Im begehbaren Modus ist sie dagegen ein <em>Bauteil</em>. Zwei Fragen an dasselbe Ding, zwei Antworten.</p></div>
+
+<p>Ob eine Tür offen steht, ist <b>keine Eigenschaft des Gebäudes</b> und wird deshalb nicht gespeichert, nicht exportiert und nicht in die Historie geschrieben. Eine Tür aufzumachen wäre sonst ein Bearbeitungsschritt, den Strg+Z zurücknimmt.</p>
+
+<h4 id="k5-7-3c">5.7.3c Der Kompass</h4>
+
+<p>Links oben in der 3D-Ansicht steht eine <b>Kompassrose</b>. Die Nadel bleibt auf Norden stehen, die Rose dreht sich darunter — genau wie ein Kompass in der Hand. Im Grundriss steht dieselbe Rose rechts oben und dreht sich <em>nicht</em>: Dort ist sie eine Angabe über das Blatt, hier die Antwort auf „in welche Richtung schaue ich gerade".</p>
+
+<p>Wie Sie die Nordrichtung einstellen, steht in <a href="#k7-6">Abschnitt 7.6</a>.</p>
+
+<h4 id="k5-7-4">5.7.4 In 3D anfassen und setzen</h4>
+
+<p>In der 3D-Ansicht lässt sich nicht nur schauen. Ein Klick wählt aus, was unter dem Zeiger liegt — ein TGA-Objekt, eine Wand oder einen Raum; Ziehen verschiebt ein gewähltes Objekt entlang der Fläche, auf der es sitzt. Ist das Werkzeug „Heizung, Sanitär, Lüftung setzen" aktiv, setzt ein Klick in den Raum ein neues Objekt dorthin.</p>
+
+<p>Der Nutzen ist derselbe wie beim Begehen: einen Heizkörper unter das Fenster zu hängen, ist im Grundriss eine Zahl, in der Ansicht ein Blick. Ziehen Sie mit gedrückter <kbd>Umschalt</kbd>-Taste, ändern Sie statt der Lage die <b>Höhe über Fertigfußboden</b> — so hängt man einen Heizkörper höher oder setzt einen Verteiler auf seine Konsole.</p>
+
+<div class="merke"><b>Merke</b><p>Was Sie in 3D verschieben, verschieben Sie im Modell. Es ist dieselbe Zeichnung, nicht eine zweite: der Grundriss zeigt die Änderung sofort, und der Export auch.</p></div>
+
+<h4 id="k5-7-5">5.7.5 Was sie nicht ist</h4>
 
 <div class="warnung"><b>Achtung</b><p>Die 3D-Ansicht ist eine <b>Kontrollansicht</b>, kein Rendering und kein Nachweis. Sie hat keine Materialien, keine Sonnenstandsberechnung und keine Verschattung. Sie taugt dazu, einen Fehler zu finden — eine Wand auf dem falschen Geschoss, ein Fenster in der falschen Wand, ein Treppenauge an der falschen Stelle. Sie taugt nicht als Bild für den Bauherrn und nicht als Grundlage für eine Aussage über Belichtung, Verschattung oder Optik.</p></div>
 
 <div class="baustelle"><b>Auf der Baustelle heißt das</b><p>Nach jedem neu angelegten Geschoss einmal auf Iso schalten und von schräg oben schauen. Stehen die Geschosse übereinander statt ineinander? Sitzt die Treppe in beiden Ebenen an derselben Stelle? Ist die Decke geschlossen, wo sie geschlossen sein soll? Das sind dreißig Sekunden, die eine halbe Stunde Fehlersuche im Raumbuch ersparen.</p></div>
+
+<h3 id="k5-8">5.8 Durchbrüche und Bohrungen</h3>
+
+<p>Ein Durchbruch ist das Bauteil mit dem größten Verhältnis von Folgeschaden zu Größe. Er ist zehn Zentimeter groß und kostet im Rohbau fünf Minuten. Steht er nicht auf dem Plan, wird er nachträglich gebohrt: durch einen Ringanker, durch eine fertig geflieste Wand, oder gar nicht — worauf die Leitung einen Meter Umweg nimmt und zwei Bögen mehr bekommt.</p>
+
+<p class="wo">Im Programm: Werkzeug <b>Durchbruch setzen</b> (Taste <kbd>U</kbd>). In der Kontextleiste stehen die Regelmaße, nach Art gruppiert: Kernbohrungen, rechteckige Wanddurchbrüche, Schlitze und Deckendurchbrüche.</p>
+
+<h4 id="k5-8-1">5.8.1 Warum das ein eigenes Bauteil ist</h4>
+
+<p>Eine Kernbohrung ließe sich auch als Loch in der Anzeige führen: man malt einen Kreis in die Wand, und in der 3D-Ansicht fehlt dort Material. Das reicht genau so lange, bis jemand danach bohrt. Dann braucht er die Nennweite, die Höhe über Fertigfußboden, die Wand, in der gebohrt wird, und die Anforderung an die Schottung — und all das steht in keinem Loch, sondern nur in einem Bauteil.</p>
+
+<p>Ebenso wenig ist ein Durchbruch eine weitere Art von Öffnung. Eine Öffnung ist ein Bauteil mit Fläche, U-Wert und Orientierung: Fenster und Türen mindern die Wandfläche und gehen als eigene Hüllfläche in die Heizlast ein. Eine Kernbohrung von 100 mm tut das nicht. Führte man sie als Öffnung, zöge sie stillschweigend 0,018 m² von der Wandfläche ab, erschiene in der Hüllflächenliste des Exports und verlangte einen U-Wert, den niemand angeben kann. Umgekehrt bekäme der Durchbruch alles, was eine Öffnung mitbringt — Anschlag, Flügelzahl, g-Wert —, und nichts, was er braucht.</p>
+
+<div class="merke"><b>Merke</b><p>Ein Durchbruch mindert <b>keine</b> Wandfläche und trägt <b>keinen</b> U-Wert. Er wird geschottet, nicht gerechnet. Was er leistet, steht auf dem Plan und im Massenauszug: Lage, Maß, Höhe und die Anforderung an die Schottung.</p></div>
+
+<h4 id="k5-8-2">5.8.2 Die vier Arten</h4>
+
+<table class="tab">
+<caption>Durchbruchsarten und wo sie sitzen</caption>
+<thead><tr><th>Art</th><th>Wirt</th><th>Was sie ist</th></tr></thead>
+<tbody>
+<tr><td>Kernbohrung</td><td>Wand</td><td>Rundbohrung, gebohrt. Regelmaße von Ø 52 (Elektro) bis Ø 162 (Lüftung).</td></tr>
+<tr><td>Wanddurchbruch</td><td>Wand</td><td>Rechteckiger Ausbruch, gestemmt oder gesägt — für eine Trasse statt einer einzelnen Leitung.</td></tr>
+<tr><td>Wandschlitz</td><td>Wand</td><td>Eine Vertiefung, kein Durchgang. Für eine Leitung, die in der Wand liegt statt hindurchzugehen.</td></tr>
+<tr><td>Deckendurchbruch</td><td>Decke</td><td>Loch in der Geschossdecke. Steht frei im Grundriss und nicht in einer Wand.</td></tr>
+</tbody>
+</table>
+
+<!-- SYMBOLTAFEL:durchbrueche -->
+
+<h4 id="k5-8-3">5.8.3 Er sitzt in der Wand, nicht auf dem Blatt</h4>
+
+<p>Ein Wanddurchbruch wird nicht als Punkt im Grundriss gespeichert, sondern als <b>Abstand auf der Wandachse</b> — genau wie Fenster und Türen. Das ist der ganze Grund für die Bauart: verschieben Sie die Wand, wandert der Durchbruch mit; drehen Sie sie, dreht er sich mit. Ein Durchbruch, der als Weltpunkt gespeichert wäre, bliebe beim ersten Verschieben der Wand neben ihr liegen — sichtbar an der richtigen Stelle im Raum, gemeint an der falschen Stelle im Bauteil.</p>
+
+<p>Deshalb braucht das Werkzeug eine Wand: Sie tippen auf oder neben eine Wand, und der Durchbruch setzt sich auf deren Achse. Die Vorschau zeigt dabei nicht Ihren Zeiger, sondern die Stelle in der Wand, an der er landen wird. Findet sich keine Wand in Reichweite — anderthalb Meter, großzügig bemessen für den Finger auf dem Tablet —, entsteht nichts, und die Statuszeile sagt warum.</p>
+
+<p>Der Deckendurchbruch ist der Gegenfall: er hat keine Wand und steht frei im Grundriss. Er gehört dem Geschoss <b>unter</b> der Decke, denn dort wird er eingemessen. Im Geschoss darüber erscheint er gestrichelt und abgeschwächt als Loch im Fußboden — dieselbe Zweifachsicht wie beim Treppenauge, und aus demselben Grund: was dort liegt, gehört dem Geschoss darunter und ist dort auch nur dort anzufassen.</p>
+
+<h4 id="k5-8-4">5.8.4 Höhe: Achse oder Unterkante</h4>
+
+<p>Die Höhenangabe bedeutet je nach Form zweierlei, und der Unterschied ist kein Detail:</p>
+
+<ul>
+<li>Bei <b>runder</b> Form ist es die <b>Achshöhe</b>. Danach wird angerissen — man setzt den Bohrer auf die Mitte.</li>
+<li>Bei <b>rechteckiger</b> Form ist es die <b>Unterkante</b>. Danach wird gestemmt — man reißt die untere Kante an.</li>
+</ul>
+
+<p>Beides in ein Feld zu legen ist Absicht: auf der Baustelle wird nie beides zugleich gebraucht. Die Eigenschaftsleiste benennt deshalb, welches von beiden gerade gemeint ist, statt zwei Felder anzubieten, von denen eines immer falsch ausgefüllt wird.</p>
+
+<h4 id="k5-8-5">5.8.5 Auf dem Plan</h4>
+
+<p>Im Plan ist ein Durchbruch ein <b>gekreuztes Feld</b>: der Umriss mit zwei Diagonalen darin. Das Kreuz ist kein Schmuck. Es unterscheidet das Loch vom Bauteil — beide sind im Plan Rechtecke, und ein ungekreuztes Rechteck in einer Wand liest jeder Prüfer als Vormauerung.</p>
+
+<p>Die Beschriftung sitzt als <b>Fahne über</b> dem Loch und nicht darin. Bei 1:100 ist eine Kernbohrung Ø 152 anderthalb Millimeter groß; darin passt keine Zahl. Die Fahne trägt in dieser Reihenfolge: Maß, Höhe über Fertigfußboden, Brandschutzklasse — <span class="zeichen">Ø152 · 0,30 m · R 90</span>. Das ist die Reihenfolge, in der auf der Baustelle gefragt wird.</p>
+
+<h4 id="k5-8-6">5.8.6 In der 3D-Ansicht</h4>
+
+<p>Ein Durchbruch wird in 3D als echte Aussparung aus der Wand geschnitten — durch dieselbe Zerlegung, die auch Fenster und Türen aussparen lässt. Sie sehen also tatsächlich hindurch und nicht auf eine aufgemalte Markierung. Zwei Fälle sind davon ausgenommen:</p>
+
+<ul>
+<li>Der <b>Schlitz</b>: er geht nicht durch die Wand. Ein Loch daraus zu machen wäre falsch — man sähe durch eine Wand, die steht.</li>
+<li>Ein Durchbruch, der sich mit einem <b>Fenster oder einer Tür überlagert</b>: dort ist schon ein Loch. Er wird stillschweigend übergangen, weil die Wandzerlegung sich überlagernde Aussparungen nicht sauber auflösen kann und statt zweier Löcher ein fehlendes Wandstück entstünde.</li>
+</ul>
+
+<p>Runde Bohrungen werden dabei als ihr umschreibendes Quadrat ausgeschnitten. In einer Ansicht, die das ganze Haus zeigt, ist der Unterschied zwischen einem Kreis und einem Quadrat auf zehn Zentimetern nicht wahrnehmbar; jeder runde Querschnitt kostete dagegen eine Zylinderverschneidung je Bohrung.</p>
+
+<p>Ein Deckendurchbruch schneidet die Geschossdecke — dieselbe Platte, in der auch ein Treppenauge sitzt. Damit ist die 3D-Ansicht die schnellste Kontrolle für einen Strang: Schauen Sie von schräg unten, und Sie sehen, ob die Löcher in allen Geschossen übereinanderliegen.</p>
+
+<h4 id="k5-8-7">5.8.7 Brandschutz und Massenauszug</h4>
+
+<p>Jeder Durchbruch trägt eine Brandschutzanforderung: ohne Anforderung, R 30, R 60, R 90 oder R 120. Das ist bewusst die <b>Anforderung</b> und nicht das Produkt — welches Schott gesetzt wird, entscheidet der Ausführende nach seiner Zulassung. Was der Plan liefern muss, ist die Anforderung, und zwar so, dass sie im Massenauszug steht.</p>
+
+<p>Im Massenauszug erscheinen Durchbrüche als eigenes Gewerk, und zwar <b>an erster Stelle</b>: gebohrt wird, bevor verlegt oder verputzt wird. Gruppiert wird nach Art, lichtem Maß, Gewerk und Brandschutzklasse — drei gleiche Bohrungen ergeben eine Position mit der Menge 3. Die Schottung steht als <b>eigene</b> Position daneben und nicht als Zusatz in der Bemerkung: die Bohrung macht der Rohbau, die Schottung der Brandschützer, und die beiden schreiben getrennte Rechnungen.</p>
+
+<div class="warnung"><b>Achtung</b><p>Die Durchmesser im Regelmaßkatalog sind <b>Bohrkronenmaße</b> und gehen von einer üblichen Dämmstärke aus. Wer nach Vollmaß dämmt, braucht die nächstgrößere Krone. Deshalb steht die Nennweite als eigenes Feld daneben und wird nicht aus dem Durchmesser zurückgerechnet. Und: eine Kernbohrung in einer tragenden Wand ist nachweispflichtig. Dieses Programm erbringt den Nachweis nicht — es zeichnet das Loch und zählt es.</p></div>
+
+<h4 id="k5-8-8">5.8.8 Was die Prüfung meldet</h4>
+
+<table class="tab">
+<caption>Befunde zu Durchbrüchen im Prüfbericht</caption>
+<thead><tr><th>Befund</th><th>Bedeutet</th></tr></thead>
+<tbody>
+<tr><td>Verwaist</td><td>Die durchbrochene Wand fehlt im Modell. Der Durchbruch wird deshalb <b>nicht</b> gelöscht — ein Loch, das jemand eingetragen hat, verschwindet nicht dadurch, dass die Wand neu gezogen wurde. Er bleibt sichtbar in der Liste und im Export.</td></tr>
+<tr><td>Passt nicht</td><td>Breiter als die Wand lang, über das Wandende hinausragend, oder über die lichte Geschosshöhe hinaus.</td></tr>
+<tr><td>Überschneidung</td><td>Zwei Durchbrüche überlagern sich in derselben Wand — waagerecht <i>und</i> senkrecht. Zwei Bohrungen übereinander in derselben Achse sind erlaubt und üblich (Vorlauf oben, Rücklauf unten) und geben keinen Befund.</td></tr>
+<tr><td>Zu groß</td><td>Größer als ein Viertel der Wandlänge. Ab dieser Größe ist es kein Durchbruch mehr, sondern ein Wandausschnitt — statisch nachweisen lassen oder als Durchgang zeichnen.</td></tr>
+</tbody>
+</table>
+
+<div class="baustelle"><b>Auf der Baustelle heißt das</b><p>Setzen Sie die Durchbrüche, <i>bevor</i> Sie das Rohrnetz auslegen, nicht danach. Der Grund ist nicht technisch, sondern menschlich: wer zuerst die Trasse zieht, setzt die Löcher dorthin, wo die Leitung schon liegt — auch wenn dort ein Sturz, ein Ringanker oder ein Fenster ist. Wer zuerst die Löcher setzt, führt die Leitung dorthin, wo gebohrt werden darf.</p></div>
+
+
+<h3 id="k5-9">5.9 Einen eingelesenen Grundriss einem Geschoss zuordnen</h3>
+
+<p class="lead">Ein Aufmaß beginnt selten im Erdgeschoss. Wer eine Wohnung im ersten Stock aufmisst, liest genau diesen einen Grundriss ein — und bekam bis Fassung 1.28.2 ein Gebäude mit einem einzigen Geschoss, das auf Erdreich steht.</p>
+
+<p>Für die Heizlast ist das in beide Richtungen falsch: Der Boden der Wohnung grenzt nicht an Erdreich, sondern an ein Geschoss darunter, und dieses Geschoss fehlt ganz — mitsamt seiner Decke, die die Wohnung von unten begrenzt. Das ist der Unterschied zwischen einer Erdreichrechnung nach DIN EN ISO 13370 und einer Innenbauteilfläche, die in die Transmission gar nicht eingeht.</p>
+
+<p class="wo">Im Programm: Reiter <b>Prüfung</b> → Abschnitt <b>Aufmaß nachziehen</b> → <b>„Dieser Grundriss ist das …"</b>. Zur Auswahl stehen KG, EG, 1. OG, 2. OG und 3. OG; daneben ein Haken <b>„neue Geschosse mit dem Außenwandumriss anlegen"</b>.</p>
+
+<h4 id="k5-9-1">5.9.1 Was dabei passiert</h4>
+
+<ol>
+<li><b>Die vorhandenen Geschosse wandern gemeinsam</b> um dieselbe Zahl von Ordnungen. Ihre Anordnung untereinander bleibt damit genau so, wie sie eingelesen wurde; nur der Bezug zum Erdgeschoss ändert sich.</li>
+<li><b>Es entstehen genau die Geschosse, die fehlen</b> — die zwischen dem Erdgeschoss und dem zugeordneten. Nicht mehr. Sie bekommen die lichte Höhe des zugeordneten Geschosses; eine bessere Annahme gibt es nicht, solange niemand dort war.</li>
+<li><b>Die Höhenlagen werden neu gestapelt.</b> Das Erdgeschoss liegt auf 0,00 m, und alles Vorhandene wandert um dieselbe Summe. Die Abstände zwischen den vorhandenen Geschossen bleiben unangetastet — eine eingelesene Höhenlage ist eine Messung.</li>
+<li><b>Die Namen ziehen nach</b>, aber nur die Lagenamen. „EG" und „1. OG" beschreiben eine Position und ändern sich mit ihr; „Dachboden" oder „Wohnung Müller" bleiben stehen — sie sagen mehr, als aus der Position folgt.</li>
+<li><b>Die Randbedingungen ziehen nach.</b> Nur das unterste Geschoss steht auf Erdreich. Wer ein Geschoss unter sich hat, bekommt „angrenzender Raum" — und wer eines über sich bekommt, verliert „gegen unbeheizt" an der Decke.</li>
+</ol>
+
+<div class="beispiel"><b>Beispiel zum Nachrechnen</b>
+<p>Ein eingelesenes Geschoss, 2,60 m licht, auf 0,00 m, Boden auf Erdreich. Sie stellen „1. OG" ein.</p>
+<p>Deckenstärke 0,25 m (Annahme des Programms: 20 cm Stahlbeton, 4 cm Estrich, 1 cm Belag).<br>
+Geschosshöhe insgesamt: 2,60 + 0,25 = <b>2,85 m</b>.</p>
+<p>Danach: Neues <b>EG</b> auf 0,00 m mit 2,60 m lichter Höhe, Boden auf Erdreich, Decke gegen den Raum darüber. Ihr Grundriss heißt <b>1. OG</b>, liegt auf <b>2,85 m</b>, sein Boden grenzt an einen Raum, seine Decke bleibt gegen unbeheizt.</p>
+</div>
+
+<h4 id="k5-9-2">5.9.2 Der Außenwandumriss darunter</h4>
+
+<p>Mit gesetztem Haken bekommt jedes neu angelegte Geschoss den <b>Außenwandumriss</b> des eingelesenen: Achse, Stärke, Wandart und Bauteilaufbau. Das ist derselbe Weg wie „Außenwände übernehmen" in der Geschossleiste (siehe 5.3), nur in einem Schritt.</p>
+
+<div class="warnung"><b>Achtung</b><p><b>Öffnungen wandern nicht mit.</b> Fenster sitzen im Geschoss darunter anders — andere Räume, andere Brüstungshöhen, eine Haustür statt eines Treppenauges. Ein mitkopiertes Fenster wäre eine Behauptung über ein Geschoss, das niemand aufgemessen hat, und es ginge als Fensterfläche unmittelbar in die Heizlast und in den solaren Gewinn ein. Eine fehlende Öffnung dagegen sieht man beim ersten Blick auf den Plan.</p></div>
+
+<p>Alles zusammen ist <b>ein Schritt in der Historie</b>: Ein Strg+Z nimmt Geschosse, Höhen, Namen und Wände gemeinsam zurück.</p>
 
 </section>

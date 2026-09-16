@@ -13,12 +13,48 @@ import html
 import json
 import pathlib
 import re
+import subprocess
 import sys
 
-HIER = pathlib.Path('/home/claude/handbuch')
-ZIEL = pathlib.Path('/home/claude/RaVia-CAD-Light-Handbuch.html')
-VERSION = '1.14.0'
-STAND = '29.08.2026'
+# Repo-relativ, nicht absolut: Die Quelle liegt seit 1.29.0 im Projekt und
+# nicht mehr in einem Verzeichnis, das mit dem Behälter verschwindet. Genau
+# das ist einmal passiert — der Bau von 1.23.0 ist verloren, weil die
+# Kapitelfragmente außerhalb des Projekts lagen.
+HIER = pathlib.Path(__file__).resolve().parent
+# Gebaut wird **dorthin, wo ausgeliefert wird**. Ein Handbuch, das neben dem
+# Projekt liegt und von Hand kopiert werden muss, wird beim dritten Mal nicht
+# mehr kopiert.
+ZIEL = HIER.parent / 'server' / 'app' / 'handbuch.html'
+VERSION = '1.29.0'
+
+
+def pruefungen() -> str:
+    """
+    Wie viele Prüfungen hinter den Zahlen stehen — **aus dem Prüflauf**, nicht
+    von Hand eingetragen.
+
+    Eine von Hand gepflegte Zahl stimmt bis zur nächsten Änderung; danach
+    behauptet das Deckblatt etwas, das nicht mehr gilt. Schlimmer: Sie
+    behauptet es auch dann, wenn der Prüflauf gerade rot ist. Ein Handbuch,
+    das „5.140 Prüfungen" auf das Deckblatt schreibt, während zwölf davon
+    fallen, ist an der ersten Zeile unglaubwürdig — deshalb bricht der Bau
+    hier ab, statt eine alte Zahl weiterzureichen.
+    """
+    lauf = subprocess.run(
+        ['npm', 'run', '--silent', 'verify'],
+        cwd=HIER.parent, capture_output=True, text=True,
+    )
+    treffer = re.search(r'ALLE TESTS BESTANDEN — (\d+)/\1', lauf.stdout)
+    if not treffer:
+        letzte = [z for z in lauf.stdout.splitlines() if z.strip()][-3:]
+        sys.exit('Der Prüflauf ist nicht grün — das Handbuch wird nicht gebaut.\n  '
+                 + '\n  '.join(letzte))
+    zahl = int(treffer.group(1))
+    return f'{zahl:,}'.replace(',', '.')
+
+
+PRUEFUNGEN = pruefungen()
+STAND = '16.09.2026'
 
 # ---------------------------------------------------------------------------
 # 1 · Kapitel einlesen
@@ -31,21 +67,12 @@ def lies(name: str) -> str:
     return p.read_text(encoding='utf-8')
 
 teile: list[str] = []
+# Kapitel 13 kam einmal aus drei Lieferungen; seit die Quelle aus dem
+# ausgelieferten Handbuch zurückgewonnen wurde (1.29.0), liegt es wie jedes
+# andere als eine Datei da. Die Sonderbehandlung ist damit weg — sie war der
+# Grund, warum sich eine Ersetzung im Deckblatt unbemerkt verlaufen konnte.
 for nr in range(1, 19):
-    if nr == 13:
-        # Kapitel 13 kommt aus drei Lieferungen und wird hier zu einem Kapitel.
-        inhalt = ''.join(lies(f'kap-13{b}.html') for b in ('a', 'b', 'c'))
-        teile.append(
-            '<section id="kap-13" class="kapitel" data-titel="13 · Die Rechenwege">'
-            '<h2 id="k13">13 · Die Rechenwege</h2>'
-            '<p class="lead">Jede Formel, die in diesem Programm läuft — zuerst in Worten, '
-            'dann als Rechnung, dann mit einem Zahlenbeispiel zum Nachrechnen und der Quelle. '
-            'Das ist das längste Kapitel des Handbuchs, und es ist zum Nachschlagen gedacht, '
-            'nicht zum Durchlesen.</p>'
-            + inhalt + '</section>'
-        )
-    else:
-        teile.append(lies(f'kap-{nr:02d}.html'))
+    teile.append(lies(f'kap-{nr:02d}.html'))
 
 roh = '\n'.join(teile)
 
@@ -154,14 +181,29 @@ STIL = (HIER / 'stil.css').read_text(encoding='utf-8')
 SKRIPT = (HIER / 'skript.js').read_text(encoding='utf-8')
 DECKBLATT = (HIER / 'deckblatt.html').read_text(encoding='utf-8')
 
-# Die Kennzahlen auf dem Deckblatt werden **gezählt**, nicht gepflegt. Eine von
-# Hand eingetragene Zahl stimmt bis zur nächsten Änderung; danach behauptet das
-# Deckblatt etwas, das drei Zeilen weiter widerlegt wird.
 kacheln_gesamt = sum(len(t['kacheln']) for t in tafeln.values())
-DECKBLATT = (DECKBLATT
-    .replace('>18<', f'>{len(teile)}<')
-    .replace('>97<', f'>{kacheln_gesamt}<')
-    .replace('>1.14.0<', f'>{VERSION}<'))
+deckblatt = DECKBLATT
+
+# Die Kennzahlen auf dem Deckblatt werden **ersetzt, nicht gepflegt** — und
+# jede Ersetzung muss genau einmal treffen.
+#
+# **Warum diese Strenge.** Bis 1.23.0 suchte die Ersetzung eine Zeichenkette,
+# die es im Deckblatt längst nicht mehr gab. Eine nicht gefundene Ersetzung
+# meldet sich nicht; auf dem Deckblatt stand deshalb über Fassungen hinweg
+# eine alte Nummer. Ein Handbuch, das seinen eigenen Stand falsch angibt, ist
+# an der ersten Zeile unglaubwürdig.
+def setze(text: str, muster: str, wert: str, was: str) -> str:
+    treffer = re.findall(muster, text)
+    if len(treffer) != 1:
+        sys.exit(f'Deckblatt: „{was}" wurde {len(treffer)}-mal gefunden, erwartet genau einmal.')
+    return re.sub(muster, wert, text)
+
+deckblatt = setze(deckblatt, r'(?<=<b>Fassung )[0-9]+\.[0-9]+\.[0-9]+(?=</b>)', VERSION, 'Fassung im Fließtext')
+deckblatt = setze(deckblatt, r'(?<=<div><b>)\d+(?=</b><span>Kapitel)', str(len(teile)), 'Kapitelzahl')
+deckblatt = setze(deckblatt, r'(?<=<div><b>)\d+(?=</b><span>erklärte Symbole)', str(kacheln_gesamt), 'Symbolzahl')
+deckblatt = setze(deckblatt, r'(?<=<div><b>)[0-9.]+(?=</b><span>Programmstand)', VERSION, 'Programmstand')
+deckblatt = setze(deckblatt, r'(?<=<div><b>)[0-9.]+(?=</b><span>Prüfungen)', PRUEFUNGEN, 'Prüfungszahl')
+DECKBLATT = deckblatt
 
 seite = f"""<!DOCTYPE html>
 <html lang="de">

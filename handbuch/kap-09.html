@@ -38,7 +38,7 @@
 </tbody>
 </table>
 
-<!--SYMBOLTAFEL:leitungen-->
+<!-- SYMBOLTAFEL:leitungen -->
 
 <p><b>Warum die Strichart überhaupt existiert.</b> Ein Plan wird kopiert, gefaxt, ausgedruckt und in der Baustellenbude an die Wand geheftet. Spätestens beim zweiten Schwarzweißdruck sind aus Rot, Orange und Purpur drei gleiche Grautöne geworden. Die Strichart überlebt das: durchgezogen, gestrichelt, strichpunktiert und gepunktet sind die vier Strichbilder, die jeder Drucker und jede Kopie überstehen. Weil es neun Leitungsarten gibt und nur vier Grundbilder, sind fünf davon abgewandelt — länger, kürzer, mit einem zweiten Punkt.</p>
 
@@ -161,6 +161,30 @@
 
 <p>Im <b>Neubau</b> sind Türöffnungen unkritisch — die Leitung läuft unter der Schwelle durch. Sie werden trotzdem aufgeführt, weil dort die Aufbauhöhe und die Bewegungsfuge des Estrichs zu prüfen sind.</p>
 
+<h4 id="k9-4-3b">9.4.3b Wo die Trasse langläuft: Wandnähe und Verkehrsfläche</h4>
+
+<p class="lead">„Rohre quer durch den Raum ist auch doof, vor allem wenn ein Heizkreisverteiler da ist — dann schlängelt der sich mit." Genau das tat die Wegsuche bis Fassung 1.28.2: Sie kannte nur „kurz" und „Randfuge meiden" und schickte die Anbindeleitungen auf dem kürzesten Weg durch das Wohnzimmer, notfalls durch drei hintereinander.</p>
+
+<p>Verlegt wird anders — gebündelt über den Flur, Abzweig an der Zimmertür. Zwei Zahlen sorgen seit 1.29.0 dafür, und beide wirken erst zusammen.</p>
+
+<p><b>Die erste macht die Raummitte teuer.</b> Die Fachregel (IKZ, „Rohrleitungen im Fußbodenaufbau") verlangt eine geordnete, wandparallele Verlegung — damit der Estrichleger und der spätere Bohrer wissen, woran sie sind. Ein Meter in der Raummitte, also rund 2 m von der Wand, kostet die Wegsuche jetzt das <b>Dreifache</b> eines Meters an der Wand. Der Weg am Rand gewinnt damit, solange er nicht mehr als dreimal so lang ist wie die Durchquerung; um ein quadratisches Zimmer herum ist er doppelt so lang.</p>
+
+<p><b>Die zweite macht den Flur billig.</b> Ein Meter im Flur zählt wie <b>0,4 m</b> im Wohnzimmer — der Umweg über die Verkehrsfläche wird also genommen, solange er weniger als zweieinhalbmal so lang ist wie die Durchquerung.</p>
+
+<table class="tab">
+<caption>Wegegewicht je Raumnutzung — der Preis eines Meters, gemessen in Metern Wohnzimmer</caption>
+<thead><tr><th>Nutzung</th><th>Gewicht</th><th>Bedeutung</th></tr></thead>
+<tbody>
+<tr><td>Flur</td><td>0,40</td><td>Verkehrsfläche — dafür ist sie da.</td></tr>
+<tr><td>Küche, Bad, WC, Abstellen, Technik, ohne Angabe</td><td>0,67</td><td>Eine Leitung stört, aber wenig. Der Umweg wird genommen, wenn er weniger als die Hälfte länger ist.</td></tr>
+<tr><td>Wohnen, Schlafen, Arbeiten</td><td>1,00</td><td>Der Bezugswert. Hier wird gewohnt.</td></tr>
+</tbody>
+</table>
+
+<div class="merke"><b>Merke</b><p>Der <b>Aufenthaltsraum</b> trägt den Bezugswert 1 und nicht der Flur. Das ist keine Geschmacksfrage: Der Zuschlag für einen Türdurchgang in der Sanierung ist in Metern bemessen (siehe 9.4.1). Machte man die Wohnräume teurer, statt den Flur billiger, wüchse jeder Umweg im selben Maß — und der fest in Metern angeschriebene Türzuschlag wäre plötzlich ein Drittel wert.</p></div>
+
+<p>Die Zahlen sind <b>keine Normwerte</b>. Es gibt zur Trassenführung durch Aufenthaltsräume keine Fachregel. Es ist eine Rangfolge, und sie ist an dem bemessen, was sie schlagen soll: Um ein Zimmer von 5 × 4 m herum statt hindurch sind rund 9 m statt 5 m, also Faktor 1,8; zwei Zimmer in Reihe kommen auf etwa 2,2. Bei 2,5 gewinnt der Flurweg in diesen Fällen und verliert dort, wo er absurd würde.</p>
+
 <h4 id="k9-4-4">9.4.4 Der Volumenstrom je Abschnitt</h4>
 
 <p>Der Volumenstrom ist die eine Größe, an der alles hängt. Er entsteht nicht am Rohr, sondern am Verbraucher, und wandert von dort rückwärts durch den Baum: <b>jeder Abschnitt trägt die Summe der Verbraucher, die über ihn versorgt werden.</b> Genau dafür liefert die Trassensuche zu jedem Abschnitt die Liste seiner Verbraucher — ohne sie müsste man den Stamm raten.</p>
@@ -224,7 +248,7 @@
 
 <p>Eine Armatur sitzt auf einem Abschnitt an einer Stelle, die aus der Trasse folgt: das T-Stück am Abzweig, der Bogen am Richtungswechsel, die Entlüftung am Hochpunkt, die Entleerung am Tiefpunkt. Anders als die Bauteile des Anlagenschemas (<a href="#k11">Kapitel 11</a>) hat sie eine <b>Lage im Grundriss</b>.</p>
 
-<!--SYMBOLTAFEL:armaturen-->
+<!-- SYMBOLTAFEL:armaturen -->
 
 <table class="tab">
 <caption>Die zwölf Armaturen und Formstücke</caption>
@@ -507,4 +531,25 @@
 </table>
 
 <div class="baustelle"><b>Auf der Baustelle heißt das</b><p>Wenn ein Heizkörper trotz sichtbar angeschlossener Leitung als „nicht angeschlossen“ gemeldet wird, prüfen Sie zwei Dinge: Liegt das Leitungsende wirklich innerhalb von 30 cm am Symbol? Und stoßen die beiden Leitungsenden am Abzweig wirklich zusammen — 6 cm sind die Grenze. Beides sehen Sie im Plan erst, wenn Sie weit genug hineinzoomen. Der zuverlässigste Weg ist, beim Verlegen den letzten Klick auf das Symbol zu setzen; dann steht die Anbindung ausdrücklich im Modell und wird von keiner Näherung mehr in Frage gestellt.</p></div>
+
+<h3 id="k9-9">9.9 Wie viele Rohrmeter in welchem Raum liegen</h3>
+
+<p class="lead">Ein Heizkreisverteiler in der Diele sammelt alle Kreise des Geschosses; über den Flur laufen sie gebündelt ab. Diese Leitungen geben ihre Wärme dort ab, wo sie <em>liegen</em> — nicht dort, wohin sie führen.</p>
+
+<p>Für die Heizlast ist das keine Kleinigkeit. Ein Flur mit zwanzig Metern gebündelter Anbindeleitung im Estrich kann darüber vollständig beheizt sein; wer ihm zusätzlich einen Heizkörper gibt, baut ihn doppelt beheizt.</p>
+
+<p class="wo">Im Programm: Reiter <b>Räume</b> → <b>Raumbuch</b>. Neben der Heizleistung steht seit 1.29.0 die Zahl der Rohrmeter, die in diesem Raum liegen; darunter eine Summe für das ganze Projekt. Auch im CSV-Auszug des Raumbuchs (Spalte „Rohr im Raum [m]").</p>
+
+<h4 id="k9-9-1">9.9.1 Die Zuordnung ist geometrisch</h4>
+
+<p>Gezählt wird, was über der <b>lichten Raumfläche</b> liegt. Ein Abschnitt, der durch drei Räume läuft, wird an den Raumgrenzen geteilt; jeder Raum bekommt seinen Anteil. Meter über keinem erkannten Raum — über einer Wand, in einem Schacht, außerhalb des Grundrisses — fallen heraus; sie einem Nachbarraum zuzuschlagen wäre eine Behauptung. Sie stehen weiterhin im Längenauszug.</p>
+
+<p>Gerechnet wird je Geschoss: Ein Abschnitt wird nur gegen die Räume <em>seines</em> Geschosses gehalten. Ohne diese Einschränkung landeten die Meter des Obergeschosses im Erdgeschoss — die Grundrisse liegen ja übereinander.</p>
+
+<h4 id="k9-9-2">9.9.2 Was hier ausdrücklich nicht gerechnet wird</h4>
+
+<div class="merke"><b>Merke</b><p>Die <b>Wärmeabgabe selbst</b> steht hier nicht. Sie folgt aus Vorlauftemperatur, Dämmstärke, Rohrwerkstoff, Verlegeart und der Umgebung des Rohres, und ihr Verfahren gehört in die Heizlastberechnung (DIN EN 12831-1, DIN EN 1264). CAD Light liefert das, was die Rechnung braucht und nur die Zeichnung weiß: <b>wo</b> die Meter liegen, getrennt nach Gewerk, Nennweite und Dämmstärke. Eine Wattzahl an zwei Stellen zu führen hieße, dass die zweite altert.</p></div>
+
+<p>Die Angabe reist mit dem Export zur Gegenstelle (siehe 17.1) — dort als <code>pipeLengths</code> an jedem Raum.</p>
+
 </section>

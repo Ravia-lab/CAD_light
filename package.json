@@ -38,6 +38,8 @@
     "smoke:mappe": "node scripts/smoke-mappe.mjs",
     "smoke:einzeldatei": "node scripts/pruef-einzeldatei.mjs",
     "smoke:einzeldatei-scan": "node scripts/pruef-einzeldatei-scan.mjs",
+    "handbuch:tafeln": "esbuild scripts/handbuch-symbole.ts --bundle --platform=node --format=esm --outfile=node_modules/.cache/handbuch-symbole.mjs --log-level=warning && node node_modules/.cache/handbuch-symbole.mjs",
+    "handbuch": "npm run handbuch:tafeln && python3 handbuch/bauen.py",
     "handbuch:bilder": "node scripts/handbuch-bilder.mjs",
     "handbuch:abhilfen": "esbuild scripts/handbuch-abhilfen.ts --bundle --platform=node --format=esm --outfile=node_modules/.cache/handbuch-abhilfen.mjs --log-level=warning && node node_modules/.cache/handbuch-abhilfen.mjs",
     "bench": "esbuild scripts/bench.ts --bundle --platform=node --format=esm --outfile=node_modules/.cache/bench.mjs --log-level=warning && node node_modules/.cache/bench.mjs",

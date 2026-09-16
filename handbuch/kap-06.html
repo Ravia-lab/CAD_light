@@ -8,7 +8,7 @@
 
 <p class="wo">Im Programm: Reiter <b>Dach</b>. Bewusst wenige Eingaben: Form, Neigung, Kniestock, Firstrichtung. Alles andere — Firsthöhe, Dachfläche, Wohnfläche, Volumen — wird daraus abgeleitet und sofort daneben angezeigt.</p>
 
-<h4 id="k6-1-1">6.1.1 Die vier Formen</h4>
+<h4 id="k6-1-1">6.1.1 Die sieben Formen</h4>
 
 <table class="tab">
 <caption>Dachformen</caption>
@@ -17,9 +17,14 @@
 <tr><td>Flachdach / horizontale Decke</td><td>Keine Schräge. Die Decke bleibt waagerecht, alles rechnet wie im Regelgeschoss.</td></tr>
 <tr><td>Satteldach</td><td>Zwei Flächen gleicher Neigung, der First dazwischen. Der First kann aus der Mitte versetzt werden.</td></tr>
 <tr><td>Pultdach</td><td>Eine Fläche. Der First sitzt an der oberen Kante, das Dach fällt bis zur gegenüberliegenden Traufe durch.</td></tr>
-<tr><td>Walmdach</td><td>Von allen vier Seiten geneigt. Der First liegt mittig, seine Höhe folgt der <b>kürzeren</b> Gebäudeseite — dort treffen sich die Walme.</td></tr>
+<tr><td>Walmdach</td><td>Von allen Seiten geneigt. Über einem bekannten Gebäudeumriss folgt es diesem Umriss — siehe 6.1.4.</td></tr>
+<tr><td>Krüppelwalmdach</td><td>Satteldach mit abgeschrägter Giebelspitze. Wie viel abgewalmt ist, stellen Sie in Prozent ein: 0 % wäre ein Satteldach, 100 % ein Walmdach.</td></tr>
+<tr><td>Mansarddach</td><td>Zwei Neigungen übereinander mit einem Knick dazwischen: unten steil, oben flach. Sie geben die steile Neigung, die flache und die Höhe des Knicks an.</td></tr>
+<tr><td>Flachdach mit Gefälle</td><td>Geometrisch ein Pultdach, im Bauantrag etwas anderes: Attika, innenliegende Entwässerung. Die Neigung beginnt bei 1° — die Flachdachrichtlinie des ZVDH empfiehlt mindestens 2 % Gefälle, das sind rund 1,15°.</td></tr>
 </tbody>
 </table>
+
+<div class="merke"><b>Merke</b><p>Ein <b>Zeltdach</b>, ein <b>Kreuzdach</b> und ein <b>Walmkehldach</b> stehen nicht in dieser Liste, und das ist kein Versehen: Es sind <em>Walmdächer über einem anderen Grundriss</em>. Ein Walmdach über einem Quadrat hat keinen First, sondern eine Spitze — das ist das Zeltdach. Über einem L bekommt es im einspringenden Winkel eine Kehle — das ist das Walmkehldach. Über einem Kreuz vier Grate und vier Kehlen. Sie stellen also nicht die Dachform um, sondern zeichnen den Grundriss, den das Gebäude hat.</p></div>
 
 <h4 id="k6-1-2">6.1.2 Die vier Eingaben</h4>
 
@@ -55,6 +60,51 @@
 </div>
 
 <div class="merke"><b>Merke</b><p>Alle Höhenangaben des Dachs sind <b>lichte Höhen über Rohfußboden des Dachgeschosses</b> — nicht Höhen über Gelände und nicht Rohbaumaße. Für die Traufhöhe über Gelände müssen Sie die Höhenlagen der Geschosse hinzurechnen.</p></div>
+
+<h4 id="k6-1-4">6.1.4 Das Walmdach folgt dem Grundriss — und was daraus entsteht</h4>
+
+<p>Bis Fassung 1.26.0 rechnete jedes Dach auf dem <b>umschließenden Rechteck</b> des Grundrisses. Bei einem rechteckigen Haus ist das dasselbe; bei einem L-förmigen lief das Dach über den Innenwinkel hinweg. Nicht nur im Bild: Raumvolumen, Wohnfläche nach WoFlV, Dachfläche je Himmelsrichtung und Giebelflächen waren systematisch falsch — unbemerkt, weil die Zahlen plausibel aussehen.</p>
+
+<p>Seit 1.27.0 gilt für das Walmdach über einem bekannten Gebäudeumriss eine einzige Zeile:</p>
+
+<div class="formel">
+  <p class="worte">In Worten: Die lichte Höhe an einer Stelle ist der Kniestock plus dem Abstand dieser Stelle zur nächsten Außenkante, multipliziert mit der Steigung. Je weiter man von der Traufe weg ist, desto höher wird es — und zwar von <em>jeder</em> Traufe aus gemessen, nicht nur von zweien.</p>
+  <p class="math">h(p) = Kniestock + Abstand(p, Gebäudeumriss) · tan(Neigung)</p>
+</div>
+
+<p>Das ist die Höhenfunktion des sogenannten Straight Skeleton. <b>Grate und Kehlen entstehen daraus von selbst</b> — ein Grat dort, wo zwei Kanten gleich weit entfernt sind, eine Kehle im einspringenden Winkel. Nachgemessen am L-Haus: im Innenwinkel 1,414 m lichte Höhe statt der 5,00 m aus dem Rechteck, und die Firsthöhe 3,515 m statt 7,10 m.</p>
+
+<div class="warnung"><b>Achtung</b><p>Sattel-, Pult-, Krüppelwalm- und Mansarddach haben eine <b>gerade Firstlinie</b> — das ist ihre Definition, und daran ändert ein verwinkelter Grundriss nichts. Die Traufe folgt dem Umriss, der First nicht. Ein Satteldach mit <em>einer</em> Firstlinie über einem L ist bautechnisch keine vollständige Lösung; in Wirklichkeit bekäme der Seitenflügel einen eigenen First und eine Kehle. Das lässt sich aus einer Firstrichtung nicht ableiten — es ist eine Planungsentscheidung. Das Programm baut sie deshalb nicht heimlich ein, sondern stellt den Befund in die Prüfliste.</p></div>
+
+<h4 id="k6-1-5">6.1.5 Krüppelwalm: wie viel abgewalmt ist</h4>
+
+<p>Der Krüppelwalm ist das Dach dazwischen: ein Satteldach, dessen Giebelspitze abgeschrägt ist. Die Eingabe heißt <b>„Giebel abgewalmt"</b> und steht in Prozent, vom First abwärts gemessen.</p>
+
+<p>Bei 50 % und einem First auf 6,00 m über Kniestock 1,00 m liegt der Fuß der abgewalmten Fläche auf 6,00 − 0,5 · (6,00 − 1,00) = <b>3,50 m</b>. Bis dorthin steht unten eine senkrechte Giebelwand, darüber liegt die Schräge.</p>
+
+<p class="wo">Warum ein Anteil und keine Höhe: Eine Höhe müsste nachgezogen werden, sobald sich Neigung, Kniestock oder Spannweite ändern — sonst stünde der Walm plötzlich über dem First oder unter der Traufe. Der Anteil bleibt in jedem Fall gültig.</p>
+
+<div class="merke"><b>Merke</b><p>Die beiden Ränder sind kein Sonderfall, sondern fallen mit den bekannten Formen zusammen: Bei <b>0 %</b> rechnet das Programm Punkt für Punkt dasselbe wie beim Satteldach, bei <b>100 %</b> dasselbe wie beim Walmdach. Genau das prüft der Prüflauf — nicht gegen eine Zahl, sondern gegen zwei unabhängig geschriebene Formeln.</p></div>
+
+<h4 id="k6-1-6">6.1.6 Mansarddach: zwei Neigungen mit Knick</h4>
+
+<p>Beim Mansarddach ist die Neigung im Feld <b>„Neigung unten (steil)"</b> die kennzeichnende — sie schafft den Wohnraum. Dazu kommen <b>„Neigung oben (flach)"</b> und der <b>Mansardknick</b>, also die Höhe über Rohfußboden, in der steil in flach übergeht.</p>
+
+<div class="beispiel"><b>Beispiel zum Nachrechnen</b>
+<p>Haus 10,00 × 8,00 m, Kniestock 1,00 m, unten 70°, oben 30°, Knick auf 2,20 m. Der First läuft in Längsrichtung, die halbe Spannweite ist also 5,00 m.</p>
+<p>Waagerechter Weg von der Traufe bis zum Knick: (2,20 − 1,00) / tan 70° = 1,20 / 2,747 = <b>0,437 m</b>.<br>
+Abstand des Knicks von der Firstachse: 5,00 − 0,437 = <b>4,563 m</b>.<br>
+Firsthöhe: 2,20 + 4,563 · tan 30° = 2,20 + 2,635 = <b>4,835 m</b>.</p>
+<p>Zum Vergleich: Ein Satteldach mit 70° käme auf 1,00 + 5,00 · 2,747 = 14,74 m. Das ist der Grund, aus dem man ein Mansarddach baut.</p>
+</div>
+
+<div class="warnung"><b>Achtung — die Dachfläche, nicht die Grundfläche</b><p>Die geneigte Dachfläche ist die Grundfläche geteilt durch den Kosinus der Neigung. Bei zwei Neigungen sind das zwei verschiedene Faktoren, und sie liegen weit auseinander: 1/cos 70° = 2,92 gegen 1/cos 30° = 1,15. Das Programm rechnet deshalb seit 1.29.0 <b>je Rasterzelle mit der dort geltenden Neigung</b>. Bis dahin galt eine Neigung für das ganze Dach — bei einem Mansarddach wäre die obere Dachfläche zweieinhalbmal zu groß gemeldet worden, und damit der Transmissionsverlust des größten Bauteils im Dachgeschoss.</p></div>
+
+<h4 id="k6-1-7">6.1.7 Flachdach mit Gefälle</h4>
+
+<p>Ein Flachdach ist nie ganz flach — es braucht Gefälle, damit das Wasser abläuft. Geometrisch rechnet diese Form Punkt für Punkt wie ein Pultdach; sie steht trotzdem als eigene Form da, weil sie im Bauantrag etwas anderes ist: Attika statt Traufe, innenliegende Entwässerung statt Rinne, und ein anderer Name im Formular.</p>
+
+<p>Die Neigung beginnt deshalb bei 1° statt bei 5° und lässt sich in halben Grad einstellen. Die Flachdachrichtlinie des ZVDH empfiehlt mindestens 2 % Gefälle; das sind rund 1,15°. Darunter ist es ein Nulldach mit erhöhten Anforderungen an die Abdichtung.</p>
 
 <h3 id="k6-2">6.2 Die Raumhöhe unter der Schräge</h3>
 

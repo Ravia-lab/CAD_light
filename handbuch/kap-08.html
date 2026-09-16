@@ -26,7 +26,7 @@
 
 <p>Die Symbole selbst folgen dem, was in der TGA-Planung üblich ist: der Heizkörper ein Rechteck mit Lamellen, das Luftventil ein Kreis mit vier gerichteten Pfeilen, das Sanitärobjekt ein Umriss mit Ablaufpunkt. Sie sind bewusst schlank gezeichnet — ein Grundriss soll unter der Technik lesbar bleiben.</p>
 
-<!--SYMBOLTAFEL:tga-->
+<!-- SYMBOLTAFEL:tga -->
 
 <h3 id="k8-2">8.2 Der Katalog, Objekt für Objekt</h3>
 
@@ -333,6 +333,28 @@
 <p>Steht im Geschoss kein Heizkreisverteiler, weist der Abschnitt ausdrücklich darauf hin, bevor Sie den Knopf drücken.</p>
 
 <p>Die eigentliche Auslegung — wie viel Leistung ein Quadratmeter Fußbodenheizung abgibt, wie viele Kreise ein Raum braucht, wie hoch der Druckverlust im Kreis ist und wo die Grenze der Oberflächentemperatur liegt — steht in <a href="#k13-6">Abschnitt 13.6</a>. Dieses Kapitel beschreibt nur, <i>wo</i> das Rohr liegt.</p>
+
+
+<h4 id="k8-5-9">8.5.9 Die Rohre im Modell</h4>
+
+<p>Seit Fassung 1.29.0 liegen die Rohre der Fußbodenheizung auch in der <b>3D-Ansicht</b> im Estrich. Bis dahin war der Boden dort eine glatte Platte, obwohl das Programm jeden Meter Rohr kannte.</p>
+
+<p>Für den Verleger ist das die entscheidende Ansicht: Er sieht in <em>einem</em> Bild, ob die Schlange um den Kamin herumkommt, ob sich die Anbindungen im Flur häufen und wo ein Kreis quer durch einen anderen Raum müsste.</p>
+
+<table class="tab">
+<caption>Was Sie im Modell sehen</caption>
+<thead><tr><th>Darstellung</th><th>Bedeutung</th></tr></thead>
+<tbody>
+<tr><td>Volle Farbe der Heizung</td><td>Die verlegte Schlange — genau die Linie, die auch der Grundriss zieht.</td></tr>
+<tr><td>Durchscheinend</td><td>Die <b>Anbindeleitung</b> vom Verteiler zum Kurvenanfang. Sie zeigt die <em>kürzeste Verbindung</em> und nicht die verlegte Trasse: Die läuft an Wänden entlang, durch Türdurchgänge und im Bündel mit den Nachbarkreisen. Ein Modell, das sie wie gelegtes Rohr zeichnet, behauptet eine Lage, die niemand aufgemessen hat.</td></tr>
+</tbody>
+</table>
+
+<p>Maß der Darstellung: 16 × 2 mm Verbundrohr, 4 cm über Oberkante Rohdecke — also im Estrich und damit über einem etwaigen Bodenbelag. Beides sind Darstellungsmaße; gerechnet wird mit diesen Zahlen nichts.</p>
+
+<div class="merke"><b>Merke</b><p>Gezeichnet wird mit geraden Stücken entlang derselben Polylinie, die der Grundriss zieht — <b>keine geglättete Schlauchkurve</b>. Eine geglättete Kurve sähe gefälliger aus und läge an den Kehren woanders als die Linie im Plan. Genau an den Kehren entscheidet sich aber, ob der Verlegeabstand eingehalten ist. Plan und Modell müssen dieselbe Verlegung zeigen, sonst glaubt man keinem von beiden.</p></div>
+
+<p class="wo">Die Rohre hängen an der Ebene <b>Heizung</b>: Wer das Gewerk ausblendet, blendet auch den Estrichinhalt aus.</p>
 
 <h3 id="k8-6">8.6 Das Lüftungskonzept</h3>
 

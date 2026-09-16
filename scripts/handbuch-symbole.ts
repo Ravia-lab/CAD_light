@@ -13,7 +13,7 @@
  * daraus. Das Symbol im Handbuch ist damit Strich für Strich dasselbe Symbol
  * wie im Programm.
  *
- * Ausgabe: `/home/claude/handbuch/tafeln.json` — je Tafel eine Liste aus
+ * Ausgabe: `handbuch/tafeln.json` im Projekt — je Tafel eine Liste aus
  * Kachel, SVG und Beschriftung. Der Handbuchbau setzt sie an die Stellen, wo
  * `<!--SYMBOLTAFEL:name-->` steht.
  */
@@ -600,5 +600,13 @@ const rahmen = (inhalt: string, w: number, h: number): string =>
   };
 }
 
-writeFileSync('/home/claude/handbuch/tafeln.json', JSON.stringify(tafeln, null, 1), 'utf8');
+// Repo-relativ, nicht absolut: Die Handbuchquelle liegt seit 1.29.0 im
+// Projekt. Ein absoluter Pfad in einen Behälter hinein hat den Bau von
+// 1.23.0 gekostet — die Datei war beim nächsten Start nicht mehr da.
+// Der Pfad wird vom Aufrufer gesetzt (`npm run handbuch:tafeln` ruft aus der
+// Projektwurzel) und nicht aus `import.meta.url` abgeleitet: Das Bündel
+// landet in einem Zwischenverzeichnis, und dessen Lage hat mit der Quelle
+// nichts zu tun. Ein absoluter Pfad in einen Behälter hinein hat den Bau von
+// 1.23.0 gekostet — die Datei war beim nächsten Start nicht mehr da.
+writeFileSync('handbuch/tafeln.json', JSON.stringify(tafeln, null, 1), 'utf8');
 for (const [name, t] of Object.entries(tafeln)) console.log(`  ${name}: ${t.kacheln.length} Kacheln (${t.grund})`);

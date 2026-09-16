@@ -2,7 +2,7 @@
 <h2 id="k17">17 · Schnittstellen: Export, IFC, Einbettung in RaVia</h2>
 <p class="lead">Alles, was dieses Programm tut, läuft auf eine Datei zu: die Übergabe an die Heizlastberechnung. Dieses Kapitel sagt, was in dieser Datei steht, welche anderen Wege es daneben gibt — IFC4 hin und zurück, Einbettung in RaVia, der Rückweg von dort — und was der Betrieb davon merkt.</p>
 
-<h3 id="k17-1">17.1 Der Export <code>ravia.bim.light</code> v2.0.0</h3>
+<h3 id="k17-1">17.1 Der Export <code>ravia.bim.light</code> v2.2.0</h3>
 
 <p class="wo">Im Programm: Werkzeugleiste oben rechts → blauer Knopf <b>RaVia JSON</b>. Der Knopf trägt den Hinweis „Gebäudedaten als RaVia-BIM-JSON exportieren (DIN EN 12831) — dient zugleich als Projektdatei".</p>
 
@@ -26,23 +26,26 @@
 <caption>Die Blöcke des Exports</caption>
 <thead><tr><th>Block</th><th>Was darin steht</th></tr></thead>
 <tbody>
-<tr><td><code>schema</code>, <code>version</code></td><td>Formatname <code>ravia.bim.light</code> und Fassung <code>2.0.0</code>.</td></tr>
+<tr><td><code>schema</code>, <code>version</code></td><td>Formatname <code>ravia.bim.light</code> und Fassung <code>2.2.0</code> — siehe 17.1.6.</td></tr>
 <tr><td><code>generator</code>, <code>exportedAt</code></td><td>Welches Programm in welcher Fassung die Datei geschrieben hat, und wann.</td></tr>
 <tr><td><code>units</code></td><td>Die Einheiten aller Zahlen im Dokument: m, m², m³, °C, W/(m²·K), W, m³/h, Grad. Sie stehen im Dokument selbst und nicht in einer Beschreibung, die verlorengeht.</td></tr>
-<tr><td><code>conventions</code></td><td>Sieben Absätze Klartext: wie der Azimut zählt, wie die Koordinaten liegen, was brutto und netto heißt, was die Randbedingungen bedeuten, wie erdberührte Flächen entstehen, was ein massives Bauteil ist und — der längste Absatz — was die Lüftungsfelder bedeuten und was man nicht addieren darf.</td></tr>
+<tr><td><code>conventions</code></td><td>Neun Absätze Klartext: wie der Azimut zählt, wie die Koordinaten liegen, was brutto und netto heißt, was die Randbedingungen bedeuten, wie erdberührte Flächen entstehen, was der Baugrund erfasst, was ein massives Bauteil ist, was ein Durchbruch ist und ausdrücklich nicht ist, und — der längste Absatz — was die Lüftungsfelder bedeuten und was man nicht addieren darf.</td></tr>
 <tr><td><code>project</code></td><td>Der Projektkopf: Name, Nordabweichung, Norm-Außentemperatur, Standard-Innentemperatur, n50, Abschirmung, Temperatur unbeheizter Bereiche, Erdreichtemperatur, Geländeoberkante, Wärmebrückenverfahren und -zuschlag, Wiederaufheizfaktor, Absenkbetrieb, Lüftungsanlage.</td></tr>
 <tr><td><code>subsoil</code></td><td>Der Baugrund: Bodenart im Klartext, größte Einbindetiefe, erdberührte Fläche und — falls erfasst — der Grundwasserstand. Der Block fehlt, wenn das Gebäude das Erdreich nirgends berührt.</td></tr>
 <tr><td><code>levels</code></td><td>Die Geschosse mit Höhenlage, Höhe, Boden- und Decken-U-Wert und deren Randbedingung.</td></tr>
 <tr><td><code>constructions</code></td><td>Der Bauteilkatalog. Die U-Werte an den Flächen verweisen hierauf — damit ist nachvollziehbar, woher ein U-Wert stammt.</td></tr>
 <tr><td><code>verticals</code></td><td>Treppen und Schächte: Fläche, Breite, Länge, Stufenzahl, in welchen Raum sie fallen und ob sie die Decke darüber offen lassen.</td></tr>
 <tr><td><code>solids</code></td><td>Massive Bauteile ohne Raumfunktion — Kamin, Pfeiler, Wandversatz. Mit Umriss, Fläche, Volumen und den Eingangsgrößen für die Wärmebrücke an der Außenwand.</td></tr>
+<tr><td><code>durchbrueche</code></td><td>Durchbrüche und Bohrungen — Kernbohrung, Wanddurchbruch, Wandschlitz, Deckendurchbruch. Ausführungsangaben, keine Rechengrößen: Lage, lichtes Maß, Höhe, Gewerk und die Anforderung an die Schottung — siehe unten.</td></tr>
 <tr><td><code>pipes</code>, <code>pipeSchedule</code>, <code>pipeNetwork</code></td><td>Die einzelnen Leitungsabschnitte, der Längenauszug (Meter je Gewerk, Nennweite und Dämmstärke) und das Strangschema: je Verbraucher der Weg zu seiner Quelle, dazu Quellen, Steigstränge, nicht angeschlossene Objekte und der ungünstigste Fließweg.</td></tr>
+<tr><td><code>emitters</code></td><td>Je Heizfläche ein Rechenfall: Norm- und Betriebspunkt, Heizkörperexponent, Baumaße, bei Flächenheizung die Eingangsgrößen nach DIN EN 1264. Jede Zahl trägt ihre Herkunft — gemessen, eingegeben, gerechnet oder angenommen —, und was fehlt, steht im Klartext daneben. Der Block ist leer, solange keine Heizfläche gezeichnet ist.</td></tr>
+<tr><td><code>hydraulics</code></td><td>Die Vorbemessung des hydraulischen Abgleichs, ausdrücklich als solche gekennzeichnet: je Verbraucher k<sub>v</sub>, Drosselbedarf, Ventilautorität und Voreinstellung. Gerechnet wird der Abgleich in RaVia; der Block ist der Stand, den die Zeichnung selbst hergibt. Fehlt, solange kein Rohrnetz gezeichnet ist.</td></tr>
 <tr><td><code>heatPump</code></td><td>Außenanlage und Wärmepumpe. Fehlt, solange im Lageplan nichts steht.</td></tr>
 <tr><td><code>plant</code></td><td>Die Anlagentechnik: Gerät, Speicher, Auslegungstemperaturen, Heizkreise, Sicherheitsausrüstung nach DIN EN 12828, Trinkwarmwasser und das Anlagenschema als Bauteile und Verbindungen. Fehlt, solange kein Gerät gewählt wurde.</td></tr>
 <tr><td><code>rooms</code></td><td>Der Kern. Je Raum die Kennwerte und darin die Liste aller Hüllbauteile — siehe unten.</td></tr>
 <tr><td><code>totals</code></td><td>Die Gebäudesummen: Räume, Nutzfläche, Bruttofläche, Luftvolumen, Außenwand- und Fensterfläche, Fensterflächenanteil, Kompaktheit A/V, installierte Heizleistung, Zahl der TGA-Objekte je Gewerk, die Wärmebrückenbilanz, der Absenkbetrieb und die Luftbilanz.</td></tr>
 <tr><td><code>validation</code></td><td>Der Prüfbericht — dieselbe Prüfung wie im Reiter <b>Prüfung</b>: Zahl der Fehler, Warnungen und Hinweise, die Kennzeichnung „rechenfähig" und jeder Befund einzeln mit Befundcode, Meldung, betroffenem Objekt und Handlungsanweisung.</td></tr>
-<tr><td><code>geometry</code></td><td>Die Rohgeometrie: Knoten, Wände, Öffnungen, TGA-Objekte, Treppen, massive Bauteile, Leitungen, Beschriftungen, Dachöffnungen. Damit ist die Datei verlustfrei wieder einlesbar.</td></tr>
+<tr><td><code>geometry</code></td><td>Die Rohgeometrie: Knoten, Wände, Öffnungen, TGA-Objekte, Treppen, massive Bauteile, <b>Durchbrüche</b>, Leitungen, Beschriftungen, Dachöffnungen, dazu das <b>Grundstück</b> (<code>site</code>) und — falls welche im Plan liegen — die <b>Handnotizen</b> (<code>freihand</code>). Damit ist die Datei verlustfrei wieder einlesbar.</td></tr>
 </tbody>
 </table>
 
@@ -60,6 +63,59 @@
 
 <p>Eine Öffnung trägt Kennung, Art (Fenster, Tür, Durchgang), Breite, Höhe, Fläche, Brüstungshöhe, Himmelsrichtung, Azimut, U-Wert und bei Fenstern den g-Wert.</p>
 
+<p><b>Je Durchbruch</b></p>
+
+<p>Der Block <code>durchbrueche</code> steht seit Fassung 1.21.0 in der Datei. Er steht <b>neben</b> den Hüllbauteilen und nicht darin, und das ist die ganze Aussage des Blocks: ein Durchbruch ist eine Ausführungsangabe und keine Rechengröße. Die Festlegung steht im Klartext in <code>conventions.durchbrueche</code>, damit die Gegenstelle sie nicht erraten muss.</p>
+
+<div class="merke"><b>Merke</b><p>Ein Durchbruch mindert <b>keine</b> Wandfläche, erscheint in <b>keiner</b> Hüllflächenliste und trägt <b>keinen</b> U-Wert. Er wird geschottet, nicht gerechnet. Wer ihn dennoch abzieht, rechnet dasselbe Loch zweimal: einmal als fehlende Wand und einmal als Wärmebrücke.</p></div>
+
+<table class="tab">
+<caption>Die Felder eines Durchbruchs im Export</caption>
+<thead><tr><th>Feld</th><th>Was darin steht</th></tr></thead>
+<tbody>
+<tr><td><code>id</code>, <code>name</code></td><td>Kennung und Bezeichnung im Klartext.</td></tr>
+<tr><td><code>kind</code></td><td>Die Art: <code>kernbohrung</code>, <code>wanddurchbruch</code>, <code>schlitz</code> oder <code>deckendurchbruch</code>.</td></tr>
+<tr><td><code>wirt</code></td><td>Was durchstoßen wird: <code>wand</code> oder <code>decke</code>. Folgt aus der Art und steht trotzdem ausdrücklich da — die Gegenstelle soll die Fallunterscheidung nicht aus dem Artnamen ableiten müssen.</td></tr>
+<tr><td><code>level</code></td><td>Das Geschoss. Beim Deckendurchbruch ist es das Geschoss <b>unter</b> der Decke, denn dort wird er eingemessen.</td></tr>
+<tr><td><code>wallId</code></td><td>Die durchbrochene Wand. Steht nur bei den wandgebundenen Arten; beim Deckendurchbruch fehlt das Feld.</td></tr>
+<tr><td><code>form</code></td><td><code>rund</code> oder <code>rechteckig</code>.</td></tr>
+<tr><td><code>diameter</code> beziehungsweise <code>width</code>, <code>height</code></td><td>Die lichten Maße in Metern — der Durchmesser bei runder Form, die beiden Rechteckmaße bei rechteckiger.</td></tr>
+<tr><td><code>openArea</code></td><td>Der lichte Querschnitt in m². Er ist die Bezugsgröße für den <b>Schottungsaufwand</b> und ausdrücklich keine Hüllfläche. Gerundet wird er feiner als alle anderen Flächen im Export: bei einer Kernbohrung Ø 152 sind es 0,0181 m², und die übliche Rundung auf hundertstel Quadratmeter machte daraus 0,02 — zehn Prozent Fehler, und zwar bei jeder einzelnen Bohrung.</td></tr>
+<tr><td><code>position</code></td><td>Der Mittelpunkt in Weltkoordinaten. Damit findet die Gegenstelle den Durchbruch auf ihrem Plan wieder, ohne die Wandgeometrie nachbauen zu müssen.</td></tr>
+<tr><td><code>sillHeight</code></td><td>Die Höhe über Oberkante Fertigfußboden, nur bei wandgebundenen Arten. Bei <b>runder</b> Form ist es die <b>Achshöhe</b> — danach wird angerissen. Bei <b>rechteckiger</b> Form ist es die <b>Unterkante</b> — danach wird gestemmt.</td></tr>
+<tr><td><code>service</code>, <code>dn</code></td><td>Das hindurchgeführte Gewerk (Heizung, Sanitär, Lüftung, Elektro, gemischt) und die Nennweite der Leitung in Millimetern. Die Nennweite ist eine Angabe und kein Maß: sie wird nicht aus dem Durchmesser zurückgerechnet.</td></tr>
+<tr><td><code>brandschutz</code></td><td>Der geforderte Feuerwiderstand der Schottung: <code>keine</code>, <code>R30</code>, <code>R60</code>, <code>R90</code> oder <code>R120</code>.</td></tr>
+<tr><td><code>note</code></td><td>Freitext zur Ausführung, falls einer erfasst ist.</td></tr>
+</tbody>
+</table>
+
+<div class="warnung"><b>Achtung</b><p><code>brandschutz</code> ist die <b>Anforderung</b> und nicht das verbaute Produkt — welches Schott gesetzt wird, entscheidet der Ausführende nach seiner Zulassung. Und <code>keine</code> heißt „keine Anforderung erfasst", nicht „es besteht keine". Wer den Wert als Freigabe liest, liest ihn falsch.</p></div>
+
+<div class="beispiel">
+<b>Ein Durchbruch, wie er in der Datei steht</b>
+<pre>"durchbrueche": [
+  {
+    "id": "db-eg-4",
+    "kind": "kernbohrung",
+    "name": "Kernbohrung Ø 152 (DN 100)",
+    "wirt": "wand",
+    "level": "EG",
+    "wallId": "wall-eg-n2",
+    "form": "rund",
+    "diameter": 0.152,
+    "openArea": 0.0181,
+    "position": { "x": 4.235, "y": 8.12 },
+    "sillHeight": 0.15,
+    "service": "sanitary",
+    "dn": 100,
+    "brandschutz": "R90"
+  }
+]</pre>
+<p class="ergebnis">Lage, lichtes Maß, Höhe, Gewerk, Anforderung — mehr braucht der, der bohrt, nicht</p>
+</div>
+
+<p>Ein Durchbruch, dessen Wand im Modell fehlt, wird trotzdem geliefert. Er verschwindet nicht aus der Datei, nur weil er unvollständig ist: die Prüfung meldet ihn als verwaist, und die Gegenstelle sieht ihn in derselben Liste wie der Zeichner. Alles Weitere zum Bauteil selbst steht in <a href="#k5-8">Abschnitt 5.8</a>.</p>
+
 <h4 id="k17-1-3">17.1.3 Ein gekürztes Beispiel</h4>
 
 <p>So sieht die Datei tatsächlich aus. Gekürzt ist sie an den mit <code>…</code> gekennzeichneten Stellen; die Feldnamen und die Zahlen stammen aus dem Referenzhaus, an dem das Programm bei jedem Prüflauf gemessen wird.</p>
@@ -69,7 +125,7 @@
 <pre>{
   "schema": "ravia.bim.light",
   "version": "2.0.0",
-  "generator": "RaVia CAD Light 1.14.0",
+  "generator": "RaVia CAD Light 1.21.0",
   "exportedAt": "2026-08-29T16:42:00.000Z",
   "units": {
     "length": "m", "area": "m2", "volume": "m3",
@@ -224,11 +280,11 @@
 <thead><tr><th>Feld</th><th>Beispiel</th><th>Was es sagt</th></tr></thead>
 <tbody>
 <tr><td><code>version</code></td><td><code>2.0.0</code></td><td>Die Fassung des <b>Formats</b>. Sie sagt, wie die Datei aufgebaut ist — welche Blöcke es gibt und wie die Felder heißen.</td></tr>
-<tr><td><code>generator</code></td><td><code>RaVia CAD Light 1.14.0</code></td><td>Die Fassung des <b>Programms</b>, das die Datei geschrieben hat.</td></tr>
+<tr><td><code>generator</code></td><td><code>RaVia CAD Light 1.21.0</code></td><td>Die Fassung des <b>Programms</b>, das die Datei geschrieben hat.</td></tr>
 </tbody>
 </table>
 
-<p>Die Formatfassung steht seit Langem auf 2.0.0, obwohl das Programm inzwischen ein gutes Dutzend Ausbaustufen weiter ist. Das ist kein Versäumnis, sondern die Aussage selbst: seither ist <b>nichts umbenannt und nichts entfernt</b> worden. Dazugekommen sind Blöcke — die Wärmebrücken je Raum in 0.7.0, die Lüftung und das Strangschema in 0.8.0, die Anlagentechnik in 1.2.0. Ein Leseprogramm, das gegen einen älteren Stand gebaut wurde, findet alle Felder, die es kennt, unverändert vor und übergeht die neuen.</p>
+<p>Die Formatfassung steht seit Langem auf 2.0.0, obwohl das Programm inzwischen ein gutes Dutzend Ausbaustufen weiter ist. Das ist kein Versäumnis, sondern die Aussage selbst: seither ist <b>nichts umbenannt und nichts entfernt</b> worden. Dazugekommen sind Blöcke — die Wärmebrücken je Raum in 0.7.0, die Lüftung und das Strangschema in 0.8.0, die Anlagentechnik in 1.2.0, die Heizflächen und die Vorbemessung der Hydraulik in 1.17.0, die Durchbrüche in 1.21.0. Ein Leseprogramm, das gegen einen älteren Stand gebaut wurde, findet alle Felder, die es kennt, unverändert vor und übergeht die neuen.</p>
 
 <div class="merke"><b>Merke</b><p>Ein Feld dazu ist harmlos, ein umbenanntes Feld bricht die Gegenstelle. Deshalb bleibt die Fassungsnummer bei 2.0.0, solange nur ergänzt wird. Eine <b>3.0.0</b> wäre die Ansage, dass eine Gegenstelle nachgezogen werden muss.</p></div>
 
@@ -238,11 +294,52 @@
 
 <h4 id="k17-1-5">17.1.5 Die Übergabedatei ist zugleich die Projektdatei</h4>
 
-<p>Am Ende der Datei steht der Block <code>geometry</code> mit den Knoten, Wänden, Öffnungen, TGA-Objekten, Treppen, massiven Bauteilen, Leitungen, Beschriftungen und Dachöffnungen — also mit allem, was Sie gezeichnet haben. Deshalb ist dieselbe Datei zweierlei: Übergabe an RaVia und vollständige Projektdatei.</p>
+<p>Am Ende der Datei steht der Block <code>geometry</code> mit den Knoten, Wänden, Öffnungen, TGA-Objekten, Treppen, massiven Bauteilen, Durchbrüchen, Leitungen, Beschriftungen, Dachöffnungen, dem Grundstück und den Handnotizen — also mit allem, was Sie gezeichnet haben. Deshalb ist dieselbe Datei zweierlei: Übergabe an RaVia und vollständige Projektdatei.</p>
+
+<p>Daraus folgt eine Regel, die für jedes neue Bauteil gilt: <b>es muss in <code>geometry</code> roh mitwandern, sonst gibt es es nach dem Speichern nicht mehr.</b> Die aufbereitete Sicht weiter oben in der Datei reicht dafür nicht. <code>durchbrueche</code> weiter oben ist die Ausführungsangabe für die Gegenstelle — Weltpunkt statt Sitz in der Wand; <code>geometry.durchbrueche</code> ist der Durchbruch, wie er im Modell steht, mit seinem Abstand auf der Wandachse. Dasselbe beim Grundstück: <code>heatPump</code> ist der ausgewertete Rechenfall für Schallnachweis und Schutzbereich, <code>geometry.site</code> ist das Grundstück als Modell. Und <code>geometry.freihand</code> trägt die Handnotizen, die sonst nirgends in der Datei vorkommen, weil sie in keine Rechnung eingehen.</p>
+
+<div class="warnung"><b>Achtung</b><p>Fehlte einer dieser Blöcke, verschwände das Bauteil beim Speichern und Öffnen <b>still</b>. Die Datei enthielte die Zahlen ja — nur in einer Form, aus der das Modell nicht wieder entsteht. Genau das ist vor der Einführung von <code>geometry.site</code> mit dem gesamten Grundstück samt Wärmepumpe passiert, ohne eine einzige Fehlermeldung.</p></div>
 
 <p>Das hat eine Folge, die auf den ersten Blick verwundert: auch die <b>von RaVia zurückgeschriebene Norm-Heizlast</b> steht im Export, obwohl sie von dort kommt. Ohne dieses Feld wäre sie nach Speichern und Öffnen weg — still, und die Auslegung stünde wieder auf dem Überschlag, ohne dass es jemandem auffiele.</p>
 
 <div class="baustelle"><b>Auf der Baustelle heißt das</b><p>Sie brauchen kein zweites Dateiformat zum Sichern. Der Knopf <b>RaVia JSON</b> ist zugleich „Speichern unter". Geöffnet wird dieselbe Datei über den Öffnen-Knopf daneben.</p></div>
+
+<h4 id="k17-1-6">17.1.6 Die Fassung des Formats — und was sie der Gegenstelle sagt</h4>
+
+<p>Die Nummer steht in der Form <code>major.minor.patch</code> da, und sie ist <b>aus der Sicht der Gegenstelle</b> zu lesen, nicht aus der des Erzeugers:</p>
+
+<table class="tab">
+<caption>Wie die Versionsnummer zu lesen ist</caption>
+<thead><tr><th>Stelle</th><th>Was geschehen ist</th><th>Was die Gegenstelle tun muss</th></tr></thead>
+<tbody>
+<tr><td><b>major</b></td><td>Ein Feld ist weggefallen oder hat eine andere Bedeutung bekommen.</td><td>Abstimmen. Wer gegen die alte Fassung gebaut hat, rechnet ab jetzt falsch oder gar nicht.</td></tr>
+<tr><td><b>minor</b></td><td>Es sind Felder dazugekommen, alle alten stehen unverändert.</td><td>Nichts. Wer sie nicht kennt, überliest sie und rechnet weiter wie bisher.</td></tr>
+<tr><td><b>patch</b></td><td>An den Feldern hat sich nichts geändert.</td><td>Nichts.</td></tr>
+</tbody>
+</table>
+
+<p><b>2.1.0</b> brachte gegenüber 2.0.0 zwei Felder:</p>
+
+<ul>
+<li><code>uValueSource</code> an jeder Hüllfläche und jeder Öffnung — <b>woher der U-Wert stammt</b>, in vier Stufen nach Belastbarkeit: <code>aufbau</code> (aus dem zugewiesenen Bauteilaufbau), <code>bauteil</code> (jemand hat ihn am Bauteil eingetragen), <code>katalog</code> (Vorgabewert der Bauteilart), <code>annahme</code> (fester Ersatzwert dieses Exports, ohne jede Erfassung dahinter). Eine Heizlast, deren U-Werte sämtlich <code>annahme</code> sind, ist rechnerisch dieselbe wie eine mit geöffneten Bauteilen — und fachlich etwas völlig anderes. Genau die Zeilen mit <code>annahme</code> gehören auf der Gegenseite ins Annahmenverzeichnis.</li>
+<li><code>checksum</code> an jedem Raum — eine 64-Bit-Prüfsumme über seine <b>heizlastrelevanten</b> Größen: Geometrie, Hüllbauteile, Öffnungen, Solltemperatur, Luftwechsel, Erdkontakt, Wärmebrücken. <b>Nicht</b> gedeckt sind Name, Farbe und Zeitstempel: Wer einen Raum umbenennt, hat nichts ungültig gemacht, und eine Summe, die auf Umbenennungen anspringt, erzeugt Fehlalarme, nach denen niemand mehr hinschaut. Damit kann die Gegenstelle beim erneuten Abgleich sagen, <em>was</em> sich geändert hat, und nicht nur <em>dass</em>.</li>
+</ul>
+
+<p><b>2.2.0</b> brachte gegenüber 2.1.0 ein Feld:</p>
+
+<ul>
+<li><code>pipeLengths</code> an jedem Raum — die <b>Rohrmeter, die in diesem Raum liegen</b>, getrennt nach Gewerk, Nennweite und Dämmstärke. Damit lässt sich die Wärmeabgabe der Verteilleitungen dem Raum zurechnen, durch den sie laufen; beim Flur mit dem Heizkreisverteiler ist das der Unterschied zwischen einem unbeheizten und einem vollständig mitbeheizten Raum. Das Feld fehlt, wenn in diesem Raum kein Rohr liegt. Siehe 9.9.</li>
+</ul>
+
+<div class="merke"><b>Merke</b><p>Beide Schritte sind <b>additiv</b>. Eine Gegenstelle, die gegen 2.0.0 gebaut hat, liest eine 2.2.0-Datei ohne Änderung und rechnet dasselbe wie vorher. Sie bekommt nur weniger Auskunft.</p></div>
+
+<h4 id="k17-1-7">17.1.7 Der Wächter über dem Format</h4>
+
+<p>Ein Prüfblock im Programm führt die <b>Feldlisten von Hand</b> und vergleicht sie bei jedem Prüflauf mit dem, was tatsächlich herauskommt. Ein Feld, das dazukommt oder verschwindet, ohne dass jemand die Liste anfasst, lässt den Prüflauf fallen — und wer die Liste anfasst, muss dabei über die Versionsnummer entscheiden.</p>
+
+<p>Das ist der ganze Zweck: <b>Die Entscheidung soll nicht ausbleiben können.</b> Ohne diesen Wächter wandert das Format still weiter, während die Gegenstelle gegen eine Fassung baut, die es nicht mehr gibt — ein Feld wird umbenannt, weil der neue Name schöner ist, und auf der anderen Seite fällt eine Transmissionsfläche lautlos aus der Bilanz. Lautlos, weil ein fehlender Wert in einer Summe wie eine Null wirkt und das Ergebnis plausibel bleibt.</p>
+
+<p>Der Block hat sich beim ersten Lauf selbst bewährt: Er fand drei Raumfelder, die in keiner Liste standen — und auf dem Weg dorthin eine Öffnung, die aus dem Export verschwinden konnte. Und er hat 2026 eine eigene Schwäche gezeigt: Ein Feld, das nur unter Bedingungen erscheint, ist für ihn unsichtbar, solange die Bedingung in seinem Prüfhaus nicht eintritt. Genau so ist <code>pipeLengths</code> beim ersten Lauf durchgeschlüpft. Das Prüfhaus hat jetzt eine Leitung.</p>
 
 <h3 id="k17-2">17.2 IFC4-Export: das Modell für alle anderen</h3>
 
@@ -262,6 +359,7 @@
 <tr><td>IfcWallStandardCase</td><td>Jede Wand als aufgezogener Rechteckkörper längs der Wandachse.</td></tr>
 <tr><td>IfcOpeningElement + IfcRelVoidsElement</td><td>Jede Öffnung als echtes Loch in der Wand.</td></tr>
 <tr><td>IfcWindow / IfcDoor + IfcRelFillsElement</td><td>Fenster und Türen als Bauteile, die das Loch füllen. Ein Durchgang bleibt ein reines Loch und bekommt kein Bauteil.</td></tr>
+<tr><td>IfcOpeningElement + IfcRelVoidsElement (ohne IfcRelFillsElement)</td><td>Jeder Durchbruch als echte Aussparung — derselbe Mechanismus wie bei Fenster und Tür. Ein Wandschlitz wird als <code>.RECESS.</code> geführt statt als <code>.OPENING.</code>.</td></tr>
 <tr><td>IfcSpace</td><td>Jeder Raum als Volumen über seinem Polygon, mit Name — und mit den Mengen <code>NetFloorArea</code>, <code>NetVolume</code> und <code>Height</code>. Das ist es, was eine Gegenstelle aus einem Raum tatsächlich ausliest.</td></tr>
 <tr><td>IfcSlab</td><td>Je Raum eine 20 cm starke Bodenplatte.</td></tr>
 <tr><td>IfcStair / Bauteil-Platzhalter</td><td>Treppen als IfcStair, Schächte als benannter Platzhalter.</td></tr>
@@ -271,6 +369,14 @@
 </table>
 
 <p>Die Körper liegen als aufgezogene Flächen über geschlossenen Umrissen vor — die Form, die jede IFC-Anwendung ohne Sonderbehandlung liest. Einheit ist Meter, das Koordinatensystem entspricht dem Modell: +x nach Osten, +y nach Norden, +z nach oben.</p>
+
+<p><b>Zu den Durchbrüchen im Einzelnen</b>, weil dort drei Festlegungen stecken, die man sonst erst beim Empfänger bemerkt.</p>
+
+<p><b>Kein füllendes Bauteil.</b> Ein Durchbruch bekommt zwar sein <code>IFCOPENINGELEMENT</code> und wird per <code>IFCRELVOIDSELEMENT</code> aus dem Wirtsbauteil geschnitten — das <code>IFCRELFILLSELEMENT</code> fehlt aber. Ein Durchbruch bekommt kein Bauteil, er bleibt ein Loch. Wer ein Schott als Bauteil erwartet, findet es im Massenauszug; in der Geometrie steht es nicht, weil seine Bauart erst der Ausführende festlegt.</p>
+
+<p><b>Der Schlitz ist eine Vertiefung.</b> Ein Wandschlitz geht nicht durch die Wand. Er wird deshalb mit <code>.RECESS.</code> statt <code>.OPENING.</code> geführt. Der Unterschied steht in IFC4 und wird von jedem Empfänger ausgewertet, der Massen rechnet — ein durchgehendes Loch und eine halbtiefe Nut sind verschiedene Positionen.</p>
+
+<p><b>Der Deckendurchbruch wird aus der Platte darüber geschnitten.</b> Er gehört dem Geschoss <b>unter</b> der Decke, denn dort wird er eingemessen; das Bauteil, aus dem das Loch entsteht, ist aber die Bodenplatte des Geschosses <b>darüber</b>. Liegt er nicht unter einem Raum des oberen Geschosses, gibt es dort keine Platte und damit kein Loch. Das ist kein Fehler des Exports, sondern eine Aussage des Modells — gemeldet wird sie von der Prüfung und nicht von der IFC-Datei.</p>
 
 <h4 id="k17-2-2">17.2.2 Was ausdrücklich nicht übertragen wird</h4>
 
@@ -402,7 +508,7 @@
 
 <h4 id="k17-4-5">17.4.5 Die Fassung der Schnittstelle</h4>
 
-<p>Die Schnittstelle trägt eine eigene Fassungsnummer, unabhängig von der des Programms und der des Exportformats. Sie steht auf <b>1.1.0</b>. In 1.0.0 konnte die Gegenstelle nur lesen; mit 1.1.0 sind das Zurückschreiben und die Selbstauskunft dazugekommen. Die lesenden Befehle sind dabei unverändert geblieben — daher die kleine Stelle in der Nummer: eine Gegenstelle, die gegen 1.0.0 gebaut wurde, läuft weiter.</p>
+<p>Die Schnittstelle trägt eine eigene Fassungsnummer, unabhängig von der des Programms und der des Exportformats. Sie steht auf <b>1.2.0</b>. In 1.0.0 konnte die Gegenstelle nur lesen; mit 1.1.0 sind das Zurückschreiben und die Selbstauskunft dazugekommen, mit 1.2.0 die Heizflächen als Rechenfälle und die Vorbemessung der Hydraulik. Die lesenden Befehle sind dabei jedes Mal unverändert geblieben — daher die kleine Stelle in der Nummer: eine Gegenstelle, die gegen 1.0.0 gebaut wurde, läuft weiter.</p>
 
 <p>Dem Programm liegt ein lauffähiges Beispiel für die Einbettung bei; es dient zugleich als Prüffall, damit die Schnittstelle nicht unbemerkt kaputtgeht.</p>
 

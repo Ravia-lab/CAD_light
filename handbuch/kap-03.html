@@ -53,15 +53,26 @@ arbeitet, lädt ihn nie.</p>
 
 <h4 id="k3-2-1">3.2.1 Die 3D-Ansicht bedienen</h4>
 
-<p>Rechts oben in der 3D-Fläche sitzen fünf Knöpfe:</p>
+<p>Rechts oben in der 3D-Fläche sitzen sechs Knöpfe:</p>
 
 <ul>
   <li><b>Orbit</b> — freie Drehung um das Gebäude. Ziehen dreht, Mausrad zoomt.</li>
   <li><b>Iso</b> — feste Schrägansicht von oben, wie eine Axonometrie.</li>
   <li><b>Top</b> — senkrecht von oben.</li>
+  <li><b>Begehen</b> — die Kamera geht ins Haus, auf Augenhöhe.</li>
   <li><b>Gelände</b> — Grundstück, Wärmepumpe und Wärmequelle im Modell zeigen.</li>
   <li><b>Einpassen</b> — Ansicht auf das Gebäude einpassen.</li>
 </ul>
+
+<p>Beim <b>Begehen</b> gehen Sie am Rechner mit <kbd>W</kbd> <kbd>A</kbd>
+<kbd>S</kbd> <kbd>D</kbd> oder den Pfeiltasten, <kbd>Umschalt</kbd> geht
+schneller. Der Blick folgt der gezogenen Maus; ein Klick fängt den Mauszeiger
+ein, dann dreht die Maus endlos. Auf dem Tablet steht unten links ein
+Steuerkreuz zum Gehen, und der Finger dreht den Blick durch Wischen über das
+Bild. <kbd>Esc</kbd> oder der Knopf <b>Herausgehen</b> unten rechts bringt Sie
+zurück in die Umlaufkamera. Die Einzelheiten — Augenhöhe, Tempo, wo man
+durchkommt und wo nicht — stehen in
+<a href="#k5-7-3">Abschnitt 5.7.3</a>.</p>
 
 <p>Ist noch nichts gezeichnet, steht in der Fläche „Noch keine Geometrie" mit
 dem Hinweis, dass das Modell in Echtzeit aus dem Grundriss entsteht.</p>
@@ -80,6 +91,8 @@ und einen Satz dazu, was er tut.</p>
   <tbody>
     <tr><td><b>Auswählen &amp; Bearbeiten</b></td><td><kbd>V</kbd></td><td>Anklicken, verschieben, Eigenschaften ändern. Mit gezogenem Rahmen mehrere auf einmal.</td><td>ja</td></tr>
     <tr><td><b>Wand zeichnen</b></td><td><kbd>W</kbd></td><td>Klick für Klick einen Zug setzen, <kbd>Esc</kbd> beendet ihn. Geschlossene Umrisse werden von selbst als Raum erkannt.</td><td>ja</td></tr>
+    <tr><td><b>Freihand skizzieren</b></td><td><kbd>Q</kbd></td><td>Mit dem Stift den Grundriss hinkrakeln — das Programm liest daraus gerade Wände und schlägt sie vor. Erst „Übernehmen" legt sie an. Siehe <a href="#k4-8">Abschnitt 4.8</a>.</td><td>ja</td></tr>
+    <tr><td><b>Auf den Plan schreiben</b></td><td><kbd>K</kbd></td><td>Notizen, Pfeile, Maße von Hand. Bleibt als eigene Ebene über der Zeichnung und wird nie zu Geometrie. Siehe <a href="#k4-9">Abschnitt 4.9</a>.</td><td>nein</td></tr>
     <tr><td><b>Raum aufziehen</b></td><td><kbd>Z</kbd></td><td>Fertige Grundform wählen und im Plan aufziehen — die Wände entstehen von selbst und lassen sich danach einzeln ändern.</td><td>ja</td></tr>
     <tr><td><b>Tür einsetzen</b></td><td><kbd>D</kbd></td><td>Auf eine Wand klicken — die Tür sitzt dort, wo geklickt wurde.</td><td>ja</td></tr>
     <tr><td><b>Fenster einsetzen</b></td><td><kbd>F</kbd></td><td>Auf eine Wand klicken. Die Fensterfläche wird von der Wandfläche abgezogen.</td><td>ja</td></tr>
@@ -88,8 +101,9 @@ und einen Satz dazu, was er tut.</p>
     <tr><td><b>Treppe einsetzen</b></td><td><kbd>R</kbd></td><td>Eine Treppe nimmt Grundfläche weg und lässt die Decke darüber offen — beides zählt in der Heizlast.</td><td>ja</td></tr>
     <tr><td><b>Schacht einsetzen</b></td><td><kbd>S</kbd></td><td>Wie eine Treppe eine Fläche, die kein Raum ist — Aufzug, Installationsschacht, Luftraum.</td><td>nein</td></tr>
     <tr><td><b>Massives Bauteil setzen</b></td><td><kbd>M</kbd></td><td>Kamin, Pfeiler, Wandversatz — Mauerwerk ohne Raumfunktion. Nimmt Fläche und Luftvolumen weg und wird von der Fußbodenheizung ausgespart.</td><td>ja</td></tr>
+    <tr><td><b>Durchbruch setzen</b></td><td><kbd>U</kbd></td><td>Kernbohrung, Wanddurchbruch, Schlitz oder Deckenloch. Auf eine Wand tippen — der Durchbruch sitzt dann in der Wand und wandert mit ihr. Er mindert keine Wandfläche, steht aber auf dem Plan und im Massenauszug. Siehe <a href="#k5-8">Abschnitt 5.8</a>.</td><td>ja</td></tr>
     <tr><td><b>Leitung verlegen</b></td><td><kbd>L</kbd></td><td>Punkte im Plan setzen; ein Klick auf ein Symbol schließt die Leitung dort an.</td><td>nein</td></tr>
-    <tr><td><b>Maßkette &amp; Beschriftung</b></td><td><kbd>B</kbd></td><td>Freie Maße und Texte für den Ausdruck. Sie gehen nicht in die Berechnung ein.</td><td>nein</td></tr>
+    <tr><td><b>Text &amp; Maßkette</b></td><td><kbd>B</kbd></td><td>Text auf den Plan schreiben, Maße von Hand ansetzen, Hinweisfahnen. Das Eingabefeld erscheint dort, wo Sie tippen. Geht nicht in die Berechnung ein.</td><td>ja</td></tr>
     <tr><td><b>Maßstab kalibrieren</b></td><td>—</td><td>Nur bei hinterlegtem Grundriss-Bild: eine bekannte Strecke abfahren und ihre Länge eintragen.</td><td>nein</td></tr>
     <tr><td><b>Wärmepumpe aufstellen</b></td><td><kbd>P</kbd></td><td>In den Garten klicken. Der Kreis um das Gerät zeigt, ab welchem Abstand der Nachtwert eingehalten ist.</td><td>ja</td></tr>
     <tr><td><b>Außengelände zeichnen</b></td><td><kbd>A</kbd></td><td>Grundstücksgrenze, Nachbarhaus, Lichtschacht, Baum, Erdsonde — Art im Reiter <b>Wärmepumpe</b> wählen.</td><td>ja</td></tr>
@@ -102,9 +116,12 @@ und einen Satz dazu, was er tut.</p>
   <p>Das Werkzeug <b>Maßstab kalibrieren</b> wird über die Werkzeugleiste oder
   über den Knopf im Reiter <b>Referenz</b> gewählt. Der Kurzhinweis am Knopf
   nennt zwar die Taste <kbd>C</kbd>, in der Zeichenfläche ist sie aber nicht
-  belegt. Ebenso ist <kbd>M</kbd> zweimal vergeben — es wählt das Werkzeug
-  <b>Massives Bauteil</b>; die Maßketten schalten Sie über den Knopf in der
-  Werkzeugleiste ein und aus.</p>
+  belegt. <kbd>M</kbd> wählt das Werkzeug <b>Massives Bauteil</b>; die
+  Bemaßung schalten Sie mit <kbd>Strg</kbd>+<kbd>M</kbd> oder über den Knopf
+  in der Werkzeugleiste ein und aus. Bis Fassung 1.20.3 war <kbd>M</kbd> für
+  beides eingetragen — die zweite Eintragung stand hinter der ersten in
+  derselben Verzweigung und wurde deshalb nie erreicht. Sie tat also nichts,
+  und im Handbuch stand trotzdem beides.</p>
 </div>
 
 <p>Die Symbole der Werkzeuge sind Strichzeichnungen ohne Beschriftung. Was sie
@@ -180,8 +197,9 @@ gerade gewählten Werkzeug gehört:</p>
     <tr><td>Leitung</td><td>Neun Leitungsarten mit ihrer Farbe: Heizung Vorlauf, Heizung Rücklauf, Trinkwasser warm, Trinkwasser kalt, Zirkulation, Abwasser, Kältemittel, Zuluft, Abluft.</td></tr>
     <tr><td>Treppe</td><td>Gerade, viertelgewendelt, halbgewendelt, Wendeltreppe.</td></tr>
     <tr><td>Massives Bauteil</td><td>Kamin/Schornstein, Pfeiler, Wandversatz, Installationsblock.</td></tr>
-    <tr><td>Beschriftung</td><td>Maßkette, Beschriftung, Hinweis mit Fahne.</td></tr>
-    <tr><td>alle übrigen</td><td>Wandstärke (11,5 · 17,5 · 24 · 36,5 · 42,5 cm) und Bauteiltyp (Außenwand, Innenwand, Trennwand, Schacht).</td></tr>
+    <tr><td>Durchbruch</td><td>Die vier Arten — Kernbohrung, Wanddurchbruch, Schlitz, Deckendurchbruch — und die Regelmaße dazu.</td></tr>
+    <tr><td>Text &amp; Maßkette</td><td>Maßkette, Beschriftung, Hinweis mit Fahne.</td></tr>
+    <tr><td>alle übrigen</td><td>Wandstärke (11,5 · 17,5 · 24 · 36,5 · 42,5 cm) und Bauteiltyp (Außenwand, Innenwand, Trennwand, Schacht). Das gilt auch für <b>Freihand skizzieren</b>: die dort eingestellte Stärke bekommen die vorgeschlagenen Wände.</td></tr>
   </tbody>
 </table>
 
@@ -237,7 +255,7 @@ dazu in <a href="#k5">Kapitel 5</a>.</p>
     <tr><td><b>Anlage</b></td><td>Das Anlagenblatt: Heizlast, Geräteauswahl, Heizkreise, Puffer, Trinkwasser, Sicherheitsausrüstung, Schemavorschläge und Schemaprüfung, Anlagenbuch.</td><td>ja</td><td><a href="#k10">10</a>, <a href="#k12">12</a></td></tr>
     <tr><td><b>Prüfung</b></td><td>Der Prüfbericht vor der Übergabe — jeder Befund anklickbar und auf das Objekt springend. Darunter der Vergleich mit einer früheren Übergabe: was hat sich seitdem geändert.</td><td>ja</td><td><a href="#k14">14</a></td></tr>
     <tr><td><b>Referenz</b></td><td>Der hinterlegte Grundriss: Bild oder PDF laden, Deckkraft, Sperre, Drehung, Kalibrierung, KI-Vorauswertung.</td><td>ja</td><td><a href="#k2-3">2.3</a></td></tr>
-    <tr><td><b>Ebenen</b></td><td>Acht Ebenen zum Ein- und Ausblenden (Wände, Öffnungen, Räume, Maßketten, TGA Heizung, TGA Sanitär, TGA Lüftung, Referenzbild), die vier Fangarten und die Raumliste.</td><td>nein</td><td><a href="#k3-10">3.10</a></td></tr>
+    <tr><td><b>Ebenen</b></td><td>Acht Ebenen zum Ein- und Ausblenden (Wände, Öffnungen, Räume, Maßketten, TGA Heizung, TGA Sanitär, TGA Lüftung, Referenzbild), darunter die Handnotizen mit ihrer Zahl, dazu die fünf Fangarten und die Raumliste.</td><td>nein</td><td><a href="#k3-10">3.10</a></td></tr>
   </tbody>
 </table>
 
@@ -288,7 +306,7 @@ Schema-Ansicht öffnet <b>Anlage</b>.</p>
   <caption>Was der Fachplaner-Modus zusätzlich zeigt</caption>
   <thead><tr><th>Bereich</th><th>Nur im Fachplaner-Modus</th></tr></thead>
   <tbody>
-    <tr><td>Werkzeuge</td><td>Schacht, Leitung verlegen, Maßkette &amp; Beschriftung, Maßstab kalibrieren</td></tr>
+    <tr><td>Werkzeuge</td><td>Auf den Plan schreiben, Schacht, Leitung verlegen, Maßstab kalibrieren</td></tr>
     <tr><td>Reiter</td><td>Dach, Aufbauten, Wärmebrücken, Lüftung, Ebenen</td></tr>
   </tbody>
 </table>
@@ -365,10 +383,10 @@ der Nachbar behält seine eigene.</p>
 
 <h3 id="k3-10">3.10 Fangen, Ortho-Zwang, Winkelraster, Längeneingabe</h3>
 
-<h4 id="k3-10-1">3.10.1 Die vier Fangarten</h4>
+<h4 id="k3-10-1">3.10.1 Die fünf Fangarten</h4>
 
-<p>Gefangen wird auf vier Dinge; alle vier lassen sich im Reiter <b>Ebenen</b>
-einzeln ein- und ausschalten:</p>
+<p>Gefangen wird auf fünf Dinge; alle fünf lassen sich im Reiter <b>Ebenen</b>
+unter <b>Fang &amp; Raster</b> einzeln ein- und ausschalten:</p>
 
 <table class="tab">
   <caption>Fang und Raster</caption>
@@ -378,6 +396,7 @@ einzeln ein- und ausschalten:</p>
     <tr><td><b>Knoten</b></td><td>Der Punkt springt auf einen bestehenden Wandknoten.</td><td>an</td></tr>
     <tr><td><b>Wandachse</b></td><td>Der Punkt springt auf die Achse einer bestehenden Wand — dort teilt sich die Wand beim Anschließen von selbst.</td><td>an</td></tr>
     <tr><td><b>Winkel</b></td><td>Die Richtung rastet auf Vielfache des Winkelschritts ein, gemessen vom Startpunkt.</td><td>an, Schritt 45°</td></tr>
+    <tr><td><b>Ecken</b></td><td>Der Punkt springt auf jede andere Ecke im Plan — Gelände, Leitung, massives Bauteil, Treppe, Schacht, Durchbruch, lichte Raumecke, TGA-Objekt und den eigenen laufenden Zug. Siehe <a href="#k4-6-1">Abschnitt 4.6.1</a>.</td><td>an</td></tr>
   </tbody>
 </table>
 
@@ -494,6 +513,8 @@ Mac wirkt die Befehlstaste wie <kbd>Strg</kbd>.</p>
   <tbody>
     <tr><td><kbd>V</kbd></td><td>Auswählen &amp; Bearbeiten</td></tr>
     <tr><td><kbd>W</kbd></td><td>Wand zeichnen</td></tr>
+    <tr><td><kbd>Q</kbd></td><td>Freihand skizzieren</td></tr>
+    <tr><td><kbd>K</kbd></td><td>Auf den Plan schreiben (Handnotiz)</td></tr>
     <tr><td><kbd>Z</kbd></td><td>Raum aufziehen</td></tr>
     <tr><td><kbd>D</kbd></td><td>Tür einsetzen</td></tr>
     <tr><td><kbd>F</kbd></td><td>Fenster einsetzen</td></tr>
@@ -502,8 +523,10 @@ Mac wirkt die Befehlstaste wie <kbd>Strg</kbd>.</p>
     <tr><td><kbd>R</kbd></td><td>Treppe einsetzen</td></tr>
     <tr><td><kbd>S</kbd></td><td>Schacht einsetzen</td></tr>
     <tr><td><kbd>M</kbd></td><td>Massives Bauteil setzen</td></tr>
+    <tr><td><kbd>Strg</kbd>+<kbd>M</kbd></td><td>Bemaßung ein/aus</td></tr>
+    <tr><td><kbd>U</kbd></td><td>Durchbruch setzen</td></tr>
     <tr><td><kbd>L</kbd></td><td>Leitung verlegen</td></tr>
-    <tr><td><kbd>B</kbd></td><td>Maßkette &amp; Beschriftung</td></tr>
+    <tr><td><kbd>B</kbd></td><td>Text &amp; Maßkette</td></tr>
     <tr><td><kbd>P</kbd></td><td>Wärmepumpe aufstellen</td></tr>
     <tr><td><kbd>A</kbd></td><td>Außengelände zeichnen</td></tr>
     <tr><td><kbd>Leertaste</kbd> halten</td><td>Ansicht verschieben, solange die Taste gedrückt ist</td></tr>
@@ -589,6 +612,24 @@ Mac wirkt die Befehlstaste wie <kbd>Strg</kbd>.</p>
     <tr><td><kbd>Strg</kbd> + <kbd>Umschalt</kbd> + <kbd>Z</kbd> oder <kbd>Strg</kbd> + <kbd>Y</kbd></td><td>Wiederherstellen</td></tr>
   </tbody>
 </table>
+
+<h4 id="k3-12-7">3.12.7 Beim Begehen in der 3D-Ansicht</h4>
+
+<table class="tab">
+  <caption>Tasten in der Ich-Perspektive</caption>
+  <thead><tr><th>Taste</th><th>Wirkung</th></tr></thead>
+  <tbody>
+    <tr><td><kbd>W</kbd> <kbd>A</kbd> <kbd>S</kbd> <kbd>D</kbd> oder <kbd>Pfeiltasten</kbd></td><td>Vorwärts, links, rückwärts, rechts</td></tr>
+    <tr><td><kbd>Umschalt</kbd> halten</td><td>Schneller gehen</td></tr>
+    <tr><td>Maus ziehen</td><td>Blick drehen; ein Klick fängt den Mauszeiger ein</td></tr>
+    <tr><td><kbd>E</kbd></td><td>Die Tür öffnen oder schließen, auf die Sie schauen — Reichweite 1,60 m</td></tr>
+    <tr><td><kbd>Entf</kbd></td><td>Das gewählte Bauteil entfernen</td></tr>
+    <tr><td><kbd>Esc</kbd></td><td>Begehen beenden — zurück in die Umlaufkamera</td></tr>
+  </tbody>
+</table>
+
+<p>Ausführlich steht das in <a href="#k5-7-3">Abschnitt 5.7.3</a>, samt Augenhöhe,
+Tempo und der Frage, wo man durchkommt und wo nicht.</p>
 
 <p>Eine gesammelte Kurzfassung dieser Tafel steht noch einmal im Anhang,
 <a href="#k18">Kapitel 18</a>.</p>
