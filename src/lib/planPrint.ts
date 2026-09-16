@@ -891,14 +891,18 @@ export function buildPlanSvg(doc: BimDocument, options: PlanPrintOptions): PlanF
   /*
    * Der Nordpfeil gehört auf jeden Bauplan.
    *
-   * Er steht rechts oben im Zeichenfeld — dort, wo er auf jedem Blatt steht,
-   * das ein Architekt in die Hand nimmt. Ohne ihn ist ein Grundriss nicht
-   * lesbar: Welche Fassade die Südfassade ist, entscheidet über Verschattung,
-   * Verglasung und den halben Sommer. Der Bildschirm zeigt dieselbe Rose an
-   * derselben Stelle — beide fragen `kompassRose`, damit sie nicht
-   * auseinanderlaufen können.
+   * Ohne ihn ist ein Grundriss nicht lesbar: Welche Fassade die Südfassade
+   * ist, entscheidet über Verschattung, Verglasung und den halben Sommer.
+   *
+   * Er steht **links** oben im Zeichenfeld und nicht rechts, obwohl rechts der
+   * gewohnte Platz wäre: Rechts oben sitzt auf diesem Blatt die Legende, und
+   * zwei Dinge übereinander sind schlechter als eines am zweitbesten Platz.
+   *
+   * Der Bildschirm zeichnet dieselbe Rose aus derselben Quelle
+   * (`kompassRose`) — damit Blatt und Bildschirm nicht auseinanderlaufen
+   * können.
    */
-  const nordpfeil = drawNorthArrow(sheet.w - MARGIN.right - 12, MARGIN.top + 12, 8, doc.meta.northAngle);
+  const nordpfeil = drawNorthArrow(MARGIN.left + 12, MARGIN.top + 12, 8, doc.meta.northAngle);
 
   const svg =
     `<svg xmlns="http://www.w3.org/2000/svg" width="${sheet.w}mm" height="${sheet.h}mm" ` +
