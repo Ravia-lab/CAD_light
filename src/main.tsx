@@ -80,6 +80,13 @@ declare global {
      * gebaut wurde.
      */
     __raviaSzene?: () => Record<string, number>;
+    /**
+     * Wie weit jedes Türblatt aufsteht — 0 = zu, 1 = ganz auf. Dieselbe Sorte
+     * Haken wie die beiden darüber: Ob eine Tür wirklich offen ist, entscheidet
+     * im begehbaren Modus darüber, ob man durchkommt; am Bild ist es nicht zu
+     * beweisen.
+     */
+    __raviaTueren?: () => number[];
     RaViaCAD?: RaviaCadApi;
   }
 }

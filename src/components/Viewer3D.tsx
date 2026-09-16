@@ -99,11 +99,14 @@ import {
   AUGENHOEHE,
   TEMPO_GEHEN,
   TEMPO_SCHNELL,
+  TUER_OFFEN_WINKEL,
+  TUER_TEMPO,
   begrenzeNick,
   blickrichtung,
   gehe,
   hindernisse,
   schritt,
+  tuerInReichweite,
   type Hindernis,
 } from '../lib/begehen';
 import { pointInPolygon } from '../lib/geometry';
@@ -452,7 +455,32 @@ interface BuiltGeometry {
   floorSupply: THREE.BufferGeometry | null;
   glass: THREE.BufferGeometry | null;
   frames: THREE.BufferGeometry | null;
-  doors: THREE.BufferGeometry | null;
+  /**
+   * Türblätter — je Flügel eines, mit Kennung und Angelpunkt.
+   *
+   * **Warum nicht mehr ein zusammengefasster Körper.** Bis 1.28.2 wurden alle
+   * Blätter in *eine* Geometrie verschmolzen, mit dem Öffnungswinkel fest
+   * eingebacken. Das war billig und richtig, solange eine Tür ein Symbol war,
+   * das die Anschlagsrichtung zeigt. Sobald man sie im begehbaren Modus
+   * öffnen und schließen kann, ist sie ein Bauteil, das sich bewegt — und
+   * bewegen lässt sich nur, was für sich steht.
+   *
+   * Das Blatt ist so gebaut, dass die Bandachse im Ursprung liegt und das
+   * geschlossene Blatt in der Wandebene: Der Öffnungswinkel ist dann eine
+   * Drehung um die Hochachse und sonst nichts.
+   */
+  doors: {
+    openingId: string;
+    geometry: THREE.BufferGeometry;
+    /** Bandachse in Szenenkoordinaten. */
+    hinge: { x: number; y: number; z: number };
+    /** Drehung der Wand in der Szene [rad]. */
+    wallAngle: number;
+    /** Vorzeichen, mit dem der Öffnungswinkel wirkt (Anschlag und Seite). */
+    sign: number;
+    /** Schiebetür: sie schwenkt nicht, sie fährt. */
+    sliding: boolean;
+  }[];
   bounds: THREE.Box3;
 }
 
@@ -521,7 +549,7 @@ function buildGeometry(input: BuildInput): BuiltGeometry {
   const interiorParts: THREE.BufferGeometry[] = [];
   const glassParts: THREE.BufferGeometry[] = [];
   const framePartsGeom: THREE.BufferGeometry[] = [];
-  const doorParts: THREE.BufferGeometry[] = [];
+  const doorLeaves: BuiltGeometry['doors'] = [];
   const floorParts: THREE.BufferGeometry[] = [];
   const heatingParts: THREE.BufferGeometry[] = [];
   const sanitaryParts: THREE.BufferGeometry[] = [];
@@ -671,8 +699,15 @@ function buildGeometry(input: BuildInput): BuiltGeometry {
       } else if (op.doorType === 'sliding') {
         // Schiebetür: Blatt liegt vor der Wand statt im Anschlag. Es ist damit
         // nichts anderes als ein Wandquader mit Querversatz.
-        doorParts.push(
-          boxInWall(
+        //
+        // Sie schwenkt nicht, also bekommt sie auch keinen Angelpunkt: Die
+        // Geometrie steht schon an ihrem Platz, der Angelpunkt ist der
+        // Ursprung, und „öffnen" heißt sie ausblenden. Ein fahrendes Blatt
+        // wäre schöner und bräuchte die Wandtasche, die das Modell nicht
+        // führt — dann stünde es beim Öffnen in der Nachbarwand.
+        doorLeaves.push({
+          openingId: op.id,
+          geometry: boxInWall(
             g,
             span.from,
             span.to,
@@ -682,11 +717,16 @@ function buildGeometry(input: BuildInput): BuiltGeometry {
             g.halfThickness + 0.03,
             dz,
           ),
-        );
+          hinge: { x: 0, y: 0, z: 0 },
+          wallAngle: 0,
+          sign: 0,
+          sliding: true,
+        });
       } else {
-        // Türblatt, 72° geöffnet — verrät auf einen Blick die Anschlagsrichtung.
+        // Der Anschlagsinn. Wie weit das Blatt steht, entscheidet die
+        // Ansicht (siehe `TUER_OFFEN_WINKEL` und `tuerenOffen`) — hier wird
+        // nur gebaut, nicht geöffnet.
         const swing = op.flipSwing ? -1 : 1;
-        const angle = (72 * Math.PI) / 180;
 
         // Zweiflügelig: zwei gegenläufige Blätter halber Breite.
         const leaves: { hingeU: number; width: number; dirSign: number }[] =
@@ -706,23 +746,26 @@ function buildGeometry(input: BuildInput): BuiltGeometry {
         for (const l of leaves) {
           const leafHeight = head - op.sillHeight;
           const leaf = new THREE.BoxGeometry(l.width, leafHeight, 0.04);
-          const pivot = new THREE.Matrix4();
-          // Blatt so verschieben, dass die Drehachse an der Bandseite liegt
-          leaf.translate((l.width / 2) * l.dirSign, leafHeight / 2, 0);
-          pivot.makeRotationY(swing * angle * l.dirSign);
-          leaf.applyMatrix4(pivot);
+          // Blatt so verschieben, dass die Drehachse an der Bandseite im
+          // Ursprung liegt. Ohne Drehung liegt es damit in der Wandebene —
+          // das ist die geschlossene Tür, und jeder Öffnungswinkel ist von
+          // dort aus eine reine Drehung um die Hochachse.
+          leaf.translate((l.width / 2) * l.dirSign, leafHeight / 2 + op.sillHeight, 0);
 
           // Aufgestellt wird um die Bandachse. Weil die Szenendrehung die
           // Querrichtung vertauscht (siehe `wallBoxPlacement`), zeigt das
           // lokale +z des Blattes auf die Gegennormale — der Anschlagsinn
-          // `swing · dirSign` der Blattdrehung ist genau darauf abgestimmt und
-          // liefert dieselbe Seite, die der Plan zeichnet.
+          // `swing · dirSign` ist genau darauf abgestimmt und liefert dieselbe
+          // Seite, die der Plan zeichnet.
           const anchor = wallLocalToScene(g, l.hingeU, 0, 0);
-          const place = new THREE.Matrix4();
-          place.makeRotationY(sceneRotationY(g.angle));
-          place.setPosition(anchor.x, anchor.y, anchor.z);
-          leaf.applyMatrix4(place);
-          doorParts.push(leaf);
+          doorLeaves.push({
+            openingId: op.id,
+            geometry: leaf,
+            hinge: { x: anchor.x, y: anchor.y + dz, z: anchor.z },
+            wallAngle: sceneRotationY(g.angle),
+            sign: swing * l.dirSign,
+            sliding: false,
+          });
         }
       }
     }
@@ -1097,7 +1140,7 @@ function buildGeometry(input: BuildInput): BuiltGeometry {
   }
   const glass = merge(glassParts);
   const frames = merge(framePartsGeom);
-  const doors = merge(doorParts);
+  const doors = doorLeaves;
   /*
    * Die Armaturen standen bis 1.25.0 im Gewerkeklumpen der Heizung — mit der
    * Begründung, niemand fasse im Modell ein einzelnes Eckventil an. Die
@@ -1476,6 +1519,28 @@ export default function Viewer3D({ className = '' }: { className?: string }) {
   /** Wo der Betrachter steht (Modellkoordinaten) und wohin er schaut [rad]. */
   const geherRef = useRef({ x: 0, y: 0, gier: 0, nick: 0 });
   /**
+   * Die Türblätter in der Szene — je Flügel eines, mit seiner Drehgruppe.
+   *
+   * Ein Ref und kein Zustand: Der Öffnungswinkel wird sechzigmal in der
+   * Sekunde nachgeführt, und eine Zustandsänderung je Bild wäre ein
+   * Neuaufbau des ganzen Betrachters je Bild.
+   */
+  const tuerBlaetterRef = useRef<
+    { id: string; mesh: THREE.Mesh; gruppe: THREE.Group | null; sign: number }[]
+  >([]);
+  /**
+   * Welche Türen offen stehen, und wie weit — 0 = zu, 1 = ganz auf.
+   *
+   * **Warum das im Betrachter steht und nicht im Dokument.** Ob eine Tür
+   * gerade offen ist, ist keine Eigenschaft des Gebäudes. Sie im Modell zu
+   * führen hieße, sie zu speichern, zu exportieren und in der Historie zu
+   * haben — eine Tür aufzumachen wäre dann ein Bearbeitungsschritt, den
+   * Strg+Z zurücknimmt. Das ist sie nicht.
+   */
+  const tuerStandRef = useRef(new Map<string, number>());
+  /** Ziel je Tür: 0 oder 1. Dazwischen läuft die Bewegung. */
+  const tuerZielRef = useRef(new Map<string, number>());
+  /**
    * Die Absicht — getrennt nach Quelle.
    *
    * Tastatur und Steuerkreuz schreiben in **verschiedene** Felder und werden
@@ -1585,8 +1650,16 @@ export default function Viewer3D({ className = '' }: { className?: string }) {
    * Obergeschosses gehen einen dort nichts an. Türen und Durchgänge sind
    * Löcher darin — das rechnet `hindernisse` aus, nicht diese Datei.
    */
+  /*
+   * **Türen zählen nur, wenn sie offen sind.** Welche offen sind, steht in
+   * `tuerStandRef` und ändert sich sechzigmal in der Sekunde — als
+   * Abhängigkeit dieses `useMemo` wäre das ein Neuaufbau je Bild. Deshalb
+   * wird hier nur das Gebäude vorbereitet; die Hindernisse selbst baut
+   * `baueHindernisse` neu, wenn eine Tür ihren Zustand wechselt. Das ist
+   * genau einmal je Tastendruck.
+   */
   const gehHindernisse = useMemo(
-    () => hindernisse(doc, doc.activeLevelId),
+    () => hindernisse(doc, doc.activeLevelId, new Set<string>()),
     [doc, doc.activeLevelId],
   );
 
@@ -2051,7 +2124,37 @@ export default function Viewer3D({ className = '' }: { className?: string }) {
       content.add(mesh);
     }
     addMesh(built.frames, materials.frame, { cast: true, receive: true });
-    addMesh(built.doors, materials.door, { cast: true, receive: true });
+    /*
+     * Türblätter — je Flügel ein eigener Körper.
+     *
+     * Der Öffnungswinkel wird **nicht** hier gesetzt, sondern in einem
+     * eigenen Effekt weiter unten. Dieser hier läuft nur, wenn sich das
+     * Gebäude ändert; eine Tür geht aber auf, ohne dass sich ein Bauteil
+     * ändert. Stünde der Winkel hier, würde für jede geöffnete Tür das ganze
+     * Haus neu gebaut.
+     */
+    tuerBlaetterRef.current = [];
+    for (const blatt of built.doors) {
+      const mesh = new THREE.Mesh(blatt.geometry, materials.door);
+      mesh.castShadow = true;
+      mesh.receiveShadow = true;
+      mesh.userData = { art: 'door', id: blatt.openingId };
+      if (blatt.sliding) {
+        content.add(mesh);
+        tuerBlaetterRef.current.push({ id: blatt.openingId, mesh, gruppe: null, sign: 0 });
+        continue;
+      }
+      // Die Gruppe sitzt auf der Bandachse und trägt die Wanddrehung; das
+      // Blatt hängt darin und dreht sich um die Hochachse dieser Gruppe.
+      const band = new THREE.Group();
+      band.position.set(blatt.hinge.x, blatt.hinge.y, blatt.hinge.z);
+      band.rotation.y = blatt.wallAngle;
+      const dreh = new THREE.Group();
+      dreh.add(mesh);
+      band.add(dreh);
+      content.add(band);
+      tuerBlaetterRef.current.push({ id: blatt.openingId, mesh, gruppe: dreh, sign: blatt.sign });
+    }
     // Die Armaturen liegen weiter im Gewerkeklumpen: Es sind viele, sie sind
     // klein, und niemand fasst ein einzelnes Eckventil im Raum an.
     addMesh(built.heating, materials.heating, { cast: true, receive: true });
@@ -3619,9 +3722,104 @@ export default function Viewer3D({ className = '' }: { className?: string }) {
     hindRef.current = gehHindernisse;
   }, [gehHindernisse]);
 
+  /**
+   * Die Hindernisse neu bilden — nach jedem Wechsel eines Türzustands.
+   *
+   * Eine Tür gilt als offen, sobald sie mehr als halb aufsteht. Das ist eine
+   * Entscheidung und kein Kompromiss: Wer durch eine Tür geht, während sie
+   * aufschwingt, soll nicht am letzten Zentimeter hängenbleiben — und wer sie
+   * hinter sich zuzieht, soll nicht schon beim Anfassen ausgesperrt sein.
+   */
+  const baueHindernisse = useCallback(() => {
+    const offen = new Set<string>();
+    for (const [id, stand] of tuerStandRef.current) if (stand > 0.5) offen.add(id);
+    hindRef.current = hindernisse(doc, doc.activeLevelId, offen);
+  }, [doc]);
+
   useEffect(() => {
     augenRef.current = (geschossHoehen.get(doc.activeLevelId) ?? 0) + AUGENHOEHE;
   }, [geschossHoehen, doc.activeLevelId]);
+
+  /*
+   * Diagnosehaken für die Rauchtests (siehe `main.tsx`): wie weit jedes
+   * Türblatt aufsteht, 0 = zu, 1 = ganz auf. Am Bild ist das nicht zu messen.
+   */
+  useEffect(() => {
+    window.__raviaTueren = () =>
+      tuerBlaetterRef.current.map((b) => tuerStandRef.current.get(b.id) ?? 0);
+    return () => {
+      window.__raviaTueren = undefined;
+    };
+  }, []);
+
+  /** Die Blätter auf ihren jeweiligen Stand drehen. */
+  const tuerenZeichnen = useCallback(() => {
+    for (const blatt of tuerBlaetterRef.current) {
+      const stand = tuerStandRef.current.get(blatt.id) ?? 0;
+      if (blatt.gruppe) blatt.gruppe.rotation.y = blatt.sign * TUER_OFFEN_WINKEL * stand;
+      else blatt.mesh.visible = stand < 0.5;
+    }
+  }, []);
+
+  /*
+   * **Beim Betreten sind alle Türen zu, beim Verlassen alle auf.**
+   *
+   * Das klingt widersprüchlich und ist es nicht — es sind zwei verschiedene
+   * Fragen an dasselbe Bauteil:
+   *
+   *  · In der Übersicht ist die offene Tür ein *Zeichen*. Sie sagt auf einen
+   *    Blick, wohin sie aufgeht, und genau dafür wurde sie seit jeher mit 72°
+   *    gezeichnet. Eine geschlossene Tür sähe dort aus wie eine Wand.
+   *  · Im begehbaren Modus ist sie ein *Bauteil*. Dort ist die Frage, ob man
+   *    durchkommt und wie sich der Weg durch die Wohnung anfühlt — und die
+   *    beantwortet nur eine Tür, die man öffnen muss.
+   */
+  useEffect(() => {
+    const zu = cameraMode === 'walk';
+    tuerStandRef.current.clear();
+    tuerZielRef.current.clear();
+    if (!zu) {
+      for (const blatt of tuerBlaetterRef.current) {
+        tuerStandRef.current.set(blatt.id, 1);
+        tuerZielRef.current.set(blatt.id, 1);
+      }
+    }
+    tuerenZeichnen();
+    baueHindernisse();
+  }, [cameraMode, neuaufbau, tuerenZeichnen, baueHindernisse]);
+
+  /**
+   * Die Tür vor einem auf- oder zumachen.
+   *
+   * **Warum das eine Taste ist und kein Klick.** Im begehbaren Modus ist die
+   * Maus das Umsehen — sie steckt im Fangschloss und hat keinen Zeiger. Ein
+   * Klick wäre dort nicht ortsgebunden, also auch nicht auf eine bestimmte
+   * Tür zu richten. Welche Tür gemeint ist, entscheidet stattdessen der
+   * Blick (siehe `tuerInReichweite`).
+   */
+  const tuerSchalten = useCallback(() => {
+    const g = geherRef.current;
+    const treffer = tuerInReichweite(doc, doc.activeLevelId, { x: g.x, y: g.y }, g.gier);
+    if (!treffer) {
+      useBimStore.getState().setStatus('Keine Tür in Reichweite — näher herangehen.');
+      return;
+    }
+    const id = treffer.opening.id;
+    const jetzt = tuerZielRef.current.get(id) ?? 0;
+    const ziel = jetzt > 0.5 ? 0 : 1;
+    tuerZielRef.current.set(id, ziel);
+    const wand = doc.walls[treffer.opening.wallId];
+    const raum = wand
+      ? Object.values(doc.rooms).find((r) => r.boundaries.some((b) => b.wallId === wand.id))
+      : undefined;
+    useBimStore
+      .getState()
+      .setStatus(
+        `Tür ${ziel > 0.5 ? 'geöffnet' : 'geschlossen'}` +
+          (raum ? ` — ${raum.name}` : '') +
+          ' · E schaltet um',
+      );
+  }, [doc]);
 
   /*
    * Die Stirnlampe.
@@ -3680,6 +3878,12 @@ export default function Viewer3D({ className = '' }: { className?: string }) {
         case 'd': case 'arrowright': ein.tastSeit = v; break;
         case 'a': case 'arrowleft': ein.tastSeit = unten ? -1 : 0; break;
         case 'shift': ein.schnell = unten; return;
+        case 'e':
+          // Die Tür vor einem auf- oder zumachen. Nur beim Drücken, nicht
+          // beim Loslassen — sonst schlüge sie zweimal um und stünde wieder
+          // so da wie vorher.
+          if (unten) tuerSchalten();
+          return;
         case 'escape':
           if (unten) useBimStore.getState().setCameraMode('orbit');
           return;
@@ -3794,6 +3998,30 @@ export default function Viewer3D({ className = '' }: { className?: string }) {
             g.x = ziel.x;
             g.y = ziel.y;
           }
+          /*
+           * Türblätter nachführen.
+           *
+           * Eine Tür braucht rund eine Sekunde, bis sie ganz aufsteht — das
+           * ist nicht Zierde: Wer sie sofort auf 72° springen ließe, sähe
+           * nicht, *wohin* sie aufgeht, und genau das ist im Modell die
+           * interessante Auskunft (steht der Heizkörper im Weg?).
+           *
+           * Erreicht ein Blatt die Halbstellung, ändert sich die
+           * Begehbarkeit — dann und nur dann werden die Hindernisse neu
+           * gebildet.
+           */
+          let schwelleGekreuzt = false;
+          for (const [id, ziel] of tuerZielRef.current) {
+            const stand = tuerStandRef.current.get(id) ?? 0;
+            if (Math.abs(stand - ziel) < 1e-4) continue;
+            const richtung = ziel > stand ? 1 : -1;
+            const neu2 = Math.max(0, Math.min(1, stand + richtung * dt * TUER_TEMPO));
+            tuerStandRef.current.set(id, neu2);
+            if (stand > 0.5 !== neu2 > 0.5) schwelleGekreuzt = true;
+          }
+          if (schwelleGekreuzt) baueHindernisse();
+          tuerenZeichnen();
+
           // Modell → Szene: x bleibt, Modell-y wird −z, die Höhe ist y.
           kamera.position.set(g.x, augenRef.current, -g.y);
           const b = blickrichtung(g.gier, g.nick);
@@ -3878,7 +4106,9 @@ export default function Viewer3D({ className = '' }: { className?: string }) {
           {!werkzeug && (
             <div className="panel pointer-events-none absolute bottom-4 left-1/2 -translate-x-1/2 px-3 py-2 text-center">
               <div className="text-[11px] text-slate-300">
-                {zeigerGefangen ? 'Maus dreht den Blick · Esc beendet' : 'W A S D gehen · ziehen dreht den Blick'}
+                {zeigerGefangen
+                  ? 'Maus dreht den Blick · E öffnet die Tür · Esc beendet'
+                  : 'W A S D gehen · ziehen dreht den Blick · E öffnet die Tür'}
               </div>
               <div className="mt-0.5 text-[10px] text-slate-500">
                 Augenhöhe 1,65 m · Umschalt geht schneller · Türen sind offen, Fenster nicht

@@ -18,6 +18,9 @@ import type { BimDocument, Vec2 } from '../../src/types/bim';
 import {
   AUGENHOEHE,
   KOERPER_RADIUS,
+  TUER_OFFEN_WINKEL,
+  TUER_REICHWEITE,
+  TUER_TEMPO,
   begehbar,
   begrenzeNick,
   blickrichtung,
@@ -26,6 +29,7 @@ import {
   loese,
   stecktFest,
   schritt,
+  tuerInReichweite,
 } from '../../src/lib/begehen';
 
 /**
@@ -223,6 +227,79 @@ export function pruefeBegehen(check: CheckFn): void {
     const diag = schritt(0, 1, 1, 1.45, 1);
     check('Diagonal ist nicht schneller', Math.hypot(diag.x, diag.y), 1.45, 1e-9);
     check('Ohne Eingabe kein Schritt', Math.hypot(...Object.values(schritt(0, 0, 0, 1.45, 1))), 0, 1e-12);
+  }
+
+  // =========================================================================
+  // 5b · Türen sind zu, bis man sie öffnet
+  // =========================================================================
+  /*
+   * **Der Befund.** „Im begehbaren Modus wäre auch schön, Türen öffnen und
+   * schließen zu können." Bis 1.28.2 war jede Tür ein Loch; man ging durch
+   * das Haus, als stünde überall nur die Zarge.
+   *
+   * Zwei Dinge müssen dafür stimmen, und beide werden hier gemessen: dass
+   * eine geschlossene Tür wirklich aufhält, und dass die richtige Tür
+   * gemeint ist, wenn man `E` drückt.
+   */
+  {
+    const zimmer = baueZimmer(true);
+
+    // Ohne Angabe bleibt alles wie bisher: jede Tür ein Loch. Das ist die
+    // Rückfallebene für alle Aufrufer, die von Türen nichts wissen.
+    check('Ohne Türverzeichnis gilt jede Tür als offen', begehbar(zimmer.openings.t1), true);
+    check('Mit leerem Verzeichnis ist sie zu', begehbar(zimmer.openings.t1, new Set()), false);
+    check('… und im Verzeichnis wieder offen', begehbar(zimmer.openings.t1, new Set(['t1'])), true);
+    // Das Fenster bleibt in jedem Fall zu.
+    check('Ein Fenster ist nie begehbar', begehbar(zimmer.openings.f1, new Set(['f1'])), false);
+
+    // Die Südwand ist 5,00 m lang. Mit offener Tür zerfällt sie in zwei
+    // Stücke, mit geschlossener bleibt sie eines — also vier statt fünf
+    // Hindernisse im Zimmer.
+    check('Zu: vier Hindernisse', hindernisse(zimmer, 'eg', new Set()).length, 4);
+    check('Offen: fünf Hindernisse', hindernisse(zimmer, 'eg', new Set(['t1'])).length, 5);
+
+    // --- Welche Tür ist gemeint? -----------------------------------------
+    /*
+     * Die Tür sitzt bei (2,50 | 0,00), die Wandnormale zeigt nach +y (ins
+     * Zimmer). Ein Meter davor, mit Blick darauf, heißt Standort (2,50 | 1,00)
+     * und Blickrichtung −y, also gier = −90°.
+     */
+    const davor = { x: 2.5, y: 1 };
+    const zurTuer = -Math.PI / 2;
+    const treffer = tuerInReichweite(zimmer, 'eg', davor, zurTuer);
+    check('Die Tür vor einem wird gefunden', treffer?.opening.id ?? '', 't1');
+    check('… mit ihrem Abstand', treffer?.abstand ?? 0, 1, 1e-9);
+
+    // Mit dem Rücken zur Tür: nichts.
+    check('Mit dem Rücken zur Tür greift niemand danach',
+      tuerInReichweite(zimmer, 'eg', davor, Math.PI / 2) === null, true);
+
+    // Zu weit weg: die Reichweite ist 1,60 m.
+    check('Zwei Meter davor ist sie außer Reichweite',
+      tuerInReichweite(zimmer, 'eg', { x: 2.5, y: 2 }, zurTuer) === null, true);
+    check('Anderthalb Meter davor noch nicht',
+      tuerInReichweite(zimmer, 'eg', { x: 2.5, y: 1.5 }, zurTuer)?.opening.id ?? '', 't1');
+
+    /*
+     * Seitlich vorbei. Wer bei (4,00 | 0,20) steht und nach −y schaut, hat die
+     * Tür bei (2,50 | 0,00) zwar in Reichweite —
+     *     Abstand = √(1,50² + 0,20²) = 1,513 m < 1,60 m —,
+     * aber fast quer zur Blickachse:
+     *     cos = 0,20 / 1,513 = 0,132
+     * und das liegt unter der Schwelle von 0,20 (rund 78°). Wer daran
+     * vorbeigeht, greift nicht danach.
+     */
+    check('Fast seitlich liegende Türen zählen nicht',
+      tuerInReichweite(zimmer, 'eg', { x: 4, y: 0.2 }, zurTuer) === null, true);
+
+    // --- Die Maße der Bewegung -------------------------------------------
+    check('Das Blatt öffnet auf 72°', (TUER_OFFEN_WINKEL * 180) / Math.PI, 72, 1e-9);
+    // Bei 1,4 je Sekunde steht die Tür nach 1/1,4 = 0,714 s ganz auf.
+    check('… in rund sieben Zehnteln einer Sekunde', 1 / TUER_TEMPO, 0.714, 0.001);
+    check('Reichweite 1,60 m', TUER_REICHWEITE, 1.6, 1e-9);
+    // Sie muss größer sein als ein Schritt je Bild bei Gehtempo, sonst
+    // liefe man an einer Tür vorbei, ohne sie je greifen zu können.
+    check('… und größer als ein Schritt bei Gehtempo', TUER_REICHWEITE > 1.45 * 0.1, true);
   }
 
   // =========================================================================

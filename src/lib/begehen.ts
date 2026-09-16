@@ -55,12 +55,30 @@ export interface Hindernis {
   halbdicke: number;
 }
 
-/** Ist die Öffnung begehbar — also ein Loch, durch das man geht? */
-export function begehbar(o: Opening): boolean {
-  // Türen und Durchgänge ja, Fenster nein. Eine bodentiefe Verglasung ist
-  // trotzdem kein Weg: sie ist zu, auch wenn sie bis zum Boden reicht.
+/**
+ * Ist die Öffnung begehbar — also ein Loch, durch das man geht?
+ *
+ * **Türen zählen nur, wenn sie offen sind.** Bis 1.28.2 war jede Tür ein
+ * Loch: Man ging durch das Haus, als stünde überall nur die Zarge. Das ist
+ * bequem und beantwortet genau die Frage nicht, für die es den begehbaren
+ * Modus gibt — ob das Haus sich richtig anfühlt. Eine Tür, die man öffnen
+ * muss, sagt nebenbei zweierlei: ob sie überhaupt aufgeht (der Heizkörper
+ * dahinter!) und wie der Weg durch die Wohnung wirklich verläuft.
+ *
+ * `offen` ist die Menge der geöffneten Türen. **Fehlt sie, gilt wie bisher
+ * jede Tür als offen** — das ist die Rückfallebene für alle Aufrufer, die
+ * von Türen nichts wissen (Auswertung, Prüfung, Wegsuche); für sie hat sich
+ * nichts geändert.
+ *
+ * Durchgänge bleiben immer Löcher: ein Durchgang *ist* ein Loch, das ist
+ * seine Definition. Fenster nie — eine bodentiefe Verglasung ist zu, auch
+ * wenn sie bis zum Boden reicht.
+ */
+export function begehbar(o: Opening, offen?: ReadonlySet<string>): boolean {
   if (o.kind === 'window') return false;
-  return (o.sillHeight ?? 0) <= 0.05;
+  if ((o.sillHeight ?? 0) > 0.05) return false;
+  if (o.kind === 'door' && offen && !offen.has(o.id)) return false;
+  return true;
 }
 
 /**
@@ -69,11 +87,15 @@ export function begehbar(o: Opening): boolean {
  * Ein Wandzug wird an jeder begehbaren Öffnung aufgetrennt. Übrig bleiben die
  * massiven Stücke — und nur die halten auf.
  */
-export function hindernisse(doc: BimDocument, levelId: LevelId): Hindernis[] {
+export function hindernisse(
+  doc: BimDocument,
+  levelId: LevelId,
+  offeneTueren?: ReadonlySet<string>,
+): Hindernis[] {
   const raus: Hindernis[] = [];
   const oeffnungenJeWand = new Map<string, Opening[]>();
   for (const o of Object.values(doc.openings ?? {})) {
-    if (!begehbar(o)) continue;
+    if (!begehbar(o, offeneTueren)) continue;
     const liste = oeffnungenJeWand.get(o.wallId);
     if (liste) liste.push(o);
     else oeffnungenJeWand.set(o.wallId, [o]);
@@ -267,4 +289,83 @@ export function schritt(gier: number, vor: number, seit: number, tempo: number, 
   const rx = vy;
   const ry = -vx;
   return { x: (vx * vor + rx * seit) * f, y: (vy * vor + ry * seit) * f };
+}
+
+
+// ---------------------------------------------------------------------------
+// Türen im begehbaren Modus
+// ---------------------------------------------------------------------------
+
+/** Wie weit man eine Tür erreicht [m] — Armlänge plus ein Schritt. */
+export const TUER_REICHWEITE = 1.6;
+
+/**
+ * Öffnungswinkel eines Türblatts [rad] — 72°.
+ *
+ * Dieselbe Zahl, mit der das Modell die Tür vorher fest gezeichnet hat. Sie
+ * ist kein Bauteilmaß: Ein Türblatt schlägt bis 90° und weiter auf, wenn
+ * nichts im Weg steht. 72° zeigt die Anschlagsrichtung unmissverständlich
+ * und lässt die Zarge dahinter noch erkennen.
+ */
+export const TUER_OFFEN_WINKEL = (72 * Math.PI) / 180;
+
+/**
+ * Wie schnell ein Türblatt schwenkt [Anteil je Sekunde].
+ *
+ * 1,4 heißt: in gut sieben Zehnteln einer Sekunde ganz auf. Das ist nicht
+ * Zierde — wer die Tür sofort auf 72° springen ließe, sähe nicht, *wohin*
+ * sie aufgeht, und genau das ist im Modell die interessante Auskunft: ob der
+ * Heizkörper dahinter im Weg steht.
+ */
+export const TUER_TEMPO = 1.4;
+
+/**
+ * Welche Tür liegt in Reichweite und im Blickfeld?
+ *
+ * **Warum Blickfeld und nicht nur Abstand.** In einem Flur stehen zwei Türen
+ * nebeneinander; wer auf die eine schaut, meint die eine. Ein reiner
+ * Abstandstest griffe nach der, die zufällig einen Zentimeter näher ist —
+ * und das wäre bei jedem zweiten Versuch die falsche.
+ *
+ * Bewertet wird deshalb nach Abstand **und** Richtung: Eine Tür hinter dem
+ * Rücken zählt nicht, und unter zwei Türen vor einem gewinnt die, die näher
+ * an der Blickachse liegt. `wert` ist der Abstand, geteilt durch die
+ * Übereinstimmung mit der Blickrichtung — klein ist gut.
+ */
+export function tuerInReichweite(
+  doc: BimDocument,
+  levelId: LevelId,
+  standort: Vec2,
+  gier: number,
+): { opening: Opening; abstand: number } | null {
+  const blick = { x: Math.cos(gier), y: Math.sin(gier) };
+  let beste: { opening: Opening; abstand: number; wert: number } | null = null;
+
+  for (const o of Object.values(doc.openings ?? {})) {
+    if (o.kind !== 'door') continue;
+    const wand = doc.walls[o.wallId];
+    if (!wand || wand.levelId !== levelId) continue;
+    const g = getWallGeometry(wand, doc.nodes);
+    if (!g) continue;
+
+    // Die Türmitte auf der Wandachse.
+    const mitte = {
+      x: g.a.x + g.dir.x * o.distance,
+      y: g.a.y + g.dir.y * o.distance,
+    };
+    const dx = mitte.x - standort.x;
+    const dy = mitte.y - standort.y;
+    const abstand = Math.hypot(dx, dy);
+    if (abstand > TUER_REICHWEITE || abstand < 1e-6) continue;
+
+    // cos des Winkels zur Blickachse. Unter 0,2 liegt die Tür mehr seitlich
+    // als voraus — das ist keine Tür, auf die jemand zugeht.
+    const richtung = (dx * blick.x + dy * blick.y) / abstand;
+    if (richtung < 0.2) continue;
+
+    const wert = abstand / richtung;
+    if (!beste || wert < beste.wert) beste = { opening: o, abstand, wert };
+  }
+
+  return beste ? { opening: beste.opening, abstand: beste.abstand } : null;
 }
