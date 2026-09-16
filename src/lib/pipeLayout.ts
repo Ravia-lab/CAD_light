@@ -444,11 +444,60 @@ export function planPipeNetwork(doc: BimDocument, options: PipeLayoutOptions): P
   }
 
   // --- Verbraucher ---------------------------------------------------------
-  const ziele = fixtures.filter((f) => f.id !== quelle.id && VERBRAUCHER.has(f.type));
+  /*
+   * **Wann ist ein Flächenheizkreis ein Verbraucher der Trasse?**
+   *
+   * Ein Fußbodenheizkreis hängt nie am Erzeuger, sondern immer am Verteiler:
+   * die Anbindeleitung führt vom Verteiler in den Raum, und was davor liegt,
+   * ist der Stamm. Solange auf dem Geschoss ein Erzeuger oder ein Speicher
+   * steht, ist genau der die Quelle, der Verteiler ist sein Verbraucher, und
+   * die Kreise dahinter gehören in die zweite Stufe — die dieses Programm
+   * (noch) nicht trassiert.
+   *
+   * Steht dort **kein** Erzeuger und **kein** Speicher, ist der Verteiler
+   * selbst die Quelle. Dann sind seine Verbraucher genau die Heizflächen des
+   * Geschosses, und dazu gehören die Flächenheizkreise.
+   *
+   * Ohne diesen Fall lief die Auslegung an einem Haus, das nur
+   * Fußbodenheizung hat — also am Regelfall im Neubau — ins Leere: Quelle
+   * war der Verteiler, Ziele gab es keine, und die Meldung lautete
+   * „Heizkörper oder Verteiler setzen", obwohl beides vorhanden war, was
+   * vorhanden sein konnte. Am Institutsgebäude des KIT waren das 17 Kreise
+   * im Keller und 18 im Erdgeschoss, für die kein einziger Meter Rohr
+   * entstand.
+   *
+   * Warum nicht immer? Weil die Kreise sonst am *Speicher* hingen und die
+   * Trasse am Verteiler vorbeiliefe — das wäre nicht unvollständig, sondern
+   * falsch.
+   */
+  const verteilerIstQuelle = !erzeuger && speicher.length === 0 && quelle.type === 'manifold';
+  const ziele = fixtures.filter(
+    (f) =>
+      f.id !== quelle.id &&
+      (VERBRAUCHER.has(f.type) || (verteilerIstQuelle && f.type === 'underfloor')),
+  );
+
+  // Mehrere Verteiler ohne übergeordnete Quelle: welcher Kreis an welchem
+  // hängt, sagt das Modell nicht. Alles an den ersten zu hängen wäre eine
+  // stille Annahme — also steht sie da.
+  if (verteilerIstQuelle && verteiler.length > 1) {
+    notes.push({
+      severity: 'warn',
+      text:
+        `${verteiler.length} Heizkreisverteiler auf diesem Geschoss und kein Erzeuger oder Speicher davor. ` +
+        `Die Trasse geht von „${quelle.label ?? 'Verteiler'}" aus; welcher Kreis an welchem Verteiler hängt, ` +
+        `steht nicht im Modell. Einen Speicher setzen oder die Kreise von Hand zuordnen.`,
+    });
+  }
+
   if (ziele.length === 0) {
+    const flaechen = fixtures.filter((f) => f.type === 'underfloor');
     notes.push({
       severity: 'error',
-      text: 'Keine Verbraucher auf diesem Geschoss. Heizkörper oder Verteiler setzen, dann lässt sich das Netz auslegen.',
+      text: flaechen.length
+        ? `${flaechen.length} Flächenheizkreis(e) auf diesem Geschoss, aber kein Heizkreisverteiler. ` +
+          'Eine Fußbodenheizung hängt immer an einem Verteiler — den setzen, dann lässt sich anbinden.'
+        : 'Keine Verbraucher auf diesem Geschoss. Heizkörper oder Verteiler setzen, dann lässt sich das Netz auslegen.',
     });
     return { runs: [], accessories: [], routeLength: 0, pipeLength: 0, served: 0, notes };
   }

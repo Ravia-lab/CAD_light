@@ -858,4 +858,89 @@ export function pruefeRohrausleger(check: CheckFn): void {
     check('Und wird als Durchgang gemeldet',
       fein.notes.some((n) => n.severity === 'warn' && n.text.includes('Türdurchgang')), true);
   }
+
+  // =========================================================================
+  // 16 · Fußbodenheizung: der Verteiler als Quelle bindet seine Kreise an
+  // =========================================================================
+  /*
+   * **Der Regelfall im Neubau hatte kein Rohrnetz.**
+   *
+   * Ein Haus mit Fußbodenheizung hat auf dem Geschoss einen Verteiler und
+   * je Raum einen Heizkreis, sonst nichts. Der Verteiler war dann die
+   * Quelle, Verbraucher gab es keine — Flächenheizkreise standen nicht auf
+   * der Liste —, und die Auslegung endete mit „Heizkörper oder Verteiler
+   * setzen", obwohl beides da war, was da sein konnte. Am Institutsgebäude
+   * des KIT waren das 17 Kreise im Keller, für die kein Meter Rohr entstand.
+   *
+   * **Warum nicht einfach immer.** Ein Heizkreis hängt nie am Erzeuger,
+   * sondern immer am Verteiler. Steht ein Speicher auf dem Geschoss, ist er
+   * die Quelle, der Verteiler sein Verbraucher — und die Kreise gehören in
+   * die zweite Stufe. Sie dort trotzdem anzubinden hieße, am Verteiler
+   * vorbeizuleiten: nicht unvollständig, sondern falsch. Genau diese
+   * Fallunterscheidung prüfen die beiden Fälle unten.
+   */
+  {
+    // Dieselben Stellen wie die Heizkörper des Prüfhauses, nur mit anderem
+    // Typ — damit die Trassenlänge vergleichbar bleibt.
+    const alsTyp = (vorlage: Fixture, id: string, type: Fixture['type']): Fixture => ({
+      ...vorlage,
+      id,
+      type,
+      label: id,
+    });
+    // `roomCoverage` und `roomId` gehören zum Flächenheizkreis dazu: daran
+    // erkennt die Auslegung, welche Raumlast hinter einem Verteiler steht.
+    // Ohne sie trägt der Verteiler nichts, und die Gegenprobe unten liefe
+    // ins Leere, ohne dass es an der Fallunterscheidung läge.
+    const raumIds = Object.keys(doc.rooms);
+    const kreis = (vorlage: Fixture, id: string, raum: string): Fixture => ({
+      ...alsTyp(vorlage, id, 'underfloor'),
+      roomId: raum,
+      params: { ...vorlage.params, roomCoverage: true },
+    });
+    const mitFbh: BimDocument = {
+      ...doc,
+      fixtures: {
+        'v-1': doc.fixtures['v-1'],
+        'fbh-1': kreis(doc.fixtures['hk-1'], 'fbh-1', raumIds[0]),
+        'fbh-2': kreis(doc.fixtures['hk-2'], 'fbh-2', raumIds[raumIds.length - 1]),
+      },
+    };
+    const r = planPipeNetwork(mitFbh, { mode: 'neubau', levelId: 'eg' });
+    check('Beide Flächenheizkreise werden angebunden', r.served, 2);
+    check('Und es entsteht Rohr', r.pipeLength > 0, true);
+    check('Kein Fehlerhinweis mehr', r.notes.some((n) => n.severity === 'error'), false);
+
+    // Gegenprobe: mit Speicher davor ist der Verteiler der Verbraucher, und
+    // die Kreise bleiben außen vor.
+    const mitSpeicher: BimDocument = {
+      ...mitFbh,
+      fixtures: {
+        ...mitFbh.fixtures,
+        'sp-1': {
+          ...alsTyp(doc.fixtures['v-1'], 'sp-1', 'storage'),
+          position: { x: 0.6, y: 3.4 },
+        },
+      },
+    };
+    const rs = planPipeNetwork(mitSpeicher, { mode: 'neubau', levelId: 'eg' });
+    check('Mit Speicher ist nur der Verteiler Verbraucher', rs.served, 1);
+
+    // Und ohne Verteiler wird nichts erfunden — aber die Meldung nennt den
+    // Weg hinaus, statt nach einem Heizkörper zu fragen.
+    const ohneVerteiler: BimDocument = {
+      ...mitFbh,
+      fixtures: {
+        'fbh-1': mitFbh.fixtures['fbh-1'],
+        'fbh-2': mitFbh.fixtures['fbh-2'],
+      },
+    };
+    const ro = planPipeNetwork(ohneVerteiler, { mode: 'neubau', levelId: 'eg' });
+    check('Ohne Verteiler keine Trasse', ro.runs.length, 0);
+    check(
+      '… und die Meldung nennt den Verteiler, nicht den Heizkörper',
+      ro.notes.some((n) => n.severity === 'error' && /Verteiler/.test(n.text) && !/Heizkörper/.test(n.text)),
+      true,
+    );
+  }
 }
