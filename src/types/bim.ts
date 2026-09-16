@@ -1124,6 +1124,21 @@ export interface FloorplanImage {
   scale: number;
   /** Drehung [°] gegen den Uhrzeigersinn. */
   rotation: number;
+  /**
+   * Das Bitmap wird seitenverkehrt aufgetragen.
+   *
+   * Ein Grundriss kommt oft spiegelverkehrt herein — von der Rückseite
+   * abfotografiert, aus einem Scanner mit vertauschter Achse. Wer den Plan
+   * dann spiegelt, spiegelt die Geometrie; das Bild darunter bliebe stehen
+   * und passte nicht mehr dazu. Deshalb trägt das Bild die Umkehr selbst,
+   * statt dass irgendwo ein zweites Bitmap entsteht: das Original bleibt
+   * unangetastet, und der Schritt ist umkehrbar.
+   *
+   * Der Rahmen (`origin`, `rotation`) beschreibt unverändert die Lage der
+   * Bildfläche im Modell — gespiegelt wird *innerhalb* dieses Rahmens, um
+   * die Hochachse.
+   */
+  gespiegelt?: boolean;
   opacity: number;
   visible: boolean;
   /**

@@ -1068,6 +1068,14 @@ export default function Editor2D({ className = '' }: { className?: string }) {
       ctx.rotate(-image.rotation * (Math.PI / 180));
       const dw = image.naturalWidth * image.scale * zoom;
       const dh = image.naturalHeight * image.scale * zoom;
+      // Seitenverkehrt eingelesenes Bild: die Fläche bleibt, wo sie ist, nur
+      // die Pixel kehren sich um. Deshalb erst an die rechte Kante schieben
+      // und dann die x-Achse umdrehen — sonst läge das Bild neben seinem
+      // Rahmen und der Auswahlrahmen zeigte ins Leere.
+      if (image.gespiegelt) {
+        ctx.translate(dw, 0);
+        ctx.scale(-1, 1);
+      }
       ctx.imageSmoothingQuality = 'high';
       ctx.drawImage(bitmap, 0, 0, dw, dh);
       ctx.restore();

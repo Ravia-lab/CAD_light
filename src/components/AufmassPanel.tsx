@@ -1,13 +1,18 @@
 /**
- * AufmassPanel — die beiden Handgriffe nach einem Import.
+ * AufmassPanel — die Handgriffe nach einem Import.
  *
  * Ein eingelesener Grundriss ist fast fertig, aber eben nur fast: die Wände
  * stehen ein paar Grad schief, und an ein paar Stellen hört eine Wand auf,
  * ohne die nächste zu erreichen. Beides von Hand zu richten geht — es ist nur
  * mühsam und fehleranfällig, und niemand tut es gern zweimal.
  *
- * Deshalb hier zwei Knöpfe statt einer Anleitung:
+ * Deshalb hier Knöpfe statt einer Anleitung:
  *
+ *  · **Spiegeln**, wenn der Plan seitenverkehrt hereinkam. Das passiert
+ *    häufiger, als man denkt — ein von der Rückseite abfotografierter Plan,
+ *    ein Scan mit vertauschter Achse — und es fällt erst auf, wenn man mit dem
+ *    Aufmaß in der Wohnung steht und links rechts ist. Bis dahin war jede
+ *    Eingabe darauf verloren.
  *  · **Wände begradigen** zieht alles auf die Achsen, was nah genug dran ist,
  *    und lässt in Ruhe, was es nicht ist.
  *  · **Für jede Lücke** die Frage, die nur der Mensch beantworten kann: war
@@ -33,14 +38,51 @@ const SCHLUSS: { art: LueckenSchluss; label: string; titel: string }[] = [
   { art: 'fenster', label: 'Fenster', titel: 'Dort sitzt ein Fenster, Brüstung 90 cm.' },
 ];
 
+/**
+ * Die Lagen, die zur Auswahl stehen.
+ *
+ * Bewusst eine kurze Liste und kein Zahlenfeld: Wer „7. OG" eintippt, bekommt
+ * sieben erfundene Geschosse, die niemand aufgemessen hat. Für das Wohnhaus,
+ * um das es hier geht, reicht Keller bis drittes Obergeschoss — und wer höher
+ * hinaus will, legt die Geschosse einzeln an und weiß dann, was er tut.
+ */
+const LAGEN: { ordnung: number; label: string }[] = [
+  { ordnung: -1, label: 'KG' },
+  { ordnung: 0, label: 'EG' },
+  { ordnung: 1, label: '1. OG' },
+  { ordnung: 2, label: '2. OG' },
+  { ordnung: 3, label: '3. OG' },
+];
+
 export default function AufmassPanel() {
   const doc = useBimStore((s) => s.doc);
   const begradigeWaende = useBimStore((s) => s.begradigeWaende);
+  const spiegleGrundriss = useBimStore((s) => s.spiegleGrundriss);
+  const ordneGrundrissZu = useBimStore((s) => s.ordneGrundrissZu);
   const schliesseLuecke = useBimStore((s) => s.schliesseLuecke);
   const bestaetigeWandstaerken = useBimStore((s) => s.bestaetigeWandstaerken);
   const setViewport = useBimStore((s) => s.setViewport);
   const viewport = useBimStore((s) => s.viewport);
   const [meldung, setMeldung] = useState<string | null>(null);
+  /*
+   * **Warum der Umfang vorbelegt ist und nicht gefragt wird.**
+   *
+   * Das ganze Gebäude ist die einzige Antwort, die nie schadet: Danach stehen
+   * die Geschosse wieder übereinander. Nur ein Geschoss zu spiegeln ist
+   * richtig, wenn gerade *ein* Plan eingelesen wurde und die übrigen schon
+   * stimmen — das weiß aber nur der Mensch davor. Also steht das Sichere als
+   * Vorgabe da und das andere als Haken daneben.
+   */
+  const [nurGeschoss, setNurGeschoss] = useState(false);
+  /*
+   * **Warum die Zuordnung vorbelegt ist mit dem, was schon gilt.**
+   * Das Feld zeigt die Lage des aktiven Geschosses. Wer nichts ändern will,
+   * sieht damit sofort, dass nichts zu ändern ist — und wer den Grundriss
+   * einer Wohnung im ersten Stock eingelesen hat, stellt eine Zeile um statt
+   * ein Geschoss anzulegen, Höhen nachzuziehen und Randbedingungen zu ändern.
+   */
+  const [zielOrdnung, setZielOrdnung] = useState<number | null>(null);
+  const [aussenwaende, setAussenwaende] = useState(true);
 
   const waende = useMemo(
     () => Object.values(doc.walls).filter((w) => w.levelId === doc.activeLevelId),
@@ -60,6 +102,13 @@ export default function AufmassPanel() {
   );
 
   const offeneEnden = doc.diagnostics.openEnds.length;
+
+  // Die Lage, die das aktive Geschoss heute hat. Liegt sie außerhalb der
+  // Auswahlliste, steht das Feld auf EG — dann ist die Zuordnung ohnehin
+  // nicht der richtige Weg.
+  const aktuelleOrdnung = LAGEN.some((l) => l.ordnung === doc.levels[doc.activeLevelId]?.order)
+    ? (doc.levels[doc.activeLevelId]?.order ?? 0)
+    : 0;
 
   // Geschätzte Stärken, nach Wandart getrennt — die Frage stellt sich für
   // Außen- und Innenwände verschieden.
@@ -87,6 +136,91 @@ export default function AufmassPanel() {
   return (
     <div className="space-y-2.5 rounded-lg border border-white/[0.07] bg-white/[0.02] p-3">
       <div className="label-xs">Aufmaß nachziehen</div>
+
+      {/* ------------------------------------------------------- Spiegeln */}
+      <div className="space-y-1.5">
+        <div className="flex items-center justify-between gap-2">
+          <div className="text-[11.5px] text-slate-300">Grundriss spiegeln</div>
+          <div className="flex gap-1">
+            <button
+              className="rounded-md bg-accent/15 px-2.5 py-1 text-[11px] text-accent transition hover:bg-accent/25"
+              title="Links und rechts tauschen — der Regelfall beim seitenverkehrt eingelesenen Plan."
+              onClick={() =>
+                setMeldung(spiegleGrundriss('senkrecht', nurGeschoss ? 'geschoss' : 'alles').message)
+              }
+            >
+              ↔ links/rechts
+            </button>
+            <button
+              className="rounded-md bg-white/[0.06] px-2.5 py-1 text-[11px] text-slate-300 transition hover:bg-white/[0.1]"
+              title="Oben und unten tauschen."
+              onClick={() =>
+                setMeldung(spiegleGrundriss('waagerecht', nurGeschoss ? 'geschoss' : 'alles').message)
+              }
+            >
+              ↕ oben/unten
+            </button>
+          </div>
+        </div>
+        <label className="flex cursor-pointer items-center gap-1.5 text-[10.5px] text-slate-500">
+          <input
+            type="checkbox"
+            className="h-3 w-3 accent-sky-400"
+            checked={nurGeschoss}
+            onChange={(e) => setNurGeschoss(e.target.checked)}
+          />
+          nur dieses Geschoss (sonst das ganze Gebäude samt Grundstück und Referenzbild)
+        </label>
+        <p className="text-[10.5px] leading-snug text-slate-500">
+          Türanschläge, Heizkörperdrehungen, Dachrichtung und die Ausblasrichtung der Wärmepumpe
+          gehen mit. Die Lage im Plan bleibt: gespiegelt wird um die Mitte dessen, was da ist.
+        </p>
+      </div>
+
+      {/* --------------------------------------------- Geschosszuordnung */}
+      <div className="space-y-1.5 border-t border-white/[0.06] pt-2.5">
+        <div className="flex items-center justify-between gap-2">
+          <div className="text-[11.5px] text-slate-300">Dieser Grundriss ist das …</div>
+          <div className="flex items-center gap-1">
+            <select
+              className="rounded-md border border-white/10 bg-slate-900/70 px-1.5 py-1 text-[11px] text-slate-200"
+              value={zielOrdnung ?? aktuelleOrdnung}
+              onChange={(e) => setZielOrdnung(Number(e.target.value))}
+            >
+              {LAGEN.map((l) => (
+                <option key={l.ordnung} value={l.ordnung}>
+                  {l.label}
+                </option>
+              ))}
+            </select>
+            <button
+              className="rounded-md bg-accent/15 px-2.5 py-1 text-[11px] text-accent transition hover:bg-accent/25 disabled:opacity-40"
+              disabled={(zielOrdnung ?? aktuelleOrdnung) === aktuelleOrdnung}
+              onClick={() =>
+                setMeldung(
+                  ordneGrundrissZu(zielOrdnung ?? aktuelleOrdnung, aussenwaende).message,
+                )
+              }
+            >
+              Zuordnen
+            </button>
+          </div>
+        </div>
+        <label className="flex cursor-pointer items-center gap-1.5 text-[10.5px] text-slate-500">
+          <input
+            type="checkbox"
+            className="h-3 w-3 accent-sky-400"
+            checked={aussenwaende}
+            onChange={(e) => setAussenwaende(e.target.checked)}
+          />
+          neue Geschosse mit dem Außenwandumriss anlegen
+        </label>
+        <p className="text-[10.5px] leading-snug text-slate-500">
+          Die fehlenden Geschosse darunter entstehen mit, Höhenlagen und Namen werden nachgezogen,
+          und der Boden dieser Wohnung grenzt danach an einen Raum statt an Erdreich. Öffnungen
+          werden nicht übernommen — die sitzen im Geschoss darunter anders.
+        </p>
+      </div>
 
       {/* ---------------------------------------------------- Begradigen */}
       <div className="space-y-1.5">

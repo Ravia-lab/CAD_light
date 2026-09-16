@@ -117,6 +117,8 @@ import { pruefePruefsumme } from './pruefungen/pruefsumme';
 import { pruefeExportvertrag } from './pruefungen/exportvertrag';
 import { pruefeFassung } from './pruefungen/fassung';
 import { pruefeDachgeschoss } from './pruefungen/dachgeschoss';
+import { pruefeSpiegeln } from './pruefungen/spiegeln';
+import { pruefeImportgeschoss } from './pruefungen/importgeschoss';
 import { pruefeProjektmappe } from './pruefungen/projektmappe';
 import { pruefeUiModus } from './pruefungen/uimodus';
 import { pruefeSchichtgrenze } from './pruefungen/schichtgrenze';
@@ -3687,6 +3689,12 @@ pruefeFassung(check);
 
 console.log('\n▸ Dachgeschoss — das Dach gehört einem Geschoss, nicht allen');
 pruefeDachgeschoss(check);
+
+console.log('\n▸ Spiegeln — links und rechts tauschen, ohne etwas zu verlieren');
+pruefeSpiegeln(check);
+
+console.log('\n▸ Geschosszuordnung — der Grundriss kommt selten vom Erdgeschoss');
+pruefeImportgeschoss(check);
 
 console.log('\n▸ Druckplan — Ecken, Symbolik, Maße');
 pruefeDruckplan(check);

@@ -121,3 +121,18 @@ export function benenneGeschosse(
     return platzhalter ? geschossName(i, egIndex) : eigen;
   });
 }
+
+/**
+ * Ist das ein Lagename — einer, der nur die Position im Haus beschreibt?
+ *
+ * Der Unterschied entscheidet, ob ein Name beim Umsortieren mitwandert. „1. OG"
+ * ist eine Ortsangabe: Wird aus dem Geschoss das zweite Obergeschoss, ist der
+ * Name falsch und muss nachgezogen werden. „Dachboden" oder „Wohnung Müller"
+ * sind dagegen Eigennamen — sie überleben jede Umsortierung, weil sie etwas
+ * sagen, das aus der Position nicht folgt.
+ */
+export function istLagename(name: string | undefined): boolean {
+  const n = (name ?? '').trim();
+  if (!n) return true;
+  return /^(EG|KG)$/i.test(n) || /^\d+\.\s*(OG|UG)$/i.test(n) || /^geschoss(\s*-?\d+)?$/i.test(n);
+}

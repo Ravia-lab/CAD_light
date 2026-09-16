@@ -32,6 +32,7 @@
     "smoke:rohrnetz": "node scripts/smoke-rohrnetz.mjs",
     "smoke:schema": "node scripts/smoke-schema.mjs",
     "smoke:bild": "node scripts/smoke-bild.mjs",
+    "smoke:spiegeln": "node scripts/smoke-spiegeln.mjs",
     "smoke:mappe": "node scripts/smoke-mappe.mjs",
     "smoke:einzeldatei": "node scripts/pruef-einzeldatei.mjs",
     "smoke:einzeldatei-scan": "node scripts/pruef-einzeldatei-scan.mjs",

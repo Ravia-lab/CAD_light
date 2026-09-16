@@ -158,6 +158,9 @@ import { baseRoofHeightAt, buildRoofFrame, dormerSide } from '../lib/roofGeometr
 import { importIfc } from '../lib/ifcImport';
 import { importRaumplan } from '../lib/raumplanImport';
 import { begradige } from '../lib/begradigen';
+import { spiegleDokument } from '../lib/spiegeln';
+import { planeGeschosszuordnung } from '../lib/importgeschoss';
+import type { SpiegelAchse } from '../lib/spiegeln';
 import type { BegradigenOptionen } from '../lib/begradigen';
 import { findeLuecken, oeffnungFuerLuecke } from '../lib/luecken';
 import type { LueckenSchluss } from '../lib/luecken';
@@ -742,6 +745,19 @@ interface BimState {
    * @returns Zahl der angelegten Wände.
    */
   uebernehmeAussenwaende: (vonLevelId: string, nachLevelId: string) => number;
+  /**
+   * Den eingelesenen Grundriss einem Geschoss zuordnen — „das ist das 1. OG".
+   *
+   * Legt die fehlenden Geschosse darunter an, zieht Höhenlagen, Namen und
+   * Randbedingungen nach und übernimmt auf Wunsch den Außenwandumriss nach
+   * unten. Alles in einem Schritt der Historie.
+   *
+   * `ordnung`: 0 = EG, 1 = 1. OG, −1 = KG.
+   */
+  ordneGrundrissZu: (
+    ordnung: number,
+    aussenwaendeDarunter?: boolean,
+  ) => { ok: boolean; message: string };
 
   // --- Bauteilkatalog ----------------------------------------------------
   addConstruction: (construction: Omit<Construction, 'id'>) => Construction;
@@ -785,6 +801,19 @@ interface BimState {
    * ganz gerade; dieser Schritt richtet es, ohne Ecken aufzureißen.
    */
   begradigeWaende: (optionen?: BegradigenOptionen) => { ok: boolean; message: string };
+  /**
+   * Den Grundriss spiegeln.
+   *
+   * `umfang` entscheidet, was mitgeht: `'alles'` nimmt das ganze Gebäude samt
+   * Grundstück und Referenzbild — das ist der Regelfall, denn nur so stehen
+   * die Geschosse danach wieder übereinander. `'geschoss'` spiegelt nur das
+   * aktive; das ist gewollt, wenn gerade *ein* Plan eingelesen wurde und die
+   * übrigen Geschosse schon stimmen.
+   */
+  spiegleGrundriss: (
+    achse: SpiegelAchse,
+    umfang: 'geschoss' | 'alles',
+  ) => { ok: boolean; message: string };
   /** Ein loses Wandende bis zum Gegenüber schließen — als Wand oder Öffnung. */
   schliesseLuecke: (knotenId: string, art: LueckenSchluss) => { ok: boolean; message: string };
   /**
@@ -2718,6 +2747,71 @@ export const useBimStore = create<BimState>()((set, get) => {
       return plan.neueWaende.length;
     },
 
+    ordneGrundrissZu: (ordnung, aussenwaendeDarunter = true) => {
+      const doc0 = get().doc;
+      const quelleId = doc0.activeLevelId;
+      const plan = planeGeschosszuordnung({
+        levels: Object.values(doc0.levels),
+        quelleId,
+        ordnung,
+        uid,
+      });
+
+      if (plan.hinweis) {
+        set({ statusMessage: plan.hinweis });
+        return { ok: false, message: plan.hinweis };
+      }
+
+      /*
+       * **Warum die Außenwände hier und nicht in `planeGeschosszuordnung`
+       * geplant werden.** Der Übernahmeplan braucht die Zielgeschosse — und
+       * die gibt es erst, seit der Zuordnungsplan sie erfunden hat. Beides in
+       * einer Funktion hieße, dass sie Geschosse anlegt *und* Wände zieht;
+       * getrennt bleibt jede für sich prüfbar. Gerechnet wird beides vor dem
+       * Schreiben, damit ein einziger Schritt in der Historie entsteht.
+       */
+      const knoten: BimNode[] = [];
+      const waende: Wall[] = [];
+      if (aussenwaendeDarunter) {
+        for (const ziel of plan.neu) {
+          const uebernahme = planeUebernahme({
+            walls: Object.values(doc0.walls),
+            nodes: doc0.nodes,
+            vonLevelId: quelleId,
+            nachLevelId: ziel.id,
+            hoehe: ziel.height,
+            uid,
+          });
+          knoten.push(...uebernahme.neueKnoten);
+          waende.push(...uebernahme.neueWaende);
+        }
+      }
+
+      mutate((d) => {
+        for (const l of plan.geaendert) d.levels[l.id] = l;
+        for (const l of plan.neu) d.levels[l.id] = l;
+        for (const k of knoten) d.nodes[k.id] = k;
+        for (const w of waende) d.walls[w.id] = w;
+      });
+
+      const ziel = get().doc.levels[quelleId];
+      const message =
+        `Der Grundriss liegt jetzt im ${ziel?.name ?? 'Geschoss'}` +
+        (plan.neu.length
+          ? ` · ${plan.neu.length} Geschoss${plan.neu.length === 1 ? '' : 'e'} angelegt (` +
+            plan.neu.map((l) => l.name).join(', ') +
+            ')'
+          : '') +
+        (waende.length ? ` · ${waende.length} Außenwände darunter übernommen` : '') +
+        (Math.abs(plan.anhebung) > 1e-6
+          ? ` · Bestand um ${Math.abs(plan.anhebung).toFixed(2).replace('.', ',')} m ` +
+            (plan.anhebung > 0 ? 'angehoben' : 'abgesenkt')
+          : '') +
+        ' · Öffnungen wurden nicht mitgenommen';
+      set({ statusMessage: message });
+      return { ok: true, message };
+    },
+
     setActiveLevel: (id) => {
       if (!get().doc.levels[id]) return;
       mutate((doc) => {
@@ -3025,6 +3119,16 @@ export const useBimStore = create<BimState>()((set, get) => {
             // nach dem Spiegeln in die Wand statt in den Raum.
             rotation: axis === 'x' ? 180 - f.rotation : -f.rotation,
           };
+        }
+        // Die Tür schlägt zur Wandnormalen auf, und die kehrt sich beim
+        // Spiegeln um: aus der Linksnormalen wird das *negative* Spiegelbild
+        // der alten. Ohne diese Zeile schlägt jede gespiegelte Tür nach dem
+        // Spiegeln in den Nachbarraum auf — dieselbe Regel wie in
+        // `spiegleGrundriss`, nur für die Auswahl.
+        const gespiegelteWaende = new Set(walls.map((w) => w.id));
+        for (const o of Object.values(d.openings)) {
+          if (!gespiegelteWaende.has(o.wallId)) continue;
+          d.openings[o.id] = { ...o, flipSwing: !o.flipSwing };
         }
       });
       set({ statusMessage: `Auswahl an der ${axis === 'x' ? 'Vertikal' : 'Horizontal'}achse gespiegelt` });
@@ -4734,6 +4838,50 @@ export const useBimStore = create<BimState>()((set, get) => {
         `(vorher ${ergebnis.achsparallelVorher})` +
         (ergebnis.schraeg ? ` · ${ergebnis.schraeg} schräge Wände unangetastet` : '') +
         (ergebnis.uebersprungen ? ` · ${ergebnis.uebersprungen} Wandzüge übersprungen` : '');
+      set({ statusMessage: message });
+      return { ok: true, message };
+    },
+
+    spiegleGrundriss: (achse, umfang) => {
+      const doc = get().doc;
+      const ergebnis = spiegleDokument(doc, {
+        achse,
+        geschosse: umfang === 'alles' ? 'alle' : [doc.activeLevelId],
+      });
+
+      if (ergebnis.leer) {
+        const meldung =
+          umfang === 'alles'
+            ? 'Nichts zu spiegeln — das Projekt ist leer.'
+            : 'Nichts zu spiegeln — in diesem Geschoss steht noch nichts.';
+        set({ statusMessage: meldung });
+        return { ok: false, message: meldung };
+      }
+
+      mutate((d) => {
+        d.nodes = ergebnis.nodes;
+        d.openings = ergebnis.openings;
+        d.fixtures = ergebnis.fixtures;
+        d.verticals = ergebnis.verticals;
+        d.solids = ergebnis.solids;
+        d.durchbrueche = ergebnis.durchbrueche;
+        d.pipes = ergebnis.pipes;
+        d.pipeAccessories = ergebnis.pipeAccessories;
+        d.annotations = ergebnis.annotations;
+        d.freihand = ergebnis.freihand;
+        d.roofOpenings = ergebnis.roofOpenings;
+        d.levels = ergebnis.levels;
+        d.site = ergebnis.site;
+        d.image = ergebnis.image;
+      });
+
+      const wo = umfang === 'alles' ? 'Das Gebäude' : 'Das Geschoss';
+      const wie = achse === 'senkrecht' ? 'links/rechts' : 'oben/unten';
+      const message =
+        `${wo} gespiegelt (${wie}) — ${ergebnis.anzahl} Bauteile, ` +
+        `Achse bei ${achse === 'senkrecht' ? 'x' : 'y'} = ` +
+        `${ergebnis.lage.toFixed(2).replace('.', ',')} m. ` +
+        'Türanschläge und Dachrichtung sind mitgegangen; Strg+Z nimmt es zurück.';
       set({ statusMessage: message });
       return { ok: true, message };
     },
