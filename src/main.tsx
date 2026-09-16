@@ -72,6 +72,14 @@ declare global {
       x: number,
       y: number,
     ) => { fixtureId?: string; punkt?: { x: number; y: number }; hoehe?: number } | null;
+    /**
+     * Wie viele Eckpunkte je Bauteilart im Modell stehen — nach Art, so wie
+     * der Betrachter sie am Körper vermerkt (`userData.art`). Dieselbe Sorte
+     * Haken wie `__raviaTreffer`: Ob ein Rohr im Estrich gebaut wurde, ist am
+     * Bild nicht zu beweisen; eine Null an dieser Stelle beweist, dass keines
+     * gebaut wurde.
+     */
+    __raviaSzene?: () => Record<string, number>;
     RaViaCAD?: RaviaCadApi;
   }
 }

@@ -60,15 +60,7 @@ import {
   fortschreiben,
   gestenschritt,
 } from '../lib/zeigereingabe';
-import {
-  DEFAULT_EDGE_CLEARANCE,
-  DEFAULT_LOOP_PATTERN,
-  DEFAULT_OBSTACLE_CLEARANCE,
-  FLOOR_OBSTACLE_TYPES,
-  fixtureFootprint,
-  planFloorLoops,
-  type FloorLoopLayout,
-} from '../lib/floorLoopLayout';
+import { sammleVerlegekurven } from '../lib/fussbodenkurven';
 import {
   TO_DEG,
   clamp,
@@ -110,7 +102,6 @@ import {
   drawVertical,
   hitTestSolid,
   hitTestVertical,
-  solidFootprint,
   verticalCorners,
 } from '../lib/verticalSymbols';
 import {
@@ -407,20 +398,6 @@ export default function Editor2D({ className = '' }: { className?: string }) {
     () => Object.values(doc.fixtures).filter((f) => f.levelId === level),
     [doc.fixtures, level],
   );
-  /**
-   * Der Heizkreisverteiler dieses Geschosses.
-   *
-   * Er ist der Anfang jedes Heizkreises. Stehen mehrere im Geschoss, gilt
-   * hier der erste — welcher Kreis an welchen Verteiler geht, ist eine
-   * Entscheidung der Hydraulik und nicht der Zeichnung; sobald das Modell sie
-   * führt, gehört sie ans Objekt und nicht hierher. Steht keiner, bleibt es
-   * dabei: die Kurven bekommen keine erfundene Anbindung, sondern einen
-   * Hinweis (siehe `planFloorLoops`).
-   */
-  const verteiler = useMemo(
-    () => fixtures.find((f) => f.type === 'manifold'),
-    [fixtures],
-  );
   /** Reihenfolge der Geschosse von unten nach oben — Rang statt Kennung. */
   const levelRank = useMemo(() => {
     const order = Object.values(doc.levels).sort((a, b) => a.order - b.order);
@@ -471,34 +448,7 @@ export default function Editor2D({ className = '' }: { className?: string }) {
    * eine Kurve für den neuen Raum. Genau das ist der Grund, warum im Modell
    * nur Verlegeabstand, Kreiszahl und Randabstand stehen und nicht die Kurve.
    */
-  const floorLoops = useMemo(() => {
-    const out: { fixture: Fixture; layout: FloorLoopLayout }[] = [];
-    for (const f of fixtures) {
-      if (f.type !== 'underfloor' || f.params.roomCoverage !== true || !f.roomId) continue;
-      const room = doc.rooms[f.roomId];
-      if (!room || room.innerPolygon.length < 3) continue;
-      const einbauten = fixtures
-        .filter((o) => FLOOR_OBSTACLE_TYPES.has(o.type) && pointInPolygon(o.position, room.innerPolygon))
-        .map((o) => fixtureFootprint(o));
-      // Mauerwerk ist immer Aussparung — siehe `FLOOR_OBSTACLE_TYPES`.
-      const massiv = solids
-        .filter((b) => pointInPolygon(b.solid.position, room.innerPolygon))
-        .map((b) => solidFootprint(b.solid));
-      out.push({
-        fixture: f,
-        layout: planFloorLoops(room.innerPolygon, {
-          spacing: f.params.loopSpacing ?? 0.15,
-          loops: f.params.loopCount ?? 1,
-          edgeClearance: f.params.loopEdgeClearance ?? DEFAULT_EDGE_CLEARANCE,
-          obstacles: [...einbauten, ...massiv],
-          obstacleClearance: DEFAULT_OBSTACLE_CLEARANCE,
-          pattern: f.params.loopPattern ?? DEFAULT_LOOP_PATTERN,
-          manifold: verteiler?.position,
-        }),
-      });
-    }
-    return out;
-  }, [fixtures, doc.rooms, verteiler, solids]);
+  const floorLoops = useMemo(() => sammleVerlegekurven(doc, level), [doc, level]);
 
   const pipeAccessories = useMemo(
     () => Object.values(doc.pipeAccessories ?? {}).filter((a) => a.levelId === level),

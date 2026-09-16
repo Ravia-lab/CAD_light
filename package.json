@@ -33,6 +33,7 @@
     "smoke:schema": "node scripts/smoke-schema.mjs",
     "smoke:bild": "node scripts/smoke-bild.mjs",
     "smoke:spiegeln": "node scripts/smoke-spiegeln.mjs",
+    "smoke:fbh3d": "node scripts/smoke-fbh3d.mjs",
     "smoke:mappe": "node scripts/smoke-mappe.mjs",
     "smoke:einzeldatei": "node scripts/pruef-einzeldatei.mjs",
     "smoke:einzeldatei-scan": "node scripts/pruef-einzeldatei-scan.mjs",

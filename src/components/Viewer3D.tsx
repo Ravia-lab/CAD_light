@@ -110,6 +110,7 @@ import { pointInPolygon } from '../lib/geometry';
 import { deuteTreffer, szeneZuModell } from '../lib/raumtreffer';
 import { buildRoofFrame, roofHeightAt } from '../lib/roofGeometry';
 import { gebaeudeUmriss } from '../lib/roomDetection';
+import { sammleVerlegekurven, verlegelinien, type Verlegelinie } from '../lib/fussbodenkurven';
 import { levelBaseHeights } from '../lib/levelGeometry';
 import { groundSlab, holeFitsOutline, levelSlabs, type SlabPlan } from '../lib/slabGeometry';
 import { useBimStore } from '../store/useBimStore';
@@ -249,6 +250,23 @@ function createMaterials() {
     });
   }
 
+  /*
+   * Die Anbindeleitung der Fußbodenheizung.
+   *
+   * Sie bekommt einen eigenen, durchscheinenden Werkstoff und nicht die Farbe
+   * des Vorlaufs: Sie ist die kürzeste Verbindung zwischen Verteiler und
+   * Kurvenanfang und **nicht** die verlegte Trasse — die läuft an Wänden
+   * entlang und im Bündel mit den Nachbarkreisen. Ein Modell, das sie wie
+   * gelegtes Rohr zeichnet, behauptet eine Lage, die niemand aufgemessen hat.
+   */
+  const fbhAnbindung = new THREE.MeshStandardMaterial({
+    color: new THREE.Color(PIPE_SERVICE_COLORS['heating-flow']),
+    roughness: 0.5,
+    metalness: 0.2,
+    transparent: true,
+    opacity: 0.45,
+  });
+
   /** Dasselbe für die Bodenbeläge: ein Werkstoff je Belagsfarbe. */
   const belag: Record<string, THREE.MeshStandardMaterial> = {};
   for (const b of BODENBELAEGE) {
@@ -262,6 +280,7 @@ function createMaterials() {
   return {
     rohr,
     belag,
+    fbhAnbindung,
     clay,
     clayInterior,
     floor,
@@ -307,6 +326,16 @@ interface BuildInput {
   slabs: SlabPlan[];
   pipes: PipeRun[];
   accessories: PipeAccessory[];
+  /**
+   * Die Verlegekurven der Fußbodenheizungen, je Geschoss.
+   *
+   * Sie stehen nicht im Dokument und können es nicht: Eine Kurve folgt aus
+   * dem Raumpolygon und wäre nach dem ersten Wandzug falsch. Gerechnet
+   * werden sie von `sammleVerlegekurven` — derselben Stelle, die auch der
+   * Grundriss fragt. Zwei Fassungen derselben Regel liefen auseinander, und
+   * dann zeigte der Plan eine andere Verlegung als das Modell.
+   */
+  fussbodenkurven: { levelId: string; linien: readonly Verlegelinie[] }[];
   levelHeight: number;
   /**
    * Höhenlage je Geschoss [m] — Oberkante Rohdecke über dem Bezugspunkt.
@@ -414,6 +443,13 @@ interface BuiltGeometry {
   accessories: { id: string; geometry: THREE.BufferGeometry }[];
   /** Raumböden mit erfasstem Belag, nach Belagsfarbe zusammengefasst. */
   coveredFloors: { colour: string; geometry: THREE.BufferGeometry }[];
+  /**
+   * Die Rohre der Fußbodenheizung im Estrich — Verlegung und Anbindung
+   * getrennt, weil die Anbindung die kürzeste Verbindung zeigt und nicht die
+   * verlegte Trasse. Sie wird deshalb schwächer gezeichnet.
+   */
+  floorPipes: THREE.BufferGeometry | null;
+  floorSupply: THREE.BufferGeometry | null;
   glass: THREE.BufferGeometry | null;
   frames: THREE.BufferGeometry | null;
   doors: THREE.BufferGeometry | null;
@@ -470,7 +506,7 @@ function baueTgaKoerper(
 }
 
 function buildGeometry(input: BuildInput): BuiltGeometry {
-  const { walls, openings, rooms, nodes, roof, roofOpenings, verticals, solids, durchbrueche, slabs, pipes, accessories, levelHeight, levelBase } = input;
+  const { walls, openings, rooms, nodes, roof, roofOpenings, verticals, solids, durchbrueche, slabs, pipes, accessories, fussbodenkurven, levelHeight, levelBase } = input;
 
   /** Höhenlage des Geschosses, in dem ein Bauteil steht. */
   const basis = (levelId: string): number => levelBase.get(levelId) ?? 0;
@@ -965,6 +1001,54 @@ function buildGeometry(input: BuildInput): BuiltGeometry {
     pipeByRun.set(run.id, eintrag);
   }
 
+  // --- Fußbodenheizung im Estrich ------------------------------------------
+  /*
+   * **Warum die Rohre überhaupt ins Modell gehören.**
+   *
+   * Der Estrich war bis hierher eine glatte Platte, obwohl das Programm
+   * genau weiß, wo jedes Rohr liegt. Für den Verleger ist das die
+   * entscheidende Ansicht: Er sieht in *einem* Bild, ob die Schlange um den
+   * Kamin herumkommt, ob die Anbindungen sich im Flur häufen, und wo ein
+   * Kreis quer durch einen anderen Raum müsste.
+   *
+   * **Warum Zylinderstücke und keine geglättete Schlauchkurve.** Eine
+   * geglättete Kurve sähe gefälliger aus und läge an den Kehren woanders als
+   * die Linie im Grundriss. Plan und Modell müssen dieselbe Verlegung
+   * zeigen, sonst glaubt man keinem von beiden — die Kehren sind hier kein
+   * Darstellungsdetail, sondern die Stelle, an der der Verlegeabstand
+   * eingehalten wird oder nicht.
+   *
+   * Maß: 16 × 2 mm Verbundrohr, also 8 mm Außenradius — das gängige
+   * Flächenheizungsrohr. Es liegt 4 cm über OK Rohdecke, also im Estrich
+   * und damit über einem etwaigen Bodenbelag, der auf der Rohdecke gezeichnet
+   * wird. Beides sind Darstellungsmaße: Gerechnet wird mit diesen Zahlen
+   * nichts, die Auslegung steht in `hydraulics.ts`.
+   */
+  const FBH_RADIUS = 0.008;
+  const FBH_HOEHE = 0.04;
+  const floorPipeParts: THREE.BufferGeometry[] = [];
+  const floorSupplyParts: THREE.BufferGeometry[] = [];
+  for (const geschoss of fussbodenkurven) {
+    for (const linie of geschoss.linien) {
+      const ziel = linie.anbindung ? floorSupplyParts : floorPipeParts;
+      for (let i = 1; i < linie.punkte.length; i++) {
+        const vonP = modelToScene(linie.punkte[i - 1], FBH_HOEHE);
+        const bisP = modelToScene(linie.punkte[i], FBH_HOEHE);
+        const dx = bisP.x - vonP.x;
+        const dz = bisP.z - vonP.z;
+        const len = Math.hypot(dx, dz);
+        if (len < 1e-4) continue;
+        const geom = new THREE.CylinderGeometry(FBH_RADIUS, FBH_RADIUS, len, 6);
+        // Waagerecht im Estrich: eine Vierteldrehung um x legt den Zylinder
+        // hin, die Drehung um y richtet ihn auf die Trasse aus.
+        geom.rotateX(Math.PI / 2);
+        geom.rotateY(Math.atan2(dx, dz));
+        geom.translate((vonP.x + bisP.x) / 2, vonP.y, (vonP.z + bisP.z) / 2);
+        ziel.push(hebe(geom, geschoss.levelId));
+      }
+    }
+  }
+
   const merge = (parts: THREE.BufferGeometry[]): THREE.BufferGeometry | null => {
     if (!parts.length) return null;
     const merged = mergeGeometries(parts, false);
@@ -982,6 +1066,8 @@ function buildGeometry(input: BuildInput): BuiltGeometry {
   const shafts = merge(shaftParts);
   const solidBodies = merge(solidParts);
   const slabBodies = merge(slabParts);
+  const floorPipes = merge(floorPipeParts);
+  const floorSupply = merge(floorSupplyParts);
   const pipeMeshes: { runId: string; colour: string; geometry: THREE.BufferGeometry }[] = [];
   const accessoryMeshes: { id: string; geometry: THREE.BufferGeometry }[] = [];
   const coveredFloors: { colour: string; geometry: THREE.BufferGeometry }[] = [];
@@ -1045,6 +1131,8 @@ function buildGeometry(input: BuildInput): BuiltGeometry {
     pipes: pipeMeshes,
     accessories: accessoryMeshes,
     coveredFloors,
+    floorPipes,
+    floorSupply,
     glass,
     frames,
     doors,
@@ -1578,6 +1666,22 @@ export default function Viewer3D({ className = '' }: { className?: string }) {
   );
 
   /**
+   * Die Verlegekurven der Fußbodenheizung — je sichtbarem Geschoss.
+   *
+   * Sie hängen an der Ebene „Heizung": Wer das Gewerk ausblendet, blendet
+   * auch den Estrichinhalt aus. Und sie werden nur für Geschosse gerechnet,
+   * die im Bild sind — eine Schnecke je Geschoss ist ein paar hundert
+   * Stützpunkte, und ausgeblendet will sie niemand bezahlen.
+   */
+  const fussbodenkurven = useMemo(() => {
+    if (ebenen[EBENE_HEIZUNG]?.visible === false) return [];
+    return Object.values(doc.levels)
+      .filter((l) => imBild(l.id))
+      .map((l) => ({ levelId: l.id, linien: verlegelinien(sammleVerlegekurven(doc, l.id)) }))
+      .filter((e) => e.linien.length > 0);
+  }, [doc, ebenen, imBild]);
+
+  /**
    * Höhenlage je Geschoss — gerechnet im Kern, damit sie prüfbar bleibt.
    */
   const geschossHoehen = useMemo(() => levelBaseHeights(Object.values(doc.levels)), [doc.levels]);
@@ -1879,6 +1983,7 @@ export default function Viewer3D({ className = '' }: { className?: string }) {
       durchbrueche,
       slabs: geschossDecken,
       pipes,
+      fussbodenkurven,
       levelHeight: doc.levels[doc.activeLevelId]?.height ?? 2.75,
       accessories,
       levelBase: geschossHoehen,
@@ -1910,6 +2015,25 @@ export default function Viewer3D({ className = '' }: { className?: string }) {
     addMesh(built.shafts, materials.shaft, { cast: true, receive: true });
     addMesh(built.solids, materials.masonry, { cast: true, receive: true });
     addMesh(built.slabs, materials.slab, { cast: true, receive: true });
+    /*
+     * Die Fußbodenheizung liegt im Estrich und wirft keinen Schatten — sie
+     * ist im Modell eine Auskunft über die Verlegung, kein Bauteil, das den
+     * Raum verdunkelt. Die Anbindeleitung wird durchscheinend gezeichnet,
+     * weil sie die kürzeste Verbindung zeigt und nicht die verlegte Trasse.
+     */
+    if (built.floorPipes) {
+      const mesh = new THREE.Mesh(
+        built.floorPipes,
+        materials.rohr[PIPE_SERVICE_COLORS['heating-flow']] ?? materials.heating,
+      );
+      mesh.userData = { art: 'fbh' };
+      content.add(mesh);
+    }
+    if (built.floorSupply) {
+      const mesh = new THREE.Mesh(built.floorSupply, materials.fbhAnbindung);
+      mesh.userData = { art: 'fbh-anbindung' };
+      content.add(mesh);
+    }
     for (const pipe of built.pipes) {
       const werkstoff = materials.rohr[pipe.colour] ?? materials.heating;
       const mesh = new THREE.Mesh(pipe.geometry, werkstoff);
@@ -1998,8 +2122,26 @@ export default function Viewer3D({ className = '' }: { className?: string }) {
      * Sammlungen ihre Kennung behalten, wenn sich nichts geändert hat, ist
      * genau diese Zufälligkeit weg.
      */
+    /*
+     * Diagnosehaken für die Rauchtests (siehe `main.tsx`).
+     *
+     * Er zählt, wie viele Eckpunkte je Bauteilart wirklich in der Szene
+     * stehen. Ein Bild beweist nicht, dass ein Rohr gebaut wurde — eine Null
+     * an dieser Stelle beweist, dass keines gebaut wurde.
+     */
+    window.__raviaSzene = () => {
+      const zahlen: Record<string, number> = {};
+      content.traverse((o) => {
+        const art = (o.userData as { art?: string } | undefined)?.art;
+        const geom = (o as THREE.Mesh).geometry;
+        if (!art || !geom?.attributes?.position) return;
+        zahlen[art] = (zahlen[art] ?? 0) + geom.attributes.position.count;
+      });
+      return zahlen;
+    };
+
     setNeuaufbau((n) => n + 1);
-  }, [walls, openings, rooms, verticals, solids, durchbrueche, pipes, roofOpenings, doc.nodes, doc.levels, doc.activeLevelId, site, showSite, doc.meta.terrainElevation]);
+  }, [walls, openings, rooms, verticals, solids, durchbrueche, pipes, fussbodenkurven, roofOpenings, doc.nodes, doc.levels, doc.activeLevelId, site, showSite, doc.meta.terrainElevation]);
 
   // Boden und Raster auf die Geländeoberkante legen — siehe `schattenRef`.
   useEffect(() => {
