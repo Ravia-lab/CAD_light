@@ -61,6 +61,7 @@ import {
   gestenschritt,
 } from '../lib/zeigereingabe';
 import { sammleVerlegekurven } from '../lib/fussbodenkurven';
+import { kompassRose } from '../lib/kompass';
 import {
   TO_DEG,
   clamp,
@@ -1926,6 +1927,18 @@ export default function Editor2D({ className = '' }: { className?: string }) {
                 : undefined,
       );
     }
+    // ------------------------------------------------------------- Kompass
+    /*
+     * Die Kompassrose steht **am Bildschirm** fest und nicht im Modell.
+     *
+     * Sie ist eine Angabe über den Plan, nicht ein Gegenstand darin: Sie wird
+     * nicht mitgezoomt, nicht mitgeschoben und liegt immer an derselben
+     * Stelle — genau wie auf einem gedruckten Blatt, wo sie im Schriftfeld
+     * sitzt. Läge sie im Modell, müsste man sie suchen, sobald man an eine
+     * Ecke des Grundrisses zoomt.
+     */
+    zeichneKompass(ctx, w - 52, 52, 18, doc.meta.northAngle);
+
     // Die Zeichenfläche hängt am *Dokument als Ganzem*, nicht an einer Liste
     // seiner Felder. Der frühere Aufzählungsstil hatte einen eingebauten
     // Fehler: `doc.site` fehlte, also wurden Wärmepumpe und Geländeobjekte
@@ -5047,4 +5060,63 @@ function SymbolVorschau({ type }: { type: FixtureType }) {
   }, [type]);
 
   return <canvas ref={ref} style={{ width: 18, height: 18 }} className="shrink-0" />;
+}
+
+/**
+ * Die Kompassrose auf die Leinwand — an einer festen Stelle am Bildschirm.
+ *
+ * `(cx|cy)` ist die Mitte in Bildpunkten, `r` der Radius. Die Formteile
+ * kommen aus `kompassRose` in Einheitskoordinaten mit y nach oben; hier wird
+ * y gespiegelt, weil die Leinwand nach unten zählt.
+ */
+function zeichneKompass(
+  ctx: CanvasRenderingContext2D,
+  cx: number,
+  cy: number,
+  r: number,
+  northAngle: number,
+): void {
+  const P = (p: Vec2) => ({ x: cx + p.x * r, y: cy - p.y * r });
+  ctx.save();
+  ctx.lineWidth = 1;
+  ctx.strokeStyle = 'rgba(148,163,184,0.55)';
+  ctx.fillStyle = 'rgba(148,163,184,0.75)';
+
+  for (const teil of kompassRose(northAngle)) {
+    if (teil.kind === 'kreis') {
+      const c = P(teil.zentrum);
+      ctx.beginPath();
+      ctx.arc(c.x, c.y, teil.radius * r, 0, Math.PI * 2);
+      // Ein schwacher Grund, damit die Rose auch über dem Referenzbild lesbar
+      // bleibt — ohne ihn verschwindet sie auf einem hellen Scan.
+      ctx.fillStyle = 'rgba(15,23,42,0.55)';
+      ctx.fill();
+      ctx.fillStyle = 'rgba(148,163,184,0.75)';
+      ctx.stroke();
+    } else if (teil.kind === 'linie') {
+      const a = P(teil.a);
+      const b = P(teil.b);
+      ctx.beginPath();
+      ctx.moveTo(a.x, a.y);
+      ctx.lineTo(b.x, b.y);
+      ctx.stroke();
+    } else if (teil.kind === 'flaeche') {
+      ctx.beginPath();
+      teil.punkte.forEach((q, i) => {
+        const s2 = P(q);
+        if (i === 0) ctx.moveTo(s2.x, s2.y);
+        else ctx.lineTo(s2.x, s2.y);
+      });
+      ctx.closePath();
+      ctx.fill();
+    } else {
+      const s2 = P(teil.punkt);
+      ctx.font = '600 11px ui-sans-serif, system-ui, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillStyle = 'rgba(203,213,225,0.9)';
+      ctx.fillText(teil.text, s2.x, s2.y);
+    }
+  }
+  ctx.restore();
 }

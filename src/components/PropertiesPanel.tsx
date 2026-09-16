@@ -53,7 +53,8 @@ import {
   DURCHBRUCH_LABELS,
   durchbruchWirt,
 } from '../types/bim';
-import { useMemo } from 'react';
+import { useMemo, useRef } from 'react';
+import { kompassRose, nordabweichungAus } from '../lib/kompass';
 import { ACCESSORY_LABELS } from '../lib/pipeAccessorySymbols';
 import { beschriftungVeraltet, hoehenText, modellwert, planText } from '../lib/beschriftung3d';
 import { FIXTURE_COLORS } from '../lib/fixtureSymbols';
@@ -2560,13 +2561,12 @@ function BuildingSummary() {
             step={1}
             onChange={(v) => updateMeta({ groundTemperature: v })}
           />
-          <NumberField
-            label="Nordabweichung [°]"
-            term="nordabweichung"
-            value={doc.meta.northAngle}
-            step={1}
-            onChange={(v) => updateMeta({ northAngle: v })}
-          />
+          <div className="col-span-2">
+            <KompassFeld
+              northAngle={doc.meta.northAngle}
+              onChange={(v) => updateMeta({ northAngle: v })}
+            />
+          </div>
           <NumberField
             label="n50 [1/h]"
             term="n50"
@@ -2855,6 +2855,119 @@ function Readout({
       >
         {value}
       </span>
+    </div>
+  );
+}
+
+/**
+ * Die Kompassrose als Einstellfeld — drehen statt tippen.
+ *
+ * **Warum eine Rose und nicht nur eine Zahl.** „Nordabweichung 37°" ist für
+ * niemanden anschaulich, und ob sie stimmt, sieht man erst an den solaren
+ * Gewinnen — also viel zu spät. Eine Nadel, die man auf die Himmelsrichtung
+ * dreht, die man vor Ort gesehen hat, ist die Eingabe, die dem Aufmaß
+ * entspricht. Das Zahlenfeld bleibt daneben: Wer die Abweichung aus dem
+ * Lageplan kennt, tippt sie ein.
+ *
+ * Gedreht wird auf 5° gerastert; mit gedrückter Umschalttaste gradgenau. Ein
+ * Kompass am Telefon ist nicht genauer als ein paar Grad, und ein Raster
+ * verhindert, dass aus einer abgelesenen 90 eine 88 wird.
+ */
+function KompassFeld({
+  northAngle,
+  onChange,
+}: {
+  northAngle: number;
+  onChange: (grad: number) => void;
+}) {
+  const ref = useRef<SVGSVGElement | null>(null);
+
+  const ausZeiger = (e: React.PointerEvent<SVGSVGElement>): void => {
+    const svg = ref.current;
+    if (!svg) return;
+    const r = svg.getBoundingClientRect();
+    // SVG-y zeigt nach unten, das Modell nach oben — daher das Minus.
+    const v = {
+      x: e.clientX - (r.left + r.width / 2),
+      y: -(e.clientY - (r.top + r.height / 2)),
+    };
+    if (Math.hypot(v.x, v.y) < 6) return;
+    const grad = nordabweichungAus(v);
+    onChange(e.shiftKey ? Math.round(grad) : Math.round(grad / 5) * 5);
+  };
+
+  const teile = kompassRose(northAngle);
+  /** Einheitskoordinaten → SVG-Koordinaten in einem 100er-Feld. */
+  const P = (p: { x: number; y: number }) => `${50 + p.x * 30},${50 - p.y * 30}`;
+
+  return (
+    <div className="flex items-center gap-3">
+      <svg
+        ref={ref}
+        viewBox="0 0 100 100"
+        className="h-[76px] w-[76px] shrink-0 cursor-crosshair touch-none"
+        onPointerDown={(e) => {
+          (e.target as Element).setPointerCapture?.(e.pointerId);
+          ausZeiger(e);
+        }}
+        onPointerMove={(e) => {
+          if (e.buttons === 1) ausZeiger(e);
+        }}
+      >
+        {teile.map((t, i) => {
+          if (t.kind === 'kreis') {
+            return (
+              <circle
+                key={i}
+                cx={50}
+                cy={50}
+                r={t.radius * 30}
+                fill="rgba(15,23,42,0.6)"
+                stroke="rgba(148,163,184,0.5)"
+                strokeWidth={1}
+              />
+            );
+          }
+          if (t.kind === 'linie') {
+            const [x1, y1] = P(t.a).split(',');
+            const [x2, y2] = P(t.b).split(',');
+            return (
+              <line key={i} x1={x1} y1={y1} x2={x2} y2={y2} stroke="rgba(148,163,184,0.6)" strokeWidth={1} />
+            );
+          }
+          if (t.kind === 'flaeche') {
+            return <polygon key={i} points={t.punkte.map(P).join(' ')} fill="#38BDF8" />;
+          }
+          const [tx, ty] = P(t.punkt).split(',');
+          return (
+            <text
+              key={i}
+              x={tx}
+              y={ty}
+              textAnchor="middle"
+              dominantBaseline="central"
+              fontSize={11}
+              fontWeight={600}
+              fill="#CBD5E1"
+            >
+              {t.text}
+            </text>
+          );
+        })}
+      </svg>
+      <div className="min-w-0 flex-1">
+        <NumberField
+          label="Nordabweichung [°]"
+          term="nordabweichung"
+          value={northAngle}
+          step={1}
+          onChange={(v) => onChange(((v % 360) + 360) % 360)}
+        />
+        <p className="mt-1 text-[9.5px] leading-relaxed text-slate-600">
+          Die Nadel auf Norden drehen — 5°-Raster, mit Umschalt gradgenau. 0° heißt: im Plan ist
+          oben Norden.
+        </p>
+      </div>
     </div>
   );
 }

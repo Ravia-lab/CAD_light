@@ -114,6 +114,7 @@ import { deuteTreffer, szeneZuModell } from '../lib/raumtreffer';
 import { buildRoofFrame, roofHeightAt } from '../lib/roofGeometry';
 import { gebaeudeUmriss } from '../lib/roomDetection';
 import { sammleVerlegekurven, verlegelinien, type Verlegelinie } from '../lib/fussbodenkurven';
+import { kompassRose } from '../lib/kompass';
 import { levelBaseHeights } from '../lib/levelGeometry';
 import { groundSlab, holeFitsOutline, levelSlabs, type SlabPlan } from '../lib/slabGeometry';
 import { useBimStore } from '../store/useBimStore';
@@ -1538,6 +1539,8 @@ export default function Viewer3D({ className = '' }: { className?: string }) {
    * Strg+Z zurücknimmt. Das ist sie nicht.
    */
   const tuerStandRef = useRef(new Map<string, number>());
+  /** Der Knotenpunkt der Kompassrose — wird je Bild gedreht, siehe unten. */
+  const kompassRef = useRef<HTMLDivElement | null>(null);
   /** Ziel je Tür: 0 oder 1. Dazwischen läuft die Bewegung. */
   const tuerZielRef = useRef(new Map<string, number>());
   /**
@@ -1753,6 +1756,9 @@ export default function Viewer3D({ className = '' }: { className?: string }) {
       .map((l) => ({ levelId: l.id, linien: verlegelinien(sammleVerlegekurven(doc, l.id)) }))
       .filter((e) => e.linien.length > 0);
   }, [doc, ebenen, imBild]);
+
+  /** Die Formteile der Rose — sie ändern sich nur mit der Nordabweichung. */
+  const kompassTeile = useMemo(() => kompassRose(doc.meta.northAngle), [doc.meta.northAngle]);
 
   /**
    * Höhenlage je Geschoss — gerechnet im Kern, damit sie prüfbar bleibt.
@@ -4030,6 +4036,26 @@ export default function Viewer3D({ className = '' }: { className?: string }) {
       } else {
         controls.update();
       }
+      /*
+       * Die Rose auf den Blickwinkel drehen.
+       *
+       * Auf dem Blatt zeigt der Bildschirm nach oben, was im Modell +y ist.
+       * Im Modell zeigt er nach oben, wohin die Kamera schaut. Zwischen
+       * beidem liegt genau der Blickwinkel: Eine Richtung mit dem Modellwinkel
+       * φ erscheint am Bildschirm unter φ − gier + 90°. Für den Plan ist
+       * gier = 90° und die Formel fällt auf φ zusammen — dieselbe Rose, eine
+       * Drehung weiter.
+       */
+      const kompass = kompassRef.current;
+      if (kompass) {
+        const richtung = new THREE.Vector3();
+        (aktiveKameraRef.current ?? controls.object).getWorldDirection(richtung);
+        // Szene → Modell: x bleibt x, Modell-y ist −z.
+        const gier = Math.atan2(-richtung.z, richtung.x);
+        // CSS dreht im Uhrzeigersinn, die Rechnung gegen ihn.
+        kompass.style.transform = `rotate(${((gier * 180) / Math.PI - 90).toFixed(1)}deg)`;
+      }
+
       renderer.render(scene, (aktiveKameraRef.current ?? controls.object) as THREE.Camera);
     });
 
@@ -4039,6 +4065,69 @@ export default function Viewer3D({ className = '' }: { className?: string }) {
   return (
     <div className={`relative h-full w-full overflow-hidden ${className}`}>
       <div ref={hostRef} className="h-full w-full" />
+
+      {/*
+        Der Kompass.
+
+        **Warum er sich mitdreht.** Im Grundriss steht Norden fest — dort ist
+        die Rose eine Angabe über das Blatt. Im Modell dreht man sich, und
+        dann ist die Frage eine andere: In welche Richtung schaue ich gerade?
+        Die Nadel bleibt deshalb auf Norden stehen, während sich die Rose
+        unter ihr dreht. Genau das tut ein Kompass in der Hand.
+
+        Gedreht wird am Knotenpunkt und nicht im Zustand: Der Blickwinkel
+        ändert sich sechzigmal in der Sekunde, und ein React-Durchlauf je Bild
+        wäre dafür der falsche Preis.
+      */}
+      <div
+        ref={kompassRef}
+        className="pointer-events-none absolute left-3 top-3 h-[52px] w-[52px]"
+        title="Norden"
+      >
+        <svg viewBox="0 0 100 100" className="h-full w-full">
+          {kompassTeile.map((t, i) => {
+            const P = (q: { x: number; y: number }): string => `${50 + q.x * 30},${50 - q.y * 30}`;
+            if (t.kind === 'kreis') {
+              return (
+                <circle
+                  key={i}
+                  cx={50}
+                  cy={50}
+                  r={t.radius * 30}
+                  fill="rgba(15,23,42,0.6)"
+                  stroke="rgba(148,163,184,0.5)"
+                  strokeWidth={1.2}
+                />
+              );
+            }
+            if (t.kind === 'linie') {
+              const [x1, y1] = P(t.a).split(',');
+              const [x2, y2] = P(t.b).split(',');
+              return (
+                <line key={i} x1={x1} y1={y1} x2={x2} y2={y2} stroke="rgba(148,163,184,0.6)" strokeWidth={1.2} />
+              );
+            }
+            if (t.kind === 'flaeche') {
+              return <polygon key={i} points={t.punkte.map(P).join(' ')} fill="#38BDF8" />;
+            }
+            const [tx, ty] = P(t.punkt).split(',');
+            return (
+              <text
+                key={i}
+                x={tx}
+                y={ty}
+                textAnchor="middle"
+                dominantBaseline="central"
+                fontSize={13}
+                fontWeight={700}
+                fill="#CBD5E1"
+              >
+                {t.text}
+              </text>
+            );
+          })}
+        </svg>
+      </div>
 
       {/* Kamera-Umschalter */}
       <div className="panel absolute right-3 top-3 flex gap-1 p-1">

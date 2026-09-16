@@ -31,6 +31,7 @@ import {
 } from './wallGeometry';
 import type { SymbolPart } from './openingSymbols';
 import { openingLabel, openingSymbol } from './openingSymbols';
+import { kompassRose } from './kompass';
 import { solidFootprint, solidsOnLevel, stairLayout, verticalCorners } from './verticalSymbols';
 import {
   durchbruchBeschriftung,
@@ -887,6 +888,17 @@ export function buildPlanSvg(doc: BimDocument, options: PlanPrintOptions): PlanF
   const titleBlock = buildTitleBlock(doc, options, sheet, level?.name ?? '', rooms);
   const legend = options.showLegend ? buildLegend(doc, options, frame) : '';
   const scaleBar = drawableScaleBar(MARGIN.left, sheet.h - MARGIN.bottom + 20, options.scale);
+  /*
+   * Der Nordpfeil gehört auf jeden Bauplan.
+   *
+   * Er steht rechts oben im Zeichenfeld — dort, wo er auf jedem Blatt steht,
+   * das ein Architekt in die Hand nimmt. Ohne ihn ist ein Grundriss nicht
+   * lesbar: Welche Fassade die Südfassade ist, entscheidet über Verschattung,
+   * Verglasung und den halben Sommer. Der Bildschirm zeigt dieselbe Rose an
+   * derselben Stelle — beide fragen `kompassRose`, damit sie nicht
+   * auseinanderlaufen können.
+   */
+  const nordpfeil = drawNorthArrow(sheet.w - MARGIN.right - 12, MARGIN.top + 12, 8, doc.meta.northAngle);
 
   const svg =
     `<svg xmlns="http://www.w3.org/2000/svg" width="${sheet.w}mm" height="${sheet.h}mm" ` +
@@ -903,10 +915,43 @@ export function buildPlanSvg(doc: BimDocument, options: PlanPrintOptions): PlanF
     parts.join('') +
     legend +
     scaleBar +
+    nordpfeil +
     titleBlock +
     `</svg>`;
 
   return { svg, fits, suggestedScale, sheet };
+}
+
+/**
+ * Der Nordpfeil auf dem Blatt.
+ *
+ * `(cx|cy)` ist die Mitte in Millimetern, `r` der Radius. Die Formteile
+ * kommen aus `kompassRose` in Einheitskoordinaten mit y nach oben; im SVG
+ * zählt y nach unten, daher das Minus.
+ */
+function drawNorthArrow(cx: number, cy: number, r: number, northAngle: number): string {
+  const P = (p: Vec2): string => `${(cx + p.x * r).toFixed(2)},${(cy - p.y * r).toFixed(2)}`;
+  const teile: string[] = [];
+  for (const t of kompassRose(northAngle)) {
+    if (t.kind === 'kreis') {
+      teile.push(
+        `<circle cx="${cx.toFixed(2)}" cy="${cy.toFixed(2)}" r="${(t.radius * r).toFixed(2)}" ` +
+          `fill="#FFFFFF" stroke="#0F172A" stroke-width="0.2"/>`,
+      );
+    } else if (t.kind === 'linie') {
+      teile.push(`<line x1="${P(t.a).split(',')[0]}" y1="${P(t.a).split(',')[1]}" ` +
+        `x2="${P(t.b).split(',')[0]}" y2="${P(t.b).split(',')[1]}" stroke="#0F172A" stroke-width="0.2"/>`);
+    } else if (t.kind === 'flaeche') {
+      teile.push(`<polygon points="${t.punkte.map(P).join(' ')}" fill="#0F172A"/>`);
+    } else {
+      const [tx, ty] = P(t.punkt).split(',');
+      teile.push(
+        `<text x="${tx}" y="${ty}" font-size="3.2" font-weight="700" fill="#0F172A" ` +
+          `text-anchor="middle" dominant-baseline="central">${t.text}</text>`,
+      );
+    }
+  }
+  return teile.join('');
 }
 
 /** Strichstärken auf dem Blatt [mm] — Klasse aus `openingSymbols`. */

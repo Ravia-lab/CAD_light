@@ -121,6 +121,7 @@ import { pruefeSpiegeln } from './pruefungen/spiegeln';
 import { pruefeImportgeschoss } from './pruefungen/importgeschoss';
 import { pruefeFlurfuehrung } from './pruefungen/flurfuehrung';
 import { pruefeDachformen } from './pruefungen/dachformen';
+import { pruefeKompass } from './pruefungen/kompass';
 import { pruefeProjektmappe } from './pruefungen/projektmappe';
 import { pruefeUiModus } from './pruefungen/uimodus';
 import { pruefeSchichtgrenze } from './pruefungen/schichtgrenze';
@@ -3703,6 +3704,9 @@ pruefeFlurfuehrung(check);
 
 console.log('\n▸ Dachformen — Krüppelwalm, Mansarde, Flachdach mit Gefälle');
 pruefeDachformen(check);
+
+console.log('\n▸ Kompass — wo Norden liegt, und dass alle dasselbe meinen');
+pruefeKompass(check);
 
 console.log('\n▸ Druckplan — Ecken, Symbolik, Maße');
 pruefeDruckplan(check);
