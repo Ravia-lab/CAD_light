@@ -936,14 +936,54 @@ export interface Level {
  * `flat` bedeutet: kein Dach im Sinne einer Schräge, die Decke bleibt
  * horizontal — der Normalfall in Regelgeschossen.
  */
-export type RoofKind = 'flat' | 'gable' | 'monopitch' | 'hip';
+export type RoofKind =
+  | 'flat'
+  | 'gable'
+  | 'monopitch'
+  | 'hip'
+  | 'krueppelwalm'
+  | 'mansard'
+  | 'flat-sloped';
 
 export const ROOF_KIND_LABELS: Record<RoofKind, string> = {
   flat: 'Flachdach / horizontale Decke',
   gable: 'Satteldach',
   monopitch: 'Pultdach',
   hip: 'Walmdach',
+  krueppelwalm: 'Krüppelwalmdach',
+  mansard: 'Mansarddach',
+  'flat-sloped': 'Flachdach mit Gefälle',
 };
+
+/**
+ * Welche Dachformen ergeben sich aus dem Umriss, statt eine eigene Form zu sein?
+ *
+ * Das ist keine Spitzfindigkeit, sondern spart die Hälfte der Liste. Die
+ * Höhenfunktion des Walmdachs über einem bekannten Gebäudeumriss lautet seit
+ * 1.27.0
+ *
+ *     h(p) = Kniestock + Abstand(p, Umriss) · Steigung
+ *
+ * und das ist die Höhenfunktion des Straight Skeleton. Aus ihr entstehen
+ * von selbst:
+ *
+ *  · **Zeltdach** — Walmdach über einem quadratischen Umriss. Der First
+ *    schrumpft zum Punkt, weil alle vier Kanten gleich weit entfernt sind.
+ *  · **Walmkehldach** — Walmdach über einem L oder T. Im einspringenden
+ *    Winkel entsteht eine Kehle, an den Schenkelenden je ein Walm.
+ *  · **Kreuzdach** — Walmdach über einem Kreuz: vier Grate, vier Kehlen.
+ *  · **Pyramidendach** — dasselbe wie das Zeltdach; der Name meint den
+ *    quadratischen Grundriss.
+ *
+ * Wer für diese vier eigene Aufzählungswerte anlegte, bekäme vier Formeln,
+ * die dasselbe rechnen — und vier Stellen, an denen es künftig auseinander
+ * läuft. Sie stehen deshalb hier als Auskunft und nicht dort als Form.
+ */
+export const DACHFORMEN_AUS_UMRISS: readonly { name: string; umriss: string }[] = [
+  { name: 'Zeltdach / Pyramidendach', umriss: 'Walmdach über quadratischem Grundriss' },
+  { name: 'Walmkehldach', umriss: 'Walmdach über L- oder T-Grundriss' },
+  { name: 'Kreuzdach', umriss: 'Walmdach über kreuzförmigem Grundriss' },
+];
 
 /**
  * Dachdefinition eines Geschosses.
@@ -979,6 +1019,37 @@ export interface RoofDefinition {
    * gemessen in Neigungsrichtung. 0 = mittig (symmetrisches Satteldach).
    */
   ridgeOffset: number;
+  /**
+   * Nur Krüppelwalmdach: Wie viel vom Giebeldreieck ist abgewalmt? [-] 0…1.
+   *
+   * 0 wäre ein reines Satteldach, 1 ein volles Walmdach — der Krüppelwalm
+   * liegt dazwischen und ist genau dadurch definiert. Gemessen wird vom First
+   * abwärts: 0,5 heißt, die obere Hälfte des Giebels ist gewalmt, die untere
+   * bleibt senkrechte Giebelwand.
+   *
+   * **Warum ein Anteil und keine Höhe.** Eine Höhe müsste nachgezogen werden,
+   * sobald sich Neigung, Kniestock oder Spannweite ändern — sonst stünde der
+   * Walm plötzlich über dem First oder unter der Traufe. Der Anteil bleibt in
+   * jedem Fall gültig.
+   *
+   * Ohne Angabe 0,5. Das ist die Größenordnung, die man im Bestand antrifft;
+   * eine Normvorgabe gibt es nicht.
+   */
+  hipRatio?: number;
+  /**
+   * Nur Mansarddach: Neigung der **oberen**, flachen Dachfläche [°].
+   *
+   * Beim Mansarddach ist `pitch` die untere, steile Fläche — sie ist die
+   * kennzeichnende und die, die den Wohnraum schafft. Ohne Angabe 30°.
+   */
+  upperPitch?: number;
+  /**
+   * Nur Mansarddach: Höhe des Mansardknicks über Rohfußboden [m].
+   *
+   * Dort geht die steile untere Fläche in die flache obere über. Ohne Angabe
+   * 2,20 m — die Höhe, in der der Knick den Raum tatsächlich nutzbar macht.
+   */
+  knickHeight?: number;
   /** Dachaufbau. */
   uValue: number;
   constructionId?: string;

@@ -120,6 +120,7 @@ import { pruefeDachgeschoss } from './pruefungen/dachgeschoss';
 import { pruefeSpiegeln } from './pruefungen/spiegeln';
 import { pruefeImportgeschoss } from './pruefungen/importgeschoss';
 import { pruefeFlurfuehrung } from './pruefungen/flurfuehrung';
+import { pruefeDachformen } from './pruefungen/dachformen';
 import { pruefeProjektmappe } from './pruefungen/projektmappe';
 import { pruefeUiModus } from './pruefungen/uimodus';
 import { pruefeSchichtgrenze } from './pruefungen/schichtgrenze';
@@ -3699,6 +3700,9 @@ pruefeImportgeschoss(check);
 
 console.log('\n▸ Flurführung — die Trasse gehört auf die Verkehrsfläche');
 pruefeFlurfuehrung(check);
+
+console.log('\n▸ Dachformen — Krüppelwalm, Mansarde, Flachdach mit Gefälle');
+pruefeDachformen(check);
 
 console.log('\n▸ Druckplan — Ecken, Symbolik, Maße');
 pruefeDruckplan(check);

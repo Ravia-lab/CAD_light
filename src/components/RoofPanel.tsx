@@ -10,12 +10,28 @@
 import { useMemo } from 'react';
 import type { RoofKind, RoofOpeningKind } from '../types/bim';
 import { ROOF_KIND_LABELS, ROOF_OPENING_LABELS } from '../types/bim';
+import { KRUEPPELWALM_VORGABE, MANSARD_KNICK_VORGABE, MANSARD_OBEN_VORGABE } from '../lib/roofGeometry';
 import { buildRoofFrame } from '../lib/roofGeometry';
 import { gebaeudeUmriss } from '../lib/roomDetection';
 import { useBimStore } from '../store/useBimStore';
 import Erklaerung from './Erklaerung';
 
-const KINDS: RoofKind[] = ['flat', 'gable', 'monopitch', 'hip'];
+/*
+ * Die Reihenfolge ist die der Häufigkeit im deutschen Wohnungsbau, nicht die
+ * des Aufzählungstyps: Wer ein Dach einträgt, findet seins meist in den
+ * ersten drei. Zelt-, Kreuz- und Walmkehldach fehlen hier mit Absicht —
+ * sie entstehen aus dem Walmdach über dem jeweiligen Umriss und sind keine
+ * eigene Form (siehe `DACHFORMEN_AUS_UMRISS`).
+ */
+const KINDS: RoofKind[] = [
+  'flat',
+  'gable',
+  'monopitch',
+  'hip',
+  'krueppelwalm',
+  'mansard',
+  'flat-sloped',
+];
 
 const AZIMUTHS: { value: number; label: string }[] = [
   { value: 0, label: 'N' },
@@ -139,14 +155,63 @@ export default function RoofPanel() {
       {roof && (
         <>
           <Field
-            label="Neigung"
+            label={roof.kind === 'mansard' ? 'Neigung unten (steil)' : 'Neigung'}
             unit="°"
             value={roof.pitch}
-            min={5}
-            max={75}
-            step={1}
+            // Das Flachdach mit Gefälle beginnt bei 1°: Das Gefälle dient der
+            // Entwässerung, nicht dem Dachraum. Die Flachdachrichtlinie des
+            // ZVDH empfiehlt mindestens 2 % (rund 1,15°); darunter ist es ein
+            // Nulldach mit erhöhten Anforderungen an die Abdichtung.
+            min={roof.kind === 'flat-sloped' ? 1 : 5}
+            max={roof.kind === 'flat-sloped' ? 15 : 75}
+            step={roof.kind === 'flat-sloped' ? 0.5 : 1}
             onChange={(v) => setRoof(level.id, { pitch: v })}
+            hint={
+              roof.kind === 'mansard'
+                ? 'Die untere, steile Fläche — sie schafft den Wohnraum'
+                : roof.kind === 'flat-sloped'
+                  ? '2 % Gefälle sind rund 1,15° — ZVDH-Flachdachrichtlinie'
+                  : undefined
+            }
           />
+
+          {roof.kind === 'mansard' && (
+            <>
+              <Field
+                label="Neigung oben (flach)"
+                unit="°"
+                value={roof.upperPitch ?? MANSARD_OBEN_VORGABE}
+                min={2}
+                max={60}
+                step={1}
+                onChange={(v) => setRoof(level.id, { upperPitch: v })}
+                hint="Die obere Fläche bis zum First; muss flacher sein als die untere"
+              />
+              <Field
+                label="Mansardknick"
+                unit="m"
+                value={roof.knickHeight ?? MANSARD_KNICK_VORGABE}
+                min={1}
+                max={4}
+                step={0.05}
+                onChange={(v) => setRoof(level.id, { knickHeight: v })}
+                hint="Höhe über Rohfußboden, in der steil in flach übergeht"
+              />
+            </>
+          )}
+
+          {roof.kind === 'krueppelwalm' && (
+            <Field
+              label="Giebel abgewalmt"
+              unit="%"
+              value={Math.round((roof.hipRatio ?? KRUEPPELWALM_VORGABE) * 100)}
+              min={0}
+              max={100}
+              step={5}
+              onChange={(v) => setRoof(level.id, { hipRatio: v / 100 })}
+              hint="0 % wäre ein Satteldach, 100 % ein Walmdach — vom First abwärts gemessen"
+            />
+          )}
           <Field
             label="Kniestock"
             term="kniestock"
@@ -161,7 +226,9 @@ export default function RoofPanel() {
 
           <div>
             <span className="label-xs mb-1.5 block">
-              {roof.kind === 'monopitch' ? 'Fallrichtung' : 'Dach fällt nach'}
+              {roof.kind === 'monopitch' || roof.kind === 'flat-sloped'
+                ? 'Fallrichtung'
+                : 'Dach fällt nach'}
             </span>
             <div className="flex flex-wrap gap-0.5 rounded-lg bg-graphite-900/60 p-0.5">
               {AZIMUTHS.map((a) => (
@@ -180,11 +247,13 @@ export default function RoofPanel() {
               ))}
             </div>
             <p className="mt-1 text-[9.5px] leading-relaxed text-slate-600">
-              Der First steht senkrecht zu dieser Richtung.
+              {roof.kind === 'monopitch' || roof.kind === 'flat-sloped'
+                ? 'Das Dach fällt in diese Richtung ab.'
+                : 'Der First steht senkrecht zu dieser Richtung.'}
             </p>
           </div>
 
-          {roof.kind !== 'monopitch' && (
+          {roof.kind !== 'monopitch' && roof.kind !== 'flat-sloped' && (
             <Field
               label="First versetzt"
               unit="m"
@@ -421,6 +490,13 @@ function RoofIcon({ kind, active }: { kind: RoofKind; active: boolean }) {
     gable: 'M2 9l8-5 8 5M4 9v5M16 9v5',
     monopitch: 'M2 13L18 4M4 13v1M18 4v10',
     hip: 'M2 10l4-4h8l4 4M4 10v4M16 10v4',
+    // Krüppelwalm: Giebel bis auf halbe Höhe, darüber abgewalmt — die kurze
+    // Schräge oben ist genau das, was die Form ausmacht.
+    krueppelwalm: 'M2 11l5-4h6l5 4M7 7l1.5-2h3L13 7M4 11v3M16 11v3',
+    // Mansarde: unten steil, oben flach, mit Knick.
+    mansard: 'M2 14l3-5h10l3 5M5 9l5-4 5 4M4 14v1M16 14v1',
+    // Flachdach mit Gefälle: die Linie fällt sichtbar, bleibt aber flach.
+    'flat-sloped': 'M2 7l16 2M4 8v6M16 9v5',
   };
   return (
     <svg viewBox="0 0 20 18" className="h-4 w-5 shrink-0" fill="none" stroke={stroke} strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round">

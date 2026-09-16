@@ -1139,7 +1139,17 @@ export function validateModel(doc: BimDocument): ValidationReport {
      * hat vier Punkte und trotzdem nur einen Bruchteil der achsparallelen
      * Bounding Box.
      */
-    if (roof.kind === 'gable' || roof.kind === 'monopitch') {
+    // Krüppelwalm und Mansarde haben wie das Satteldach eine *gerade*
+    // Firstlinie, das Flachdach mit Gefälle wie das Pultdach eine gerade
+    // Traufe — für alle gilt derselbe Hinweis über einem verwinkelten
+    // Grundriss. Nur das Walmdach rechnet auf dem Umriss und braucht ihn nicht.
+    if (
+      roof.kind === 'gable' ||
+      roof.kind === 'monopitch' ||
+      roof.kind === 'krueppelwalm' ||
+      roof.kind === 'mansard' ||
+      roof.kind === 'flat-sloped'
+    ) {
       const umriss = gebaeudeUmriss(levelWalls, doc.nodes);
       if (umriss.length > 4) {
         let minX = Infinity;

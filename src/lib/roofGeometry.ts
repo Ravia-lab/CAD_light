@@ -314,12 +314,61 @@ export interface RoofFrame {
  * hinwegläuft. Er steht bewusst hinten und hat einen Vorgabewert: die
  * Signatur bleibt damit für alle bisherigen Aufrufer gültig.
  */
+/** Vorgabe der oberen, flachen Neigung eines Mansarddachs [°]. */
+export const MANSARD_OBEN_VORGABE = 30;
+/** Vorgabe der Knickhöhe eines Mansarddachs über Rohfußboden [m]. */
+export const MANSARD_KNICK_VORGABE = 2.2;
+/** Vorgabe des abgewalmten Anteils am Giebel eines Krüppelwalmdachs [-]. */
+export const KRUEPPELWALM_VORGABE = 0.5;
+
+/**
+ * Der Mansardknick: wo er waagerecht liegt und wie hoch der First darüber wird.
+ *
+ * `spann` ist der waagerechte Weg von der Firstachse bis zur Traufe, `knee`
+ * der Kniestock, `slope` die Steigung der **unteren**, steilen Fläche.
+ *
+ * Zurück kommt der Abstand des Knicks von der Firstachse (`abstand`), seine
+ * Höhe (`hoehe`) und die daraus folgende Firsthöhe. Liegt der Knick unter dem
+ * Kniestock oder weiter außen als die Traufe, gibt es keinen — dann steht der
+ * Knick auf der Traufe und das Dach ist ein Satteldach mit der steilen
+ * Neigung. Dieser Grenzfall wird ausgerechnet und nicht abgefangen: Eine
+ * Sonderbehandlung hätte an der Grenze einen Sprung, die Formel hat keinen.
+ */
+export function mansardKnick(
+  roof: RoofDefinition,
+  spann: number,
+  knee: number,
+  slope: number,
+): { abstand: number; hoehe: number; ridgeHeight: number; slopeOben: number } {
+  const obenGrad = Math.min(
+    Math.max(roof.upperPitch ?? MANSARD_OBEN_VORGABE, 0),
+    Math.max(roof.pitch - 0.1, 0),
+  );
+  const slopeOben = Math.tan(obenGrad * TO_RAD);
+  const knickHoehe = Math.max(knee, roof.knickHeight ?? MANSARD_KNICK_VORGABE);
+
+  // Waagerechter Weg von der Traufe bis zum Knick, begrenzt auf die
+  // Spannweite: ein Knick jenseits der Traufe ist keiner.
+  const vonTraufe = slope > 1e-9 ? (knickHoehe - knee) / slope : 0;
+  const abstandVonFirst = Math.max(0, spann - Math.min(Math.max(0, vonTraufe), spann));
+  const hoehe = knee + (spann - abstandVonFirst) * slope;
+
+  return {
+    abstand: abstandVonFirst,
+    hoehe,
+    ridgeHeight: hoehe + abstandVonFirst * slopeOben,
+    slopeOben,
+  };
+}
+
 export function buildRoofFrame(
   roof: RoofDefinition | undefined,
   outline: readonly Vec2[],
   openings: readonly RoofOpening[] = [],
   umriss: readonly Vec2[] = [],
 ): RoofFrame | null {
+  // `flat` heißt: keine Schräge, waagerechte Decke — dafür gibt es keinen
+  // Rahmen. `flat-sloped` dagegen *hat* ein Gefälle und braucht einen.
   if (!roof || roof.kind === 'flat') return null;
   if (!(roof.pitch > 0) || roof.pitch >= 89) return null;
   if (outline.length < 3) return null;
@@ -370,11 +419,38 @@ export function buildRoofFrame(
   // unten durch die wirklich höchste Stelle ersetzt.
   let firstPunkt: Vec2 | undefined;
 
-  if (roof.kind === 'monopitch') {
+  if (roof.kind === 'monopitch' || roof.kind === 'flat-sloped') {
     // Pultdach: der First sitzt an der oberen Kante, das Dach fällt in
     // Richtung `azimuth` bis zur gegenüberliegenden Traufe.
+    //
+    // Das Flachdach mit Gefälle rechnet identisch — es *ist* ein Pultdach,
+    // nur mit zwei bis fünf Grad statt fünfzehn. Der eigene Aufzählungswert
+    // steht nicht für eine andere Geometrie, sondern für eine andere Sache:
+    // Ein Flachdach hat eine Attika, eine innenliegende Entwässerung und im
+    // Bauantrag einen anderen Namen. Wer es als Pultdach einträgt, bekommt
+    // dieselbe Höhe und die falsche Auskunft.
     ridgeT = minT;
     rise = (maxT - minT) * slope;
+  } else if (roof.kind === 'mansard') {
+    /*
+     * Mansarddach: zwei Neigungen mit einem Knick dazwischen.
+     *
+     * Gerechnet wird von der Traufe nach oben, weil dort die bekannten Maße
+     * liegen — Kniestock und steile Neigung:
+     *
+     *   Waagerechter Weg bis zum Knick:  a = (Knickhöhe − Kniestock) / tan(steil)
+     *   Waagerechter Weg vom Knick zum First:  b = Spannweite − a
+     *   Firsthöhe = Knickhöhe + b · tan(flach)
+     *
+     * Liegt der Knick tiefer als der Kniestock oder weiter außen als die
+     * Traufe, gibt es keinen Knick: dann bleibt es beim Satteldach mit der
+     * steilen Neigung. Das ist kein Sonderfall, sondern der Grenzfall — und
+     * er muss stimmen, sonst steht der First über dem Nichts.
+     */
+    ridgeT = roof.ridgeOffset;
+    const spann = Math.max(ridgeT - minT, maxT - ridgeT);
+    const knick = mansardKnick(roof, spann, knee, slope);
+    rise = knick.ridgeHeight - knee;
   } else if (roof.kind === 'hip' && kanten.length >= 3) {
     // Walmdach über einem bekannten Umriss: Die Firsthöhe ist kein Ergebnis
     // der Gebäudeseiten mehr, sondern des größten Randabstands — das ist die
@@ -399,6 +475,11 @@ export function buildRoofFrame(
     // Satteldach: First mittig, wahlweise versetzt. Beide Flächen haben
     // dieselbe Neigung, also bestimmt die *längere* Spannweite die Firsthöhe;
     // die kürzere Seite endet dann entsprechend höher als der Kniestock.
+    //
+    // Der Krüppelwalm rechnet hier mit: Sein First liegt genauso hoch wie der
+    // eines Satteldachs derselben Neigung. Was ihn unterscheidet, ist allein
+    // die abgeschrägte Giebelspitze — und die steht in der Höhenfunktion,
+    // nicht in der Firsthöhe.
     ridgeT = roof.ridgeOffset;
     rise = Math.max(ridgeT - minT, maxT - ridgeT) * slope;
   }
@@ -451,7 +532,8 @@ function traufhoeheInFallrichtung(frame: RoofFrame, p: Vec2, t: number): number 
   // Talwärts: beim Pultdach immer in `dir`, beim Satteldach je nach Seite des
   // Firsts. Ohne dieses Vorzeichen würde die eine Dachhälfte am First
   // gemessen statt an ihrer Traufe.
-  const seite = frame.roof.kind === 'monopitch' || t >= frame.ridgeT ? 1 : -1;
+  const einseitig = frame.roof.kind === 'monopitch' || frame.roof.kind === 'flat-sloped';
+  const seite = einseitig || t >= frame.ridgeT ? 1 : -1;
   const weg = randAbstandInRichtung(frame.kanten, p, frame.dir.x * seite, frame.dir.y * seite);
   if (!Number.isFinite(weg)) return Infinity;
   return Math.max(0, frame.roof.kneeHeight) + weg * frame.slope;
@@ -480,8 +562,60 @@ export function baseRoofHeightAt(frame: RoofFrame, p: Vec2): number {
     // Die Firsthöhe ist kein Eingangswert mehr, sondern das Maximum dieser
     // Funktion; sie steht als `ridgeHeight` im Rahmen.
     h = Math.max(0, frame.roof.kneeHeight) + abstandZumRand(frame.kanten, p) * frame.slope;
-  } else if (frame.roof.kind === 'monopitch') {
+  } else if (frame.roof.kind === 'monopitch' || frame.roof.kind === 'flat-sloped') {
     h = frame.ridgeHeight - Math.max(0, t - frame.ridgeT) * frame.slope;
+    h = Math.min(h, traufhoeheInFallrichtung(frame, p, t));
+  } else if (frame.roof.kind === 'mansard') {
+    /*
+     * Mansarddach: flach vom First bis zum Knick, darunter steil.
+     *
+     *          First
+     *           /\            ← obere Fläche, `slopeOben`
+     *          /  \
+     *     ____/    \____      ← Knick bei `abstand` vom First
+     *        |      |
+     *        |      |          ← untere Fläche, `frame.slope` (steil)
+     *
+     * Der Knick wird aus denselben Eingangsgrößen gerechnet wie beim Aufbau
+     * des Rahmens — nicht im Rahmen abgelegt und hier gelesen. Das kostet
+     * eine Handvoll Rechenschritte je Punkt und erspart ein Feld, das mit
+     * `roof` auseinanderlaufen kann, sobald jemand die Neigung ändert.
+     */
+    const d = Math.abs(t - frame.ridgeT);
+    const knick = mansardKnick(frame.roof, frame.halfSpanT + Math.abs(frame.ridgeT), frame.roof.kneeHeight, frame.slope);
+    h =
+      d <= knick.abstand
+        ? frame.ridgeHeight - d * knick.slopeOben
+        : knick.hoehe - (d - knick.abstand) * frame.slope;
+    h = Math.min(h, traufhoeheInFallrichtung(frame, p, t));
+  } else if (frame.roof.kind === 'krueppelwalm') {
+    /*
+     * Krüppelwalmdach: Satteldach, dessen Giebelspitze abgewalmt ist.
+     *
+     * Die Höhenfunktion ist das **Minimum** aus zwei Schrägen — der des
+     * Satteldachs quer zum First und der des Walms in Firstrichtung:
+     *
+     *     h(p) = min( First − |t − t₀| · Steigung,
+     *                 Walmfuß + (halbe Firstlänge − |s|) · Steigung )
+     *
+     * Der Walmfuß ist die Höhe, in der die abgeschrägte Fläche auf die
+     * senkrechte Giebelwand trifft. Bei `hipRatio` = 0 liegt er auf
+     * Firsthöhe — dann greift die zweite Zeile nie und es bleibt ein
+     * Satteldach. Bei 1 liegt er auf Kniestockhöhe: volles Walmdach. Genau
+     * dazwischen liegt der Krüppelwalm, und zwar stetig, ohne Fallunter-
+     * scheidung.
+     *
+     * Dass ein Minimum zweier Schrägen den Grat von selbst erzeugt, ist
+     * dieselbe Eigenschaft, die das Walmdach über dem Umriss trägt — nur
+     * hier mit zwei Flächen statt mit allen Kanten des Umrisses.
+     */
+    const anteil = Math.min(Math.max(frame.roof.hipRatio ?? KRUEPPELWALM_VORGABE, 0), 1);
+    const knee = Math.max(0, frame.roof.kneeHeight);
+    const walmfuss = frame.ridgeHeight - anteil * (frame.ridgeHeight - knee);
+    const s = dx * frame.along.x + dy * frame.along.y;
+    const giebel = frame.ridgeHeight - Math.abs(t - frame.ridgeT) * frame.slope;
+    const walm = walmfuss + Math.max(0, frame.halfSpanS - Math.abs(s)) * frame.slope;
+    h = Math.min(giebel, walm);
     h = Math.min(h, traufhoeheInFallrichtung(frame, p, t));
   } else if (frame.roof.kind === 'hip') {
     // Rückfallebene ohne Umriss: Abstand zur nächsten Traufkante im
@@ -563,7 +697,7 @@ export function defaultGableRise(opening: RoofOpening): number {
  * −1 = talwärts entgegen `dir`.
  */
 export function dormerSide(frame: RoofFrame, opening: { position: Vec2 }): 1 | -1 {
-  if (frame.roof.kind === 'monopitch') return 1;
+  if (frame.roof.kind === 'monopitch' || frame.roof.kind === 'flat-sloped') return 1;
   const dx = opening.position.x - frame.centre.x;
   const dy = opening.position.y - frame.centre.y;
   const t = dx * frame.dir.x + dy * frame.dir.y;
@@ -619,6 +753,35 @@ export function roofHeightAt(frame: RoofFrame, p: Vec2): number {
 }
 
 
+/**
+ * Die Neigung der Dachfläche **an dieser Stelle** [°].
+ *
+ * **Warum das eine eigene Funktion ist.** Bis zum Mansarddach hatte jedes Dach
+ * genau eine Neigung, und die geneigte Fläche war die projizierte geteilt
+ * durch cos(Neigung) — eine Zahl für das ganze Dach. Die Mansarde hat zwei,
+ * und der Unterschied ist nicht klein: 1/cos 70° = 2,92 gegen 1/cos 30° =
+ * 1,15. Wer die steile Neigung auf die ganze Fläche anwendet, meldet die
+ * obere Dachfläche zweieinhalbmal so groß, wie sie ist — und damit
+ * zweieinhalbmal so viel Transmissionsverlust.
+ *
+ * Für jede andere Dachform gibt sie unverändert `roof.pitch` zurück. Das ist
+ * Absicht: Die Zahlen aller bestehenden Projekte dürfen sich durch diese
+ * Funktion nicht um ein Tausendstel bewegen.
+ */
+export function neigungAn(frame: RoofFrame, p: Vec2): number {
+  if (frame.roof.kind !== 'mansard') return frame.roof.pitch;
+  const dx = p.x - frame.centre.x;
+  const dy = p.y - frame.centre.y;
+  const d = Math.abs(dx * frame.dir.x + dy * frame.dir.y - frame.ridgeT);
+  const knick = mansardKnick(
+    frame.roof,
+    frame.halfSpanT + Math.abs(frame.ridgeT),
+    frame.roof.kneeHeight,
+    frame.slope,
+  );
+  return d <= knick.abstand ? Math.atan(knick.slopeOben) / TO_RAD : frame.roof.pitch;
+}
+
 /** Liegt an diesem Punkt die waagerechte Kehlbalkendecke statt der Schräge? */
 function isCollarZone(frame: RoofFrame, h: number): boolean {
   const collar = frame.roof.collarHeight;
@@ -642,8 +805,31 @@ export function roofFaceAzimuthAt(frame: RoofFrame, p: Vec2): number {
   const t = dx * frame.dir.x + dy * frame.dir.y;
   const base = frame.roof.azimuth;
 
-  if (frame.roof.kind === 'monopitch') return norm360(base);
-  if (frame.roof.kind === 'gable') return norm360(t >= frame.ridgeT ? base : base + 180);
+  // Einseitig geneigt: eine Fläche, ein Azimut.
+  if (frame.roof.kind === 'monopitch' || frame.roof.kind === 'flat-sloped') return norm360(base);
+  // Zwei Hauptflächen quer zum First. Das Mansarddach hat vier — je Seite die
+  // steile unten und die flache oben —, aber beide zeigen in dieselbe
+  // Richtung. Für den solaren Gewinn ist der Azimut die Frage, nicht die
+  // Neigung, also sind es hier zwei.
+  if (frame.roof.kind === 'gable' || frame.roof.kind === 'mansard') {
+    return norm360(t >= frame.ridgeT ? base : base + 180);
+  }
+  if (frame.roof.kind === 'krueppelwalm') {
+    /*
+     * Krüppelwalm: zwei Hauptflächen wie beim Satteldach und zusätzlich die
+     * beiden abgewalmten Giebelspitzen. Welche gilt, entscheidet dieselbe
+     * Frage wie in der Höhenfunktion: Welche der beiden Schrägen liegt hier
+     * tiefer? Wo der Walm gewinnt, zeigt die Fläche längs des Firsts.
+     */
+    const anteil = Math.min(Math.max(frame.roof.hipRatio ?? KRUEPPELWALM_VORGABE, 0), 1);
+    const knee = Math.max(0, frame.roof.kneeHeight);
+    const walmfuss = frame.ridgeHeight - anteil * (frame.ridgeHeight - knee);
+    const sAchse = dx * frame.along.x + dy * frame.along.y;
+    const giebel = frame.ridgeHeight - Math.abs(t - frame.ridgeT) * frame.slope;
+    const walm = walmfuss + Math.max(0, frame.halfSpanS - Math.abs(sAchse)) * frame.slope;
+    if (walm < giebel) return norm360(base + (sAchse >= 0 ? 270 : 90));
+    return norm360(t >= frame.ridgeT ? base : base + 180);
+  }
 
   if (frame.kanten.length >= 3) {
     const k = naechsteKante(frame.kanten, p);
@@ -709,7 +895,6 @@ export function measureRoomUnderRoof(
   }
 
   const cell = step * step;
-  const cosPitch = Math.cos(frame.roof.pitch * TO_RAD);
 
   let hits = 0;
   let volume = 0;
@@ -758,11 +943,20 @@ export function measureRoomUnderRoof(
       } else if (isCollarZone(frame, h)) {
         flat += 1;
       } else {
-        sloped += 1;
+        /*
+         * Aufgeschlagen wird gleich hier, nicht erst am Ende.
+         *
+         * Die geneigte Fläche ist die projizierte geteilt durch cos(Neigung),
+         * und die Neigung kann von Zelle zu Zelle verschieden sein — beim
+         * Mansarddach ist sie es. Eine Summe roher Zellen und ein Kosinus
+         * hinterher funktionierte nur, solange es eine Neigung gab.
+         */
+        const cos = Math.cos(neigungAn(frame, p) * TO_RAD) || 1;
+        sloped += 1 / cos;
         // Nach Dachfläche getrennt zählen: die Himmelsrichtung einer
         // Dachfläche entscheidet über solare Gewinne und die Abschirmung.
         const face = Math.round(roofFaceAzimuthAt(frame, p));
-        byFace.set(face, (byFace.get(face) ?? 0) + 1);
+        byFace.set(face, (byFace.get(face) ?? 0) + 1 / cos);
       }
     }
   }
@@ -777,10 +971,10 @@ export function measureRoomUnderRoof(
     averageHeight: hits > 0 ? round3((volume / hits)) : 0,
     minHeight: Number.isFinite(minHeight) ? round3(minHeight) : 0,
     maxHeight: Number.isFinite(maxHeight) ? round3(maxHeight) : 0,
-    // Die geneigte Fläche ist die projizierte geteilt durch cos(Neigung).
-    slopedArea: round2((sloped * f) / (cosPitch || 1)),
+    // Der Kosinus steckt bereits in `sloped` und `byFace` — siehe oben.
+    slopedArea: round2(sloped * f),
     slopedAreaByFace: [...byFace.entries()]
-      .map(([azimuth, cells]) => ({ azimuth, area: round2((cells * f) / (cosPitch || 1)) }))
+      .map(([azimuth, cells]) => ({ azimuth, area: round2(cells * f) }))
       .filter((e) => e.area > 0.01)
       .sort((a, b) => b.area - a.area),
     flatCeilingArea: round2(flat * f),
@@ -971,8 +1165,17 @@ export function roofContourLines(frame: RoofFrame, height: number): { a: Vec2; b
     },
   });
 
-  if (frame.roof.kind === 'monopitch') return [lineAt(distance)];
-  if (frame.roof.kind === 'gable') return [lineAt(distance), lineAt(-distance)];
+  if (frame.roof.kind === 'monopitch' || frame.roof.kind === 'flat-sloped') {
+    return [lineAt(distance)];
+  }
+  // Krüppelwalm und Mansarde: die Linien quer zum First zeichnen. Beim
+  // Krüppelwalm fehlen damit die kurzen Stücke an den abgewalmten Spitzen,
+  // bei der Mansarde sitzt die Linie oberhalb des Knicks etwas zu weit außen.
+  // Dieselbe bewusste Grenze wie beim Walmdach über einem Umriss (siehe
+  // oben): Diese Linien werden gezeichnet, nicht gerechnet.
+  if (frame.roof.kind === 'gable' || frame.roof.kind === 'krueppelwalm' || frame.roof.kind === 'mansard') {
+    return [lineAt(distance), lineAt(-distance)];
+  }
 
   // Walmdach: rundum, also zusätzlich die beiden Linien längs des Firsts.
   const perpAt = (offset: number) => ({
