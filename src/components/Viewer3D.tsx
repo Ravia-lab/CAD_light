@@ -434,6 +434,8 @@ function baueTgaKoerper(
   fixtures: Fixture[],
   roofFrame: ReturnType<typeof buildRoofFrame>,
   levelBase: Map<string, number>,
+  /** Geschoss, zu dem der Dachrahmen gehört — für alle anderen gilt er nicht. */
+  roofLevelId: string,
 ): TgaKoerper[] {
   const raus: TgaKoerper[] = [];
   for (const f of fixtures) {
@@ -442,7 +444,12 @@ function baueTgaKoerper(
     const isRiser = f.type === 'riser-heating' || f.type === 'riser-sanitary';
     // Auch die TGA endet unter der Schräge am Dach — ein Lüftungsventil, das
     // durch das Dach ragt, sieht nach Fehler aus, weil es einer ist.
-    const roofTop = roofFrame ? roofHeightAt(roofFrame, f.position) : Infinity;
+    // Der Rahmen gilt nur für Objekte auf dem Dachgeschoss. Ohne diese
+    // Bindung wurde ein Lüftungsventil im Erdgeschoss an der Schräge des
+    // Obergeschosses gekappt — und verschwand ganz, sobald das Dach tief
+    // genug saß.
+    const tgaDach = roofFrame && f.levelId === roofLevelId ? roofFrame : null;
+    const roofTop = tgaDach ? roofHeightAt(tgaDach, f.position) : Infinity;
     const height = Math.min(isRiser ? 2.75 : h, Math.max(0, roofTop - f.elevation));
     if (height < 0.02) continue;
 
@@ -507,8 +514,24 @@ function buildGeometry(input: BuildInput): BuiltGeometry {
   // Der Dachrahmen wird vor den Wänden gebraucht: unter einer Schräge endet
   // eine Wand nicht auf Geschosshöhe, sondern an der Dachfläche. Ohne das
   // Kappen stünden die Wände sichtbar durch das Dach hindurch.
+  /*
+   * Das Dach gehört **einem** Geschoss.
+   *
+   * Seit 1.27.0 können mehrere Geschosse zugleich im Bild stehen, und
+   * `walls`/`rooms` enthalten seither alle sichtbaren. Der Dachrahmen wurde
+   * aber weiter aus dieser Gesamtmenge gebildet und danach auf *jede* Wand
+   * angewandt — unabhängig davon, auf welchem Geschoss sie steht. Weil das
+   * Kappen in den lokalen Höhen der jeweiligen Wand rechnet, bekam damit
+   * jedes Geschoss sein eigenes Dach: dasselbe Dach, einmal je Stockwerk,
+   * mitten durch die Wände. Vor 1.27.0 fiel das nicht auf, weil nur das
+   * aktive Geschoss gezeichnet wurde und beide Mengen dieselben waren.
+   */
+  const dachGeschoss = input.roofLevelId ?? '';
+  const dachWaende = walls.filter((w) => w.levelId === dachGeschoss);
+  const dachRaeume = rooms.filter((r) => r.levelId === dachGeschoss);
+
   const roofOutline: { x: number; y: number }[] = [];
-  for (const w of walls) {
+  for (const w of dachWaende) {
     const na = nodes[w.a];
     const nb = nodes[w.b];
     if (na) roofOutline.push({ x: na.x, y: na.y });
@@ -523,7 +546,7 @@ function buildGeometry(input: BuildInput): BuiltGeometry {
     roof,
     roofOutline,
     roofOpenings,
-    roof && roof.kind !== 'flat' ? gebaeudeUmriss(walls, nodes as never) : [],
+    roof && roof.kind !== 'flat' ? gebaeudeUmriss(dachWaende, nodes as never) : [],
   );
 
   for (const wall of walls) {
@@ -540,9 +563,12 @@ function buildGeometry(input: BuildInput): BuiltGeometry {
     const parts = wallSolidParts(g, [...wallOpenings, ...aussparungen], extStart, extEnd);
     const target = wall.type === 'exterior' ? exteriorParts : interiorParts;
     const dz = basis(wall.levelId);
+    // Nur die Wände des Dachgeschosses enden an der Schräge; alle anderen
+    // gehen auf ihre volle Geschosshöhe.
+    const wandDach = wall.levelId === dachGeschoss ? roofFrame : null;
 
     for (const part of parts) {
-      if (!roofFrame) {
+      if (!wandDach) {
         target.push(
           boxInWall(g, part.uStart, part.uEnd, g.halfThickness, part.zStart, part.zEnd, undefined, dz),
         );
@@ -560,7 +586,7 @@ function buildGeometry(input: BuildInput): BuiltGeometry {
         const u1 = part.uStart + (span * (i + 1)) / n;
         const um = (u0 + u1) / 2;
         const mid = wallLocalToWorld(g, um, 0);
-        const top = Math.min(part.zEnd, roofHeightAt(roofFrame, mid));
+        const top = Math.min(part.zEnd, roofHeightAt(wandDach, mid));
         if (top <= part.zStart + 1e-4) continue;
         target.push(boxInWall(g, u0, u1, g.halfThickness, part.zStart, top, undefined, dz));
       }
@@ -572,7 +598,7 @@ function buildGeometry(input: BuildInput): BuiltGeometry {
       // Unter der Schräge endet auch die Öffnung an der Dachfläche — sonst
       // ragen Rahmen und Glas sichtbar durch das Dach.
       const opCentre = wallLocalToWorld(g, (span.from + span.to) / 2, 0);
-      const roofTop = roofFrame ? roofHeightAt(roofFrame, opCentre) : Infinity;
+      const roofTop = wandDach ? roofHeightAt(wandDach, opCentre) : Infinity;
       const head = Math.min(wall.height, op.sillHeight + op.height, roofTop);
       if (head <= op.sillHeight + 0.05) continue;
       const frameDepth = g.halfThickness * 0.92;
@@ -717,7 +743,7 @@ function buildGeometry(input: BuildInput): BuiltGeometry {
     // Mit den lichten Innenpolygonen klaffte über jeder Wand ein Schlitz, und
     // das Dach endete an der Innenkante der Außenwand statt darüber hinaus.
     const OVERHANG = 0.5;
-    const polys = rooms.map((r) => r.polygon).filter((p) => p.length >= 3);
+    const polys = dachRaeume.map((r) => r.polygon).filter((p) => p.length >= 3);
     if (polys.length) {
       let minX = Infinity;
       let minY = Infinity;
@@ -2018,7 +2044,7 @@ export default function Viewer3D({ className = '' }: { className?: string }) {
       aktivesDach && aktivesDach.kind !== 'flat' ? gebaeudeUmriss(walls, doc.nodes) : [],
     );
 
-    for (const k of baueTgaKoerper(fixtures, roofFrame, geschossHoehen)) {
+    for (const k of baueTgaKoerper(fixtures, roofFrame, geschossHoehen, doc.activeLevelId)) {
       const mesh = new THREE.Mesh(
         k.geometry,
         k.category === 'heating'

@@ -116,6 +116,7 @@ import { pruefeUWertQuelle } from './pruefungen/uwertquelle';
 import { pruefePruefsumme } from './pruefungen/pruefsumme';
 import { pruefeExportvertrag } from './pruefungen/exportvertrag';
 import { pruefeFassung } from './pruefungen/fassung';
+import { pruefeDachgeschoss } from './pruefungen/dachgeschoss';
 import { pruefeProjektmappe } from './pruefungen/projektmappe';
 import { pruefeUiModus } from './pruefungen/uimodus';
 import { pruefeSchichtgrenze } from './pruefungen/schichtgrenze';
@@ -3683,6 +3684,9 @@ pruefeExportvertrag(check);
 
 console.log('\n▸ Fassung — eine Nummer, ein Ort');
 pruefeFassung(check);
+
+console.log('\n▸ Dachgeschoss — das Dach gehört einem Geschoss, nicht allen');
+pruefeDachgeschoss(check);
 
 console.log('\n▸ Druckplan — Ecken, Symbolik, Maße');
 pruefeDruckplan(check);
