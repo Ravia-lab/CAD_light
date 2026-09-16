@@ -1,6 +1,6 @@
 {
   "schema": "ravia.bim.light",
-  "version": "2.1.0",
+  "version": "2.2.0",
   "rooms": [
     {
       "id": "room-eg-0",
@@ -28,6 +28,8 @@
       "effectiveSupplyAirflow": 12,
       "livingArea": 0,
       "slopedArea": 0,
+      "pipeLength": 7.94,
+      "pipeKinds": 1,
       "envelopeConductance": 92.529
     },
     {
@@ -56,6 +58,8 @@
       "effectiveSupplyAirflow": 0,
       "livingArea": 0,
       "slopedArea": 0,
+      "pipeLength": 2.14,
+      "pipeKinds": 1,
       "envelopeConductance": 70.402
     },
     {
@@ -84,6 +88,8 @@
       "effectiveSupplyAirflow": 0,
       "livingArea": 0,
       "slopedArea": 0,
+      "pipeLength": 0,
+      "pipeKinds": 0,
       "envelopeConductance": 91.987
     },
     {
@@ -112,6 +118,8 @@
       "effectiveSupplyAirflow": 0,
       "livingArea": 0,
       "slopedArea": 0,
+      "pipeLength": 0,
+      "pipeKinds": 0,
       "envelopeConductance": 69.34
     },
     {
@@ -140,6 +148,8 @@
       "effectiveSupplyAirflow": 12,
       "livingArea": 40.15,
       "slopedArea": 57.41,
+      "pipeLength": 7.94,
+      "pipeKinds": 1,
       "envelopeConductance": 93.378
     },
     {
@@ -168,6 +178,8 @@
       "effectiveSupplyAirflow": 0,
       "livingArea": 24.88,
       "slopedArea": 37.48,
+      "pipeLength": 2.14,
+      "pipeKinds": 1,
       "envelopeConductance": 74.813
     }
   ],

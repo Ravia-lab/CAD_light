@@ -526,6 +526,20 @@ export function pruefeRohrausleger(check: CheckFn): void {
      * Unterschied der Verlegeart. Sichtbar wird der Unterschied erst an einem
      * Verbraucher mitten im Raum: dorthin geht der Neubau geradeaus, die
      * Sanierung muss außen herum.
+     *
+     * **Was sich mit `WAND_GEWICHT_NEUBAU` geändert hat.** Bis 1.28.2 schnitt
+     * der Neubauweg quer durch den ganzen Raum und war deshalb *kürzer* als
+     * der Sanierungsweg. Seit die Wandnähe auch im Fußbodenaufbau ein Gewicht
+     * hat (Fachregel IKZ, siehe `pipeRouting.ts`), folgt er der Wand und
+     * biegt erst ab, wenn er muss. Beide Wege sind damit gleich lang — der
+     * Unterschied liegt jetzt in der *Form*, nicht in der Länge, und genau
+     * das prüft die Zeile darüber: Der Neubau steht am Ende über einen Meter
+     * von der Wand, die Sanierung nicht.
+     *
+     * Die Gleichheit ist kein Zufall und keine gemessene Zahl: Beide Wege
+     * laufen an derselben Wand entlang, und beide müssen dieselbe letzte
+     * Strecke in den Raum hinein. Was der eine an Querung spart, legt der
+     * andere am Rand zurück.
      */
     const mitte: BimDocument = {
       ...doc,
@@ -537,7 +551,10 @@ export function pruefeRohrausleger(check: CheckFn): void {
     const nMitte = planPipeNetwork(mitte, { mode: 'neubau', levelId: 'eg' });
     const sMitte = planPipeNetwork(mitte, { mode: 'sanierung', levelId: 'eg' });
     check('Zum Verbraucher in der Raummitte geht der Neubau quer [m]', abstand(nMitte.runs) > 1.0, true);
-    check('… und ist dabei kürzer als die Sanierung', nMitte.routeLength < sMitte.routeLength, true);
+    check('… und ist dabei nicht länger als die Sanierung',
+      nMitte.routeLength <= sMitte.routeLength + 1e-6, true);
+    check('… beide Wege sind gleich lang — der Unterschied ist die Form',
+      Math.abs(nMitte.routeLength - sMitte.routeLength) < 1e-6, true);
     check('Die Sanierung bleibt auch dort an der Wand, bis sie abbiegen muss [m]',
       abstand(sMitte.runs) <= abstand(nMitte.runs), true);
   }

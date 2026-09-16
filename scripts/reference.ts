@@ -386,6 +386,11 @@ export function buildReferenceReport(doc: BimDocument): ReferenceReport {
       effectiveSupplyAirflow: room.ventilation.effectiveSupplyAirflow,
       livingArea: r3(room.roof?.livingArea ?? 0),
       slopedArea: r3(room.roof?.slopedArea ?? 0),
+      // Rohrmeter in diesem Raum. Sie stehen im Sollstand, weil sie von der
+      // *Trassenführung* abhängen: Verschiebt sich die Wegsuche, verschieben
+      // sich die Meter zwischen den Räumen, und genau das soll auffallen.
+      pipeLength: r3((room.pipeLengths ?? []).reduce((sum, e) => sum + e.length, 0)),
+      pipeKinds: room.pipeLengths?.length ?? 0,
       // Summe A·(U+ΔU) je Raum — die eine Zahl, in der jede Flächen- oder
       // U-Wert-Verschiebung sichtbar wird.
       envelopeConductance: r3(

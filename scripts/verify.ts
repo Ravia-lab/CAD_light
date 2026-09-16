@@ -119,6 +119,7 @@ import { pruefeFassung } from './pruefungen/fassung';
 import { pruefeDachgeschoss } from './pruefungen/dachgeschoss';
 import { pruefeSpiegeln } from './pruefungen/spiegeln';
 import { pruefeImportgeschoss } from './pruefungen/importgeschoss';
+import { pruefeFlurfuehrung } from './pruefungen/flurfuehrung';
 import { pruefeProjektmappe } from './pruefungen/projektmappe';
 import { pruefeUiModus } from './pruefungen/uimodus';
 import { pruefeSchichtgrenze } from './pruefungen/schichtgrenze';
@@ -692,7 +693,7 @@ console.log('\n▸ Export für die Heizlastberechnung');
   };
 
   const ex = buildRaviaExport(doc as never);
-  check('Schema-Version', ex.version, '2.1.0');
+  check('Schema-Version', ex.version, '2.2.0');
   check('Einheiten dokumentiert', ex.units.uValue, 'W/(m2K)');
 
   const room = ex.rooms.find((r) => r.polygon.some((p) => p.x < 4))!;
@@ -3695,6 +3696,9 @@ pruefeSpiegeln(check);
 
 console.log('\n▸ Geschosszuordnung — der Grundriss kommt selten vom Erdgeschoss');
 pruefeImportgeschoss(check);
+
+console.log('\n▸ Flurführung — die Trasse gehört auf die Verkehrsfläche');
+pruefeFlurfuehrung(check);
 
 console.log('\n▸ Druckplan — Ecken, Symbolik, Maße');
 pruefeDruckplan(check);

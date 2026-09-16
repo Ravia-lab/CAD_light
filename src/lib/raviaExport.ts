@@ -35,6 +35,7 @@ import type {
   ExportHeatPump,
   ExportOpening,
   ExportRoom,
+  ExportRoomPipe,
   ExportSurface,
   Fixture,
   Opening,
@@ -64,6 +65,8 @@ import type {
 import { SOIL_LABELS, durchbruchWirt } from '../types/bim';
 import { durchbruchFlaeche, durchbruchMitte } from './durchbruchSymbols';
 import { rohrlaenge, steiganteil } from './rohrlaenge';
+import { rohrmeterJeRaum } from './rohrImRaum';
+import type { RohrAnteil } from './rohrImRaum';
 import { pruefsumme } from './pruefsumme';
 import { ERZEUGER } from './fassung';
 /*
@@ -138,8 +141,19 @@ export function buildRaviaExport(doc: BimDocument): RaviaExport {
   const openingIndex = indexOpeningsByWall(Object.values(doc.openings));
   const heatedByLevel = heatedTemperatureByLevel(doc);
   const fixturesByRoom = groupFixturesByRoom(doc);
+  /*
+   * Die Rohrmeter je Raum — einmal für das ganze Dokument, nicht je Raum.
+   *
+   * Sie werden über *alle* Leitungen und *alle* Räume gerechnet und nicht je
+   * Geschoss: Ein Abschnitt trägt seine Geschosskennung, ein Raum auch, und
+   * ein Abschnitt kann ohnehin nur über der lichten Fläche eines Raums
+   * liegen, der unter ihm ist. Die Zuordnung ist geometrisch (siehe
+   * `rohrImRaum.ts`) — eine zusätzliche Filterung nach Geschoss brächte
+   * dasselbe Ergebnis und eine zweite Stelle, an der es falsch sein kann.
+   */
+  const rohrJeRaum = rohrmeterJeRaum(Object.values(doc.pipes ?? {}), rooms);
   const exportRooms = rooms
-    .map((room) => buildRoom(doc, room, openingIndex, heatedByLevel, fixturesByRoom))
+    .map((room) => buildRoom(doc, room, openingIndex, heatedByLevel, fixturesByRoom, rohrJeRaum))
     // Die Prüfsumme steht bewusst *nach* `buildRoom` und nicht darin: Sie soll
     // über genau das gebildet werden, was die Gegenstelle am Ende sieht, und
     // nicht über eine Zwischenstufe, die sich später davon entfernen kann.
@@ -189,7 +203,7 @@ export function buildRaviaExport(doc: BimDocument): RaviaExport {
 
   return {
     schema: 'ravia.bim.light',
-    version: '2.1.0',
+    version: '2.2.0',
     generator: GENERATOR,
     exportedAt: new Date().toISOString(),
     units: {
@@ -902,11 +916,19 @@ function buildRoom(
   openingIndex: Map<string, Opening[]>,
   heatedByLevel: Map<string, number>,
   fixturesByRoom: Map<string, Fixture[]>,
+  rohrJeRaum: Map<string, RohrAnteil[]>,
 ): ExportRoom {
   const surfaces: ExportSurface[] = [];
   const windowAreaByOrientation: Partial<Record<Orientation, number>> = {};
   let totalWindowArea = 0;
   let exteriorWallArea = 0;
+
+  const rohre: ExportRoomPipe[] = (rohrJeRaum.get(room.id) ?? []).map((r) => ({
+    service: r.service,
+    nominalDiameter: r.nominalDiameter,
+    insulation: r.insulation,
+    length: roundCm2(r.length),
+  }));
 
   const level = doc.levels[room.levelId];
   // Im detaillierten Verfahren steckt der Zuschlag nicht mehr im U-Wert der
@@ -1601,6 +1623,10 @@ function buildRoom(
     installedHeatingPower: Math.round(installedHeatingPower),
     supplyAirflow: Math.round(supplyAirflow),
     exhaustAirflow: Math.round(exhaustAirflow),
+    // Nur wenn in diesem Raum wirklich Rohr liegt. Eine leere Liste wäre
+    // dieselbe Aussage in mehr Zeichen — und im Vergleich zweier Exporte ein
+    // Unterschied, der keiner ist.
+    ...(rohre.length ? { pipeLengths: rohre } : {}),
   };
 }
 

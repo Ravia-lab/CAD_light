@@ -14,6 +14,7 @@ import { useMemo, useState } from 'react';
 import type { RoomUsage } from '../types/bim';
 import { useBimStore } from '../store/useBimStore';
 import { downloadJson } from '../lib/raviaExport';
+import { rohrmeterJeRaum } from '../lib/rohrImRaum';
 
 const USAGE_LABELS: Record<RoomUsage, string> = {
   living: 'Wohnen',
@@ -41,6 +42,25 @@ export default function RoomBook() {
   const [desc, setDesc] = useState(false);
   const [allLevels, setAllLevels] = useState(true);
 
+  /*
+   * Die Rohrmeter je Raum.
+   *
+   * **Warum sie im Raumbuch stehen.** Ein Heizkreisverteiler in der Diele
+   * schickt alle Kreise über den Flur, und diese Leitungen geben ihre Wärme
+   * dort ab, wo sie liegen. Ein Flur mit zwanzig Metern Anbindeleitung im
+   * Estrich kann darüber vollständig beheizt sein — wer ihm zusätzlich einen
+   * Heizkörper gibt, baut ihn doppelt. Im Raumbuch fällt das auf, weil die
+   * Zahl neben der Heizleistung steht; im Rohrnetzbericht nicht, weil dort
+   * nach Nennweite summiert wird und nicht nach Raum.
+   *
+   * Gerechnet, nicht gerundet: Die Wärmeabgabe selbst gehört in die
+   * Heizlastberechnung (siehe `rohrImRaum.ts`). Hier stehen die Meter.
+   */
+  const rohrJeRaum = useMemo(
+    () => rohrmeterJeRaum(Object.values(doc.pipes ?? {}), Object.values(doc.rooms)),
+    [doc.pipes, doc.rooms],
+  );
+
   const rows = useMemo(() => {
     const power: Record<string, number> = {};
     for (const f of Object.values(doc.fixtures)) {
@@ -58,6 +78,7 @@ export default function RoomBook() {
         exteriorArea: room.boundaries
           .filter((b) => b.boundary === 'exterior')
           .reduce((sum, b) => sum + b.netArea, 0),
+        rohrmeter: (rohrJeRaum.get(room.id) ?? []).reduce((sum, e) => sum + e.length, 0),
       }));
 
     const factor = desc ? -1 : 1;
@@ -78,7 +99,7 @@ export default function RoomBook() {
       }
     });
     return list;
-  }, [allLevels, desc, doc, sort]);
+  }, [allLevels, desc, doc, rohrJeRaum, sort]);
 
   const totals = useMemo(
     () => ({
@@ -86,6 +107,7 @@ export default function RoomBook() {
       volume: rows.reduce((s, r) => s + r.room.volume, 0),
       power: rows.reduce((s, r) => s + r.power, 0),
       window: rows.reduce((s, r) => s + r.windowArea, 0),
+      rohr: rows.reduce((s, r) => s + r.rohrmeter, 0),
     }),
     [rows],
   );
@@ -95,7 +117,7 @@ export default function RoomBook() {
     const head = [
       'Geschoss', 'Raum', 'Nutzung', 'Fläche [m²]', 'Höhe [m]', 'Volumen [m³]', 'Umfang [m]',
       'Solltemp. [°C]', 'Luftwechsel [1/h]', 'Außenwand [m²]', 'Öffnungen [m²]',
-      'Erdkontakt [m]', 'Außenfassaden', 'Heizleistung [W]', 'beheizt',
+      'Erdkontakt [m]', 'Außenfassaden', 'Heizleistung [W]', 'Rohr im Raum [m]', 'beheizt',
       // Dachkennwerte stehen am Ende: bei Geschossen ohne Dach bleiben die
       // Spalten leer, statt die vorderen Spalten zu verschieben.
       'Dachfläche [m²]', 'Wohnfläche WoFlV [m²]', 'unter 1,00 m [m²]',
@@ -118,6 +140,7 @@ export default function RoomBook() {
         de(r.room.groundContactPerimeter),
         String(r.room.exposedFacadeCount),
         String(Math.round(r.power)),
+        de(r.rohrmeter),
         r.room.isHeated ? 'ja' : 'nein',
         r.room.roof ? de(r.room.roof.slopedArea) : '',
         r.room.roof ? de(r.room.roof.livingArea) : '',
@@ -215,6 +238,7 @@ export default function RoomBook() {
                   <span className="block truncate font-mono text-[9px] text-slate-500">
                     {r.level} · {USAGE_LABELS[r.room.usage]} · {r.room.setpointTemperature.toFixed(0)} °C
                     {!r.room.isHeated && ' · unbeheizt'}
+                    {r.rohrmeter > 0.05 && ` · ${r.rohrmeter.toFixed(1).replace('.', ',')} m Rohr`}
                   </span>
                 </span>
                 <span className="self-center font-mono text-[10.5px] text-slate-300">{r.room.area.toFixed(2)}</span>
@@ -240,7 +264,17 @@ export default function RoomBook() {
       <div className="grid grid-cols-2 gap-x-3 gap-y-1 rounded-lg bg-graphite-900/60 px-2.5 py-2">
         <Readout label="Volumen" value={`${totals.volume.toFixed(2)} m³`} />
         <Readout label="Öffnungen" value={`${totals.window.toFixed(2)} m²`} />
+        {totals.rohr > 0.05 && (
+          <Readout label="Rohr in Räumen" value={`${totals.rohr.toFixed(1).replace('.', ',')} m`} />
+        )}
       </div>
+      {totals.rohr > 0.05 && (
+        <p className="px-1 text-[10px] leading-snug text-slate-500">
+          Die Rohrmeter stehen beim Raum, in dem sie <em>liegen</em> — nicht bei dem, zu dem sie
+          führen. Ein Flur mit gebündelten Anbindeleitungen ist darüber mitbeheizt; die Wärmeabgabe
+          rechnet RaVia, die Meter reist mit dem Export mit.
+        </p>
+      )}
 
       <button
         className="w-full rounded-lg bg-white/[0.05] px-3 py-2 text-[11px] text-slate-300 transition-colors hover:bg-white/[0.09]"

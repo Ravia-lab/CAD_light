@@ -121,6 +121,12 @@ const RAUM_WAHLFREI = [
   'installedPower',
   'floorCovering',
   'floorCoveringResistance',
+  /*
+   * Seit 2.2.0: die Rohrmeter, die in diesem Raum liegen. Sie stehen nur,
+   * wenn welche darin liegen — ein Raum ohne Leitung trägt das Feld nicht,
+   * und eine leere Liste wäre dieselbe Aussage in mehr Zeichen.
+   */
+  'pipeLengths',
 ] as const;
 
 /** Eine Hüllfläche. `uValueSource` ist seit 2.1.0 dabei. */
@@ -280,7 +286,35 @@ function baueHaus(): BimDocument {
     } as BimDocument['openings'],
     fixtures: {},
     verticals: {},
-    pipes: {},
+    /*
+     * Eine Leitung quer durch den Raum — damit `pipeLengths` im Vertrag
+     * wirklich vorkommt.
+     *
+     * **Warum das nötig ist.** Dieser Block findet nur Felder, die im
+     * erzeugten Datensatz auch dastehen. Ein Feld, das nur unter Bedingungen
+     * erscheint, ist für ihn unsichtbar, solange die Bedingung im Prüfhaus
+     * nicht eintritt — und genau so ist `pipeLengths` beim ersten Lauf durch
+     * die Wächter geschlüpft. Wer hier ein bedingtes Feld ergänzt, ergänzt
+     * auch den Anlass dafür.
+     *
+     * Die Trasse läuft von (1|1) nach (7|1): 6,00 m, beide Punkte liegen mit
+     * 0,85 m Abstand innerhalb der lichten Fläche (die Wände sind 0,30 m
+     * stark, die lichte Fläche beginnt also bei 0,15 m).
+     */
+    pipes: {
+      'p-1': {
+        id: 'p-1',
+        levelId: 'eg',
+        service: 'heating-flow',
+        points: [
+          { x: 1, y: 1 },
+          { x: 7, y: 1 },
+        ],
+        nominalDiameter: 20,
+        insulation: 9,
+        elevation: 0.1,
+      },
+    },
     annotations: {},
     roofOpenings: {},
     rooms: {},
@@ -340,7 +374,7 @@ export function pruefeExportvertrag(check: CheckFn): void {
 
   // === 1 — Kennung und Version ============================================
   check('Schemakennung', ex.schema, 'ravia.bim.light');
-  check('Fassung', ex.version, '2.1.0');
+  check('Fassung', ex.version, '2.2.0');
   check('Der Erzeuger steht im Dokument', ex.generator.length > 0, true);
   check('Und der Zeitpunkt', /^\d{4}-\d{2}-\d{2}T/.test(ex.exportedAt), true);
 
@@ -369,6 +403,20 @@ export function pruefeExportvertrag(check: CheckFn): void {
   check('Das Prüfhaus hat einen Raum', ex.rooms.length, 1);
   check('Keine unbekannten Felder am Raum', unbekannte(raum, RAUM_PFLICHT, RAUM_WAHLFREI), '');
   check('Kein Pflichtfeld fehlt am Raum', fehlende(raum, RAUM_PFLICHT), '');
+
+  /*
+   * Die Rohrmeter des Raums — der Zusatz aus 2.2.0.
+   *
+   * Die Trasse läuft von (1|1) nach (7|1), also 6,00 m, und liegt vollständig
+   * innerhalb der lichten Fläche. Es gibt genau eine Kombination aus Gewerk,
+   * Nennweite und Dämmstärke, also genau einen Eintrag.
+   */
+  const rohre = raum.pipeLengths ?? [];
+  check('Der Raum führt seine Rohrmeter', rohre.length, 1);
+  check('… mit dem Gewerk', rohre[0]?.service ?? '', 'heating-flow');
+  check('… der Nennweite', rohre[0]?.nominalDiameter ?? 0, 20);
+  check('… der Dämmstärke', rohre[0]?.insulation ?? -1, 9);
+  check('… und der Länge [m]', rohre[0]?.length ?? 0, 6, 1e-6);
 
   // === 5 — Flächen und Öffnungen ==========================================
   //
@@ -436,5 +484,5 @@ export function pruefeExportvertrag(check: CheckFn): void {
   const zurueck = JSON.parse(JSON.stringify(ex)) as RaviaExport;
   check('Die Wurzel übersteht die Datei', fehlende(zurueck, WURZEL_PFLICHT), '');
   check('… und bringt nichts Neues mit', unbekannte(zurueck, WURZEL_PFLICHT, WURZEL_WAHLFREI), '');
-  check('Die Fassung steht auch danach da', zurueck.version, '2.1.0');
+  check('Die Fassung steht auch danach da', zurueck.version, '2.2.0');
 }

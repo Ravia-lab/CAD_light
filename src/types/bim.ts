@@ -3063,6 +3063,30 @@ export interface ExportRoom {
   supplyAirflow: number;
   exhaustAirflow: number;
   /**
+   * Rohrmeter, die **in diesem Raum** liegen — nach Gewerk, Nennweite und
+   * Dämmstärke getrennt.
+   *
+   * **Wozu das gebraucht wird.** Ein Heizkreisverteiler in der Diele sammelt
+   * alle Kreise des Geschosses; über den Flur laufen sie gebündelt ab. Diese
+   * Leitungen geben ihre Wärme dort ab, wo sie liegen, und nicht dort, wohin
+   * sie führen. Ein Flur mit zwanzig Metern ungedämmter Anbindeleitung im
+   * Estrich ist unter Umständen vollständig beheizt — wer ihm zusätzlich
+   * einen Heizkörper gibt, baut ihn doppelt.
+   *
+   * **Die Zuordnung ist geometrisch.** Gezählt wird, was über der lichten
+   * Raumfläche liegt; Abschnitte werden an den Raumgrenzen geteilt. Meter
+   * über keinem erkannten Raum — über einer Wand, in einem Schacht — fehlen
+   * hier und stehen nur im Längenauszug.
+   *
+   * **Die Wärmeabgabe selbst steht hier nicht.** Sie folgt aus
+   * Vorlauftemperatur, Dämmung, Werkstoff und Verlegeart, und ihr Verfahren
+   * gehört in die Heizlastberechnung (DIN EN 12831-1, DIN EN 1264). CAD Light
+   * liefert, was nur die Zeichnung weiß: wo die Meter liegen.
+   *
+   * Fehlt das Feld, liegt in diesem Raum kein Rohr.
+   */
+  pipeLengths?: ExportRoomPipe[];
+  /**
    * Von der Gegenstelle zurückgeschriebene Norm-Heizlast dieses Raums.
    *
    * Sie steht im Export, obwohl sie von dort kommt: der Export ist zugleich
@@ -3071,6 +3095,17 @@ export interface ExportRoom {
    * Datenverlust.
    */
   normHeatLoad?: RoomHeatLoad;
+}
+
+/** Rohrmeter eines Raums, nach Gewerk, Nennweite und Dämmstärke getrennt. */
+export interface ExportRoomPipe {
+  service: PipeService;
+  /** Nennweite DN [mm]. */
+  nominalDiameter: number;
+  /** Dämmstärke [mm]; 0 = ungedämmt. */
+  insulation: number;
+  /** Trassenlänge in diesem Raum [m] — Grundriss, ohne Höhenversatz. */
+  length: number;
 }
 
 /** Ein vertikales Bauteil im Exportformat. */
@@ -3646,12 +3681,18 @@ export interface ExportPlant {
 export interface RaviaExport {
   schema: 'ravia.bim.light';
   /**
-   * 2.1.0 — gegenüber 2.0.0 additiv: `uValueSource` an jeder Hüllfläche und
-   * jeder Öffnung, `checksum` an jedem Raum. Alle Felder aus 2.0.0 stehen
-   * unverändert; eine Gegenstelle, die 2.0.0 liest, rechnet ohne Änderung
-   * weiter.
+   * 2.2.0 — gegenüber 2.1.0 additiv: `pipeLengths` an jedem Raum, also die
+   * Rohrmeter, die in diesem Raum liegen. Damit lässt sich die Wärmeabgabe
+   * der Verteilleitungen dem Raum zurechnen, durch den sie laufen — beim
+   * Flur mit dem Heizkreisverteiler ist das der Unterschied zwischen einem
+   * unbeheizten und einem vollständig mitbeheizten Raum.
+   *
+   * 2.1.0 hatte gegenüber 2.0.0 `uValueSource` an jeder Hüllfläche und jeder
+   * Öffnung sowie `checksum` an jedem Raum gebracht. Alle Felder aus 2.0.0
+   * stehen weiterhin unverändert; eine Gegenstelle, die 2.0.0 oder 2.1.0
+   * liest, rechnet ohne Änderung weiter.
    */
-  version: '2.1.0';
+  version: '2.2.0';
   generator: string;
   exportedAt: string;
   /** Einheiten explizit im Dokument — keine Konvention, die verloren gehen kann. */

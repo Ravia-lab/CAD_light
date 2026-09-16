@@ -78,7 +78,7 @@
  * die Fehlerquelle groß.
  */
 
-import type { BimNode, Opening, PipeRoutingMode, Room, Vec2, Wall } from '../types/bim';
+import type { BimNode, Opening, PipeRoutingMode, Room, RoomUsage, Vec2, Wall } from '../types/bim';
 import { pointInPolygon } from './geometry';
 import { getWallGeometry, openingSpan } from './wallGeometry';
 
@@ -257,6 +257,66 @@ const WAND_TOLERANZ = 0.05;
  */
 export const TUER_ZUSCHLAG = 30.0;
 
+/**
+ * Wegegewicht je Raumnutzung [-] — durch welchen Raum die Trasse laufen soll.
+ * ---------------------------------------------------------------------------
+ * **Der Befund, auf den diese Tabelle antwortet.** Bis 1.28.2 kannte die
+ * Wegsuche nur „kurz" und „an der Wand". Ein Verteiler in der Diele schickte
+ * damit seine Anbindeleitungen auf dem kürzesten Weg quer durch das
+ * Wohnzimmer — rechnerisch einwandfrei und in der Sache falsch. Verlegt wird
+ * anders: Die Kreise laufen gebündelt über den Flur und zweigen erst an der
+ * Zimmertür ab. Der Flur ist die Verkehrsfläche des Hauses, und er ist es für
+ * Menschen wie für Leitungen.
+ *
+ * **Warum der Aufenthaltsraum den Bezugswert 1 trägt und nicht der Flur.**
+ * Das ist keine Geschmacksfrage, sondern Voraussetzung dafür, dass
+ * `TUER_ZUSCHLAG` seine Bedeutung behält. Dessen 30 m sind gegen den *Umweg
+ * um einen Raum* bemessen (siehe dort). Machte man die Wohnräume teurer,
+ * statt den Flur billiger, wüchse jeder Umweg im selben Maß — und ein fest
+ * in Metern angeschriebener Zuschlag wäre plötzlich ein Drittel wert. Der
+ * Flur wird also günstiger; alles andere bleibt, wo es war.
+ *
+ * **Was die Zahl bedeutet.** Sie ist der Preis eines Meters *in diesem Raum*,
+ * gemessen in Metern Wohnzimmer. 0,4 im Flur heißt: Der Umweg über den Flur
+ * wird genommen, solange er weniger als zweieinhalbmal so lang ist wie die
+ * Durchquerung.
+ *
+ * **Warum das Zweieinhalbfache und nicht das Zehnfache.** Die Zahl ist an
+ * dem bemessen, was sie schlagen soll — dem üblichen Umweg. Um ein Zimmer von
+ * 5 × 4 m herum statt hindurch sind rund 9 m statt 5 m, also Faktor 1,8. Zwei
+ * Zimmer in Reihe kommen auf etwa 2,2. Bei 2,5 gewinnt der Flurweg in diesen
+ * Fällen und verliert dort, wo er absurd würde — einmal um das halbe Geschoss
+ * herum, um zwei Meter Wohnzimmer zu sparen, verlegt niemand.
+ *
+ * **Die Nebenräume liegen dazwischen.** Eine Leitung durch die Abstellkammer
+ * stört niemanden, eine durch die Küche etwas. 0,67 heißt: Der Umweg wird
+ * genommen, wenn er weniger als die Hälfte länger ist.
+ *
+ * Das ist **keine Normzahl** — es gibt zur Trassenführung durch Aufenthalts-
+ * räume keine Fachregel. Es ist eine Rangfolge, und sie liegt hier offen.
+ */
+export const NUTZUNGS_GEWICHT: Record<RoomUsage, number> = {
+  /** Verkehrsfläche — dafür ist sie da. 1/2,5. */
+  hallway: 0.4,
+  /** Nebenräume: eine Leitung stört, aber wenig. 1/1,5. */
+  storage: 0.67,
+  technical: 0.67,
+  wc: 0.67,
+  bath: 0.67,
+  kitchen: 0.67,
+  /** Aufenthaltsräume: der Bezugswert. Hier wird gewohnt, gearbeitet, geschlafen. */
+  living: 1,
+  bedroom: 1,
+  office: 1,
+  /**
+   * Ohne erfasste Nutzung wird der Raum wie ein Nebenraum behandelt. „Nicht
+   * erfasst" darf weder Freibrief noch Sperre sein: Ein Freibrief schickte
+   * die Trasse durch jedes unbenannte Wohnzimmer, eine Sperre triebe sie um
+   * jeden unbenannten Abstellraum herum.
+   */
+  other: 0.67,
+};
+
 /** `neubau`: Zuschlag [m] je Richtungswechsel — ein Bogen kostet ein Formstück. */
 const BOGEN_NEUBAU = 0.35;
 
@@ -287,6 +347,37 @@ const SOLLABSTAND_NEUBAU = 0.05;
 
 /** `neubau`: Gewicht des Randfugen-Zuschlags [-], bezogen auf die Kantenlänge. */
 const RAND_GEWICHT = 3.0;
+
+/**
+ * `neubau`: Zuschlagsfaktor je Meter Wandabstand [1/m] — die Wandnähe.
+ * ---------------------------------------------------------------------------
+ * **Warum das nachgetragen wurde.** Der Dateikopf beruft sich seit jeher auf
+ * die Fachregel (IKZ, „Rohrleitungen im Fußbodenaufbau"): geordnete,
+ * wandparallele Verlegung, damit Estrichleger und der spätere Bohrer wissen,
+ * woran sie sind. Umgesetzt war davon nichts — es galt „kurzer Weg schlägt
+ * Wandnähe", und die Trasse schnitt quer durch die Zimmer. Der Anwender hat
+ * genau das gemeldet: „Rohre quer durch den Raum ist auch doof."
+ *
+ * Zwischen der zitierten Regel und dem Verhalten klaffte also eine Lücke.
+ * Diese Zahl schließt sie.
+ *
+ * **Warum 1,0 und nicht 12 wie in der Sanierung.** Im Sockelleistenkanal
+ * *muss* das Rohr an die Wand — es gibt keinen anderen Ort. Im Fußbodenaufbau
+ * ist die Wandnähe eine Ordnungsregel, kein Zwang: Wo der Umweg absurd würde,
+ * darf die Leitung quer.
+ *
+ * **Woran 1,0 bemessen ist.** Ein Meter in der Raummitte, also rund 2 m von
+ * der Wand, kostet damit 1 + 1,0 · (2 − 0,05) ≈ das Dreifache eines Meters an
+ * der Wand. Der Weg am Rand gewinnt folglich, solange er nicht mehr als
+ * dreimal so lang ist wie der Weg quer hindurch. Um ein quadratisches Zimmer
+ * herum statt hindurch ist er doppelt so lang — der Rand gewinnt. Quer durch
+ * eine sehr lange Halle, bei der der Rand das Vierfache kostete, gewinnt der
+ * kurze Weg. Genau diese Rangfolge ist gemeint.
+ *
+ * Es ist **keine Normzahl**: Die Fachregel verlangt wandparallele Verlegung,
+ * beziffert aber keinen Preis für die Abweichung.
+ */
+const WAND_GEWICHT_NEUBAU = 1.0;
 
 /** Fangradius [m], in dem Quelle und Ziele auf eine begehbare Zelle gezogen werden. */
 const FANGRADIUS = 1.5;
@@ -694,6 +785,46 @@ function baueRaster(
     }
   }
 
+  // --- Nutzungszuschlag je Zelle ----------------------------------------
+  /*
+   * Der Weg *durch* einen Aufenthaltsraum kostet mehr als der durch den Flur
+   * (siehe `NUTZUNGS_GEWICHT`). Gefüllt wird in derselben Schleifenform wie
+   * die Begehbarkeit — und bewusst **nach** ihr, in einem eigenen Durchgang:
+   * Überlappen sich zwei Raumpolygone an einer Zelle (Verschweißtoleranz),
+   * soll der *günstigere* Wert gewinnen. Bekäme der zuletzt geprüfte Raum das
+   * letzte Wort, hinge das Ergebnis an der Reihenfolge im Objekt.
+   */
+  // 0 heißt „kein Raum trägt diese Zelle" — dort greift unten der Bezugswert.
+  const nutzung = new Float64Array(anzahl);
+  for (const room of rooms) {
+    const poly = room.innerPolygon;
+    if (poly.length < 3) continue;
+    const gewicht = NUTZUNGS_GEWICHT[room.usage] ?? NUTZUNGS_GEWICHT.other;
+    let rminX = Infinity;
+    let rminY = Infinity;
+    let rmaxX = -Infinity;
+    let rmaxY = -Infinity;
+    for (const p of poly) {
+      if (p.x < rminX) rminX = p.x;
+      if (p.y < rminY) rminY = p.y;
+      if (p.x > rmaxX) rmaxX = p.x;
+      if (p.y > rmaxY) rmaxY = p.y;
+    }
+    const i0 = Math.max(0, Math.floor((rminX - r.x0) / h));
+    const i1 = Math.min(nx - 1, Math.ceil((rmaxX - r.x0) / h));
+    const j0 = Math.max(0, Math.floor((rminY - r.y0) / h));
+    const j1 = Math.min(ny - 1, Math.ceil((rmaxY - r.y0) / h));
+    for (let j = j0; j <= j1; j++) {
+      const y = r.y0 + j * h;
+      for (let i = i0; i <= i1; i++) {
+        const c = j * nx + i;
+        if (nutzung[c] !== 0 && nutzung[c] <= gewicht) continue;
+        if (!pointInPolygon({ x: r.x0 + i * h, y }, poly)) continue;
+        nutzung[c] = gewicht;
+      }
+    }
+  }
+
   // --- Begehbarkeit: lichte Öffnungen -----------------------------------
   // Das Band greift um einen Rasterschritt über die Wandflächen hinaus, damit
   // die Zellenkette sicher in beide Räume durchbindet. Ohne diesen Überstand
@@ -732,9 +863,33 @@ function baueRaster(
       // Weg von der Wand wird teuer — die Trasse folgt zwangsläufig den Wänden.
       faktor[c] = 1 + WAND_GEWICHT * Math.max(0, d - WAND_TOLERANZ);
     } else {
-      // Nur die Randfuge ist teuer; sonst zählt der kurze Weg.
-      faktor[c] = 1 + RAND_GEWICHT * (Math.max(0, SOLLABSTAND_NEUBAU - d) / SOLLABSTAND_NEUBAU);
+      // Die Randfuge ist tabu, die Raummitte teuer — dazwischen liegt der
+      // Sollabstand, an dem das Rohr liegen soll.
+      faktor[c] =
+        1 +
+        RAND_GEWICHT * (Math.max(0, SOLLABSTAND_NEUBAU - d) / SOLLABSTAND_NEUBAU) +
+        WAND_GEWICHT_NEUBAU * Math.max(0, d - SOLLABSTAND_NEUBAU);
     }
+    /*
+     * Und darüber, in beiden Verlegearten, der Nutzungszuschlag.
+     *
+     * **Warum mal und nicht plus.** Der Zuschlag beantwortet eine andere
+     * Frage als die beiden Formeln darüber: die sagen, *wo im Raum* das Rohr
+     * liegen soll, dieser sagt, *durch welchen Raum* es laufen soll. Als
+     * Faktor lässt er die Rangfolge innerhalb eines Raums unberührt — im
+     * Wohnzimmer wie im Flur liegt die Leitung weiterhin an der Wand — und
+     * verschiebt nur die Rangfolge zwischen den Räumen. Als Summand täte er
+     * beides und machte ausgerechnet die wandnahe Zelle im Flur teurer als
+     * die raumferne im Wohnzimmer.
+     *
+     * Zellen, die zu keinem Raum gehören — die lichte Türöffnung, der
+     * Überstand über die Wandflächen — behalten den Bezugswert 1, also den
+     * des Aufenthaltsraums. Eine Türschwelle einem der beiden Räume
+     * zuzuschlagen wäre eine Behauptung, und teuer ist sie in `sanierung`
+     * ohnehin durch `TUER_ZUSCHLAG`.
+     */
+    const n = nutzung[c];
+    if (n > 0) faktor[c] *= n;
   }
 
   const tuerZuschlag = mode === 'sanierung' ? TUER_ZUSCHLAG : 0;
