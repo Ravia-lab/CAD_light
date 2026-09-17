@@ -860,28 +860,25 @@ export function pruefeRohrausleger(check: CheckFn): void {
   }
 
   // =========================================================================
-  // 16 · Fußbodenheizung: der Verteiler als Quelle bindet seine Kreise an
+  // 16 · Fußbodenheizung: der Stamm zum Verteiler, die Kreise dahinter
   // =========================================================================
   /*
-   * **Der Regelfall im Neubau hatte kein Rohrnetz.**
+   * **Ein Heizungsnetz ist zweistufig.** Der Stamm läuft vom Erzeuger oder
+   * Speicher zum Verteiler, und erst vom Verteiler gehen die
+   * Anbindeleitungen in die Räume. Bis 1.30.0 hat diese Auslegung es
+   * einstufig behandelt, und das hatte zwei Gesichter:
    *
-   * Ein Haus mit Fußbodenheizung hat auf dem Geschoss einen Verteiler und
-   * je Raum einen Heizkreis, sonst nichts. Der Verteiler war dann die
-   * Quelle, Verbraucher gab es keine — Flächenheizkreise standen nicht auf
-   * der Liste —, und die Auslegung endete mit „Heizkörper oder Verteiler
-   * setzen", obwohl beides da war, was da sein konnte. Am Institutsgebäude
-   * des KIT waren das 17 Kreise im Keller, für die kein Meter Rohr entstand.
+   *  • Ohne Erzeuger war der Verteiler die Quelle und die Kreise standen
+   *    nicht auf der Verbraucherliste — ein Neubau mit reiner
+   *    Fußbodenheizung bekam **keinen Meter Rohr**.
+   *  • Mit Speicher endete die Trasse am Verteiler, und die
+   *    Anbindeleitungen in die Räume zeichnete niemand.
    *
-   * **Warum nicht einfach immer.** Ein Heizkreis hängt nie am Erzeuger,
-   * sondern immer am Verteiler. Steht ein Speicher auf dem Geschoss, ist er
-   * die Quelle, der Verteiler sein Verbraucher — und die Kreise gehören in
-   * die zweite Stufe. Sie dort trotzdem anzubinden hieße, am Verteiler
-   * vorbeizuleiten: nicht unvollständig, sondern falsch. Genau diese
-   * Fallunterscheidung prüfen die beiden Fälle unten.
+   * Beides prüfen die drei Fälle unten. Jeder Verbraucher hat jetzt seine
+   * eigene Quelle, und wie viele Trassierungsläufe daraus werden, ergibt
+   * sich von selbst.
    */
   {
-    // Dieselben Stellen wie die Heizkörper des Prüfhauses, nur mit anderem
-    // Typ — damit die Trassenlänge vergleichbar bleibt.
     const alsTyp = (vorlage: Fixture, id: string, type: Fixture['type']): Fixture => ({
       ...vorlage,
       id,
@@ -890,14 +887,14 @@ export function pruefeRohrausleger(check: CheckFn): void {
     });
     // `roomCoverage` und `roomId` gehören zum Flächenheizkreis dazu: daran
     // erkennt die Auslegung, welche Raumlast hinter einem Verteiler steht.
-    // Ohne sie trägt der Verteiler nichts, und die Gegenprobe unten liefe
-    // ins Leere, ohne dass es an der Fallunterscheidung läge.
     const raumIds = Object.keys(doc.rooms);
     const kreis = (vorlage: Fixture, id: string, raum: string): Fixture => ({
       ...alsTyp(vorlage, id, 'underfloor'),
       roomId: raum,
       params: { ...vorlage.params, roomCoverage: true },
     });
+    // Die Kreise sitzen dort, wo im Prüfhaus die Heizkörper standen:
+    // fbh-1 bei (9,20 | 0,60) mit 1400 W, fbh-2 bei (9,20 | 3,40) mit 900 W.
     const mitFbh: BimDocument = {
       ...doc,
       fixtures: {
@@ -906,13 +903,26 @@ export function pruefeRohrausleger(check: CheckFn): void {
         'fbh-2': kreis(doc.fixtures['hk-2'], 'fbh-2', raumIds[raumIds.length - 1]),
       },
     };
-    const r = planPipeNetwork(mitFbh, { mode: 'neubau', levelId: 'eg' });
-    check('Beide Flächenheizkreise werden angebunden', r.served, 2);
-    check('Und es entsteht Rohr', r.pipeLength > 0, true);
-    check('Kein Fehlerhinweis mehr', r.notes.some((n) => n.severity === 'error'), false);
 
-    // Gegenprobe: mit Speicher davor ist der Verteiler der Verbraucher, und
-    // die Kreise bleiben außen vor.
+    // --- Fall A: nur Verteiler und Kreise ---------------------------------
+    const nurVerteiler = planPipeNetwork(mitFbh, { mode: 'neubau', levelId: 'eg' });
+    check('A · Beide Kreise werden angebunden', nurVerteiler.served, 2);
+    check('A · Und es entsteht Rohr', nurVerteiler.pipeLength > 0, true);
+    check('A · Kein Fehlerhinweis', nurVerteiler.notes.some((n) => n.severity === 'error'), false);
+    // Der Verteiler ist selbst Quelle und taucht in keiner Zielliste auf —
+    // seine Absperrung muss er trotzdem bekommen.
+    check(
+      'A · Der Verteiler bekommt seine Absperrung',
+      nurVerteiler.accessories.filter((a) => a.kind === 'shutoff').length,
+      1,
+    );
+
+    // --- Fall B: Speicher davor -------------------------------------------
+    /*
+     * Jetzt ist der Speicher die Quelle, der Verteiler sein Verbraucher —
+     * und die beiden Kreise hängen am Verteiler. Drei Verbraucher, zwei
+     * Läufe.
+     */
     const mitSpeicher: BimDocument = {
       ...mitFbh,
       fixtures: {
@@ -923,11 +933,113 @@ export function pruefeRohrausleger(check: CheckFn): void {
         },
       },
     };
-    const rs = planPipeNetwork(mitSpeicher, { mode: 'neubau', levelId: 'eg' });
-    check('Mit Speicher ist nur der Verteiler Verbraucher', rs.served, 1);
+    const zweistufig = planPipeNetwork(mitSpeicher, { mode: 'neubau', levelId: 'eg' });
+    check('B · Verteiler und beide Kreise sind Verbraucher', zweistufig.served, 3);
+    check('B · Mehr Rohr als ohne den Stamm', zweistufig.pipeLength > nurVerteiler.pipeLength, true);
 
-    // Und ohne Verteiler wird nichts erfunden — aber die Meldung nennt den
-    // Weg hinaus, statt nach einem Heizkörper zu fragen.
+    /*
+     * **Der Stamm trägt, was die Kreise zusammen ziehen.** Das ist die
+     * eigentliche Aussage der zweiten Stufe: vorher bemaß der Stamm sich an
+     * den *Raumheizlasten*, die Kreise an ihrer Normleistung — zwei
+     * Grundlagen für dieselbe Leitung. Geprüft wird an den Volumenströmen
+     * der erzeugten Leitungen: der größte Strom im Netz ist der des Stamms,
+     * und er muss die Summe der beiden Kreisströme sein.
+     */
+    const groesster = (r: { runs: { service: string; designFlow?: number }[] }) =>
+      Math.max(...r.runs.filter((x) => x.service === 'heating-flow').map((x) => x.designFlow ?? 0));
+
+    /*
+     * **Der Durchsatz ist additiv.** Geprüft wird das an drei Läufen
+     * desselben Hauses: einmal nur mit fbh-1, einmal nur mit fbh-2, einmal
+     * mit beiden. Der größte Strom im Netz ist jeweils der am Verteiler.
+     *
+     * Über die Beschriftung der Leitungen zu gehen wäre falsch: eine
+     * Anbindeleitung zerfällt in mehrere gerade Stücke, die alle dieselbe
+     * Beschriftung und denselben Strom tragen — sie zu addieren zählte
+     * denselben Kreis mehrfach.
+     */
+    const nurEiner = (id: string): BimDocument => ({
+      ...mitFbh,
+      fixtures: Object.fromEntries(
+        Object.entries(mitFbh.fixtures).filter(([k]) => k === 'v-1' || k === id),
+      ),
+    });
+    const alleinA = groesster(planPipeNetwork(nurEiner('fbh-1'), { mode: 'neubau', levelId: 'eg' }));
+    const alleinB = groesster(planPipeNetwork(nurEiner('fbh-2'), { mode: 'neubau', levelId: 'eg' }));
+    const stammA = groesster(nurVerteiler);
+    check('A · Der Verteiler trägt die Summe seiner Kreise [m³/h]', stammA, alleinA + alleinB, 0.002);
+    // Gegenprobe zu den Leistungen: 1400 W und 900 W stehen an den Kreisen,
+    // die Ströme müssen sich wie 14 zu 9 verhalten.
+    check('A · Die Ströme verhalten sich wie die Leistungen', alleinA / alleinB, 1400 / 900, 0.01);
+    // Und in Fall B trägt der Stamm vom Speicher genau dasselbe: der
+    // Durchsatz des Verteilers ändert sich nicht dadurch, dass er selbst
+    // versorgt wird. Vorher bemaß sich der Stamm an den *Raumheizlasten*
+    // und die Kreise an ihrer Normleistung — zwei Grundlagen für dieselbe
+    // Leitung.
+    check(
+      'B · Der Stamm trägt denselben Strom wie der Verteiler [m³/h]',
+      groesster(zweistufig),
+      stammA,
+      0.002,
+    );
+
+    // --- Fall C: zwei Verteiler -------------------------------------------
+    /*
+     * Ohne Erzeuger davor versorgt **jeder** Verteiler seine eigenen Kreise.
+     * Zwei Verteiler in Reihe zu hängen — die alte Behandlung — baut
+     * niemand. Zugeordnet wird nach Nähe: v-1 steht bei (0,60 | 0,60),
+     * v-2 bei (9,20 | 2,00). fbh-1 bei (9,20 | 0,60) ist 8,60 m von v-1 und
+     * 1,40 m von v-2 entfernt, fbh-2 bei (9,20 | 3,40) 8,99 m von v-1 und
+     * 1,40 m von v-2. Beide gehören also zu v-2.
+     */
+    const zweiVerteiler: BimDocument = {
+      ...mitFbh,
+      fixtures: {
+        ...mitFbh.fixtures,
+        'v-2': { ...doc.fixtures['v-1'], id: 'v-2', label: 'v-2', position: { x: 9.2, y: 2.0 } },
+      },
+    };
+    const zwei = planPipeNetwork(zweiVerteiler, { mode: 'neubau', levelId: 'eg' });
+    check('C · Beide Kreise weiter versorgt', zwei.served, 2);
+    check(
+      'C · Die Annahme wird gemeldet',
+      zwei.notes.some((n) => n.severity === 'warn' && /nächstgelegenen/.test(n.text)),
+      true,
+    );
+    // Beide hängen am nahen Verteiler: die Trasse ist deutlich kürzer als
+    // die vom fernen aus.
+    check('C · Kurze Wege zum nahen Verteiler', zwei.routeLength < nurVerteiler.routeLength, true);
+    // Nur der Verteiler, an dem wirklich etwas hängt, bekommt eine
+    // Absperrung — an v-1 entsteht keine Leitung, weil beide Kreise näher
+    // an v-2 liegen. Verschwiegen wird das nicht.
+    check('C · Nur der benutzte Verteiler bekommt eine Absperrung',
+      zwei.accessories.filter((a) => a.kind === 'shutoff').length, 1);
+    check(
+      'C · Der leere Verteiler wird gemeldet',
+      zwei.notes.some((n) => n.severity === 'warn' && /kein Heizkreis/.test(n.text)),
+      true,
+    );
+
+    // Die ausdrückliche Zuordnung schlägt die Nähe: fbh-1 soll an v-1.
+    const zugeordnet: BimDocument = {
+      ...zweiVerteiler,
+      fixtures: {
+        ...zweiVerteiler.fixtures,
+        'fbh-1': {
+          ...zweiVerteiler.fixtures['fbh-1'],
+          params: { ...zweiVerteiler.fixtures['fbh-1'].params, manifoldId: 'v-1' },
+        },
+      },
+    };
+    const mitZuordnung = planPipeNetwork(zugeordnet, { mode: 'neubau', levelId: 'eg' });
+    check('C · Mit Zuordnung wird der Weg wieder lang', mitZuordnung.routeLength > zwei.routeLength, true);
+    check(
+      'C · Und nur noch der eine Kreis ist geraten',
+      mitZuordnung.notes.some((n) => /^1 Heizfläche/.test(n.text)),
+      true,
+    );
+
+    // --- Fall D: Kreise ohne Verteiler ------------------------------------
     const ohneVerteiler: BimDocument = {
       ...mitFbh,
       fixtures: {
@@ -936,9 +1048,9 @@ export function pruefeRohrausleger(check: CheckFn): void {
       },
     };
     const ro = planPipeNetwork(ohneVerteiler, { mode: 'neubau', levelId: 'eg' });
-    check('Ohne Verteiler keine Trasse', ro.runs.length, 0);
+    check('D · Ohne Verteiler keine Trasse', ro.runs.length, 0);
     check(
-      '… und die Meldung nennt den Verteiler, nicht den Heizkörper',
+      'D · Und die Meldung nennt den Verteiler, nicht den Heizkörper',
       ro.notes.some((n) => n.severity === 'error' && /Verteiler/.test(n.text) && !/Heizkörper/.test(n.text)),
       true,
     );

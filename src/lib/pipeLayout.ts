@@ -296,8 +296,45 @@ export interface PipeLayoutResult {
   notes: PlanningNote[];
 }
 
-/** Welche TGA-Objekte sind Verbraucher am Heizungsnetz? */
-const VERBRAUCHER = new Set<Fixture['type']>(['radiator', 'radiator-tube', 'convector', 'manifold']);
+/** Heizflächen, die unmittelbar am Netz hängen — ohne Verteiler dazwischen. */
+const HEIZFLAECHEN = new Set<Fixture['type']>(['radiator', 'radiator-tube', 'convector']);
+
+/**
+ * Der Verteiler, an dem eine Heizfläche hängt.
+ *
+ * **Erste Wahl ist die ausdrückliche Zuordnung** (`params.manifoldId`). Sie
+ * steht am Objekt, weil nur dort steht, was der Planer wirklich gemeint hat;
+ * geraten wird erst, wenn sie fehlt.
+ *
+ * **Geraten wird auf den nächstgelegenen.** Das ist dieselbe Annahme, die
+ * `pipeNetwork.ts` am gezeichneten Netz trifft (kürzester Weg von allen
+ * Quellen zugleich), und sie ist die, die ein Installateur auch treffen
+ * würde. Sie ist trotzdem eine Annahme — deshalb meldet der Aufrufer sie,
+ * sobald es überhaupt etwas zu wählen gab.
+ *
+ * Bei genau einem Verteiler ist nichts geraten: es gibt keine Alternative.
+ */
+export function verteilerVon(
+  heizflaeche: Fixture,
+  verteiler: readonly Fixture[],
+): { verteiler: Fixture; geraten: boolean } | undefined {
+  const gesetzt =
+    typeof heizflaeche.params.manifoldId === 'string'
+      ? verteiler.find((v) => v.id === heizflaeche.params.manifoldId)
+      : undefined;
+  if (gesetzt) return { verteiler: gesetzt, geraten: false };
+
+  let naechster: Fixture | undefined;
+  let kuerzeste = Infinity;
+  for (const v of verteiler) {
+    const d = Math.hypot(v.position.x - heizflaeche.position.x, v.position.y - heizflaeche.position.y);
+    if (d < kuerzeste) {
+      kuerzeste = d;
+      naechster = v;
+    }
+  }
+  return naechster ? { verteiler: naechster, geraten: verteiler.length > 1 } : undefined;
+}
 
 /**
  * Der Volumenstrom eines Verbrauchers [m³/h].
@@ -415,89 +452,141 @@ export function planPipeNetwork(doc: BimDocument, options: PipeLayoutOptions): P
   const openings = Object.values(doc.openings).filter((o) => doc.walls[o.wallId]?.levelId === options.levelId);
 
   /*
-   * --- Quelle --------------------------------------------------------------
+   * --- Wer hängt woran ------------------------------------------------------
    *
-   * Der Ausgangspunkt der Trasse, in dieser Reihenfolge: Wärmeerzeuger,
-   * Speicher, Verteiler. Der Speicher steht bewusst vor dem Verteiler —
-   * bei einer Wärmepumpe steht der Erzeuger draußen, und im Haus beginnt
-   * das Netz am Puffer. Ein Verteiler ist dort keine Pflicht: ein
-   * Heizkörpernetz wird auch als Zweirohrsystem direkt vom Speicher
-   * gefahren. Geraten wird kein Standort — ohne eines dieser drei Geräte
-   * gibt es nichts auszulegen.
+   * Ein Heizungsnetz ist **zweistufig**, und bis 1.30.0 hat diese Auslegung
+   * es einstufig behandelt: eine Quelle, alle Verbraucher daran. Für ein
+   * Heizkörperhaus stimmt das. Für alles mit Fußbodenheizung nicht — dort
+   * läuft der Stamm vom Erzeuger zum Verteiler, und erst vom Verteiler gehen
+   * die Anbindeleitungen in die Räume.
+   *
+   * Statt einer festen Stufenmaschine bekommt hier **jeder Verbraucher seine
+   * eigene Quelle**, und wie viele Trassierungsläufe daraus werden, ergibt
+   * sich von selbst:
+   *
+   *   Flächenheizkreis      → sein Verteiler (zugeordnet oder der nächste)
+   *   Heizkörper, Konvektor → Erzeuger oder Speicher; gibt es beides nicht,
+   *                           der nächste Verteiler
+   *   Verteiler             → Erzeuger oder Speicher; gibt es beides nicht,
+   *                           ist er selbst Quelle und braucht keine
+   *
+   * **Warum der Verteiler nicht an einen anderen Verteiler gehängt wird.**
+   * Bis hierher war bei zwei Verteilern ohne Erzeuger der erste die Quelle
+   * und der zweite sein Verbraucher — zwei Verteiler in Reihe, was hydraulisch
+   * niemand baut. Fehlt der Erzeuger auf diesem Geschoss, kommt die Zuleitung
+   * von außerhalb (Steigstrang, anderes Geschoss); dann versorgt jeder
+   * Verteiler seine Kreise für sich, und das steht als Hinweis dabei.
    */
   const erzeuger = fixtures.find((f) => f.type === 'boiler');
   const speicher = fixtures.filter((f) => f.type === 'storage');
   const verteiler = fixtures.filter((f) => f.type === 'manifold');
-  const quelle = erzeuger ?? speicher[0] ?? verteiler[0];
-  if (!quelle) {
-    notes.push({
-      severity: 'error',
-      text: 'Kein Wärmeerzeuger, kein Speicher und kein Verteiler auf diesem Geschoss. Ohne Ausgangspunkt lässt sich keine Trasse führen — eines davon setzen.',
-    });
-    return { runs: [], accessories: [], routeLength: 0, pipeLength: 0, served: 0, notes };
-  }
-  if (!erzeuger) {
-    notes.push({
-      severity: 'info',
-      text: `Kein Wärmeerzeuger auf diesem Geschoss — die Trasse beginnt an „${quelle.label ?? (quelle.type === 'storage' ? 'Speicher' : 'Verteiler')}".`,
-    });
-  }
 
-  // --- Verbraucher ---------------------------------------------------------
   /*
-   * **Wann ist ein Flächenheizkreis ein Verbraucher der Trasse?**
-   *
-   * Ein Fußbodenheizkreis hängt nie am Erzeuger, sondern immer am Verteiler:
-   * die Anbindeleitung führt vom Verteiler in den Raum, und was davor liegt,
-   * ist der Stamm. Solange auf dem Geschoss ein Erzeuger oder ein Speicher
-   * steht, ist genau der die Quelle, der Verteiler ist sein Verbraucher, und
-   * die Kreise dahinter gehören in die zweite Stufe — die dieses Programm
-   * (noch) nicht trassiert.
-   *
-   * Steht dort **kein** Erzeuger und **kein** Speicher, ist der Verteiler
-   * selbst die Quelle. Dann sind seine Verbraucher genau die Heizflächen des
-   * Geschosses, und dazu gehören die Flächenheizkreise.
-   *
-   * Ohne diesen Fall lief die Auslegung an einem Haus, das nur
-   * Fußbodenheizung hat — also am Regelfall im Neubau — ins Leere: Quelle
-   * war der Verteiler, Ziele gab es keine, und die Meldung lautete
-   * „Heizkörper oder Verteiler setzen", obwohl beides vorhanden war, was
-   * vorhanden sein konnte. Am Institutsgebäude des KIT waren das 17 Kreise
-   * im Keller und 18 im Erdgeschoss, für die kein einziger Meter Rohr
-   * entstand.
-   *
-   * Warum nicht immer? Weil die Kreise sonst am *Speicher* hingen und die
-   * Trasse am Verteiler vorbeiliefe — das wäre nicht unvollständig, sondern
-   * falsch.
+   * Die Quelle des Stammes. Der Speicher steht bewusst vor dem Verteiler —
+   * bei einer Wärmepumpe steht der Erzeuger draußen, und im Haus beginnt das
+   * Netz am Puffer. Geraten wird kein Standort.
    */
-  const verteilerIstQuelle = !erzeuger && speicher.length === 0 && quelle.type === 'manifold';
-  const ziele = fixtures.filter(
-    (f) =>
-      f.id !== quelle.id &&
-      (VERBRAUCHER.has(f.type) || (verteilerIstQuelle && f.type === 'underfloor')),
-  );
+  const stamm = erzeuger ?? speicher[0];
 
-  // Mehrere Verteiler ohne übergeordnete Quelle: welcher Kreis an welchem
-  // hängt, sagt das Modell nicht. Alles an den ersten zu hängen wäre eine
-  // stille Annahme — also steht sie da.
-  if (verteilerIstQuelle && verteiler.length > 1) {
-    notes.push({
-      severity: 'warn',
-      text:
-        `${verteiler.length} Heizkreisverteiler auf diesem Geschoss und kein Erzeuger oder Speicher davor. ` +
-        `Die Trasse geht von „${quelle.label ?? 'Verteiler'}" aus; welcher Kreis an welchem Verteiler hängt, ` +
-        `steht nicht im Modell. Einen Speicher setzen oder die Kreise von Hand zuordnen.`,
-    });
-  }
-
-  if (ziele.length === 0) {
+  if (!stamm && verteiler.length === 0) {
     const flaechen = fixtures.filter((f) => f.type === 'underfloor');
     notes.push({
       severity: 'error',
       text: flaechen.length
         ? `${flaechen.length} Flächenheizkreis(e) auf diesem Geschoss, aber kein Heizkreisverteiler. ` +
           'Eine Fußbodenheizung hängt immer an einem Verteiler — den setzen, dann lässt sich anbinden.'
-        : 'Keine Verbraucher auf diesem Geschoss. Heizkörper oder Verteiler setzen, dann lässt sich das Netz auslegen.',
+        : 'Kein Wärmeerzeuger, kein Speicher und kein Verteiler auf diesem Geschoss. Ohne Ausgangspunkt lässt sich keine Trasse führen — eines davon setzen.',
+    });
+    return { runs: [], accessories: [], routeLength: 0, pipeLength: 0, served: 0, notes };
+  }
+
+  if (!erzeuger) {
+    notes.push({
+      severity: 'info',
+      text: stamm
+        ? `Kein Wärmeerzeuger auf diesem Geschoss — der Stamm beginnt am Speicher „${stamm.label ?? 'Speicher'}".`
+        : verteiler.length > 1
+          ? `Kein Wärmeerzeuger und kein Speicher auf diesem Geschoss — jeder der ${verteiler.length} Verteiler versorgt seine Kreise für sich. Die Zuleitung dorthin kommt von außerhalb dieses Geschosses und wird hier nicht trassiert.`
+          : `Kein Wärmeerzeuger und kein Speicher auf diesem Geschoss — die Trasse beginnt am Verteiler „${verteiler[0].label ?? 'Verteiler'}". Die Zuleitung dorthin kommt von außerhalb dieses Geschosses.`,
+    });
+  }
+
+  // --- Verbraucher ---------------------------------------------------------
+  const heizflaechen = fixtures.filter((f) => HEIZFLAECHEN.has(f.type));
+  const kreise = fixtures.filter((f) => f.type === 'underfloor');
+
+  /** Was ein Verbraucher ist und woran er hängt. */
+  interface Anschluss {
+    ziel: Fixture;
+    quelle: Fixture;
+    /** Die Quelle ist geraten, weil mehrere in Frage kamen. */
+    geraten: boolean;
+  }
+  const anschluesse: Anschluss[] = [];
+  const ohneVerteiler: string[] = [];
+
+  for (const kreis of kreise) {
+    const gewaehlt = verteilerVon(kreis, verteiler);
+    if (!gewaehlt) {
+      ohneVerteiler.push(kreis.label ?? kreis.type);
+      continue;
+    }
+    anschluesse.push({ ziel: kreis, quelle: gewaehlt.verteiler, geraten: gewaehlt.geraten });
+  }
+
+  for (const flaeche of heizflaechen) {
+    if (stamm) {
+      anschluesse.push({ ziel: flaeche, quelle: stamm, geraten: false });
+      continue;
+    }
+    const gewaehlt = verteilerVon(flaeche, verteiler);
+    if (gewaehlt) anschluesse.push({ ziel: flaeche, quelle: gewaehlt.verteiler, geraten: gewaehlt.geraten });
+  }
+
+  if (stamm) {
+    for (const v of verteiler) anschluesse.push({ ziel: v, quelle: stamm, geraten: false });
+  }
+
+  if (ohneVerteiler.length) {
+    notes.push({
+      severity: 'warn',
+      text:
+        `Ohne Verteiler und damit ohne Anbindeleitung: ${ohneVerteiler.join(', ')}. ` +
+        'Eine Fußbodenheizung hängt immer an einem Verteiler.',
+    });
+  }
+  /*
+   * Ein Verteiler, an dem nichts hängt, ist kein Fehler — er ist eine
+   * Feststellung. Beim Zeichnen gesetzt und dann vergessen, oder die Kreise
+   * sind alle näher am anderen: in beiden Fällen entsteht dort keine
+   * Leitung, und wer ihn im Plan sieht, wartet sonst vergeblich darauf.
+   */
+  const leer = verteiler.filter((v) => !anschluesse.some((a) => a.quelle.id === v.id));
+  if (leer.length && verteiler.length > 1) {
+    notes.push({
+      severity: 'warn',
+      text:
+        `An ${leer.length === 1 ? 'einem Verteiler hängt' : `${leer.length} Verteilern hängen`} kein Heizkreis: ` +
+        `${leer.map((v) => `„${v.label ?? 'Verteiler'}"`).join(', ')}. ` +
+        'Dort entsteht keine Leitung — die Kreise sind einem anderen Verteiler zugeordnet.',
+    });
+  }
+
+  const geratene = anschluesse.filter((a) => a.geraten);
+  if (geratene.length) {
+    notes.push({
+      severity: 'warn',
+      text:
+        `${geratene.length} Heizfläche(n) sind dem **nächstgelegenen** von ${verteiler.length} Verteilern zugeordnet — ` +
+        'welcher wirklich gemeint ist, steht nicht im Modell. Am Objekt lässt sich der Verteiler ausdrücklich setzen.',
+    });
+  }
+
+  const ziele = anschluesse.map((a) => a.ziel);
+  if (ziele.length === 0) {
+    notes.push({
+      severity: 'error',
+      text: 'Keine Verbraucher auf diesem Geschoss. Heizkörper oder Fußbodenheizung setzen, dann lässt sich das Netz auslegen.',
     });
     return { runs: [], accessories: [], routeLength: 0, pipeLength: 0, served: 0, notes };
   }
@@ -506,10 +595,15 @@ export function planPipeNetwork(doc: BimDocument, options: PipeLayoutOptions): P
    * Raumlasten für Verteiler ohne eigene Leistungsangabe.
    *
    * Ein Verteiler trägt keine Leistungsangabe — was hinter ihm hängt, sagt
-   * die Heizlast der Räume mit Flächenbelegung. Sie kommt aus dem
-   * Überschlag dieses Programms oder, wenn RaVia gerechnet hat, aus der
-   * Norm-Heizlast; welcher Weg gegriffen hat, steht dort und wird hier nicht
-   * ein zweites Mal entschieden.
+   * die Heizlast der Räume mit Flächenbelegung. Sie kommt aus dem Überschlag
+   * dieses Programms oder, wenn RaVia gerechnet hat, aus der Norm-Heizlast;
+   * welcher Weg gegriffen hat, steht dort und wird hier nicht ein zweites
+   * Mal entschieden.
+   *
+   * **Seit der zweistufigen Trassierung raumgenau je Verteiler.** Vorher
+   * bekam jeder Verteiler die Summe *aller* Räume des Geschosses — bei zwei
+   * Verteilern also beide doppelt. Gezählt werden jetzt die Räume, deren
+   * Kreis an *diesem* Verteiler hängt.
    */
   const lasten = new Map<string, number>();
   const schaetzung = options.roomLoads ?? new Map<string, number>();
@@ -524,11 +618,58 @@ export function planPipeNetwork(doc: BimDocument, options: PipeLayoutOptions): P
     if (flaeche) lasten.set(room.id, schaetzung.get(room.id) ?? 0);
   }
 
+  /** Die Räume, deren Flächenheizkreis an diesem Verteiler hängt. */
+  const raeumeHinter = (v: Fixture): Room[] => {
+    const meine = new Set(
+      anschluesse
+        .filter((a) => a.quelle.id === v.id && a.ziel.type === 'underfloor')
+        .map((a) => a.ziel.roomId),
+    );
+    return rooms.filter((r) => lasten.has(r.id) && meine.has(r.id));
+  };
+
   const stroeme = new Map<string, { flow: number; watt: number }>();
   const ohneLeistung: string[] = [];
+
+  /*
+   * **Erst die Heizflächen, dann die Verteiler** — und zwar aus einem
+   * hydraulischen Grund, nicht aus Bequemlichkeit.
+   *
+   * Ein Verteiler trägt, was hinter ihm hängt. Solange die Trassierung
+   * einstufig war, wusste sie das nicht und griff ersatzweise auf die
+   * *Raumheizlasten* zurück. Damit wurde der Stamm auf einer anderen
+   * Grundlage bemessen als die Kreise, die er speist: zwei Blätter über
+   * dieselbe Leitung, die sich widersprechen können.
+   *
+   * Jetzt steht die Zuordnung fest, bevor gerechnet wird. Der Verteiler
+   * bekommt die **Summe der Ströme seiner Kreise**; die Raumheizlast bleibt
+   * der Rückfall für den Fall, dass an den Kreisen keine Leistung steht.
+   */
   for (const ziel of ziele) {
-    const raeume = ziel.type === 'manifold' ? rooms.filter((r) => lasten.has(r.id)) : [];
-    const strom = verbraucherStrom(ziel, raeume, lasten, { flow: vorlauf, rueck: ruecklauf });
+    if (ziel.type === 'manifold') continue;
+    const strom = verbraucherStrom(ziel, [], lasten, { flow: vorlauf, rueck: ruecklauf });
+    if (!strom || strom.flow <= 0) {
+      ohneLeistung.push(ziel.label ?? ziel.type);
+      continue;
+    }
+    stroeme.set(ziel.id, strom);
+  }
+
+  for (const ziel of ziele) {
+    if (ziel.type !== 'manifold') continue;
+    let flow = 0;
+    let watt = 0;
+    for (const a of anschluesse) {
+      if (a.quelle.id !== ziel.id) continue;
+      const s2 = stroeme.get(a.ziel.id);
+      if (!s2) continue;
+      flow += s2.flow;
+      watt += s2.watt;
+    }
+    const strom =
+      flow > 0
+        ? { flow: Math.round(flow * 1000) / 1000, watt: Math.round(watt) }
+        : verbraucherStrom(ziel, raeumeHinter(ziel), lasten, { flow: vorlauf, rueck: ruecklauf });
     if (!strom || strom.flow <= 0) {
       ohneLeistung.push(ziel.label ?? ziel.type);
       continue;
@@ -547,19 +688,20 @@ export function planPipeNetwork(doc: BimDocument, options: PipeLayoutOptions): P
     return { runs: [], accessories: [], routeLength: 0, pipeLength: 0, served: 0, notes };
   }
 
-  // --- Trasse --------------------------------------------------------------
-  const netz: RoutedNetwork = routePipes({
-    mode: options.mode,
-    levelId: options.levelId,
-    rooms,
-    walls,
-    nodes: doc.nodes,
-    openings,
-    source: quelle.position,
-    targets: versorgte.map((z) => ({ id: z.id, position: z.position })),
-    grid: options.grid,
-  });
-  notes.push(...netz.notes);
+  /*
+   * --- Die Läufe ------------------------------------------------------------
+   *
+   * Je Quelle ein Trassierungslauf. Bei einem Heizkörperhaus ist das genau
+   * einer — dieselbe Rechnung wie bisher. Bei Fußbodenheizung sind es zwei
+   * Ebenen: der Stamm zu den Verteilern, und je Verteiler seine Kreise.
+   */
+  const gruppen = new Map<string, { quelle: Fixture; ziele: Fixture[] }>();
+  for (const a of anschluesse) {
+    if (!stroeme.has(a.ziel.id)) continue;
+    const eintrag = gruppen.get(a.quelle.id);
+    if (eintrag) eintrag.ziele.push(a.ziel);
+    else gruppen.set(a.quelle.id, { quelle: a.quelle, ziele: [a.ziel] });
+  }
 
   // --- Abschnitte dimensionieren ------------------------------------------
   /*
@@ -588,6 +730,30 @@ export function planPipeNetwork(doc: BimDocument, options: PipeLayoutOptions): P
   let laufendeNummer = 0;
   let routeLength = 0;
   let zuGross = 0;
+
+  /*
+   * Alle Abschnitte aller Läufe zusammen — daran hängen später die T-Stücke
+   * und die Festpunkte. Sie fragen „wo teilt sich die Trasse" und „wo läuft
+   * sie mehr als zehn Meter gerade", und beides gilt über das ganze Netz,
+   * nicht je Lauf.
+   */
+  const alleSegmente: RoutedNetwork['segments'] = [];
+
+  // --- Trasse --------------------------------------------------------------
+  for (const gruppe of gruppen.values()) {
+  const netz: RoutedNetwork = routePipes({
+    mode: options.mode,
+    levelId: options.levelId,
+    rooms,
+    walls,
+    nodes: doc.nodes,
+    openings,
+    source: gruppe.quelle.position,
+    targets: gruppe.ziele.map((z) => ({ id: z.id, position: z.position })),
+    grid: options.grid,
+  });
+  notes.push(...netz.notes);
+  alleSegmente.push(...netz.segments);
 
   for (const seg of netz.segments) {
     const laenge = Math.hypot(seg.to.x - seg.from.x, seg.to.y - seg.from.y);
@@ -620,8 +786,13 @@ export function planPipeNetwork(doc: BimDocument, options: PipeLayoutOptions): P
      */
     const amErzeuger =
       anhebungGilt &&
-      (Math.hypot(seg.from.x - quelle.position.x, seg.from.y - quelle.position.y) <= ERZEUGER_TOLERANZ ||
-        Math.hypot(seg.to.x - quelle.position.x, seg.to.y - quelle.position.y) <= ERZEUGER_TOLERANZ);
+      // Nur im Lauf, der wirklich am Erzeuger beginnt. Die Anbindeleitung
+      // eines Verteilers zu seinem Kreis hat mit dem Anschlussmaß der
+      // Wärmepumpe nichts zu tun — sie auf DN 32 anzuheben wäre teurer
+      // Unsinn.
+      gruppe.quelle.id === erzeuger?.id &&
+      (Math.hypot(seg.from.x - gruppe.quelle.position.x, seg.from.y - gruppe.quelle.position.y) <= ERZEUGER_TOLERANZ ||
+        Math.hypot(seg.to.x - gruppe.quelle.position.x, seg.to.y - gruppe.quelle.position.y) <= ERZEUGER_TOLERANZ);
 
     const dim = sizePipe(strom, {
       material,
@@ -708,6 +879,7 @@ export function planPipeNetwork(doc: BimDocument, options: PipeLayoutOptions): P
       });
     }
   }
+  }
 
   /*
    * Die Begründung der Anhebung — genau einmal, am Ende.
@@ -765,18 +937,32 @@ export function planPipeNetwork(doc: BimDocument, options: PipeLayoutOptions): P
     });
   };
 
+  /*
+   * Die Absperrung am Verteiler gilt jedem Verteiler, der am Netz hängt —
+   * auch dem, der **selbst Quelle** ist. Steht kein Erzeuger auf dem
+   * Geschoss, taucht ein Verteiler in keiner Zielliste auf; er wäre dann
+   * ohne Absperrung geblieben, obwohl gerade er eine braucht: die Zuleitung
+   * kommt von außerhalb, und ohne Absperrung ist der ganze Strang zu
+   * entleeren, um einen Kreis anzufassen.
+   */
+  const amNetz = new Map<string, Fixture>();
+  for (const gruppe of gruppen.values()) {
+    if (gruppe.quelle.type === 'manifold') amNetz.set(gruppe.quelle.id, gruppe.quelle);
+  }
+  for (const ziel of versorgte) if (ziel.type === 'manifold') amNetz.set(ziel.id, ziel);
+  for (const v of amNetz.values()) {
+    setze(
+      'shutoff',
+      v.position,
+      hoehe,
+      'Absperrung Verteiler',
+      undefined,
+      'Vor- und Rücklauf des Verteilers absperrbar — anerkannte Regel der Technik, keine Normpflicht belegt.',
+    );
+  }
+
   for (const ziel of versorgte) {
-    if (ziel.type === 'manifold') {
-      setze(
-        'shutoff',
-        ziel.position,
-        hoehe,
-        'Absperrung Verteiler',
-        undefined,
-        'Vor- und Rücklauf des Verteilers absperrbar — anerkannte Regel der Technik, keine Normpflicht belegt.',
-      );
-      continue;
-    }
+    if (ziel.type === 'manifold') continue;
     /*
      * § 63 GEG/GModG verlangt für jeden Raum eine selbsttätig wirkende
      * Einrichtung zur raumweisen Regelung. Am Heizkörper ist das das
@@ -809,7 +995,7 @@ export function planPipeNetwork(doc: BimDocument, options: PipeLayoutOptions): P
   const grad = new Map<string, number>();
   const schluessel = (p: Vec2) => `${p.x.toFixed(3)}|${p.y.toFixed(3)}`;
   const punkte = new Map<string, Vec2>();
-  for (const seg of netz.segments) {
+  for (const seg of alleSegmente) {
     for (const p of [seg.from, seg.to]) {
       const k = schluessel(p);
       grad.set(k, (grad.get(k) ?? 0) + 1);
@@ -839,14 +1025,24 @@ export function planPipeNetwork(doc: BimDocument, options: PipeLayoutOptions): P
       'Höchster Punkt des Netzes — Luft sammelt sich dort. Anerkannte Regel der Technik.',
     );
   }
-  setze(
-    'drain',
-    quelle.position,
-    hoehe,
-    'Entleerung',
-    undefined,
-    'Tiefster Punkt des Netzes. Anerkannte Regel der Technik.',
-  );
+  /*
+   * Die Entleerung sitzt am **Stamm**, nicht an jedem Verteiler: entleert
+   * wird die Anlage von ihrem tiefsten Punkt aus, und das ist der Erzeuger
+   * oder der Speicher. Gibt es beides auf diesem Geschoss nicht, kommt die
+   * Zuleitung von außerhalb — dann ist der erste Verteiler die tiefste
+   * Stelle, die dieses Geschoss kennt.
+   */
+  const entleerpunkt = stamm ?? [...gruppen.values()][0]?.quelle;
+  if (entleerpunkt) {
+    setze(
+      'drain',
+      entleerpunkt.position,
+      hoehe,
+      'Entleerung',
+      undefined,
+      'Tiefster Punkt des Netzes. Anerkannte Regel der Technik.',
+    );
+  }
 
   /*
    * Dehnung: ab etwa zehn Metern gerader Strecke ohne Richtungswechsel
@@ -855,7 +1051,7 @@ export function planPipeNetwork(doc: BimDocument, options: PipeLayoutOptions): P
    * für die meisten Werkstoffe nicht öffentlich normiert. Gemeldet wird die
    * Stelle, entschieden wird sie mit den Unterlagen des Systemherstellers.
    */
-  for (const seg of netz.segments) {
+  for (const seg of alleSegmente) {
     const laenge = Math.hypot(seg.to.x - seg.from.x, seg.to.y - seg.from.y);
     if (laenge < 10) continue;
     const mitte = { x: (seg.from.x + seg.to.x) / 2, y: (seg.from.y + seg.to.y) / 2 };

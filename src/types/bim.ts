@@ -730,6 +730,21 @@ export interface FixtureParams {
    * übergangen. Der Raumbezug steht in `Fixture.roomId`.
    */
   roomCoverage?: boolean;
+  /**
+   * Heizung: An welchem Heizkreisverteiler diese Heizfläche hängt
+   * (`Fixture.id` des Verteilers).
+   *
+   * **Wozu das Feld überhaupt da ist.** Bei einem Verteiler je Geschoss ist
+   * die Frage beantwortet, bevor sie gestellt wird. Bei zweien nicht — und
+   * die Trassierung hängte bis 1.30.0 stillschweigend alles an den ersten.
+   * Ohne Angabe wird jetzt der **nächstgelegene** genommen und die Annahme
+   * gemeldet; wer es besser weiß, trägt es hier ein.
+   *
+   * Absichtlich keine Pflichtangabe: In den allermeisten Wohngebäuden gibt
+   * es einen Verteiler je Geschoss, und ein Pflichtfeld, das fast immer
+   * dieselbe Antwort hat, wird nicht gepflegt, sondern weggeklickt.
+   */
+  manifoldId?: string;
   /** Fußbodenheizung: Verlegeabstand [m]. */
   loopSpacing?: number;
   /**
