@@ -1529,6 +1529,63 @@ console.log('\n▸ IFC4-Export');
   // Das erste GUID-Zeichen trägt nur zwei Bit — Werte über 3 sind ungültig.
   check('GUID beginnt mit 0–3', guids.every((g) => '0123'.includes(g[0])), true);
 
+  /*
+   * --- Sonderzeichen ------------------------------------------------------
+   *
+   * ISO 10303-21 lässt in einer Zeichenkette nur druckbares ASCII zu. Bis
+   * 1.30.0 schrieb dieser Export den Umlaut roh als UTF-8 hinein — die
+   * meisten Betrachter verzeihen das, ein strenger Prüfer weist die Datei
+   * ab, und ein Leser mit anderer Zeichensatzannahme macht „KÃ¼che" daraus.
+   *
+   * Geprüft wird an einem Projektnamen, der alles Kritische enthält: einen
+   * Umlaut, zwei Sonderzeichen **nebeneinander** (sie gehören in *eine*
+   * Umschriftfolge), einen Apostroph (er wird verdoppelt) und einen
+   * Rückwärtsstrich (auch). Der Rundlauf über den eigenen Import ist die
+   * eigentliche Aussage: was hinausgeht, muss unverändert zurückkommen.
+   */
+  {
+    const heikel = "Küche & Straße, 3'er \\ Gang";
+    const mitUmlaut = buildIfc(
+      { ...ifcDoc, meta: { ...ifcDoc.meta, name: heikel } } as never,
+      { timestamp: '2026-08-18T10:00:00Z' },
+    );
+    check(
+      'Die ganze Datei ist druckbares ASCII',
+      /^[\x20-\x7E\r\n]*$/.test(mitUmlaut),
+      true,
+    );
+    check('Der Umlaut steht als Umschrift da', mitUmlaut.includes('K\\X2\\00FC\\X0\\che'), true);
+    // ü und ß stehen in „Straße" nicht nebeneinander; „ße" schon nicht mehr.
+    // Nebeneinander steht nichts — geprüft wird die Zusammenfassung deshalb
+    // an einem eigenen Namen weiter unten.
+    check('Der Apostroph ist verdoppelt', mitUmlaut.includes("3''er"), true);
+    check('Der Rückwärtsstrich ist verdoppelt', mitUmlaut.includes('\\\\'), true);
+    check('Auch der Dateikopf trägt die Umschrift',
+      /FILE_NAME\('[\x20-\x7E]*'/.test(mitUmlaut), true);
+
+    const zurueck = importIfc(mitUmlaut);
+    check('Der Name kommt unverändert zurück', zurueck.projectName ?? '', heikel);
+
+    // Zwei Sonderzeichen nebeneinander gehören in **eine** Folge — dafür
+    // ist `\X2\…\X0\` gedacht, und der Leser erwartet es so.
+    const zusammen = buildIfc(
+      { ...ifcDoc, meta: { ...ifcDoc.meta, name: 'Grüße' } } as never,
+      { timestamp: '2026-08-18T10:00:00Z' },
+    );
+    check('Zwei Sonderzeichen in einer Folge', zusammen.includes('Gr\\X2\\00FC00DF\\X0\\e'), true);
+    check('Auch das kommt zurück', importIfc(zusammen).projectName ?? '', 'Grüße');
+
+    // Gegenprobe: ein reiner ASCII-Name bleibt buchstäblich unberührt.
+    // Gegenprobe: wo nichts umzuschreiben ist, wird nichts angefasst. Der
+    // Name steht dann buchstäblich in der Datei — auch im Kopf.
+    const schlicht = buildIfc(
+      { ...ifcDoc, meta: { ...ifcDoc.meta, name: 'Haus Nord 12' } } as never,
+      { timestamp: '2026-08-18T10:00:00Z' },
+    );
+    check('Ohne Sonderzeichen bleibt der Name buchstäblich', schlicht.includes("'Haus Nord 12'"), true);
+    check('Und auch im Dateikopf', schlicht.includes("FILE_NAME('Haus Nord 12.ifc'"), true);
+  }
+
   // In ISO 10303-21 ist `1` ein INTEGER. An einer REAL-Stelle — Koordinate,
   // Richtung, Maß — muss der Punkt stehen: `1.`. Genau daran scheitern
   // selbstgebaute IFC-Dateien am häufigsten.

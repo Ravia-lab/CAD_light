@@ -136,10 +136,6 @@ interface SeriesTemplate {
   point: string;
   /** COP im Bezugspunkt bei der kleinsten Größe. */
   copAtPoint: number;
-  /** SCOP bei 35 °C Vorlauf. */
-  scop35: number;
-  /** SCOP bei 55 °C Vorlauf; 0 = Baureihe erreicht 55 °C nicht sinnvoll. */
-  scop55: number;
   maxFlow: number;
   /** Kältemittelfüllung: Achsenabschnitt [kg] und Steigung [kg/kW]. */
   charge: [number, number];
@@ -264,10 +260,14 @@ const WATER_CURVE: { point: string; capacity: number; cop: number }[] = [
  *                     TA Lärm fällt damit zu streng aus, nicht zu milde.
  *   SCOP bei 35 °C    4,9    gegen 4,48 und 4,77 — **über beiden**.
  *
- * Die letzte Zeile ist die einzige, die auffällt. Geändert ist sie nicht:
- * SCOP wird nirgends gerechnet, sondern nur im Anlagenblatt angezeigt, und
- * drei Datenblätter einer Nacht sind keine Marktübersicht. Wer sie ändert,
- * hat jetzt die Anker dafür.
+ * Die letzte Zeile ist die einzige, die auffällt — und sie steht seit
+ * 1.31.0 nicht mehr da. Nicht, weil 4,9 zu hoch wäre, sondern weil der SCOP
+ * die falsche Art von Größe für eine Typklasse ist: COP und Leistung lassen
+ * sich aus der Kennlinie einer Bauart ableiten, der SCOP nach EN 14825 ist
+ * das Ergebnis einer Prüfung an einem bestimmten Gerät, mit seiner Regelung
+ * und seinem Abtauverhalten. Eine Größenklasse hat keinen SCOP, so wie eine
+ * Baureihe keine Seriennummer hat. Wer das Datenblatt einliest, bekommt den
+ * echten Wert (`provenance: 'hersteller'`).
  */
 const SERIES: SeriesTemplate[] = [
   {
@@ -279,8 +279,6 @@ const SERIES: SeriesTemplate[] = [
     sizes: [4, 6, 8, 10, 12, 14, 16, 20, 25],
     point: 'A-7/W35',
     copAtPoint: 2.75,
-    scop35: 4.9,
-    scop55: 3.6,
     maxFlow: 70,
     charge: [0.35, 0.11],
     soundAt6: 52,
@@ -296,8 +294,6 @@ const SERIES: SeriesTemplate[] = [
     sizes: [4, 6, 8, 11, 14, 16],
     point: 'A-7/W35',
     copAtPoint: 2.6,
-    scop35: 4.6,
-    scop55: 3.2,
     maxFlow: 60,
     charge: [0.5, 0.18],
     soundAt6: 53,
@@ -313,8 +309,6 @@ const SERIES: SeriesTemplate[] = [
     sizes: [4, 6, 8, 11, 14, 16],
     point: 'A-7/W35',
     copAtPoint: 2.65,
-    scop35: 4.7,
-    scop55: 3.3,
     maxFlow: 60,
     charge: [0.6, 0.22],
     soundAt6: 51,
@@ -330,8 +324,6 @@ const SERIES: SeriesTemplate[] = [
     sizes: [5, 7, 9, 12, 16],
     point: 'A-7/W35',
     copAtPoint: 2.8,
-    scop35: 5.0,
-    scop55: 3.8,
     maxFlow: 70,
     // Der Kältekreis liegt vollständig außen — dieselbe Füllmenge wie beim
     // Monoblock, nur die Hydraulik wandert ins Haus.
@@ -370,8 +362,6 @@ const SERIES: SeriesTemplate[] = [
     sizes: [5, 7, 9, 12],
     point: 'A-7/W35',
     copAtPoint: 2.75,
-    scop35: 4.9,
-    scop55: 3.7,
     maxFlow: 70,
     charge: [0.35, 0.11],
     soundAt6: 51,
@@ -422,8 +412,6 @@ const SERIES: SeriesTemplate[] = [
     sizes: [6, 8, 10, 12],
     point: 'A-7/W35',
     copAtPoint: 2.6,
-    scop35: 4.6,
-    scop55: 3.4,
     maxFlow: 70,
     charge: [0.4, 0.12],
     soundAt6: 47,
@@ -439,8 +427,6 @@ const SERIES: SeriesTemplate[] = [
     sizes: [6, 8, 10, 12, 15, 17, 22],
     point: 'B0/W35',
     copAtPoint: 4.8,
-    scop35: 5.4,
-    scop55: 3.6,
     maxFlow: 62,
     charge: [1.2, 0.15],
     soundAt6: 42,
@@ -456,8 +442,6 @@ const SERIES: SeriesTemplate[] = [
     sizes: [10, 15, 20, 30],
     point: 'W10/W35',
     copAtPoint: 5.6,
-    scop35: 5.8,
-    scop55: 3.9,
     maxFlow: 60,
     charge: [1.5, 0.16],
     soundAt6: 44,
@@ -659,8 +643,26 @@ function buildModel(t: SeriesTemplate, kw: number): HeatPumpModel {
     nominalCapacity: kw,
     nominalPoint: t.point,
     ratings,
-    scop35: Math.round(t.scop35 * sizeBonus * 100) / 100,
-    scop55: t.scop55 ? Math.round(t.scop55 * sizeBonus * 100) / 100 : undefined,
+    /*
+     * **Eine Typklasse trägt keinen SCOP.**
+     *
+     * Hier standen bis 1.30.0 Zahlen — 4,9 für den R290-Monoblock, 4,6 für
+     * R32 —, und sie waren die einzigen im ganzen Modul, die aus keiner
+     * offengelegten Beziehung stammten. Die Gegenprobe an drei
+     * Datenblättern (siehe oben) hat gezeigt, dass sie über allen
+     * Messwerten lagen: 4,9 gegen 4,48 (Viessmann) und 4,77 (Bosch).
+     *
+     * Der eigentliche Einwand ist aber nicht die Höhe, sondern die Art der
+     * Größe. COP und Leistung lassen sich aus der Kennlinie einer Bauart
+     * ableiten; der SCOP ist ein **Prüfergebnis** nach EN 14825 für ein
+     * bestimmtes Gerät, mit seiner Regelung, seiner Modulationsbreite und
+     * seinem Abtauverhalten. Eine Größenklasse hat keinen SCOP, so wie eine
+     * Baureihe keine Seriennummer hat.
+     *
+     * Deshalb steht hier nichts. Sobald ein Datenblatt eingelesen ist
+     * (`provenance: 'hersteller'`, siehe `deviceImport`), trägt das Modell
+     * seinen echten Wert — und dann ist er belastbar.
+     */
     maxFlowTemperature: t.maxFlow,
     // Geräte ohne Außeneinheit haben keinen Außenschallpegel. Dort steht
     // nichts statt einer Null: eine Null hieße „gemessen und lautlos".

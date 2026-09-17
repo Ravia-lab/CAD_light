@@ -105,7 +105,49 @@ function ifcGuid(seed: string): string {
   return out;
 }
 
-const s = (v: string | undefined): string => (v ? `'${v.replace(/'/g, "''").replace(/\\/g, '\\\\')}'` : '$');
+/**
+ * Eine Zeichenkette als STEP-STRING.
+ *
+ * **Warum das mehr ist als Anführungszeichen drumherum.** ISO 10303-21 lässt
+ * in einer Zeichenkette nur druckbares ASCII zu. Ein „ü" ist dort nicht
+ * vorgesehen; es wird umschrieben. Bis 1.30.0 hat dieser Export den Umlaut
+ * roh als UTF-8 hineingeschrieben — die meisten Betrachter kommen damit
+ * zurecht, konform ist es nicht, und ein strenger Prüfer weist die Datei ab.
+ *
+ * Geschrieben wird jetzt die Form, die auch ArchiCAD benutzt und die der
+ * eigene Import seit 1.30.0 liest:
+ *
+ *     Küche  →  'K\X2\00FC\X0\che'
+ *
+ * `\X2\` leitet eine Folge von UTF-16-Codeeinheiten in Hexadezimalschrift
+ * ein, `\X0\` beendet sie. Aufeinanderfolgende Sonderzeichen kommen in
+ * **eine** Folge — dafür ist die Schreibweise gedacht: „Grüße" wird zu
+ * `Gr\X2\00FC00DF\X0\e`, weil ü und ß nebeneinanderstehen.
+ *
+ * **Die Reihenfolge ist zwingend.** Erst der Apostroph (er wird verdoppelt),
+ * dann der Rückwärtsstrich (auch), dann die Umschrift. Wer zuletzt die
+ * Rückwärtsstriche verdoppelte, zerstörte die eben geschriebene Umschrift:
+ * aus `\X2\` würde `\\X2\\`, und der Leser fände einen literalen Text
+ * statt eines Umlauts.
+ *
+ * `charCodeAt` liefert UTF-16-Codeeinheiten — genau das, was `\X2\`
+ * erwartet. Ein Zeichen außerhalb der Grundebene (etwa ein Emoji) besteht
+ * aus zwei Einheiten und wird als zwei geschrieben; das ist richtig so.
+ */
+const STEP_SONDERZEICHEN = /[^\x20-\x7E]+/g;
+
+const s = (v: string | undefined): string => {
+  if (!v) return '$';
+  const roh = v.replace(/'/g, "''").replace(/\\/g, '\\\\');
+  const umschrieben = roh.replace(STEP_SONDERZEICHEN, (folge) => {
+    let hex = '';
+    for (let i = 0; i < folge.length; i += 1) {
+      hex += folge.charCodeAt(i).toString(16).toUpperCase().padStart(4, '0');
+    }
+    return `\\X2\\${hex}\\X0\\`;
+  });
+  return `'${umschrieben}'`;
+};
 /**
  * Eine Zahl als STEP-REAL. Der Punkt muss stehen bleiben: `1` ist in
  * ISO 10303-21 ein INTEGER und an einer REAL-Stelle schlicht ungültig —
@@ -477,8 +519,12 @@ export function buildIfc(doc: BimDocument, options: IfcExportOptions = {}): stri
   const header =
     `ISO-10303-21;\nHEADER;\n` +
     `FILE_DESCRIPTION(('ViewDefinition [CoordinationView_V2.0]'),'2;1');\n` +
-    `FILE_NAME('${doc.meta.name.replace(/'/g, '')}.ifc','${stamp}',('RaVia CAD Light'),('RaVia'),` +
-    `'${ERZEUGER}','RaVia CAD Light','');\n` +
+    // Auch der Kopf ist STEP und nicht Freitext: `s()` schreibt hier
+    // dieselbe Umschrift wie im Rumpf. Der Dateiname ging bis 1.30.0 roh
+    // hinein — an einem Projekt namens „Küche" stand damit ein Umlaut in
+    // der zweiten Zeile der Datei, noch vor allem anderen.
+    `FILE_NAME(${s(`${doc.meta.name}.ifc`)},'${stamp}',('RaVia CAD Light'),('RaVia'),` +
+    `${s(ERZEUGER)},'RaVia CAD Light','');\n` +
     `FILE_SCHEMA(('IFC4'));\nENDSEC;\nDATA;\n`;
 
   return `${header}${w.body()}\nENDSEC;\nEND-ISO-10303-21;\n`;

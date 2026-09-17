@@ -25,6 +25,7 @@
 
 import type { CheckFn } from './typ';
 import type { HeatPumpModel } from '../../src/types/bim';
+import { HEAT_PUMP_CATALOG } from '../../src/lib/deviceCatalog';
 import {
   buildCsvTemplate,
   detectDecimalStyle,
@@ -610,4 +611,67 @@ export function pruefeGeraeteimport(check: CheckFn): void {
   // Die Speichervorlage muss denselben Rundlauf überstehen wie die
   // Wärmepumpenvorlage: Beispielzeile hinein, übernehmbarer Datensatz heraus.
   check('Vorlage Speicher lässt sich wieder einlesen', importDevices(vorlageSpeicher).acceptedCount, 1);
+
+  // =========================================================================
+  // Der SCOP ist ein Prüfergebnis, keine Eigenschaft einer Größenklasse
+  // =========================================================================
+  /*
+   * Bis 1.30.0 trug jede Typklasse einen SCOP — 4,9 für den R290-Monoblock.
+   * Es waren die einzigen Zahlen des Moduls, die aus keiner offengelegten
+   * Beziehung stammten, und die Gegenprobe an drei Datenblättern hat sie
+   * über allen Messwerten gefunden: 4,9 gegen 4,48 (Viessmann Vitocal
+   * 250-A, ηs = 176 %) und 4,77 (Bosch Compress AW 10 OR-T).
+   *
+   * Der Einwand ist aber nicht die Höhe. COP und Leistung lassen sich aus
+   * der Kennlinie einer Bauart ableiten; der SCOP nach EN 14825 ist das
+   * Ergebnis einer Prüfung an einem bestimmten Gerät, mit seiner Regelung
+   * und seinem Abtauverhalten. Eine Größenklasse hat keinen SCOP, so wie
+   * eine Baureihe keine Seriennummer hat.
+   *
+   * Geprüft wird beides: dass keine Typklasse einen trägt, und dass ein
+   * eingelesenes Datenblatt seinen behält. Sonst wäre die Änderung nicht
+   * „ehrlicher", sondern nur „weniger".
+   */
+  check(
+    'Keine Typklasse trägt einen SCOP bei 35 °C',
+    HEAT_PUMP_CATALOG.filter((m) => m.scop35 !== undefined).length,
+    0,
+  );
+  check(
+    'Keine Typklasse trägt einen SCOP bei 55 °C',
+    HEAT_PUMP_CATALOG.filter((m) => m.scop55 !== undefined).length,
+    0,
+  );
+  check(
+    'Und alle sind als Typklasse gekennzeichnet',
+    HEAT_PUMP_CATALOG.every((m) => m.provenance === 'generisch'),
+    true,
+  );
+  // Die übrigen Kennwerte bleiben — sie stammen aus der Kennlinie der
+  // Bauart und sind damit begründbar.
+  check(
+    'Leistung und COP bleiben an jeder Typklasse',
+    HEAT_PUMP_CATALOG.every((m) => m.ratings.length > 0 && m.nominalCapacity > 0),
+    true,
+  );
+
+  {
+    // Dasselbe Gerät mit Datenblatt: der SCOP kommt an und ist als
+    // Herstellerangabe gekennzeichnet.
+    // Dieselbe Kopfzeile wie oben, nur um die SCOP-Spalte erweitert — damit
+    // der Datensatz vollständig ist und die Prüfung wirklich am SCOP hängt
+    // und nicht an einer fehlenden Pflichtspalte.
+    const mitBlatt = datei(
+      [
+        [...KOPF, 'SCOP 35'],
+        ['Muster mit Blatt', 'R290', '1,2', '8,0', '2,70', '70', '49,0', '4,48'],
+      ],
+      ';',
+    );
+    const gelesen = importDevices(mitBlatt);
+    const modell = gelesen.devices[0]?.heatPump;
+    check('Datenblatt wird angenommen', gelesen.acceptedCount, 1);
+    check('Sein SCOP kommt an', modell?.scop35 ?? 0, 4.48, 1e-9);
+    check('Und ist als Herstellerangabe gekennzeichnet', modell?.provenance ?? '', 'hersteller');
+  }
 }

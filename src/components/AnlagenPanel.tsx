@@ -624,7 +624,22 @@ export default function AnlagenPanel() {
               />
               <Readout label="Kältemittel" value={`${selected.model.refrigerant} · ${fmt(selected.model.refrigerantMass, 2)} kg · GWP ${refrigerant?.gwp ?? '—'}`} />
               <Readout label="höchster Vorlauf" value={`${selected.model.maxFlowTemperature} °C`} />
-              <Readout label="SCOP bei 35 °C" value={fmt(selected.model.scop35, 2)} term="cop" />
+              {/*
+                Ein Gedankenstrich hieße „gibt es nicht". Hier gibt es ihn
+                sehr wohl — er steht nur nicht in einer Typklasse, weil der
+                SCOP ein Prüfergebnis nach EN 14825 für ein bestimmtes Gerät
+                ist und keine Eigenschaft einer Größenklasse. Wer das
+                Datenblatt einliest, sieht die Zahl.
+              */}
+              <Readout
+                label="SCOP bei 35 °C"
+                value={
+                  selected.model.scop35 === undefined
+                    ? 'nicht erfasst — steht im Datenblatt'
+                    : fmt(selected.model.scop35, 2)
+                }
+                term="cop"
+              />
               <Readout
                 label="Schallleistung außen"
                 value={
