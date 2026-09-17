@@ -51,23 +51,54 @@ const lage = await stellDichVorDieTuer();
 pruef('Eine Innentuer ist gefunden', lage !== null, true);
 await p.waitForTimeout(400);
 
-/** Zwei Sekunden vorwaerts gehen und sagen, wie weit es ging. */
-const geheVor = async (ms) => {
+/**
+ * Vorwaerts gehen, bis er durch ist oder nicht mehr weiterkommt.
+ *
+ * **Warum nicht einfach zwei Sekunden.** Der Geher rechnet je Bild einen
+ * Schritt und deckelt den Zeitschritt bei einer Zehntelsekunde (`Viewer3D`:
+ * `Math.min(uhr.getDelta(), 0.1)`) — ohne diesen Deckel schoesse man nach
+ * einem Aussetzer durch die halbe Wohnung. Die Folge: Die zurueckgelegte
+ * Strecke haengt an der **Bildrate**, nicht an der Wanduhr. Auf einem
+ * Rechner mit Grafikkarte sind zwei Sekunden rund 2,90 m; unter SwiftShader
+ * im Container laufen 1,4 Bilder je Sekunde, und dieselben zwei Sekunden
+ * ergeben 0,29 m — keinen Schritt bis zur Tuer. Der Prueflauf meldete dann
+ * „kommt nicht durch", und das stimmte sogar, nur eben aus dem falschen
+ * Grund: Er war nie dort.
+ *
+ * Gemessen wird deshalb die **Absicht**, nicht die Zeit: Er geht, bis er
+ * `strecke` Meter geschafft hat oder bis er dreimal hintereinander stehen
+ * bleibt — dann haelt ihn etwas auf, und genau das ist die Frage. Die
+ * Wanduhr bleibt nur als Notbremse.
+ */
+const geheVor = async (strecke = 2.9, grenzeMs = 40000) => {
   const vor = await p.evaluate(() => ({ ...window.__raviaGeher }));
+  const jetzt = () => p.evaluate(() => ({ ...window.__raviaGeher }));
   await p.keyboard.down('w');
-  await p.waitForTimeout(ms);
+  const t0 = Date.now();
+  let letzte = vor;
+  let steht = 0;
+  let nach = vor;
+  while (Date.now() - t0 < grenzeMs) {
+    await p.waitForTimeout(400);
+    nach = await jetzt();
+    const seitLetztem = Math.hypot(nach.x - letzte.x, nach.y - letzte.y);
+    steht = seitLetztem < 0.01 ? steht + 1 : 0;
+    letzte = nach;
+    if (steht >= 3) break;
+    if (Math.hypot(nach.x - vor.x, nach.y - vor.y) >= strecke) break;
+  }
   await p.keyboard.up('w');
   await p.waitForTimeout(200);
-  const nach = await p.evaluate(() => ({ ...window.__raviaGeher }));
-  return { vor, nach, weg: Math.hypot(nach.x-vor.x, nach.y-vor.y) };
+  nach = await jetzt();
+  return { vor, nach, weg: Math.hypot(nach.x - vor.x, nach.y - vor.y) };
 };
 
 console.log('\n▸ Die geschlossene Tuer haelt auf');
-const zu = await geheVor(2000);
+const zu = await geheVor();
 console.log('  ·', JSON.stringify({ von: [zu.vor.x.toFixed(2), zu.vor.y.toFixed(2)], nach: [zu.nach.x.toFixed(2), zu.nach.y.toFixed(2)], weg: zu.weg.toFixed(2) }));
-// Zwei Sekunden Gehen sind rund 2,90 m. Vor der Tuer steht man 1,00 m
-// entfernt; mit Koerperradius 0,28 und halber Wandstaerke bleibt weniger als
-// ein Meter Weg, bevor es nicht mehr weitergeht.
+// Er will 2,90 m weit. Vor der Tuer steht er 1,00 m entfernt; mit
+// Koerperradius 0,28 und halber Wandstaerke bleibt weniger als ein Meter
+// Weg, bevor es nicht mehr weitergeht.
 pruef('Er kommt nicht durch die zu Tuer', zu.weg < 1.0, true);
 const seiteZu = await p.evaluate((l) => {
   const g = window.__raviaGeher;
@@ -83,7 +114,7 @@ const meldung = await p.evaluate(() => window.__ravia.getState().statusMessage);
 console.log('  ·', meldung);
 pruef('Die Statuszeile meldet die geoeffnete Tuer', /geöffnet/i.test(meldung), true);
 
-const auf = await geheVor(2000);
+const auf = await geheVor();
 console.log('  ·', JSON.stringify({ von: [auf.vor.x.toFixed(2), auf.vor.y.toFixed(2)], nach: [auf.nach.x.toFixed(2), auf.nach.y.toFixed(2)], weg: auf.weg.toFixed(2) }));
 /*
  * Entscheidend ist nicht der zurueckgelegte Weg, sondern die Seite: Wie weit
@@ -106,11 +137,23 @@ await p.evaluate((l) => {
   g.gier = Math.atan2(l.n.y, l.n.x);
 }, lage);
 await p.waitForTimeout(300);
+/*
+ * Und zurueck in Reichweite: Wer durch die Tuer gegangen ist, steht ein paar
+ * Meter weiter im Raum, und `TUER_REICHWEITE` ist 1,6 m — Armlaenge plus
+ * einen Schritt. Von dort aus greift niemand nach der Klinke, auch nicht im
+ * Modell. Er geht deshalb erst wieder auf einen Meter heran.
+ */
+const abstandZurTuer = await p.evaluate((l) => {
+  const g = window.__raviaGeher;
+  return Math.hypot(g.x - l.mitte.x, g.y - l.mitte.y);
+}, lage);
+if (abstandZurTuer > 1.2) await geheVor(abstandZurTuer - 1.0);
+console.log('  ·', JSON.stringify({ abstandVorher: abstandZurTuer.toFixed(2), abstandJetzt: (await p.evaluate((l) => { const g = window.__raviaGeher; return Math.hypot(g.x - l.mitte.x, g.y - l.mitte.y); }, lage)).toFixed(2) }));
 await p.keyboard.press('e');
 await p.waitForTimeout(1400);
 const meldung2 = await p.evaluate(() => window.__ravia.getState().statusMessage);
 pruef('Die Statuszeile meldet die geschlossene Tuer', /geschlossen/i.test(meldung2), true);
-const zurueck = await geheVor(2000);
+const zurueck = await geheVor();
 const seiteZurueck = await p.evaluate((l) => {
   const g = window.__raviaGeher;
   return (g.x - l.mitte.x)*l.n.x + (g.y - l.mitte.y)*l.n.y;

@@ -56,6 +56,8 @@ import {
   FANG_FAKTOR,
   ZEIGERLAGE_LEER,
   absicht,
+  istTipp,
+  tippBedient,
   eingabeart,
   fortschreiben,
   gestenschritt,
@@ -2171,6 +2173,13 @@ export default function Editor2D({ className = '' }: { className?: string }) {
   const fingerRef = useRef<Map<number, Vec2>>(new Map());
   /** Die letzte Fingerlage einer laufenden Zwei-Finger-Geste. */
   const gesteRef = useRef<Fingerpaar | null>(null);
+  /**
+   * Der schiebende Finger, solange noch offen ist, ob er schiebt oder tippt.
+   * `weg` ist der größte Abstand zum Aufsetzpunkt — nicht der letzte: wer
+   * hinfährt und zurückkommt, hat geschoben, auch wenn er am Ende wieder am
+   * Anfang steht.
+   */
+  const tippRef = useRef<{ id: number; start: Vec2; zeit: number; weg: number } | null>(null);
 
   const updatePointer = useCallback(
     (e: React.PointerEvent<HTMLCanvasElement>) => {
@@ -2298,15 +2307,24 @@ export default function Editor2D({ className = '' }: { className?: string }) {
     [store, viewport.zoom],
   );
 
-  const handlePointerDown = (e: React.PointerEvent<HTMLCanvasElement>) => {
+  /**
+   * `alsTipp` ist der zweite Weg hier hinein: Ein Finger, der kurz und ohne
+   * Weg aufgesetzt hat, ruft diese Funktion beim **Abheben** noch einmal auf
+   * — mit derselben Stelle, aber ohne Buchführung und ohne Schwenk. So
+   * bedient ein Tippen genau das, was ein Mausklick bedient, und der lange
+   * Zweig unten steht nur einmal da. Siehe `istTipp` in `zeigereingabe.ts`.
+   */
+  const handlePointerDown = (e: React.PointerEvent<HTMLCanvasElement>, alsTipp = false) => {
     const art = eingabeart(e.pointerType);
     letzteArtRef.current = art;
     const jetzt = e.timeStamp;
-    const was = absicht(art, zeigerLageRef.current, jetzt, eingabe);
-    zeigerLageRef.current = fortschreiben(zeigerLageRef.current, art, 'runter', jetzt);
-    if (art === 'finger') {
-      const r = e.currentTarget.getBoundingClientRect();
-      fingerRef.current.set(e.pointerId, { x: e.clientX - r.left, y: e.clientY - r.top });
+    const was = alsTipp ? 'zeichnen' : absicht(art, zeigerLageRef.current, jetzt, eingabe);
+    if (!alsTipp) {
+      zeigerLageRef.current = fortschreiben(zeigerLageRef.current, art, 'runter', jetzt);
+      if (art === 'finger') {
+        const r = e.currentTarget.getBoundingClientRect();
+        fingerRef.current.set(e.pointerId, { x: e.clientX - r.left, y: e.clientY - r.top });
+      }
     }
 
     // Der Handballen. Er darf nicht einmal den laufenden Zug anfassen —
@@ -2322,13 +2340,19 @@ export default function Editor2D({ className = '' }: { className?: string }) {
       return;
     }
 
-    e.currentTarget.setPointerCapture(e.pointerId);
-    draftZeigerRef.current = e.pointerId;
+    if (!alsTipp) {
+      e.currentTarget.setPointerCapture(e.pointerId);
+      draftZeigerRef.current = e.pointerId;
+    }
 
     // Ein Finger schiebt — wie die mittlere Maustaste, nur ohne Maus.
     if (was === 'schieben') {
       const r = e.currentTarget.getBoundingClientRect();
-      draftRef.current = { mode: 'pan', lastScreen: { x: e.clientX - r.left, y: e.clientY - r.top } };
+      const start = { x: e.clientX - r.left, y: e.clientY - r.top };
+      draftRef.current = { mode: 'pan', lastScreen: start };
+      // Vormerken, falls daraus doch ein Tippen wird. Nur für Werkzeuge, die
+      // ein einzelner Punkt bedient — sonst bliebe ein halber Wandzug stehen.
+      tippRef.current = tippBedient(tool) ? { id: e.pointerId, start, zeit: jetzt, weg: 0 } : null;
       scheduleRender();
       return;
     }
@@ -2755,6 +2779,10 @@ export default function Editor2D({ className = '' }: { className?: string }) {
 
     switch (draft.mode) {
       case 'pan': {
+        const tipp = tippRef.current;
+        if (tipp && tipp.id === e.pointerId) {
+          tipp.weg = Math.max(tipp.weg, Math.hypot(ptr.screen.x - tipp.start.x, ptr.screen.y - tipp.start.y));
+        }
         const dx = ptr.screen.x - draft.lastScreen.x;
         const dy = ptr.screen.y - draft.lastScreen.y;
         s.setViewport({
@@ -3005,6 +3033,20 @@ export default function Editor2D({ className = '' }: { className?: string }) {
       return;
     }
     draftZeigerRef.current = null;
+
+    /*
+     * Kurz aufgesetzt, nicht gewandert: Das war kein Schieben, sondern ein
+     * Tippen — und ein Tippen bedient dasselbe wie ein Mausklick. Die
+     * Entscheidung fällt hier und nicht beim Aufsetzen, weil sie vorher nicht
+     * zu treffen ist: Ob der Finger schiebt, weiß man erst, wenn er wieder
+     * weg ist.
+     */
+    const tipp = tippRef.current;
+    tippRef.current = null;
+    if (tipp && tipp.id === e.pointerId && istTipp(tipp.weg, e.timeStamp - tipp.zeit)) {
+      draftRef.current = { mode: 'idle' };
+      handlePointerDown(e, true);
+    }
 
     // Rechte Maustaste: wurde nicht geschwenkt, war es ein Abbruch-Klick.
     if (e.button === 2 && rightDownRef.current) {

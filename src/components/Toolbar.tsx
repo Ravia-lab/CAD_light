@@ -29,7 +29,7 @@ import {
   WALL_THICKNESS_PRESETS,
 } from '../types/bim';
 import { verlegeartAus } from '../lib/plantDefaults';
-import { zeigtWerkzeug } from '../lib/uimodus';
+import { UI_MODUS_LABELS, zeigtAnsicht, zeigtKopfknopf, zeigtWerkzeug, type UiModus } from '../lib/uimodus';
 import { useBimStore } from '../store/useBimStore';
 import { useRef, useState } from 'react';
 import { buildRaviaExport, downloadJson, exportFilename } from '../lib/raviaExport';
@@ -332,6 +332,8 @@ const WALL_TYPE_LABELS: Record<WallType, string> = {
  * die Sitzungssicherung schreibt.
  */
 export function TopBar({ onProjekte }: { onProjekte: () => void }) {
+  const uiMode = useBimStore((s) => s.uiMode);
+  const setUiMode = useBimStore((s) => s.setUiMode);
   const doc = useBimStore((s) => s.doc);
   const tool = useBimStore((s) => s.tool);
   const openingPreset = useBimStore((s) => s.openingPreset);
@@ -604,8 +606,37 @@ export function TopBar({ onProjekte }: { onProjekte: () => void }) {
       */}
       <div className="flex min-w-0 flex-wrap items-center justify-end gap-x-3 gap-y-1">
         {/* Ansichtsmodus */}
+        {/*
+          Der Ansichtsumschalter — und davor die Frage, wie viel vom Programm
+          überhaupt zu sehen sein soll.
+
+          Er stand bisher ausschließlich unten im Reiter „Start", hinter der
+          ganzen Schrittliste: auf dem iPad quer 1531 Pixel Rollweg, also der
+          gesamte Rollbereich. Ein Rollenumschalter, den man erst am Ende
+          einer Aufgabenliste findet, existiert für den Anwender nicht. Hier
+          oben steht er neben der Ansicht, weil er dieselbe Frage beantwortet:
+          was sehe ich.
+
+          Als `select` und nicht als Knopfgruppe, weil drei Knöpfe in einer
+          ohnehin vollen Kopfleiste Platz kosten, den der Handwerkermodus
+          gerade erst frei gemacht hat — und weil ein Tablet dafür seine
+          eigene, große Auswahlliste öffnet.
+        */}
+        <select
+          value={uiMode}
+          onChange={(e) => setUiMode(e.target.value as UiModus)}
+          title="Wie viel vom Programm zu sehen ist. Ausgeblendetes wird nicht gelöscht."
+          className="h-8 rounded-lg bg-graphite-900/60 px-2 text-[11px] text-slate-400 transition-colors hover:text-slate-200 [@media(pointer:coarse)]:h-11 [@media(pointer:coarse)]:text-[16px]"
+        >
+          {(['handwerker', 'einfach', 'profi'] as const).map((m) => (
+            <option key={m} value={m} className="bg-graphite-850">
+              {UI_MODUS_LABELS[m]}
+            </option>
+          ))}
+        </select>
+
         <div className="flex gap-0.5 rounded-lg bg-graphite-900/60 p-0.5">
-          {VIEW_MODES.map((mode) => (
+          {VIEW_MODES.filter((mode) => zeigtAnsicht(uiMode, mode.id)).map((mode) => (
             <button
               key={mode.id}
               className={`chip px-2.5 ${
@@ -637,13 +668,15 @@ export function TopBar({ onProjekte }: { onProjekte: () => void }) {
           <Icon>{icons.open}</Icon>
         </button>
 
-        <button
-          onClick={handleIfc}
-          className="tool-btn h-8 w-8"
-          title="Modell als IFC4 exportieren — für Architektur-CAD und Fachplanung"
-        >
-          <Icon>{icons.ifc}</Icon>
-        </button>
+        {zeigtKopfknopf(uiMode, 'ifc') && (
+          <button
+            onClick={handleIfc}
+            className="tool-btn h-8 w-8"
+            title="Modell als IFC4 exportieren — für Architektur-CAD und Fachplanung"
+          >
+            <Icon>{icons.ifc}</Icon>
+          </button>
+        )}
 
         {/*
           Rohrausleger in der Kopfzeile.
@@ -655,6 +688,7 @@ export function TopBar({ onProjekte }: { onProjekte: () => void }) {
           steht daneben, weil sie das Ergebnis vollständig bestimmt und nicht
           in einem Untermenü versteckt gehört.
         */}
+        {zeigtKopfknopf(uiMode, 'rohrnetz') && (
         <div className="flex items-center gap-0.5 rounded-lg bg-graphite-900/60 p-0.5">
           {(['neubau', 'sanierung'] as const).map((m) => (
             <button
@@ -678,22 +712,27 @@ export function TopBar({ onProjekte }: { onProjekte: () => void }) {
             <Icon>{icons.rohrnetz}</Icon>
           </button>
         </div>
+        )}
 
-        <button
-          onClick={() => setBerichtOpen(true)}
-          className="tool-btn h-8 w-8"
-          title="Rohrnetzberechnung — Grundriss, Teilstreckentabelle, Einstellwerte und Nachweis nach § 60c GModG als PDF"
-        >
-          <Icon>{icons.bericht}</Icon>
-        </button>
+        {zeigtKopfknopf(uiMode, 'bericht') && (
+          <button
+            onClick={() => setBerichtOpen(true)}
+            className="tool-btn h-8 w-8"
+            title="Rohrnetzberechnung — Grundriss, Teilstreckentabelle, Einstellwerte und Nachweis nach § 60c GModG als PDF"
+          >
+            <Icon>{icons.bericht}</Icon>
+          </button>
+        )}
 
-        <button
-          onClick={() => setMappeOpen(true)}
-          className="tool-btn h-8 w-8"
-          title="Projektmappe — Grundrisse, Anlagenschema, Rohrnetz, Einstellwerte, Massenauszug, Anlagenbuch, Quellen und Nachweis in einem Dokument mit durchlaufender Blattnummer"
-        >
-          <Icon>{icons.mappe}</Icon>
-        </button>
+        {zeigtKopfknopf(uiMode, 'mappe') && (
+          <button
+            onClick={() => setMappeOpen(true)}
+            className="tool-btn h-8 w-8"
+            title="Projektmappe — Grundrisse, Anlagenschema, Rohrnetz, Einstellwerte, Massenauszug, Anlagenbuch, Quellen und Nachweis in einem Dokument mit durchlaufender Blattnummer"
+          >
+            <Icon>{icons.mappe}</Icon>
+          </button>
+        )}
 
         <button
           onClick={() => setPrintOpen(true)}

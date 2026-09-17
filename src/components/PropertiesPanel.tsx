@@ -69,6 +69,7 @@ import {
   durchbruchPasst,
 } from '../lib/durchbruchSymbols';
 import { getWallGeometry } from '../lib/wallGeometry';
+import { tueranschlag } from '../lib/tuerseiten';
 import { useBimStore } from '../store/useBimStore';
 import Erklaerung from './Erklaerung';
 import { buildRaviaExport } from '../lib/raviaExport';
@@ -583,28 +584,103 @@ function OpeningProperties({ opening }: { opening: Opening }) {
       )}
 
       {isDoor && !['sliding', 'folding'].includes(opening.doorType ?? 'single') && (
-        <div className="grid grid-cols-2 gap-1.5">
-          <button
-            className={`chip ${opening.hinge !== 'right' ? 'bg-accent/15 text-accent' : 'bg-white/[0.04] text-slate-500'}`}
-            onClick={() => updateOpening(opening.id, { hinge: 'left' })}
-          >
-            Anschlag links
-          </button>
-          <button
-            className={`chip ${opening.hinge === 'right' ? 'bg-accent/15 text-accent' : 'bg-white/[0.04] text-slate-500'}`}
-            onClick={() => updateOpening(opening.id, { hinge: 'right' })}
-          >
-            Anschlag rechts
-          </button>
-          <button
-            className="chip col-span-2 bg-white/[0.04] text-slate-400 hover:bg-white/[0.08]"
-            onClick={() => updateOpening(opening.id, { flipSwing: !opening.flipSwing })}
-          >
-            Öffnungsrichtung spiegeln
-          </button>
-        </div>
+        <Tueranschlagfeld opening={opening} />
       )}
     </Section>
+  );
+}
+
+/**
+ * Anschlag und Öffnungsrichtung einer Tür — benannt, nicht gespiegelt.
+ *
+ * **Was hier anders ist als vorher.** Die Öffnungsrichtung hing an einem
+ * Knopf „Öffnungsrichtung spiegeln": ein Verb ohne Zustand. Man sah ihm nicht
+ * an, wohin die Tür gerade aufgeht, und auf dem Tablet liegt der Inspektor
+ * als Schublade über dem Plan — man sah es auch nach dem Drücken nicht.
+ *
+ * Jetzt stehen dort zwei Knöpfe mit den Namen der beiden Seiten, gerechnet
+ * aus der Geometrie (`tuerseiten.ts`): bei einer Innentür die Raumnamen, bei
+ * einer Außentür „innen" und „außen". Der aktive ist hervorgehoben — damit
+ * beantwortet die Oberfläche die Frage „wohin geht sie auf" schon im
+ * Ruhezustand, ohne dass jemand etwas drücken muss.
+ *
+ * Darunter die Bezeichnung nach DIN 107, die aus Bandseite **und**
+ * Öffnungsrichtung zusammen folgt. Sie ist das, was auf dem Aufmaßzettel
+ * steht und was beim Türenhändler bestellt wird; ausrechnen kann sie das
+ * Programm, im Kopf tut es niemand gern.
+ *
+ * Jede Änderung schreibt zusätzlich einen Satz in die Statuszeile. Das ist
+ * kein Beiwerk: Es ist auf dem Tablet der einzige Ort, an dem man das
+ * Ergebnis sieht, solange die Schublade den Plan verdeckt.
+ */
+function Tueranschlagfeld({ opening }: { opening: Opening }) {
+  const updateOpening = useBimStore((s) => s.updateOpening);
+  const setStatus = useBimStore((s) => s.setStatus);
+  const wall = useBimStore((s) => s.doc.walls[opening.wallId]);
+  const nodes = useBimStore((s) => s.doc.nodes);
+  const rooms = useBimStore((s) => s.doc.rooms);
+
+  const anschlag = useMemo(
+    () => (wall ? tueranschlag(opening, wall, nodes, Object.values(rooms)) : null),
+    [opening, wall, nodes, rooms],
+  );
+
+  const setzeRichtung = (seite: 'plus' | 'minus') => {
+    const flip = seite === 'minus';
+    if ((opening.flipSwing ?? false) === flip) return;
+    updateOpening(opening.id, { flipSwing: flip });
+    if (anschlag) {
+      const ziel = seite === 'plus' ? anschlag.beschriftung.plus : anschlag.beschriftung.minus;
+      // Die DIN-Bezeichnung kippt mit der Richtung — deshalb hier neu
+      // gebildet und nicht aus `anschlag.satz` übernommen.
+      const din = (opening.hinge === 'right') === (seite === 'plus') ? 'links' : 'rechts';
+      setStatus(`Tür öffnet nach ${ziel} · DIN ${din}`);
+    }
+  };
+
+  return (
+    <div className="space-y-1.5">
+      <div className="grid grid-cols-2 gap-1.5">
+        <button
+          className={`chip ${opening.hinge !== 'right' ? 'bg-accent/15 text-accent' : 'bg-white/[0.04] text-slate-500'}`}
+          onClick={() => updateOpening(opening.id, { hinge: 'left' })}
+        >
+          Band links
+        </button>
+        <button
+          className={`chip ${opening.hinge === 'right' ? 'bg-accent/15 text-accent' : 'bg-white/[0.04] text-slate-500'}`}
+          onClick={() => updateOpening(opening.id, { hinge: 'right' })}
+        >
+          Band rechts
+        </button>
+      </div>
+
+      {anschlag && (
+        <>
+          <div className="grid grid-cols-2 gap-1.5">
+            {(['plus', 'minus'] as const).map((seite) => (
+              <button
+                key={seite}
+                className={`chip ${
+                  anschlag.oeffnetNach === seite
+                    ? 'bg-accent/15 text-accent'
+                    : 'bg-white/[0.04] text-slate-500'
+                }`}
+                onClick={() => setzeRichtung(seite)}
+              >
+                öffnet nach {seite === 'plus' ? anschlag.beschriftung.plus : anschlag.beschriftung.minus}
+              </button>
+            ))}
+          </div>
+          <div className="rounded-md bg-graphite-900/60 px-2.5 py-1.5 text-[10.5px] leading-snug text-slate-400">
+            <span className="text-slate-200">{anschlag.satz}</span>
+            <span className="block text-slate-600">
+              Bezeichnung nach DIN 107 — von der Seite aus, zu der die Tür aufgeht.
+            </span>
+          </div>
+        </>
+      )}
+    </div>
   );
 }
 

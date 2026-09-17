@@ -8,6 +8,66 @@
 
 <p class="wo">Im Programm: Reiter <b>Raumbuch</b>. Umschaltbar zwischen allen Geschossen und dem aktuellen; sortierbar nach Name, Fläche, Volumen, Solltemperatur, Heizleistung und Geschoss. Ein Klick auf eine Zeile springt in den Raum, notfalls über den Geschosswechsel.</p>
 
+<h4 id="k7-1-0">7.1.0 Ansehen oder ausfüllen</h4>
+
+<p>Über der Liste stehen seit 1.32.0 zwei Knöpfe: <b>Ansehen</b> und
+<b>Ausfüllen</b>. Im Handwerkermodus (<a href="#k3-8">Abschnitt 3.8</a>) steht
+er ab Werk auf <b>Ausfüllen</b>, sonst auf <b>Ansehen</b>.</p>
+
+<p><b>Ansehen</b> ist die bisherige Liste: eine Zeile je Raum, und ein Klick
+springt in den Raum. Zum Eintragen musste man dann in den Inspektor wechseln,
+den Raum benennen, die Nutzung wählen, zurück ins Raumbuch, nächster Raum —
+für zwölf Räume rund achtzig Klicks und sechsmal hin und her.</p>
+
+<p><b>Ausfüllen</b> macht aus jeder Zeile ein Formular: Name, Nutzung,
+Fläche und Heizleistung stehen nebeneinander, und Sie gehen die Liste von
+oben nach unten durch, ohne den Reiter zu verlassen. Die Fläche steht nur da,
+sie kommt aus der Geometrie.</p>
+
+<h4 id="k7-1-0b">7.1.0.1 Aus einer Zahl wird ein Heizkörper</h4>
+
+<p>Das Feld <b>W</b> in der Ausfüllzeile ist der kurze Weg für die Aufnahme im
+Bestand: Sie lesen die Leistung vom Datenblatt oder vom Typenschild ab und
+tippen sie ein. Was daraus wird, hängt vom Raum ab:</p>
+
+<table class="tab">
+  <caption>Was das Eintragen einer Leistung bewirkt</caption>
+  <thead><tr><th>Im Raum steht …</th><th>Was passiert</th></tr></thead>
+  <tbody>
+    <tr><td>noch keine Heizfläche</td><td>Es entsteht ein <b>Heizkörper</b> mit dieser Leistung — unter dem breitesten Fenster; gibt es keins, an der längsten Außenwand; gibt es auch die nicht, in der Raummitte. Die Meldung sagt, welcher der drei Fälle es war.</td></tr>
+    <tr><td>genau eine Heizfläche</td><td>Ihre Leistung wird geändert.</td></tr>
+    <tr><td>mehrere Heizflächen</td><td>Nichts. Die Meldung nennt die Zahl — welche der drei gemeint ist, kann das Programm nicht wissen; die Leistung steht an jeder einzeln im Plan.</td></tr>
+    <tr><td>eine raumdeckende Fußbodenheizung</td><td>Nichts. Ihre Leistung folgt aus der Auslegung und nicht aus einer Eingabe.</td></tr>
+  </tbody>
+</table>
+
+<div class="merke">
+  <b>Merke</b>
+  <p>Die Leistung gilt erst, wenn Sie das Feld verlassen oder
+  <kbd>Eingabe</kbd> drücken. Sonst entstünde beim ersten Anschlag von „1400“
+  ein Heizkörper mit einem Watt, der dann dreimal geändert wird — vier
+  Schritte in der Rückgängig-Kette für eine Eingabe.</p>
+  <p>Ein <b>leeres Feld ist nicht 0 W</b>. Es heißt „nicht erfasst“, und genau
+  so steht es in der Übergabe. Eine eingetragene Zahl gilt dagegen als
+  <b>abgelesen</b> (Herkunft „Datenblatt“), nicht als Katalogvorbelegung —
+  siehe <a href="#k8">Kapitel 8</a>.</p>
+</div>
+
+<div class="baustelle">
+  <b>Auf der Baustelle heißt das</b>
+  <p>Wohnung durchgehen, an jedem Heizkörper das Typenschild fotografieren
+  oder die Leistung ablesen, im Raumbuch von oben nach unten eintippen. Die
+  Lage stimmt dann auf den Zentimeter noch nicht — sie stimmt aber an der
+  richtigen Wand, und das reicht für die Heizlast. Wer den Heizkörper exakt
+  setzen will, verschiebt ihn danach im Plan.</p>
+</div>
+
+<div class="warnung"><b>Achtung</b><p>Der gesetzte Heizkörper ist eine
+<b>Annahme über die Lage</b>, keine Aufnahme. Für die Heizlast nach DIN EN
+12831 zählt allein die Leistung; sobald das Rohrnetz ausgelegt wird, bekommt
+das Ding aber eine Anbindeleitung, und die fährt dorthin, wo es steht. Prüfen
+Sie vor der Rohrnetzauslegung im Plan nach.</p></div>
+
 <h4 id="k7-1-1">7.1.1 Was Sie je Raum eintragen</h4>
 
 <table class="tab">

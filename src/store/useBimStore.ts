@@ -126,6 +126,7 @@ import { hoehenText } from '../lib/beschriftung3d';
 import { zieheHeizflaechenNach } from '../lib/heizflaechenAbgleich';
 import { rohrlaenge } from '../lib/rohrlaenge';
 import { istHeizflaeche } from '../lib/heizflaechenLeistung';
+import { heizkoerperplatz, PLATZ_TEXT } from '../lib/heizkoerperplatz';
 import {
   DEFAULT_EDGE_CLEARANCE,
   DEFAULT_LOOP_PATTERN,
@@ -574,6 +575,25 @@ interface BimState {
    */
   layAllFloorLoops: (levelId?: string) => FloorLoopBatchReport;
   updateFixture: (id: string, patch: Partial<Fixture>) => void;
+  /**
+   * Die Heizleistung eines Raums im Raumbuch eintragen.
+   *
+   * Der Weg ist für die Bestandsaufnahme gedacht: Wer eine Wohnung aufnimmt,
+   * liest je Raum eine Leistung ab und trägt sie in der Zeile ein, in der er
+   * sie liest. Hat der Raum noch keine Heizfläche, entsteht ein Heizkörper an
+   * der Stelle, an der er in einem Bestandsgebäude fast immer hängt (siehe
+   * `heizkoerperplatz.ts`) — und die Antwort sagt, wo das war.
+   *
+   * Mehrdeutige Fälle werden **nicht** geraten: Bei zwei Heizflächen im Raum
+   * ließe sich eine Summe nicht auf sie verteilen, und eine Fußbodenheizung
+   * ist keine Zahl, die man überschreibt. Beides wird mit Begründung
+   * abgelehnt.
+   *
+   * `watt === undefined` leert die Angabe („nicht erfasst"), löscht aber
+   * keinen Heizkörper — was im Plan steht, verschwindet nicht über eine
+   * Tabellenzelle.
+   */
+  setzeRaumHeizleistung: (roomId: string, watt: number | undefined) => { ok: boolean; message: string };
   moveFixture: (id: string, position: Vec2) => void;
   updateMeta: (patch: Partial<BimDocument['meta']>) => void;
   updateLevel: (id: string, patch: Partial<Level>) => void;
@@ -2225,6 +2245,56 @@ export const useBimStore = create<BimState>()((set, get) => {
         { skipRooms: true, ziehenachHeizflaechen: istHeizflaeche(type) },
       );
       return created;
+    },
+
+    setzeRaumHeizleistung: (roomId, watt) => {
+      const d0 = get().doc;
+      const room = d0.rooms[roomId];
+      if (!room) return { ok: false, message: 'Raum nicht gefunden' };
+
+      const imRaum = Object.values(d0.fixtures).filter((f) => f.roomId === roomId);
+      const fbh = imRaum.find((f) => f.type === 'underfloor' && f.params.roomCoverage === true);
+      if (fbh) {
+        return {
+          ok: false,
+          message: `„${room.name}" hat eine Fußbodenheizung — ihre Leistung folgt aus der Auslegung, nicht aus einer Eingabe.`,
+        };
+      }
+
+      const heizflaechen = imRaum.filter((f) => istHeizflaeche(f.type));
+      if (heizflaechen.length > 1) {
+        return {
+          ok: false,
+          message: `„${room.name}" hat ${heizflaechen.length} Heizflächen — die Leistung steht an jeder einzeln im Plan.`,
+        };
+      }
+
+      if (heizflaechen.length === 1) {
+        const f = heizflaechen[0];
+        get().updateFixture(f.id, { params: { ...f.params, powerW: watt } });
+        return {
+          ok: true,
+          message:
+            watt === undefined
+              ? `„${room.name}": Heizleistung geleert — sie gilt jetzt als nicht erfasst.`
+              : `„${room.name}": ${Math.round(watt)} W eingetragen.`,
+        };
+      }
+
+      if (watt === undefined) return { ok: true, message: '' };
+
+      const platz = heizkoerperplatz(room, d0.walls, d0.nodes, d0.openings, FIXTURE_BY_TYPE.radiator?.depth ?? 0.1);
+      const erstellt = get().addFixture('radiator', platz.position, {
+        rotation: platz.rotation,
+        wallId: platz.wallId,
+        roomId,
+        params: { ...FIXTURE_BY_TYPE.radiator.params, powerW: watt, powerSource: 'datenblatt' },
+      });
+      if (!erstellt) return { ok: false, message: 'Heizkörper konnte nicht angelegt werden' };
+      return {
+        ok: true,
+        message: `„${room.name}": Heizkörper mit ${Math.round(watt)} W ${PLATZ_TEXT[platz.grund]}.`,
+      };
     },
 
     toggleFloorLoopArea: (roomId) => {

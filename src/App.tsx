@@ -40,7 +40,7 @@ import ProjektDialog from './components/ProjektDialog';
 import { clearAutosave, loadAutosave, relativeTime, scheduleAutosave } from './lib/autosave';
 import type { AutosaveEntry, SicherungsErgebnis } from './lib/autosave';
 import { aktivesProjekt, setzeAktivesProjekt } from './lib/projectStore';
-import { zeigtReiter } from './lib/uimodus';
+import { zeigtReiter, type UiModus } from './lib/uimodus';
 import { useBimStore } from './store/useBimStore';
 
 const Viewer3D = lazy(() => import('./components/Viewer3D'));
@@ -100,6 +100,7 @@ export default function App() {
   const wallCount = Object.keys(doc.walls).length;
   const tool = useBimStore((s) => s.tool);
   const uiMode = useBimStore((s) => s.uiMode);
+  const setUiMode = useBimStore((s) => s.setUiMode);
   const [tab, setTab] = useState<InspectorTab>('guide');
   const [restore, setRestore] = useState<AutosaveEntry | null>(null);
   const [welcome, setWelcome] = useState(false);
@@ -140,8 +141,14 @@ export default function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  /** Die Einführung schließen und merken, dass sie gezeigt wurde. */
-  const closeWelcome = (dann: 'demo' | 'leer' | 'bild') => {
+  /**
+   * Die Einführung schließen, die Rolle übernehmen und beides merken.
+   *
+   * Die Rolle wird gesetzt, bevor das Modell geladen wird: Sonst sähe der
+   * Monteur den Beispielgrundriss für einen Augenblick mit dreizehn Reitern.
+   */
+  const closeWelcome = (dann: 'demo' | 'leer' | 'bild', rolle: UiModus) => {
+    setUiMode(rolle);
     try {
       localStorage.setItem(WELCOME_KEY, '1');
     } catch {
@@ -530,7 +537,29 @@ function ViewerFallback() {
  * Wege hinein. Bewusst kein mehrseitiger Rundgang mit Pfeilen: den klickt
  * jeder weg, und was darin stand, weiß danach niemand.
  */
-function Einfuehrung({ onChoose }: { onChoose: (dann: 'demo' | 'leer' | 'bild') => void }) {
+/**
+ * Die Einführung beim allerersten Start — zwei Fragen, nicht drei Absätze.
+ *
+ * **Was sich gegenüber 1.31.0 geändert hat und warum.** Die Karte begann mit
+ * rund 120 Wörtern, in denen U-Werte, Wärmebrücken, Lüftung, Heizkreise,
+ * Speicher, Sicherheitsarmaturen und das Anlagenschema vorkamen. Für einen
+ * Fachplaner ist das eine Leistungsschau. Für den Monteur, der in einer
+ * fremden Wohnung steht, ist es der Satz „das hier ist nichts für dich" —
+ * und er ist der Anwender, für den die schmalste Ansicht überhaupt gebaut
+ * wurde.
+ *
+ * Jetzt steht die **Rollenfrage vorn**: Aufmaß oder Planung. Sie ist die
+ * einzige Stelle, an der sie ohne Suchen zu beantworten ist; der Umschalter
+ * dafür lag bisher unter einer fünfzehnstufigen Schrittliste (auf dem iPad
+ * 1531 Pixel Rollweg) und seit dieser Fassung zusätzlich in der Kopfleiste.
+ *
+ * Erst danach die alte Frage, womit man anfängt. Zwei Fragen nacheinander
+ * sind ein Fingertipp mehr als eine — und ersparen dem einen Anwender neun
+ * Reiter, die er nie braucht, und dem anderen die Suche nach ihnen.
+ */
+function Einfuehrung({ onChoose }: { onChoose: (dann: 'demo' | 'leer' | 'bild', rolle: UiModus) => void }) {
+  const [rolle, setRolle] = useState<UiModus | null>(null);
+
   return (
     <div className="absolute inset-0 z-40 flex items-center justify-center bg-graphite-950/80 backdrop-blur-sm">
       <div className="panel max-w-[34rem] p-6">
@@ -548,54 +577,81 @@ function Einfuehrung({ onChoose }: { onChoose: (dann: 'demo' | 'leer' | 'bild') 
 
         <div className="mt-4 space-y-2.5 text-[12.5px] leading-relaxed text-slate-300">
           <p>
-            Sie zeichnen einen Grundriss — oder ziehen ein Foto, ein PDF oder eine IFC-Datei hinein. Räume erkennt das
-            Programm von selbst, sobald die Wände geschlossen sind.
-          </p>
-          <p>
-            Daraus entstehen die vollständigen Eingangsdaten für die Heizlastberechnung: Flächen, U-Werte,
-            Himmelsrichtungen, Wärmebrücken, Lüftung. Auf Wunsch legt es die ganze Anlage aus — Gerät, Heizkreise,
-            Rohre, Speicher, Sicherheitsarmaturen — und zeichnet das Anlagenschema dazu.
+            Sie nehmen ein Gebäude auf — gezeichnet, aus einem Foto, aus der IFC-Datei des Architekten oder aus einem
+            Raumscan vom iPhone. Räume erkennt das Programm selbst, sobald die Wände geschlossen sind.
           </p>
           <p className="text-slate-400">
-            <b className="text-slate-300">Was es nicht tut:</b> die Heizlast selbst berechnen. Das macht RaVia. Dieses
-            Werkzeug erfasst und legt aus; jede Zahl, die nur geschätzt ist, sagt das von sich aus.
+            <b className="text-slate-300">Was es nicht tut:</b> die Heizlast berechnen. Das macht RaVia. Dieses
+            Werkzeug erfasst — und jede Zahl, die nur geschätzt ist, sagt das von sich aus.
           </p>
         </div>
 
-        <div className="mt-5 grid grid-cols-3 gap-2">
-          <button
-            className="rounded-lg bg-accent/12 px-3 py-2.5 text-left transition hover:bg-accent/20"
-            onClick={() => onChoose('demo')}
-          >
-            <div className="text-[12px] text-accent">Beispiel ansehen</div>
-            <div className="mt-0.5 text-[10px] leading-snug text-slate-500">
-              Ein fertiges Projekt zum Anfassen. Lässt sich jederzeit löschen.
+        {rolle === null ? (
+          <>
+            <p className="mt-5 text-[12px] font-medium text-slate-200">Was machen Sie heute?</p>
+            <div className="mt-2 grid grid-cols-2 gap-2">
+              <button
+                className="rounded-lg bg-accent/12 px-3 py-2.5 text-left transition hover:bg-accent/20"
+                onClick={() => setRolle('handwerker')}
+              >
+                <div className="text-[12px] text-accent">Aufmaß vor Ort</div>
+                <div className="mt-0.5 text-[10px] leading-snug text-slate-500">
+                  Ich nehme auf, gerechnet wird später. Zeigt nur, was zur Übergabe gehört.
+                </div>
+              </button>
+              <button
+                className="rounded-lg bg-white/[0.05] px-3 py-2.5 text-left transition hover:bg-white/[0.1]"
+                onClick={() => setRolle('einfach')}
+              >
+                <div className="text-[12px] text-slate-200">Planung</div>
+                <div className="mt-0.5 text-[10px] leading-snug text-slate-500">
+                  Anlage, Rohrnetz, Nachweise. Zeigt zusätzlich Gerät, Speicher und Schema.
+                </div>
+              </button>
             </div>
-          </button>
-          <button
-            className="rounded-lg bg-white/[0.05] px-3 py-2.5 text-left transition hover:bg-white/[0.1]"
-            onClick={() => onChoose('leer')}
-          >
-            <div className="text-[12px] text-slate-200">Leer anfangen</div>
-            <div className="mt-0.5 text-[10px] leading-snug text-slate-500">
-              Mit dem Wand-Werkzeug oder einer Raumvorlage loslegen.
+            <p className="mt-4 text-[10.5px] leading-relaxed text-slate-600">
+              Die Wahl ändert nur, wie viel zu sehen ist — gelöscht wird nichts. Oben rechts lässt sie sich jederzeit
+              umstellen.
+            </p>
+          </>
+        ) : (
+          <>
+            <p className="mt-5 text-[12px] font-medium text-slate-200">Womit fangen wir an?</p>
+            <div className="mt-2 grid grid-cols-3 gap-2">
+              <button
+                className="rounded-lg bg-accent/12 px-3 py-2.5 text-left transition hover:bg-accent/20"
+                onClick={() => onChoose('demo', rolle)}
+              >
+                <div className="text-[12px] text-accent">Beispiel ansehen</div>
+                <div className="mt-0.5 text-[10px] leading-snug text-slate-500">
+                  Ein fertiges Projekt zum Anfassen. Lässt sich jederzeit löschen.
+                </div>
+              </button>
+              <button
+                className="rounded-lg bg-white/[0.05] px-3 py-2.5 text-left transition hover:bg-white/[0.1]"
+                onClick={() => onChoose('leer', rolle)}
+              >
+                <div className="text-[12px] text-slate-200">Leer anfangen</div>
+                <div className="mt-0.5 text-[10px] leading-snug text-slate-500">
+                  Mit dem Wand-Werkzeug oder einer Raumvorlage loslegen.
+                </div>
+              </button>
+              <button
+                className="rounded-lg bg-white/[0.05] px-3 py-2.5 text-left transition hover:bg-white/[0.1]"
+                onClick={() => onChoose('bild', rolle)}
+              >
+                <div className="text-[12px] text-slate-200">Grundriss laden</div>
+                <div className="mt-0.5 text-[10px] leading-snug text-slate-500">
+                  Foto oder PDF nachzeichnen — oder IFC und Raumscan fertig übernehmen.
+                </div>
+              </button>
             </div>
-          </button>
-          <button
-            className="rounded-lg bg-white/[0.05] px-3 py-2.5 text-left transition hover:bg-white/[0.1]"
-            onClick={() => onChoose('bild')}
-          >
-            <div className="text-[12px] text-slate-200">Grundriss laden</div>
-            <div className="mt-0.5 text-[10px] leading-snug text-slate-500">
-              Foto oder PDF nachzeichnen — oder IFC und Raumscan fertig übernehmen.
-            </div>
-          </button>
-        </div>
-
-        <p className="mt-4 text-[10.5px] leading-relaxed text-slate-600">
-          Der Reiter <span className="text-slate-400">„Start"</span> sagt jederzeit, was als Nächstes zu tun ist, und
-          schlägt Fachbegriffe nach. Jedes Fragezeichen im Programm erklärt den Begriff daneben in einem Satz.
-        </p>
+            <p className="mt-4 text-[10.5px] leading-relaxed text-slate-600">
+              Der Reiter <span className="text-slate-400">„Start"</span> sagt jederzeit, was als Nächstes zu tun ist, und
+              schlägt Fachbegriffe nach. Jedes Fragezeichen im Programm erklärt den Begriff daneben in einem Satz.
+            </p>
+          </>
+        )}
       </div>
     </div>
   );

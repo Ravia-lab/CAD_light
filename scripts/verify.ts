@@ -130,6 +130,8 @@ import { pruefeSchichtgrenze } from './pruefungen/schichtgrenze';
 import { pruefeBeschriftungslage } from './pruefungen/beschriftungslage';
 import { pruefeSchemabeschriftung } from './pruefungen/schemabeschriftung';
 import { pruefeZeigereingabe } from './pruefungen/zeigereingabe';
+import { pruefeTueranschlag } from './pruefungen/tueranschlag';
+import { pruefeHeizkoerperplatz } from './pruefungen/heizkoerperplatz';
 import { pruefeSkizze } from './pruefungen/skizze';
 import { pruefeNotizen } from './pruefungen/notizen';
 import { pruefeBeschriftungsflaeche, pruefeEckpunkte } from './pruefungen/eckpunkte';
@@ -3802,6 +3804,12 @@ pruefeSchemavorschlag(check);
 
 console.log('\n▸ Zeigereingabe — Stift, Finger und der Handballen');
 pruefeZeigereingabe(check);
+
+console.log('\n▸ Türanschlag — wohin die Tür aufgeht, in Worten');
+pruefeTueranschlag(check);
+
+console.log('\n▸ Heizkörperplatz — wo ein Heizkörper landet, den niemand gesetzt hat');
+pruefeHeizkoerperplatz(check);
 
 console.log('\n▸ Skizze — aus einem Freihandstrich werden Wände');
 pruefeSkizze(check);

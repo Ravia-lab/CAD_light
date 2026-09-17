@@ -88,13 +88,13 @@
 <tr><td>Abstand</td><td>Von Wandanfang bis zur <b>Mitte</b> der Öffnung, gemessen auf der Achse. Wird die Wand verschoben oder gedreht, wandert die Öffnung korrekt mit.</td></tr>
 <tr><td>Breite / Höhe</td><td>Rohbaumaße, nicht Flügelmaße.</td></tr>
 <tr><td>Brüstungshöhe</td><td>Über Fertigfußboden. Türen und Fenstertüren: 0.</td></tr>
-<tr><td>Anschlagseite</td><td>Links oder rechts — an welchem Ende der Öffnung das Band sitzt.</td></tr>
-<tr><td>Öffnungsrichtung</td><td>Nach welcher Wandseite das Blatt aufschlägt. Ein Klick spiegelt sie.</td></tr>
+<tr><td>Bandseite</td><td><b>Band links</b> oder <b>Band rechts</b> — an welchem Ende der Öffnung die Bänder sitzen, gemessen in Wandrichtung.</td></tr>
+<tr><td>Öffnungsrichtung</td><td>Zu welcher Wandseite das Blatt aufschlägt. Die beiden Knöpfe tragen die <b>Namen der Seiten</b>, nicht „spiegeln“ — siehe <a href="#k4-3-3">Abschnitt 4.3.3</a>.</td></tr>
 <tr><td>U-Wert, g-Wert</td><td>Wärmedurchgangskoeffizient des Bauteils und Gesamtenergiedurchlassgrad. Der g-Wert wirkt nur auf die solaren Gewinne, nicht auf die Heizlast.</td></tr>
 </tbody>
 </table>
 
-<p>Anschlagseite und Öffnungsrichtung wirken sich auf keine Rechnung aus. Sie sind reine Darstellung — und trotzdem wichtig, weil ein Grundriss, in dem die Türen falsch herum aufschlagen, auf der Baustelle Rückfragen erzeugt. Bei Schiebetüren gibt es keinen Schwenkbogen, sondern ein Blatt vor der Wand und einen Pfeil in Fahrtrichtung. Bei zweiflügeligen Türen entstehen zwei gegenläufige Blätter halber Breite.</p>
+<p>Bandseite und Öffnungsrichtung wirken sich auf keine Rechnung aus. Sie gehen in keine Heizlast ein — aber sie gehen auf die Baustelle, und dort sind sie so hart wie eine Zahl: Ein Grundriss, in dem die Türen falsch herum aufschlagen, erzeugt Rückfragen, und eine falsch bestellte Zarge erzeugt einen Termin, der platzt. Bei Schiebetüren gibt es keinen Schwenkbogen, sondern ein Blatt vor der Wand und einen Pfeil in Fahrtrichtung. Bei zweiflügeligen Türen entstehen zwei gegenläufige Blätter halber Breite.</p>
 
 <p>Für die gängigen Maße gibt es einen Katalog. Die Türmaße folgen den Rohbaumaßen nach DIN 18100: 76 × 201, 88,5 × 201, 101 × 213,5 sowie zweiflügelig 176 × 213,5. Bei den Fenstern sind übliche Rastermaße hinterlegt, von der Festverglasung 126 × 138,5 über Dreh-Kipp 113,5 × 138,5 bis zum Bandfenster 350 × 113,5 mit drei Feldern. Die Durchgänge gibt es mit Sturz, raumhoch, als breiten Wanddurchbruch und als Rundbogen.</p>
 
@@ -103,6 +103,59 @@
 <!-- SYMBOLTAFEL:oeffnungen -->
 
 <div class="warnung"><b>Achtung</b><p>Eine Öffnung, die breiter ist als ihre Wand, ist ein Fehler und kein Rundungsproblem — die Modellprüfung meldet ihn und der Export ist gesperrt. Dasselbe gilt, wenn Brüstungshöhe plus Öffnungshöhe über die Wandhöhe hinausreichen, und wenn sich zwei Öffnungen in derselben Wand überlappen.</p></div>
+
+<h4 id="k4-3-3">4.3.3 Wohin die Tür aufgeht — und wie sie heißt</h4>
+
+<p class="lead">Seit 1.32.0 steht am Türanschlag nicht mehr, was ein Klick <i>tut</i>, sondern was gerade <i>gilt</i>.</p>
+
+<p>Bis 1.31.0 hieß der Schalter <b>Öffnungsrichtung spiegeln</b>. Das ist ein Verb ohne Zustand: Er sagt nicht, wohin die Tür vorher aufging und wohin danach. Auf dem Tablet, wo der Inspektor als Schublade über dem Plan liegt, sah man das Ergebnis beim Drücken nicht einmal — man drückte, schob die Schublade zu, schaute nach und schob sie wieder auf.</p>
+
+<p>Jetzt stehen dort zwei Knöpfe, und sie tragen die Namen der beiden Wandseiten:</p>
+
+<table class="tab">
+  <caption>Wie die beiden Seiten benannt werden</caption>
+  <thead><tr><th>Was auf der Seite liegt</th><th>Was auf dem Knopf steht</th></tr></thead>
+  <tbody>
+    <tr><td>Ein erkannter Raum</td><td>Der Raumname — „öffnet nach <b>Bad</b>“</td></tr>
+    <tr><td>Kein Raum, aber gegenüber ein Raum, und die Wand ist eine Außenwand</td><td>„öffnet nach <b>außen</b>“</td></tr>
+    <tr><td>Kein Raum, und es steht nichts weiter fest</td><td>Die Himmelsrichtung — „öffnet nach <b>Süden</b>“</td></tr>
+  </tbody>
+</table>
+
+<p>Welcher Raum auf welcher Seite liegt, wird nicht aus den Raumgrenzen abgelesen, sondern gemessen: Das Programm setzt einen Prüfpunkt <b>30 cm</b> neben die Wandoberfläche, jeweils in der Mitte der Öffnung, und fragt, in welchem Raumumriss dieser Punkt liegt. Das stimmt auch dann noch, wenn eine Wand an mehrere Räume grenzt.</p>
+
+<div class="merke">
+  <b>Merke</b>
+  <p>„Außen“ sagt das Programm nur, wenn es feststeht. Die naheliegende Regel — Außenwand, kein Raum, also außen — wäre an einer Außenwand für <b>beide</b> Seiten wahr, solange die Raumerkennung drinnen noch keinen Umriss geschlossen hat; sie hätte dann auch die Wohnzimmerseite „außen“ genannt. Steht der Raum noch nicht, nennt der Knopf deshalb die Himmelsrichtung. Die ist immer richtig.</p>
+</div>
+
+<h4 id="k4-3-4">4.3.4 DIN links oder DIN rechts</h4>
+
+<p>Unter den beiden Knöpfen steht ein Satz wie <code>DIN rechts, öffnet nach Wohnen</code>. Die erste Hälfte ist die Bezeichnung, mit der eine Tür bestellt wird, und sie ist <b>nicht</b> dasselbe wie die Bandseite im Inspektor.</p>
+
+<p>Bezeichnet wird nach DIN 107 <b>von der Öffnungsfläche aus</b>: Sie stellen sich auf die Seite, zu der die Tür aufgeht, und schauen auf sie. Liegen die Bänder dann links, ist es eine Tür DIN links. Die Merkregel des Handwerks lautet: <i>DIN ist da, wo die Bänder sichtbar sind.</i></p>
+
+<p>Daraus folgt: Die Bezeichnung hängt an <b>beidem</b> — an der Bandseite und an der Öffnungsrichtung. Dieselbe Bandseite ergibt einmal DIN links und einmal DIN rechts, je nachdem, wohin die Tür aufschlägt.</p>
+
+<table class="tab">
+  <caption>Alle vier Fälle</caption>
+  <thead><tr><th>Band sitzt</th><th>Tür öffnet</th><th>Bezeichnung</th></tr></thead>
+  <tbody>
+    <tr><td>am Ende der Öffnung (Band rechts)</td><td>zur einen Seite</td><td>DIN links</td></tr>
+    <tr><td>am Anfang der Öffnung (Band links)</td><td>zur selben Seite</td><td>DIN rechts</td></tr>
+    <tr><td>am Ende der Öffnung (Band rechts)</td><td>zur anderen Seite</td><td>DIN rechts</td></tr>
+    <tr><td>am Anfang der Öffnung (Band links)</td><td>zur anderen Seite</td><td>DIN links</td></tr>
+  </tbody>
+</table>
+
+<div class="baustelle">
+  <b>Auf der Baustelle heißt das</b>
+  <p>Beim Aufmaß einmal in der Tür stehen und schauen, zu welcher Seite das Blatt kommt. Diese Seite im Inspektor antippen — der Name des Raums steht drauf, Sie müssen sich nichts übersetzen. Die Zeile darunter sagt Ihnen dann, was Sie beim Händler nennen. Wer das im Kopf umrechnet, rechnet es irgendwann falsch.</p>
+</div>
+
+<p>Jede Änderung schreibt den Satz zusätzlich in die Statuszeile. Auf dem Tablet ist das der einzige Ort, an dem Sie das Ergebnis sehen, solange die Schublade den Plan verdeckt.</p>
+
+<div class="warnung"><b>Achtung</b><p>Fenster und Durchgänge haben keinen Anschlag — dort bleibt das Feld leer. Das ist kein Fehler: Ein Durchgang <i>ist</i> ein Loch, und ein Fenster schlägt in diesem Programm nicht auf.</p></div>
 
 <h3 id="k4-4">4.4 Raumerkennung: wie aus Wänden Räume werden</h3>
 

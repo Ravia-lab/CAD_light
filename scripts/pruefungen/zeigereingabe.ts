@@ -20,6 +20,11 @@
 import type { CheckFn } from './typ';
 import {
   EINGABE_VORGABE,
+  TIPP_DAUER_MS,
+  TIPP_WEG_PX,
+  TIPP_WERKZEUGE,
+  istTipp,
+  tippBedient,
   FANG_FAKTOR,
   STIFT_KARENZ_MS,
   TIPPZIEL,
@@ -221,5 +226,46 @@ export function pruefeZeigereingabe(check: CheckFn): void {
       feld,
     );
     check('Hineinzoomen endet an der Obergrenze', riesig.zoom, ZOOM_MAX, 1e-9);
+  }
+
+  // =========================================================================
+  // 6 · Tippen ist kein Schieben
+  // =========================================================================
+  {
+    /*
+     * Die Regel „ein Finger schiebt" war für das Zeichnen richtig und für
+     * alles andere zu grob: Sie traf auch das Auswählen und das Setzen.
+     * Gemessen am Tablet wählte ein Fingertipp keinen Raum aus und setzte
+     * keinen Heizkörper — auf einem Gerät ohne Stift war damit nach dem
+     * Einlesen eines Raumscans Schluss.
+     *
+     * Unterschieden wird am Abheben: kurz und ohne Weg ist ein Tipp.
+     */
+    check('Ein sauberer Tipp', istTipp(0, 80), true);
+    check('Ein Wackler bleibt ein Tipp', istTipp(TIPP_WEG_PX - 1, 120), true);
+    check('Genau an der Weggrenze noch ein Tipp', istTipp(TIPP_WEG_PX, 120), true);
+    check('Einen Pixel weiter ist es ein Schwenk', istTipp(TIPP_WEG_PX + 1, 120), false);
+    check('Genau an der Zeitgrenze noch ein Tipp', istTipp(2, TIPP_DAUER_MS), true);
+    check('Eine Millisekunde länger ist Liegenlassen', istTipp(2, TIPP_DAUER_MS + 1), false);
+    check('Beides überschritten ist erst recht kein Tipp', istTipp(40, 900), false);
+
+    /*
+     * Welche Werkzeuge ein Tipp bedienen darf: die, die mit **einem** Punkt
+     * fertig sind. Ein Wandzug braucht zwei und darf deshalb nicht auf einen
+     * versehentlichen Tipp hin anfangen — sonst steht ein halber Zug im Plan.
+     */
+    check('Auswählen darf tippen', tippBedient('select'), true);
+    check('TGA-Symbole setzen darf tippen', tippBedient('fixture'), true);
+    check('Tür setzen darf tippen', tippBedient('door'), true);
+    check('Fenster setzen darf tippen', tippBedient('window'), true);
+    check('Wärmepumpe setzen darf tippen', tippBedient('heatpump'), true);
+    check('Wand zeichnen nicht', tippBedient('wall'), false);
+    check('Raum aufziehen nicht', tippBedient('room'), false);
+    check('Leitung verlegen nicht', tippBedient('pipe'), false);
+    check('Freihandskizze nicht', tippBedient('sketch'), false);
+    check('Beschriften nicht', tippBedient('annotation'), false);
+    check('Kalibrieren nicht', tippBedient('calibrate'), false);
+    check('Und das Schiebewerkzeug schon gar nicht', tippBedient('pan'), false);
+    check('Zehn Werkzeuge bedient ein Tipp', TIPP_WERKZEUGE.length, 10);
   }
 }

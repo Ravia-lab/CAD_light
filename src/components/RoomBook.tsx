@@ -10,8 +10,8 @@
  * Excel in deutscher Einstellung die Datei ohne Import-Dialog.
  */
 
-import { useMemo, useState } from 'react';
-import type { RoomUsage } from '../types/bim';
+import { useEffect, useMemo, useState } from 'react';
+import type { Room, RoomUsage } from '../types/bim';
 import { useBimStore } from '../store/useBimStore';
 import { downloadJson } from '../lib/raviaExport';
 import { rohrmeterJeRaum } from '../lib/rohrImRaum';
@@ -37,10 +37,33 @@ export default function RoomBook() {
   const setActiveLevel = useBimStore((s) => s.setActiveLevel);
   const selection = useBimStore((s) => s.selection);
   const setStatus = useBimStore((s) => s.setStatus);
+  const updateRoom = useBimStore((s) => s.updateRoom);
+  const setzeRaumHeizleistung = useBimStore((s) => s.setzeRaumHeizleistung);
+  const uiMode = useBimStore((s) => s.uiMode);
 
   const [sort, setSort] = useState<SortKey>('level');
   const [desc, setDesc] = useState(false);
   const [allLevels, setAllLevels] = useState(true);
+  /*
+   * Ansehen oder Ausfüllen.
+   * -------------------------------------------------------------------------
+   * Das Raumbuch zeigte bisher genau die Angaben, die beim Aufmaß zu füllen
+   * sind — Name, Nutzung, Solltemperatur, Fläche, Heizleistung —, nahm aber
+   * keine davon an. Ein Klick wählte den Raum aus, eingetragen wurde im
+   * Reiter „Objekt": pro Raum rund zehn Berührungen, bei sieben Räumen
+   * siebzig. Und auf einem Tablet ohne Stift war der Weg über das
+   * Zeichenblatt bis 1.32.0 überhaupt keiner.
+   *
+   * Jetzt ist die Tabelle zugleich die Maske. Zwei Zustände statt eines
+   * dritten Reiters: Wer nur nachsieht, will die Übersicht in einer Zeile je
+   * Raum; wer ausfüllt, braucht Felder, die ein Finger trifft (44 px, siehe
+   * `index.css`) — und die passen nicht in dieselbe Zeile.
+   *
+   * Der Handwerkermodus fängt beim Ausfüllen an, weil genau das seine Arbeit
+   * ist. Die anderen beiden beim Ansehen: Ein Fachplaner öffnet das Raumbuch,
+   * um Lücken zu finden, nicht um sie hier zu schließen.
+   */
+  const [ausfuellen, setAusfuellen] = useState(uiMode === 'handwerker');
 
   /*
    * Die Rohrmeter je Raum.
@@ -204,6 +227,23 @@ export default function RoomBook() {
         </button>
       </div>
 
+      <div className="flex gap-1.5">
+        <button
+          className={`chip flex-1 ${!ausfuellen ? 'bg-accent/15 text-accent' : 'bg-white/[0.04] text-slate-500'}`}
+          onClick={() => setAusfuellen(false)}
+          title="Übersicht — eine Zeile je Raum"
+        >
+          Ansehen
+        </button>
+        <button
+          className={`chip flex-1 ${ausfuellen ? 'bg-accent/15 text-accent' : 'bg-white/[0.04] text-slate-500'}`}
+          onClick={() => setAusfuellen(true)}
+          title="Name, Nutzung und Heizleistung hier eintragen — ohne Umweg über den Plan"
+        >
+          Ausfüllen
+        </button>
+      </div>
+
       <div className="rounded-lg bg-graphite-900/60 px-1.5 py-1.5">
         <div className="grid grid-cols-[1fr_auto_auto] gap-x-2 border-b border-white/[0.06] pb-1.5">
           {header('name', 'Raum')}
@@ -220,6 +260,28 @@ export default function RoomBook() {
           )}
           {rows.map((r) => {
             const active = selection?.kind === 'room' && selection.id === r.room.id;
+            const waehlen = () => {
+              if (r.room.levelId !== doc.activeLevelId) setActiveLevel(r.room.levelId);
+              setSelection({ kind: 'room', id: r.room.id }, 'liste');
+            };
+            if (ausfuellen) {
+              return (
+                <Ausfuellzeile
+                  key={r.room.id}
+                  room={r.room}
+                  level={r.level}
+                  power={r.power}
+                  aktiv={active}
+                  waehlen={waehlen}
+                  umbenennen={(name) => updateRoom(r.room.id, { name })}
+                  nutzung={(usage) => updateRoom(r.room.id, { usage })}
+                  leistung={(watt) => {
+                    const ergebnis = setzeRaumHeizleistung(r.room.id, watt);
+                    if (ergebnis.message) setStatus(ergebnis.message);
+                  }}
+                />
+              );
+            }
             return (
               <button
                 key={r.room.id}
@@ -282,6 +344,111 @@ export default function RoomBook() {
       >
         Raumbuch als CSV exportieren
       </button>
+    </div>
+  );
+}
+
+/**
+ * Eine Zeile zum Ausfüllen: Name, Nutzung, Heizleistung.
+ *
+ * **Warum die Leistung erst beim Verlassen des Feldes gilt.** Wer „1400"
+ * tippt, hat nach dem ersten Anschlag eine 1 im Feld stehen. Würde jede
+ * Tastenbewegung durchgereicht, entstünde beim ersten Zeichen ein Heizkörper
+ * mit einem Watt, der dann dreimal geändert wird — drei Schritte in der
+ * Rückgängig-Kette für eine Eingabe. Deshalb hält die Zeile den Text
+ * solange selbst und meldet ihn beim Verlassen oder auf Eingabetaste.
+ *
+ * Das leere Feld ist ein eigener Fall und **nicht** dasselbe wie 0 W: Es
+ * heißt „nicht erfasst", und genau so steht es später in der Übergabe.
+ */
+function Ausfuellzeile({
+  room,
+  level,
+  power,
+  aktiv,
+  waehlen,
+  umbenennen,
+  nutzung,
+  leistung,
+}: {
+  room: Room;
+  level: string;
+  power: number;
+  aktiv: boolean;
+  waehlen: () => void;
+  umbenennen: (name: string) => void;
+  nutzung: (usage: RoomUsage) => void;
+  leistung: (watt: number | undefined) => void;
+}) {
+  const [watt, setWatt] = useState(power > 0 ? String(Math.round(power)) : '');
+  const [getippt, setGetippt] = useState(false);
+
+  // Von außen geänderte Leistung übernehmen — aber nicht, während jemand
+  // gerade in diesem Feld tippt.
+  useEffect(() => {
+    if (!getippt) setWatt(power > 0 ? String(Math.round(power)) : '');
+  }, [power, getippt]);
+
+  const uebernehmen = () => {
+    setGetippt(false);
+    const text = watt.trim().replace(',', '.');
+    if (text === '') {
+      leistung(undefined);
+      return;
+    }
+    const zahl = Number.parseFloat(text);
+    if (Number.isFinite(zahl) && zahl >= 0) leistung(zahl);
+  };
+
+  return (
+    <div
+      className={`space-y-1 rounded px-1.5 py-1.5 transition-colors ${aktiv ? 'bg-accent/12' : 'hover:bg-white/[0.03]'}`}
+      onFocusCapture={waehlen}
+    >
+      <div className="flex items-center gap-1.5">
+        <input
+          className="field min-w-0 flex-1 text-[11.5px]"
+          value={room.name}
+          onChange={(e) => umbenennen(e.target.value)}
+          aria-label={`Name des Raums ${room.name}`}
+        />
+        <span className="shrink-0 font-mono text-[10px] text-slate-500">{level}</span>
+      </div>
+      <div className="grid grid-cols-[1fr_auto_auto] items-center gap-1.5">
+        <select
+          className="field min-w-0 text-[11px]"
+          value={room.usage}
+          onChange={(e) => nutzung(e.target.value as RoomUsage)}
+          aria-label={`Nutzung von ${room.name}`}
+        >
+          {(Object.keys(USAGE_LABELS) as RoomUsage[]).map((u) => (
+            <option key={u} value={u} className="bg-graphite-850">
+              {USAGE_LABELS[u]}
+            </option>
+          ))}
+        </select>
+        <span className="shrink-0 font-mono text-[10.5px] text-slate-400">
+          {room.area.toFixed(2)} m²
+        </span>
+        <div className="flex shrink-0 items-center gap-1">
+          <input
+            className="field w-[4.5rem] text-right font-mono text-[11px]"
+            inputMode="numeric"
+            placeholder="—"
+            value={watt}
+            onChange={(e) => {
+              setGetippt(true);
+              setWatt(e.target.value);
+            }}
+            onBlur={uebernehmen}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
+            }}
+            aria-label={`Heizleistung von ${room.name} in Watt`}
+          />
+          <span className="font-mono text-[10px] text-slate-500">W</span>
+        </div>
+      </div>
     </div>
   );
 }

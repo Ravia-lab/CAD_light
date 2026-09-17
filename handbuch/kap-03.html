@@ -173,7 +173,8 @@ beziehungsweise nichts zu wiederholen gibt. Mehr dazu in
     <tr><td><b>Projekte</b> (Ordner)</td><td>Die Projektverwaltung: anlegen, umbenennen, duplizieren, als Datei sichern, aus Datei laden, löschen. Siehe <a href="#k1-9">Abschnitt 1.9</a>.</td></tr>
     <tr><td><b>Geschossleiste</b></td><td>Siehe <a href="#k3-5">Abschnitt 3.5</a>.</td></tr>
     <tr><td><b>Kontextleiste</b></td><td>Wechselt mit dem Werkzeug — siehe unten.</td></tr>
-    <tr><td><b>Ansichtsumschalter</b></td><td>2D · Split · 3D · Schema.</td></tr>
+    <tr><td><b>Modus</b></td><td>Handwerker · Einfach · Fachplaner. Seit 1.32.0 auch hier und nicht nur im Reiter <b>Start</b> — siehe <a href="#k3-8">Abschnitt 3.8</a>.</td></tr>
+    <tr><td><b>Ansichtsumschalter</b></td><td>2D · Split · 3D · Schema. Im Handwerkermodus ohne Schema.</td></tr>
     <tr><td><b>Öffnen</b></td><td>RaVia-Projektdatei (JSON) oder IFC4-Modell vom Architekten. Welche es ist, entscheidet der Inhalt, nicht die Dateiendung — eine umbenannte Datei funktioniert trotzdem. Beim IFC-Import wird gefragt, bevor ein vorhandenes Modell ersetzt wird.</td></tr>
     <tr><td><b>IFC</b></td><td>Modell als IFC4 exportieren, für Architektur-CAD und Fachplanung.</td></tr>
     <tr><td><b>Neubau / Sanierung</b> und <b>Rohrnetz auslegen</b></td><td>Der Rohrausleger. Die Wahl links bestimmt das Ergebnis vollständig und steht deshalb daneben und nicht in einem Untermenü.</td></tr>
@@ -183,6 +184,11 @@ beziehungsweise nichts zu wiederholen gibt. Mehr dazu in
     <tr><td><b>RaVia JSON</b></td><td>Der Export. Er dient zugleich als Projektdatei.</td></tr>
   </tbody>
 </table>
+
+<p>Im <b>Handwerkermodus</b> bleiben von dieser Liste vier Einträge stehen:
+die Ansichten, <b>Öffnen</b> — dort kommt der Raumscan herein —, <b>Drucken</b>
+und <b>RaVia&nbsp;JSON</b>. IFC, Rohrnetz, Rohrnetzbericht und Projektmappe
+sind ausgeblendet, nicht entfernt.</p>
 
 <h4 id="k3-4-1">3.4.1 Die Kontextleiste</h4>
 
@@ -296,28 +302,53 @@ Schema-Ansicht öffnet <b>Anlage</b>.</p>
   jetzt als nach dreißig weiteren Wänden.</p>
 </div>
 
-<h3 id="k3-8">3.8 Die zwei Bedienmodi</h3>
+<h3 id="k3-8">3.8 Die drei Bedienmodi</h3>
 
-<p>Ganz unten im Reiter <b>Start</b> steht der Umschalter <b>Einfach</b> /
-<b>Fachplaner</b>. Er merkt sich seine Stellung im Browser; ab Werk steht er auf
-<b>Einfach</b>.</p>
+<p>Ganz unten im Reiter <b>Start</b> — und seit 1.32.0 zusätzlich als
+Auswahlfeld links neben dem Ansichtsumschalter in der Kopfzeile — steht der
+Umschalter <b>Handwerker</b> / <b>Einfach</b> / <b>Fachplaner</b>. Er merkt
+sich seine Stellung im Browser. Welche Stellung ab Werk gilt, entscheidet die
+Frage beim allerersten Start (<a href="#k2">Kapitel 2</a>).</p>
+
+<p>Bis 1.31.0 gab es zwei Stufen. Das deckt zwei von drei Leuten ab, die
+dieses Programm benutzen, und ausgerechnet den dritten nicht: den Handwerker,
+der ein Haus aufnimmt, damit jemand anders die Heizlast rechnet. Er braucht
+keinen Bauteilkatalog, kein Anlagenschema und kein Rohrnetz. Er braucht
+Wände, Fenster, Räume, Heizkörper — und die Gewissheit, dass die Übergabe
+vollständig ist.</p>
 
 <table class="tab">
-  <caption>Was der Fachplaner-Modus zusätzlich zeigt</caption>
-  <thead><tr><th>Bereich</th><th>Nur im Fachplaner-Modus</th></tr></thead>
+  <caption>Was die drei Stufen zeigen</caption>
+  <thead><tr><th>Bereich</th><th>Handwerker</th><th>Einfach</th><th>Fachplaner</th></tr></thead>
   <tbody>
-    <tr><td>Werkzeuge</td><td>Auf den Plan schreiben, Schacht, Leitung verlegen, Maßstab kalibrieren</td></tr>
-    <tr><td>Reiter</td><td>Dach, Aufbauten, Wärmebrücken, Lüftung, Ebenen</td></tr>
+    <tr><td>Werkzeuge</td><td>Auswählen, Wand, Skizze, Raum, Tür, Fenster, Durchgang, TGA-Objekt, Treppe, massives Bauteil, Text &amp; Maßkette, Maßstab kalibrieren, Schieben — dreizehn</td><td>Zusätzlich Freihandnotiz</td><td>Alle, auch Schacht, Leitung verlegen</td></tr>
+    <tr><td>Reiter</td><td>Start, Objekt, TGA, Räume, Prüfung, Referenz, Ebenen — sieben</td><td>Zusätzlich Anlage, Schema, Bericht</td><td>Alle, auch Dach, Aufbauten, Wärmebrücken, Lüftung</td></tr>
+    <tr><td>Ansichten</td><td>2D, Split, 3D</td><td>Alle vier</td><td>Alle vier</td></tr>
+    <tr><td>Kopfzeile</td><td>Ansichten, Öffnen, Drucken, RaVia&nbsp;JSON</td><td>Alle</td><td>Alle</td></tr>
+    <tr><td>Schrittliste</td><td>Neun Schritte bis zur Übergabe</td><td>Alle</td><td>Alle</td></tr>
   </tbody>
 </table>
 
+<p><b>Warum auch die Kopfzeile gefiltert wird.</b> Bis 1.31.0 filterte der
+Modus Reiter und Werkzeuge — die Kopfzeile nicht. Auf dem Tablet standen
+deshalb in jedem der drei Modi dieselben Knöpfe oben, darunter Schema,
+Rohrnetz, Rohrnetzbericht und Projektmappe: Funktionen, deren Reiter derselbe
+Modus gerade ausgeblendet hatte. Ein Aufräummodus, der oben nichts aufräumt,
+ist kein Aufräummodus.</p>
+
+<p><b>Warum Stufen und keine Häkchen.</b> Eine frei einstellbare Oberfläche
+wäre die scheinbar freundlichere Lösung und in Wahrheit die schlechtere: Sie
+verlangt eine Entscheidung über jedes einzelne Werkzeug, bevor man weiß, was
+es tut. Drei Stufen sind eine Frage mit drei Antworten.</p>
+
 <div class="merke">
   <b>Merke</b>
-  <p>Der einfache Modus <b>löscht nichts</b>. Ein Dach, ein Bauteilkatalog oder
-  ein Rohrnetz, das im Fachplaner-Modus entstanden ist, bleibt vollständig
-  erhalten und wird weiter gerechnet — es wird nur nicht angezeigt. Steht der
-  gerade offene Reiter im einfachen Modus nicht zur Verfügung, landen Sie auf
-  <b>Start</b> statt vor einer leeren Fläche.</p>
+  <p>Ausgeblendet heißt <b>nie gelöscht</b>. Ein Dach, ein Bauteilkatalog, ein
+  Rohrnetz oder ein Anlagenschema, das im Fachplaner-Modus entstanden ist,
+  bleibt vollständig erhalten und wird weiter gerechnet — es steht nur nicht
+  im Weg. Der Wechsel zurück kostet einen Klick. Steht der gerade offene
+  Reiter im gewählten Modus nicht zur Verfügung, landen Sie auf <b>Start</b>
+  statt vor einer leeren Fläche.</p>
 </div>
 
 <h3 id="k3-9">3.9 Maus und Zeiger</h3>
@@ -360,6 +391,42 @@ und ist keiner offen, wird die Auswahl aufgehoben.</p>
 </ul>
 <p>Die Statuszeile meldet nach dem Rahmen, wie viele Objekte gefasst wurden —
 oder „Nichts im Rahmen".</p>
+
+<p><b>Auf dem Tablet: Tippen wählt und setzt.</b> Ab Werk gilt „der Stift
+zeichnet, der Finger schiebt" (<a href="#k3-9-2">Abschnitt 3.9.2</a>). Diese
+Regel ist für das Zeichnen richtig und war bis 1.31.0 für alles andere zu
+grob: Ein Fingertipp auf einen Raum wählte ihn nicht aus, ein Fingertipp mit
+dem TGA-Werkzeug setzte keinen Heizkörper. Wer eine Wohnung einscannt und
+danach die Räume benennen will, kam damit ohne Stift nicht weiter — obwohl am
+Scan-Weg kein einziger Strich vorkommt.</p>
+
+<p>Seit 1.32.0 wird deshalb am Abheben unterschieden: Wer <b>kurz</b> aufsetzt
+und dabei <b>nicht wandert</b>, meint die Stelle, auf die er zeigt. Wer zieht,
+meint das Bild.</p>
+
+<table class="tab">
+  <caption>Was als Tippen gilt</caption>
+  <thead><tr><th>Größe</th><th>Wert</th><th>Warum</th></tr></thead>
+  <tbody>
+    <tr><td>Weg zwischen Aufsetzen und Abheben</td><td>höchstens <b>12 px</b></td><td>Großzügig für einen Tipp und klein gegen den Fangradius, mit dem derselbe Finger ohnehin greift (12 × 2,5 = 30 px).</td></tr>
+    <tr><td>Dauer</td><td>höchstens <b>400 ms</b></td><td>Ein bewusster Tipp dauert 60 bis 150 ms. Vierhundert lassen auch dem Zeit, der mit Handschuh und kalten Fingern arbeitet.</td></tr>
+  </tbody>
+</table>
+
+<p>Bedient werden davon nur Werkzeuge, die mit <b>einem</b> Punkt fertig sind:
+Auswählen, TGA-Objekt, Tür, Fenster, Durchgang, Durchbruch, Treppe, Schacht,
+massives Bauteil, Wärmepumpe. Nicht dabei sind Wand, Raum, Rohr, Maßkette und
+Kalibrieren — sie brauchen mindestens zwei Punkte, und ein Wandzug, der auf
+einen versehentlichen Fingertipp hin anfinge, stünde als halber Zug im
+Plan.</p>
+
+<div class="baustelle">
+  <b>Auf der Baustelle heißt das</b>
+  <p>Nach dem Raumscan können Sie das Tablet ohne Stift in die Hand nehmen:
+  Raum antippen, Namen eintragen, Heizkörper antippen. Zum Zeichnen brauchen
+  Sie weiter den Stift — oder Sie stellen unter <b>Eingabe</b> auf „Finger
+  darf zeichnen“ um.</p>
+</div></p>
 
 <h4 id="k3-9-4">3.9.4 Gruppenoperationen</h4>
 <p>Auf einer Mehrfachauswahl wirken:</p>

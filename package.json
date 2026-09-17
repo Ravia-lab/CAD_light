@@ -1,7 +1,7 @@
 {
   "name": "ravia-cad-light",
   "private": true,
-  "version": "1.31.0",
+  "version": "1.32.0",
   "type": "module",
   "description": "RaVia CAD Light – ultraleichter 2D-Grundriss-Editor mit 3D-Realtime-View, Anlagenauslegung und BIM/TGA-Export",
   "scripts": {
@@ -24,6 +24,7 @@
     "smoke:embed": "node scripts/smoke-embed.mjs",
     "smoke:scan": "node scripts/smoke-raumscan.mjs",
     "smoke:ux": "node scripts/smoke-bedienung.mjs",
+    "smoke:handwerker": "node scripts/smoke-handwerker.mjs",
     "smoke:tablet": "node scripts/smoke-tablet.mjs",
     "smoke:wp": "node scripts/smoke-waermepumpe.mjs",
     "smoke:raum": "node scripts/smoke-raum.mjs",

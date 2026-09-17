@@ -111,6 +111,42 @@ export const HANDWERKER_REITER: readonly string[] = [
   'layers',
 ];
 
+/**
+ * Die Knöpfe der Kopfleiste, die der Handwerkermodus zeigt.
+ *
+ * **Warum es diese Liste überhaupt gibt.** Bis 1.31.0 filterte der Modus
+ * Reiter und Werkzeuge — die Kopfleiste nicht. Gemessen am Tablet standen
+ * deshalb in jedem der drei Modi dieselben 24 Knöpfe oben, darunter Schema,
+ * Rohrnetz, Rohrnetzbericht und Projektmappe: Funktionen, deren Reiter
+ * derselbe Modus gerade ausgeblendet hatte. Ein Aufräummodus, der oben nichts
+ * aufräumt, ist kein Aufräummodus, sondern ein Versprechen, das die nächste
+ * Zeile bricht.
+ *
+ * Es bleibt, was zum Aufmaß gehört: die Ansichten (ohne Anlagenschema), das
+ * Öffnen einer Datei — dort kommt der Raumscan herein —, der maßstäbliche
+ * Druck und die Übergabe an RaVia. Der Rest ist nicht weg, er ist einen
+ * Moduswechsel entfernt.
+ */
+export const HANDWERKER_KOPF: readonly string[] = ['ansicht', 'oeffnen', 'drucken', 'export'];
+
+/** Zeigt dieser Modus einen Knopf der Kopfleiste? */
+export function zeigtKopfknopf(modus: UiModus, id: string): boolean {
+  if (modus !== 'handwerker') return true;
+  return HANDWERKER_KOPF.includes(id);
+}
+
+/**
+ * Zeigt dieser Modus diese Ansicht?
+ *
+ * Nur das Anlagenschema fällt weg: Es zeigt eine Anlage, die im
+ * Handwerkermodus nicht ausgelegt wird. 2D, geteilt und 3D bleiben — gerade
+ * die 3D-Ansicht ist beim Aufmaß die schnellste Probe, ob eine Wand fehlt.
+ */
+export function zeigtAnsicht(modus: UiModus, id: string): boolean {
+  if (modus !== 'handwerker') return true;
+  return id !== 'schema';
+}
+
 /** Zeigt dieser Modus ein Werkzeug mit dieser Kennung? */
 export function zeigtWerkzeug(modus: UiModus, id: string, einfach: boolean): boolean {
   if (modus === 'profi') return true;

@@ -62,12 +62,15 @@
 import type { CheckFn } from './typ';
 import type { UiModus } from '../../src/lib/uimodus';
 import {
+  HANDWERKER_KOPF,
   HANDWERKER_REITER,
   HANDWERKER_WERKZEUGE,
   UEBERGABE_SCHRITTE,
   UI_MODUS_AUSKUNFT,
   UI_MODUS_LABELS,
   UI_STUFE,
+  zeigtAnsicht,
+  zeigtKopfknopf,
   zeigtReiter,
   zeigtWerkzeug,
 } from '../../src/lib/uimodus';
@@ -414,4 +417,51 @@ export function pruefeUiModus(check: CheckFn): void {
     fremde.filter((t) => schritte.has(t)).join(', ') || 'keiner',
     'keiner',
   );
+
+  // =========================================================================
+  // Die Kopfleiste — der Teil, der bis 1.31.0 in jedem Modus gleich blieb
+  // =========================================================================
+  /*
+   * Gemessen am Tablet standen in allen drei Modi dieselben 24 Knöpfe oben,
+   * darunter Schema, Rohrnetz, Rohrnetzbericht und Projektmappe: Funktionen,
+   * deren Reiter derselbe Modus gerade ausgeblendet hatte. Der Modus filterte
+   * Reiter und Werkzeuge — die Kopfleiste nicht.
+   *
+   * Die Kennungen unten stehen von Hand (Begründung siehe Dateikopf): die
+   * Kopfleiste selbst liegt in `src/components/Toolbar.tsx`, aus dem ein
+   * Prüfblock nicht importieren darf.
+   */
+  {
+    check('Was der Handwerker oben behält, sind vier Dinge', HANDWERKER_KOPF.length, 4);
+    for (const id of ['ansicht', 'oeffnen', 'drucken', 'export']) {
+      check(`„${id}" bleibt im Handwerkermodus`, zeigtKopfknopf('handwerker', id), true);
+    }
+    for (const id of ['ifc', 'rohrnetz', 'bericht', 'mappe']) {
+      check(`„${id}" fällt im Handwerkermodus weg`, zeigtKopfknopf('handwerker', id), false);
+    }
+    for (const modus of ['einfach', 'profi'] as UiModus[]) {
+      check(`${UI_MODUS_LABELS[modus]} behält die ganze Kopfleiste`, zeigtKopfknopf(modus, 'mappe'), true);
+    }
+
+    /*
+     * Die Ansichten sind ein eigener Fall: 2D, geteilt und 3D gehören zum
+     * Aufmaß — gerade die 3D-Ansicht ist die schnellste Probe, ob eine Wand
+     * fehlt. Das Anlagenschema zeigt eine Anlage, die in diesem Modus nicht
+     * ausgelegt wird.
+     */
+    for (const id of ['2d', 'split', '3d']) {
+      check(`Ansicht „${id}" bleibt`, zeigtAnsicht('handwerker', id), true);
+    }
+    check('Das Anlagenschema fällt weg', zeigtAnsicht('handwerker', 'schema'), false);
+    check('Im einfachen Modus bleibt es', zeigtAnsicht('einfach', 'schema'), true);
+
+    /*
+     * Die Gegenprobe zur Zusage des Fachplanermodus: Er blendet nichts aus —
+     * auch oben nicht. Ohne diese Zeile könnte ein späterer Filter die Stufe
+     * „alles sichtbar" still aushöhlen.
+     */
+    for (const id of ['ansicht', 'ifc', 'rohrnetz', 'bericht', 'mappe', 'oeffnen', 'drucken', 'export']) {
+      check(`Fachplaner behält „${id}"`, zeigtKopfknopf('profi', id), true);
+    }
+  }
 }

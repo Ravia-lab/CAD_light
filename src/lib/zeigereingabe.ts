@@ -31,7 +31,7 @@
  * sie umstellen — dann greift die Karenzregel unten.
  */
 
-import type { Vec2 } from '../types/bim';
+import type { ToolId, Vec2 } from '../types/bim';
 
 // ---------------------------------------------------------------------------
 // Eingabeart
@@ -169,6 +169,83 @@ export function absicht(
   if (lage.finger === 1) return 'geste';
 
   return einstellung.fingerZeichnet ? 'zeichnen' : 'schieben';
+}
+
+// ---------------------------------------------------------------------------
+// Tippen — die Ausnahme vom Schieben
+// ---------------------------------------------------------------------------
+
+/**
+ * **Ein Tippen ist kein Zeichnen.**
+ *
+ * Die Vorgabe „der Finger schiebt" ist für das Zeichnen richtig und für alles
+ * andere zu grob. Sie trifft nämlich nicht nur den Strich, sondern auch das
+ * **Auswählen** und das **Setzen** — zwei Handlungen, die mit Zeichnen nichts
+ * zu tun haben. Gemessen am Tablet: ein Fingertipp auf einen Raum wählte ihn
+ * nicht aus, ein Fingertipp mit dem TGA-Werkzeug setzte keinen Heizkörper.
+ * Wer eine Wohnung einscannt und danach die Räume benennen will, kommt damit
+ * ohne Stift nicht weiter — obwohl am Scan-Weg sonst kein Strich vorkommt.
+ *
+ * Die Unterscheidung braucht keine neue Geste, nur einen Blick auf das, was
+ * der Finger getan hat: Wer **kurz** aufsetzt und dabei **nicht wandert**,
+ * meint die Stelle, auf die er zeigt. Wer zieht, meint das Bild. Beides ist
+ * am Abheben eindeutig zu unterscheiden — vorher nicht, und deshalb fällt die
+ * Entscheidung dort und nicht beim Aufsetzen.
+ */
+
+/**
+ * Wie weit der Finger zwischen Aufsetzen und Abheben wandern darf [CSS-Pixel].
+ *
+ * Zwölf Pixel sind großzügig für einen Tipp und klein gegen den Fangradius,
+ * mit dem derselbe Finger ohnehin greift (12 px × 2,5 = 30 px, siehe
+ * `FANG_FAKTOR`). Wer mehr wandert, wollte schieben; die zwölf Pixel Schwenk,
+ * die dabei schon stattgefunden haben, sieht niemand.
+ */
+export const TIPP_WEG_PX = 12;
+
+/**
+ * Wie lange er dabei aufliegen darf [ms].
+ *
+ * Ein bewusster Tipp dauert 60 bis 150 ms. Vierhundert lassen auch dem Zeit,
+ * der mit Handschuh und kalten Fingern arbeitet, und sind kurz genug, dass
+ * ein Liegenlassen nicht mehr als Tipp durchgeht.
+ */
+export const TIPP_DAUER_MS = 400;
+
+/** War das ein Tippen? `weg` in CSS-Pixeln, `dauer` in Millisekunden. */
+export function istTipp(weg: number, dauer: number): boolean {
+  return weg <= TIPP_WEG_PX && dauer <= TIPP_DAUER_MS;
+}
+
+/**
+ * Welche Werkzeuge ein Tippen bedienen darf.
+ *
+ * Die Trennlinie ist nicht „gefährlich/ungefährlich", sondern **ein Klick
+ * oder mehrere**: Auswählen und Setzen sind mit einem Punkt fertig, Zeichnen
+ * braucht mindestens zwei. Ein Wandzug, der auf einen Fingertipp hin
+ * anfinge, stünde nach dem ersten versehentlichen Antippen als halber Zug im
+ * Plan — und genau davor schützt die Vorgabe.
+ *
+ * Nicht dabei sind deshalb: `wall`, `room`, `pipe`, `site`, `dimension`,
+ * `calibrate` (mehrere Punkte), `sketch`, `ink` (Strich), `annotation`
+ * (öffnet ein Eingabefeld samt Tastatur) und `pan` (schiebt ohnehin).
+ */
+export const TIPP_WERKZEUGE: readonly ToolId[] = [
+  'select',
+  'fixture',
+  'door',
+  'window',
+  'passage',
+  'durchbruch',
+  'stair',
+  'shaft',
+  'solid',
+  'heatpump',
+];
+
+/** Darf ein Fingertipp dieses Werkzeug auslösen? */
+export function tippBedient(werkzeug: ToolId): boolean {
+  return TIPP_WERKZEUGE.includes(werkzeug);
 }
 
 /**
