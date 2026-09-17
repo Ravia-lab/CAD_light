@@ -129,23 +129,33 @@
 
 <p>Am Ende steht ein Bericht: wie viele Verbraucher versorgt sind, wie viele Meter Trasse, wie viele Meter Rohr (Vor- und Rücklauf zusammen) und wie viele Armaturen gesetzt wurden — dazu jede Warnung im Klartext.</p>
 
-<h4 id="k9-4-fbh">Fußbodenheizung: wann ein Heizkreis Verbraucher der Trasse ist</h4>
+<h4 id="k9-4-fbh">Zwei Stufen: der Stamm zum Verteiler, die Kreise dahinter</h4>
 
-<p>Ein Fußbodenheizkreis hängt <b>nie</b> am Erzeuger, sondern immer am Verteiler: die Anbindeleitung führt vom Verteiler in den Raum, und was davor liegt, ist der Stamm. Daraus folgt eine Fallunterscheidung, die man kennen muss, weil sie bestimmt, was die Auslegung zeichnet.</p>
+<p>Ein Heizungsnetz ist <b>zweistufig</b>. Der Stamm läuft vom Erzeuger oder vom Speicher zum Verteiler; erst vom Verteiler gehen die Anbindeleitungen in die einzelnen Räume. Ein Fußbodenheizkreis hängt <b>nie</b> am Erzeuger, sondern immer an einem Verteiler.</p>
+
+<p>Statt einer festen Stufenmaschine bekommt deshalb jeder Verbraucher seine eigene Quelle, und wie viele Trassierungsläufe daraus werden, ergibt sich von selbst:</p>
 
 <table class="tab">
-<caption>Was auf diesem Geschoss steht — und was daraus wird</caption>
-<thead><tr><th>Auf dem Geschoss</th><th>Quelle</th><th>Verbraucher der Trasse</th></tr></thead>
+<caption>Woran ein Verbraucher hängt</caption>
+<thead><tr><th>Verbraucher</th><th>Seine Quelle</th></tr></thead>
 <tbody>
-<tr><td>Erzeuger oder Speicher, dazu ein Verteiler</td><td>Erzeuger, sonst Speicher</td><td>Der Verteiler. Die Kreise dahinter gehören in die zweite Stufe, die dieses Programm nicht trassiert — siehe unten.</td></tr>
-<tr><td>Nur ein Verteiler und Flächenheizkreise</td><td>Der Verteiler</td><td>Die Flächenheizkreise. Das ist der Regelfall im Neubau.</td></tr>
-<tr><td>Flächenheizkreise ohne Verteiler</td><td>—</td><td>Nichts. Die Meldung nennt den Verteiler als den Weg hinaus, denn eine Fußbodenheizung ohne Verteiler gibt es nicht.</td></tr>
+<tr><td>Flächenheizkreis</td><td>Sein Verteiler — der zugeordnete, sonst der nächstgelegene.</td></tr>
+<tr><td>Heizkörper, Röhrenradiator, Unterflurkonvektor</td><td>Erzeuger oder Speicher. Gibt es beides auf dem Geschoss nicht, der nächste Verteiler.</td></tr>
+<tr><td>Heizkreisverteiler</td><td>Erzeuger oder Speicher. Gibt es beides nicht, ist er selbst Quelle und braucht keine.</td></tr>
 </tbody>
 </table>
 
-<div class="merke"><b>Merke</b><p>Die Kreise <i>immer</i> anzubinden wäre nicht unvollständig, sondern falsch: die Trasse liefe am Verteiler vorbei. Deshalb die Unterscheidung.</p></div>
+<p>Bei einem reinen Heizkörperhaus bleibt es damit bei genau einem Lauf — dieselbe Rechnung wie immer. Bei Fußbodenheizung entstehen zwei Ebenen, und der Bericht weist beide aus.</p>
 
-<div class="warnung"><b>Offener Punkt</b><p>Steht ein Speicher vor dem Verteiler, endet die Trasse am Verteiler. Die Anbindeleitungen vom Verteiler in die einzelnen Räume zeichnet dann niemand — weder das Programm noch die Prüfung ersetzt das. Wer sie braucht, zieht sie von Hand. Eine zweistufige Trassierung, die Stamm und Kreise in einem Lauf legt, gibt es bis heute nicht.</p></div>
+<div class="merke"><b>Merke</b><p>Der Stamm trägt, was die Kreise dahinter zusammen ziehen. Ein Verteiler hat keine eigene Leistungsangabe; solange die Zuordnung unbekannt war, behalf sich die Rechnung mit den Raumheizlasten des ganzen Geschosses — und bemaß den Stamm damit auf einer anderen Grundlage als die Kreise, die er speist. Jetzt steht die Zuordnung fest, bevor gerechnet wird.</p></div>
+
+<h4 id="k9-4-verteilerwahl">Welcher Verteiler, wenn es mehrere gibt</h4>
+
+<p>Bei einem Verteiler je Geschoss ist die Frage beantwortet, bevor sie gestellt wird. Bei zweien nicht. Am Objekt lässt sich der Verteiler deshalb <b>ausdrücklich setzen</b>; ohne Angabe nimmt die Auslegung den <b>nächstgelegenen</b> und sagt, dass sie das getan hat.</p>
+
+<p>Das ist dieselbe Annahme, die auch der hydraulische Abgleich am gezeichneten Netz trifft: dort bekommt jeder Verbraucher die Quelle, zu der der Weg am kürzesten ist (<a href="#k9-7-3">Abschnitt 9.7.3</a>). Sie ist trotzdem eine Annahme — und eine, die bei zwei nah beieinanderliegenden Verteilern danebengehen kann.</p>
+
+<div class="merke"><b>Merke</b><p>Zwei Verteiler werden <b>nicht in Reihe</b> gehängt. Fehlt der Erzeuger auf dem Geschoss, kommt die Zuleitung von außerhalb — aus einem Steigstrang oder einem anderen Geschoss —, und dann versorgt jeder Verteiler seine Kreise für sich. Ein Verteiler, an dem am Ende kein Kreis hängt, wird genannt: dort entsteht keine Leitung, und wer ihn im Plan sieht, wartet sonst vergeblich darauf.</p></div>
 
 <h4 id="k9-4-3">9.4.3 Wie die Trasse gefunden wird</h4>
 

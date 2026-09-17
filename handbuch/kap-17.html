@@ -386,11 +386,15 @@
 
 <h4 id="k17-2-3">17.2.3 Warum die Datei bei einem Prüfer durchgeht</h4>
 
-<p>Eine selbstgebaute IFC-Datei scheitert erfahrungsgemäß an zwei Kleinigkeiten, und beide sind hier bewusst behandelt.</p>
+<p>Eine selbstgebaute IFC-Datei scheitert erfahrungsgemäß an drei Kleinigkeiten, und alle drei sind hier bewusst behandelt.</p>
 
 <p><b>Erstens die Zahlen.</b> In ISO 10303-21 ist <code>1</code> eine ganze Zahl und an einer Stelle, die eine Dezimalzahl erwartet, schlicht ungültig; geschrieben werden muss <code>1.</code> mit Punkt. Die meisten Betrachter verzeihen das stillschweigend, und erst der Prüfer meldet es. In Fassung 0.4.0 hat genau das 250 Schemaverstöße auf einen Schlag ausgelöst.</p>
 
 <p><b>Zweitens die Kennungen.</b> Jedes IFC-Objekt trägt eine 22 Zeichen lange Kennung. Deren erstes Zeichen trägt nur zwei Bit, die übrigen je sechs — ein Zufallszeichen an der ersten Stelle macht die Datei für jeden Prüfer ungültig. Auch dieser Fehler steckte in 0.4.0 und ist behoben.</p>
+
+<p><b>Drittens die Sonderzeichen.</b> ISO 10303-21 lässt in einer Zeichenkette nur druckbares ASCII zu. Ein „ü" ist dort nicht vorgesehen; es wird umschrieben. Bis Fassung 1.30.0 ging der Umlaut roh als UTF-8 hinaus — die meisten Betrachter kommen damit zurecht, ein strenger Prüfer weist die Datei ab, und ein Leser mit anderer Zeichensatzannahme macht „KÃ¼che" daraus. Geschrieben wird jetzt <code>K\X2\00FC\X0\che</code>, dieselbe Form, die auch ArchiCAD benutzt und die der Import dieses Programms liest. Das gilt auch für den <b>Dateikopf</b>: an einem Projekt namens „Küche" stand der Umlaut vorher in der zweiten Zeile der Datei, noch vor allem anderen.</p>
+
+<div class="merke"><b>Merke</b><p>Die Reihenfolge ist zwingend: erst der Apostroph (er wird verdoppelt), dann der Rückwärtsstrich (auch), <i>dann</i> die Umschrift. Wer zuletzt die Rückwärtsstriche verdoppelt, zerstört die eben geschriebene Umschrift — aus <code>\X2\</code> würde <code>\\X2\\</code>, und der Leser fände einen literalen Text statt eines Umlauts. Aufeinanderfolgende Sonderzeichen kommen in <i>eine</i> Folge: „Grüße" wird zu <code>Gr\X2\00FC00DF\X0\e</code>.</p></div>
 
 <p>Die Kennungen entstehen aus dem Namen des Objekts und sind deshalb <b>wiederholbar</b>: derselbe Export liefert dieselben Kennungen. Die Gegenstelle erkennt beim erneuten Einlesen dieselben Objekte wieder, statt Dubletten anzulegen.</p>
 
