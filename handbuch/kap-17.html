@@ -425,9 +425,9 @@
 </tbody>
 </table>
 
-<h4 id="k17-3-1a">Die vier Schreibweisen, an denen ein Import scheitert</h4>
+<h4 id="k17-3-1a">Die sechs Schreibweisen, an denen ein Import scheitert</h4>
 
-<p>Eine IFC-Datei aus einem Architekturprogramm sieht anders aus als eine, die dieses Programm selbst geschrieben hat. Vier Unterschiede sind so verbreitet und so folgenreich, dass sie hier einzeln stehen — jeder von ihnen hat den Import einmal stillschweigend falsch machen lassen.</p>
+<p>Eine IFC-Datei aus einem Architekturprogramm sieht anders aus als eine, die dieses Programm selbst geschrieben hat. Sechs Unterschiede sind so verbreitet und so folgenreich, dass sie hier einzeln stehen — jeder von ihnen hat den Import einmal stillschweigend falsch machen lassen. Gefunden wurden sie an einem Korpus von 19 offenen Beispieldateien aus ArchiCAD, Allplan, Revit, Vectorworks, Nemetschek, EliteCAD, ADT und Renga; wer selbst nachsehen will, ruft <code>npm run korpus:ifc -- &lt;ordner&gt; --holen</code> auf.</p>
 
 <p><b>Erstens: beschnittene Körper.</b> Eine Wand, die unter eine Dachschräge läuft, steht nicht als einfache Extrusion in der Datei. Der Architekt zieht sie als Quader hoch und schneidet die Schräge ab; geschrieben wird das als <code>IfcBooleanClippingResult</code>, oft zweifach geschachtelt, und die Darstellung heißt dann <code>Clipping</code> statt <code>SweptSolid</code>. Wer nur nach der Extrusion sucht, verliert genau die Wände, die unter dem Dach stehen — also regelmäßig das gesamte Obergeschoss. Der Import steigt jetzt durch die Verknüpfung hindurch. Was dabei verloren geht, ist die Beschneidung selbst: die Wandhöhe ist die des ungeschnittenen Quaders. Das wird gemeldet und ist hinnehmbar, weil die Wandhöhe unter dem Dach ohnehin selbst gerechnet wird — und weil man eine zu hohe Wand im Grundriss sieht, eine fehlende nicht.</p>
 
@@ -440,6 +440,31 @@
 <p>Der Leser ist ein eigener, zeichenweiser STEP-Leser. Er kommt mit Objekten zurecht, die über mehrere Zeilen gehen, und mit Apostrophen und Semikolons innerhalb von Texten — genau daran scheitern einfache zeilenweise Leser. Beide in IFC4 gebräuchlichen Schreibweisen des Umrisses werden gelesen. Geprüft wurde gegen Fremddateien, nicht nur gegen den eigenen Export: in Fassung 0.5.0 fand der Import in Fremddateien überhaupt keine Wand, weil dort die zweite Schreibweise verwendet wurde.</p>
 
 <p>Wandenden, die weniger als 2 cm auseinanderliegen, werden zu einem Knoten zusammengeführt. IFC-Dateien aus verschiedenen Programmen treffen sich selten exakt.</p>
+
+<h4 id="k17-3-1b">Fünftens und sechstens: der Maßstab und der Raumkörper</h4>
+
+<p><b>Fünftens: die Datei sagt selbst, in welcher Einheit sie rechnet.</b> IFC schreibt Längen nicht zwingend in Metern. Welche Einheit gilt, steht im <code>IfcUnitAssignment</code> des Projekts, und die Mehrheit der geprüften Dateien schreibt <b>Millimeter</b> — Revit, Allplan, Vectorworks, Nemetschek und Renga; eine brasilianische Datei sogar Zentimeter. Bis Fassung 1.32.0 las dieses Programm jede Zahl als Meter.</p>
+
+<div class="warnung"><b>Achtung</b><p>Das war der folgenschwerste Importfehler, den dieses Programm je hatte, und er sah nicht nach einem Fehler aus. Dasselbe FZK-Haus des KIT kam aus ArchiCAD mit 0,24 m Wandstärke an und aus Nemetschek mit <b>240</b> — Faktor tausend, ohne Meldung. Der Grundriss war dann 25 Kilometer breit. Eine Wand von 240 m Dicke fällt jedem auf; eine Fensterfläche, die um den Faktor eine Million danebenliegt, steht als Zahl in der Übergabedatei und wird nie wieder angesehen.</p></div>
+
+<p>Gelesen wird die Kette <code>IfcProject.UnitsInContext</code> → <code>IfcUnitAssignment</code> → <code>IfcSIUnit</code>. Der Umweg ist nötig: Revit-Dateien enthalten <b>zwei</b> Längeneinheiten, und nur eine davon ist die des Projekts. Wer die erste nimmt, die ihm im Text begegnet, hat in der Hälfte der Fälle recht. Zoll und Fuß werden über <code>IfcConversionBasedUnit</code> aufgelöst; fehlt jede Angabe, bleibt es bei Metern — so steht es in der Norm.</p>
+
+<p><b>Sechstens: ein Raum wird von jedem Programm anders geschrieben.</b> <code>IfcSpace</code> ist die einzige Stelle in der Datei, an der steht, wie ein Raum heißt, und daran hängt die Solltemperatur: Bad 24 °C, Flur 15 °C. Der Körper dahinter kommt in vier Formen vor.</p>
+
+<table class="tab">
+  <caption>Woran der Raumumriss hängt</caption>
+  <thead><tr><th>Programm</th><th>Schreibweise</th><th>bis 1.32.0</th></tr></thead>
+  <tbody>
+    <tr><td>ArchiCAD</td><td>Fußabdruckkurve, <code>IfcFacetedBrep</code></td><td>gelesen</td></tr>
+    <tr><td>Allplan</td><td><code>IfcRectangleProfileDef</code></td><td><b>verloren</b></td></tr>
+    <tr><td>Revit</td><td><code>IfcArbitraryProfileDefWithVoids</code></td><td><b>verloren</b></td></tr>
+    <tr><td>diverse</td><td><code>IfcArbitraryClosedProfileDef</code></td><td>gelesen</td></tr>
+  </tbody>
+</table>
+
+<p>Gemessen am Institutsgebäude des KIT: Aus der ArchiCAD-Fassung kamen alle 82 Raumnamen an, aus der Allplan-Fassung desselben Gebäudes <b>keiner</b>. Am Revit-Musterprojekt fehlten 96 von 116. Seit 1.33.0 werden alle vier Formen gelesen; über den ganzen Korpus stieg die Zahl der übernommenen Raumnamen von 253 auf 485.</p>
+
+<div class="baustelle"><b>Auf der Baustelle heißt das</b><p>Nach jedem IFC-Import einmal ins Raumbuch schauen. Stehen dort richtige Namen — „Bad", „Flur", „Schlafen" —, hat das Programm die Nutzung und damit die Solltemperatur übernommen. Stehen dort „Raum 1" bis „Raum 12", müssen Sie einstufen, und die Schrittliste sagt es Ihnen auch.</p></div>
 
 <h4 id="k17-3-2">17.3.2 Was dabei verlorengeht</h4>
 

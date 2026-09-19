@@ -335,6 +335,104 @@ interface Placement {
 const ORIGIN: Placement = { x: 0, y: 0, z: 0, angle: 0 };
 
 /** Löst ein IfcLocalPlacement rekursiv bis zum Weltkoordinatensystem auf. */
+/**
+ * Wie viele Meter ein Längenwert in dieser Datei bedeutet.
+ * ---------------------------------------------------------------------------
+ * **Der Fehler, den es hier nicht mehr geben darf.** Bis 1.32.0 rechnete
+ * dieser Import jede Zahl als Meter. Das ging gut, solange die Prüfdateien
+ * aus ArchiCAD kamen — die schreiben `IFCSIUNIT(*,.LENGTHUNIT.,$,.METRE.)`.
+ * Gemessen an einem Korpus von 19 fremden Dateien schreibt aber **die
+ * Mehrheit Millimeter**, darunter Revit, Allplan, Vectorworks, Nemetschek
+ * und Renga, und eine brasilianische Datei sogar Zentimeter.
+ *
+ * Die Folge war nicht etwa eine Fehlermeldung, sondern ein Haus mit 300 m
+ * dicken Wänden und einem Grundriss von 25 Kilometern Breite. Dasselbe
+ * FZK-Haus kam aus ArchiCAD mit 0,24 m Wandstärke an und aus Nemetschek mit
+ * 240 — Faktor tausend, ohne ein Wort.
+ *
+ * Für ein Erfassungswerkzeug, dessen Ausgabe in eine Heizlastrechnung geht,
+ * ist das der schlimmste denkbare Fehler: Er sieht nach Daten aus.
+ *
+ * **Warum der Weg über `IfcProject` führt und nicht über die erste
+ * `IFCSIUNIT`.** In den Dateien von Revit und in der brasilianischen stehen
+ * **zwei** Längeneinheiten: die des Projekts und eine zweite, die zu einem
+ * anderen Kontext gehört. Wer die erste nimmt, die der Textsuche begegnet,
+ * hat in der Hälfte der Fälle recht — das ist keine Regel, das ist ein
+ * Münzwurf. Gelesen wird deshalb die Kette
+ * `IfcProject.UnitsInContext → IfcUnitAssignment.Units → IfcSIUnit`.
+ *
+ * `IfcConversionBasedUnit` (Zoll, Fuß) wird über seinen
+ * `IfcMeasureWithUnit`-Faktor aufgelöst; findet sich gar nichts, bleibt es
+ * bei Metern — das ist die Voreinstellung der Norm.
+ */
+const SI_VORSATZ: Record<string, number> = {
+  EXA: 1e18, PETA: 1e15, TERA: 1e12, GIGA: 1e9, MEGA: 1e6, KILO: 1e3,
+  HECTO: 1e2, DECA: 1e1, DECI: 1e-1, CENTI: 1e-2, MILLI: 1e-3,
+  MICRO: 1e-6, NANO: 1e-9, PICO: 1e-12, FEMTO: 1e-15, ATTO: 1e-18,
+};
+
+/**
+ * Eine STEP-Aufzählung als blanker Name.
+ *
+ * `parseValue` nimmt `.MILLI.` die Punkte bereits ab; die Ersetzung hier ist
+ * die Rückfallebene für den Fall, dass jemand am Parser etwas ändert. Sie
+ * kostet nichts und verhindert, dass dieser Faktor still auf 1 fällt — und
+ * genau still zu fallen ist bei einem Maßstab das Schlimmste, was er kann.
+ */
+const aufzaehlung = (v: StepValue | undefined): string =>
+  typeof v === 'string' ? v.replace(/^\.|\.$/g, '').toUpperCase() : '';
+
+function laengenfaktor(entities: Map<number, StepEntity>): number {
+  const projekt = [...entities.values()].find((e) => e.type === 'IFCPROJECT');
+  const kontext = projekt?.attributes[8] ?? null;
+  if (!isRef(kontext)) return 1;
+  const zuordnung = entities.get(kontext.ref);
+  if (!zuordnung || zuordnung.type !== 'IFCUNITASSIGNMENT') return 1;
+  const liste = zuordnung.attributes[0];
+  if (!Array.isArray(liste)) return 1;
+
+  for (const ref of liste) {
+    if (!isRef(ref)) continue;
+    const u = entities.get(ref.ref);
+    if (!u) continue;
+
+    if (u.type === 'IFCSIUNIT' && aufzaehlung(u.attributes[1]) === 'LENGTHUNIT') {
+      const vorsatz = aufzaehlung(u.attributes[2]);
+      return SI_VORSATZ[vorsatz] ?? 1;
+    }
+
+    // Zoll und Fuß: der Faktor steht im `IfcMeasureWithUnit` daneben.
+    if (u.type === 'IFCCONVERSIONBASEDUNIT' && aufzaehlung(u.attributes[1]) === 'LENGTHUNIT') {
+      const mit = u.attributes[3];
+      if (!isRef(mit)) continue;
+      const mwu = entities.get(mit.ref);
+      if (!mwu || mwu.type !== 'IFCMEASUREWITHUNIT') continue;
+      const wert = typeof mwu.attributes[0] === 'number' ? mwu.attributes[0] : 1;
+      const basis = mwu.attributes[1];
+      let basisFaktor = 1;
+      if (isRef(basis)) {
+        const b = entities.get(basis.ref);
+        if (b?.type === 'IFCSIUNIT') basisFaktor = SI_VORSATZ[aufzaehlung(b.attributes[2])] ?? 1;
+      }
+      return wert * basisFaktor;
+    }
+  }
+  return 1;
+}
+
+/**
+ * Der Faktor des gerade laufenden Imports.
+ *
+ * Modulweite Veränderliche statt Durchreichen durch zwölf Funktionen: Der
+ * Import ist synchron und läuft einmal von oben nach unten durch, und die
+ * Alternative wäre ein zusätzlicher Parameter an jeder Geometriefunktion.
+ * Gesetzt wird sie an genau einer Stelle, ganz am Anfang von `importIfc`.
+ */
+let FAKTOR = 1;
+
+/** Ein Längenwert der Datei in Metern. */
+const inMeter = (v: number): number => v * FAKTOR;
+
 function resolvePlacement(
   entities: Map<number, StepEntity>,
   ref: StepValue,
@@ -348,6 +446,20 @@ function resolvePlacement(
   if (!e) return ORIGIN;
 
   if (e.type === 'IFCLOCALPLACEMENT') {
+    /*
+     * **Der Ring, der den Zeichner mitnimmt.** Eine Ortsangabe, die sich
+     * selbst als übergeordnete nennt — direkt oder über drei Ecken — lässt
+     * diese Rekursion nie enden; der Aufrufstapel läuft über, und in der
+     * Oberfläche bleibt eine weiße Fläche. Ein `IFCBOOLEANCLIPPINGRESULT`
+     * mit demselben Fehler wird seit 1.30.0 abgefangen, die Ortsangaben
+     * blieben offen.
+     *
+     * Der Zwischeneintrag im Speicher ist zugleich die Bremse: Wer beim
+     * Abstieg noch einmal auf dieselbe Nummer trifft, bekommt den Ursprung
+     * und nicht einen weiteren Abstieg. Der Eintrag wird danach durch das
+     * richtige Ergebnis ersetzt.
+     */
+    cache.set(ref.ref, ORIGIN);
     const parent = resolvePlacement(entities, e.attributes[0], cache);
     const local = resolvePlacement(entities, e.attributes[1], cache);
     const cos = Math.cos(parent.angle);
@@ -387,7 +499,7 @@ function point(entities: Map<number, StepEntity>, ref: StepValue): number[] {
   if (!e || e.type !== 'IFCCARTESIANPOINT') return [0, 0, 0];
   const coords = e.attributes[0];
   if (!Array.isArray(coords)) return [0, 0, 0];
-  return coords.map((c) => (typeof c === 'number' ? c : 0));
+  return coords.map((c) => (typeof c === 'number' ? inMeter(c) : 0));
 }
 
 function direction(entities: Map<number, StepEntity>, ref: StepValue): number[] | null {
@@ -584,8 +696,8 @@ function profileBox(entities: Map<number, StepEntity>, ref: StepValue): ProfileB
 
   if (e.type === 'IFCRECTANGLEPROFILEDEF') {
     const place = resolvePlacement(entities, e.attributes[2]);
-    const xDim = typeof e.attributes[3] === 'number' ? e.attributes[3] : 0;
-    const yDim = typeof e.attributes[4] === 'number' ? e.attributes[4] : 0;
+    const xDim = typeof e.attributes[3] === 'number' ? inMeter(e.attributes[3]) : 0;
+    const yDim = typeof e.attributes[4] === 'number' ? inMeter(e.attributes[4]) : 0;
     return { xDim, yDim, angle: place.angle, offset: { x: place.x, y: place.y } };
   }
 
@@ -614,11 +726,92 @@ function profileBox(entities: Map<number, StepEntity>, ref: StepValue): ProfileB
 
   if (e.type === 'IFCCIRCLEPROFILEDEF') {
     const place = resolvePlacement(entities, e.attributes[2]);
-    const r = typeof e.attributes[3] === 'number' ? e.attributes[3] : 0;
+    const r = typeof e.attributes[3] === 'number' ? inMeter(e.attributes[3]) : 0;
     return { xDim: 2 * r, yDim: 2 * r, angle: place.angle, offset: { x: place.x, y: place.y } };
   }
 
   return null;
+}
+
+/**
+ * Der Grundriss eines Begrenzungsflächenkörpers (`IfcFacetedBrep`).
+ * ---------------------------------------------------------------------------
+ * **Warum das nötig wurde.** `IfcSpace` ist die einzige Stelle in einer
+ * IFC-Datei, an der steht, *wie ein Raum heißt* — und daran hängt in der
+ * Heizlast die Solltemperatur: Bad 24 °C, Flur 15 °C. Bis hierher las der
+ * Import Raumumrisse nur als Extrusion oder als Fußabdruckkurve. ArchiCAD
+ * schreibt es so; **Allplan und Revit nicht.** Gemessen am Korpus fremder
+ * Dateien gingen dadurch am Institutsgebäude 82 Raumnamen verloren und am
+ * Revit-Musterprojekt 96 — dieselben Häuser, aus ArchiCAD exportiert, kamen
+ * vollständig an.
+ *
+ * Ein Raum ohne Namen ist kein Schönheitsfehler: Er kommt als „Raum 3",
+ * Nutzung „sonstige", 20 °C an, und jemand muss 82-mal von Hand nachtragen.
+ *
+ * **Wie der Umriss entsteht.** Ein Raumkörper ist ein Prisma: unten der
+ * Grundriss, oben dieselbe Fläche, dazwischen die Seitenflächen. Gesucht ist
+ * also die **waagerechte Fläche auf der untersten Höhe**. Geprüft wird
+ * beides — waagerecht (alle Punkte auf einer z-Höhe) und unten —, denn die
+ * Deckfläche erfüllt nur das erste und hätte denselben Umriss seitenverkehrt
+ * geliefert.
+ *
+ * Gefundene Flächen mit weniger als drei Punkten fallen weg; von mehreren
+ * gleich tiefen gewinnt die größte. Löcher (`IfcFaceBound` neben dem
+ * `IfcFaceOuterBound`) werden nicht abgezogen — ein Raum mit Loch ist in
+ * einem Wohnungsgrundriss nicht vorgesehen, und eine halbe Unterstützung
+ * wäre schlechter als keine.
+ */
+function brepBoden(entities: Map<number, StepEntity>, ref: StepValue): number[][] {
+  if (!isRef(ref)) return [];
+  const e = entities.get(ref.ref);
+  if (!e || (e.type !== 'IFCFACETEDBREP' && e.type !== 'IFCFACETEDBREPWITHVOIDS')) return [];
+  const shellRef = e.attributes[0];
+  if (!isRef(shellRef)) return [];
+  const shell = entities.get(shellRef.ref);
+  if (!shell) return [];
+  const faces = shell.attributes[0];
+  if (!Array.isArray(faces)) return [];
+
+  let besteZ = Infinity;
+  let bester: number[][] = [];
+
+  for (const fRef of faces) {
+    if (!isRef(fRef)) continue;
+    const face = entities.get(fRef.ref);
+    if (!face || face.type !== 'IFCFACE') continue;
+    const bounds = face.attributes[0];
+    if (!Array.isArray(bounds)) continue;
+
+    for (const bRef of bounds) {
+      if (!isRef(bRef)) continue;
+      const bound = entities.get(bRef.ref);
+      if (!bound || bound.type !== 'IFCFACEOUTERBOUND') continue;
+      const loopRef = bound.attributes[0];
+      if (!isRef(loopRef)) continue;
+      const loop = entities.get(loopRef.ref);
+      if (!loop || loop.type !== 'IFCPOLYLOOP') continue;
+      const pl = loop.attributes[0];
+      if (!Array.isArray(pl)) continue;
+
+      const pts = pl.map((pr) => point(entities, pr));
+      if (pts.length < 3) continue;
+
+      // Waagerecht? Ein Millimeter Spiel — Fließkomma trifft „gleich" nicht.
+      const zs = pts.map((c) => c[2] ?? 0);
+      const zMin = Math.min(...zs);
+      if (Math.max(...zs) - zMin > 0.001) continue;
+
+      // Tiefer gewinnt; bei gleicher Höhe die größere Fläche.
+      const flaecheHier = Math.abs(flaeche(pts.map((c) => ({ x: c[0] ?? 0, y: c[1] ?? 0 }))));
+      if (zMin < besteZ - 0.001 || (Math.abs(zMin - besteZ) <= 0.001 && flaecheHier > Math.abs(
+        flaeche(bester.map((c) => ({ x: c[0] ?? 0, y: c[1] ?? 0 }))),
+      ))) {
+        besteZ = Math.min(besteZ, zMin);
+        bester = pts;
+      }
+    }
+  }
+  return bester;
 }
 
 /**
@@ -651,7 +844,7 @@ function curvePoints(entities: Map<number, StepEntity>, ref: StepValue): number[
     if (!Array.isArray(coords)) return [];
     return coords
       .filter((c): c is StepValue[] => Array.isArray(c))
-      .map((c) => c.map((v) => (typeof v === 'number' ? v : 0)));
+      .map((c) => c.map((v) => (typeof v === 'number' ? inMeter(v) : 0)));
   }
 
   if (e.type === 'IFCCOMPOSITECURVE') {
@@ -823,6 +1016,10 @@ export function importIfc(text: string): IfcImportResult {
     return { ...EMPTY, schema, message: 'Die Datei enthält keine lesbaren Entities.' };
   }
 
+  // Der Maßstab steht vor jeder Geometrie: alles, was danach gelesen wird,
+  // kommt bereits in Metern an.
+  FAKTOR = laengenfaktor(entities);
+
   const byType = new Map<string, StepEntity[]>();
   for (const e of entities.values()) {
     const list = byType.get(e.type);
@@ -841,7 +1038,7 @@ export function importIfc(text: string): IfcImportResult {
     const name = typeof e.attributes[2] === 'string' ? e.attributes[2] : `Geschoss ${index + 1}`;
     const elevationAttr = e.attributes[9];
     const placement = resolvePlacement(entities, e.attributes[5]);
-    const elevation = typeof elevationAttr === 'number' ? elevationAttr : placement.z;
+    const elevation = typeof elevationAttr === 'number' ? inMeter(elevationAttr) : placement.z;
     return { entity: e, id: `ifc-${e.id}`, name, elevation };
   });
   storeys.sort((a, b) => a.elevation - b.elevation);
@@ -1051,7 +1248,7 @@ export function importIfc(text: string): IfcImportResult {
 
     const objectPlacement = resolvePlacement(entities, e.attributes[5]);
     const solidPlacement = resolvePlacement(entities, extruded.attributes[1]);
-    const depth = typeof extruded.attributes[3] === 'number' ? extruded.attributes[3] : 0;
+    const depth = typeof extruded.attributes[3] === 'number' ? inMeter(extruded.attributes[3]) : 0;
 
     /*
      * **Steht die Profilebene senkrecht?**
@@ -1584,16 +1781,61 @@ export function importIfc(text: string): IfcImportResult {
       if (beste.length >= 3) return beste;
     }
 
+    /*
+     * Der Extrusionskörper — und zwar für **alle drei** Profilarten, die im
+     * Korpus fremder Dateien vorkommen. Bis hierher wurde nur
+     * `IfcArbitraryClosedProfileDef` gelesen, und das ist ausgerechnet die
+     * Art, die ArchiCAD für Räume *nicht* benutzt:
+     *
+     *   · Allplan schreibt `IfcRectangleProfileDef` — 82 Räume am
+     *     Institutsgebäude, alle verloren.
+     *   · Revit schreibt `IfcArbitraryProfileDefWithVoids` — 96 Räume am
+     *     Musterprojekt, alle verloren. Der Name beginnt mit
+     *     `IFCARBITRARYPROFILEDEF`, nicht mit `IFCARBITRARYCLOSEDPROFILEDEF`;
+     *     die Prüfung auf den Namensanfang ging deshalb daneben.
+     *
+     * Die Löcher (`WithVoids`) werden bewusst nicht abgezogen: Ein Raum mit
+     * Loch kommt im Wohnungsgrundriss nicht vor, und der Umriss dient hier
+     * ohnehin nur dazu, den Raum wiederzufinden.
+     */
     for (const solid of solidsOf(entities, e.attributes[6])) {
       const basis = basisExtrusion(entities, solid);
       if (!basis) continue;
       const prof = isRef(basis.attributes[0]) ? entities.get(basis.attributes[0].ref) : undefined;
-      if (!prof || !prof.type.startsWith('IFCARBITRARYCLOSEDPROFILEDEF')) continue;
+      if (!prof) continue;
       const lokal = resolvePlacement(entities, basis.attributes[1]);
-      const pts = curvePoints(entities, prof.attributes[2]).map((c) =>
-        welt([lokal.x + (c[0] ?? 0), lokal.y + (c[1] ?? 0)]),
-      );
-      if (pts.length >= 3) return pts;
+
+      if (prof.type.startsWith('IFCARBITRARYCLOSEDPROFILEDEF') || prof.type === 'IFCARBITRARYPROFILEDEFWITHVOIDS') {
+        const pts = curvePoints(entities, prof.attributes[2]).map((c) =>
+          welt([lokal.x + (c[0] ?? 0), lokal.y + (c[1] ?? 0)]),
+        );
+        if (pts.length >= 3) return pts;
+        continue;
+      }
+
+      if (prof.type === 'IFCRECTANGLEPROFILEDEF') {
+        const box = profileBox(entities, { ref: prof.id });
+        if (!box) continue;
+        const hx = box.xDim / 2;
+        const hy = box.yDim / 2;
+        const cosP = Math.cos(box.angle);
+        const sinP = Math.sin(box.angle);
+        const ecken: [number, number][] = [[-hx, -hy], [hx, -hy], [hx, hy], [-hx, hy]];
+        const pts = ecken.map(([ex, ey]) =>
+          welt([
+            lokal.x + box.offset.x + ex * cosP - ey * sinP,
+            lokal.y + box.offset.y + ex * sinP + ey * cosP,
+          ]),
+        );
+        if (Math.abs(flaeche(pts)) > 0.01) return pts;
+      }
+    }
+
+    // Zuletzt der Begrenzungsflächenkörper: Allplan und Revit schreiben
+    // Räume so, und ohne diesen Zweig bleiben sie namenlos.
+    for (const item of itemsOf(entities, e.attributes[6])) {
+      const pts = brepBoden(entities, { ref: item.id });
+      if (pts.length >= 3) return pts.map((c) => welt(c));
     }
 
     return [];

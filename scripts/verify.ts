@@ -123,6 +123,9 @@ import { pruefeFlurfuehrung } from './pruefungen/flurfuehrung';
 import { pruefeDachformen } from './pruefungen/dachformen';
 import { pruefeKompass } from './pruefungen/kompass';
 import { pruefeIfcFremd } from './pruefungen/ifcfremd';
+import { pruefeIfcEinheiten } from './pruefungen/ifceinheiten';
+import { pruefeIfcRaumumriss } from './pruefungen/ifcraumumriss';
+import { pruefeImportRobustheit } from './pruefungen/importrobustheit';
 import { pruefeRaumnamen } from './pruefungen/raumnamen';
 import { pruefeProjektmappe } from './pruefungen/projektmappe';
 import { pruefeUiModus } from './pruefungen/uimodus';
@@ -3771,6 +3774,15 @@ pruefeKompass(check);
 
 console.log('\n▸ Fremde IFC-Dateien — beschnittene Körper, IsExternal, Deckendurchbruch');
 pruefeIfcFremd(check);
+
+console.log('\n▸ IFC-Einheiten — Millimeter, Zentimeter, Zoll, und welche gilt');
+pruefeIfcEinheiten(check);
+
+console.log('\n▸ Raumumriss — vier Schreibweisen, ein Raum');
+pruefeIfcRaumumriss(check);
+
+console.log('\n▸ Robustheit der Importe — abgeschnitten, verdreht, unendlich');
+pruefeImportRobustheit(check);
 
 console.log('\n▸ Raumnamen — von der Umschrift in der Datei zur Solltemperatur');
 pruefeRaumnamen(check);

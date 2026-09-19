@@ -495,15 +495,57 @@ export function importRaumplan(text: string): RaumplanImportErgebnis {
     return { ...LEER, message: 'Die Datei ist kein lesbares JSON.' };
   }
 
-  const rohWaende = raum.walls ?? [];
+  /*
+   * **Die Eingangsprüfung, und warum sie vor allem anderen steht.**
+   *
+   * Bis hierher wurde `raum.walls` als das genommen, was es zu sein
+   * behauptet: eine Liste von Flächen mit `dimensions` und `transform`. Für
+   * eine Datei, die das iPhone geschrieben hat, stimmt das auch. Für eine
+   * Datei, die unterwegs beschädigt wurde, stimmt es nicht — und dann
+   * passiert nicht etwa nichts, sondern **eine Zahl wird unendlich und
+   * bleibt es**: `vorzugsrichtung` mittelt gleich als Erstes über alle
+   * Wandlängen, und ein einziges `undefined` darin macht den Drehwinkel zu
+   * `NaN`. Danach ist jeder Knoten im Plan `NaN`, und das Programm meldet
+   * trotzdem Erfolg.
+   *
+   * Gemessen an absichtlich verstümmelten Dateien traf das fünf Fälle:
+   * fehlende Maße, Maße als Text, zu kurze Matrix, `null` in der Liste und
+   * eine `walls`-Angabe, die gar keine Liste ist. Die ersten drei ergaben
+   * `NaN`, die letzten beiden eine geworfene Ausnahme — in der Oberfläche
+   * eine weiße Fläche.
+   *
+   * Verlangt wird deshalb das Mindeste, ohne das keine Wand entstehen kann:
+   * ein Objekt, zwei endliche Maße und eine vollständige 4×4-Matrix aus
+   * endlichen Zahlen. Was das nicht erfüllt, wird gezählt und genannt —
+   * nicht stillschweigend übergangen.
+   */
+  const endlicheZahlen = (v: unknown, mindestens: number): boolean =>
+    Array.isArray(v) && v.length >= mindestens && v.every((x) => typeof x === 'number' && Number.isFinite(x));
+
+  const alleWaende = Array.isArray(raum.walls) ? raum.walls : [];
+  const rohWaende = alleWaende.filter(
+    (w): w is (typeof alleWaende)[number] =>
+      !!w &&
+      typeof w === 'object' &&
+      endlicheZahlen((w as { dimensions?: unknown }).dimensions, 2) &&
+      endlicheZahlen((w as { transform?: unknown }).transform, 16),
+  );
+  const unbrauchbar = alleWaende.length - rohWaende.length;
+
   if (rohWaende.length === 0) {
-    return { ...LEER, message: 'Der Scan enthält keine Wände — ist er vollständig abgeschlossen worden?' };
+    return {
+      ...LEER,
+      message: unbrauchbar
+        ? `Der Scan enthält ${unbrauchbar} Wandfläche(n), aber keine mit lesbaren Maßen — ist die Datei vollständig?`
+        : 'Der Scan enthält keine Wände — ist er vollständig abgeschlossen worden?',
+    };
   }
 
   const uebersprungen = new Map<string, number>();
   const merke = (grund: string): void => {
     uebersprungen.set(grund, (uebersprungen.get(grund) ?? 0) + 1);
   };
+  if (unbrauchbar > 0) uebersprungen.set('Wandfläche ohne lesbare Maße oder Lage', unbrauchbar);
 
   // --- 2 · Geraderücken ------------------------------------------------------
   const richtung = vorzugsrichtung(
