@@ -125,6 +125,8 @@ import { pruefeKompass } from './pruefungen/kompass';
 import { pruefeIfcFremd } from './pruefungen/ifcfremd';
 import { pruefeIfcEinheiten } from './pruefungen/ifceinheiten';
 import { pruefeIfcRaumumriss } from './pruefungen/ifcraumumriss';
+import { pruefeIfcGeometrie } from './pruefungen/ifcgeometrie';
+import { pruefeAutosave } from './pruefungen/autosave';
 import { pruefeImportRobustheit } from './pruefungen/importrobustheit';
 import { pruefeRaumnamen } from './pruefungen/raumnamen';
 import { pruefeProjektmappe } from './pruefungen/projektmappe';
@@ -3777,6 +3779,12 @@ pruefeIfcFremd(check);
 
 console.log('\n▸ IFC-Einheiten — Millimeter, Zentimeter, Zoll, und welche gilt');
 pruefeIfcEinheiten(check);
+
+console.log('\n▸ Sitzungssicherung — leerer Stand, voller Speicher, gesperrtes Fenster');
+pruefeAutosave(check);
+
+console.log('\n▸ Körperformen — Netz, Flächenverband, abgebildete Vorlage');
+pruefeIfcGeometrie(check);
 
 console.log('\n▸ Raumumriss — vier Schreibweisen, ein Raum');
 pruefeIfcRaumumriss(check);

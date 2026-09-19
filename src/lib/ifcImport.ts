@@ -734,6 +734,190 @@ function profileBox(entities: Map<number, StepEntity>, ref: StepValue): ProfileB
 }
 
 /**
+ * Wie dick eine **gemessene** Wand höchstens sein darf [m].
+ *
+ * Ein Meter ist großzügig: Die dickste Wand im ganzen Prüfkorpus misst
+ * 0,43 m, und das ist ein Institutsgebäude. Was darüber liegt, ist kein
+ * Bauteil mehr, sondern ein Körper, in dem mehrere stecken.
+ */
+const MESS_DICKE_GRENZE = 1.0;
+
+/**
+ * Alle Eckpunkte eines Darstellungselements, in den Koordinaten des Bauteils.
+ * ---------------------------------------------------------------------------
+ * **Wofür das da ist.** Der Hauptweg dieses Imports liest eine Wand als
+ * Extrusion: Profil mal Tiefe, sauber und genau. Nicht jedes Programm
+ * schreibt sie so. Gemessen am Korpus fremder Dateien:
+ *
+ *  · **Renga** legt seine Wände als `IfcMappedItem` ab — eine geteilte
+ *    Vorlage samt Versatz —, und die Vorlage darin ist ein
+ *    `IfcPolygonalFaceSet`, also ein Netz aus Dreiecken. 21 von 33 Wänden
+ *    kamen deshalb nicht an.
+ *  · **`202103162102_cira.ifc`** schreibt *alle* 101 Wände als solches Netz.
+ *    Die Datei kam vollständig leer an, mit der ehrlichen, aber wenig
+ *    hilfreichen Meldung „Keine auswertbaren Wände gefunden".
+ *  · **Vectorworks** schreibt vereinzelt `IfcShellBasedSurfaceModel`.
+ *
+ * Für ein Werkzeug, dessen Zweck die Heizlast ist, braucht eine Wand keine
+ * Dreiecke — sie braucht Länge, Dicke und Höhe. Und die stehen in jedem
+ * dieser Körper drin, man muss nur alle Punkte einsammeln und die
+ * Ausdehnung messen. Das ist gröber als die Extrusion und deshalb
+ * ausdrücklich die **Rückfallebene**: Erst wenn kein Extrusionskörper zu
+ * finden ist, wird gemessen statt gelesen.
+ *
+ * **Die Abbildung.** Ein `IfcMappedItem` verweist auf eine
+ * `IfcRepresentationMap` und auf einen `IfcCartesianTransformationOperator3D`.
+ * Der Operator ist keine Formsache: In der Renga-Datei dreht er die Wand um
+ * 180° und verschiebt sie um 39 m. Wer ihn übergeht, baut das Haus in sich
+ * zusammen. Gerechnet wird
+ *
+ *     p' = Ursprung + Maßstab · (Achse1·pₓ + Achse2·p_y + Achse3·p_z)
+ *
+ * und davor die `MappingOrigin` der Vorlage, die in den geprüften Dateien
+ * die Einheitslage ist, aber es nicht sein muss.
+ */
+function punkteVon(
+  entities: Map<number, StepEntity>,
+  item: StepEntity | undefined,
+  tiefe = 0,
+): number[][] {
+  if (!item || tiefe > 6) return [];
+
+  const ausLoops = (faces: StepValue): number[][] => {
+    const raus: number[][] = [];
+    if (!Array.isArray(faces)) return raus;
+    for (const fRef of faces) {
+      if (!isRef(fRef)) continue;
+      const face = entities.get(fRef.ref);
+      if (!face) continue;
+      const bounds = face.attributes[0];
+      if (!Array.isArray(bounds)) continue;
+      for (const bRef of bounds) {
+        if (!isRef(bRef)) continue;
+        const bound = entities.get(bRef.ref);
+        if (!bound) continue;
+        const loopRef = bound.attributes[0];
+        if (!isRef(loopRef)) continue;
+        const loop = entities.get(loopRef.ref);
+        if (!loop || loop.type !== 'IFCPOLYLOOP') continue;
+        const pl = loop.attributes[0];
+        if (!Array.isArray(pl)) continue;
+        for (const pr of pl) raus.push(point(entities, pr));
+      }
+    }
+    return raus;
+  };
+
+  switch (item.type) {
+    case 'IFCFACETEDBREP':
+    case 'IFCFACETEDBREPWITHVOIDS': {
+      const shellRef = item.attributes[0];
+      if (!isRef(shellRef)) return [];
+      const shell = entities.get(shellRef.ref);
+      return shell ? ausLoops(shell.attributes[0]) : [];
+    }
+
+    case 'IFCFACEBASEDSURFACEMODEL':
+    case 'IFCSHELLBASEDSURFACEMODEL': {
+      const schalen = item.attributes[0];
+      if (!Array.isArray(schalen)) return [];
+      const raus: number[][] = [];
+      for (const sRef of schalen) {
+        if (!isRef(sRef)) continue;
+        const schale = entities.get(sRef.ref);
+        if (schale) raus.push(...ausLoops(schale.attributes[0]));
+      }
+      return raus;
+    }
+
+    case 'IFCPOLYGONALFACESET':
+    case 'IFCTRIANGULATEDFACESET': {
+      /*
+       * Beide verweisen auf eine `IfcCartesianPointList3D`. Die Flächen
+       * selbst — welche Punkte ein Dreieck bilden — interessieren hier
+       * nicht: Gesucht ist die Ausdehnung, und dafür zählt jeder Punkt
+       * einmal.
+       */
+      const listeRef = item.attributes[0];
+      if (!isRef(listeRef)) return [];
+      const liste = entities.get(listeRef.ref);
+      if (!liste || liste.type !== 'IFCCARTESIANPOINTLIST3D') return [];
+      const coords = liste.attributes[0];
+      if (!Array.isArray(coords)) return [];
+      return coords
+        .filter((c): c is StepValue[] => Array.isArray(c))
+        .map((c) => c.map((v) => (typeof v === 'number' ? inMeter(v) : 0)));
+    }
+
+    case 'IFCMAPPEDITEM': {
+      const quelleRef = item.attributes[0];
+      const zielRef = item.attributes[1];
+      if (!isRef(quelleRef)) return [];
+      const map = entities.get(quelleRef.ref);
+      if (!map || map.type !== 'IFCREPRESENTATIONMAP') return [];
+
+      // Die Vorlage: ihre Darstellungselemente, rekursiv.
+      const innenRef = map.attributes[1];
+      if (!isRef(innenRef)) return [];
+      const innen = entities.get(innenRef.ref);
+      if (!innen) return [];
+      const stuecke = innen.attributes[3];
+      if (!Array.isArray(stuecke)) return [];
+      let punkte: number[][] = [];
+      for (const it of stuecke) {
+        if (!isRef(it)) continue;
+        punkte = punkte.concat(punkteVon(entities, entities.get(it.ref), tiefe + 1));
+      }
+      if (punkte.length === 0) return [];
+
+      // Erst die eigene Lage der Vorlage …
+      const ursprung = achsen3d(entities, map.attributes[0]);
+      punkte = punkte.map((p) => [
+        ursprung.loc[0] + ursprung.ex[0] * (p[0] ?? 0) + ursprung.ey[0] * (p[1] ?? 0) + ursprung.ez[0] * (p[2] ?? 0),
+        ursprung.loc[1] + ursprung.ex[1] * (p[0] ?? 0) + ursprung.ey[1] * (p[1] ?? 0) + ursprung.ez[1] * (p[2] ?? 0),
+        ursprung.loc[2] + ursprung.ex[2] * (p[0] ?? 0) + ursprung.ey[2] * (p[1] ?? 0) + ursprung.ez[2] * (p[2] ?? 0),
+      ]);
+
+      // … dann der Operator, der sie an ihren Platz bringt.
+      if (!isRef(zielRef)) return punkte;
+      const op = entities.get(zielRef.ref);
+      if (!op || !op.type.startsWith('IFCCARTESIANTRANSFORMATIONOPERATOR')) return punkte;
+      const norm = (d: number[] | null, ersatz: [number, number, number]): [number, number, number] => {
+        if (!d) return ersatz;
+        const v: [number, number, number] = [d[0] ?? 0, d[1] ?? 0, d[2] ?? 0];
+        const l = Math.hypot(v[0], v[1], v[2]);
+        return l > 1e-12 ? [v[0] / l, v[1] / l, v[2] / l] : ersatz;
+      };
+      // Attribute: Axis1, Axis2, LocalOrigin, Scale, Axis3.
+      const a1 = norm(direction(entities, op.attributes[0]), [1, 0, 0]);
+      const a2 = norm(direction(entities, op.attributes[1]), [0, 1, 0]);
+      const a3 = norm(direction(entities, op.attributes[4]), [0, 0, 1]);
+      const o = point(entities, op.attributes[2]);
+      const m = typeof op.attributes[3] === 'number' && op.attributes[3] !== 0 ? op.attributes[3] : 1;
+      return punkte.map((p) => {
+        const x = p[0] ?? 0;
+        const y = p[1] ?? 0;
+        const zz = p[2] ?? 0;
+        return [
+          (o[0] ?? 0) + m * (a1[0] * x + a2[0] * y + a3[0] * zz),
+          (o[1] ?? 0) + m * (a1[1] * x + a2[1] * y + a3[1] * zz),
+          (o[2] ?? 0) + m * (a1[2] * x + a2[2] * y + a3[2] * zz),
+        ];
+      });
+    }
+
+    default: {
+      // Boolesche Verknüpfungen: der erste Operand trägt den Körper.
+      if (BOOLESCHE_TYPEN.has(item.type)) {
+        const erster = item.attributes[1];
+        if (isRef(erster)) return punkteVon(entities, entities.get(erster.ref), tiefe + 1);
+      }
+      return [];
+    }
+  }
+}
+
+/**
  * Der Grundriss eines Begrenzungsflächenkörpers (`IfcFacetedBrep`).
  * ---------------------------------------------------------------------------
  * **Warum das nötig wurde.** `IfcSpace` ist die einzige Stelle in einer
@@ -1224,6 +1408,36 @@ export function importIfc(text: string): IfcImportResult {
   };
 
   /**
+   * Der umschreibende Kasten einer Punktwolke, im System des Bauteils.
+   *
+   * Die längere der beiden waagerechten Ausdehnungen ist die Wandlänge, die
+   * kürzere die Dicke. Steht die Wand quer in ihrem eigenen System — was
+   * vorkommt, sobald eine Abbildung sie um 90° dreht —, wird die Drehung um
+   * denselben Viertelkreis nachgeholt. Ohne das läge eine 6 m lange Wand als
+   * 6 m *dicke* im Plan.
+   */
+  const kastenAus = (punkte: number[][]) => {
+    if (punkte.length < 4) return null;
+    const xs = punkte.map((p) => p[0] ?? 0);
+    const ys = punkte.map((p) => p[1] ?? 0);
+    const zs = punkte.map((p) => p[2] ?? 0);
+    const dx = Math.max(...xs) - Math.min(...xs);
+    const dy = Math.max(...ys) - Math.min(...ys);
+    const hoehe = Math.max(...zs) - Math.min(...zs);
+    if (!(dx > 1e-6) && !(dy > 1e-6)) return null;
+    const laengsX = dx >= dy;
+    return {
+      mx: (Math.max(...xs) + Math.min(...xs)) / 2,
+      my: (Math.max(...ys) + Math.min(...ys)) / 2,
+      laenge: laengsX ? dx : dy,
+      dicke: laengsX ? dy : dx,
+      hoehe,
+      dreh: laengsX ? 0 : Math.PI / 2,
+      zUnten: Math.min(...zs),
+    };
+  };
+
+  /**
    * Mittelachse und Dicke eines Bauteils aus seiner Extrusion.
    *
    * `beschnitten` sagt, ob der Körper erst durch eine Boolesche Verknüpfung
@@ -1241,7 +1455,64 @@ export function importIfc(text: string): IfcImportResult {
       beschnitten = basis !== s;
       break;
     }
-    if (!extruded) return null;
+    if (!extruded) {
+      /*
+       * **Die Rückfallebene: messen statt lesen.**
+       *
+       * Kein Extrusionskörper — dann ist der Körper ein Netz, ein
+       * Begrenzungsflächenkörper oder eine abgebildete Vorlage. Für eine
+       * Wand genügt dann ihr umschreibender Kasten: Länge, Dicke, Höhe.
+       * Das ist gröber als eine gelesene Extrusion und um Größenordnungen
+       * besser als die Wand wegzulassen — was bis 1.33.0 geschah.
+       */
+      let punkte: number[][] = [];
+      for (const s2 of solids) punkte = punkte.concat(punkteVon(entities, s2));
+      const kasten = kastenAus(punkte);
+      if (!kasten) return null;
+
+      /*
+       * **Wo die Messung aufhört, ehrlich zu sein.**
+       *
+       * Ein umschreibender Kasten ist genau dann die Wand, wenn der Körper
+       * eine ist. Läuft eine Wand über Eck oder steckt ein ganzer Wandzug in
+       * einem Körper, ist der Kasten breiter als jede der Wände darin — in
+       * `202103162102_cira.ifc` kommen so zwei „Wände" von 2,11 m und 1,50 m
+       * Dicke heraus, bei 91 Wänden insgesamt.
+       *
+       * Eine 2 m dicke Wand ist für die Raumerkennung schlimmer als eine
+       * fehlende: Sie frisst den halben Raum. Sie wird deshalb übersprungen
+       * und genannt, statt sie zu übernehmen oder ihre Dicke auf einen
+       * hübschen Wert zurechtzubiegen — eine zurechtgebogene Zahl wäre
+       * erfunden.
+       */
+      if (kasten.dicke > MESS_DICKE_GRENZE) {
+        note('Wand aus dem Körper gemessen, aber unplausibel dick (mehrere Wände in einem Körper?)');
+        return null;
+      }
+      hinweis('Wandmaße aus dem Körper gemessen, nicht aus einem Profil gelesen');
+
+      const objekt = resolvePlacement(entities, e.attributes[5]);
+      const cos2 = Math.cos(objekt.angle);
+      const sin2 = Math.sin(objekt.angle);
+      const curve2 = axisCurveOf(e);
+      return {
+        centre: {
+          x: objekt.x + kasten.mx * cos2 - kasten.my * sin2,
+          y: objekt.y + kasten.mx * sin2 + kasten.my * cos2,
+        },
+        angle: curve2
+          ? Math.atan2(curve2.b.y - curve2.a.y, curve2.b.x - curve2.a.x)
+          : objekt.angle + kasten.dreh,
+        length: kasten.laenge,
+        thickness: kasten.dicke,
+        height: kasten.hoehe,
+        zBase: objekt.z + kasten.zUnten,
+        // Gemessen, nicht gelesen: dieselbe Unschärfe wie bei einem
+        // beschnittenen Körper, und sie wird genauso gemeldet.
+        beschnitten: true,
+        versatz: 0,
+      };
+    }
 
     const profile = profileBox(entities, extruded.attributes[0]);
     if (!profile) return null;
@@ -1705,11 +1976,59 @@ export function importIfc(text: string): IfcImportResult {
       continue;
     }
 
+    /*
+     * **Dieselbe Prüfung für die Höhe — sie fehlte.**
+     *
+     * Die Breite wurde seit jeher auf Plausibilität geprüft, die Höhe nicht.
+     * Im Korpus kamen dadurch sechs Öffnungen durch, die keine sind: 7,60 m
+     * und 7,18 m hoch (Fassadenverglasungen, die über mehrere Geschosse
+     * gehen) und 0,136 m (ein Schlitz). Die Öffnungsfläche geht unmittelbar
+     * in die Transmissionsverluste ein; ein 7,6 m hohes Fenster in einer
+     * 3 m hohen Wand ist keine Ungenauigkeit, sondern eine andere Heizlast.
+     *
+     * Die Grenzen sind bewusst weit: Über 0,20 m kommt das Kellerfenster
+     * durch, bis 4,00 m die Hallentür. Die untere Grenze ist ausschließend,
+     * und das mit Absicht — in der Allplan-Fassung des Institutsgebäudes
+     * steht eine Tür von 2,10 m Breite und **genau** 0,20 m Höhe. Was
+     * außerhalb liegt, gehört nachgezeichnet und nicht geraten.
+     */
+    if (height <= 0.2 || height > 4) {
+      note('Öffnung mit unplausibler Höhe');
+      continue;
+    }
+
+    /*
+     * **Die Öffnung muss in ihre Wand passen — und das muss dastehen.**
+     *
+     * Geprüft wurde bisher nur die **Mitte**: Liegt sie auf der Wand, gilt
+     * die Öffnung als gültig. Ihre Ränder durften darüber hinausragen, und
+     * das taten sie: bis 2,18 m im Revit-Musterprojekt, 26-mal allein in der
+     * Allplan-Fassung des Institutsgebäudes, im Median rund einen halben
+     * Meter.
+     *
+     * Schaden nahm davon nicht die Heizlast — `openingSpan` schiebt die
+     * Öffnung beim Zeichnen ohnehin an das Wandende, die Fläche bleibt also
+     * erhalten und landet an der richtigen Wand. Schaden nahm die
+     * **Nachvollziehbarkeit**: Im Modell stand ein Abstand, den die
+     * Zeichnung nicht benutzte, und niemand erfuhr davon. Wer das Fenster
+     * später verschiebt, verschiebt es von einem Wert aus, der nie galt.
+     *
+     * Gerückt wird deshalb hier, einmal, und es wird gesagt. Die Breite
+     * bleibt unangetastet — sie ist die Größe, an der die
+     * Transmissionsverluste hängen.
+     */
+    const halbe = width / 2;
+    const platz = Math.max(halbe, wallLength - halbe);
+    const gerueckt = Math.min(Math.max(distance, halbe), platz);
+    if (Math.abs(gerueckt - distance) > 0.02) {
+      hinweis('Öffnung an das Wandende gerückt (sie ragte darüber hinaus)');
+    }
+
     openings.push({
       id: `ifc-o${openingCounter++}`,
       wallId: wall.id,
       kind,
-      distance: Math.round(distance * 1000) / 1000,
+      distance: Math.round(gerueckt * 1000) / 1000,
       width: Math.round(width * 1000) / 1000,
       height: Math.round(height * 1000) / 1000,
       sillHeight: Math.round(sill * 1000) / 1000,

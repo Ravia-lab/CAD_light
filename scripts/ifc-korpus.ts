@@ -154,6 +154,7 @@ function pruefe(pfad: string, name: string): Befund {
   const wandNach = new Map(r.walls.map((w) => [w.id, w]));
   let raus = 0;
   let waise = 0;
+  let unmass = 0;
   for (const o of r.openings) {
     const w = wandNach.get(o.wallId);
     if (!w) {
@@ -162,9 +163,14 @@ function pruefe(pfad: string, name: string): Befund {
     }
     const L = laengeVon(w);
     if (o.distance - o.width / 2 < -0.02 || o.distance + o.width / 2 > L + 0.02) raus += 1;
+    // Die Grenzen des Imports selbst: Breite bis zur Wandlänge, Höhe über
+    // 0,20 m und bis 4,00 m. Der Korpus prüft den Vertrag des Moduls, nicht
+    // einen zweiten, eigenen Geschmack.
+    if (o.width <= 0.2 || o.width > L + 0.02 || o.height <= 0.2 || o.height > 4) unmass += 1;
   }
   if (waise) v.push(`${waise} Öffnung(en) ohne Wand`);
-  if (raus) a.push(`${raus} Öffnung(en) ragen über ihre Wand hinaus`);
+  if (raus) v.push(`${raus} Öffnung(en) ragen über ihre Wand hinaus`);
+  if (unmass) v.push(`${unmass} Öffnung(en) außerhalb der eigenen Maßgrenzen`);
   for (const s of r.skipped) a.push(`${s.count}× ${s.reason}`);
 
   return {
