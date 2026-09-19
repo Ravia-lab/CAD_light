@@ -53,10 +53,36 @@ export function pruefeFassung(check: CheckFn): void {
   const paket = JSON.parse(readFileSync(join(basis, 'package.json'), 'utf8')) as { version?: string };
   check('package.json nennt dieselbe Fassung', paket.version ?? 'fehlt', FASSUNG);
 
-  // === 3 — Der RaVia-Export auch ===========================================
+  // === 3 — Das Handbuch trägt dieselbe Nummer ===============================
+  /*
+   * **Der vierte Ort, an dem die Nummer stand.** `handbuch/bauen.py` hatte
+   * bis 1.34.0 eine eigene Zeichenkette `VERSION = '1.31.0'`, und niemand
+   * pflegte sie. Das Handbuch behauptete damit über drei Fassungen hinweg,
+   * es beschreibe 1.31.0 — auf dem Deckblatt, im Seitentitel, im Fußtext
+   * jeder Seite. Ausgeliefert wurde das auch: Auf `ravia-tech.de/Cad_light/`
+   * stand 1.31.0 im Handbuch, während 1.32.0 lief.
+   *
+   * Genau dieser Fehler hat 1.28.0 diesen Prüfblock ausgelöst — nur war das
+   * Handbuchskript damals nicht dabei. Geprüft wird deshalb nicht, welche
+   * Nummer dort steht, sondern **dass dort keine steht**: Das Skript muss
+   * sie aus `src/lib/fassung.ts` lesen.
+   */
+  const bauen = readFileSync(join(basis, 'handbuch', 'bauen.py'), 'utf8');
+  check(
+    'Das Handbuchskript liest die Fassung aus fassung.ts',
+    /fassung\.ts/.test(bauen) && /VERSION = fassung\(\)/.test(bauen),
+    true,
+  );
+  check(
+    'Es trägt keine eigene Fassungsnummer mehr',
+    /VERSION\s*=\s*'[0-9]+\.[0-9]+\.[0-9]+'/.test(bauen),
+    false,
+  );
+
+  // === 4 — Der RaVia-Export auch ===========================================
   check('Der RaVia-Export nennt dieselbe Fassung', GENERATOR, ERZEUGER);
 
-  // === 4 — Und keine Datei trägt sie noch wörtlich =========================
+  // === 5 — Und keine Datei trägt sie noch wörtlich =========================
   //
   // Die eigentliche Ursache war nicht die falsche Zahl, sondern dass sie
   // mehrfach dastand. Hier schlägt deshalb schon an, *dass* jemand wieder

@@ -25,7 +25,32 @@ HIER = pathlib.Path(__file__).resolve().parent
 # Projekt liegt und von Hand kopiert werden muss, wird beim dritten Mal nicht
 # mehr kopiert.
 ZIEL = HIER.parent / 'server' / 'app' / 'handbuch.html'
-VERSION = '1.31.0'
+
+
+def fassung() -> str:
+    """
+    Die Fassungsnummer — **aus `src/lib/fassung.ts`**, nicht von Hand hier.
+
+    Bis 1.34.0 stand hier eine Zeichenkette, und sie stand auf `1.31.0`. Das
+    Handbuch behauptete damit über drei Fassungen hinweg, es beschreibe einen
+    Stand, den es nicht beschrieb — auf dem Deckblatt, im Seitentitel, im
+    Fußtext jeder Seite. Ausgeliefert wurde das auch: Das Handbuch auf
+    `ravia-tech.de/Cad_light/` trug den Aufdruck 1.31.0, während daneben
+    1.32.0 lief.
+
+    Es ist derselbe Fehler, den `scripts/pruefungen/fassung.ts` seit 1.28.0
+    für Programm und Export verhindert — nur dass dieses Skript dort nicht
+    mitgeprüft wurde. Jetzt gibt es die Nummer wieder nur an einem Ort, und
+    der Prüfblock hält diese Datei dagegen.
+    """
+    quelle = (HIER.parent / 'src' / 'lib' / 'fassung.ts').read_text(encoding='utf-8')
+    treffer = re.search(r"FASSUNG\s*=\s*'([0-9]+\.[0-9]+\.[0-9]+)'", quelle)
+    if not treffer:
+        raise SystemExit('In src/lib/fassung.ts steht keine Fassungsnummer — Abbruch.')
+    return treffer.group(1)
+
+
+VERSION = fassung()
 
 
 def pruefungen() -> str:
