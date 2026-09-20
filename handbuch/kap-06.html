@@ -106,6 +106,29 @@ Firsthöhe: 2,20 + 4,563 · tan 30° = 2,20 + 2,635 = <b>4,835 m</b>.</p>
 
 <p>Die Neigung beginnt deshalb bei 1° statt bei 5° und lässt sich in halben Grad einstellen. Die Flachdachrichtlinie des ZVDH empfiehlt mindestens 2 % Gefälle; das sind rund 1,15°. Darunter ist es ein Nulldach mit erhöhten Anforderungen an die Abdichtung.</p>
 
+<h3 id="k6-1b">6.1a Mehrere Dächer über einem Geschoss</h3>
+<p class="lead">Ein Satteldach über den ganzen Grundriss zu legen stimmt beim Rechteckhaus. Beim L-förmigen Haus deckt es den Hauptbau — und der Flügel steht ohne Dach da.</p>
+<p>Im Modell sieht man es sofort: An der Kante, wo der Flügel ansetzt, klafft eine offene Schnittfläche. Das Dach zu <b>drehen</b> hilft nicht; es verschiebt das Problem nur auf den anderen Flügel. Ein L-Haus braucht <b>je Flügel ein Dach</b>, und dasselbe gilt für T- und U-Grundrisse.</p>
+<p>Oben im Reiter <b>Dach</b> steht deshalb eine Leiste mit den Dächern dieses Geschosses und dem Knopf <b>„+ Dach"</b>. Jedes Dach hat eigene Form, Neigung, Kniestock und Richtung. Darunter erscheint — sobald es mehr als eines gibt — das Feld <b>„Dieses Dach sitzt über"</b> mit allen Räumen des Geschosses zum Anklicken.</p>
+
+<h4 id="k6-1b-1">Warum über Räume und nicht über einen gezeichneten Umriss</h4>
+<p>Ein Umriss, den man um den Flügel zieht, liefe entlang derselben Wände ein zweites Mal. Beim nächsten Verschieben einer Wand stünde er daneben, ohne dass es jemand merkte — und das Dach säße über einem Grundriss, den es nicht mehr gibt. Über Räume hängt das Dach an der Geometrie und wandert mit.</p>
+
+<h4 id="k6-1b-2">Wo ein Geschoss darüberliegt, ist kein Dach</h4>
+<p>Dort ist eine <b>Decke</b>. Diese Regel lässt sich aus dem Grundriss nicht ableiten — der weiß nichts über das Geschoss darüber. Sie steckt deshalb an zwei Stellen im Programm:</p>
+<ul>
+<li><b>Im Vorschlag.</b> Ein neues Dach bekommt die Räume, über denen kein Geschoss liegt und die noch keinem anderen Dach gehören.</li>
+<li><b>In der Prüfung.</b> Räume mit einem Geschoss darüber tragen in der Zuweisung ein <b>▲</b>. Weisen Sie einen davon trotzdem zu, meldet es die Modellprüfung.</li>
+</ul>
+<div class="hinweis"><b>Verboten ist es nicht</b><p>Ein Vordach über einem Erker, ein Pultdach über einem Anbau, der an das Obergeschoss stößt — das gibt es. Dann soll das Programm nicht widersprechen, sondern es sichtbar machen. Der Hinweis darf stehen bleiben.</p></div>
+
+<h4 id="k6-1b-3">Die Kehle</h4>
+<p>Wo zwei Dachflächen aufeinandertreffen, entsteht im Bau eine Kehle. Im Modell stehen die beiden Dachkörper nebeneinander, jeder über seinem eigenen Umriss; sie schneiden sich, und <b>die Schnittkante ist die Kehle</b>. Kehlrinne, Anschlussblech und Kehlbohle sind Ausführung und kein Aufmaß — sie gehören nicht in ein Werkzeug, das Flächen für die Heizlast liefert.</p>
+
+<div class="warnung"><b>Achtung</b><p>Liegt ein Raum unter <b>zwei</b> Dächern, entscheidet die Reihenfolge im Dokument, welches gilt — reproduzierbar, aber von niemandem gewollt. Raumhöhe, Volumen und Dachfläche hängen daran. Die Modellprüfung meldet diesen Fall; jeder Raum gehört unter genau ein Dach.</p></div>
+
+<p><b>Ein Dach ohne Raumzuweisung deckt das ganze Geschoss.</b> Das ist der Zustand jedes Projekts, das vor Fassung 1.36.0 gespeichert wurde, und er bleibt gültig: Solche Dateien rechnen auf den Zehntelmillimeter genauso wie vorher.</p>
+
 <h3 id="k6-2">6.2 Die Raumhöhe unter der Schräge</h3>
 
 <p>Unter einem Dach ist die Raumhöhe keine Zahl mehr, sondern eine Fläche voller verschiedener Zahlen. An jedem Punkt des Grundrisses gibt es eine eigene lichte Höhe. Daraus folgt: das Luftvolumen ist nicht Fläche mal Höhe, eine Außenwand ist nicht Länge mal Geschosshöhe, und die Decke ist keine waagerechte Fläche, sondern eine geneigte mit Giebeln an den Enden.</p>
