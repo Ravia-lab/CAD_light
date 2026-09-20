@@ -964,7 +964,7 @@ export function detectRooms(input: DetectRoomsInput): Room[] {
   const roofFrame: RoofFrame | null = buildRoofFrame(roof, outline, roofOpenings, umriss);
 
   const rooms: Room[] = [];
-  const probesByRoom = new Map<string, Vec2[]>();
+  const probesByRoom = new Map<string, Vec2[][]>();
   const wallById = new Map(walls.map((w) => [w.id, w]));
   let counter = 0;
 
@@ -1050,7 +1050,7 @@ export function detectRooms(input: DetectRoomsInput): Room[] {
 
     // --- Wandabschnitte & Öffnungen -------------------------------------
     const boundaries: RoomBoundary[] = [];
-    const probes: Vec2[] = [];
+    const probes: Vec2[][] = [];
     const usedOpenings = new Set<string>();
 
     for (let i = 0; i < polygon.length; i++) {
@@ -1121,11 +1121,35 @@ export function detectRooms(input: DetectRoomsInput): Room[] {
       // Sondierpunkt jenseits der Wand: von dort aus wird gleich der
       // Nachbarraum gesucht. Er wird hier gemerkt, weil die Kantenreihenfolge
       // durch übersprungene Nullkanten nicht mit dem Polygonindex übereinstimmt.
+      /*
+       * **Drei Tastpunkte statt einem.**
+       *
+       * Bis 1.35.0 stand genau ein Punkt in der Mitte des Abschnitts. Trifft
+       * der die Lücke — eine Wandfuge, ein offenes Wandende, die Laibung
+       * eines Durchgangs —, dann findet die Suche keinen Nachbarraum, und
+       * der Abschnitt wird gegen „unbeheizt" gerechnet, obwohl dahinter ein
+       * geheiztes Zimmer liegt. Das ist kein Schönheitsfehler: Über eine
+       * Innenwand zu einem beheizten Nachbarraum fließt bei gleicher
+       * Solltemperatur **nichts**; gegen „unbeheizt" fließt sie mit vollem
+       * ΔT. Die Heizlast fällt dadurch zu hoch aus, und zwar still.
+       *
+       * Genau das meldet die Prüfung „Innenwand-Abschnitt ohne erkannten
+       * Nachbarraum". Sie war bisher oft nicht die Meldung eines fehlenden
+       * Raums, sondern die eines unglücklich gesetzten Punktes.
+       *
+       * Abgetastet wird deshalb bei einem Viertel, der Hälfte und drei
+       * Vierteln der Abschnittslänge. **Der Abstand nach außen bleibt
+       * derselbe** — die Tastpunkte reichen keinen Millimeter weiter als
+       * vorher und können deshalb auch nicht durch eine Wand hindurchgreifen.
+       * Es sind drei Stichproben derselben Tiefe statt einer.
+       */
       const probeDistance = (wall?.thickness ?? 0.2) / 2 + 0.12;
-      probes.push({
-        x: (a.x + b.x) / 2 + outwardNormal.x * probeDistance,
-        y: (a.y + b.y) / 2 + outwardNormal.y * probeDistance,
-      });
+      probes.push(
+        [0.25, 0.5, 0.75].map((t) => ({
+          x: a.x + (b.x - a.x) * t + outwardNormal.x * probeDistance,
+          y: a.y + (b.y - a.y) * t + outwardNormal.y * probeDistance,
+        })),
+      );
     }
 
     if (inherited?.heightOverride) height = inherited.heightOverride;
@@ -1219,7 +1243,7 @@ export function detectRooms(input: DetectRoomsInput): Room[] {
  */
 function resolveAdjacency(
   rooms: Room[],
-  probesByRoom: Map<string, Vec2[]>,
+  probesByRoom: Map<string, Vec2[][]>,
   wallById: Map<string, Wall>,
 ): void {
   for (const room of rooms) {
@@ -1232,11 +1256,29 @@ function resolveAdjacency(
       const probe = probes[i];
       const wall = wallById.get(boundary.wallId);
 
-      if (probe) {
-        const neighbour = rooms.find(
-          (r) => r.id !== room.id && r.innerPolygon.length >= 3 && pointInPolygon(probe, r.innerPolygon),
-        );
-        if (neighbour) boundary.neighbourRoomId = neighbour.id;
+      if (probe && probe.length) {
+        /*
+         * **Mehrheit, nicht der erste Treffer.** Ein Abschnitt kann an zwei
+         * Räume grenzen — etwa dort, wo eine durchlaufende Wand auf eine
+         * Querwand trifft. Der erste Treffer hinge dann an der Reihenfolge
+         * der Raumliste, und die ändert sich mit der Fläche. Die Mehrheit
+         * der Tastpunkte beschreibt dagegen, was **überwiegend** dahinter
+         * liegt — und bei Gleichstand gewinnt der zuerst gefundene, damit
+         * das Ergebnis reproduzierbar bleibt.
+         */
+        const treffer = new Map<string, number>();
+        for (const punkt of probe) {
+          const nachbar = rooms.find(
+            (r) => r.id !== room.id && r.innerPolygon.length >= 3 && pointInPolygon(punkt, r.innerPolygon),
+          );
+          if (nachbar) treffer.set(nachbar.id, (treffer.get(nachbar.id) ?? 0) + 1);
+        }
+        let beste: string | undefined;
+        let bestZahl = 0;
+        for (const [id, zahl] of treffer) {
+          if (zahl > bestZahl) { beste = id; bestZahl = zahl; }
+        }
+        if (beste) boundary.neighbourRoomId = beste;
       }
 
       // Explizite Angabe an der Wand hat immer Vorrang — sie beschreibt

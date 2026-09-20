@@ -76,6 +76,16 @@ export interface SlabPlan {
    * Deshalb steht das Merkmal hier und wird nicht aus der Lage geraten.
    */
   ground?: boolean;
+  /**
+   * Oberste Geschossdecke — der obere Raumabschluss des höchsten Geschosses.
+   *
+   * Sie wird gesondert gekennzeichnet, weil die Ansicht anders mit ihr
+   * umgeht als mit einer Decke zwischen zwei Geschossen: Von oben auf das
+   * Haus zu schauen und nur den Deckel zu sehen, hilft niemandem. Die
+   * Umlaufansicht blendet sie deshalb aus, solange die Kamera über ihr
+   * steht; in der begehbaren Ansicht steht sie immer.
+   */
+  oberste?: boolean;
 }
 
 /**
@@ -201,6 +211,88 @@ export function levelSlabs(input: SlabInput): SlabPlan[] {
   }
 
   return platten;
+}
+
+/**
+ * Stärke der obersten Geschossdecke [m].
+ *
+ * Sie ist keine Tragdecke wie die zwischen zwei Geschossen, sondern der
+ * obere Raumabschluss: Rohdecke plus Dämmung im Deckenaufbau. 20 cm ist der
+ * Wert, der im Bestand am häufigsten danebenliegt und am seltensten weit
+ * daneben — und er ist hier nur eine **Darstellungsgröße**. In die Heizlast
+ * geht nicht diese Stärke ein, sondern `level.ceilingUValue`; das Bauteil
+ * hier macht den Raum im Bild zu einem Raum und sonst nichts.
+ */
+export const TOP_SLAB = 0.2;
+
+/**
+ * Die oberste Geschossdecke — der Deckel, den das Modell bisher nicht hatte.
+ *
+ * **Warum sie in `levelSlabs` fehlt und hier steht.** `levelSlabs` legt eine
+ * Platte nur dort, wo tatsächlich ein Geschoss darüber steht; über dem
+ * obersten endet das Haus. Das ist für die *Trag*decke richtig — aber es
+ * hat zur Folge, dass ein eingeschossiges Haus im Modell nach oben offen
+ * ist. In der begehbaren Ansicht steht man dann in einem Zimmer ohne Decke
+ * und sieht in den Nachthimmel; das ist kein Schönheitsfehler, sondern der
+ * Grund, warum Räume dort nicht wie Räume wirken.
+ *
+ * Sie bekommt **dieselben Aussparungen** wie eine Geschossdecke: Ein
+ * Schacht, der über das oberste Geschoss hinausläuft, und ein
+ * Deckendurchbruch im obersten Geschoss durchstoßen auch sie. Nur der
+ * Treppenlauf, der nirgendwo hinführt, tut es nicht — er hat kein
+ * Zielgeschoss über sich und wird von `durchdringt` folgerichtig nicht
+ * gemeldet.
+ *
+ * **Warum sie eine eigene Funktion ist und keine Option.** `levelSlabs`
+ * gibt eine Zusage, an der ein Prüfblock hängt: Zahl der Platten =
+ * Geschosse − 1. Ein Schalter, der diese Zahl manchmal um eins erhöht,
+ * machte die Zusage unprüfbar. Getrennte Funktion, getrennte Zusage —
+ * dieselbe Überlegung wie bei `groundSlab`.
+ */
+export function topSlab(input: SlabInput): SlabPlan | undefined {
+  const sortiert = [...input.levels].sort((a, b) => a.order - b.order);
+  const oberstes = sortiert[sortiert.length - 1];
+  if (!oberstes) return undefined;
+
+  const basis = input.base.get(oberstes.id) ?? 0;
+  const lichte =
+    Number.isFinite(oberstes.height) && oberstes.height > 0 ? oberstes.height : DEFAULT_LEVEL_HEIGHT;
+  const unterkante = basis + lichte;
+
+  const outlines: Vec2[][] = [];
+  for (const r of input.rooms) {
+    if (r.levelId !== oberstes.id) continue;
+    if (r.polygon.length >= 3) outlines.push(r.polygon);
+  }
+  for (const w of input.walls) {
+    if (w.levelId !== oberstes.id) continue;
+    const f = wallFootprint(w, input.nodes);
+    if (f) outlines.push(f);
+  }
+  if (!outlines.length) return undefined;
+
+  const holes: Vec2[][] = [];
+  for (const v of input.verticals) {
+    if (!durchdringt(v, oberstes.id, sortiert)) continue;
+    const ecken = verticalCorners(v);
+    if (ecken.length >= 3) holes.push(ecken);
+  }
+  for (const db of input.durchbrueche ?? []) {
+    if (db.levelId !== oberstes.id) continue;
+    if (durchbruchWirt(db.kind) !== 'decke') continue;
+    const ecken = deckendurchbruchUmriss(db);
+    if (ecken.length >= 3) holes.push(ecken);
+  }
+
+  return {
+    levelId: oberstes.id,
+    top: unterkante + TOP_SLAB,
+    bottom: unterkante,
+    thickness: TOP_SLAB,
+    outlines,
+    holes,
+    oberste: true,
+  };
 }
 
 /**

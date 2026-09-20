@@ -53,7 +53,16 @@ import type { CheckFn } from './typ';
 import type { BimNode, Level, Room, Vec2, VerticalElement, Wall } from '../../src/types/bim';
 import { detectRooms } from '../../src/lib/roomDetection';
 import { DEFAULT_LEVEL_HEIGHT, DEFAULT_SLAB, levelBaseHeights } from '../../src/lib/levelGeometry';
-import { GROUND_SLAB, groundSlab, holeFitsOutline, levelSlabs, slabArea, type SlabPlan } from '../../src/lib/slabGeometry';
+import {
+  GROUND_SLAB,
+  groundSlab,
+  holeFitsOutline,
+  levelSlabs,
+  slabArea,
+  topSlab,
+  TOP_SLAB,
+  type SlabPlan,
+} from '../../src/lib/slabGeometry';
 
 // ---------------------------------------------------------------------------
 // Das Prüfhaus
@@ -803,5 +812,64 @@ export function pruefeGeschossdecken(check: CheckFn): void {
     check('Ohne Geschoss keine Bodenplatte',
       groundSlab({ levels: [], rooms: [], walls: [], nodes: {}, verticals: [], base: new Map() }) === undefined,
       true);
+  }
+
+  // =========================================================================
+  // F — Die oberste Geschossdecke
+  // =========================================================================
+  /*
+   * **Warum sie nicht in `levelSlabs` steckt.** Oben in Abschnitt B steht
+   * die Zusage „Zahl der Platten = Geschosse − 1", und an ihr hängt die
+   * ganze Stapelrechnung. Eine Option, die diese Zahl manchmal um eins
+   * erhöht, machte die Zusage unprüfbar. Deshalb eine eigene Funktion mit
+   * einer eigenen Zusage — genau wie bei der Bodenplatte.
+   *
+   * **Die Lage, von Hand gerechnet.** Oberstes Geschoss ist das OG mit
+   * Basis 6,00 m (0,00 + 2,75 + 0,25 + 2,75 + 0,25) und lichter Höhe
+   * 2,75 m. Die Decke sitzt also mit ihrer **Unterkante** auf
+   * 6,00 + 2,75 = 8,75 m und mit ihrer Oberkante auf 8,75 + 0,20 = 8,95 m.
+   * Die Unterkante ist die Oberkante der Wände darunter — dieselbe Regel
+   * wie bei jeder Geschossdecke, und genau die war in 1.12.0 vertauscht.
+   */
+  {
+    const eingabe = {
+      levels: geschosse,
+      rooms: haus.rooms,
+      walls: haus.walls,
+      nodes: haus.nodes,
+      verticals: bauteile,
+      base: basis,
+    };
+    const decke = topSlab(eingabe);
+    check('Es gibt eine oberste Decke', decke !== undefined, true);
+    check('Sie gehört zum obersten Geschoss', decke?.levelId ?? '—', 'og');
+    check('Unterkante = Basis OG + lichte Höhe [m]', decke?.bottom ?? -1, (basis.get('og') ?? 0) + H, MM);
+    check('Oberkante = Unterkante + Stärke [m]', decke?.top ?? -1, (basis.get('og') ?? 0) + H + TOP_SLAB, MM);
+    check('Stärke 0,20 m', decke?.thickness ?? -1, TOP_SLAB, MM);
+    check('bottom + thickness === top', Math.abs((decke?.bottom ?? 0) + (decke?.thickness ?? 0) - (decke?.top ?? 0)) < 1e-9, true);
+    check('Sie ist als oberste gekennzeichnet', decke?.oberste === true, true);
+    check('Und nicht als Bodenplatte', decke?.ground === true, false);
+
+    /*
+     * Sie liegt **über** allen Zwischendecken. Läge sie darunter, säße der
+     * Deckel mitten im Haus — und man sähe es erst im Bild.
+     */
+    const hoechsteZwischendecke = Math.max(...platten.map((p) => p.top));
+    check('Sie liegt über jeder Zwischendecke', (decke?.bottom ?? 0) > hoechsteZwischendecke, true);
+
+    // `levelSlabs` bleibt unberührt: dieselbe Zahl wie in Abschnitt B.
+    check('levelSlabs zählt weiterhin Geschosse − 1', levelSlabs(eingabe).length, geschosse.length - 1);
+
+    /*
+     * Ein Schacht, der über das oberste Geschoss hinausläuft, durchstößt
+     * auch diese Decke — sonst endete er im Bild an einer Platte, durch die
+     * er in Wirklichkeit hindurchgeht.
+     */
+    check('Aussparungen werden übernommen', Array.isArray(decke?.holes), true);
+
+    // Ohne Geschosse gibt es nichts zu decken.
+    check('Ohne Geschoss keine Decke', topSlab({ ...eingabe, levels: [] }) === undefined, true);
+    // Ohne Wände und Räume auch nicht — ein Deckel über nichts.
+    check('Ohne Umriss keine Decke', topSlab({ ...eingabe, rooms: [], walls: [] }) === undefined, true);
   }
 }

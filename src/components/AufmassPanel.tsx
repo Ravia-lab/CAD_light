@@ -26,10 +26,12 @@
  */
 
 import { useMemo, useState } from 'react';
+import type { BimDocument } from '../types/bim';
 import { begradige } from '../lib/begradigen';
 import { findeLuecken } from '../lib/luecken';
 import type { LueckenSchluss } from '../lib/luecken';
 import { useBimStore } from '../store/useBimStore';
+import { AUSNAHME_LABELS, befundSatz, type Hoehenbefund } from '../lib/wandhoehen';
 
 const SCHLUSS: { art: LueckenSchluss; label: string; titel: string }[] = [
   { art: 'wand', label: 'Wand', titel: 'Dort steht eine Wand — der Scan hat sie nur nicht gesehen.' },
@@ -61,6 +63,8 @@ export default function AufmassPanel() {
   const ordneGrundrissZu = useBimStore((s) => s.ordneGrundrissZu);
   const schliesseLuecke = useBimStore((s) => s.schliesseLuecke);
   const bestaetigeWandstaerken = useBimStore((s) => s.bestaetigeWandstaerken);
+  const wandhoehenVorschau = useBimStore((s) => s.wandhoehenVorschau);
+  const gleicheWandhoehenAn = useBimStore((s) => s.gleicheWandhoehenAn);
   const setViewport = useBimStore((s) => s.setViewport);
   const viewport = useBimStore((s) => s.viewport);
   const [meldung, setMeldung] = useState<string | null>(null);
@@ -136,6 +140,13 @@ export default function AufmassPanel() {
   return (
     <div className="space-y-2.5 rounded-lg border border-white/[0.07] bg-white/[0.02] p-3">
       <div className="label-xs">Aufmaß nachziehen</div>
+
+      {/* --------------------------------------------- Wandhöhen angleichen */}
+      <Wandhoehen
+        vorschau={wandhoehenVorschau}
+        angleichen={() => setMeldung(gleicheWandhoehenAn().message)}
+        doc={doc}
+      />
 
       {/* ------------------------------------------------------- Spiegeln */}
       <div className="space-y-1.5">
@@ -393,6 +404,73 @@ function StaerkenZeile({
           </button>
         );
       })}
+    </div>
+  );
+}
+
+/**
+ * Wandhöhen angleichen — Vorschau und ein Knopf.
+ *
+ * **Warum das Feld auch dann dasteht, wenn nichts zu tun ist.** Dieselbe
+ * Überlegung wie beim Begradigen weiter unten: Wer eine Funktion nie gesehen
+ * hat, sucht sie nicht, wenn er sie braucht. Steht nichts an, sagt das Feld
+ * das — „Alle Wände stehen auf 250 cm." — und der Knopf bleibt aus.
+ *
+ * **Warum die Vorschau die Ausnahmen mitnennt.** Im Dachgeschoss bleiben
+ * Kniestockwände stehen, und das ist richtig so. Ein Knopf, der „12 Wände
+ * angleichen" verspricht und danach 12 von 18 angleicht, sieht aus wie ein
+ * Fehler. Die Zahl der stehen bleibenden Wände gehört deshalb in denselben
+ * Satz wie die der geänderten.
+ */
+function Wandhoehen({
+  vorschau,
+  angleichen,
+  doc,
+}: {
+  vorschau: () => Hoehenbefund;
+  angleichen: () => void;
+  doc: BimDocument;
+}) {
+  // `doc` steht in der Abhängigkeitsliste, damit die Vorschau nach jeder
+  // Änderung am Modell neu gerechnet wird — sonst trüge der Knopf eine
+  // Zahl von vorhin.
+  const befund = useMemo(() => vorschau(), [vorschau, doc]);
+  const cm = (m: number): string => `${Math.round(m * 100)} cm`;
+  const dach = befund.ausnahmen.filter((a) => a.grund === 'dachschraege').length;
+
+  return (
+    <div className="space-y-1.5 border-b border-white/[0.06] pb-2.5">
+      <div className="flex items-center justify-between gap-2">
+        <div className="text-[11.5px] text-slate-300">Wandhöhen angleichen</div>
+        <button
+          disabled={befund.aenderungen.length === 0}
+          className={`rounded-md px-2.5 py-1 text-[11px] transition ${
+            befund.aenderungen.length
+              ? 'bg-accent/15 text-accent hover:bg-accent/25'
+              : 'cursor-default bg-white/[0.03] text-slate-600'
+          }`}
+          title={
+            befund.aenderungen.length
+              ? `Alle Raumwände dieses Geschosses auf ${cm(befund.soll)} ziehen. Wände unter der Dachschräge und Brüstungen bleiben stehen. Rückgängig machbar.`
+              : 'Nichts anzugleichen.'
+          }
+          onClick={angleichen}
+        >
+          {befund.aenderungen.length ? `${befund.aenderungen.length} Wände auf ${cm(befund.soll)}` : 'nichts zu tun'}
+        </button>
+      </div>
+      <p className="text-[10.5px] leading-snug text-slate-500">{befundSatz(befund)}</p>
+      {dach > 0 && (
+        <p className="text-[10.5px] leading-snug text-slate-600">
+          {dach} Wand{dach === 1 ? '' : 'e'} {AUSNAHME_LABELS.dachschraege} — dort ist die Höhe
+          keine Nachlässigkeit, sondern das Dach.
+        </p>
+      )}
+      <p className="text-[10.5px] leading-snug text-slate-600">
+        Die Raumhöhe ist die <b>niedrigste</b> Wand des Raums. Eine einzelne Wand, die beim
+        Zeichnen stehen geblieben ist, zieht damit Volumen und Lüftungsverlust des ganzen Raums
+        herunter — ohne dass die Zahl falsch aussähe.
+      </p>
     </div>
   );
 }

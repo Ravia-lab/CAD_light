@@ -117,7 +117,7 @@ import { gebaeudeUmriss } from '../lib/roomDetection';
 import { sammleVerlegekurven, verlegelinien, type Verlegelinie } from '../lib/fussbodenkurven';
 import { kompassRose } from '../lib/kompass';
 import { levelBaseHeights } from '../lib/levelGeometry';
-import { groundSlab, holeFitsOutline, levelSlabs, type SlabPlan } from '../lib/slabGeometry';
+import { groundSlab, holeFitsOutline, levelSlabs, topSlab, type SlabPlan } from '../lib/slabGeometry';
 import { useBimStore } from '../store/useBimStore';
 
 // ---------------------------------------------------------------------------
@@ -1601,8 +1601,23 @@ export default function Viewer3D({ className = '' }: { className?: string }) {
 
   const doc = useBimStore((s) => s.doc);
   const cameraMode = useBimStore((s) => s.cameraMode);
+  const showCeiling = useBimStore((s) => s.showCeiling);
+  const toggleCeiling = useBimStore((s) => s.toggleCeiling);
   const viewMode = useBimStore((s) => s.viewMode);
   /** Die Auswahl — geteilt mit dem Grundriss, damit beide dasselbe meinen. */
+  /*
+   * **Wann die oberste Decke gezeichnet wird.**
+   *
+   * Im Begehen-Modus immer: Dort steht man im Raum, und ein Raum ohne
+   * Decke ist keiner. In den Außenansichten nur auf Wunsch — von schräg
+   * oben verdeckt sie sonst den ganzen Grundriss, und man sähe von einem
+   * Einfamilienhaus nur eine graue Platte.
+   *
+   * Der Schalter bleibt in beiden Fällen sichtbar und sagt, was gilt; eine
+   * Einstellung, die je nach Ansicht etwas anderes tut, ohne es zu sagen,
+   * ist schlimmer als gar keine.
+   */
+  const zeigeDecke = cameraMode === 'walk' || showCeiling;
   const selections = useBimStore((s) => s.selections);
   const site = useBimStore((s) => s.doc.site);
   /**
@@ -1802,8 +1817,24 @@ export default function Viewer3D({ className = '' }: { className?: string }) {
     // weil eine Bodenplatte keine Geschossdecke ist — sie liegt unter ihrem
     // Geschoss und bekommt keine Aussparungen.
     const boden = groundSlab(eingabe);
-    return boden ? [boden, ...levelSlabs(eingabe)] : levelSlabs(eingabe);
-  }, [doc.levels, doc.nodes, rooms, walls, verticals, durchbrueche, geschossHoehen, imBild]);
+    /*
+     * Die oberste Geschossdecke kommt dazu, wenn sie gezeigt werden soll.
+     * Ohne sie ist das Haus nach oben offen — in der begehbaren Ansicht
+     * steht man in einem Zimmer ohne Decke, und genau daran merkt man, dass
+     * es kein Zimmer ist.
+     *
+     * Sie hängt an einem Schalter und nicht an einer Regel, weil beide
+     * Blickrichtungen berechtigt sind: von innen gehört sie dazu, von außen
+     * verdeckt sie alles. Der Schalter steht in der 3D-Ansicht.
+     */
+    const decke = zeigeDecke ? topSlab(eingabe) : undefined;
+    const platten = levelSlabs(eingabe);
+    return [
+      ...(boden ? [boden] : []),
+      ...platten,
+      ...(decke ? [decke] : []),
+    ];
+  }, [doc.levels, doc.nodes, rooms, walls, verticals, durchbrueche, geschossHoehen, imBild, zeigeDecke]);
 
   // ------------------------------------------------------------ Szene-Setup
   useEffect(() => {
@@ -4152,6 +4183,20 @@ export default function Viewer3D({ className = '' }: { className?: string }) {
           </button>
         ))}
         <div className="divider-v" />
+        <button
+          className={`chip ${zeigeDecke ? 'bg-accent/15 text-accent' : 'text-slate-400 hover:text-slate-200'}`}
+          disabled={cameraMode === 'walk'}
+          title={
+            cameraMode === 'walk'
+              ? 'Im Begehen steht die Decke immer — von innen ist ein Zimmer ohne Decke kein Zimmer.'
+              : showCeiling
+                ? 'Oberste Geschossdecke ausblenden — sonst sieht man von oben nur sie.'
+                : 'Oberste Geschossdecke zeigen. Schächte und Deckendurchbrüche schneiden sie wie jede andere Decke.'
+          }
+          onClick={toggleCeiling}
+        >
+          Decke
+        </button>
         <button
           className={`chip ${showSite ? 'bg-accent/15 text-accent' : 'text-slate-400 hover:text-slate-200'}`}
           title="Grundstück, Wärmepumpe und Wärmequelle zeigen — dieselbe Ebene wie im Grundriss"

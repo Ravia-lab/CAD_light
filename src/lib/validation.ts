@@ -108,7 +108,7 @@ export const REMEDIES: Record<string, string> = {
   'room.implausible-height': 'Raumhöhe prüfen: üblich sind 2,40 bis 3,00 m. Unter der Dachschräge zählt die mittlere Höhe.',
   'room.no-exterior': 'Dieser Raum hat keine Außenwand. Das ist möglich (Innenbad), aber oft fehlt einfach eine Wand.',
   'room.unresolved-neighbour':
-    'Hinter dieser Wand wurde kein Raum erkannt — meist steht dort ein offenes Wandende. Gerechnet wird solange gegen „unbeheizt".',
+    'Hinter dieser Wand wurde kein Raum erkannt. Zwei Ursachen sind häufig: Dort fehlt eine Wand, sodass der Nachbarraum gar nicht geschlossen ist — dann im Reiter „Prüfung" unter „Aufmaß nachziehen" die Lücke schließen. Oder es liegt dort tatsächlich ein beheizter Raum, den die Geometrie nicht hergibt (offener Durchgang, Galerie) — dann die Wand anklicken und ihre Randbedingung ausdrücklich auf „Nachbarraum" setzen; eine Angabe an der Wand hat immer Vorrang. Bis dahin wird mit „unbeheizt" gerechnet, und das fällt **zu hoch** aus, nicht zu niedrig.',
   'level.missing-floor-u':
     'Im Reiter „Objekt" beim Geschoss den U-Wert für Boden und Decke eintragen. Für beide gibt es keinen Vorgabewert — zwischen gedämmter Bodenplatte und Geschossdecke liegt der Faktor drei —, sie fallen ohne Angabe mit 0 W aus der Heizlast.',
   'level.below-grade-no-ground':

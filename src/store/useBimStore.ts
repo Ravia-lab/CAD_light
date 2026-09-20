@@ -161,6 +161,7 @@ import { importIfc } from '../lib/ifcImport';
 import { ordneRaumnamenZu } from '../lib/raumnutzung';
 import { importRaumplan } from '../lib/raumplanImport';
 import { begradige } from '../lib/begradigen';
+import { befundSatz, hoehenbefund } from '../lib/wandhoehen';
 import { spiegleDokument } from '../lib/spiegeln';
 import { planeGeschosszuordnung } from '../lib/importgeschoss';
 import type { SpiegelAchse } from '../lib/spiegeln';
@@ -427,6 +428,25 @@ interface BimState {
   showDimensions: boolean;
   /** Dachlinien im Grundriss: First, Traufe und die Höhenlinien nach WoFlV. */
   showRoofLines: boolean;
+  /**
+   * Oberste Geschossdecke in der 3D-Ansicht zeigen?
+   *
+   * **Warum das eine Ansichtssache ist und keine Ebene im Dokument.** Die
+   * Decke ist ein Bauteil und steht als solches im Modell; ob man sie
+   * *sieht*, hängt davon ab, wovon man gerade redet. Von außen auf das Haus
+   * zu schauen und nur einen Deckel zu sehen, hilft niemandem — von innen
+   * ist ein Zimmer ohne Decke kein Zimmer. Eine Dokumentebene würde diese
+   * Entscheidung mit dem Projekt speichern und an den nächsten
+   * weitergeben; sie gehört aber zum Blickwinkel, nicht zum Gebäude.
+   *
+   * **Vorgabe `false`, und zwar nur für die Außenansichten.** Im Begehen
+   * steht die Decke ohnehin immer; dort ist sie nicht verhandelbar. In
+   * Orbit, Iso und Top wäre sie voreingestellt ein Rückschritt: Man sähe
+   * von einem Bungalow eine graue Platte und müsste erst einen Schalter
+   * suchen, um den Grundriss wiederzubekommen. Wer sie draußen braucht —
+   * etwa um einen Deckendurchbruch zu prüfen — schaltet sie ein.
+   */
+  showCeiling: boolean;
   /** Aktive Leitungsart für das Rohr-Werkzeug. */
   pipeService: PipeService;
   /**
@@ -512,6 +532,7 @@ interface BimState {
   setSnap: (patch: Partial<SnapSettings>) => void;
   toggleDimensions: () => void;
   toggleRoofLines: () => void;
+  toggleCeiling: () => void;
   setPipeService: (service: PipeService) => void;
   /** Doppelleitung (Vor- und Rücklauf in einem Zug) ein- oder ausschalten. */
   setDoppelleitung: (an: boolean) => void;
@@ -823,6 +844,10 @@ interface BimState {
    * ganz gerade; dieser Schritt richtet es, ohne Ecken aufzureißen.
    */
   begradigeWaende: (optionen?: BegradigenOptionen) => { ok: boolean; message: string };
+  /** Vorschau: Was eine Angleichung der Wandhöhen täte — ändert nichts. */
+  wandhoehenVorschau: () => ReturnType<typeof hoehenbefund>;
+  /** Alle Wände des Geschosses auf die lichte Geschosshöhe ziehen. */
+  gleicheWandhoehenAn: () => { ok: boolean; message: string };
   /**
    * Den Grundriss spiegeln.
    *
@@ -1579,6 +1604,28 @@ function belegeRaum(get: () => BimState, roomId: string): FloorLoopBatchResult |
   };
 }
 
+
+/**
+ * Das Dachgerüst eines Geschosses — oder `null`, wenn dort kein Dach sitzt.
+ *
+ * Ausgelagert, weil es an zwei Stellen gebraucht wird (Vorschau und
+ * Ausführung der Höhenangleichung) und beide dasselbe sehen müssen. Liefen
+ * sie auseinander, zeigte der Knopf eine andere Zahl, als er anschließend
+ * ändert.
+ */
+function dachGeruest(doc: BimDocument, level: Level): ReturnType<typeof buildRoofFrame> {
+  if (!level.roof) return null;
+  const levelWalls = Object.values(doc.walls).filter((w) => w.levelId === level.id);
+  const outline: { x: number; y: number }[] = [];
+  for (const w of levelWalls) {
+    const na = doc.nodes[w.a];
+    const nb = doc.nodes[w.b];
+    if (na) outline.push({ x: na.x, y: na.y });
+    if (nb) outline.push({ x: nb.x, y: nb.y });
+  }
+  return buildRoofFrame(level.roof, outline, [], gebaeudeUmriss(levelWalls, doc.nodes));
+}
+
 export const useBimStore = create<BimState>()((set, get) => {
   /**
    * Läuft gerade eine geklammerte Geste, und wurde ihr Ausgangsstand schon
@@ -1651,6 +1698,7 @@ export const useBimStore = create<BimState>()((set, get) => {
     snap: DEFAULT_SNAP,
     showDimensions: true,
     showRoofLines: true,
+    showCeiling: false,
     pipeService: 'heating-flow',
     doppelleitung: true,
     roomTemplate: 'rechteck',
@@ -1800,6 +1848,7 @@ export const useBimStore = create<BimState>()((set, get) => {
     setSnap: (patch) => set({ snap: { ...get().snap, ...patch } }),
     toggleDimensions: () => set({ showDimensions: !get().showDimensions }),
     toggleRoofLines: () => set({ showRoofLines: !get().showRoofLines }),
+    toggleCeiling: () => set({ showCeiling: !get().showCeiling }),
     setRoomTemplate: (kind) =>
       set({ roomTemplate: kind, tool: 'room', statusMessage: `${ROOM_TEMPLATE_BY_KIND[kind].label} — im Plan aufziehen` }),
     setRoomTemplateOptions: (patch) =>
@@ -4936,6 +4985,71 @@ export const useBimStore = create<BimState>()((set, get) => {
      * stünde nach dem Begradigen über der Wandkante und verschwände beim
      * nächsten Neuzeichnen.
      */
+    /**
+     * Was eine Angleichung täte — ohne sie zu tun.
+     *
+     * Eigene Funktion und nicht ein Rückgabewert von `gleicheWandhoehenAn`,
+     * weil die Vorschau bei **jedem** Bild gebraucht wird: Der Knopf trägt
+     * die Zahl, bevor ihn jemand drückt. Ein Knopf, der erst nach dem
+     * Drücken sagt, was er getan hat, ist bei einer Änderung an 40 Wänden
+     * kein Angebot, sondern eine Zumutung.
+     */
+    wandhoehenVorschau: () => {
+      const doc = get().doc;
+      const level = doc.levels[doc.activeLevelId];
+      const waende = Object.values(doc.walls);
+      if (!level) {
+        return { soll: 0, aenderungen: [], ausnahmen: [], groessteAbweichung: 0, gesamt: 0 };
+      }
+      return hoehenbefund({ level, walls: waende, nodes: doc.nodes, roofFrame: dachGeruest(doc, level) });
+    },
+
+    /**
+     * Wandhöhen angleichen.
+     *
+     * **Warum das überhaupt nötig ist.** Die Raumhöhe ist in diesem Programm
+     * keine Eingabe, sondern eine Messung: die *niedrigste* Wand des Raums.
+     * Eine Wand, die beim Zeichnen auf 2,19 m stehen geblieben ist, macht
+     * daraus die Höhe des ganzen Raums — und damit sein Volumen, seinen
+     * Luftwechsel und seinen Lüftungsverlust. Im Plan steht dann neben
+     * 2,44 m ein 2,19 m, das nie jemand gemessen hat.
+     *
+     * Angefasst wird nur, was eine Raumwand ist und nicht unter der
+     * Dachschräge liegt; die Begründung steht in `lib/wandhoehen.ts`. Der
+     * Schritt geht in die Historie und ist mit Rückgängig zu widerrufen —
+     * eine Änderung an vielen Wänden auf einmal muss man zurücknehmen
+     * können, ohne sie einzeln zu suchen.
+     */
+    gleicheWandhoehenAn: () => {
+      const doc = get().doc;
+      const level = doc.levels[doc.activeLevelId];
+      if (!level) {
+        const m = 'Kein Geschoss gewählt.';
+        set({ statusMessage: m });
+        return { ok: false, message: m };
+      }
+      const befund = hoehenbefund({
+        level,
+        walls: Object.values(doc.walls),
+        nodes: doc.nodes,
+        roofFrame: dachGeruest(doc, level),
+      });
+      if (befund.aenderungen.length === 0) {
+        const m = befundSatz(befund);
+        set({ statusMessage: m });
+        return { ok: false, message: m };
+      }
+      mutate((d) => {
+        for (const a of befund.aenderungen) {
+          const w = d.walls[a.wallId];
+          if (w) d.walls[a.wallId] = { ...w, height: a.soll };
+        }
+      });
+      const m = `Wandhöhen angeglichen: ${befundSatz(befund)}`;
+      set({ statusMessage: m });
+      return { ok: true, message: m };
+    },
+
     begradigeWaende: (optionen) => {
       const doc = get().doc;
       const waende = Object.values(doc.walls).filter((w) => w.levelId === doc.activeLevelId);
