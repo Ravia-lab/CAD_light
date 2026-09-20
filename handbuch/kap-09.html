@@ -8,7 +8,7 @@
 
 <p>Zwei Wörter, die leicht durcheinandergehen und die im ganzen Bericht auseinandergehalten werden müssen.</p>
 
-<p><b>Eine Trasse</b> ist das, was Sie zeichnen: ein Streckenzug aus Stützpunkten im Grundriss, mit <i>einer</i> Leitungsart, <i>einer</i> Nennweite, <i>einer</i> Dämmstärke und <i>einer</i> Verlegehöhe. Sie ist ein Gegenstand des Modells — Sie können sie anklicken, verschieben, ändern und löschen. Aus den Trassen entsteht der <b>Längenauszug</b>: wie viele Meter DN 20 gedämmt, wie viele Meter DN 15 blank. Das ist die Zahl, die der Einkauf braucht.</p>
+<p><b>Eine Trasse</b> ist das, was Sie zeichnen: ein Streckenzug aus Stützpunkten im Grundriss, mit <i>einer</i> Leitungsart, <i>einer</i> Nennweite, <i>einer</i> Dämmstärke und <i>einer</i> Verlegehöhe. Sie ist ein Gegenstand des Modells — Sie können sie anklicken, verschieben, ändern und löschen. Aus den Trassen entsteht der <b>Längenauszug</b>: wie viele Meter Cu 22 × 1 gedämmt, wie viele Meter Cu 18 × 1 blank. Das ist die Zahl, die der Einkauf braucht.</p>
 
 <p><b>Ein Abschnitt</b> — in der Fachsprache und im Bericht: eine <b>Teilstrecke</b> — ist etwas anderes. Er ist ein Stück des <i>Fließwegs</i> von der Quelle zu einem Verbraucher, gemessen zwischen zwei Punkten, an denen sich etwas ändert: eine Nennweite, ein Abzweig, ein Richtungswechsel. Ein Abschnitt existiert nicht als gezeichnetes Objekt; er entsteht erst, wenn das Programm das gezeichnete Netz als Graph liest (<a href="#k9-7">Abschnitt 9.7</a>).</p>
 
@@ -46,11 +46,17 @@
 
 <p><b>Auf dem Bildschirm</b> ist es einfacher: dort trägt die Farbe die Unterscheidung. Nur eine Strichart wird auch am Bildschirm gezeigt — der <b>Heizungsrücklauf ist gestrichelt</b>. Der Grund ist praktisch: Vor- und Rücklauf laufen fast immer 5 cm nebeneinander und wären sonst nicht auseinanderzuhalten.</p>
 
+<h3 id="k9-2b">9.2a Warum am Rohr kein „DN“ steht</h3>
+<p><b>DN</b> heißt Nennweite — eine <i>Sortiernummer</i>, keine Abmessung. Sie beantwortet die Frage, welcher Kugelhahn auf welches Rohr passt, und sie ist genau dafür gemacht. Bestellt wird ein Rohr aber nicht nach ihr, sondern nach <b>Außendurchmesser × Wanddicke</b>: „Cu 15 × 1“, „MSV 16 × 2“, „Cu 22 × 1“.</p>
+<p>Bis Fassung 1.34.0 stand im Plan die Nennweite, und am Heizkörper las man dort <b>„DN 12“</b>. Das ist rechnerisch richtig und in der Praxis irreführend: Ein 12er Rohr gibt es am Heizkörper nicht. Der Anschluss ist Cu 15 × 1 oder MSV 16 × 2 — und beide tragen die Nennweite 12, weil ihr lichter Innendurchmesser 13 bzw. 12 mm beträgt und damit näher an DN 12 liegt als an DN 15. Zwei verschiedene Rohre, eine Nennweite. Aus der Angabe im Plan war also nicht einmal zu erkennen, <i>welches</i> der beiden gemeint war.</p>
+<p>Seit 1.35.0 steht deshalb überall dort, wo bestellt und verbaut wird, die Abmessung: am Schild im Plan, im Massenauszug, in der Legende, im Inspektor. Die Nennweite verschwindet nicht — sie steht in der Legende und im Inspektor <b>daneben</b> („Cu 15 × 1 · DN 12“), weil die Armatur davor nach ihr geht: Auf ein 15 × 1 kommt ein ½″-Ventil, also DN 15.</p>
+<div class="hinweis"><b>Was das Programm nicht tut</b><p>Eine von Hand gezogene Leitung trägt weder Werkstoff noch Außenmaß. Sie behält im Plan ihre Nennweite — sichtbar und nicht stillschweigend. Ein plausibel aussehendes Maß dorthin zu schreiben wäre der teurere Fehler: Nach einer Abmessung wird bestellt, nach einer Nennweite fragt man nach.</p></div>
+
 <p>Zwei weitere Darstellungsregeln:</p>
 
 <ul>
 <li><b>Gedämmte Leitungen</b> bekommen einen breiten, blassen Mantel in ihrer Farbe. Man sieht auf einen Blick, was gedämmt ist und was nicht.</li>
-<li><b>Die Nennweite</b> steht als kleines Schild an der Trasse — aber <b>nur am Vorlauf</b>. Vor- und Rücklauf tragen dieselbe Nennweite; beide zu beschriften hieße, bei jedem Abschnitt „DN 20“ zweimal übereinanderzusetzen, und bei kleinem Maßstab wird daraus ein unlesbarer Fleck. Leitungen ohne Gegenstück — Trinkwasser, Zirkulation, Lüftung, Kältemittel — tragen ihre eigene Beschriftung. Das Schild erscheint ab 24 Bildpunkten je Meter, und wenn kein freier Platz gefunden wird, <b>fehlt es</b>: die Nennweite steht vollständig in der Rohrnetzberechnung, und ein Loch im Plan sieht man, einen Fleck hält man für eine Angabe.</li>
+<li><b>Die Abmessung</b> steht als kleines Schild an der Trasse — „Cu 15 × 1“, „MSV 20 × 2“, also das Maß, unter dem das Rohr bestellt und verbaut wird, und <b>nicht</b> die Nennweite. Der Grund steht in <a href="#k9-2b">Abschnitt 9.2a</a>. Beschriftet wird <b>nur der Vorlauf</b>. Vor- und Rücklauf tragen dieselbe Abmessung; beide zu beschriften hieße, bei jedem Abschnitt „Cu 22 × 1“ zweimal übereinanderzusetzen, und bei kleinem Maßstab wird daraus ein unlesbarer Fleck. Leitungen ohne Gegenstück — Trinkwasser, Zirkulation, Lüftung, Kältemittel — tragen ihre eigene Beschriftung. Das Schild erscheint ab 24 Bildpunkten je Meter, und wenn kein freier Platz gefunden wird, <b>fehlt es</b>: die Abmessung steht vollständig in der Rohrnetzberechnung und im Massenauszug, und ein Loch im Plan sieht man, einen Fleck hält man für eine Angabe.</li>
 </ul>
 
 <h3 id="k9-3">9.3 Von Hand zeichnen</h3>

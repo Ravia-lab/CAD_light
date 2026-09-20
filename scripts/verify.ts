@@ -46,6 +46,7 @@ import { buildReferenceDocument, buildReferenceReport } from './reference';
 import { pruefeDruckplan } from './pruefungen/druckplan';
 import { pruefeAnlagenschema } from './pruefungen/anlagenschema';
 import { pruefeRohrdaemmung } from './pruefungen/rohrdaemmung';
+import { pruefeRohrbezeichnung } from './pruefungen/rohrbezeichnung';
 import { pruefeRohrausleger } from './pruefungen/rohrausleger';
 import { pruefeRohrnetzrechner } from './pruefungen/rohrnetzrechner';
 import { pruefeWissensbasis } from './pruefungen/wissensbasis';
@@ -3803,6 +3804,9 @@ pruefeAnlagenschema(check);
 
 console.log('\n▸ Rohrdämmung — Anlage 8 GEG');
 pruefeRohrdaemmung(check);
+
+console.log('\n▸ Rohrbezeichnung — heißt die Leitung so, wie sie bestellt wird?');
+pruefeRohrbezeichnung(check);
 
 console.log('\n▸ Rohrausleger — Trasse, Dimension, Armaturen');
 pruefeRohrausleger(check);

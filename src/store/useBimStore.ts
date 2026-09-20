@@ -154,6 +154,7 @@ import {
   usageDefaults,
 } from '../lib/roomDetection';
 import { solidFootprint } from '../lib/verticalSymbols';
+import { rohrbezeichnung } from '../lib/rohrbezeichnung';
 import { planPipeNetwork, type PipeLayoutResult } from '../lib/pipeLayout';
 import { baseRoofHeightAt, buildRoofFrame, dormerSide } from '../lib/roofGeometry';
 import { importIfc } from '../lib/ifcImport';
@@ -3558,9 +3559,9 @@ export const useBimStore = create<BimState>()((set, get) => {
             ]
           : [{ kind: 'pipe', id: run.id }],
         statusMessage: partner
-          ? `Doppelleitung DN ${run.nominalDiameter} · ${meter(trasse)} Trasse · ` +
+          ? `Doppelleitung ${rohrbezeichnung(run)} · ${meter(trasse)} Trasse · ` +
             `${meter(2 * trasse)} Rohr (Vor- und Rücklauf)`
-          : `${PIPE_SERVICE_LABELS[service]} DN ${run.nominalDiameter} · ${meter(trasse)} verlegt`,
+          : `${PIPE_SERVICE_LABELS[service]} ${rohrbezeichnung(run)} · ${meter(trasse)} verlegt`,
       });
       return run;
     },

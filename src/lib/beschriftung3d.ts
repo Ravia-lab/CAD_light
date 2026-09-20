@@ -1,3 +1,4 @@
+
 /**
  * Beschriften in der begehbaren Ansicht.
  * ---------------------------------------------------------------------------
@@ -36,6 +37,7 @@ import {
   VENTILSEITE_LABELS,
   DURCHBRUCH_LABELS,
 } from '../types/bim';
+import { rohrbezeichnung } from './rohrbezeichnung';
 
 /** Ein Wert, den das Modell zur Beschriftung anbietet. */
 export interface Beschriftungsvorschlag {
@@ -118,7 +120,7 @@ export function beschriftungsVorschlaege(
   if (anchor.kind === 'pipe') {
     const r: PipeRun | undefined = (doc.pipes ?? {})[anchor.id];
     if (!r) return aus;
-    aus.push({ quelle: 'dn', text: `DN ${r.nominalDiameter}`, hinweis: 'Nennweite' });
+    aus.push({ quelle: 'dn', text: rohrbezeichnung(r), hinweis: 'Abmessung' });
     aus.push({ quelle: 'medium', text: PIPE_SERVICE_LABELS[r.service], hinweis: 'Medium' });
     aus.push({ quelle: 'hoehe', text: hoehenText(r.elevation), hinweis: 'Verlegehöhe über FFB' });
     if (r.insulation > 0) {

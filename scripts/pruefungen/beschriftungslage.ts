@@ -342,12 +342,24 @@ export function pruefeBeschriftungslage(check: CheckFn): void {
       buildPlanSvg(doc, { ...DRUCK, showRoomLabels: false }).svg,
     );
 
-    const dnMit = mitStempel.filter((t) => t.text.startsWith('DN '));
-    const dnOhne = ohneStempel.filter((t) => t.text.startsWith('DN '));
-    check('Auf dem Blatt steht genau eine Nennweite', dnMit.length, 1);
+    /*
+     * **Warum hier nicht mehr nach „DN " gesucht wird.** Seit der
+     * Umstellung auf handwerksübliche Bezeichnungen trägt die Leitung im
+     * Plan ihr Handelsmaß: Dieser Abschnitt ist Verbundrohr 20 × 2, also
+     * steht „MSV 20 × 2 · 20 mm" auf dem Blatt und nicht „DN 15 · 20 mm".
+     * Der Prüfblock hat das gefunden, bevor es jemand im Plan sah — er
+     * stürzte ab, weil `dnMit` leer blieb. Gesucht wird deshalb nach dem
+     * Werkstoffkürzel, und das steht hier absichtlich wörtlich: Wenn sich
+     * die Beschriftung noch einmal ändert, soll diese Prüfung es merken.
+     */
+    const dnMit = mitStempel.filter((t) => t.text.startsWith('MSV '));
+    const dnOhne = ohneStempel.filter((t) => t.text.startsWith('MSV '));
+    check('Auf dem Blatt steht genau eine Rohrangabe', dnMit.length, 1);
+    check('… und zwar das Handelsmaß, nicht die Nennweite',
+      dnMit[0]?.text ?? '—', 'MSV 20 × 2 · 20 mm');
     check('Der Raumstempel steht auch drauf',
       mitStempel.some((t) => t.text === 'Schlafen'), true);
-    check('Ohne Raumstempel gäbe es die Nennweite ebenfalls', dnOhne.length, 1);
+    check('Ohne Raumstempel gäbe es die Rohrangabe ebenfalls', dnOhne.length, 1);
 
     const stempel = mitStempel.find((t) => t.text === 'Schlafen')!;
     /*
@@ -358,7 +370,7 @@ export function pruefeBeschriftungslage(check: CheckFn): void {
      * Beschriftung ist nicht „zufällig woanders", sie ist dort, wo der
      * Stempel steht, und weicht nur aus, weil der Stempel gemeldet wurde.
      */
-    check('Ohne Stempel läge die Nennweite auf seiner Stelle',
+    check('Ohne Stempel läge die Rohrangabe auf seiner Stelle',
       Math.abs(dnOhne[0].x - stempel.x) < 0.05, true);
     // 3,6667 m Versatz × 20 mm/m = 73,33 mm auf dem Blatt.
     check('Mit Stempel rückt sie auf den Dreiviertelpunkt [mm]',

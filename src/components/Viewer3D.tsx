@@ -82,6 +82,7 @@ import {
   type Zieltreffer,
 } from '../lib/werkzeugkiste';
 import { solidFootprint, stairPath, stairRunLength, verticalCorners } from '../lib/verticalSymbols';
+import { rohrbezeichnungLang } from '../lib/rohrbezeichnung';
 import {
   getWallGeometry,
   junctionExtension,
@@ -3068,7 +3069,7 @@ export default function Viewer3D({ className = '' }: { className?: string }) {
         const run = s2.doc.pipes[treffer.pipeId];
         s2.setSelection({ kind: 'pipe', id: treffer.pipeId });
         s2.setStatus(
-          run ? `${PIPE_SERVICE_LABELS[run.service]} DN ${run.nominalDiameter}` : 'Leitung gewählt',
+          run ? `${PIPE_SERVICE_LABELS[run.service]} ${rohrbezeichnungLang(run)}` : 'Leitung gewählt',
         );
         return;
       }

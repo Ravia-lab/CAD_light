@@ -63,6 +63,7 @@ import { distanceToSegment, pointInPolygon, polygonArea, polygonPerimeter } from
 import { annotationLength } from '../lib/annotationSymbols';
 import { defaultGableRise } from '../lib/roofGeometry';
 import { solidFootprint, stairRunLength } from '../lib/verticalSymbols';
+import { rohrbezeichnungLang } from '../lib/rohrbezeichnung';
 import {
   durchbruchFlaeche,
   durchbruchMitte,
@@ -2230,7 +2231,7 @@ function AccessoryProperties({ armatur }: { armatur: PipeAccessory }) {
         <div className="rounded-lg bg-graphite-900/60 px-2.5 py-2">
           <Readout
             label="Am Abschnitt"
-            value={run ? `${PIPE_SERVICE_LABELS[run.service]} DN ${run.nominalDiameter}` : 'steht frei'}
+            value={run ? `${PIPE_SERVICE_LABELS[run.service]} ${rohrbezeichnungLang(run)}` : 'steht frei'}
             accent={Boolean(run)}
           />
           {run?.label && <Readout label="Strang" value={run.label} />}
@@ -2414,7 +2415,7 @@ function ankerBezeichnung(doc: BimDocument, anchor: AnnotationAnchor): string {
   if (anchor.kind === 'pipe') {
     const r = doc.pipes?.[anchor.id];
     if (!r) return 'gelöschte Leitung';
-    return `${PIPE_SERVICE_LABELS[r.service]} DN ${r.nominalDiameter}`;
+    return `${PIPE_SERVICE_LABELS[r.service]} ${rohrbezeichnungLang(r)}`;
   }
   const d = doc.durchbrueche?.[anchor.id];
   if (!d) return 'gelöschter Durchbruch';

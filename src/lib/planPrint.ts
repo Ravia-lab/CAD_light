@@ -46,6 +46,7 @@ import { pointInPolygon, polygonArea } from './geometry';
 import { druckeDokument } from './druckFenster';
 import { drawableScaleBar } from './planScaleBar';
 import { findeBeschriftungslage, type Rechteck } from './beschriftungsLage';
+import { rohrbezeichnung, rohrbezeichnungLang } from './rohrbezeichnung';
 import { EBENE_DURCHBRUECHE, ebeneFuerMedium, ebeneFuerObjekt } from './ebenen';
 
 /** Schriftgröße der Rohrbeschriftung auf dem Blatt [mm]. */
@@ -757,7 +758,7 @@ export function buildPlanSvg(doc: BimDocument, options: PlanPrintOptions): PlanF
      * zudeckt, hilft niemandem.
      */
     if (run.service === 'heating-flow') {
-      const text = `DN ${run.nominalDiameter}${run.insulation ? ` · ${run.insulation} mm` : ''}`;
+      const text = `${rohrbezeichnung(run)}${run.insulation ? ` · ${run.insulation} mm` : ''}`;
       // Der weiße Rand (`stroke-width` 0,45) zählt zur belegten Breite: er
       // frisst sich sonst in die Nachbarschrift.
       const mass = {
@@ -1297,12 +1298,12 @@ function buildLegend(
   for (const run of Object.values(doc.pipes ?? {})) {
     if (!gewerkSichtbar(ebeneFuerMedium(run.service))) continue;
     if (run.levelId !== options.levelId) continue;
-    const key = `${run.service}-${run.nominalDiameter}`;
+    const key = `${run.service}-${rohrbezeichnungLang(run)}`;
     if (seenPipes.has(key)) continue;
     seenPipes.add(key);
     entries.push({
       colour: PIPE_SERVICE_COLORS[run.service],
-      label: `${PIPE_SERVICE_LABELS[run.service]} DN ${run.nominalDiameter}`,
+      label: `${PIPE_SERVICE_LABELS[run.service]} ${rohrbezeichnungLang(run)}`,
       dashed: run.service === 'heating-return',
     });
   }

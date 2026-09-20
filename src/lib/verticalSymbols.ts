@@ -28,6 +28,7 @@ import { PIPE_SERVICE_COLORS } from '../types/bim';
 import { accessorySymbol } from './pipeAccessorySymbols';
 import { trassenlaenge as trassenlaengeVon } from './rohrlaenge';
 import { findeBeschriftungslage, type Rechteck } from './beschriftungsLage';
+import { rohrbezeichnung } from './rohrbezeichnung';
 
 const TO_RAD = Math.PI / 180;
 
@@ -497,7 +498,7 @@ export function drawPipe(
    */
   if (zoom > 24 && run.service !== 'heating-return') {
     ctx.font = '9px ui-monospace, monospace';
-    const label = `DN ${run.nominalDiameter}`;
+    const label = rohrbezeichnung(run);
     const w = ctx.measureText(label).width;
     const punkte = run.points.map((p) => ({ x: sx(p.x), y: sy(p.y) }));
     // Der Kasten ist derselbe, der gleich gezeichnet wird: 3 px Rand seitlich,

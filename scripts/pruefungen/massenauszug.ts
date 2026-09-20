@@ -618,4 +618,45 @@ export function pruefeMassenauszug(check: CheckFn): void {
       'Bezeichnung "in Anführungszeichen"',
     );
   }
+
+  // =========================================================================
+  // Bestellangabe: Handelsmaß statt Nennweite — und zwei Artikel bleiben zwei
+  // =========================================================================
+  {
+    /*
+     * **Der Fall, der das ausgelöst hat.** Cu 15 × 1 und MSV 16 × 2 haben
+     * beide die Nennweite DN 12: d_i = 15 − 2·1 = 13 bzw. 16 − 2·2 = 12, und
+     * 13 wie 12 liegen näher an DN 12 als an DN 15. Gruppierte der
+     * Massenauszug nur nach der Nennweite, stünden zehn Meter Kupfer und
+     * zehn Meter Verbundrohr als eine Position über zwanzig Meter in der
+     * Bestellung. Bestellt würde davon das Falsche, und zwar zwanzig Meter.
+     *
+     * Beide Leitungen sind hier zehn Meter lang (Punkt (0|0) bis (10|0)),
+     * ungedämmt und auf derselben Höhe — sie unterscheiden sich **nur** im
+     * Werkstoff. Genau das muss reichen, um sie zu trennen.
+     */
+    const cu: PipeRun = { ...leitung('p-cu', 0, 0.3, 12), material: 'kupfer', outerDiameter: 15 };
+    const msv: PipeRun = { ...leitung('p-msv', 0, 0.3, 12), material: 'verbund', outerDiameter: 16 };
+    const gemischt = buildMaterialSchedule(dokumentMitLeitungen(cu, msv));
+    const rohre = gemischt.items.filter((r) => r.trade === 'rohr');
+
+    check('Zwei Werkstoffe bleiben zwei Positionen', rohre.length, 2);
+    check('Kupfer wird als Handelsmaß bestellt',
+      rohre.some((r) => r.spec.startsWith('Cu 15 × 1 · DN 12')), true);
+    check('Verbundrohr ebenso',
+      rohre.some((r) => r.spec.startsWith('MSV 16 × 2 · DN 12')), true);
+    // 10,00 m je Position — nicht 20,00 m in einer.
+    check('Jede Position trägt ihre eigenen zehn Meter',
+      rohre.every((r) => Math.abs(r.quantity - 10) < 1e-6), true);
+
+    /*
+     * Die Gegenprobe: Ohne Werkstoff bleibt es bei der Nennweite. Ein
+     * erfundenes Handelsmaß wäre hier der teurere Fehler — danach wird
+     * bestellt, während man bei „DN 12" nachfragt.
+     */
+    const ohneWerkstoff = buildMaterialSchedule(dokumentMitLeitungen(leitung('p-frei', 0, 0.3, 12)));
+    const freieZeile = ohneWerkstoff.items.find((r) => r.trade === 'rohr');
+    check('Ohne Werkstoff bleibt die Nennweite stehen',
+      freieZeile?.spec.startsWith('DN 12') ?? false, true);
+  }
 }

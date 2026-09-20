@@ -52,6 +52,7 @@ import { anschlussNotiz, anschlussVonGeraet, pruefeAnschluss } from './anschluss
 import { findModel } from './deviceCatalog';
 import { plantOf } from './plantDefaults';
 import { PAARABSTAND } from './doppelleitung';
+import { WERKSTOFF_KUERZEL } from './rohrbezeichnung';
 
 export type { PlanningNote };
 
@@ -875,7 +876,7 @@ export function planPipeNetwork(doc: BimDocument, options: PipeLayoutOptions): P
         gradient: dim.gradient,
         outerDiameter: dim.dimension.outer,
         material,
-        label: `${seg.targets.length === 1 ? 'Anbindung' : 'Verteilung'} DN ${dim.dimension.dn}`,
+        label: `${seg.targets.length === 1 ? 'Anbindung' : 'Verteilung'} ${WERKSTOFF_KUERZEL[material]} ${dim.dimension.label}`,
       });
     }
   }

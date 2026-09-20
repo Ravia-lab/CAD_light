@@ -39,6 +39,7 @@ import type {
   FixtureType,
   HeatingCircuit,
   Opening,
+  PipeMaterial,
   PipeRun,
   PipeScheduleEntry,
   PipeService,
@@ -61,6 +62,7 @@ import {
 } from '../types/bim';
 import { BELAG_GRENZE, belagNach } from './bodenbelag';
 import { rohrlaenge, steiganteil } from './rohrlaenge';
+import { rohrbezeichnungLang } from './rohrbezeichnung';
 import { herkunftText, uWertOeffnung, uWertWand, type UWertAuskunft } from './uwert';
 import { findModel } from './deviceCatalog';
 import { plantOf } from './plantDefaults';
@@ -320,6 +322,17 @@ const insulationSpec = (value: number): string => {
 /** Ein Eintrag des Längenauszugs, um die Verlegeart erweitert. */
 interface PipeRow extends PipeScheduleEntry {
   laying?: LayingKind;
+  /**
+   * Werkstoff und Außenmaß — die Angaben, mit denen bestellt wird.
+   *
+   * **Warum sie in den Schlüssel gehören.** Cu 15 × 1 und MSV 16 × 2 tragen
+   * beide die Nennweite DN 12 (d_i = 13 bzw. 12 mm, beide am nächsten an
+   * 12). Gruppierte man nur nach der Nennweite, stünden zwanzig Meter
+   * Kupfer und zwanzig Meter Verbundrohr als **eine** Position von vierzig
+   * Metern in der Bestellung — zwei verschiedene Artikel unter einer Zahl.
+   */
+  material?: PipeMaterial;
+  outerDiameter?: number;
 }
 
 /**
@@ -347,7 +360,7 @@ function pipeRows(runs: readonly PipeRun[], splitByLaying: boolean): PipeRow[] {
     const steig = steiganteil(run);
     if (!Number.isFinite(length) || length <= 0) continue;
     const laying = splitByLaying ? layingOf(run) : undefined;
-    const key = `${run.service}|${run.nominalDiameter}|${run.insulation}|${laying ?? ''}`;
+    const key = `${run.service}|${run.nominalDiameter}|${run.material ?? ''}|${run.outerDiameter ?? ''}|${run.insulation}|${laying ?? ''}`;
     const found = map.get(key);
     if (found) {
       found.length += length;
@@ -363,6 +376,8 @@ function pipeRows(runs: readonly PipeRun[], splitByLaying: boolean): PipeRow[] {
       riseLength: steig,
       runs: 1,
       laying,
+      material: run.material,
+      outerDiameter: run.outerDiameter,
     });
   }
   return [...map.values()];
@@ -447,7 +462,20 @@ function collectPipes(doc: BimDocument, sheet: Sheet, notes: MaterialNote[]): vo
         trade: 'rohr',
         name: PIPE_SERVICE_LABELS[row.service] ?? String(row.service),
         spec: joinSpec(
-          positive(row.nominalDiameter) ? `DN ${num(row.nominalDiameter, 0)}` : 'Nennweite nicht angegeben',
+          /*
+           * **Die Bestellangabe, nicht die Sortiernummer.** Ein Einkauf
+           * bestellt „Cu 22 × 1", kein „DN 20" — die Nennweite steht
+           * dahinter, weil die Armaturen danach gehen. Fehlt der
+           * Werkstoff, bleibt nur die Nennweite, und das ist dann auch
+           * die ehrliche Auskunft: Es ist noch nicht festgelegt.
+           */
+          positive(row.nominalDiameter)
+            ? rohrbezeichnungLang({
+                nominalDiameter: row.nominalDiameter,
+                outerDiameter: row.outerDiameter,
+                material: row.material,
+              })
+            : 'Nennweite nicht angegeben',
           insulationSpec(row.insulation),
           row.laying ? LAYING_LABELS[row.laying] : undefined,
         ),
