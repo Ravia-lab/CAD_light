@@ -162,6 +162,7 @@ import { ordneRaumnamenZu } from '../lib/raumnutzung';
 import { importRaumplan } from '../lib/raumplanImport';
 import { begradige } from '../lib/begradigen';
 import { befundSatz, hoehenbefund } from '../lib/wandhoehen';
+import { SPRACHEN, spracheSetzen, type Sprache } from '../lib/sprache';
 import { spiegleDokument } from '../lib/spiegeln';
 import { planeGeschosszuordnung } from '../lib/importgeschoss';
 import type { SpiegelAchse } from '../lib/spiegeln';
@@ -447,6 +448,20 @@ interface BimState {
    * etwa um einen Deckendurchbruch zu prüfen — schaltet sie ein.
    */
   showCeiling: boolean;
+  /**
+   * Bediensprache der Oberfläche.
+   *
+   * **Sie gehört zur Person, nicht zum Projekt** — deshalb steht sie hier
+   * und nicht im Dokument. Zwei Monteure am selben Grundriss dürfen ihn in
+   * verschiedenen Sprachen bedienen, und ein Projekt, das aus einer
+   * türkischen Sitzung kommt, darf beim nächsten nicht plötzlich türkisch
+   * aufgehen. Gemerkt wird sie im Browser, wie die Sitzungssicherung.
+   *
+   * Die **Ausgaben** — Plan, Massenauszug, Rohrnetzbericht, Übergabe an
+   * RaVia — bleiben davon unberührt und deutsch. Sie gehen an Bauherr,
+   * Prüfer und Bauleiter, und die lesen Deutsch.
+   */
+  sprache: Sprache;
   /** Aktive Leitungsart für das Rohr-Werkzeug. */
   pipeService: PipeService;
   /**
@@ -533,6 +548,7 @@ interface BimState {
   toggleDimensions: () => void;
   toggleRoofLines: () => void;
   toggleCeiling: () => void;
+  setSprache: (s: Sprache) => void;
   setPipeService: (service: PipeService) => void;
   /** Doppelleitung (Vor- und Rücklauf in einem Zug) ein- oder ausschalten. */
   setDoppelleitung: (an: boolean) => void;
@@ -1626,6 +1642,31 @@ function dachGeruest(doc: BimDocument, level: Level): ReturnType<typeof buildRoo
   return buildRoofFrame(level.roof, outline, [], gebaeudeUmriss(levelWalls, doc.nodes));
 }
 
+
+/** Wo die Sprachwahl im Browser liegt. */
+const SPRACH_SCHLUESSEL = 'ravia-cad-light.sprache.v1';
+
+/**
+ * Die gemerkte Sprache beim Start — und sie wird sofort gesetzt.
+ *
+ * `spracheSetzen` hier und nicht erst im ersten Bauteil: `t()` wird schon
+ * beim Aufbau des Speichers aufgerufen (Beschriftungstabellen,
+ * Vorgabetexte). Käme die Sprache erst danach, stünde der erste Bildaufbau
+ * auf Deutsch und der zweite nicht — ein Flackern, für das niemand eine
+ * Erklärung hätte.
+ */
+function geladeneSprache(): Sprache {
+  let s: Sprache = 'de';
+  try {
+    const roh = localStorage.getItem(SPRACH_SCHLUESSEL);
+    if (roh && SPRACHEN.some((x) => x.code === roh)) s = roh as Sprache;
+  } catch {
+    // Kein Speicher, keine Erinnerung — Deutsch.
+  }
+  spracheSetzen(s);
+  return s;
+}
+
 export const useBimStore = create<BimState>()((set, get) => {
   /**
    * Läuft gerade eine geklammerte Geste, und wurde ihr Ausgangsstand schon
@@ -1699,6 +1740,7 @@ export const useBimStore = create<BimState>()((set, get) => {
     showDimensions: true,
     showRoofLines: true,
     showCeiling: false,
+    sprache: geladeneSprache(),
     pipeService: 'heating-flow',
     doppelleitung: true,
     roomTemplate: 'rechteck',
@@ -1849,6 +1891,27 @@ export const useBimStore = create<BimState>()((set, get) => {
     toggleDimensions: () => set({ showDimensions: !get().showDimensions }),
     toggleRoofLines: () => set({ showRoofLines: !get().showRoofLines }),
     toggleCeiling: () => set({ showCeiling: !get().showCeiling }),
+    /**
+     * Sprache umstellen.
+     *
+     * Drei Dinge in einem Schritt, und alle drei sind nötig: der
+     * Modulzustand in `lib/sprache` (daraus liest `t()`), der Speicher
+     * (daraus lesen die Bauteile und zeichnen neu) und der Browser (damit
+     * die Wahl den nächsten Start überlebt). Fehlt der erste, übersetzt
+     * nichts; fehlt der zweite, ändert sich das Bild nicht; fehlt der
+     * dritte, fragt das Programm jeden Morgen erneut.
+     */
+    setSprache: (s2: Sprache) => {
+      spracheSetzen(s2);
+      try {
+        localStorage.setItem(SPRACH_SCHLUESSEL, s2);
+      } catch {
+        // Privates Fenster oder gesperrter Speicher: die Wahl gilt für
+        // diese Sitzung und wird eben nicht gemerkt. Kein Grund, die
+        // Umstellung deshalb zu verweigern.
+      }
+      set({ sprache: s2 });
+    },
     setRoomTemplate: (kind) =>
       set({ roomTemplate: kind, tool: 'room', statusMessage: `${ROOM_TEMPLATE_BY_KIND[kind].label} — im Plan aufziehen` }),
     setRoomTemplateOptions: (patch) =>

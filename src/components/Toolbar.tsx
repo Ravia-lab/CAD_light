@@ -31,6 +31,7 @@ import {
 import { verlegeartAus } from '../lib/plantDefaults';
 import { UI_MODUS_LABELS, zeigtAnsicht, zeigtKopfknopf, zeigtWerkzeug, type UiModus } from '../lib/uimodus';
 import { useBimStore } from '../store/useBimStore';
+import { t } from '../lib/sprache';
 import { useRef, useState } from 'react';
 import { buildRaviaExport, downloadJson, exportFilename } from '../lib/raviaExport';
 import { buildIfc, downloadIfc, ifcFilename } from '../lib/ifcExport';
@@ -199,20 +200,26 @@ export default function ToolRail() {
       className="panel m-2 flex w-[52px] shrink-0 flex-col items-center gap-1 overflow-y-auto overscroll-contain rounded-xl px-1.5 py-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
       style={{ touchAction: 'pan-y' }}
     >
-      {TOOLS.filter((t) => zeigtWerkzeug(uiMode, t.id, t.simple === true)).map((t) => (
+      {/*
+        * Die Laufvariable heißt `wz` und nicht mehr `t` — `t` ist seit der
+        * Sprachumstellung die Übersetzungsfunktion, und ein Werkzeug, das
+        * sie überdeckt, wäre ein Fehler, den der Übersetzer erst bemerkt,
+        * wenn die halbe Leiste deutsch bleibt.
+        */}
+      {TOOLS.filter((wz) => zeigtWerkzeug(uiMode, wz.id, wz.simple === true)).map((wz) => (
         <RailButton
-          key={t.id}
-          active={tool === t.id}
-          title={`${t.label}  ·  ${t.hotkey}\n${t.hint}`}
-          onClick={() => setTool(t.id)}
+          key={wz.id}
+          active={tool === wz.id}
+          title={`${t(wz.label)}  ·  ${wz.hotkey}\n${t(wz.hint)}`}
+          onClick={() => setTool(wz.id)}
         >
-          <Icon>{icons[t.icon]}</Icon>
+          <Icon>{icons[wz.icon]}</Icon>
         </RailButton>
       ))}
 
       <Separator />
 
-      <RailButton active={snap.grid} title="Raster-Fang · G" onClick={() => setSnap({ grid: !snap.grid })}>
+      <RailButton active={snap.grid} title={t('Raster-Fang') + ' · G'} onClick={() => setSnap({ grid: !snap.grid })}>
         <Icon>{icons.grid}</Icon>
       </RailButton>
       <RailButton
@@ -791,7 +798,7 @@ function OpeningTypeBar({
   onSelect: (preset: (typeof OPENING_PRESETS)[number]) => void;
 }) {
   const presets = OPENING_PRESETS.filter((p) => p.kind === kind);
-  const label = kind === 'window' ? 'Fenstertyp' : kind === 'door' ? 'Türtyp' : 'Durchgang';
+  const label = t(kind === 'window' ? 'Fenstertyp' : kind === 'door' ? 'Türtyp' : 'Durchgang');
 
   return (
     <div className="flex min-w-0 items-center gap-1.5">
@@ -875,7 +882,7 @@ function PipeServiceBar() {
 
   return (
     <div className="flex min-w-0 items-center gap-1.5">
-      <span className="label-xs shrink-0">Leitung</span>
+      <span className="label-xs shrink-0">{t('Leitung')}</span>
       <div className="flex min-w-0 flex-wrap gap-0.5 rounded-lg bg-graphite-900/60 p-0.5">
         {services.map((s2) => (
           <button

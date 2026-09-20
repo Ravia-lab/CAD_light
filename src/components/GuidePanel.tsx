@@ -38,6 +38,7 @@ import { validateModel } from '../lib/validation';
 import type { FixtureType } from '../types/bim';
 import { UEBERGABE_SCHRITTE, UI_MODUS_AUSKUNFT, UI_MODUS_LABELS } from '../lib/uimodus';
 import { useBimStore } from '../store/useBimStore';
+import { SPRACHEN } from '../lib/sprache';
 import PlanPrintDialog from './PlanPrintDialog';
 import RohrnetzDialog from './RohrnetzDialog';
 
@@ -82,6 +83,8 @@ export default function GuidePanel({ onOpenTab }: { onOpenTab: (tab: string) => 
   const loadDemo = useBimStore((s) => s.loadDemo);
   const uiMode = useBimStore((s) => s.uiMode);
   const setUiMode = useBimStore((s) => s.setUiMode);
+  const sprache = useBimStore((s) => s.sprache);
+  const setSprache = useBimStore((s) => s.setSprache);
 
   /**
    * Zwei Fenster, die die Liste selbst öffnet.
@@ -591,6 +594,36 @@ export default function GuidePanel({ onOpenTab }: { onOpenTab: (tab: string) => 
           ))}
         </div>
         <p className="mt-1.5 text-[9.5px] leading-relaxed text-slate-600">{UI_MODUS_AUSKUNFT[uiMode]}</p>
+      </div>
+
+      {/* ------------------------------------------------------- Sprache */}
+      <div className="border-t border-white/[0.06] pt-3">
+        <div className="label-xs mb-1.5">Sprache · Dil · Język · Язык</div>
+        <div className="flex flex-wrap gap-0.5 rounded-lg bg-graphite-900/60 p-0.5">
+          {SPRACHEN.map((sp) => (
+            <button
+              key={sp.code}
+              onClick={() => setSprache(sp.code)}
+              title={`${sp.deutsch} — die Bedienung wird umgestellt. Fachbegriffe (Vorlauf, Heizlast, U-Wert …) bleiben deutsch, weil sie auf der Baustelle deutsch heißen. Plan, Massenauszug und Bericht bleiben ebenfalls deutsch.`}
+              className={`chip ${
+                sprache === sp.code ? 'bg-accent/15 text-accent' : 'text-slate-500 hover:text-slate-300'
+              }`}
+            >
+              {sp.eigenname}
+            </button>
+          ))}
+        </div>
+        <p className="mt-1.5 text-[9.5px] leading-relaxed text-slate-600">
+          Umgestellt wird die <b>Bedienung</b>. Die Fachbegriffe bleiben deutsch — sie stehen so
+          auf dem Lieferschein und der Bauleiter fragt so danach. Plan, Massenauszug und
+          Rohrnetzbericht bleiben ebenfalls deutsch: Die liest der Bauherr, nicht der Monteur.
+        </p>
+        {sprache !== 'de' && (
+          <p className="mt-1 text-[9.5px] leading-relaxed text-amber-400/70">
+            Diese Sprache ist noch nicht durchgesehen — was noch nicht übersetzt ist, steht auf
+            Deutsch da. Nichts davon ist falsch, manches ist nur noch nicht übersetzt.
+          </p>
+        )}
       </div>
 
       {rohrnetzOffen &&

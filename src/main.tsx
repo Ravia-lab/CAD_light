@@ -94,8 +94,28 @@ declare global {
 window.__ravia = useBimStore;
 installEmbedApi(useBimStore);
 
+/**
+ * Die Anwendung, an die Sprache gebunden.
+ *
+ * **Warum ein `key` und kein Kontext.** `t()` liest die Sprache aus einem
+ * Modulzustand — das macht den Aufruf überall billig und hält `src/lib`
+ * frei von React. Der Preis: Ein Bauteil, das `t()` aufruft, aber die
+ * Sprache nicht aus dem Speicher liest, weiß beim Umschalten nicht, dass es
+ * sich neu zeichnen muss. Die Oberfläche stünde dann halb in der alten
+ * Sprache da.
+ *
+ * Ein `key` löst das vollständig und in einer Zeile: React wirft den Baum
+ * weg und baut ihn neu auf. Das kostet einen Bildaufbau — bei einer
+ * Handlung, die jemand ein- oder zweimal im Leben ausführt. Der Zustand
+ * überlebt, weil er im Speicher liegt und nicht in den Bauteilen.
+ */
+function Wurzel() {
+  const sprache = useBimStore((s) => s.sprache);
+  return <App key={sprache} />;
+}
+
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
-    <App />
+    <Wurzel />
   </React.StrictMode>,
 );
