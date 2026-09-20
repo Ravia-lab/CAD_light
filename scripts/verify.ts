@@ -149,6 +149,7 @@ import { pruefeBegehen } from './pruefungen/begehen';
 import { pruefeRaumtreffer } from './pruefungen/raumtreffer';
 import { pruefeErzeugerhydraulik } from './pruefungen/erzeugerhydraulik';
 import { pruefeRaumscan } from './pruefungen/raumscan';
+import { pruefeGebaeudescan } from './pruefungen/gebaeudescan';
 import { pruefeAufmass } from './pruefungen/aufmass';
 import { pruefeWerkzeugkiste } from './pruefungen/werkzeugkiste';
 import { pruefeBeschriftung3d } from './pruefungen/beschriftung';
@@ -3881,6 +3882,7 @@ pruefeBeschriftungslage(check);
 console.log('\n▸ Schemabeschriftung — 63 Überdeckungen, gezählt und beseitigt');
 pruefeSchemabeschriftung(check);
 pruefeRaumscan(check);
+pruefeGebaeudescan(check);
 pruefeAufmass(check);
 
 console.log('\n▸ Systemtemperatur — eine Anlage, eine Auslegungstemperatur');

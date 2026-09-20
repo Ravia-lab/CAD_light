@@ -187,6 +187,17 @@ export default function App() {
     if (dann === 'bild') setTab('reference');
   };
 
+  /*
+   * Kommt ein Modell von außen herein, während die Einführung offen ist —
+   * etwa ein Gebäudescan, den RaVia über `loadBuilding` schickt —, ist die
+   * Frage „wie anfangen?" beantwortet. Die Karte stünde sonst über dem
+   * gerade geladenen Grundriss.
+   */
+  useEffect(() => {
+    if (welcome && wallCount > 0) closeWelcome('leer', uiMode);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [welcome, wallCount]);
+
   // Sitzungssicherung: entprellt, damit das Zeichnen nicht ins Stocken gerät.
   // Mit offenem Projekt landet der Stand in dessen Eintrag, sonst im
   // Autosave-Schlüssel selbst — siehe `lib/autosave.ts`.

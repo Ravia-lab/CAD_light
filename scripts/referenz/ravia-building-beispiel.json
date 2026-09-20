@@ -1,0 +1,1836 @@
+{
+ "createdAt": "2026-09-19T17:59:25Z",
+ "emitters": [
+  {
+   "bottomHeight": 0.15,
+   "centerOffset": 1.729,
+   "depth": 0.1,
+   "depthSource": "type",
+   "height": 0.6,
+   "id": "h-001",
+   "kind": "panel",
+   "levelId": "level-0",
+   "measured": true,
+   "photoIds": [
+    "hk-1-front"
+   ],
+   "position": {
+    "x": -0.447,
+    "y": -3.18
+   },
+   "roomId": "r-001",
+   "rotationDeg": 180,
+   "suggestion": {
+    "confidence": 0.82,
+    "confirmed": true,
+    "manufacturer": "Kermi",
+    "panelType": "22",
+    "source": "via"
+   },
+   "wallId": "w-001",
+   "width": 1.2
+  },
+  {
+   "bottomHeight": 0.15,
+   "centerOffset": 0.644,
+   "depth": 0.155,
+   "depthSource": "type",
+   "height": 0.6,
+   "id": "h-002",
+   "kind": "panel",
+   "levelId": "level-0",
+   "measured": true,
+   "photoIds": [
+    "hk-2-front"
+   ],
+   "position": {
+    "x": 2.021,
+    "y": 9.051
+   },
+   "roomId": "r-001",
+   "rotationDeg": 90,
+   "suggestion": {
+    "confidence": 0.82,
+    "confirmed": true,
+    "manufacturer": "Kermi",
+    "panelType": "33",
+    "source": "via"
+   },
+   "wallId": "w-002",
+   "width": 1.2
+  },
+  {
+   "bottomHeight": 0.15,
+   "centerOffset": 2.183,
+   "depth": 0.08,
+   "depthSource": "type",
+   "height": 0.6,
+   "id": "h-003",
+   "kind": "panel",
+   "levelId": "level-0",
+   "measured": true,
+   "photoIds": [
+    "hk-3-front"
+   ],
+   "position": {
+    "x": -0.099,
+    "y": 8.14
+   },
+   "roomId": "r-001",
+   "rotationDeg": 0,
+   "suggestion": {
+    "confidence": 0.82,
+    "confirmed": true,
+    "manufacturer": "Kermi",
+    "panelType": "21",
+    "source": "via"
+   },
+   "wallId": "w-003",
+   "width": 1.2
+  },
+  {
+   "bottomHeight": 0.15,
+   "centerOffset": 1.395,
+   "depth": 0.048,
+   "depthSource": "type",
+   "height": 0.6,
+   "id": "h-004",
+   "kind": "panel",
+   "levelId": "level-0",
+   "measured": true,
+   "photoIds": [
+    "hk-4-front"
+   ],
+   "position": {
+    "x": 4.849,
+    "y": 4.058
+   },
+   "roomId": "r-001",
+   "rotationDeg": -90,
+   "suggestion": {
+    "confidence": 0.82,
+    "confirmed": true,
+    "manufacturer": "Kermi",
+    "panelType": "11",
+    "source": "via"
+   },
+   "wallId": "w-007",
+   "width": 1.2
+  }
+ ],
+ "format": "ravia.building",
+ "id": "8c4f2a1e-7d63-4b95-a2c8-1f0e5d9b3a47",
+ "levels": [
+  {
+   "elevation": 0,
+   "elevationSource": "lidar",
+   "height": 2.47,
+   "id": "level-0",
+   "index": 0,
+   "name": "EG",
+   "roof": {
+    "collarHeight": 2.47,
+    "kind": "gable",
+    "kneeHeight": 1.19,
+    "kneeWallIds": [
+     "w-020",
+     "w-038"
+    ],
+    "pitchDeg": 36.5,
+    "pitchSpreadDeg": 1.5,
+    "sampleCount": 6,
+    "slopeAzimuthsDeg": [
+     66.5,
+     247.6
+    ]
+   }
+  }
+ ],
+ "openings": [
+  {
+   "area": 1.66,
+   "centerOffset": 2.726,
+   "confidence": 0.95,
+   "height": 2.029,
+   "id": "o-001",
+   "isOpen": true,
+   "kind": "door",
+   "levelId": "level-0",
+   "sillHeight": 0,
+   "sourceId": "60CC6749-E4A5-4F2A-B03C-A9F886F45F8A",
+   "wallId": "w-034",
+   "width": 0.82
+  },
+  {
+   "area": 1.46,
+   "centerOffset": 0.476,
+   "confidence": 0.6,
+   "height": 2.012,
+   "id": "o-002",
+   "isOpen": true,
+   "kind": "door",
+   "levelId": "level-0",
+   "sillHeight": 0,
+   "sourceId": "95AC69DD-84A0-439F-B873-3A5FC36BD46D",
+   "wallId": "w-033",
+   "width": 0.724
+  },
+  {
+   "area": 1.22,
+   "centerOffset": 1.504,
+   "confidence": 0.95,
+   "height": 1.953,
+   "id": "o-003",
+   "isOpen": true,
+   "kind": "door",
+   "levelId": "level-0",
+   "sillHeight": 0,
+   "sourceId": "3349B2BA-B3CA-4D28-993E-BFE34E879876",
+   "wallId": "w-035",
+   "width": 0.622
+  },
+  {
+   "area": 1.5,
+   "centerOffset": 1.879,
+   "confidence": 0.6,
+   "height": 2.057,
+   "id": "o-004",
+   "isOpen": true,
+   "kind": "door",
+   "levelId": "level-0",
+   "sillHeight": 0,
+   "sourceId": "6CFF035E-AD93-41E2-924A-377E338EA3CC",
+   "wallId": "w-037",
+   "width": 0.729
+  },
+  {
+   "area": 1.11,
+   "centerOffset": 2.35,
+   "confidence": 0.6,
+   "height": 1.798,
+   "id": "o-005",
+   "isOpen": true,
+   "kind": "door",
+   "levelId": "level-0",
+   "sillHeight": 0,
+   "sourceId": "B1F1DDF7-1C97-45A2-873A-D1E675ABDAEF",
+   "wallId": "w-039",
+   "width": 0.618
+  },
+  {
+   "area": 2.26,
+   "azimuthDeg": 66.5,
+   "centerOffset": 1.76,
+   "confidence": 0.95,
+   "height": 1.493,
+   "id": "o-006",
+   "kind": "window",
+   "levelId": "level-0",
+   "orientation": "NO",
+   "sillHeight": 0.922,
+   "sourceId": "12C1E3A8-346C-4CF4-A8EF-97222216D345",
+   "wallId": "w-001",
+   "width": 1.512
+  },
+  {
+   "area": 1.07,
+   "azimuthDeg": 66.5,
+   "centerOffset": 2.495,
+   "confidence": 0.95,
+   "height": 0.776,
+   "id": "o-007",
+   "kind": "window",
+   "levelId": "level-0",
+   "orientation": "NO",
+   "sillHeight": 1.262,
+   "sourceId": "4DAB38FE-FD32-449A-97BF-D865654CD6A1",
+   "wallId": "w-008",
+   "width": 1.385
+  },
+  {
+   "area": 0.91,
+   "azimuthDeg": 246.5,
+   "centerOffset": 1.96,
+   "confidence": 0.6,
+   "height": 1.39,
+   "id": "o-008",
+   "kind": "window",
+   "levelId": "level-0",
+   "orientation": "SW",
+   "sillHeight": 0.884,
+   "sourceId": "2FE3E372-15AE-467C-ABB1-CCE1ED3D4166",
+   "wallId": "w-011",
+   "width": 0.656
+  },
+  {
+   "area": 0.44,
+   "azimuthDeg": 336.5,
+   "centerOffset": 1.227,
+   "confidence": 0.6,
+   "height": 0.86,
+   "id": "o-009",
+   "kind": "window",
+   "levelId": "level-0",
+   "orientation": "NW",
+   "sillHeight": 0.776,
+   "sourceId": "9B0C2E17-F197-42C4-B5A4-922267C0E24D",
+   "wallId": "w-012",
+   "width": 0.51
+  },
+  {
+   "area": 1.63,
+   "azimuthDeg": 336.5,
+   "centerOffset": 2.578,
+   "confidence": 0.95,
+   "height": 1.453,
+   "id": "o-010",
+   "kind": "window",
+   "levelId": "level-0",
+   "orientation": "NW",
+   "sillHeight": 0.99,
+   "sourceId": "6760B2B3-05E3-4302-8341-E762F131904F",
+   "wallId": "w-013",
+   "width": 1.12
+  },
+  {
+   "area": 1.42,
+   "azimuthDeg": 155.6,
+   "centerOffset": 1.789,
+   "confidence": 0.95,
+   "height": 1.378,
+   "id": "o-011",
+   "kind": "window",
+   "levelId": "level-0",
+   "orientation": "SO",
+   "sillHeight": 0.894,
+   "sourceId": "10B54EEF-5915-41AA-BF8E-7A1A1885C8AE",
+   "wallId": "w-018",
+   "width": 1.029
+  },
+  {
+   "area": 2.02,
+   "azimuthDeg": 155.5,
+   "centerOffset": 1.968,
+   "confidence": 0.6,
+   "height": 1.676,
+   "id": "o-012",
+   "kind": "window",
+   "levelId": "level-0",
+   "orientation": "SO",
+   "sillHeight": 0.748,
+   "sourceId": "0E2C9835-73F9-4F91-AD68-D51B3547FEAC",
+   "wallId": "w-019",
+   "width": 1.204
+  },
+  {
+   "area": 0.91,
+   "azimuthDeg": 246.4,
+   "centerOffset": 1.174,
+   "confidence": 0.95,
+   "height": 1.198,
+   "id": "o-013",
+   "kind": "window",
+   "levelId": "level-0",
+   "orientation": "SW",
+   "sillHeight": 0.954,
+   "sourceId": "8B2E69DF-1BCD-422F-A124-D611466DB402",
+   "wallId": "w-021",
+   "width": 0.756
+  },
+  {
+   "area": 1.18,
+   "azimuthDeg": 336.9,
+   "centerOffset": 1.934,
+   "confidence": 0.95,
+   "height": 1.354,
+   "id": "o-014",
+   "kind": "window",
+   "levelId": "level-0",
+   "orientation": "NW",
+   "sillHeight": 0.767,
+   "sourceId": "2585F988-EC72-48AC-952B-F7FC9880691A",
+   "wallId": "w-025",
+   "width": 0.875
+  },
+  {
+   "area": 0.38,
+   "azimuthDeg": 336.5,
+   "centerOffset": 1.132,
+   "confidence": 0.95,
+   "height": 0.826,
+   "id": "o-015",
+   "kind": "window",
+   "levelId": "level-0",
+   "orientation": "NW",
+   "sillHeight": 0.764,
+   "sourceId": "DDE3806B-FF71-49D5-A8A0-C2B91739C225",
+   "wallId": "w-026",
+   "width": 0.462
+  },
+  {
+   "area": 3.81,
+   "centerOffset": 0.851,
+   "confidence": 0.95,
+   "height": 2.24,
+   "id": "o-016",
+   "kind": "passage",
+   "levelId": "level-0",
+   "sillHeight": 0,
+   "sourceId": "40660928-25D0-4A1B-919F-10D103637B9A",
+   "wallId": "w-032",
+   "width": 1.701
+  },
+  {
+   "area": 1.8,
+   "centerOffset": 1.108,
+   "confidence": 0.95,
+   "height": 1.9,
+   "id": "o-017",
+   "kind": "passage",
+   "levelId": "level-0",
+   "sillHeight": 0,
+   "sourceId": "61591042-1EE7-45EE-BC90-A2FC94261D47",
+   "wallId": "w-036",
+   "width": 0.948
+  }
+ ],
+ "orientation": {
+  "northAccuracyDeg": 15.672268867492676,
+  "northPlanAngleDeg": 336.5,
+  "northSource": "compass",
+  "planRotationDeg": -40.64
+ },
+ "photos": [
+  {
+   "capturedAt": "2026-09-19T17:59:25Z",
+   "emitterId": "h-001",
+   "id": "hk-1-front",
+   "kind": "front",
+   "mimeType": "image/jpeg",
+   "roomId": "r-001"
+  },
+  {
+   "capturedAt": "2026-09-19T17:59:25Z",
+   "emitterId": "h-002",
+   "id": "hk-2-front",
+   "kind": "front",
+   "mimeType": "image/jpeg",
+   "roomId": "r-001"
+  },
+  {
+   "capturedAt": "2026-09-19T17:59:25Z",
+   "emitterId": "h-003",
+   "id": "hk-3-front",
+   "kind": "front",
+   "mimeType": "image/jpeg",
+   "roomId": "r-001"
+  },
+  {
+   "capturedAt": "2026-09-19T17:59:25Z",
+   "emitterId": "h-004",
+   "id": "hk-4-front",
+   "kind": "front",
+   "mimeType": "image/jpeg",
+   "roomId": "r-001"
+  }
+ ],
+ "project": {
+  "address": "Friedberg (Hessen)",
+  "location": {
+   "accuracyM": 12,
+   "latitude": 50.3292,
+   "longitude": 8.7505
+  },
+  "name": "Referenzwohnung Friedberg",
+  "raviaProjectId": 1234,
+  "sessionId": "8f0c2d1e-4b7a-4c1e-9f55-0f3c9f3b2a10"
+ },
+ "quality": {
+  "assumptions": [
+   {
+    "code": "axis.exteriorShifted",
+    "count": 18,
+    "text": "Außenwandachse um halbe Wandstärke nach außen gelegt (Innenfläche gemessen)"
+   },
+   {
+    "code": "door.swing",
+    "count": 5,
+    "text": "Türanschlag und Aufschlagrichtung werden nicht erfasst"
+   },
+   {
+    "code": "emitter.depthEstimated",
+    "count": 4,
+    "text": "Heizkörper-Bautiefe nicht gemessen — aus der Bauart geschätzt"
+   },
+   {
+    "code": "thickness.exterior",
+    "count": 18,
+    "text": "Außenwandstärke nicht messbar (nur Innenseite gescannt) — pauschal 0.365 m"
+   },
+   {
+    "code": "thickness.fromJamb",
+    "count": 20,
+    "text": "Wandstärke von einer Laibungsmessung derselben Wandart im Geschoss übernommen"
+   },
+   {
+    "code": "uvalue.notCaptured",
+    "count": 56,
+    "text": "U-Werte und Bauteilaufbauten werden nicht gescannt — Vorgaben in RaVia"
+   },
+   {
+    "code": "volume.flatCeiling",
+    "count": 1,
+    "text": "Raumvolumen hier noch als Fläche × Raumhöhe; unter der Schräge rechnet CAD Light mit dem Dachmodell nach"
+   }
+  ],
+  "issues": [
+   {
+    "code": "emitter.depthConflict",
+    "count": 1,
+    "severity": "warning",
+    "text": "Bautiefe passt nicht zum gemessenen Wandabstand — Bauart prüfen (Tiefe auf den Abstand begrenzt)"
+   },
+   {
+    "code": "north.inaccurate",
+    "count": 1,
+    "severity": "warning",
+    "text": "Kompass ungenau (±16°) — Nordrichtung prüfen"
+   },
+   {
+    "code": "roof.detected",
+    "count": 1,
+    "severity": "info",
+    "text": "Dachschräge erkannt: Neigung ca. 36°, Kniestock 1.19 m — in CAD Light als Dachvorschlag prüfen"
+   },
+   {
+    "code": "room.labelsMerged",
+    "count": 4,
+    "severity": "warning",
+    "text": "Mehrere benannte Räume liegen in einem erkannten Raum — dort fehlt eine Wand im Scan"
+   },
+   {
+    "code": "thickness.measuredJamb",
+    "count": 1,
+    "severity": "info",
+    "text": "Wandstärke an der Türlaibung gemessen"
+   }
+  ],
+  "lowConfidenceElements": 0,
+  "score": 90
+ },
+ "roomHints": [
+  {
+   "levelId": "level-0",
+   "name": "Wohnen",
+   "point": {
+    "x": -0.156,
+    "y": 6.421
+   },
+   "sourceLabel": "livingRoom",
+   "usage": "living"
+  },
+  {
+   "levelId": "level-0",
+   "name": "Essen",
+   "point": {
+    "x": 9.829,
+    "y": 6.731
+   },
+   "sourceLabel": "diningRoom",
+   "usage": "living"
+  },
+  {
+   "levelId": "level-0",
+   "name": "Küche",
+   "point": {
+    "x": 9.7,
+    "y": 3.927
+   },
+   "sourceLabel": "kitchen",
+   "usage": "kitchen"
+  },
+  {
+   "levelId": "level-0",
+   "name": "Schlafen",
+   "point": {
+    "x": 6.209,
+    "y": 8.318
+   },
+   "sourceLabel": "bedroom",
+   "usage": "bedroom"
+  },
+  {
+   "levelId": "level-0",
+   "name": "Bad",
+   "point": {
+    "x": 6.329,
+    "y": 4.106
+   },
+   "sourceLabel": "bathroom",
+   "usage": "bath"
+  }
+ ],
+ "rooms": [
+  {
+   "area": 111.34,
+   "boundaryWallIds": [
+    "w-001",
+    "w-002",
+    "w-003",
+    "w-008",
+    "w-009",
+    "w-010",
+    "w-011",
+    "w-012",
+    "w-013",
+    "w-014",
+    "w-018",
+    "w-019",
+    "w-020",
+    "w-021",
+    "w-025",
+    "w-026",
+    "w-027",
+    "w-038"
+   ],
+   "height": 2.47,
+   "id": "r-001",
+   "kind": "room",
+   "levelId": "level-0",
+   "name": "Wohnen",
+   "nameSource": "user",
+   "perimeter": 53.87,
+   "polygon": [
+    {
+     "x": -2.035,
+     "y": 4.4
+    },
+    {
+     "x": -1.992,
+     "y": 1.705
+    },
+    {
+     "x": -1.993,
+     "y": -3.275
+    },
+    {
+     "x": 1.1,
+     "y": -3.275
+    },
+    {
+     "x": 1.101,
+     "y": 1.692
+    },
+    {
+     "x": 1.101,
+     "y": 2.65
+    },
+    {
+     "x": 1.899,
+     "y": 2.649
+    },
+    {
+     "x": 4.935,
+     "y": 2.662
+    },
+    {
+     "x": 7.845,
+     "y": 2.699
+    },
+    {
+     "x": 11.747,
+     "y": 2.7
+    },
+    {
+     "x": 11.747,
+     "y": 4.982
+    },
+    {
+     "x": 11.775,
+     "y": 8.333
+    },
+    {
+     "x": 11.775,
+     "y": 9.88
+    },
+    {
+     "x": 7.886,
+     "y": 9.881
+    },
+    {
+     "x": 4.837,
+     "y": 9.878
+    },
+    {
+     "x": 1.899,
+     "y": 9.878
+    },
+    {
+     "x": 1.898,
+     "y": 8.224
+    },
+    {
+     "x": -2.097,
+     "y": 8.225
+    }
+   ],
+   "usage": "living",
+   "volume": 275.35
+  }
+ ],
+ "schemaVersion": "1.3.0",
+ "source": {
+  "app": {
+   "name": "RaVia Scan",
+   "version": "test"
+  },
+  "captureId": "C2F6D6A4-1E0B-4D35-9E3B-7C1A2B3C4D5E",
+  "capturedAt": "2026-09-21T14:13:20Z",
+  "device": {
+   "model": "iPhone",
+   "osVersion": "17"
+  },
+  "engineVersion": "1.0.0",
+  "kind": "roomplan"
+ },
+ "summary": {
+  "doorCount": 5,
+  "emitterCount": 4,
+  "exteriorWallCount": 18,
+  "exteriorWallGrossArea": 121.38,
+  "levelCount": 1,
+  "netFloorArea": 111.34,
+  "passageCount": 2,
+  "roomCount": 1,
+  "volume": 275.35,
+  "wallCount": 39,
+  "windowAreaByOrientation": {
+   "NO": 3.33,
+   "NW": 3.63,
+   "SO": 3.44,
+   "SW": 1.82
+  },
+  "windowCount": 10
+ },
+ "walls": [
+  {
+   "azimuthDeg": 66.5,
+   "confidence": 0.95,
+   "curved": false,
+   "end": {
+    "x": -2.176,
+    "y": -3.457
+   },
+   "grossArea": 8.55,
+   "height": 2.473,
+   "id": "w-001",
+   "length": 3.458,
+   "levelId": "level-0",
+   "orientation": "NO",
+   "sourceIds": [
+    "A78E14C6-7F1D-4FDF-A317-4E792A6CF197"
+   ],
+   "start": {
+    "x": 1.282,
+    "y": -3.458
+   },
+   "thickness": 0.365,
+   "thicknessSource": "estimated",
+   "type": "exterior"
+  },
+  {
+   "azimuthDeg": 156.5,
+   "confidence": 0.95,
+   "curved": false,
+   "end": {
+    "x": 1.716,
+    "y": 10.061
+   },
+   "grossArea": 4.09,
+   "height": 2.473,
+   "id": "w-002",
+   "length": 1.654,
+   "levelId": "level-0",
+   "orientation": "SO",
+   "sourceIds": [
+    "5E5E103B-780D-4E0A-B4FF-2329DCB59368"
+   ],
+   "start": {
+    "x": 1.716,
+    "y": 8.407
+   },
+   "thickness": 0.365,
+   "thicknessSource": "estimated",
+   "type": "exterior"
+  },
+  {
+   "azimuthDeg": 246.5,
+   "confidence": 0.95,
+   "curved": false,
+   "end": {
+    "x": 1.716,
+    "y": 8.407
+   },
+   "grossArea": 9.89,
+   "height": 2.473,
+   "id": "w-003",
+   "length": 3.998,
+   "levelId": "level-0",
+   "orientation": "SW",
+   "sourceIds": [
+    "8E40DFFA-1A99-47EE-BC4F-FE3612639756"
+   ],
+   "start": {
+    "x": -2.282,
+    "y": 8.408
+   },
+   "thickness": 0.365,
+   "thicknessSource": "estimated",
+   "type": "exterior"
+  },
+  {
+   "confidence": 0.95,
+   "curved": false,
+   "end": {
+    "x": 1.899,
+    "y": 6.523
+   },
+   "grossArea": 2.06,
+   "height": 2.685,
+   "id": "w-004",
+   "length": 0.768,
+   "levelId": "level-0",
+   "sourceIds": [
+    "BFD9B103-4E43-494C-92A2-B3A22235ABDD"
+   ],
+   "start": {
+    "x": 2.667,
+    "y": 6.523
+   },
+   "thickness": 0.125,
+   "thicknessSource": "fromJambSample",
+   "type": "interior"
+  },
+  {
+   "confidence": 0.95,
+   "curved": false,
+   "end": {
+    "x": 0.821,
+    "y": 5.324
+   },
+   "grossArea": 2.9,
+   "height": 2.473,
+   "id": "w-005",
+   "length": 1.172,
+   "levelId": "level-0",
+   "sourceIds": [
+    "4227D8CB-4977-4254-B79B-C654FF7639AE"
+   ],
+   "start": {
+    "x": 0.82,
+    "y": 4.151
+   },
+   "thickness": 0.125,
+   "thicknessSource": "fromJambSample",
+   "type": "interior"
+  },
+  {
+   "confidence": 0.95,
+   "curved": false,
+   "end": {
+    "x": 8.938,
+    "y": 5.002
+   },
+   "grossArea": 1.05,
+   "height": 2.331,
+   "id": "w-006",
+   "length": 0.45,
+   "levelId": "level-0",
+   "sourceIds": [
+    "3EF656F2-33A6-4655-BB4C-4FF5C421F211"
+   ],
+   "start": {
+    "x": 8.938,
+    "y": 5.452
+   },
+   "thickness": 0.125,
+   "thicknessSource": "fromJambSample",
+   "type": "interior"
+  },
+  {
+   "confidence": 0.95,
+   "curved": false,
+   "end": {
+    "x": 4.935,
+    "y": 2.48
+   },
+   "grossArea": 5.84,
+   "height": 2.473,
+   "id": "w-007",
+   "length": 2.973,
+   "levelId": "level-0",
+   "profile": [
+    {
+     "x": 0,
+     "y": 2.473
+    },
+    {
+     "x": 1.136,
+     "y": 2.473
+    },
+    {
+     "x": 2.791,
+     "y": 1.185
+    },
+    {
+     "x": 2.791,
+     "y": 0
+    },
+    {
+     "x": 0,
+     "y": 0
+    }
+   ],
+   "sourceIds": [
+    "2D5AE77B-926C-4298-89CD-30365CD4F576"
+   ],
+   "start": {
+    "x": 4.935,
+    "y": 5.453
+   },
+   "thickness": 0.125,
+   "thicknessSource": "measuredJamb",
+   "type": "interior"
+  },
+  {
+   "azimuthDeg": 66.5,
+   "confidence": 0.95,
+   "curved": false,
+   "end": {
+    "x": 7.846,
+    "y": 2.517
+   },
+   "grossArea": 8.44,
+   "height": 2.067,
+   "id": "w-008",
+   "length": 4.083,
+   "levelId": "level-0",
+   "orientation": "NO",
+   "sourceIds": [
+    "F4933ADA-E563-4835-995C-05F8E52DE77D"
+   ],
+   "start": {
+    "x": 11.929,
+    "y": 2.518
+   },
+   "thickness": 0.365,
+   "thicknessSource": "estimated",
+   "type": "exterior"
+  },
+  {
+   "azimuthDeg": 65.7,
+   "confidence": 0.95,
+   "curved": false,
+   "end": {
+    "x": 4.936,
+    "y": 2.48
+   },
+   "grossArea": 6.02,
+   "height": 2.067,
+   "id": "w-009",
+   "length": 2.91,
+   "levelId": "level-0",
+   "orientation": "NO",
+   "sourceIds": [
+    "D4C22C30-01A8-4F4E-9D1B-E28993403E1D"
+   ],
+   "start": {
+    "x": 7.846,
+    "y": 2.517
+   },
+   "thickness": 0.365,
+   "thicknessSource": "estimated",
+   "type": "exterior"
+  },
+  {
+   "azimuthDeg": 156.5,
+   "confidence": 0.95,
+   "curved": false,
+   "end": {
+    "x": -2.175,
+    "y": 1.703
+   },
+   "grossArea": 12.76,
+   "height": 2.473,
+   "id": "w-010",
+   "length": 5.16,
+   "levelId": "level-0",
+   "orientation": "SO",
+   "sourceIds": [
+    "B63ADADD-DFEC-4C3B-9F16-B369DC5DB9C3"
+   ],
+   "start": {
+    "x": -2.176,
+    "y": -3.457
+   },
+   "thickness": 0.365,
+   "thicknessSource": "estimated",
+   "type": "exterior"
+  },
+  {
+   "azimuthDeg": 246.5,
+   "confidence": 0.95,
+   "curved": false,
+   "end": {
+    "x": 4.837,
+    "y": 10.06
+   },
+   "grossArea": 7.72,
+   "height": 2.473,
+   "id": "w-011",
+   "length": 3.12,
+   "levelId": "level-0",
+   "orientation": "SW",
+   "sourceIds": [
+    "B1A30475-C6AF-4940-9773-A5DB05AA32ED"
+   ],
+   "start": {
+    "x": 1.716,
+    "y": 10.061
+   },
+   "thickness": 0.365,
+   "thicknessSource": "estimated",
+   "type": "exterior"
+  },
+  {
+   "azimuthDeg": 336.5,
+   "confidence": 0.95,
+   "curved": false,
+   "end": {
+    "x": 11.958,
+    "y": 8.332
+   },
+   "grossArea": 2.85,
+   "height": 2.331,
+   "id": "w-012",
+   "length": 1.73,
+   "levelId": "level-0",
+   "orientation": "NW",
+   "profile": [
+    {
+     "x": 0.183,
+     "y": 1.185
+    },
+    {
+     "x": 1.499,
+     "y": 2.331
+    },
+    {
+     "x": 1.729,
+     "y": 2.331
+    },
+    {
+     "x": 1.729,
+     "y": 0
+    },
+    {
+     "x": 0.183,
+     "y": 0
+    }
+   ],
+   "sourceIds": [
+    "654AA80C-68D5-4D7B-B164-3714461BF856"
+   ],
+   "start": {
+    "x": 11.958,
+    "y": 10.062
+   },
+   "thickness": 0.365,
+   "thicknessSource": "estimated",
+   "type": "exterior"
+  },
+  {
+   "azimuthDeg": 336.5,
+   "confidence": 0.95,
+   "curved": false,
+   "end": {
+    "x": 1.282,
+    "y": -3.458
+   },
+   "grossArea": 12.74,
+   "height": 2.473,
+   "id": "w-013",
+   "length": 5.149,
+   "levelId": "level-0",
+   "orientation": "NW",
+   "sourceIds": [
+    "90551AF8-3EB5-4269-BF36-3FDFACD35DC6"
+   ],
+   "start": {
+    "x": 1.284,
+    "y": 1.692
+   },
+   "thickness": 0.365,
+   "thicknessSource": "estimated",
+   "type": "exterior"
+  },
+  {
+   "azimuthDeg": 336.5,
+   "confidence": 0.95,
+   "curved": false,
+   "end": {
+    "x": 1.284,
+    "y": 1.692
+   },
+   "grossArea": 1.92,
+   "height": 2.473,
+   "id": "w-014",
+   "length": 0.775,
+   "levelId": "level-0",
+   "orientation": "NW",
+   "sourceIds": [
+    "43280B4F-302A-497D-8803-4245EE4F1932"
+   ],
+   "start": {
+    "x": 1.284,
+    "y": 2.467
+   },
+   "thickness": 0.365,
+   "thicknessSource": "estimated",
+   "type": "exterior"
+  },
+  {
+   "confidence": 0.95,
+   "curved": false,
+   "end": {
+    "x": 1.899,
+    "y": 5.323
+   },
+   "grossArea": 3.22,
+   "height": 2.685,
+   "id": "w-015",
+   "length": 1.2,
+   "levelId": "level-0",
+   "sourceIds": [
+    "E6B0EA1D-7320-4797-A5FD-6BB7E7595C7C"
+   ],
+   "start": {
+    "x": 1.899,
+    "y": 6.523
+   },
+   "thickness": 0.125,
+   "thicknessSource": "fromJambSample",
+   "type": "interior"
+  },
+  {
+   "confidence": 0.95,
+   "curved": false,
+   "end": {
+    "x": 1.899,
+    "y": 5.323
+   },
+   "grossArea": 2.67,
+   "height": 2.473,
+   "id": "w-016",
+   "length": 1.078,
+   "levelId": "level-0",
+   "sourceIds": [
+    "5B2E91D6-16B3-49D8-9A9D-38DB673543B1"
+   ],
+   "start": {
+    "x": 0.821,
+    "y": 5.324
+   },
+   "thickness": 0.125,
+   "thicknessSource": "fromJambSample",
+   "type": "interior"
+  },
+  {
+   "confidence": 0.95,
+   "curved": false,
+   "end": {
+    "x": 0.82,
+    "y": 4.151
+   },
+   "grossArea": 7.54,
+   "height": 2.473,
+   "id": "w-017",
+   "length": 3.05,
+   "levelId": "level-0",
+   "sourceIds": [
+    "10AE4EB9-0487-4E47-933E-0653B41F6E38"
+   ],
+   "start": {
+    "x": -2.218,
+    "y": 4.416
+   },
+   "thickness": 0.125,
+   "thicknessSource": "fromJambSample",
+   "type": "interior"
+  },
+  {
+   "azimuthDeg": 155.6,
+   "confidence": 0.95,
+   "curved": false,
+   "end": {
+    "x": -2.218,
+    "y": 4.397
+   },
+   "grossArea": 6.28,
+   "height": 2.331,
+   "id": "w-018",
+   "length": 2.694,
+   "levelId": "level-0",
+   "orientation": "SO",
+   "sourceIds": [
+    "BA25ABF5-107E-45C0-86F1-37E491CFEA28"
+   ],
+   "start": {
+    "x": -2.175,
+    "y": 1.703
+   },
+   "thickness": 0.365,
+   "thicknessSource": "estimated",
+   "type": "exterior"
+  },
+  {
+   "azimuthDeg": 155.5,
+   "confidence": 0.95,
+   "curved": false,
+   "end": {
+    "x": -2.282,
+    "y": 8.408
+   },
+   "grossArea": 9.92,
+   "height": 2.473,
+   "id": "w-019",
+   "length": 4.011,
+   "levelId": "level-0",
+   "orientation": "SO",
+   "sourceIds": [
+    "E106E22D-3086-41A5-BE66-C45D719B6428"
+   ],
+   "start": {
+    "x": -2.218,
+    "y": 4.397
+   },
+   "thickness": 0.365,
+   "thicknessSource": "estimated",
+   "type": "exterior"
+  },
+  {
+   "azimuthDeg": 246.5,
+   "confidence": 0.95,
+   "curved": false,
+   "end": {
+    "x": 11.958,
+    "y": 10.062
+   },
+   "grossArea": 4.83,
+   "height": 1.185,
+   "id": "w-020",
+   "kneeWall": true,
+   "length": 4.072,
+   "levelId": "level-0",
+   "orientation": "SW",
+   "sourceIds": [
+    "A2E27557-BBFA-46D4-B57B-FFBF3DF7E6A6"
+   ],
+   "start": {
+    "x": 7.886,
+    "y": 10.063
+   },
+   "thickness": 0.365,
+   "thicknessSource": "estimated",
+   "type": "exterior"
+  },
+  {
+   "azimuthDeg": 246.4,
+   "confidence": 0.95,
+   "curved": false,
+   "end": {
+    "x": 7.886,
+    "y": 10.063
+   },
+   "grossArea": 7.54,
+   "height": 2.473,
+   "id": "w-021",
+   "length": 3.049,
+   "levelId": "level-0",
+   "orientation": "SW",
+   "sourceIds": [
+    "63FF42BB-829E-4CD5-9458-EE5E8A6EFBDC"
+   ],
+   "start": {
+    "x": 4.837,
+    "y": 10.06
+   },
+   "thickness": 0.365,
+   "thicknessSource": "estimated",
+   "type": "exterior"
+  },
+  {
+   "confidence": 0.95,
+   "curved": false,
+   "end": {
+    "x": 4.858,
+    "y": 6.428
+   },
+   "grossArea": 3.59,
+   "height": 2.473,
+   "id": "w-022",
+   "length": 1.451,
+   "levelId": "level-0",
+   "sourceIds": [
+    "2D862360-CA58-4D07-8EAD-805C6C4A5480"
+   ],
+   "start": {
+    "x": 3.407,
+    "y": 6.428
+   },
+   "thickness": 0.125,
+   "thicknessSource": "fromJambSample",
+   "type": "interior"
+  },
+  {
+   "confidence": 0.95,
+   "curved": false,
+   "end": {
+    "x": 4.858,
+    "y": 6.428
+   },
+   "grossArea": 8.98,
+   "height": 2.473,
+   "id": "w-023",
+   "length": 3.632,
+   "levelId": "level-0",
+   "sourceIds": [
+    "519299F0-F8E6-4382-9A7B-4FEC3B855011"
+   ],
+   "start": {
+    "x": 4.836,
+    "y": 10.06
+   },
+   "thickness": 0.125,
+   "thicknessSource": "fromJambSample",
+   "type": "interior"
+  },
+  {
+   "confidence": 0.95,
+   "curved": false,
+   "end": {
+    "x": 11.93,
+    "y": 4.982
+   },
+   "grossArea": 4.94,
+   "height": 2.194,
+   "id": "w-024",
+   "length": 2.253,
+   "levelId": "level-0",
+   "sourceIds": [
+    "58835951-F9F2-47C4-94C9-2D1C5864A204"
+   ],
+   "start": {
+    "x": 9.676,
+    "y": 4.983
+   },
+   "thickness": 0.125,
+   "thicknessSource": "fromJambSample",
+   "type": "interior"
+  },
+  {
+   "azimuthDeg": 336.9,
+   "confidence": 0.95,
+   "curved": false,
+   "end": {
+    "x": 11.93,
+    "y": 4.982
+   },
+   "grossArea": 7.81,
+   "height": 2.331,
+   "id": "w-025",
+   "length": 3.351,
+   "levelId": "level-0",
+   "orientation": "NW",
+   "sourceIds": [
+    "AE577DC6-DACE-400E-BA76-D0BC3A2193C4"
+   ],
+   "start": {
+    "x": 11.958,
+    "y": 8.332
+   },
+   "thickness": 0.365,
+   "thicknessSource": "estimated",
+   "type": "exterior"
+  },
+  {
+   "azimuthDeg": 336.5,
+   "confidence": 0.95,
+   "curved": false,
+   "end": {
+    "x": 11.929,
+    "y": 2.518
+   },
+   "grossArea": 4.95,
+   "height": 2.194,
+   "id": "w-026",
+   "length": 2.464,
+   "levelId": "level-0",
+   "orientation": "NW",
+   "profile": [
+    {
+     "x": 0,
+     "y": 2.194
+    },
+    {
+     "x": 1.468,
+     "y": 2.194
+    },
+    {
+     "x": 2.281,
+     "y": 2.067
+    },
+    {
+     "x": 2.281,
+     "y": 0
+    },
+    {
+     "x": 0,
+     "y": 0
+    }
+   ],
+   "sourceIds": [
+    "8B27EB52-5C2A-4665-BD4F-536155FF1F15"
+   ],
+   "start": {
+    "x": 11.93,
+    "y": 4.982
+   },
+   "thickness": 0.365,
+   "thicknessSource": "estimated",
+   "type": "exterior"
+  },
+  {
+   "azimuthDeg": 66.5,
+   "confidence": 0.95,
+   "curved": false,
+   "end": {
+    "x": 1.284,
+    "y": 2.467
+   },
+   "grossArea": 1.47,
+   "height": 2.473,
+   "id": "w-027",
+   "length": 0.615,
+   "levelId": "level-0",
+   "orientation": "NO",
+   "profile": [
+    {
+     "x": 0,
+     "y": 2.194
+    },
+    {
+     "x": 0.369,
+     "y": 2.473
+    },
+    {
+     "x": 0.615,
+     "y": 2.473
+    },
+    {
+     "x": 0.615,
+     "y": 0
+    },
+    {
+     "x": 0,
+     "y": 0
+    }
+   ],
+   "sourceIds": [
+    "EFC21F9F-12F6-4958-99CE-9C9F42353357"
+   ],
+   "start": {
+    "x": 1.899,
+    "y": 2.467
+   },
+   "thickness": 0.365,
+   "thicknessSource": "estimated",
+   "type": "exterior"
+  },
+  {
+   "confidence": 0.95,
+   "curved": false,
+   "end": {
+    "x": 1.898,
+    "y": 2.467
+   },
+   "grossArea": 6.1,
+   "height": 2.473,
+   "id": "w-028",
+   "length": 2.857,
+   "levelId": "level-0",
+   "profile": [
+    {
+     "x": 0,
+     "y": 2.473
+    },
+    {
+     "x": 0.965,
+     "y": 2.473
+    },
+    {
+     "x": 1.847,
+     "y": 1.83
+    },
+    {
+     "x": 1.847,
+     "y": 2.194
+    },
+    {
+     "x": 2.674,
+     "y": 2.194
+    },
+    {
+     "x": 2.674,
+     "y": 0
+    },
+    {
+     "x": 0,
+     "y": 0
+    }
+   ],
+   "sourceIds": [
+    "A099A54E-064A-46CE-9A6B-2341D0FDEF25"
+   ],
+   "start": {
+    "x": 1.899,
+    "y": 5.323
+   },
+   "thickness": 0.125,
+   "thicknessSource": "fromJambSample",
+   "type": "interior"
+  },
+  {
+   "confidence": 0.95,
+   "curved": false,
+   "end": {
+    "x": 7.829,
+    "y": 8.331
+   },
+   "grossArea": 2.72,
+   "height": 2.331,
+   "id": "w-029",
+   "length": 1.733,
+   "levelId": "level-0",
+   "profile": [
+    {
+     "x": 0.183,
+     "y": 1.185
+    },
+    {
+     "x": 1.733,
+     "y": 2.331
+    },
+    {
+     "x": 1.733,
+     "y": 0
+    },
+    {
+     "x": 0.183,
+     "y": 0
+    }
+   ],
+   "sourceIds": [
+    "3F76368B-4DF9-4F17-9DC7-98479DC4EDD6"
+   ],
+   "start": {
+    "x": 7.893,
+    "y": 10.063
+   },
+   "thickness": 0.125,
+   "thicknessSource": "fromJambSample",
+   "type": "interior"
+  },
+  {
+   "confidence": 0.95,
+   "curved": false,
+   "end": {
+    "x": 7.846,
+    "y": 6.433
+   },
+   "grossArea": 4.69,
+   "height": 2.473,
+   "id": "w-030",
+   "length": 1.898,
+   "levelId": "level-0",
+   "sourceIds": [
+    "78118808-7CDD-4EDE-A26E-A5B3B9E0C47F"
+   ],
+   "start": {
+    "x": 7.829,
+    "y": 8.331
+   },
+   "thickness": 0.125,
+   "thicknessSource": "fromJambSample",
+   "type": "interior"
+  },
+  {
+   "confidence": 0.95,
+   "curved": false,
+   "end": {
+    "x": 3.641,
+    "y": 2.474
+   },
+   "grossArea": 7.06,
+   "height": 2.473,
+   "id": "w-031",
+   "length": 2.853,
+   "levelId": "level-0",
+   "sourceIds": [
+    "A794A6A6-1D00-487C-925F-67606E568913"
+   ],
+   "start": {
+    "x": 3.481,
+    "y": 5.323
+   },
+   "thickness": 0.125,
+   "thicknessSource": "fromJambSample",
+   "type": "interior"
+  },
+  {
+   "confidence": 0.95,
+   "curved": false,
+   "end": {
+    "x": 1.898,
+    "y": 8.407
+   },
+   "grossArea": 4.66,
+   "height": 2.473,
+   "id": "w-032",
+   "length": 1.883,
+   "levelId": "level-0",
+   "sourceIds": [
+    "5DD0788A-A2E7-4C93-97EC-2196EA255649"
+   ],
+   "start": {
+    "x": 1.899,
+    "y": 6.523
+   },
+   "thickness": 0.125,
+   "thicknessSource": "fromJambSample",
+   "type": "interior"
+  },
+  {
+   "confidence": 0.95,
+   "curved": false,
+   "end": {
+    "x": 7.845,
+    "y": 2.517
+   },
+   "grossArea": 8.11,
+   "height": 2.473,
+   "id": "w-033",
+   "length": 3.916,
+   "levelId": "level-0",
+   "profile": [
+    {
+     "x": 0,
+     "y": 2.473
+    },
+    {
+     "x": 1.987,
+     "y": 2.473
+    },
+    {
+     "x": 3.734,
+     "y": 1.185
+    },
+    {
+     "x": 3.734,
+     "y": 0
+    },
+    {
+     "x": 0,
+     "y": 0
+    }
+   ],
+   "sourceIds": [
+    "794D83BC-DC2B-4ABE-8D2C-6B90318CAE69"
+   ],
+   "start": {
+    "x": 7.846,
+    "y": 6.433
+   },
+   "thickness": 0.125,
+   "thicknessSource": "fromJambSample",
+   "type": "interior"
+  },
+  {
+   "confidence": 0.95,
+   "curved": false,
+   "end": {
+    "x": 1.284,
+    "y": 1.691
+   },
+   "grossArea": 8.55,
+   "height": 2.473,
+   "id": "w-034",
+   "length": 3.458,
+   "levelId": "level-0",
+   "sourceIds": [
+    "6101CD03-3C6A-44AA-B5D3-F9FF51316067"
+   ],
+   "start": {
+    "x": -2.175,
+    "y": 1.705
+   },
+   "thickness": 0.125,
+   "thicknessSource": "fromJambSample",
+   "type": "interior"
+  },
+  {
+   "confidence": 0.95,
+   "curved": false,
+   "end": {
+    "x": 8.938,
+    "y": 5.452
+   },
+   "grossArea": 9.75,
+   "height": 2.473,
+   "id": "w-035",
+   "length": 4.003,
+   "levelId": "level-0",
+   "profile": [
+    {
+     "x": 0,
+     "y": 2.473
+    },
+    {
+     "x": 2.956,
+     "y": 2.473
+    },
+    {
+     "x": 2.956,
+     "y": 2.331
+    },
+    {
+     "x": 4.003,
+     "y": 2.331
+    },
+    {
+     "x": 4.003,
+     "y": 0
+    },
+    {
+     "x": 0,
+     "y": 0
+    }
+   ],
+   "sourceIds": [
+    "2FEF51A2-D4A5-4114-8AC5-FE8F7E15918D"
+   ],
+   "start": {
+    "x": 4.935,
+    "y": 5.453
+   },
+   "thickness": 0.125,
+   "thicknessSource": "fromJambSample",
+   "type": "interior"
+  },
+  {
+   "confidence": 0.95,
+   "curved": false,
+   "end": {
+    "x": 3.481,
+    "y": 5.323
+   },
+   "grossArea": 3.91,
+   "height": 2.473,
+   "id": "w-036",
+   "length": 1.582,
+   "levelId": "level-0",
+   "sourceIds": [
+    "43A0EDCA-F89E-4A3D-B57B-1E439044CCE2"
+   ],
+   "start": {
+    "x": 1.899,
+    "y": 5.323
+   },
+   "thickness": 0.125,
+   "thicknessSource": "fromJambSample",
+   "type": "interior"
+  },
+  {
+   "confidence": 0.95,
+   "curved": false,
+   "end": {
+    "x": 7.846,
+    "y": 6.433
+   },
+   "grossArea": 7.39,
+   "height": 2.473,
+   "id": "w-037",
+   "length": 2.987,
+   "levelId": "level-0",
+   "sourceIds": [
+    "D9F01F26-D9B7-4AD9-A1B7-641285C11F94"
+   ],
+   "start": {
+    "x": 4.858,
+    "y": 6.428
+   },
+   "thickness": 0.125,
+   "thicknessSource": "fromJambSample",
+   "type": "interior"
+  },
+  {
+   "azimuthDeg": 66.2,
+   "confidence": 0.95,
+   "curved": false,
+   "end": {
+    "x": 1.899,
+    "y": 2.467
+   },
+   "grossArea": 3.6,
+   "height": 1.185,
+   "id": "w-038",
+   "kneeWall": true,
+   "length": 3.037,
+   "levelId": "level-0",
+   "orientation": "NO",
+   "sourceIds": [
+    "437BDF85-139F-4523-8ED6-A1F634B7E8B4"
+   ],
+   "start": {
+    "x": 4.936,
+    "y": 2.48
+   },
+   "thickness": 0.365,
+   "thicknessSource": "estimated",
+   "type": "exterior"
+  },
+  {
+   "confidence": 0.95,
+   "curved": false,
+   "end": {
+    "x": 11.958,
+    "y": 8.333
+   },
+   "grossArea": 9.62,
+   "height": 2.331,
+   "id": "w-039",
+   "length": 4.128,
+   "levelId": "level-0",
+   "sourceIds": [
+    "BF35472F-B016-4CA0-B8DD-3AA2D3C56A4B"
+   ],
+   "start": {
+    "x": 7.829,
+    "y": 8.331
+   },
+   "thickness": 0.125,
+   "thicknessSource": "fromJambSample",
+   "type": "interior"
+  }
+ ]
+}

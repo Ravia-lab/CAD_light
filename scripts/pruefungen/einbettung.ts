@@ -41,6 +41,9 @@
  *    1200 W sind das 12 W; die abgelehnte Aufteilung weicht um 300 W ab.
  */
 
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+import { dirname, resolve } from 'node:path';
 import type { CheckFn } from './typ';
 import type { BimDocument } from '../../src/types/bim';
 import {
@@ -441,5 +444,37 @@ export function pruefeEinbettung(check: CheckFn): void {
     check('Räume ohne gerechnete Last tragen kein leeres Feld', ohne, true);
     // Die Spur des Schreibvorgangs hängt am Projektkopf und geht denselben Weg.
     check('Die Spur des Vorgangs steht im Export', angabe(exportiert.project.lastHostPatch?.source), 'RaVia 3.2');
+  }
+
+  // -------------------------------------------------------------------------
+  // Der Handschlag der Beispielseite darf nicht am `load`-Ereignis hängen
+  // -------------------------------------------------------------------------
+  // **Der Befund.** `public/einbettung-beispiel.js` baute seine Verbindung
+  // ausschließlich in `frame.addEventListener('load', …)` auf. Das geht gut,
+  // solange der eingebettete Editor langsamer lädt als die Seite drumherum.
+  // Liegen seine 1,8 MB im Zwischenspeicher — also bei **jedem zweiten**
+  // Aufruf —, ist der Rahmen fertig, bevor dieses Skript überhaupt läuft, und
+  // ein `load`-Ereignis, das schon vorbei ist, kommt nicht wieder. Die Seite
+  // blieb dann auf „verbinde …" stehen, während jeder Knopf daneben
+  // einwandfrei antwortete: sieht aus wie eine kaputte Brücke und ist keine.
+  //
+  // **Warum das hier steht und nicht nur im Rauchtest.** Der Rauchtest findet
+  // es nur mit warmem Zwischenspeicher — gegen den echten Server also, gegen
+  // die lokale Vorschau nicht, weil die andere Kopfzeilen schickt. Eine
+  // Prüfung, die von der Kopfzeile des Servers abhängt, ist keine. Geprüft
+  // wird deshalb die Regel selbst: Der Aufbau muss **auch** außerhalb des
+  // Ereignisses angestoßen werden. Die Warteschleife darin trägt den Fall
+  // „Rahmen noch nicht fertig" ohnehin.
+  {
+    const hier = dirname(fileURLToPath(import.meta.url));
+    const datei = resolve(hier, '..', '..', 'public', 'einbettung-beispiel.js');
+    const quelle = readFileSync(datei, 'utf8');
+    const zeilen = quelle.split('\n').map((z) => z.trim());
+    check('Die Beispielseite hat einen benannten Verbindungsaufbau',
+      /function\s+verbinde\s*\(/.test(quelle), true);
+    check('Er hängt am load-Ereignis', quelle.includes("addEventListener('load', verbinde)"), true);
+    // Der freistehende Aufruf — genau die Zeile, die vor 1.38.0 fehlte.
+    check('… und wird zusätzlich von sich aus angestoßen',
+      zeilen.includes('verbinde();'), true);
   }
 }

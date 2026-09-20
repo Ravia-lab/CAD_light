@@ -69,13 +69,14 @@ await p.addInitScript(() => {
   //
   // 1.1.0: der Rückweg ist dazugekommen, die lesenden Befehle sind
   // unverändert geblieben.
-  expect('Version gemeldet', api.version, '1.2.0');
+  // 1.3.0: `loadBuilding` (Gebäudemodell aus RaVia Scan) — reiner Zuwachs.
+  expect('Version gemeldet', api.version, '1.4.0');
   expect(
     'Alle Methoden da',
     api.methods,
     [
       'applyPatch', 'getDocument', 'getExport', 'getIfc', 'getSummary', 'getWritableFields',
-      'loadIfc', 'loadProject', 'onChange', 'validate', 'version',
+      'loadBuilding', 'loadIfc', 'loadProject', 'onChange', 'validate', 'version',
     ],
   );
 
@@ -126,11 +127,26 @@ console.log('\n▸ Nachrichtenbrücke (postMessage aus dem umgebenden Fenster)')
   // dort ein leeres Modell. Für den Test wird sie vorher geleert.
   await p.evaluate(() => localStorage.clear());
   await p.goto(BASIS + 'einbettung-beispiel.html', { waitUntil: 'networkidle' });
-  await p.waitForTimeout(2500);
+
+  /*
+   * Auf den Handschlag warten statt auf die Uhr.
+   *
+   * Hier stand eine feste Wartezeit von 2,5 Sekunden. Gegen die Vorschau auf
+   * demselben Rechner reichte sie immer; gegen den **echten Server** fiel der
+   * Abschnitt reihenweise um — der eingebettete Editor lädt dort 1,8 MB über
+   * die Leitung, und ob das in 2,5 Sekunden fertig ist, entscheidet nicht das
+   * Programm, sondern die Verbindung. Ein Rauchtest, der bei langsamer
+   * Leitung Alarm schlägt, meldet die Leitung und nicht den Fehler.
+   *
+   * Gewartet wird deshalb auf das Ereignis selbst: Sobald die Brücke steht,
+   * schreibt die Beispielseite „verbunden" in `#status`. Zwanzig Sekunden
+   * Obergrenze — was dann nicht steht, steht nicht wegen der Leitung.
+   */
+  await p.locator('#status').filter({ hasText: 'verbunden' }).waitFor({ timeout: 20000 }).catch(() => {});
 
   const status = await p.locator('#status').innerText();
   expect('Verbindung steht', status, 'verbunden');
-  expect('Version angezeigt', await p.locator('#version').innerText(), '1.2.0');
+  expect('Version angezeigt', await p.locator('#version').innerText(), '1.4.0');
 
   const panel = await p.locator('#summary').innerText();
   expect('Kurzfassung angekommen', /Räume/.test(panel), true);
@@ -297,6 +313,153 @@ console.log('\n▸ Laden über die Schnittstelle');
   expect('Nach dem Leeren keine', loaded.empty, 0);
   expect('Laden gemeldet', loaded.ok, true);
   expect('Räume wieder da', loaded.after, loaded.before);
+}
+
+console.log('\n▸ Gebäudescan aus RaVia Scan über die Nachrichtenbrücke (loadBuilding)');
+{
+  const { readFileSync } = await import('node:fs');
+  const modell = JSON.parse(readFileSync(new URL('./referenz/ravia-building-beispiel.json', import.meta.url), 'utf-8'));
+  const ergebnis = await p.evaluate(async (m) => {
+    const cad = document.getElementById('cad').contentWindow;
+    const vorher = Object.keys(cad.RaViaCAD.getDocument().walls).length;
+    // Genau wie RaVia: postMessage, Antwort über die Kennung zuordnen.
+    const antwort = await new Promise((resolve) => {
+      const hoer = (e) => {
+        if (e.data?.channel === 'ravia-cad' && e.data.id === 'scan-1') {
+          window.removeEventListener('message', hoer);
+          resolve(e.data);
+        }
+      };
+      window.addEventListener('message', hoer);
+      cad.postMessage({ channel: 'ravia-cad', type: 'loadBuilding', id: 'scan-1', payload: m }, '*');
+    });
+    const doc = cad.RaViaCAD.getDocument();
+    const hk = Object.values(doc.fixtures).filter((f) => f.category === 'heating');
+    const level = doc.levels[doc.activeLevelId];
+    const benannt = Object.values(doc.rooms).map((r) => r.name);
+    const ergebnis = {
+      typ: antwort.type, ok: antwort.payload.ok, meldung: antwort.payload.message,
+      vorher, waende: Object.keys(doc.walls).length, oeffnungen: Object.keys(doc.openings).length,
+      raeume: Object.keys(doc.rooms).length, benannt,
+      heizkoerper: hk.length, mitRaum: hk.filter((f) => !!f.roomId).length,
+      typen: hk.map((f) => f.params.radiatorType).join(','),
+      leistung: hk.reduce((s, f) => s + (f.params.powerW ?? 0), 0),
+      dach: level?.roof ? `${level.roof.kind} ${level.roof.pitch}° KS ${level.roof.kneeHeight}` : null,
+      nord: doc.meta.northAngle, geschoss: level?.name,
+    };
+    // Rückgängig bringt den vorigen Stand zurück.
+    cad.__ravia.getState().undo();
+    ergebnis.nachUndo = Object.keys(cad.RaViaCAD.getDocument().walls).length;
+    cad.__ravia.getState().redo();
+    // Falsches Format: klare Ablehnung, Modell bleibt.
+    ergebnis.falsch = cad.RaViaCAD.loadBuilding({ format: 'ravia.capture' });
+    ergebnis.nachFalsch = Object.keys(cad.RaViaCAD.getDocument().walls).length;
+    return ergebnis;
+  }, modell);
+  console.log(`    ${ergebnis.meldung}`);
+  expect('Antwort „loaded"', ergebnis.typ, 'loaded');
+  expect('Übernahme gemeldet', ergebnis.ok, true);
+  expect('40 Wände (39 + ein T-Stoß)', ergebnis.waende, 40);
+  expect('17 Öffnungen', ergebnis.oeffnungen, 17);
+  expect('Räume erkannt', ergebnis.raeume >= 7, true);
+  expect('Raumnamen aus dem Scan', ergebnis.benannt.includes('Wohnen'), true);
+  expect('Vier Heizkörper', ergebnis.heizkoerper, 4);
+  expect('… jeder mit Raum', ergebnis.mitRaum, 4);
+  expect('… mit bestätigter Bauart', ergebnis.typen, '22,33,21,11');
+  expect('… ohne erfundene Leistung', ergebnis.leistung, 0);
+  expect('Dach aus dem Scan', ergebnis.dach, 'gable 36.5° KS 1.19');
+  expect('Nordabweichung', ergebnis.nord, 113.5);
+  expect('Rückgängig stellt den vorigen Stand her', ergebnis.nachUndo, ergebnis.vorher);
+  expect('Falsches Format abgelehnt', ergebnis.falsch.ok, false);
+  expect('… Modell bleibt stehen', ergebnis.nachFalsch, 40);
+  await p.waitForTimeout(600);
+  await p.screenshot({ path: './screenshots/embed-3-gebaeudescan.png' });
+}
+
+console.log('\n▸ Zweites Geschoss dazuladen (loadBuilding mit merge)');
+{
+  const { readFileSync } = await import('node:fs');
+  const eg = JSON.parse(readFileSync(new URL('./referenz/ravia-building-beispiel.json', import.meta.url), 'utf-8'));
+  // Das Obergeschoss als eigene Aufnahme: gleicher Grundriss, 2,75 m höher.
+  // So kommt es aus der App, wenn das Tracking auf der Treppe gerissen ist.
+  const og = JSON.parse(JSON.stringify(eg));
+  og.id = 'og-scan';
+  og.levels[0].id = 'level-1';
+  og.levels[0].index = 1;
+  og.levels[0].name = 'OG';
+  og.levels[0].elevation = 2.75;
+  og.levels[0].elevationSource = 'barometer';
+  for (const liste of ['walls', 'openings', 'rooms', 'emitters', 'roomHints']) {
+    for (const x of og[liste] ?? []) if (x.levelId) x.levelId = 'level-1';
+  }
+  for (const r of og.rooms ?? []) { r.name = 'Schlafen'; r.nameSource = 'user'; r.raviaRoomId = 'og-1'; }
+
+  const ergebnis = await p.evaluate(async ([eg, og]) => {
+    const cad = document.getElementById('cad').contentWindow;
+    const schick = (payload) => new Promise((resolve) => {
+      const id = 'merge-' + Math.random().toString(36).slice(2);
+      const hoer = (e) => {
+        if (e.data?.channel === 'ravia-cad' && e.data.id === id) {
+          window.removeEventListener('message', hoer);
+          resolve(e.data.payload);
+        }
+      };
+      window.addEventListener('message', hoer);
+      cad.postMessage({ channel: 'ravia-cad', type: 'loadBuilding', id, payload }, '*');
+    });
+    const ersteAntwort = await schick(eg);
+    const nachEG = Object.keys(cad.RaViaCAD.getDocument().levels).length;
+    const zweiteAntwort = await schick({ building: og, merge: true });
+    const doc = cad.RaViaCAD.getDocument();
+    const raeume = Object.values(doc.rooms);
+    const ersetzt = await schick(eg);            // ohne merge: wieder nur ein Geschoss
+    return {
+      ersteOk: ersteAntwort.ok, nachEG,
+      zweiteOk: zweiteAntwort.ok, meldung: zweiteAntwort.message,
+      geschosse: Object.values(doc.levels).map((l) => l.name).sort(),
+      waendeEG: Object.values(doc.walls).filter((w) => w.levelId === 'level-0').length,
+      waendeOG: Object.values(doc.walls).filter((w) => w.levelId === 'level-1').length,
+      raviaIds: raeume.filter((r) => r.raviaRoomId === 'og-1').length,
+      namenOG: raeume.filter((r) => r.levelId === 'level-1').map((r) => r.name),
+      ersetztOk: ersetzt.ok,
+      nachErsetzen: Object.keys(cad.RaViaCAD.getDocument().levels).length,
+    };
+  }, [eg, og]);
+  console.log(`    ${ergebnis.meldung}`);
+  expect('Erdgeschoss geladen', ergebnis.ersteOk && ergebnis.nachEG === 1, true);
+  expect('Obergeschoss dazugeladen', ergebnis.zweiteOk, true);
+  expect('Zwei Geschosse', ergebnis.geschosse, ['EG', 'OG']);
+  expect('Erdgeschoss steht noch', ergebnis.waendeEG > 0, true);
+  expect('Obergeschoss hat Wände', ergebnis.waendeOG > 0, true);
+  expect('Raumname aus der App übernommen', ergebnis.namenOG.includes('Schlafen'), true);
+  expect('RaVia-Raumkennung übernommen', ergebnis.raviaIds > 0, true);
+  expect('Ohne merge wird wieder ersetzt', ergebnis.ersetztOk && ergebnis.nachErsetzen === 1, true);
+}
+
+console.log('\n▸ Zweiter Aufruf mit warmem Zwischenspeicher');
+{
+  /*
+   * Derselbe Handschlag noch einmal — jetzt mit **warmem** Zwischenspeicher.
+   *
+   * Das ist kein doppelter Test, sondern ein anderer Fall. Beim ersten Aufruf
+   * lädt der eingebettete Editor 1,8 MB; die Seite drumherum steht längst,
+   * wenn sein Rahmen fertig meldet. Beim zweiten liegt alles im
+   * Zwischenspeicher — der Rahmen ist fertig, **bevor** das Skript der
+   * Beispielseite läuft, und ein `load`-Ereignis, das schon vorbei ist, kommt
+   * nicht wieder. Genau daran hing der Handschlag bis 1.38.0: Die Seite
+   * blieb auf „verbinde …", während jeder Knopf daneben antwortete.
+   *
+   * Gefunden wurde das gegen den echten Server, wo mehrere Abschnitte
+   * nacheinander laufen und der Zwischenspeicher warm ist. Gegen die Vorschau
+   * war nie etwas zu sehen. Deshalb steht der Fall jetzt ausdrücklich hier.
+   */
+  // Erst die Anwendung selbst aufrufen — damit liegt ihr Bündel im
+  // Zwischenspeicher. Dann die Beispielseite: Ihr Rahmen ist sofort fertig.
+  await p.goto(BASIS, { waitUntil: 'networkidle' });
+  await p.goto(BASIS + 'einbettung-beispiel.html', { waitUntil: 'networkidle' });
+  await p.locator('#status').filter({ hasText: 'verbunden' }).waitFor({ timeout: 20000 }).catch(() => {});
+  expect('Auch mit warmem Zwischenspeicher verbunden', await p.locator('#status').innerText(), 'verbunden');
+  expect('… mit Version', await p.locator('#version').innerText(), '1.4.0');
 }
 
 console.log('\nERRORS:', errs.length ? errs.join('\n') : 'keine');

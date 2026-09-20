@@ -1632,7 +1632,7 @@ Deshalb gibt es einen **stabilen Vertrag** unter `window.RaViaCAD`:
 
 ```ts
 interface RaviaCadApi {
-  readonly version: string;                 // "1.1.0"
+  readonly version: string;                 // "1.4.0"
   getExport(): RaviaExport;                 // vollständiges ravia.bim.light v2
   getIfc(): string;                         // dasselbe Modell als IFC4/STEP
   getSummary(): RaviaSummary;               // Kurzfassung ohne die große Datenmenge
@@ -1640,6 +1640,7 @@ interface RaviaCadApi {
   getDocument(): BimDocument;               // Rohdokument, nur lesend gedacht
   loadProject(data): { ok, message };       // Projektdatei laden
   loadIfc(text): { ok, message };           // IFC4-Datei laden
+  loadBuilding(model, opt?): { ok, message }; // Gebäudescan aus RaVia Scan (1.3.0; opt.merge seit 1.4.0)
   applyPatch(patch): HostPatchReport;       // Fachdaten zurückschreiben (siehe unten)
   getWritableFields(): Field[];             // Selbstauskunft: was ist schreibbar
   onChange(fn): () => void;                 // Änderungen abonnieren, entprellt
@@ -1660,7 +1661,7 @@ window.addEventListener('message', (e) => {
 ```
 
 Befehle: `ping` · `getSummary` · `getExport` · `getIfc` · `validate` ·
-`loadProject` · `loadIfc` · `applyPatch` · `getWritableFields` · `subscribe` ·
+`loadProject` · `loadIfc` · `loadBuilding` · `applyPatch` · `getWritableFields` · `subscribe` ·
 `unsubscribe`. Nach `subscribe`
 kommt bei jeder Modelländerung ungefragt ein `changed` mit der Kurzfassung —
 entprellt auf 250 ms, denn bei jedem gezogenen Wandende den vollen Export zu
@@ -1681,6 +1682,44 @@ ausliefern, das zufällig zuhört.
 **Gemeldet wird die Kurzfassung, nicht das Modell.** Wer nach einem `changed`
 wirklich alles braucht, holt es sich mit `getExport` — so entscheidet die
 Gegenstelle über die Datenmenge, nicht der Editor.
+
+### Gebäudescan aus RaVia Scan (`loadBuilding`, seit Embed-API 1.3.0)
+
+Die iOS-App **RaVia Scan** (iPhone/iPad Pro mit LiDAR) scannt mit Apple
+RoomPlan, rechnet auf dem Gerät in das **RaVia Building Model** um
+(`format: "ravia.building"`, Schema 1.x) und lädt es nach RaVia hoch. RaVia
+reicht es mit `loadBuilding` hierher — ohne Datei, und CAD Light bekommt nie
+RoomPlan-Rohdaten zu sehen (`src/lib/buildingModelImport.ts`).
+
+Übernommen werden Geschosse, Wände (Außenwandachsen bereits um die halbe
+Stärke nach außen versetzt), Öffnungen, Raumnamen — die der Monteur in der App
+vergeben hat, samt RaVia-Raumkennung, damit ein zweiter Scan denselben Raum
+trifft —, die **Nordrichtung**, ein
+**Dachvorschlag** je Geschoss (Form, Neigung, Kniestock, Azimut — geschätzt
+aus den gescannten Dachschrägen) und seit Schema 1.2.0 die **Heizkörper** mit
+gemessener Baulänge, Bauhöhe, Unterkante und Wandbezug. Die Bauart steht nur
+dann am Heizkörper, wenn der Monteur sie in der App bestätigt hat (Via schlägt
+nur vor); eine Heizleistung setzt der Import nie. Das Modell hat y nach Norden-
+oben wie dieses Programm: keine Spiegelung, keine Drehung — der Prüfblock
+„Gebäudescan" beweist es an jeder Außenwand über den Azimut. Wie jeder Import
+ersetzt `loadBuilding` das Modell und ist ein Schritt in der Rückgängig-Kette.
+
+**Geschoss für Geschoss.** Ein Haus wird selten in einem Zug gescannt: Reißt
+das Tracking auf der Treppe, kommt das Obergeschoss als zweite Aufnahme. Mit
+`loadBuilding(modell, { merge: true })` — über die Nachrichtenbrücke als
+`{ building, merge: true }` — ersetzt der Scan nur die Geschosse, die er
+mitbringt; alles andere bleibt stehen. Weil jede Aufnahme ihre Wände von vorn
+durchzählt, bekommen die Bauteile dabei das Geschoss als Vorsatz, sonst
+überschriebe `w-001` aus dem Obergeschoss die `w-001` des Erdgeschosses. Die
+Lage in der Ebene ist damit nicht geklärt — zwei Aufnahmen haben zwei
+Nullpunkte —, das Geschoss landet dort, wo der Scan es sieht, und lässt sich
+wie jedes kopierte Geschoss zurechtschieben.
+
+Die Wandstärke sagt, woher sie kommt: `measuredFacePair` (beide Seiten
+gescannt) und `measuredJamb` (an der Türlaibung gemessen) sind Messungen,
+`fromJambSample` (von einer Messung derselben Wandart übernommen) und
+`estimated` sind es nicht. Im Plan bleibt nur das Zweite als geschätzt
+markiert.
 
 ### Der Rückweg — RaVia schreibt zurück
 

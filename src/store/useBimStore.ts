@@ -163,6 +163,8 @@ import { baueDachlandschaft, daecherVon, raeumeOhneGeschossDarueber } from '../l
 import { importIfc } from '../lib/ifcImport';
 import { ordneRaumnamenZu } from '../lib/raumnutzung';
 import { importRaumplan } from '../lib/raumplanImport';
+import type { RaumHinweis, RaumplanImportErgebnis } from '../lib/raumplanImport';
+import { importBuildingModel } from '../lib/buildingModelImport';
 import { begradige } from '../lib/begradigen';
 import { befundSatz, hoehenbefund } from '../lib/wandhoehen';
 import { SPRACHEN, spracheSetzen, type Sprache } from '../lib/sprache';
@@ -879,6 +881,13 @@ interface BimState {
   /** Raumscan aus Apple RoomPlan als neues Projekt einlesen. */
   loadRaumscan: (text: string) => { ok: boolean; message: string };
   /**
+   * Gebäudemodell aus der App RaVia Scan (`ravia.building`) übernehmen —
+   * Wände, Öffnungen, Raumnamen, Dachvorschlag, Heizkörper. Mit
+   * `{ merge: true }` kommt das gescannte Geschoss zu den vorhandenen dazu,
+   * statt das Modell zu ersetzen. Ein Schritt in der Rückgängig-Kette.
+   */
+  loadBuilding: (data: unknown, optionen?: { merge?: boolean }) => { ok: boolean; message: string };
+  /**
    * Wände des aktiven Geschosses auf die Achsen ziehen. Ein Aufmaß steht nie
    * ganz gerade; dieser Schritt richtet es, ohne Ecken aufzureißen.
    */
@@ -1291,6 +1300,133 @@ function transferRoomProperties(doc: BimDocument, fromLevelId: string, toLevelId
  * vergessenes Feld führt dazu, dass eine Änderung daran im Bild nicht
  * ankommt, und das fällt beim ersten Ausprobieren auf.
  */
+/**
+ * Räume benennen, die aus einem Scan kommen.
+ *
+ * Zugeordnet wird über die Lage, nicht über eine Kennung: Der Scan teilt das
+ * Haus in eigene Bereiche, und deren Grenzen sind nicht die Wandachsen, an
+ * denen die Raumerkennung arbeitet. Fällt der Punkt eines Hinweises in einen
+ * erkannten Raum, erbt der Raum Namen und Nutzung.
+ *
+ * **Rangfolge:** Was der Monteur in der App benannt hat (`vomNutzer`), geht
+ * vor die Bereichsbezeichnung, die RoomPlan geraten hat — er stand im Raum.
+ * Trifft ein Raum mehrere Hinweise, gewinnt der erste; dass es mehrere sind,
+ * heißt, dass zwischen ihnen eine Wand fehlt, und wird gezählt.
+ */
+function benenneRaeume(
+  doc: BimDocument,
+  hinweise: readonly RaumHinweis[],
+): { benannt: number; doppelt: number } {
+  let benannt = 0;
+  let doppelt = 0;
+  const vergeben = new Set<string>();
+  const sortiert = [...hinweise].sort((a, b) => Number(b.vomNutzer ?? false) - Number(a.vomNutzer ?? false));
+  for (const hinweis of sortiert) {
+    const raum = Object.values(doc.rooms).find(
+      (r) => r.levelId === hinweis.levelId && pointInPolygon(hinweis.punkt, r.polygon),
+    );
+    if (!raum) continue;
+    if (vergeben.has(raum.id)) {
+      doppelt++;
+      continue;
+    }
+    vergeben.add(raum.id);
+    doc.rooms[raum.id] = {
+      ...raum,
+      name: hinweis.name,
+      usage: hinweis.usage,
+      ...(hinweis.raviaRoomId ? { raviaRoomId: hinweis.raviaRoomId } : {}),
+    };
+    benannt++;
+  }
+  return { benannt, doppelt };
+}
+
+/**
+ * Aus einem Scan-Ergebnis (RoomPlan-Datei oder RaVia Building Model) ein
+ * neues Dokument bauen: Geschosse benennen und ordnen, Nordrichtung, Wände,
+ * Räume erkennen, Raumnutzung übernehmen. `vorRaeumen` darf das Dokument
+ * ergänzen, bevor die Raumerkennung läuft (Dächer, Heizkörper) — so bekommen
+ * auch diese Objekte ihren Raumbezug aus derselben Erkennung.
+ */
+function dokumentAusScan(
+  ergebnis: RaumplanImportErgebnis,
+  vorRaeumen?: (doc: BimDocument) => void,
+): { fresh: BimDocument; benannt: number; doppelt: number } {
+  const fresh = emptyDocument();
+  fresh.meta = {
+    ...fresh.meta,
+    name: ergebnis.projektName || 'Raumscan',
+    address: ergebnis.adresse ?? fresh.meta.address,
+    modifiedAt: new Date().toISOString(),
+  };
+
+  // Nordabweichung aus dem Kompass des Geräts.
+  //
+  // Der Import liefert die Nordrichtung als Winkel gegen +x; das Dokument
+  // führt sie als Abweichung von „+y zeigt nach Norden". Zwischen beidem
+  // liegt die Vierteldrehung. Die Genauigkeit des Kompasses — beim
+  // Beispielscan ±15,7° — wird bewusst **nicht** stillschweigend
+  // übernommen: sie steht in der Meldung, damit niemand solare Gewinne
+  // auf ein Grad genau rechnet, die auf fünfzehn Grad unsicher sind.
+  if (ergebnis.nordrichtung !== undefined) {
+    const grad = (ergebnis.nordrichtung * 180) / Math.PI;
+    fresh.meta.northAngle = Math.round(((90 - grad) % 360 + 360) % 360 * 10) / 10;
+  }
+
+  // Geschosse benennen und ordnen — genau wie beim IFC-Import.
+  //
+  // RoomPlan zählt Geschosse durch (`story: 0, 1, …`); daraus „Geschoss 0"
+  // zu machen wäre eine Übersetzung ohne Übersetzung. Benannt wird deshalb
+  // nach der Höhenlage: das Erdgeschoss ist das Geschoss am Bezugspunkt,
+  // nicht das unterste. Hat das Haus einen Keller, steht das EG auf dessen
+  // Decke — und die Reihenfolge `order` zählt von dort aus, damit ein
+  // Kellergeschoss die Ordnungszahl −1 bekommt und nicht 0.
+  const sortiert = [...ergebnis.levels].sort((a, b) => a.elevation - b.elevation);
+  const namen = benenneGeschosse(sortiert);
+  const egIdx = erdgeschossIndex(sortiert.map((l) => l.elevation));
+  fresh.levels = Object.fromEntries(
+    sortiert.map((l, i) => [
+      l.id,
+      {
+        id: l.id,
+        name: namen[i],
+        order: i - egIdx,
+        elevation: l.elevation,
+        height: l.height,
+        // Erdreich liegt unter dem *untersten* Geschoss, nicht unter dem
+        // Erdgeschoss.
+        floorUValue: i === 0 ? 0.3 : 0.9,
+        floorBoundary: i === 0 ? ('ground' as const) : ('adjacent-room' as const),
+        ceilingUValue: 0.2,
+        ceilingBoundary: 'unheated' as const,
+      },
+    ]),
+  );
+  // Angefangen wird im Erdgeschoss, nicht im Keller — dort beginnt
+  // niemand ein Aufmaß.
+  fresh.activeLevelId = sortiert[egIdx]?.id ?? sortiert[0]?.id ?? fresh.activeLevelId;
+  fresh.nodes = Object.fromEntries(ergebnis.nodes.map((n) => [n.id, n]));
+  fresh.walls = Object.fromEntries(ergebnis.walls.map((w) => [w.id, w]));
+  fresh.openings = Object.fromEntries(ergebnis.openings.map((o) => [o.id, o]));
+  vorRaeumen?.(fresh);
+  recomputeRooms(fresh);
+
+  // Raumnutzung aus dem Scan übernehmen.
+  //
+  // Zugeordnet wird über die Lage, nicht über eine Kennung: RoomPlan
+  // teilt die Wohnung in eigene Bereiche, und deren Grenzen sind nicht
+  // die Wandachsen, an denen die Raumerkennung arbeitet. Fällt der
+  // Mittelpunkt eines Bereichs in einen erkannten Raum, erbt der Raum
+  // Namen und Nutzung — sonst bleibt er, wie er ist. Trifft ein Raum
+  // mehrere Bereiche (weil eine Wand dazwischen im Scan fehlt), gewinnt
+  // der erste; ihn stillschweigend zu überschreiben hieße, die Reihenfolge
+  // in der Datei über die Sache entscheiden zu lassen.
+  const { benannt, doppelt } = benenneRaeume(fresh, ergebnis.raumHinweise);
+  return { fresh, benannt, doppelt };
+}
+
+
 /**
  * Die Dachkennwerte eines Raums vergleichen.
  *
@@ -5200,94 +5336,7 @@ export const useBimStore = create<BimState>()((set, get) => {
       const ergebnis = importRaumplan(text);
       if (!ergebnis.ok) return { ok: false, message: ergebnis.message };
 
-      const fresh = emptyDocument();
-      fresh.meta = {
-        ...fresh.meta,
-        name: ergebnis.projektName || 'Raumscan',
-        address: ergebnis.adresse ?? fresh.meta.address,
-        modifiedAt: new Date().toISOString(),
-      };
-
-      // Nordabweichung aus dem Kompass des Geräts.
-      //
-      // Der Import liefert die Nordrichtung als Winkel gegen +x; das Dokument
-      // führt sie als Abweichung von „+y zeigt nach Norden". Zwischen beidem
-      // liegt die Vierteldrehung. Die Genauigkeit des Kompasses — beim
-      // Beispielscan ±15,7° — wird bewusst **nicht** stillschweigend
-      // übernommen: sie steht in der Meldung, damit niemand solare Gewinne
-      // auf ein Grad genau rechnet, die auf fünfzehn Grad unsicher sind.
-      if (ergebnis.nordrichtung !== undefined) {
-        const grad = (ergebnis.nordrichtung * 180) / Math.PI;
-        fresh.meta.northAngle = Math.round(((90 - grad) % 360 + 360) % 360 * 10) / 10;
-      }
-
-      // Geschosse benennen und ordnen — genau wie beim IFC-Import.
-      //
-      // RoomPlan zählt Geschosse durch (`story: 0, 1, …`); daraus „Geschoss 0"
-      // zu machen wäre eine Übersetzung ohne Übersetzung. Benannt wird deshalb
-      // nach der Höhenlage: das Erdgeschoss ist das Geschoss am Bezugspunkt,
-      // nicht das unterste. Hat das Haus einen Keller, steht das EG auf dessen
-      // Decke — und die Reihenfolge `order` zählt von dort aus, damit ein
-      // Kellergeschoss die Ordnungszahl −1 bekommt und nicht 0.
-      const sortiert = [...ergebnis.levels].sort((a, b) => a.elevation - b.elevation);
-      const namen = benenneGeschosse(sortiert);
-      const egIdx = erdgeschossIndex(sortiert.map((l) => l.elevation));
-      fresh.levels = Object.fromEntries(
-        sortiert.map((l, i) => [
-          l.id,
-          {
-            id: l.id,
-            name: namen[i],
-            order: i - egIdx,
-            elevation: l.elevation,
-            height: l.height,
-            // Erdreich liegt unter dem *untersten* Geschoss, nicht unter dem
-            // Erdgeschoss.
-            floorUValue: i === 0 ? 0.3 : 0.9,
-            floorBoundary: i === 0 ? ('ground' as const) : ('adjacent-room' as const),
-            ceilingUValue: 0.2,
-            ceilingBoundary: 'unheated' as const,
-          },
-        ]),
-      );
-      // Angefangen wird im Erdgeschoss, nicht im Keller — dort beginnt
-      // niemand ein Aufmaß.
-      fresh.activeLevelId = sortiert[egIdx]?.id ?? sortiert[0]?.id ?? fresh.activeLevelId;
-      fresh.nodes = Object.fromEntries(ergebnis.nodes.map((n) => [n.id, n]));
-      fresh.walls = Object.fromEntries(ergebnis.walls.map((w) => [w.id, w]));
-      fresh.openings = Object.fromEntries(ergebnis.openings.map((o) => [o.id, o]));
-      recomputeRooms(fresh);
-
-      // Raumnutzung aus dem Scan übernehmen.
-      //
-      // Zugeordnet wird über die Lage, nicht über eine Kennung: RoomPlan
-      // teilt die Wohnung in eigene Bereiche, und deren Grenzen sind nicht
-      // die Wandachsen, an denen die Raumerkennung arbeitet. Fällt der
-      // Mittelpunkt eines Bereichs in einen erkannten Raum, erbt der Raum
-      // Namen und Nutzung — sonst bleibt er, wie er ist. Trifft ein Raum
-      // mehrere Bereiche (weil eine Wand dazwischen im Scan fehlt), gewinnt
-      // der erste; ihn stillschweigend zu überschreiben hieße, die Reihenfolge
-      // in der Datei über die Sache entscheiden zu lassen.
-      let benannt = 0;
-      let doppelt = 0;
-      const vergeben = new Set<string>();
-      for (const hinweis of ergebnis.raumHinweise) {
-        const raum = Object.values(fresh.rooms).find(
-          (r) => r.levelId === hinweis.levelId && pointInPolygon(hinweis.punkt, r.polygon),
-        );
-        if (!raum) continue;
-        if (vergeben.has(raum.id)) {
-          // Zwei Bereiche in einem Raum heißt: zwischen ihnen fehlt eine Wand,
-          // die der Scan nicht gesehen hat. Das ist keine Kleinigkeit — es
-          // sind zwei Räume mit verschiedener Solltemperatur, die zu einem
-          // verschmolzen sind. Deshalb wird es gezählt und gesagt.
-          doppelt++;
-          continue;
-        }
-        vergeben.add(raum.id);
-        fresh.rooms[raum.id] = { ...raum, name: hinweis.name, usage: hinweis.usage };
-        benannt++;
-      }
+      const { fresh, benannt, doppelt } = dokumentAusScan(ergebnis);
 
       set({
         doc: fresh,
@@ -5308,6 +5357,134 @@ export const useBimStore = create<BimState>()((set, get) => {
             ? ` · ${doppelt} Raumname nicht vergeben: dort liegen zwei Bereiche in einem Raum, zwischen ihnen fehlt eine Wand`
             : '') +
           (offen ? ` · ${offen} offene Wandenden — der Scan hat dort keine Wand gemessen` : ''),
+      };
+    },
+
+    /**
+     * Übernimmt das Gebäudemodell der App RaVia Scan.
+     *
+     * Geometrie wie beim Raumscan (gleicher Weg über `dokumentAusScan`), dazu
+     * zwei Dinge, die eine RoomPlan-Datei nicht kennt: den **Dachvorschlag**
+     * je Geschoss, geschätzt aus den gescannten Dachschrägen, und die
+     * **Heizkörper** mit gemessenen Maßen. Beide werden vor der Raumerkennung
+     * eingesetzt, damit Dachräume ihre Höhen und Heizkörper ihren Raum
+     * bekommen. Eine Heizleistung setzt der Import nicht.
+     */
+    loadBuilding: (data, optionen) => {
+      const ergebnis = importBuildingModel(data);
+      if (!ergebnis.ok) return { ok: false, message: ergebnis.message };
+
+      const { fresh, benannt, doppelt } = dokumentAusScan(ergebnis, (doc) => {
+        for (const [levelId, dach] of Object.entries(ergebnis.daecher)) {
+          const level = doc.levels[levelId];
+          if (level) doc.levels[levelId] = { ...level, roof: { ...DEFAULT_ROOF, ...dach } };
+        }
+        for (const f of ergebnis.fixtures) {
+          if (doc.levels[f.levelId]) doc.fixtures[f.id] = f;
+        }
+      });
+      if (ergebnis.koordinaten && !fresh.meta.name) fresh.meta.name = 'Gebäudescan';
+
+      /*
+       * Hinzufügen statt ersetzen.
+       *
+       * Ein Haus wird selten in einem Zug gescannt: Reißt das Tracking auf
+       * der Treppe, kommt das Obergeschoss als zweite Aufnahme. Dann darf
+       * der Scan das Erdgeschoss nicht wegwerfen. Ersetzt wird deshalb nur
+       * das Geschoss, das der Scan mitbringt — alles andere bleibt stehen.
+       *
+       * Die Lage in der Ebene ist damit noch nicht geklärt: Zwei Aufnahmen
+       * haben zwei Nullpunkte. Das Geschoss landet dort, wo der Scan es
+       * sieht; zurechtschieben geht wie bei jedem kopierten Geschoss.
+       */
+      let ziel = fresh;
+      let ergaenzt = 0;
+      let ersetzt = 0;
+      let benanntGesamt = benannt;
+      let doppeltGesamt = doppelt;
+      const vorher = get().doc;
+      if (optionen?.merge && Object.keys(vorher.walls).length > 0) {
+        ziel = structuredClone(vorher);
+        ziel.meta = { ...ziel.meta, modifiedAt: new Date().toISOString() };
+        for (const level of Object.values(fresh.levels)) {
+          if (ziel.levels[level.id]) ersetzt++;
+          else ergaenzt++;
+          // Was auf diesem Geschoss stand, stammt aus dem vorigen Scan
+          // desselben Geschosses und wird ersetzt.
+          for (const w of Object.values(ziel.walls)) if (w.levelId === level.id) delete ziel.walls[w.id];
+          for (const o of Object.values(ziel.openings)) {
+            if (!ziel.walls[o.wallId]) delete ziel.openings[o.id];
+          }
+          for (const n of Object.values(ziel.nodes)) if (n.levelId === level.id) delete ziel.nodes[n.id];
+          for (const f of Object.values(ziel.fixtures)) if (f.levelId === level.id) delete ziel.fixtures[f.id];
+          for (const r of Object.values(ziel.rooms)) if (r.levelId === level.id) delete ziel.rooms[r.id];
+          ziel.levels[level.id] = level;
+        }
+        /*
+         * Kennungen eindeutig machen.
+         *
+         * Zwei Aufnahmen nennen ihre erste Wand beide `w-001` — die Zählung
+         * beginnt in jedem Scan von vorn. Würde man sie unverändert
+         * übernehmen, überschriebe das Obergeschoss die Wände des
+         * Erdgeschosses, und der Grundriss darunter verschwände. Beim
+         * Zusammenlegen bekommt deshalb alles aus dem neuen Scan das
+         * Geschoss als Vorsatz.
+         */
+        const zielGeschoss = Object.values(fresh.levels)[0]?.id ?? 'x';
+        const vorsatz = (id: string): string => `${zielGeschoss}-${id}`;
+        const neueKnoten = new Map<string, string>();
+        for (const n of Object.values(fresh.nodes)) {
+          const id = vorsatz(n.id);
+          neueKnoten.set(n.id, id);
+          ziel.nodes[id] = { ...n, id };
+        }
+        const neueWaende = new Map<string, string>();
+        for (const w of Object.values(fresh.walls)) {
+          const id = vorsatz(w.id);
+          neueWaende.set(w.id, id);
+          ziel.walls[id] = { ...w, id, a: neueKnoten.get(w.a) ?? w.a, b: neueKnoten.get(w.b) ?? w.b };
+        }
+        for (const o of Object.values(fresh.openings)) {
+          const id = vorsatz(o.id);
+          ziel.openings[id] = { ...o, id, wallId: neueWaende.get(o.wallId) ?? o.wallId };
+        }
+        for (const f of Object.values(fresh.fixtures)) {
+          const id = vorsatz(f.id);
+          ziel.fixtures[id] = { ...f, id, ...(f.wallId ? { wallId: neueWaende.get(f.wallId) ?? f.wallId } : {}) };
+        }
+        // Geschosse neu ordnen: die Reihenfolge ergibt sich aus der Höhenlage.
+        const sortiert = Object.values(ziel.levels).sort((a, b) => a.elevation - b.elevation);
+        const egIdx = erdgeschossIndex(sortiert.map((l) => l.elevation));
+        sortiert.forEach((l, i) => { ziel.levels[l.id] = { ...l, order: i - egIdx }; });
+        ziel.activeLevelId = Object.values(fresh.levels)[0]?.id ?? ziel.activeLevelId;
+        recomputeRooms(ziel);
+        const namen = benenneRaeume(ziel, ergebnis.raumHinweise);
+        benanntGesamt = namen.benannt;
+        doppeltGesamt = namen.doppelt;
+      }
+
+      set({
+        doc: ziel,
+        past: [...get().past.slice(-49), get().doc],
+        future: [],
+        selection: null,
+        selections: [],
+        einpassenZaehler: get().einpassenZaehler + 1,
+      });
+
+      const offen = ziel.diagnostics.openEnds.length;
+      const raeume = Object.keys(ziel.rooms).length;
+      const dazu = ziel === fresh ? '' :
+        ` · ${ergaenzt} Geschoss(e) ergänzt${ersetzt ? `, ${ersetzt} ersetzt` : ''}, bestehende Geschosse bleiben stehen`;
+      return {
+        ok: true,
+        message:
+          `RaVia Scan: ${ergebnis.message}${dazu} · ${raeume} Räume erkannt, ${benanntGesamt} benannt` +
+          (doppeltGesamt ? ` · ${doppeltGesamt} Raumname nicht vergeben (zwei Bereiche in einem Raum, dazwischen fehlt eine Wand)` : '') +
+          (offen ? ` · ${offen} offene Wandenden` : '') +
+          (ergebnis.nordGenauigkeitGrad !== undefined
+            ? ` · Nordrichtung ±${String(ergebnis.nordGenauigkeitGrad).replace('.', ',')}°`
+            : ''),
       };
     },
 

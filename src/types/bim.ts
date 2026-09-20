@@ -368,6 +368,12 @@ export type RoomUsage =
 
 export interface Room {
   id: RoomId;
+  /**
+   * Kennung desselben Raums in RaVia, wenn er aus einem Gebäudescan kam und
+   * der Monteur dort einen bereits angelegten Raum gewählt hat. Damit trifft
+   * ein zweiter Scan denselben Raum, ohne über Namen zu raten.
+   */
+  raviaRoomId?: string;
   name: string;
   usage: RoomUsage;
   levelId: LevelId;

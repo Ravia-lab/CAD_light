@@ -132,22 +132,52 @@ document.getElementById('btn-patch-bad').onclick = async () => {
 
 document.getElementById('btn-fields').onclick = () => call('getWritableFields').then(show);
 
-frame.addEventListener('load', async () => {
-  // Der Editor braucht einen Moment, bis der Store steht.
-  for (let i = 0; i < 40; i++) {
-    try {
-      const pong = await call('ping');
-      document.getElementById('status').textContent = 'verbunden';
-      document.getElementById('status').className = 'ok';
-      document.getElementById('version').textContent = pong.version;
-      await call('subscribe');
-      renderSummary(await call('getSummary'));
-      await ersterRaum();
-      return;
-    } catch {
-      await new Promise((r) => setTimeout(r, 250));
+/*
+ * Der Handschlag — und warum er nicht am `load`-Ereignis hängen darf.
+ *
+ * Hier stand nur `frame.addEventListener('load', …)`. Das geht gut, solange
+ * der Editor langsamer lädt als diese Seite. Beim **zweiten** Aufruf liegen
+ * seine 1,8 MB im Zwischenspeicher, der Rahmen ist fertig, **bevor** dieses
+ * Skript überhaupt läuft — und ein `load`-Ereignis, das schon vorbei ist,
+ * kommt nicht wieder. Die Seite blieb dann auf „verbinde …" stehen, während
+ * jeder Knopf daneben einwandfrei antwortete: ein Zustand, der aussieht wie
+ * eine kaputte Brücke und keiner ist.
+ *
+ * Gefunden hat das der Rauchtest gegen den echten Server, nicht der gegen
+ * die Vorschau — dort ist nichts zwischengespeichert.
+ *
+ * Deshalb: Der Handschlag läuft von sich aus los und zusätzlich bei jedem
+ * `load`. `laeuft` verhindert, dass beide Wege gleichzeitig anklopfen. Die
+ * Warteschleife war immer schon da und trägt den Fall „Rahmen noch nicht
+ * fertig" — es braucht das Ereignis also gar nicht, um richtig zu sein.
+ */
+let laeuft = false;
+
+async function verbinde() {
+  if (laeuft) return;
+  laeuft = true;
+  try {
+    // Der Editor braucht einen Moment, bis der Store steht.
+    for (let i = 0; i < 40; i++) {
+      try {
+        const pong = await call('ping');
+        document.getElementById('status').textContent = 'verbunden';
+        document.getElementById('status').className = 'ok';
+        document.getElementById('version').textContent = pong.version;
+        await call('subscribe');
+        renderSummary(await call('getSummary'));
+        await ersterRaum();
+        return;
+      } catch {
+        await new Promise((r) => setTimeout(r, 250));
+      }
     }
+    document.getElementById('status').textContent = 'keine Antwort';
+    document.getElementById('status').className = 'bad';
+  } finally {
+    laeuft = false;
   }
-  document.getElementById('status').textContent = 'keine Antwort';
-  document.getElementById('status').className = 'bad';
-});
+}
+
+frame.addEventListener('load', verbinde);
+verbinde();

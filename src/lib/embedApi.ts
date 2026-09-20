@@ -40,8 +40,16 @@ import type { HostPatch, HostPatchReport } from './hostPatch';
  * ausschließlich Zuwachs: kein Feld ist weggefallen, keines hat seine
  * Bedeutung geändert. Wer gegen 1.1.0 gebaut hat, läuft unverändert weiter —
  * er sieht die neuen Blöcke nur nicht.
+ *
+ * 1.3.0 — `loadBuilding`: das Gebäudemodell der App RaVia Scan
+ * (`ravia.building`, Schema 1.x) direkt übernehmen, ohne Datei.
+ *
+ * 1.4.0 — `loadBuilding` nimmt zusätzlich `{ building, merge: true }` an und
+ * legt das gescannte Geschoss dann **neben** die vorhandenen, statt das
+ * Modell zu ersetzen. Alles Zuwachs: Wer das nackte Modell schickt, bekommt
+ * das Verhalten von 1.3.0.
  */
-export const EMBED_API_VERSION = '1.2.0';
+export const EMBED_API_VERSION = '1.4.0';
 
 /** Kurzfassung des Modells — das, was eine Gegenstelle meistens wissen will. */
 export interface RaviaSummary {
@@ -96,6 +104,16 @@ export interface RaviaCadApi {
   /** IFC4-Datei laden. Ersetzt das aktuelle Modell. */
   loadIfc(text: string): { ok: boolean; message: string };
   /**
+   * Gebäudemodell aus RaVia Scan (`ravia.building`) laden — Wände, Öffnungen,
+   * Raumnamen, Nordrichtung, Dachvorschlag, Heizkörper. Ersetzt das aktuelle
+   * Modell; rückgängig machbar. Seit 1.3.0.
+   *
+   * Mit `{ merge: true }` (seit 1.4.0) bleibt alles stehen, was nicht zu den
+   * Geschossen des Scans gehört — für das Haus, dessen Obergeschoss als
+   * zweite Aufnahme kommt.
+   */
+  loadBuilding(data: unknown, optionen?: { merge?: boolean }): { ok: boolean; message: string };
+  /**
    * Auf Änderungen hören. Der Rückgabewert meldet den Hörer wieder ab.
    * Gemeldet wird entprellt die Kurzfassung, nicht das ganze Modell —
    * bei jedem gezogenen Wandende den vollen Export zu schicken wäre
@@ -109,6 +127,7 @@ interface StoreLike {
     doc: BimDocument;
     loadProject: RaviaCadApi['loadProject'];
     loadIfc: RaviaCadApi['loadIfc'];
+    loadBuilding: RaviaCadApi['loadBuilding'];
     applyHostPatch: (patch: HostPatch) => HostPatchReport;
   };
   subscribe: (listener: (state: { doc: BimDocument }, prev: { doc: BimDocument }) => void) => () => void;
@@ -175,6 +194,7 @@ export function installEmbedApi(store: StoreLike, target: Window = window): () =
     getDocument: () => store.getState().doc,
     loadProject: (data) => store.getState().loadProject(data),
     loadIfc: (text) => store.getState().loadIfc(text),
+    loadBuilding: (data, optionen) => store.getState().loadBuilding(data, optionen),
     applyPatch: (patch) => store.getState().applyHostPatch(patch),
     getWritableFields: () => writableFields(),
     onChange: (listener) => {
@@ -223,6 +243,16 @@ export function installEmbedApi(store: StoreLike, target: Window = window): () =
       case 'loadIfc':
         reply(event, 'loaded', data.id, api.loadIfc(String(data.payload ?? '')));
         break;
+      case 'loadBuilding': {
+        // Zwei Gestalten: das nackte Modell (wie 1.3.0) oder
+        // `{ building, merge }`. Beides beantwortet dieselbe Nachricht.
+        const p = data.payload as { building?: unknown; merge?: boolean } | undefined;
+        const mitHuelle = !!p && typeof p === 'object' && 'building' in p;
+        reply(event, 'loaded', data.id,
+              api.loadBuilding(mitHuelle ? p!.building : data.payload,
+                               mitHuelle ? { merge: !!p!.merge } : undefined));
+        break;
+      }
       case 'applyPatch':
         // Die Prüfung der Nutzlast steckt vollständig in `hostPatch.ts`. Hier
         // wird nichts vorgefiltert: eine Nachricht mit unbrauchbarem Inhalt

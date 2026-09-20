@@ -140,6 +140,10 @@ export interface RaumHinweis {
   usage: RoomUsage;
   name: string;
   levelId: string;
+  /** Kennung des Raums in RaVia (nur aus dem Gebäudescan, seit 1.37.0). */
+  raviaRoomId?: string;
+  /** Hat ein Mensch den Namen vergeben? Solche Hinweise gehen vor. */
+  vomNutzer?: boolean;
 }
 
 /** Was nicht gemessen, sondern angenommen wurde. */
@@ -244,9 +248,9 @@ const BRUESTUNGS_HOEHE = 1.6;
  *     Eingabe, die `validation.ts` als unplausibel meldet.
  */
 /** U-Wert eines importierten Fensters [W/(m²·K)] — Zweischeiben-Bestand. */
-const U_FENSTER_BESTAND = 1.3;
+export const U_FENSTER_BESTAND = 1.3;
 /** U-Wert einer importierten Tür [W/(m²·K)] — Innentür aus dem Aufbaukatalog. */
-const U_TUER_BESTAND = 1.8;
+export const U_TUER_BESTAND = 1.8;
 
 /**
  * Querabstand, bis zu dem ein Wandende als *auf* einer fremden Wand sitzend
@@ -903,7 +907,7 @@ const bezeichnung = (k: OpeningKind): string =>
  * Das entscheidet nur über Symbol und Sprossen, nicht über die Rechnung —
  * deshalb darf hier geschätzt werden, ohne dass eine Zahl davon abhängt.
  */
-function bauart(
+export function bauart(
   kind: OpeningKind,
   breite: number,
   _hoehe: number,
@@ -1107,7 +1111,7 @@ function liegtAufUmriss(s: Wandstueck, umriss: Vec2[]): boolean {
  * Verändert `walls`, `knoten` und `wandZuQuelle` an Ort und Stelle und gibt
  * zurück, wie viele Stöße hergestellt wurden.
  */
-function teileAnStoessen(
+export function teileAnStoessen(
   walls: Wall[],
   knoten: BimNode[],
   unten: Map<string, number>,
