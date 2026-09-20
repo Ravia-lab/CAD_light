@@ -661,47 +661,76 @@ export function pruefeRohrausleger(check: CheckFn): void {
   }
 
   // =========================================================================
-  // 12 · Der Türdurchgang muss teurer sein als der Umweg um einen Raum
+  // 12 · Die Tür wird nur genommen, wenn es keinen anderen Weg gibt
   // =========================================================================
   {
     /*
-     * Gemessen wird an einem Grundriss mit *zwei* Wegen: durch die Tür in der
-     * Trennwand oder oben um sie herum. Beide Punkte liegen auf derselben
-     * Höhe, also ist der direkte Weg genau ihr x-Abstand; jeder türfreie Weg
-     * muss zusätzlich zweimal an der Trennwandspitze vorbei. Beides sind
-     * Untergrenzen aus der Geometrie — keine gemessenen Zahlen.
+     * **Die Regel, die hier festgehalten wird, hat sich in 1.35.0 geändert.**
+     *
+     * Vorher war der Türzuschlag eine Rangfolge: 30 m, gegen den üblichen
+     * Umweg um einen Raum bemessen. Ein Umweg von 31 m verlor damit gegen
+     * die Tür — und das ist in der Sanierung falsch. Ein
+     * Sockelleistenkanal *kann* eine Türöffnung nicht durchlaufen; dort ist
+     * Schwelle, Zarge, Belagswechsel. Was am Zeichentisch ein längerer Weg
+     * ist, ist auf der Baustelle kein Weg.
+     *
+     * Geprüft wird deshalb jetzt die schärfere Zusage: **Gibt es irgendeinen
+     * türfreien Weg, wird er genommen — gleich wie lang er ist.**
+     *
+     * Der Grundriss dazu hat zwei Wege: durch die Tür in der Trennwand oder
+     * oben um sie herum. Beide Punkte liegen auf derselben Höhe, der direkte
+     * Weg ist also ihr x-Abstand; jeder türfreie Weg muss zusätzlich zweimal
+     * an der Trennwandspitze vorbei. Beides sind Untergrenzen aus der
+     * Geometrie — keine gemessenen Zahlen.
      */
     const direkt = ZW.zielX - ZW.quelleX; // 10,00 m
     const mehrweg = (trennwand: number): number => 2 * (trennwand - ZW.y);
 
-    check('Der Türzuschlag ist ein Ersatzweg von mindestens 25 m', TUER_ZUSCHLAG >= 25, true);
-    check('… und von höchstens 40 m', TUER_ZUSCHLAG <= 40, true);
+    check('Der Türzuschlag liegt über jedem Weg eines Geschosses [m]', TUER_ZUSCHLAG >= 200, true);
+    check('… bleibt aber endlich', Number.isFinite(TUER_ZUSCHLAG), true);
 
-    // --- Kurze Trennwand: der Umweg ist verhältnismäßig ---------------------
+    // --- Kurzer Umweg: die Tür wird gemieden -------------------------------
     const kurz = baueZweiWege(8, 6);
     const legKurz = trassiere(kurz, 'sanierung').legs[0];
-    check('Kurzer Umweg: der Mehrweg bleibt unter dem Türzuschlag [m]',
-      mehrweg(6) < TUER_ZUSCHLAG, true);
-    check('… deshalb meidet die Trasse die Tür', legKurz.doorCrossings.length, 0);
+    check('Kurzer Umweg: die Trasse meidet die Tür', legKurz.doorCrossings.length, 0);
     check('… und nimmt den Weg um die Trennwand herum [m]',
       legKurz.length >= direkt + mehrweg(6) - 1e-6, true);
-    // Gegenprobe: wäre der Umweg teurer als der Türweg, hätte die Wegsuche die
-    // Tür genommen. Er ist es nicht — sonst wäre die Entscheidung falsch.
-    check('… der billiger bleibt als der Türweg [m]', legKurz.length < direkt + TUER_ZUSCHLAG, true);
 
-    // --- Lange Trennwand: der Umweg ist unverhältnismäßig ------------------
+    /*
+     * **Der Fall, der vorher falsch ausging.** Die Trennwand ist so lang,
+     * dass der Umweg 2 × (18 − 3) = 30 m beträgt — unter der alten Regel
+     * genau die Schwelle, ab der die Tür gewann. Jetzt gewinnt sie nicht
+     * mehr: Ein Weg ist ein Weg.
+     */
     const lang = baueZweiWege(20, 18);
-    const netzLang = trassiere(lang, 'sanierung');
-    const legLang = netzLang.legs[0];
-    check('Langer Umweg: der Mehrweg übersteigt den Türzuschlag [m]',
-      mehrweg(18) > TUER_ZUSCHLAG, true);
-    check('… deshalb nimmt die Trasse die Tür', legLang.doorCrossings.length, 1);
-    check('… und bleibt weit unter dem türfreien Weg [m]',
-      legLang.length < direkt + mehrweg(18), true);
-    check('Der Durchgang wird als Anwenderentscheidung gemeldet',
-      netzLang.notes.some((n) => n.severity === 'warn' && n.text.includes('vor Ort entscheiden')), true);
+    const legLang = trassiere(lang, 'sanierung').legs[0];
+    check('Langer Umweg: der Mehrweg übersteigt 30 m [m]', mehrweg(18) > 30, true);
+    check('… und die Trasse meidet die Tür trotzdem', legLang.doorCrossings.length, 0);
+    check('… sie nimmt den langen Weg um die Trennwand [m]',
+      legLang.length >= direkt + mehrweg(18) - 1e-6, true);
 
-    // --- Nur ein Weg: der Durchgang ist kein Fehler ------------------------
+    /*
+     * **Die Gegenprobe — sonst prüfte der Block nur, dass nie eine Tür
+     * genommen wird.** Reicht die Trennwand bis an die gegenüberliegende
+     * Wand (8 von 8), ist die Tür der einzige Zugang. Dort *muss* sie
+     * genommen werden, sonst wäre der Heizkörper nicht anzuschließen und
+     * die Trassierung lieferte nichts.
+     */
+    const einzig = trassiere(baueZweiWege(8, 8), 'sanierung');
+    const durchTuer = einzig.legs.filter((l) => l.doorCrossings.length > 0).length;
+    check('Ohne Alternative wird die Tür genommen', durchTuer > 0, true);
+    check('… und die Trasse kommt überhaupt zustande', einzig.legs.length > 0, true);
+    // Und es wird gesagt: ein genannter Kompromiss statt eines stillen.
+    check('Die Querung steht als Hinweis im Bericht',
+      einzig.notes.some((n) => n.text.includes('Durchgang')), true);
+    check('Der Durchgang wird als Anwenderentscheidung gemeldet',
+      einzig.notes.some((n) => n.severity === 'warn' && n.text.includes('vor Ort entscheiden')), true);
+
+    /*
+     * Zweite Gegenprobe mit dem Zwei-Wege-Grundriss: Reicht die Trennwand
+     * bis an die gegenüberliegende Wand (8 von 8), gibt es keinen Weg
+     * herum — dann wird die Tür genommen, und das ist kein Fehler.
+     */
     const nurTuer = trassiere(baueZweiWege(8, 8), 'sanierung');
     check('Führt der einzige Weg durch die Tür, wird sie genommen',
       nurTuer.legs[0].doorCrossings.length, 1);

@@ -544,6 +544,19 @@ interface BimState {
   selectAll: () => void;
   setHover: (sel: Selection | null) => void;
   setViewport: (vp: Partial<Viewport>) => void;
+  /**
+   * Eine Stelle im Plan, die gerade hervorgehoben wird — Zeitpunkt und Ort.
+   *
+   * **Wozu.** Ein Befund aus der Prüfung anzuspringen half bisher nur halb:
+   * Die Ansicht rückte hin, aber bei 60 Bildpunkten je Meter ist eine Wand
+   * von 0,0 cm Länge ein Punkt, den niemand findet — und ausgerechnet das
+   * sind die Befunde, die man anspringt. Gebraucht werden zwei Dinge, die
+   * eine Verschiebung allein nicht leistet: nah genug heran, um zu
+   * *arbeiten*, und eine Marke, die sagt „hier".
+   */
+  hervorhebung: { position: Vec2; seit: number } | null;
+  /** Eine Stelle anspringen: hinrücken, heranzoomen, gelb markieren. */
+  hebeHervor: (position: Vec2, mindestZoom?: number) => void;
   setSnap: (patch: Partial<SnapSettings>) => void;
   toggleDimensions: () => void;
   toggleRoofLines: () => void;
@@ -1735,6 +1748,7 @@ export const useBimStore = create<BimState>()((set, get) => {
     clipboard: null,
     hover: null,
     viewport: { zoom: 60, center: { x: 4, y: 3 } },
+    hervorhebung: null,
     einpassenZaehler: 0,
     snap: DEFAULT_SNAP,
     showDimensions: true,
@@ -1887,6 +1901,28 @@ export const useBimStore = create<BimState>()((set, get) => {
     },
     setHover: (hover) => set({ hover }),
     setViewport: (vp) => set({ viewport: { ...get().viewport, ...vp } }),
+
+    /**
+     * Zu einer Stelle springen und sie markieren.
+     *
+     * **Warum herangezoomt wird und nicht nur verschoben.** Die Befunde,
+     * die man anspringt, sind klein: eine Wand von 0,0 cm, eine Bohrung von
+     * 68 mm, eine Öffnung, die zwei Zentimeter über die Wand ragt. Bei 60
+     * Bildpunkten je Meter ist das ein Pixel. Wer eine Sache beheben soll,
+     * muss sie greifen können.
+     *
+     * **Warum eine Untergrenze und kein fester Wert.** Wer schon bei 200
+     * Bildpunkten je Meter arbeitet, will nicht auf 120 herausgezogen
+     * werden — das wäre eine Ansicht, die sich gegen ihren Benutzer wehrt.
+     * Herangezoomt wird nur, wer noch zu weit weg ist.
+     */
+    hebeHervor: (position, mindestZoom = 140) => {
+      const vp = get().viewport;
+      set({
+        viewport: { ...vp, center: { ...position }, zoom: Math.max(vp.zoom, mindestZoom) },
+        hervorhebung: { position: { ...position }, seit: Date.now() },
+      });
+    },
     setSnap: (patch) => set({ snap: { ...get().snap, ...patch } }),
     toggleDimensions: () => set({ showDimensions: !get().showDimensions }),
     toggleRoofLines: () => set({ showRoofLines: !get().showRoofLines }),

@@ -23,7 +23,7 @@ export default function ValidationPanel() {
   const uiMode = useBimStore((s) => s.uiMode);
   const setSelection = useBimStore((s) => s.setSelection);
   const setStatus = useBimStore((s) => s.setStatus);
-  const setViewport = useBimStore((s) => s.setViewport);
+  const hebeHervor = useBimStore((s) => s.hebeHervor);
   const showDiagnostics = useBimStore((s) => s.showDiagnostics);
   const toggleDiagnostics = useBimStore((s) => s.toggleDiagnostics);
 
@@ -107,7 +107,17 @@ export default function ValidationPanel() {
                   disabled={!clickable}
                   onClick={() => {
                     if (!issue.target && !issue.position) return;
-                    if (issue.position) setViewport({ center: { ...issue.position } });
+                    /*
+                     * **Hinrücken reicht nicht.** Die Befunde, die man
+                     * anspringt, sind klein: eine Wand von 0,0 cm Länge,
+                     * eine Bohrung von 68 mm, eine Öffnung, die zwei
+                     * Zentimeter über die Wand ragt. Bei 60 Bildpunkten je
+                     * Meter ist das ein Pixel — man steht davor und sieht
+                     * nichts. `hebeHervor` rückt hin, zoomt heran (aber
+                     * zieht niemanden heraus, der schon näher dran ist) und
+                     * setzt für vier Sekunden eine gelbe Marke.
+                     */
+                    if (issue.position) hebeHervor(issue.position);
                     // 'liste': der Inspektor bleibt auf der Prüfung stehen,
                     // damit man den nächsten Befund noch findet.
                     if (issue.target) setSelection(issue.target, 'liste');
@@ -136,7 +146,7 @@ export default function ValidationPanel() {
                     )}
                     {clickable && (
                       <span className="mt-0.5 block text-[9px] text-accent/70">
-                        Anklicken springt zur Stelle im Plan
+                        Anklicken springt hin, zoomt heran und markiert die Stelle
                       </span>
                     )}
                   </span>

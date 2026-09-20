@@ -246,6 +246,36 @@ export default function RoofPanel() {
                 </button>
               ))}
             </div>
+            {/*
+              Freier Winkel neben den acht Himmelsrichtungen.
+
+              **Warum beides.** Die acht Knöpfe treffen den Regelfall mit
+              einem Klick — ein Haus steht meistens einigermaßen nach den
+              Himmelsrichtungen. Sie reichen aber nicht, wenn es das nicht
+              tut: Ein Gebäude, das 20° schief zur Straße steht, bekommt mit
+              45°-Rastung ein Dach, das an keiner Traufe aufliegt. Dann muss
+              man den Winkel eintippen können, und zwar genau.
+            */}
+            <div className="mt-1 flex items-center gap-1.5">
+              <span className="text-[9.5px] text-slate-600">oder genau</span>
+              <input
+                type="number"
+                min={0}
+                max={359}
+                step={1}
+                value={Math.round(roof.azimuth)}
+                onChange={(e) => {
+                  const v = Number(e.target.value);
+                  if (!Number.isFinite(v)) return;
+                  // Modulo, damit 370° zu 10° wird statt zu einem Dach, das
+                  // die Firstrechnung nicht mehr einordnen kann.
+                  setRoof(level.id, { azimuth: ((v % 360) + 360) % 360 });
+                }}
+                title="Richtung, in die die Dachfläche fällt, als Winkel — 0° = Norden, im Uhrzeigersinn. Für Gebäude, die schief zur Himmelsrichtung stehen."
+                className="w-16 rounded-md bg-graphite-900/70 px-2 py-1 text-right font-mono text-[11px] text-slate-200 outline-none ring-1 ring-white/10"
+              />
+              <span className="font-mono text-[10px] text-slate-500">°</span>
+            </div>
             <p className="mt-1 text-[9.5px] leading-relaxed text-slate-600">
               {roof.kind === 'monopitch' || roof.kind === 'flat-sloped'
                 ? 'Das Dach fällt in diese Richtung ab.'

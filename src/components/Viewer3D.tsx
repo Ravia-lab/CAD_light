@@ -25,6 +25,7 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import type {
+  Selection as BimSelection,
   CameraMode,
   Fixture,
   FixtureCategory,
@@ -44,7 +45,7 @@ import type {
   VerticalElement,
   Wall,
 } from '../types/bim';
-import { FIXTURE_BY_TYPE, OPENING_LABELS, PIPE_SERVICE_COLORS, PIPE_SERVICE_LABELS, VENTILSEITE_LABELS, RADIATOR_CONNECTION_LABELS } from '../types/bim';
+import { FIXTURE_BY_TYPE, OPENING_LABELS, PIPE_SERVICE_COLORS, PIPE_SERVICE_LABELS, VENTILSEITE_LABELS, VERTICAL_LABELS, RADIATOR_CONNECTION_LABELS } from '../types/bim';
 import { BODENBELAEGE, belagNach } from '../lib/bodenbelag';
 import { EBENE_DURCHBRUECHE, EBENE_GELAENDE, EBENE_HEIZUNG, auswahlGesperrt, ebeneFuerMedium, ebeneFuerObjekt } from '../lib/ebenen';
 import { durchbruchAussparungen } from '../lib/durchbruchSymbols';
@@ -4543,6 +4544,7 @@ export default function Viewer3D({ className = '' }: { className?: string }) {
               {g.label} <span className="ml-1 font-mono text-slate-500">{g.wert.toFixed(2).replace('.', ',')}</span>
             </button>
           ))}
+          <GeschossZiel selection={selections[0]} />
           {griffe.length > 0 && <div className="divider-v" />}
           <button
             className="chip text-[11px] text-rose-300 hover:text-rose-200"
@@ -4841,5 +4843,70 @@ function Werkzeugkiste({
         </div>
       )}
     </div>
+  );
+}
+
+/**
+ * „Von wo nach wo" — für Treppe, Schacht und alles, was Geschosse verbindet.
+ *
+ * **Warum das in die 3D-Ansicht gehört und nicht nur in den Inspektor.**
+ * Eine Treppe ist das einzige Bauteil, dessen wichtigste Eigenschaft man im
+ * Grundriss nicht sehen kann: In der Draufsicht sind eine Treppe ins
+ * Obergeschoss und eine in den Keller dasselbe Rechteck mit Stufen. Erst im
+ * Modell steht sie im Raum — und genau dort fällt auf, dass sie im Nichts
+ * endet. Wer sie dort anklickt, will nicht in den Grundriss zurück, um zu
+ * sagen, wohin sie führt.
+ *
+ * **Was daran hängt.** Das Zielgeschoss ist keine Beschriftung: `slabGeometry`
+ * schneidet jede Decke auf, die das Bauteil durchstößt — von seinem Geschoss
+ * bis zum Zielgeschoss. Ohne Ziel durchstößt es genau eine Decke, die
+ * nächste. Eine Treppe über zwei Geschosse ohne Zielangabe hat deshalb im
+ * Modell einen Deckel über dem ersten Lauf.
+ *
+ * **Warum „endet hier" ausdrücklich wählbar ist.** Das ist der Regelfall
+ * (eine Decke, ein Lauf) und muss ein Zustand sein, den man *setzt*, nicht
+ * einer, der durch Weglassen entsteht. Sonst ist nicht zu unterscheiden,
+ * ob jemand sich entschieden oder es nur nicht ausgefüllt hat.
+ */
+function GeschossZiel({ selection }: { selection: BimSelection }) {
+  const doc = useBimStore((s) => s.doc);
+  const updateVertical = useBimStore((s) => s.updateVertical);
+  if (selection.kind !== 'vertical') return null;
+  const el = doc.verticals?.[selection.id];
+  if (!el) return null;
+
+  const geschosse = Object.values(doc.levels).sort((a, b) => a.order - b.order);
+  const von = doc.levels[el.levelId];
+  const index = geschosse.findIndex((l) => l.id === el.levelId);
+  // Nach unten führt eine Treppe in diesem Modell nicht: Sie gehört dem
+  // Geschoss, in dem sie beginnt, und durchstößt die Decken darüber.
+  const moeglich = geschosse.slice(index + 1);
+
+  return (
+    <>
+      <div className="divider-v" />
+      <span className="px-1.5 text-[10px] text-slate-500">
+        {VERTICAL_LABELS[el.kind]} von <b className="text-slate-300">{von?.name ?? '?'}</b> nach
+      </span>
+      <select
+        className="rounded-md bg-graphite-900/70 px-2 py-1 text-[11px] text-slate-200 outline-none ring-1 ring-white/10"
+        style={{ minHeight: 36 }}
+        value={el.toLevelId ?? ''}
+        title="Bis in welches Geschoss reicht das Bauteil? Davon hängt ab, welche Decken es durchstößt."
+        onChange={(e) => updateVertical(el.id, { toLevelId: e.target.value || undefined })}
+      >
+        <option value="">endet hier (eine Decke)</option>
+        {moeglich.map((l) => (
+          <option key={l.id} value={l.id}>
+            {l.name}
+          </option>
+        ))}
+      </select>
+      {moeglich.length === 0 && (
+        <span className="px-1.5 text-[10px] text-amber-400/70">
+          Darüber gibt es kein Geschoss — erst eines anlegen.
+        </span>
+      )}
+    </>
   );
 }

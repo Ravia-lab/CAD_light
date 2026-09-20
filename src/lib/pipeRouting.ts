@@ -233,29 +233,50 @@ const WAND_TOLERANZ = 0.05;
 /**
  * `sanierung`: Ersatzweg [m] für das Passieren einer Türöffnung.
  *
- * **Warum 30 m und nicht 6 m.** Der frühere Wert von 6 m hieß: ein Umweg bis
- * 6 m ist billiger als ein Durchgang. Damit nahm die Trassierung den Türweg
- * auch dann, wenn ein ordentlicher Weg drumherum existierte — 6 m sind
- * weniger als der Umweg um einen einzigen Raum. Genau das wollte der
- * Anwender nicht: „Rohre werden nicht an Türen oder in Türen gelegt, wenn es
- * sich vermeiden lässt."
+ * **Was diese Zahl inzwischen bedeutet — die Regel hat sich geändert.**
  *
- * Die Zahl ist deshalb an dem bemessen, was sie schlagen soll — dem üblichen
- * Umweg:
+ * Bis 1.35.0 stand hier 30 m, und sie war als *Rangfolge* gemeint: gegen den
+ * üblichen Umweg um einen Raum bemessen, also „durch die Tür, wenn der Umweg
+ * unverhältnismäßig wird". Das klang vernünftig und ist in der Sanierung
+ * trotzdem die falsche Regel gewesen. Der Sockelleistenkanal **kann** eine
+ * Türöffnung nicht durchlaufen: Dort ist Schwelle, Zarge, Bodenbelagswechsel.
+ * Was am Zeichentisch ein Umweg von 31 m ist, ist auf der Baustelle kein
+ * teurerer Weg, sondern **kein Weg**. Eine Rangfolge, die den unmöglichen
+ * Weg gewinnen lässt, sobald der mögliche lang genug wird, beschreibt die
+ * Baustelle nicht.
  *
- *  • Um einen Wohnraum von 5 × 4 m herum statt hindurch: bis rund 13 m
- *    Mehrweg (Umfang 18 m gegen 5 m Durchquerung).
- *  • Um zwei solche Räume herum: bis rund 26 m.
- *  • Einmal um ein Einfamilienhaus von 12 × 10 m herum: rund 44 m Umfang,
- *    also bis rund 32 m Mehrweg gegenüber der Durchquerung.
+ * Die Regel lautet deshalb jetzt:
  *
- * 30 m liegt damit über dem Umweg um ein, zwei Räume und noch unter dem
- * Umweg um das ganze Geschoss: der Durchgang wird genommen, wenn es *keinen*
- * vernünftigen anderen Weg gibt, und sonst nicht. Das ist keine Normzahl —
- * es gibt zur Türdurchführung keine Fachregel (siehe Dateikopf) — sondern
- * eine bewusst gesetzte Rangfolge, die hier offen liegt statt versteckt.
+ *     Eine Türöffnung wird nur gequert, wenn es keinen anderen Weg gibt.
+ *
+ * 500 m liegen über jedem Weg, den ein Raster über *einem* Geschoss
+ * überhaupt hervorbringen kann — der Umfang eines Einfamilienhauses von
+ * 12 × 10 m sind 44 m, eine verwinkelte Trasse vielleicht das Doppelte.
+ * Damit verliert die Tür gegen **jede** Alternative, die es gibt, und
+ * gewinnt nur dort, wo es keine gibt.
+ *
+ * **Warum kein `Infinity`.** Ein Raum, dessen einziger Zugang die Tür ist —
+ * also fast jedes Zimmer — wäre damit unerreichbar, und die Trassierung
+ * bräche ab, statt eine Trasse zu liefern, die jemand ansehen kann. Ein
+ * sehr großer endlicher Wert lässt die Tür als *letzten* Ausweg stehen, und
+ * der Bericht sagt hinterher, wo sie genommen wurde (`doorCrossings`). Ein
+ * genannter Kompromiss ist besser als ein stiller Abbruch.
+ *
+ * **Was der Zuschlag nicht kann — und was der bessere Weg wäre.** Verlegt
+ * wird in der Sanierung nicht durch die Tür und auch nicht um das halbe
+ * Haus herum, sondern **durch die Wand neben der Zarge**: Kernbohrung oder
+ * Mauerschlitz, die Sockelleiste läuft durch. Dieses Programm kann
+ * Durchbrüche als Bauteil führen (`durchbrueche`), aber die Wegsuche legt
+ * noch keine an. Solange das so ist, bleibt der große Zuschlag die
+ * ehrlichste Näherung: Er hält die Trasse von den Türen fern, und wo sie
+ * doch eine quert, steht dort in Wahrheit ein Durchbruch — den trägt bis
+ * auf Weiteres der Mensch ein.
+ *
+ * Das ist **keine Normzahl** — es gibt zur Türdurchführung keine Fachregel
+ * (siehe Dateikopf) — sondern eine bewusst gesetzte Rangfolge, und sie liegt
+ * hier offen statt versteckt.
  */
-export const TUER_ZUSCHLAG = 30.0;
+export const TUER_ZUSCHLAG = 500.0;
 
 /**
  * Wegegewicht je Raumnutzung [-] — durch welchen Raum die Trasse laufen soll.

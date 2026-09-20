@@ -123,6 +123,16 @@ import TraceReviewBar from './TraceReviewBar';
 import SkizzenLeiste from './SkizzenLeiste';
 import NotizLeiste from './NotizLeiste';
 
+/**
+ * Wie lange die Marke eines angesprungenen Befunds steht [ms].
+ *
+ * Vier Sekunden: lang genug, um hinzusehen, kurz genug, dass nach dem
+ * dritten Befund nicht drei Marken im Plan stehen. Wer länger braucht,
+ * klickt den Befund noch einmal an.
+ */
+const BEFUND_DAUER = 4000;
+
+
 // ---------------------------------------------------------------------------
 // Farbpalette der Zeichenfläche
 // ---------------------------------------------------------------------------
@@ -339,6 +349,27 @@ export default function Editor2D({ className = '' }: { className?: string }) {
   const showRoofLines = useBimStore((s) => s.showRoofLines);
   const pipeService = useBimStore((s) => s.pipeService);
   const showDiagnostics = useBimStore((s) => s.showDiagnostics);
+  const hervorhebung = useBimStore((s) => s.hervorhebung);
+
+  /*
+   * **Warum die Marke einen eigenen Takt braucht.** Die Zeichenfläche wird
+   * neu gezeichnet, wenn sich der Zustand ändert. Eine Marke, die pulsiert
+   * und verblasst, ändert aber nur die *Uhrzeit* — ohne einen Takt stünde
+   * sie unbewegt da, bis zufällig etwas anderes passiert. 40 ms sind 25
+   * Bilder je Sekunde; der Takt endet mit der Marke und läuft nie im
+   * Leerlauf.
+   */
+  const [, setBefundTakt] = useState(0);
+  useEffect(() => {
+    if (!hervorhebung) return;
+    const bis = hervorhebung.seit + BEFUND_DAUER;
+    if (Date.now() >= bis) return;
+    const id = window.setInterval(() => {
+      setBefundTakt((t2) => t2 + 1);
+      if (Date.now() >= bis) window.clearInterval(id);
+    }, 40);
+    return () => window.clearInterval(id);
+  }, [hervorhebung]);
   const showGuides = useBimStore((s) => s.showGuides);
   const orthoLock = useBimStore((s) => s.orthoLock);
   const openingPreset = useBimStore((s) => s.openingPreset);
@@ -1295,6 +1326,54 @@ export default function Editor2D({ className = '' }: { className?: string }) {
     // ---------------------------------------------------------- Raumlabels
     if (showRoomLabels && doc.layers['layer-rooms']?.visible) {
       for (const room of rooms) drawRoomLabel(ctx, room, sx, sy, zoom);
+    }
+
+    // -------------------------------------------------- Angesprungener Befund
+    /*
+     * **Warum die Marke über allem liegt und nicht unter den Wänden.** Sie
+     * zeigt auf eine Sache, die *fehlt* oder *falsch* ist — eine Wand von
+     * 0,0 cm Länge, eine Bohrung ohne Wand. Läge sie darunter, wäre sie
+     * genau dort verdeckt, wo etwas steht, und genau dort sichtbar, wo
+     * nichts ist.
+     *
+     * **Warum sie von selbst verschwindet.** Eine Marke, die bleibt, ist
+     * nach dem dritten Befund nicht mehr die Marke des dritten Befunds,
+     * sondern Dekoration. Vier Sekunden reichen zum Hinsehen und sind kurz
+     * genug, dass niemand sie wegklicken muss.
+     */
+    if (hervorhebung) {
+      const alter = Date.now() - hervorhebung.seit;
+      if (alter < BEFUND_DAUER) {
+        const rest = 1 - alter / BEFUND_DAUER;
+        const mx = sx(hervorhebung.position.x);
+        const my = sy(hervorhebung.position.y);
+        // Zwei Ringe, die nach außen laufen — ein einzelner statischer Kreis
+        // geht auf einem vollen Plan unter.
+        ctx.save();
+        for (const phase of [0, 0.5]) {
+          const t2 = ((alter / 900 + phase) % 1);
+          const r = 10 + t2 * 26;
+          ctx.beginPath();
+          ctx.arc(mx, my, r, 0, Math.PI * 2);
+          ctx.strokeStyle = `rgba(250, 204, 21, ${(1 - t2) * rest * 0.9})`;
+          ctx.lineWidth = 2;
+          ctx.stroke();
+        }
+        // Und ein Fadenkreuz, damit die Stelle auch im Standbild eindeutig ist.
+        ctx.strokeStyle = `rgba(250, 204, 21, ${rest})`;
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.moveTo(mx - 14, my);
+        ctx.lineTo(mx - 5, my);
+        ctx.moveTo(mx + 5, my);
+        ctx.lineTo(mx + 14, my);
+        ctx.moveTo(mx, my - 14);
+        ctx.lineTo(mx, my - 5);
+        ctx.moveTo(mx, my + 5);
+        ctx.lineTo(mx, my + 14);
+        ctx.stroke();
+        ctx.restore();
+      }
     }
 
     // ------------------------------------------------------------ Maßketten

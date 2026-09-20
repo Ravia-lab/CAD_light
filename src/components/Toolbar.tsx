@@ -31,8 +31,9 @@ import {
 import { verlegeartAus } from '../lib/plantDefaults';
 import { UI_MODUS_LABELS, zeigtAnsicht, zeigtKopfknopf, zeigtWerkzeug, type UiModus } from '../lib/uimodus';
 import { useBimStore } from '../store/useBimStore';
-import { t } from '../lib/sprache';
-import { useRef, useState } from 'react';
+import { SPRACHEN, t } from '../lib/sprache';
+import { Flagge } from './Flaggen';
+import { useEffect, useRef, useState } from 'react';
 import { buildRaviaExport, downloadJson, exportFilename } from '../lib/raviaExport';
 import { buildIfc, downloadIfc, ifcFilename } from '../lib/ifcExport';
 import { istRaumplanDatei } from '../lib/raumplanImport';
@@ -612,6 +613,7 @@ export function TopBar({ onProjekte }: { onProjekte: () => void }) {
         Umbruch läge genau der Ausgabeknopf hinter dem Rand.
       */}
       <div className="flex min-w-0 flex-wrap items-center justify-end gap-x-3 gap-y-1">
+        <SprachWahl />
         {/* Ansichtsmodus */}
         {/*
           Der Ansichtsumschalter — und davor die Frage, wie viel vom Programm
@@ -1072,6 +1074,81 @@ function AnnotationKindBar() {
           </button>
         ))}
       </div>
+    </div>
+  );
+}
+
+/**
+ * Sprachwahl in der Kopfzeile — eine Flagge, ein Klick.
+ *
+ * **Warum hier oben und nicht im Reiter „Start".** Dort stand sie zuerst,
+ * hinter der Schrittliste. Wer die deutsche Oberfläche nicht lesen kann,
+ * findet dort nichts: Um zur Sprachwahl zu kommen, müsste er sich erst
+ * durch die Sprache arbeiten, die er nicht versteht. Eine Flagge ist das
+ * einzige Bedienelement, das ohne Sprache funktioniert — sie gehört
+ * deshalb dorthin, wo man sie im ersten Blick findet.
+ *
+ * **Warum eine Klappliste und keine Reihe aus sechs Flaggen.** Sechs
+ * Flaggen nebeneinander sind rund 200 Pixel, und die Kopfzeile ist die
+ * knappste Fläche des Programms. Eine Flagge mit Kürzel sind 42.
+ *
+ * **Warum neben jeder Flagge der Sprachname steht.** Eine Flagge bezeichnet
+ * ein Land, keine Sprache. In dieser Zielgruppe ist das nicht
+ * theoretisch — ein russischsprachiger Kasache, ein kurdischer Monteur. Die
+ * Flagge findet man schnell, der Name sagt, was gemeint ist.
+ */
+function SprachWahl() {
+  const sprache = useBimStore((s) => s.sprache);
+  const setSprache = useBimStore((s) => s.setSprache);
+  const [offen, setOffen] = useState(false);
+  const aktuell = SPRACHEN.find((s2) => s2.code === sprache) ?? SPRACHEN[0];
+
+  // Klick daneben schließt. Ohne das bleibt die Liste offen, sobald jemand
+  // sie versehentlich aufzieht und dann im Plan weiterarbeitet.
+  useEffect(() => {
+    if (!offen) return;
+    const zu = (): void => setOffen(false);
+    window.addEventListener('pointerdown', zu);
+    return () => window.removeEventListener('pointerdown', zu);
+  }, [offen]);
+
+  return (
+    <div className="relative" onPointerDown={(e) => e.stopPropagation()}>
+      <button
+        onClick={() => setOffen((o) => !o)}
+        title={`Sprache: ${aktuell.deutsch}. Umgestellt wird die Bedienung — Fachbegriffe (Vorlauf, Heizlast, U-Wert …) und die Ausgaben bleiben deutsch.`}
+        className={`chip flex items-center gap-1.5 whitespace-nowrap ${
+          offen ? 'bg-white/[0.08] text-slate-100' : 'text-slate-400 hover:text-slate-200'
+        }`}
+      >
+        <Flagge code={aktuell.code} />
+        <span className="font-medium uppercase">{aktuell.code}</span>
+      </button>
+
+      {offen && (
+        <div className="panel absolute right-0 top-full z-50 mt-1 flex w-max flex-col gap-0.5 p-1">
+          {SPRACHEN.map((sp) => (
+            <button
+              key={sp.code}
+              onClick={() => {
+                setSprache(sp.code);
+                setOffen(false);
+              }}
+              title={sp.deutsch}
+              className={`chip flex items-center gap-2 whitespace-nowrap ${
+                sprache === sp.code ? 'bg-accent/15 text-accent' : 'text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              <Flagge code={sp.code} />
+              {sp.eigenname}
+            </button>
+          ))}
+          <p className="max-w-[15rem] px-1.5 pb-0.5 pt-1 text-[9px] leading-snug text-slate-600">
+            Umgestellt wird die Bedienung. Fachbegriffe und die Ausgaben — Plan, Massenauszug,
+            Bericht — bleiben deutsch.
+          </p>
+        </div>
+      )}
     </div>
   );
 }
