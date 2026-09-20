@@ -52,6 +52,8 @@ const ctx = await b.newContext({ viewport: { width: 1500, height: 900 } });
 await ctx.addInitScript(() => {
   localStorage.setItem('ravia-ui-mode', 'profi');
   localStorage.setItem('ravia-einfuehrung', '1');
+  // Ein festgefahrener Stand aus 1.36.0, wie ihn ein Anwender im Browser hat.
+  localStorage.setItem('ravia-cad-light.sprache.v1', 'tr');
 });
 const p = await ctx.newPage();
 await p.goto(BASIS, { waitUntil: 'networkidle' });
@@ -61,6 +63,19 @@ await p.waitForTimeout(1800);
 const knopf = () => p.locator('header button[title^="Sprache:"]').first();
 /** Die Liste hängt im Portal am Seitenkörper — nicht in der Kopfzeile. */
 const liste = () => p.locator('body > div.panel.fixed').last();
+
+/*
+ * **Der Start steht auf Deutsch, auch wenn im Browser etwas anderes liegt.**
+ *
+ * In 1.36.0 war die Liste unsichtbar; wer eine Sprache gewählt hatte, kam
+ * nicht zurück, und die Wahl blieb im Browser stehen. Einmalig wird sie
+ * deshalb zurückgesetzt. Hier wird genau das nachgestellt: Im Speicher
+ * liegt „tr", der Merker fehlt — das Programm muss trotzdem auf Deutsch
+ * aufgehen.
+ */
+console.log('\n▸ Der Start steht auf Deutsch');
+expect('Deutsch, obwohl „tr" im Browser lag',
+  await p.locator('header button[title^="Sprache: Deutsch"]').count(), 1);
 
 console.log('\n▸ Die Liste ist erreichbar');
 expect('Der Sprachknopf steht in der Kopfzeile', await knopf().count(), 1);
@@ -74,9 +89,17 @@ expect('Achtzehn Sprachen', await liste().locator('button').count(), 18);
  * auch vorher — sie stand nur außerhalb des Bildes. Gemessen wird deshalb
  * der Kasten: Er muss im Fenster liegen und Höhe haben.
  */
-const kasten = await liste().boundingBox();
-expect('Sie liegt im sichtbaren Bereich', !!kasten && kasten.y >= 0 && kasten.y < 900, true);
-expect('… und ist nicht null hoch', !!kasten && kasten.height > 100, true);
+const imBild = async (w, h) => {
+  const k = await liste().boundingBox();
+  if (!k) return { ok: false, grund: 'kein Kasten' };
+  if (k.height < 100) return { ok: false, grund: `nur ${Math.round(k.height)} px hoch` };
+  if (k.x < 0) return { ok: false, grund: `${Math.round(-k.x)} px links draußen` };
+  if (k.y < 0) return { ok: false, grund: `${Math.round(-k.y)} px oben draußen` };
+  if (k.x + k.width > w + 1) return { ok: false, grund: `${Math.round(k.x + k.width - w)} px rechts draußen` };
+  if (k.y + k.height > h + 1) return { ok: false, grund: `${Math.round(k.y + k.height - h)} px unten draußen` };
+  return { ok: true, grund: '' };
+};
+expect('Sie liegt vollständig im Bild', await imBild(1500, 900), { ok: true, grund: '' });
 
 console.log('\n▸ Zweimal umschalten — hin und zurück');
 await liste().locator('button', { hasText: 'Türkçe' }).click();
@@ -92,6 +115,34 @@ expect('Die Liste öffnet sich auch auf Türkisch', await liste().isVisible(), t
 await liste().locator('button', { hasText: 'Deutsch' }).click();
 await p.waitForTimeout(900);
 expect('Und zurück auf Deutsch', await p.locator('header button[title^="Sprache: Deutsch"]').count(), 1);
+
+/*
+ * **Der Fall, der in 1.36.1 durchgerutscht ist.**
+ *
+ * Die Liste band ihre *rechte* Kante an die rechte Kante des Knopfes. Das
+ * stimmt, solange der Knopf rechts steht — er steht dort aber nur, solange
+ * die Kopfzeile nicht umbricht. Auf einem schmalen Fenster rutscht der
+ * rechte Block in eine eigene Zeile und beginnt **links**; die Liste schob
+ * sich damit nach links aus dem Bild. Der erste Rauchtest hat das nicht
+ * gesehen, weil er nur die Höhe geprüft hat und nicht die Seite.
+ *
+ * Geprüft wird deshalb bei drei Fensterbreiten, und zwar auf **alle vier**
+ * Kanten.
+ */
+console.log('\n▸ Auch dort, wo die Kopfzeile umbricht');
+for (const [w, h] of [[760, 900], [1024, 800], [1920, 1000]]) {
+  await p.setViewportSize({ width: w, height: h });
+  await p.waitForTimeout(400);
+  await knopf().click();
+  await p.waitForTimeout(400);
+  const erg = await imBild(w, h);
+  expect(`${w} × ${h} px: die Liste liegt vollständig im Bild`, erg, { ok: true, grund: '' });
+  await p.keyboard.press('Escape');
+  await p.mouse.click(w / 2, h - 20);
+  await p.waitForTimeout(300);
+}
+await p.setViewportSize({ width: 1500, height: 900 });
+await p.waitForTimeout(400);
 
 console.log('\n▸ Die Zusage: nichts ist falsch, manches noch nicht übersetzt');
 /*

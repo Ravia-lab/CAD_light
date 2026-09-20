@@ -1104,6 +1104,9 @@ function SprachWahl() {
   const [offen, setOffen] = useState(false);
   const [lage, setLage] = useState<{ x: number; y: number } | null>(null);
   const knopfRef = useRef<HTMLButtonElement>(null);
+  const listeRef = useRef<HTMLDivElement>(null);
+  const [mass, setMass] = useState({ breite: 260, hoehe: 420 });
+  const { breite, hoehe } = mass;
   const aktuell = SPRACHEN.find((s2) => s2.code === sprache) ?? SPRACHEN[0];
 
   /*
@@ -1124,9 +1127,24 @@ function SprachWahl() {
    */
   const oeffnen = (): void => {
     const r = knopfRef.current?.getBoundingClientRect();
-    if (r) setLage({ x: r.right, y: r.bottom + 4 });
+    if (r) setLage({ x: r.left, y: r.bottom + 4 });
     setOffen((o) => !o);
   };
+
+  /*
+   * Die tatsächliche Größe der Liste nach dem ersten Bild. Vorher ist sie
+   * nicht zu wissen — sie hängt an Schriftgröße, Zoomstufe und Sprachnamen.
+   * Die Vorbelegung (260 × 420) ist die Größenordnung und verhindert, dass
+   * das erste Bild grob danebenliegt.
+   */
+  useEffect(() => {
+    if (!offen) return;
+    const r = listeRef.current?.getBoundingClientRect();
+    if (!r) return;
+    if (Math.abs(r.width - breite) > 1 || Math.abs(r.height - hoehe) > 1) {
+      setMass({ breite: r.width, hoehe: r.height });
+    }
+  }, [offen, breite, hoehe]);
 
   useEffect(() => {
     if (!offen) return;
@@ -1162,8 +1180,28 @@ function SprachWahl() {
         lage &&
         createPortal(
           <div
+            ref={listeRef}
             className="panel fixed z-[200] flex max-h-[70vh] w-max flex-col gap-0.5 overflow-y-auto p-1"
-            style={{ top: lage.y, right: Math.max(8, window.innerWidth - lage.x) }}
+            /*
+             * **Die Liste hängt an der linken Kante des Knopfes.**
+             *
+             * Der erste Versuch band ihre *rechte* Kante an die rechte Kante
+             * des Knopfes — was stimmt, solange der Knopf rechts steht. Er
+             * steht dort aber nur, solange die Kopfzeile nicht umbricht: Auf
+             * einem schmalen Fenster rutscht der ganze rechte Block in eine
+             * eigene Zeile und beginnt links. Die Liste schob sich damit nach
+             * links aus dem Bild, und zu sehen war ein Streifen am Rand.
+             *
+             * `breite` wird nach dem ersten Bild gemessen und die Lage dann
+             * so beschnitten, dass die Liste ganz im Fenster liegt. Beim
+             * allerersten Bild steht sie an der Knopfkante — das ist in
+             * nahezu jedem Fall schon richtig, und das Nachrücken fällt in
+             * denselben Lidschlag.
+             */
+            style={{
+              top: Math.min(lage.y, Math.max(8, window.innerHeight - hoehe - 8)),
+              left: Math.max(8, Math.min(lage.x, window.innerWidth - breite - 8)),
+            }}
             onPointerDown={(e) => e.stopPropagation()}
           >
             {SPRACHEN.map((sp) => (

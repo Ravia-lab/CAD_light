@@ -1689,6 +1689,12 @@ function dachGeruest(doc: BimDocument, level: Level): ReturnType<typeof buildRoo
 const SPRACH_SCHLUESSEL = 'ravia-cad-light.sprache.v1';
 
 /**
+ * Merker für das einmalige Zurücksetzen nach dem Anzeigefehler in 1.36.0.
+ * Siehe `geladeneSprache`.
+ */
+const SPRACH_ENTSPERRT = 'ravia-cad-light.sprache.entsperrt.v1';
+
+/**
  * Die gemerkte Sprache beim Start — und sie wird sofort gesetzt.
  *
  * `spracheSetzen` hier und nicht erst im ersten Bauteil: `t()` wird schon
@@ -1700,6 +1706,29 @@ const SPRACH_SCHLUESSEL = 'ravia-cad-light.sprache.v1';
 function geladeneSprache(): Sprache {
   let s: Sprache = 'de';
   try {
+    /*
+     * **Einmaliges Zurücksetzen nach dem Anzeigefehler in 1.36.0.**
+     *
+     * In 1.36.0 war die Sprachliste unsichtbar: Die Kopfzeile trägt
+     * `overflow-x-auto`, und damit wird `overflow-y` zu `auto` — alles, was
+     * unten aus der Kopfzeile ragte, wurde beschnitten. Wer eine Sprache
+     * gewählt hatte, kam nicht mehr zurück: Der Knopf zeigte die fremde
+     * Flagge, die Liste ließ sich nicht mehr sehen. Die Wahl blieb im
+     * Browser stehen und überlebt auch die Behebung.
+     *
+     * Deshalb hier **einmal** zurück auf Deutsch — die Sprache, in der das
+     * Programm startet und in der derzeit ohnehin jeder Text steht. Der
+     * Merker sorgt dafür, dass es bei diesem einen Mal bleibt: Wer danach
+     * Türkisch wählt, behält Türkisch.
+     *
+     * Ein Zurücksetzen fremder Einstellungen ist sonst eine Unart. Hier ist
+     * es die Behebung eines Zustands, den der Anwender nicht gewollt und
+     * nicht mehr verlassen konnte.
+     */
+    if (localStorage.getItem(SPRACH_ENTSPERRT) !== '1') {
+      localStorage.setItem(SPRACH_ENTSPERRT, '1');
+      localStorage.removeItem(SPRACH_SCHLUESSEL);
+    }
     const roh = localStorage.getItem(SPRACH_SCHLUESSEL);
     if (roh && SPRACHEN.some((x) => x.code === roh)) s = roh as Sprache;
   } catch {
