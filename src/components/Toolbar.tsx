@@ -34,6 +34,7 @@ import { useBimStore } from '../store/useBimStore';
 import { SPRACHEN, t } from '../lib/sprache';
 import { Flagge } from './Flaggen';
 import { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { buildRaviaExport, downloadJson, exportFilename } from '../lib/raviaExport';
 import { buildIfc, downloadIfc, ifcFilename } from '../lib/ifcExport';
 import { istRaumplanDatei } from '../lib/raumplanImport';
@@ -1101,21 +1102,53 @@ function SprachWahl() {
   const sprache = useBimStore((s) => s.sprache);
   const setSprache = useBimStore((s) => s.setSprache);
   const [offen, setOffen] = useState(false);
+  const [lage, setLage] = useState<{ x: number; y: number } | null>(null);
+  const knopfRef = useRef<HTMLButtonElement>(null);
   const aktuell = SPRACHEN.find((s2) => s2.code === sprache) ?? SPRACHEN[0];
 
-  // Klick daneben schließt. Ohne das bleibt die Liste offen, sobald jemand
-  // sie versehentlich aufzieht und dann im Plan weiterarbeitet.
+  /*
+   * **Warum die Liste in einem Portal hängt und nicht unter dem Knopf.**
+   *
+   * Der erste Versuch setzte sie als `absolute` direkt unter die
+   * Schaltfläche. Sie öffnete sich auch — nur sah man sie nicht: Die
+   * Kopfzeile trägt `overflow-x-auto` (der Rückfall für einen
+   * Geschossumschalter, der breiter ist als das Gerät), und sobald
+   * `overflow-x` nicht `visible` ist, macht CSS aus `overflow-y: visible`
+   * ein `auto`. Damit wird alles beschnitten, was unten aus der Kopfzeile
+   * herausragt — die ganze Liste. Der Knopf zeigte die türkische Flagge und
+   * ließ sich nicht mehr verlassen.
+   *
+   * Ein Portal hängt die Liste an den Seitenkörper und damit aus jedem
+   * Beschneidungsrahmen heraus. Die Lage wird beim Öffnen aus dem Knopf
+   * gemessen.
+   */
+  const oeffnen = (): void => {
+    const r = knopfRef.current?.getBoundingClientRect();
+    if (r) setLage({ x: r.right, y: r.bottom + 4 });
+    setOffen((o) => !o);
+  };
+
   useEffect(() => {
     if (!offen) return;
     const zu = (): void => setOffen(false);
+    // `true` — in der Erfassungsphase, damit auch ein Klick in die Liste
+    // selbst sie schließt, nachdem sie ihre Arbeit getan hat.
     window.addEventListener('pointerdown', zu);
-    return () => window.removeEventListener('pointerdown', zu);
+    window.addEventListener('resize', zu);
+    window.addEventListener('scroll', zu, true);
+    return () => {
+      window.removeEventListener('pointerdown', zu);
+      window.removeEventListener('resize', zu);
+      window.removeEventListener('scroll', zu, true);
+    };
   }, [offen]);
 
   return (
-    <div className="relative" onPointerDown={(e) => e.stopPropagation()}>
+    <>
       <button
-        onClick={() => setOffen((o) => !o)}
+        ref={knopfRef}
+        onPointerDown={(e) => e.stopPropagation()}
+        onClick={oeffnen}
         title={`Sprache: ${aktuell.deutsch}. Umgestellt wird die Bedienung — Fachbegriffe (Vorlauf, Heizlast, U-Wert …) und die Ausgaben bleiben deutsch.`}
         className={`chip flex items-center gap-1.5 whitespace-nowrap ${
           offen ? 'bg-white/[0.08] text-slate-100' : 'text-slate-400 hover:text-slate-200'
@@ -1125,30 +1158,38 @@ function SprachWahl() {
         <span className="font-medium uppercase">{aktuell.code}</span>
       </button>
 
-      {offen && (
-        <div className="panel absolute right-0 top-full z-50 mt-1 flex w-max flex-col gap-0.5 p-1">
-          {SPRACHEN.map((sp) => (
-            <button
-              key={sp.code}
-              onClick={() => {
-                setSprache(sp.code);
-                setOffen(false);
-              }}
-              title={sp.deutsch}
-              className={`chip flex items-center gap-2 whitespace-nowrap ${
-                sprache === sp.code ? 'bg-accent/15 text-accent' : 'text-slate-400 hover:text-slate-200'
-              }`}
-            >
-              <Flagge code={sp.code} />
-              {sp.eigenname}
-            </button>
-          ))}
-          <p className="max-w-[15rem] px-1.5 pb-0.5 pt-1 text-[9px] leading-snug text-slate-600">
-            Umgestellt wird die Bedienung. Fachbegriffe und die Ausgaben — Plan, Massenauszug,
-            Bericht — bleiben deutsch.
-          </p>
-        </div>
-      )}
-    </div>
+      {offen &&
+        lage &&
+        createPortal(
+          <div
+            className="panel fixed z-[200] flex max-h-[70vh] w-max flex-col gap-0.5 overflow-y-auto p-1"
+            style={{ top: lage.y, right: Math.max(8, window.innerWidth - lage.x) }}
+            onPointerDown={(e) => e.stopPropagation()}
+          >
+            {SPRACHEN.map((sp) => (
+              <button
+                key={sp.code}
+                onClick={() => {
+                  setSprache(sp.code);
+                  setOffen(false);
+                }}
+                title={sp.deutsch}
+                className={`chip flex items-center gap-2 whitespace-nowrap ${
+                  sprache === sp.code ? 'bg-accent/15 text-accent' : 'text-slate-400 hover:text-slate-200'
+                }`}
+              >
+                <Flagge code={sp.code} />
+                <span className="min-w-[7rem] text-left">{sp.eigenname}</span>
+                <span className="font-mono text-[9px] uppercase opacity-50">{sp.code}</span>
+              </button>
+            ))}
+            <p className="max-w-[16rem] px-1.5 pb-0.5 pt-1.5 text-[9px] leading-snug text-slate-600">
+              Umgestellt wird die <b>Bedienung</b>. Fachbegriffe und die Ausgaben — Plan,
+              Massenauszug, Bericht — bleiben deutsch: Die liest der Bauherr, nicht der Monteur.
+            </p>
+          </div>,
+          document.body,
+        )}
+    </>
   );
 }

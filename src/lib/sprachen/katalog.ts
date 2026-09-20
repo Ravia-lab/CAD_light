@@ -26,16 +26,34 @@ import type { Sprache } from '../sprache';
 /** Ein Wörterbuch: deutscher Text → Übersetzung. */
 export type Katalog = Record<string, string>;
 
-/**
- * Türkisch. Die ersten Einträge stehen hier als **Muster**, nicht als
- * Lieferung — sie zeigen die Regel, nach der alles weitere entsteht:
- * Der Fachbegriff bleibt deutsch, der erklärende Satz wird übersetzt.
+/*
+ * Siebzehn leere Wörterbücher — eines je Sprache außer Deutsch.
+ *
+ * **Leer ist hier ein Zustand und kein Versäumnis.** Was hier stünde, liest
+ * ein Monteur auf einer Baustelle, und dort entscheidet ein
+ * missverstandener Satz über ein Loch in der falschen Wand. Jeder Eintrag
+ * gehört erst hinein, wenn ihn jemand gelesen hat, der die Sprache **und**
+ * das Gewerk kann. Bis dahin steht überall der deutsche Satz — vollständig
+ * und richtig, nur eben noch nicht übersetzt.
  */
 const tr: Katalog = {};
-
 const pl: Katalog = {};
 const ru: Katalog = {};
-const it: Katalog = {};
+const uk: Katalog = {};
 const ro: Katalog = {};
+const bg: Katalog = {};
+const hr: Katalog = {};
+const sr: Katalog = {};
+const sq: Katalog = {};
+const el: Katalog = {};
+const it: Katalog = {};
+const es: Katalog = {};
+const pt: Katalog = {};
+const fr: Katalog = {};
+const nl: Katalog = {};
+const en: Katalog = {};
+const ar: Katalog = {};
 
-export const KATALOGE: Partial<Record<Sprache, Katalog>> = { tr, pl, ru, it, ro };
+export const KATALOGE: Partial<Record<Sprache, Katalog>> = {
+  tr, pl, ru, uk, ro, bg, hr, sr, sq, el, it, es, pt, fr, nl, en, ar,
+};

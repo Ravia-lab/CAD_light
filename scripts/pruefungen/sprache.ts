@@ -29,6 +29,7 @@ import {
   spracheHolen,
   spracheSetzen,
   t,
+  RECHTS_NACH_LINKS,
   type Sprache,
 } from '../../src/lib/sprache';
 import { KATALOGE } from '../../src/lib/sprachen/katalog';
@@ -41,7 +42,7 @@ export function pruefeSprache(check: CheckFn): void {
   // 1 · Die Liste der Sprachen
   // =========================================================================
   {
-    check('Sechs Sprachen', SPRACHEN.length, 6);
+    check('Achtzehn Sprachen', SPRACHEN.length, 18);
     check('Deutsch steht zuerst', SPRACHEN[0]?.code ?? '—', 'de');
     const codes = SPRACHEN.map((s) => s.code);
     check('Keine Sprache doppelt', new Set(codes).size, codes.length);
@@ -50,6 +51,27 @@ export function pruefeSprache(check: CheckFn): void {
     // gleich dem deutschen Namen, stünde in der Auswahl zweimal dasselbe.
     check('Russisch steht kyrillisch da', SPRACHEN.find((s) => s.code === 'ru')?.eigenname ?? '—', 'Русский');
     check('Türkisch mit ç', SPRACHEN.find((s) => s.code === 'tr')?.eigenname ?? '—', 'Türkçe');
+    check('Griechisch in griechischer Schrift', SPRACHEN.find((s) => s.code === 'el')?.eigenname ?? '—', 'Ελληνικά');
+    check('Arabisch in arabischer Schrift', SPRACHEN.find((s) => s.code === 'ar')?.eigenname ?? '—', 'العربية');
+    /*
+     * **Die Reihenfolge ist nicht alphabetisch, und das ist Absicht.** Oben
+     * stehen die Sprachen, die im deutschen Bauhandwerk am häufigsten
+     * vorkommen. Alphabetisch sortiert stünde Albanisch vor Türkisch — und
+     * der häufigste Fall hätte den längsten Weg.
+     */
+    check('Türkisch steht gleich hinter Deutsch', SPRACHEN[1]?.code ?? '—', 'tr');
+    check('Albanisch steht nicht vorn', SPRACHEN.findIndex((s) => s.code === 'sq') > 5, true);
+
+    /*
+     * Arabisch wird von rechts nach links geschrieben — und das ist mehr
+     * als eine Übersetzung: Leisten, Beschriftungen, Maßketten, die ganze
+     * Anordnung kehren sich um. Solange dieser Durchgang nicht gemacht ist,
+     * steht die Sprache in der Liste, aber die Leserichtung wird **nicht**
+     * umgestellt. Eine halb gespiegelte Oberfläche ist schlechter zu
+     * bedienen als eine, die konsequent in der falschen Richtung läuft.
+     */
+    check('Arabisch ist als rechtsläufig vermerkt', RECHTS_NACH_LINKS.includes('ar'), true);
+    check('Und sonst nichts', RECHTS_NACH_LINKS.length, 1);
     check('Jede nicht-deutsche Sprache hat einen Katalog',
       SPRACHEN.filter((s) => s.code !== 'de').every((s) => !!KATALOGE[s.code]), true);
     // Deutsch bekommt **keinen** Katalog: Der deutsche Text ist der

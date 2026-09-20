@@ -91,6 +91,15 @@ const TABS: { id: InspectorTab; label: string; simple?: boolean }[] = [
   { id: 'layers', label: 'Ebenen', simple: true },
 ];
 
+/**
+ * Lief die Startprüfung — Sitzungssicherung und Willkommenskarte — in
+ * dieser Sitzung schon?
+ *
+ * Sie gehört zum *Seitenaufruf*, nicht zum Bauteilbaum. Siehe die
+ * Begründung im Effekt weiter unten.
+ */
+let startpruefungGelaufen = false;
+
 export default function App() {
   const doc = useBimStore((s) => s.doc);
   const viewMode = useBimStore((s) => s.viewMode);
@@ -121,6 +130,25 @@ export default function App() {
    * liegt neben dem Ansichtsmodus im lokalen Speicher.
    */
   useEffect(() => {
+    /*
+     * **Nur beim echten Start, nicht bei jedem Neuaufbau.**
+     *
+     * Die Anwendung hängt an einem `key` mit der Sprache (siehe `main.tsx`):
+     * Beim Umschalten wirft React den Baum weg und baut ihn neu auf. Damit
+     * lief dieser Effekt erneut — und wer mitten in der Arbeit die Sprache
+     * wechselte, bekam die Frage „Stand wiederherstellen?" vorgesetzt, für
+     * einen Stand, an dem er gerade arbeitet. Gefunden hat das der
+     * Prüfstand: Nach dem ersten Umschalten ließ sich kein zweites
+     * auslösen, weil ein Dialog davor lag.
+     *
+     * Der Merker steht auf **Modulebene** und nicht im Zustand: Ein
+     * Zustandswert stirbt mit dem Baum, das Modul überlebt ihn. Ein
+     * wirklicher Seitenaufruf lädt das Modul neu — dann fragt das Programm
+     * wieder, und genau dann soll es das.
+     */
+    if (startpruefungGelaufen) return;
+    startpruefungGelaufen = true;
+
     const entry = loadAutosave();
     if (entry) {
       setRestore(entry);

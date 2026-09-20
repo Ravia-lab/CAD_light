@@ -64,33 +64,84 @@ import { KATALOGE } from './sprachen/katalog';
  * aus den Nachfolgestaaten der Sowjetunion die gemeinsame Verkehrssprache
  * und hat damit den größten Wirkungsgrad je übersetztem Satz.
  */
-export type Sprache = 'de' | 'tr' | 'pl' | 'ru' | 'it' | 'ro';
+export type Sprache =
+  | 'de'
+  | 'tr'
+  | 'pl'
+  | 'ru'
+  | 'uk'
+  | 'ro'
+  | 'bg'
+  | 'hr'
+  | 'sr'
+  | 'sq'
+  | 'el'
+  | 'it'
+  | 'es'
+  | 'pt'
+  | 'fr'
+  | 'nl'
+  | 'en'
+  | 'ar';
 
 export interface Sprachangabe {
   code: Sprache;
   /**
    * Der Name der Sprache **in der Sprache selbst**.
    *
-   * **Und keine Flagge.** Eine Flagge bezeichnet ein Land, keine Sprache.
-   * Welche für Englisch — die britische oder die amerikanische? Für Deutsch
-   * — DE, AT oder CH? Schlimmer noch in genau dieser Zielgruppe: Ein
-   * russischsprachiger Kasache klickt nicht gern auf eine russische Flagge,
-   * ein kurdischer Monteur nicht auf eine türkische. Der Eigenname fällt
-   * genauso schnell ins Auge und tritt niemandem auf den Fuß.
+   * Er steht neben der Flagge, nicht statt ihr. Eine Flagge bezeichnet ein
+   * Land, keine Sprache — und in dieser Zielgruppe ist das nicht
+   * theoretisch: Ein russischsprachiger Kasache, ein kurdischer Monteur, ein
+   * Syrer, für den es keine „arabische" Flagge gibt. Die Flagge findet man
+   * schnell, der Name sagt, was gemeint ist.
    */
   eigenname: string;
   /** Derselbe Name auf Deutsch — für Listen, die ein Deutscher liest. */
   deutsch: string;
 }
 
+/**
+ * Die Sprachen, die die Oberfläche sprechen kann.
+ *
+ * **Die Reihenfolge ist nicht alphabetisch, und das ist Absicht.** Oben
+ * stehen die Sprachen, die im deutschen Bauhandwerk am häufigsten
+ * vorkommen — Türkisch, Polnisch, Russisch, Ukrainisch, Rumänisch —, dann
+ * der Balkan, dann die südeuropäischen, dann die Verkehrssprachen. Wer eine
+ * Liste von achtzehn Einträgen alphabetisch sortiert, stellt Albanisch vor
+ * Türkisch und macht damit dem häufigsten Fall den längsten Weg.
+ */
 export const SPRACHEN: readonly Sprachangabe[] = [
   { code: 'de', eigenname: 'Deutsch', deutsch: 'Deutsch' },
   { code: 'tr', eigenname: 'Türkçe', deutsch: 'Türkisch' },
   { code: 'pl', eigenname: 'Polski', deutsch: 'Polnisch' },
   { code: 'ru', eigenname: 'Русский', deutsch: 'Russisch' },
-  { code: 'it', eigenname: 'Italiano', deutsch: 'Italienisch' },
+  { code: 'uk', eigenname: 'Українська', deutsch: 'Ukrainisch' },
   { code: 'ro', eigenname: 'Română', deutsch: 'Rumänisch' },
+  { code: 'bg', eigenname: 'Български', deutsch: 'Bulgarisch' },
+  { code: 'hr', eigenname: 'Hrvatski', deutsch: 'Kroatisch' },
+  { code: 'sr', eigenname: 'Српски', deutsch: 'Serbisch' },
+  { code: 'sq', eigenname: 'Shqip', deutsch: 'Albanisch' },
+  { code: 'el', eigenname: 'Ελληνικά', deutsch: 'Griechisch' },
+  { code: 'it', eigenname: 'Italiano', deutsch: 'Italienisch' },
+  { code: 'es', eigenname: 'Español', deutsch: 'Spanisch' },
+  { code: 'pt', eigenname: 'Português', deutsch: 'Portugiesisch' },
+  { code: 'fr', eigenname: 'Français', deutsch: 'Französisch' },
+  { code: 'nl', eigenname: 'Nederlands', deutsch: 'Niederländisch' },
+  { code: 'en', eigenname: 'English', deutsch: 'Englisch' },
+  { code: 'ar', eigenname: 'العربية', deutsch: 'Arabisch' },
 ];
+
+/**
+ * Sprachen, die von rechts nach links geschrieben werden.
+ *
+ * **Sie stehen hier, weil sie mehr brauchen als eine Übersetzung.** Arabisch
+ * kehrt die Leserichtung um: Leisten, Beschriftungen, Maßketten, die ganze
+ * Anordnung. Solange dieser Durchgang nicht gemacht ist, wird die Richtung
+ * **nicht** umgestellt — eine halb gespiegelte Oberfläche ist schlechter zu
+ * bedienen als eine, die konsequent in der falschen Richtung läuft. Die
+ * Liste ist die Stelle, an der das später eingeschaltet wird.
+ */
+export const RECHTS_NACH_LINKS: readonly Sprache[] = ['ar'];
 
 /**
  * Begriffe, die **nie** übersetzt werden.
