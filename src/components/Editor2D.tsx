@@ -87,14 +87,12 @@ import {
 } from '../lib/wallGeometry';
 import { openingSymbol, type SymbolPart } from '../lib/openingSymbols';
 import {
-  buildRoofFrame,
   dormerSide,
   hitTestRoofOpening,
   ridgeLine,
   roofContourLines,
   roofOpeningCorners,
 } from '../lib/roofGeometry';
-import { gebaeudeUmriss } from '../lib/roomDetection';
 import {
   distanceToPipe,
   drawCeilingOpening,
@@ -115,6 +113,7 @@ import {
 import { distanceToAnnotation, drawAnnotation, textKasten } from '../lib/annotationSymbols';
 import type { RoofFrame } from '../lib/roofGeometry';
 import { useBimStore } from '../store/useBimStore';
+import { baueDachlandschaft } from '../lib/dachlandschaft';
 import { drawHeatPump, drawSiteElement, hitTestPump, hitTestSiteArea, hitTestSiteElement } from '../lib/siteSymbols';
 import { ROOM_TEMPLATES, ROOM_TEMPLATE_BY_KIND, ROOM_SIZE_PRESETS, polygonArea, templatePolygon } from '../lib/roomTemplates';
 import { acousticReport, protectionIssues, requiredDistance, ROOM_ANGLE, ratedSoundPower, IRRELEVANCE_MARGIN, IMMISSION_LIMITS } from '../lib/heatPump';
@@ -558,26 +557,27 @@ export default function Editor2D({ className = '' }: { className?: string }) {
    * Bezugsrahmen des Daches — wird für Zeichnen *und* Treffererkennung
    * gebraucht, deshalb einmal zentral statt an beiden Stellen neu gebaut.
    */
-  const roofFrame = useMemo(() => {
-    const outline: Vec2[] = [];
-    for (const w of walls) {
-      const na = doc.nodes[w.a];
-      const nb = doc.nodes[w.b];
-      if (na) outline.push({ x: na.x, y: na.y });
-      if (nb) outline.push({ x: nb.x, y: nb.y });
-    }
-    const dach = doc.levels[level]?.roof;
-    // Der geordnete Gebäudeumriss ist das, was aus der Punktwolke oben nicht
-    // zu gewinnen ist: Ohne ihn bekommt ein L-förmiges Haus ein Walmdach über
-    // seiner Bounding Box, First und Höhenlinien stehen im Plan an Stellen,
-    // an denen das Dach gar nicht liegt.
-    return buildRoofFrame(
-      dach,
-      outline,
-      roofOpenings,
-      dach && dach.kind !== 'flat' ? gebaeudeUmriss(walls, doc.nodes) : [],
-    );
-  }, [doc.levels, doc.nodes, level, roofOpenings, walls]);
+  /**
+   * Die Dachlandschaft dieses Geschosses — seit 1.36.0 mehrere Dächer.
+   *
+   * Beim L-Haus trägt jeder Flügel sein eigenes. First, Grat und Höhenlinien
+   * je Flügel getrennt zu zeichnen ist der ganze Zweck: Ein First, der aus
+   * der Bounding Box zweier Flügel gebildet wird, liegt im Plan an einer
+   * Stelle, an der im Bau kein First ist.
+   */
+  const dachteile = useMemo(
+    () =>
+      baueDachlandschaft({
+        level: doc.levels[level],
+        walls,
+        nodes: doc.nodes,
+        rooms,
+        roofOpenings,
+      }),
+    [doc.levels, doc.nodes, level, roofOpenings, walls, rooms],
+  );
+  /** Das erste Dach — für alles, was noch genau eines erwartet. */
+  const roofFrame = dachteile.find((t) => t.frame)?.frame ?? null;
   const nodesOfLevel = useMemo(() => {
     const out: Record<string, BimNode> = {};
     for (const n of Object.values(doc.nodes)) if (n.levelId === level) out[n.id] = n;
@@ -1308,8 +1308,16 @@ export default function Editor2D({ className = '' }: { className?: string }) {
     // First, Traufe und die Höhenlinien bei 1,00 m und 2,00 m. Letztere sind
     // im Dachgeschoss die wichtigsten Linien des ganzen Plans: sie zeigen,
     // wo der Raum nach WoFlV noch zählt und wo ein Schrank nicht mehr steht.
-    if (showRoofLines && roofFrame) {
-      drawRoofLines(ctx, roofFrame, rooms, sx, sy, px);
+    if (showRoofLines) {
+      // Je Dach seine eigenen Linien. Ein First über der Bounding Box zweier
+      // Flügel liegt im Plan dort, wo im Bau keiner ist.
+      for (const teil of dachteile) {
+        if (!teil.frame) continue;
+        const teilRaeume = teil.roomIds.length
+          ? rooms.filter((r) => teil.roomIds.includes(r.id))
+          : rooms;
+        drawRoofLines(ctx, teil.frame, teilRaeume, sx, sy, px);
+      }
     }
 
     // Gauben und Dachflächenfenster liegen über den Höhenlinien — sie sind

@@ -87,10 +87,33 @@ export function pruefeDachgeschoss(check: CheckFn): void {
   // nirgends gibt — und zwar auch dann, wenn das Kappen richtig wäre.
   check('Der Dachumriss wird aus den Wänden des Dachgeschosses gebildet',
     quelltext.includes('for (const w of dachWaende)'), true);
-  check('Der Gebäudeumriss ebenfalls',
-    quelltext.includes('gebaeudeUmriss(dachWaende'), true);
-  check('Das Dachraster deckt nur die Räume des Dachgeschosses',
-    quelltext.includes('dachRaeume.map((r) => r.polygon)'), true);
+
+  /*
+   * **Der Gebäudeumriss ist seit 1.36.0 umgezogen — die Zusage nicht.**
+   *
+   * Ein Geschoss kann mehrere Dächer tragen; beim L-Haus je Flügel eines.
+   * Welcher Flügel zu welchem Dach gehört, entscheidet nicht mehr diese
+   * Zeichendatei, sondern `dachlandschaft.ts` — und sie bildet den Umriss
+   * aus den Wänden **der Räume dieses Dachs**. Das ist dieselbe Zusage,
+   * eine Stufe feiner: nicht mehr „aus dem Dachgeschoss", sondern „aus dem
+   * Gebäudeteil, über dem dieses Dach sitzt".
+   */
+  const landschaft = code(
+    readFileSync(join(basis, 'src', 'lib', 'dachlandschaft.ts'), 'utf8'),
+  ).join('\n');
+  check('Der Gebäudeumriss kommt aus den Wänden des jeweiligen Dachteils',
+    landschaft.includes('gebaeudeUmriss(teilWaende, nodes)'), true);
+  check('… und die Wände aus den Rändern seiner Räume',
+    landschaft.includes('for (const b of r.boundaries) wandIds.add(b.wallId)'), true);
+  check('Ohne Raumauswahl deckt das Dach das ganze Geschoss',
+    landschaft.includes('if (!roomIds.length) return walls'), true);
+
+  check('Das Dachraster deckt nur die Räume seines Dachs',
+    quelltext.includes('teilRaeume.map((r) => r.polygon)'), true);
+  check('… und die stammen aus den Räumen des Dachgeschosses',
+    quelltext.includes('dachRaeume.filter((r) => teil.roomIds.includes(r.id))'), true);
+  check('Gerastert wird je Dach einzeln',
+    quelltext.includes('for (const teil of dachteile)'), true);
 
   // === 3 — Gekappt wird nur, was unter diesem Dach steht ===================
   check('Die Wand fragt nach ihrem eigenen Geschoss',

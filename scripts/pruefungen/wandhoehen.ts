@@ -172,7 +172,7 @@ export function pruefeWandhoehen(check: CheckFn): void {
     const frame = buildRoofFrame(roof!, umriss, [], umriss);
     check('Das Dachgerüst entsteht', frame !== null, true);
 
-    const b = hoehenbefund({ level: geschoss(2.5, roof), walls, nodes, roofFrame: frame });
+    const b = hoehenbefund({ level: geschoss(2.5, roof), walls, nodes, roofFrames: [frame] });
     const unterDach = b.ausnahmen.filter((a) => a.grund === 'dachschraege');
     check('Zwei Traufwände bleiben stehen', unterDach.length, 2);
     check('Und zwar w1 und w3', unterDach.map((a) => a.wallId).sort().join(','), 'w1,w3');

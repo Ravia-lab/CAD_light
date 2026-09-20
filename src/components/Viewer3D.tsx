@@ -33,7 +33,6 @@ import type {
   Opening,
   PipeAccessory,
   PipeRun,
-  RoofDefinition,
   RoofOpening,
   Room,
   SitePlan,
@@ -114,7 +113,7 @@ import {
 import { pointInPolygon } from '../lib/geometry';
 import { deuteTreffer, szeneZuModell } from '../lib/raumtreffer';
 import { buildRoofFrame, roofHeightAt } from '../lib/roofGeometry';
-import { gebaeudeUmriss } from '../lib/roomDetection';
+import { baueDachlandschaft, frameAn, type Dachteil } from '../lib/dachlandschaft';
 import { sammleVerlegekurven, verlegelinien, type Verlegelinie } from '../lib/fussbodenkurven';
 import { kompassRose } from '../lib/kompass';
 import { levelBaseHeights } from '../lib/levelGeometry';
@@ -318,7 +317,16 @@ interface BuildInput {
   rooms: Room[];
   fixtures: Fixture[];
   nodes: Record<string, { x: number; y: number }>;
-  roof?: RoofDefinition;
+  /**
+   * Die Dächer des Dachgeschosses, fertig als Gerüst mit ihren Räumen.
+   *
+   * **Warum fertig und warum mehrere.** Seit 1.36.0 kann ein Geschoss
+   * mehrere Dächer tragen — beim L-Haus je Flügel eines. Welcher Flügel zu
+   * welchem Dach gehört, steht als Raumauswahl am Dach und wird in
+   * `dachlandschaft.ts` zu einem Gerüst je Dach verarbeitet. Diese Datei
+   * zeichnet; sie entscheidet nicht, wo ein Dach sitzt.
+   */
+  dachteile?: readonly Dachteil[];
   roofOpenings: RoofOpening[];
   verticals: VerticalElement[];
   solids: SolidElement[];
@@ -499,9 +507,16 @@ interface BuiltGeometry {
  */
 function baueTgaKoerper(
   fixtures: Fixture[],
-  roofFrame: ReturnType<typeof buildRoofFrame>,
+  /**
+   * Die Dachlandschaft des Dachgeschosses — seit 1.36.0 mehrere Dächer.
+   *
+   * Maßgeblich ist das Dach **über dem jeweiligen Objekt**, nicht irgendeines
+   * des Geschosses: Beim L-Haus würde ein Lüftungsventil im Nordflügel sonst
+   * an der Schräge des Hauptbaus gekappt.
+   */
+  dachteile: readonly Dachteil[],
   levelBase: Map<string, number>,
-  /** Geschoss, zu dem der Dachrahmen gehört — für alle anderen gilt er nicht. */
+  /** Geschoss, zu dem die Dächer gehören — für alle anderen gelten sie nicht. */
   roofLevelId: string,
 ): TgaKoerper[] {
   const raus: TgaKoerper[] = [];
@@ -515,7 +530,7 @@ function baueTgaKoerper(
     // Bindung wurde ein Lüftungsventil im Erdgeschoss an der Schräge des
     // Obergeschosses gekappt — und verschwand ganz, sobald das Dach tief
     // genug saß.
-    const tgaDach = roofFrame && f.levelId === roofLevelId ? roofFrame : null;
+    const tgaDach = f.levelId === roofLevelId ? frameAn(dachteile, f.position) : null;
     const roofTop = tgaDach ? roofHeightAt(tgaDach, f.position) : Infinity;
     const height = Math.min(isRiser ? 2.75 : h, Math.max(0, roofTop - f.elevation));
     if (height < 0.02) continue;
@@ -537,7 +552,7 @@ function baueTgaKoerper(
 }
 
 function buildGeometry(input: BuildInput): BuiltGeometry {
-  const { walls, openings, rooms, nodes, roof, roofOpenings, verticals, solids, durchbrueche, slabs, pipes, accessories, fussbodenkurven, levelHeight, levelBase } = input;
+  const { walls, openings, rooms, nodes, verticals, solids, durchbrueche, slabs, pipes, accessories, fussbodenkurven, levelHeight, levelBase } = input;
 
   /** Höhenlage des Geschosses, in dem ein Bauteil steht. */
   const basis = (levelId: string): number => levelBase.get(levelId) ?? 0;
@@ -609,12 +624,30 @@ function buildGeometry(input: BuildInput): BuiltGeometry {
   // Der geordnete Umriss kommt dazu: ohne ihn bekäme ein L-förmiges Haus ein
   // Walmdach über seiner Bounding Box, und die Wände würden an einer
   // Dachfläche gekappt, die über dem Innenwinkel gar nicht liegt.
-  const roofFrame = buildRoofFrame(
-    roof,
-    roofOutline,
-    roofOpenings,
-    roof && roof.kind !== 'flat' ? gebaeudeUmriss(dachWaende, nodes as never) : [],
-  );
+  /*
+   * **Die Dachlandschaft dieses Geschosses.**
+   *
+   * Übergeben werden fertige Gerüste. Fehlen sie — ein Aufruf aus einem
+   * älteren Pfad —, entsteht wie bisher genau eines über dem ganzen
+   * Geschoss. So bleibt jedes Bild eines Projekts von vor 1.36.0 dasselbe.
+   */
+  const dachteile: Dachteil[] =
+    input.dachteile && input.dachteile.length
+      ? [...input.dachteile]
+      : [];
+
+  /**
+   * Welches Dach liegt über diesem Punkt?
+   *
+   * Ein Gerüst ohne Umriss deckt das ganze Geschoss. Sonst entscheidet der
+   * Umriss — mit einem Zentimeter Nachsicht zur Kante hin, weil die Punkte,
+   * die hier gefragt werden, Wandmitten sind und die Wände *der* Umriss
+   * sind. Genau auf der Kante ist `pointInPolygon` nicht definiert: Beim
+   * Rechteckhaus galt damit die Westwand als drinnen und die Ostwand als
+   * draußen.
+   */
+  const dachAn = (p: { x: number; y: number }): ReturnType<typeof buildRoofFrame> =>
+    frameAn(dachteile, p);
 
   for (const wall of walls) {
     const g = getWallGeometry(wall, nodes as never);
@@ -632,7 +665,16 @@ function buildGeometry(input: BuildInput): BuiltGeometry {
     const dz = basis(wall.levelId);
     // Nur die Wände des Dachgeschosses enden an der Schräge; alle anderen
     // gehen auf ihre volle Geschosshöhe.
-    const wandDach = wall.levelId === dachGeschoss ? roofFrame : null;
+    /*
+     * Nur die Wände des Dachgeschosses enden an einer Schräge — und dort an
+     * **ihrer** Schräge. Beim L-Haus stünde die Traufwand des Nordflügels
+     * sonst unter dem Dach des Hauptbaus und würde an einer Fläche gekappt,
+     * die über ihr gar nicht liegt.
+     */
+    const wandDach =
+      wall.levelId === dachGeschoss
+        ? dachAn({ x: (g.a.x + g.b.x) / 2, y: (g.a.y + g.b.y) / 2 })
+        : null;
 
     for (const part of parts) {
       if (!wandDach) {
@@ -820,12 +862,30 @@ function buildGeometry(input: BuildInput): BuiltGeometry {
   // Viereck auf Dachhöhe gesetzt. Das ist grob, aber es zeigt genau das, was
   // im Dachgeschoss zählt — wo der Kopf anstößt. Eine exakte Verschneidung
   // von Dachebenen mit dem Grundriss wäre erheblich mehr Code für ein Bild.
-  if (roofFrame) {
+  /*
+   * **Je Dach ein eigener Durchgang.**
+   *
+   * Beim L-Haus deckt jedes Dach seinen Flügel. Rasterte man alle Räume
+   * unter einem Gerüst, bekäme der Nordflügel die Dachfläche des Hauptbaus
+   * — geometrisch eine Ebene, die über ihm gar nicht liegt. Jeder Durchgang
+   * nimmt deshalb nur die Räume seines Dachs und dessen eigene Höhenfunktion.
+   */
+  for (const teil of dachteile) {
+    const roofFrame = teil.frame;
+    if (!roofFrame) continue;
+    /*
+     * Die Räume dieses Dachs. Ohne Raumauswahl deckt es das ganze Geschoss
+     * — der Zustand eines Projekts von vor 1.36.0 und der eines frisch
+     * angelegten Dachs, dem noch niemand einen Flügel zugewiesen hat.
+     */
+    const teilRaeume = teil.roomIds.length
+      ? dachRaeume.filter((r) => teil.roomIds.includes(r.id))
+      : dachRaeume;
     // Gerastert wird über die *Achspolygone* der Räume plus einen Überstand.
     // Mit den lichten Innenpolygonen klaffte über jeder Wand ein Schlitz, und
     // das Dach endete an der Innenkante der Außenwand statt darüber hinaus.
     const OVERHANG = 0.5;
-    const polys = dachRaeume.map((r) => r.polygon).filter((p) => p.length >= 3);
+    const polys = teilRaeume.map((r) => r.polygon).filter((p) => p.length >= 3);
     if (polys.length) {
       let minX = Infinity;
       let minY = Infinity;
@@ -2088,7 +2148,18 @@ export default function Viewer3D({ className = '' }: { className?: string }) {
       rooms,
       fixtures,
       nodes: doc.nodes,
-      roof: doc.levels[doc.activeLevelId]?.roof,
+      /*
+       * Die Dachlandschaft des aktiven Geschosses: je Dach ein Gerüst über
+       * seinem Gebäudeteil. Gebaut wird sie im Kern (`dachlandschaft.ts`),
+       * damit der Prüfblock sie sieht; hier wird nur gezeichnet.
+       */
+      dachteile: baueDachlandschaft({
+        level: doc.levels[doc.activeLevelId],
+        walls: walls.filter((w) => w.levelId === doc.activeLevelId),
+        nodes: doc.nodes,
+        rooms: rooms.filter((r) => r.levelId === doc.activeLevelId),
+        roofOpenings,
+      }),
       roofOpenings,
       verticals,
       solids,
@@ -2320,15 +2391,15 @@ export default function Viewer3D({ className = '' }: { className?: string }) {
       if (na) roofOutline.push({ x: na.x, y: na.y });
       if (nb) roofOutline.push({ x: nb.x, y: nb.y });
     }
-    const aktivesDach = doc.levels[doc.activeLevelId]?.roof;
-    const roofFrame = buildRoofFrame(
-      aktivesDach,
-      roofOutline,
+    const teileHier = baueDachlandschaft({
+      level: doc.levels[doc.activeLevelId],
+      walls: walls.filter((w) => w.levelId === doc.activeLevelId),
+      nodes: doc.nodes,
+      rooms: rooms.filter((r) => r.levelId === doc.activeLevelId),
       roofOpenings,
-      aktivesDach && aktivesDach.kind !== 'flat' ? gebaeudeUmriss(walls, doc.nodes) : [],
-    );
+    });
 
-    for (const k of baueTgaKoerper(fixtures, roofFrame, geschossHoehen, doc.activeLevelId)) {
+    for (const k of baueTgaKoerper(fixtures, teileHier, geschossHoehen, doc.activeLevelId)) {
       const mesh = new THREE.Mesh(
         k.geometry,
         k.category === 'heating'

@@ -937,8 +937,25 @@ export interface Level {
   /**
    * Dach über diesem Geschoss. Fehlt der Eintrag, ist die Decke horizontal —
    * dasselbe wie `kind: 'flat'`, nur ohne Ballast im Dokument.
+   *
+   * **Veraltet seit 1.36.0, aber nicht entfernt.** Ein Geschoss kann mehrere
+   * Dächer tragen (`roofs`); ein L-förmiges Haus hat je Flügel eines. Dieses
+   * Feld bleibt, damit jedes Projekt, das vor 1.36.0 gespeichert wurde, ohne
+   * Wandlung aufgeht. Gelesen wird ausschließlich über `daecherVon` — wer
+   * hier direkt zugreift, sieht bei einem L-Haus nur den ersten Flügel.
    */
   roof?: RoofDefinition;
+  /**
+   * Alle Dächer über diesem Geschoss.
+   *
+   * **Warum mehrere.** Ein Satteldach über den ganzen Grundriss zu legen
+   * stimmt nur beim Rechteckhaus. Beim L-Haus deckt es den Hauptbau, und
+   * der Flügel steht ohne Dach da — im Modell sichtbar als offene
+   * Schnittfläche an der Kante. Drehen verschiebt das Problem nur auf den
+   * anderen Flügel. Gebraucht wird je Flügel ein Dach mit eigener Form,
+   * Neigung und Richtung; zwischen ihnen entsteht die Kehle.
+   */
+  roofs?: RoofDefinition[];
 }
 
 // ===========================================================================
@@ -1018,6 +1035,34 @@ export const DACHFORMEN_AUS_UMRISS: readonly { name: string; umriss: string }[] 
  * Gegenseite liegt vollständig auf Kniestockhöhe.
  */
 export interface RoofDefinition {
+  /**
+   * Kennung dieses Dachs — nötig, seit ein Geschoss mehrere tragen kann.
+   *
+   * Fehlt sie, ist es das Dach aus einem Projekt vor 1.36.0. Solche Projekte
+   * haben genau eines, und `daecherVon` gibt ihm beim Lesen die Kennung
+   * `dach-1`. Im Dokument steht sie deshalb ab jetzt immer; verlangt wird
+   * sie nicht, damit sich keine alte Datei am Typ stößt.
+   */
+  id?: string;
+  /** Name für die Liste — „Hauptdach", „Anbau". Ohne Angabe durchnummeriert. */
+  name?: string;
+  /**
+   * Räume, über denen dieses Dach sitzt. Leer oder fehlend = das ganze
+   * Geschoss.
+   *
+   * **Warum Räume und nicht ein gezeichneter Umriss.** Ein Dach sitzt über
+   * einem Gebäudeteil, und ein Gebäudeteil ist im Modell eine Menge Räume.
+   * Wer einen Umriss zeichnete, zeichnete ihn entlang derselben Wände noch
+   * einmal — und beim nächsten Verschieben einer Wand stünde der Umriss
+   * daneben, ohne dass es jemand merkte. Über Räume hängt das Dach an der
+   * Geometrie und wandert mit.
+   *
+   * **Und warum kein Geschoss darüber.** Wo ein Geschoss darüberliegt, ist
+   * kein Dach, sondern eine Decke. Die Raumliste macht diese Entscheidung
+   * sichtbar: Ein Raum, über dem ein anderer liegt, gehört nicht in das
+   * Dach, und die Modellprüfung sagt es, wenn er doch darin steht.
+   */
+  roomIds?: string[];
   kind: RoofKind;
   /** Dachneigung gegen die Horizontale [°]. 0–75. */
   pitch: number;

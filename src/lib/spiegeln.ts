@@ -62,6 +62,7 @@ import type {
   VerticalElement,
 } from '../types/bim';
 import { normalizeDeg, roundMm } from './geometry';
+import { daecherVon } from './dachlandschaft';
 
 /**
  * An welcher Achse gespiegelt wird.
@@ -302,9 +303,24 @@ export function spiegleDokument(doc: BimDocument, auftrag: SpiegelAuftrag): Spie
 
   const levels: Record<string, Level> = { ...doc.levels };
   for (const l of Object.values(doc.levels)) {
-    if (!gehoert(l.id) || !l.roof) continue;
-    levels[l.id] = { ...l, roof: { ...l.roof, azimuth: spiegleAzimut(l.roof.azimuth, auftrag.achse) } };
-    anzahl++;
+    if (!gehoert(l.id)) continue;
+    /*
+     * **Alle Dächer, nicht nur das erste.** Seit 1.36.0 kann ein Geschoss
+     * mehrere tragen — beim L-Haus je Flügel eines. Spiegelte man nur das
+     * erste, stünde der Hauptbau seitenverkehrt und der Anbau unverändert:
+     * ein Haus, das es so nicht gibt, und niemand sähe warum.
+     */
+    const daecher = daecherVon(l);
+    if (!daecher.length) continue;
+    const gespiegelt = daecher.map((r) => ({
+      ...r,
+      azimuth: spiegleAzimut(r.azimuth, auftrag.achse),
+    }));
+    levels[l.id] =
+      gespiegelt.length === 1 && !l.roofs
+        ? { ...l, roof: gespiegelt[0] }
+        : { ...l, roof: undefined, roofs: gespiegelt };
+    anzahl += gespiegelt.length;
   }
 
   // --- Grundstück -----------------------------------------------------------

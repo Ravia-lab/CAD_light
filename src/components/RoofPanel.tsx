@@ -7,12 +7,13 @@
  * diese vier Zahlen prüfen können, ohne sie irgendwo einzutippen.
  */
 
-import { useMemo } from 'react';
-import type { RoofKind, RoofOpeningKind } from '../types/bim';
+import { useMemo, useState } from 'react';
+import type { RoofDefinition, RoofKind, RoofOpeningKind } from '../types/bim';
 import { ROOF_KIND_LABELS, ROOF_OPENING_LABELS } from '../types/bim';
 import { KRUEPPELWALM_VORGABE, MANSARD_KNICK_VORGABE, MANSARD_OBEN_VORGABE } from '../lib/roofGeometry';
 import { buildRoofFrame } from '../lib/roofGeometry';
 import { gebaeudeUmriss } from '../lib/roomDetection';
+import { daecherVon, raeumeOhneGeschossDarueber } from '../lib/dachlandschaft';
 import { useBimStore } from '../store/useBimStore';
 import Erklaerung from './Erklaerung';
 
@@ -52,9 +53,36 @@ export default function RoofPanel() {
   const showRoofLines = useBimStore((s) => s.showRoofLines);
   const toggleRoofLines = useBimStore((s) => s.toggleRoofLines);
 
+  const addRoof = useBimStore((s) => s.addRoof);
+  const entferneRoof = useBimStore((s) => s.entferneRoof);
+  const setRoofById = useBimStore((s) => s.setRoofById);
+
   const level = doc.levels[doc.activeLevelId];
-  const roof = level?.roof;
+  const daecher = useMemo(() => daecherVon(level), [level]);
+  const [gewaehltId, setGewaehltId] = useState<string | null>(null);
+  /*
+   * Das Dach, das gerade bearbeitet wird.
+   *
+   * Der Rückfall auf das erste ist wichtiger, als er aussieht: Die Auswahl
+   * steht in einem lokalen Zustand, das Dokument nicht. Wer ein Dach
+   * entfernt oder das Geschoss wechselt, hätte sonst einen Zeiger auf etwas,
+   * das es nicht mehr gibt — und der Reiter stünde leer da.
+   */
+  const roof = daecher.find((r) => r.id === gewaehltId) ?? daecher[0];
+  const mehrere = daecher.length > 1;
   const kind: RoofKind = roof?.kind ?? 'flat';
+
+  /**
+   * Eine Änderung am gerade gewählten Dach.
+   *
+   * Bei genau einem Dach führt der alte Weg (`setRoof`) — er ändert das
+   * erste und hält ein Projekt, das nur eines hat, im alten Format. Erst ab
+   * dem zweiten wird gezielt geschrieben.
+   */
+  const aendere = (patch: Partial<RoofDefinition>): void => {
+    if (mehrere && roof?.id) setRoofById(level!.id, roof.id, patch);
+    else if (level) setRoof(level.id, patch);
+  };
 
   const rooms = useMemo(
     () => Object.values(doc.rooms).filter((r) => r.levelId === doc.activeLevelId),
@@ -86,6 +114,25 @@ export default function RoofPanel() {
       roof.kind !== 'flat' ? gebaeudeUmriss(levelWalls, doc.nodes) : [],
     );
   }, [roof, doc.walls, doc.nodes, doc.activeLevelId]);
+
+  /**
+   * Räume ohne Geschoss darüber — die Regel „dort ist ein Dach, sonst eine
+   * Decke", als Liste.
+   *
+   * Sie wird nicht erzwungen, sondern angezeigt: Ein Raum, über dem ein
+   * anderer liegt, ist in der Zuweisung als solcher gekennzeichnet, und wer
+   * ihn trotzdem einem Dach gibt — Vordach über einem Erker —, kann das tun
+   * und sieht, dass er es tut.
+   */
+  const ohneDarueber = useMemo(() => {
+    const geschosse = Object.values(doc.levels).sort((a, b) => a.order - b.order);
+    const i = geschosse.findIndex((l) => l.id === doc.activeLevelId);
+    const oben = geschosse[i + 1];
+    const raeumeOben = oben
+      ? Object.values(doc.rooms).filter((r) => r.levelId === oben.id)
+      : [];
+    return new Set(raeumeOhneGeschossDarueber(rooms, raeumeOben));
+  }, [doc.levels, doc.rooms, doc.activeLevelId, rooms]);
 
   // Summen über alle Räume des Geschosses — die Zahlen, die man weitergibt.
   const totals = useMemo(() => {
@@ -128,12 +175,21 @@ export default function RoofPanel() {
         </button>
       </div>
 
+      {/* ------------------------------------------------ Mehrere Dächer */}
+      <Daecherleiste
+        daecher={daecher}
+        gewaehlt={roof?.id}
+        aufWaehlen={setGewaehltId}
+        aufNeu={() => addRoof(level.id)}
+        aufWeg={(id) => entferneRoof(level.id, id)}
+      />
+
       {/* Dachform */}
       <div className="space-y-1">
         {KINDS.map((k) => (
           <button
             key={k}
-            onClick={() => (k === 'flat' ? setRoof(level.id, null) : setRoof(level.id, { kind: k }))}
+            onClick={() => (k === 'flat' ? setRoof(level.id, null) : aendere({ kind: k }))}
             className={`flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-[11px] transition-colors ${
               kind === k ? 'bg-accent/12 text-accent' : 'text-slate-400 hover:bg-white/[0.05]'
             }`}
@@ -143,6 +199,16 @@ export default function RoofPanel() {
           </button>
         ))}
       </div>
+
+      {roof && mehrere && (
+        <Raumzuweisung
+          rooms={rooms}
+          roof={roof}
+          andere={daecher.filter((r) => r.id !== roof.id)}
+          ohneGeschossDarueber={ohneDarueber}
+          aufAendern={(ids) => aendere({ roomIds: ids })}
+        />
+      )}
 
       {!roof && (
         <p className="rounded-lg bg-white/[0.03] px-2.5 py-2.5 text-[10px] leading-relaxed text-slate-500">
@@ -165,7 +231,7 @@ export default function RoofPanel() {
             min={roof.kind === 'flat-sloped' ? 1 : 5}
             max={roof.kind === 'flat-sloped' ? 15 : 75}
             step={roof.kind === 'flat-sloped' ? 0.5 : 1}
-            onChange={(v) => setRoof(level.id, { pitch: v })}
+            onChange={(v) => aendere({ pitch: v })}
             hint={
               roof.kind === 'mansard'
                 ? 'Die untere, steile Fläche — sie schafft den Wohnraum'
@@ -184,7 +250,7 @@ export default function RoofPanel() {
                 min={2}
                 max={60}
                 step={1}
-                onChange={(v) => setRoof(level.id, { upperPitch: v })}
+                onChange={(v) => aendere({ upperPitch: v })}
                 hint="Die obere Fläche bis zum First; muss flacher sein als die untere"
               />
               <Field
@@ -194,7 +260,7 @@ export default function RoofPanel() {
                 min={1}
                 max={4}
                 step={0.05}
-                onChange={(v) => setRoof(level.id, { knickHeight: v })}
+                onChange={(v) => aendere({ knickHeight: v })}
                 hint="Höhe über Rohfußboden, in der steil in flach übergeht"
               />
             </>
@@ -208,7 +274,7 @@ export default function RoofPanel() {
               min={0}
               max={100}
               step={5}
-              onChange={(v) => setRoof(level.id, { hipRatio: v / 100 })}
+              onChange={(v) => aendere({ hipRatio: v / 100 })}
               hint="0 % wäre ein Satteldach, 100 % ein Walmdach — vom First abwärts gemessen"
             />
           )}
@@ -220,7 +286,7 @@ export default function RoofPanel() {
             min={0}
             max={2.5}
             step={0.05}
-            onChange={(v) => setRoof(level.id, { kneeHeight: v })}
+            onChange={(v) => aendere({ kneeHeight: v })}
             hint="Lichte Höhe an der Traufe, über Rohfußboden"
           />
 
@@ -234,7 +300,7 @@ export default function RoofPanel() {
               {AZIMUTHS.map((a) => (
                 <button
                   key={a.value}
-                  onClick={() => setRoof(level.id, { azimuth: a.value })}
+                  onClick={() => aendere({ azimuth: a.value })}
                   title={`${a.value}°`}
                   className={`chip flex-1 ${
                     Math.round(roof.azimuth) === a.value
@@ -269,7 +335,7 @@ export default function RoofPanel() {
                   if (!Number.isFinite(v)) return;
                   // Modulo, damit 370° zu 10° wird statt zu einem Dach, das
                   // die Firstrechnung nicht mehr einordnen kann.
-                  setRoof(level.id, { azimuth: ((v % 360) + 360) % 360 });
+                  aendere({ azimuth: ((v % 360) + 360) % 360 });
                 }}
                 title="Richtung, in die die Dachfläche fällt, als Winkel — 0° = Norden, im Uhrzeigersinn. Für Gebäude, die schief zur Himmelsrichtung stehen."
                 className="w-16 rounded-md bg-graphite-900/70 px-2 py-1 text-right font-mono text-[11px] text-slate-200 outline-none ring-1 ring-white/10"
@@ -291,7 +357,7 @@ export default function RoofPanel() {
               min={-8}
               max={8}
               step={0.25}
-              onChange={(v) => setRoof(level.id, { ridgeOffset: v })}
+              onChange={(v) => aendere({ ridgeOffset: v })}
               hint="0 = mittig; positiv verschiebt in Fallrichtung"
             />
           )}
@@ -301,7 +367,7 @@ export default function RoofPanel() {
               type="checkbox"
               checked={typeof roof.collarHeight === 'number'}
               onChange={(e) =>
-                setRoof(level.id, { collarHeight: e.target.checked ? 2.6 : undefined })
+                aendere({ collarHeight: e.target.checked ? 2.6 : undefined })
               }
               className="accent-accent"
             />
@@ -315,7 +381,7 @@ export default function RoofPanel() {
               min={2}
               max={5}
               step={0.05}
-              onChange={(v) => setRoof(level.id, { collarHeight: v })}
+              onChange={(v) => aendere({ collarHeight: v })}
             />
           )}
 
@@ -326,20 +392,20 @@ export default function RoofPanel() {
               label="Dachfläche"
               unit="W/(m²K)"
               value={roof.uValue}
-              onChange={(v) => setRoof(level.id, { uValue: v })}
+              onChange={(v) => aendere({ uValue: v })}
             />
             <NumberRow
               label="Giebel"
               unit="W/(m²K)"
               value={roof.gableUValue}
-              onChange={(v) => setRoof(level.id, { gableUValue: v })}
+              onChange={(v) => aendere({ gableUValue: v })}
             />
             {typeof roof.collarHeight === 'number' && (
               <NumberRow
                 label="Kehlbalkendecke"
                 unit="W/(m²K)"
                 value={roof.collarUValue ?? level.ceilingUValue}
-                onChange={(v) => setRoof(level.id, { collarUValue: v })}
+                onChange={(v) => aendere({ collarUValue: v })}
               />
             )}
           </div>
@@ -532,5 +598,162 @@ function RoofIcon({ kind, active }: { kind: RoofKind; active: boolean }) {
     <svg viewBox="0 0 20 18" className="h-4 w-5 shrink-0" fill="none" stroke={stroke} strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round">
       <path d={paths[kind]} />
     </svg>
+  );
+}
+
+/**
+ * Die Liste der Dächer eines Geschosses.
+ *
+ * **Warum es diese Leiste gibt.** Ein Satteldach über den ganzen Grundriss
+ * zu legen stimmt beim Rechteckhaus. Beim L-Haus deckt es den Hauptbau, und
+ * der Flügel steht ohne Dach da — im Modell als offene Schnittfläche an der
+ * Kante zu sehen. Das Dach zu *drehen* hilft nicht: Es verschiebt das
+ * Problem auf den anderen Flügel. Ein L-Haus braucht je Flügel ein Dach.
+ *
+ * **Warum die Leiste auch bei einem Dach steht.** Dieselbe Überlegung wie
+ * beim Begradigen und beim Angleichen: Wer eine Funktion nie gesehen hat,
+ * sucht sie nicht, wenn er sie braucht. Bei genau einem Dach steht hier nur
+ * ein Knopf mehr — und der sagt, dass es einen zweiten geben kann.
+ */
+function Daecherleiste({
+  daecher,
+  gewaehlt,
+  aufWaehlen,
+  aufNeu,
+  aufWeg,
+}: {
+  daecher: RoofDefinition[];
+  gewaehlt: string | undefined;
+  aufWaehlen: (id: string) => void;
+  aufNeu: () => void;
+  aufWeg: (id: string) => void;
+}) {
+  return (
+    <div className="space-y-1">
+      <div className="flex flex-wrap items-center gap-1">
+        {daecher.map((r, i) => (
+          <button
+            key={r.id ?? i}
+            onClick={() => r.id && aufWaehlen(r.id)}
+            title={
+              r.roomIds?.length
+                ? `${r.roomIds.length} ${r.roomIds.length === 1 ? 'Raum' : 'Räume'} unter diesem Dach`
+                : 'Deckt das ganze Geschoss'
+            }
+            className={`chip ${
+              r.id === gewaehlt ? 'bg-accent/15 text-accent' : 'text-slate-500 hover:text-slate-300'
+            }`}
+          >
+            {r.name ?? `Dach ${i + 1}`}
+            {r.roomIds?.length ? <span className="ml-1 opacity-60">{r.roomIds.length}</span> : null}
+          </button>
+        ))}
+        <button
+          onClick={aufNeu}
+          title="Ein weiteres Dach anlegen — für den Flügel eines L-, T- oder U-förmigen Hauses. Vorgeschlagen werden die Räume, über denen kein Geschoss liegt und die noch keinem Dach gehören."
+          className="chip text-slate-500 hover:text-slate-300"
+        >
+          + Dach
+        </button>
+        {daecher.length > 1 && gewaehlt && (
+          <button
+            onClick={() => aufWeg(gewaehlt)}
+            title="Dieses Dach entfernen"
+            className="chip text-rose-300/80 hover:text-rose-200"
+          >
+            −
+          </button>
+        )}
+      </div>
+      {daecher.length > 1 && (
+        <p className="text-[9.5px] leading-relaxed text-slate-600">
+          Jedes Dach hat eigene Form, Neigung und Richtung und sitzt über den Räumen, die ihm
+          zugewiesen sind. Wo zwei Dachflächen aufeinandertreffen, entsteht die Kehle.
+        </p>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Welche Räume unter diesem Dach liegen.
+ *
+ * **Warum Räume und nicht ein gezeichneter Umriss.** Ein Umriss liefe entlang
+ * derselben Wände ein zweites Mal — und stünde beim nächsten Verschieben
+ * einer Wand daneben, ohne dass es jemand merkte. Über Räume hängt das Dach
+ * an der Geometrie und wandert mit.
+ *
+ * **Was die Markierungen bedeuten.** Ein Raum, über dem ein Geschoss liegt,
+ * trägt einen Hinweis: Dort ist eine Decke und kein Dach. Verboten ist es
+ * nicht — ein Vordach über einem Erker ist ein zulässiger Fall —, aber es
+ * steht dann da, und die Modellprüfung nennt es.
+ */
+function Raumzuweisung({
+  rooms,
+  roof,
+  andere,
+  ohneGeschossDarueber,
+  aufAendern,
+}: {
+  rooms: { id: string; name: string; area: number }[];
+  roof: RoofDefinition;
+  andere: RoofDefinition[];
+  ohneGeschossDarueber: Set<string>;
+  aufAendern: (ids: string[]) => void;
+}) {
+  const meine = new Set(roof.roomIds ?? []);
+  const fremd = new Map<string, string>();
+  andere.forEach((r, i) => {
+    for (const id of r.roomIds ?? []) fremd.set(id, r.name ?? `Dach ${i + 1}`);
+  });
+
+  const umschalten = (id: string): void => {
+    const neu = new Set(meine);
+    if (neu.has(id)) neu.delete(id);
+    else neu.add(id);
+    aufAendern([...neu]);
+  };
+
+  return (
+    <div className="space-y-1.5 rounded-lg border border-white/[0.07] bg-white/[0.02] p-2.5">
+      <div className="label-xs">Dieses Dach sitzt über</div>
+      <div className="flex flex-wrap gap-1">
+        {rooms.map((r) => {
+          const drin = meine.has(r.id);
+          const beiAnderem = fremd.get(r.id);
+          const decke = !ohneGeschossDarueber.has(r.id);
+          return (
+            <button
+              key={r.id}
+              onClick={() => umschalten(r.id)}
+              title={
+                decke
+                  ? `${r.name}: Darüber liegt ein Geschoss — dort ist eine Decke, kein Dach. Zuweisen ist möglich (Vordach, Erker), wird aber in der Modellprüfung genannt.`
+                  : beiAnderem && !drin
+                    ? `${r.name} gehört derzeit zu „${beiAnderem}"`
+                    : `${r.name} · ${r.area.toFixed(2).replace('.', ',')} m²`
+              }
+              className={`chip ${
+                drin
+                  ? 'bg-accent/15 text-accent'
+                  : beiAnderem
+                    ? 'text-slate-600'
+                    : 'text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              {r.name}
+              {decke && <span className="ml-1 opacity-70">▲</span>}
+            </button>
+          );
+        })}
+        {rooms.length === 0 && (
+          <span className="text-[10px] text-slate-600">Noch keine Räume in diesem Geschoss.</span>
+        )}
+      </div>
+      <p className="text-[9.5px] leading-relaxed text-slate-600">
+        <b>▲</b> heißt: Darüber liegt ein Geschoss — dort gehört eine Decke hin, kein Dach. Leer
+        gelassen deckt das Dach das ganze Geschoss.
+      </p>
+    </div>
   );
 }

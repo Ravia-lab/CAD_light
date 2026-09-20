@@ -49,6 +49,7 @@ import { pruefeRohrdaemmung } from './pruefungen/rohrdaemmung';
 import { pruefeRohrbezeichnung } from './pruefungen/rohrbezeichnung';
 import { pruefeWandhoehen } from './pruefungen/wandhoehen';
 import { pruefeSprache } from './pruefungen/sprache';
+import { pruefeDachlandschaft } from './pruefungen/dachlandschaft';
 import { pruefeRohrausleger } from './pruefungen/rohrausleger';
 import { pruefeRohrnetzrechner } from './pruefungen/rohrnetzrechner';
 import { pruefeWissensbasis } from './pruefungen/wissensbasis';
@@ -3806,6 +3807,9 @@ pruefeAnlagenschema(check);
 
 console.log('\n▸ Rohrdämmung — Anlage 8 GEG');
 pruefeRohrdaemmung(check);
+
+console.log('\n▸ Dachlandschaft — mehrere Dächer über einem Geschoss');
+pruefeDachlandschaft(check);
 
 console.log('\n▸ Sprache — die Schranke um die Fachbegriffe');
 pruefeSprache(check);

@@ -30,9 +30,10 @@
  * Schichtgrenze: nur `types` und andere `lib`-Bausteine.
  */
 
-import type { BimNode, Level, Wall } from '../types/bim';
+import type { BimNode, Level, Vec2, Wall } from '../types/bim';
 import type { RoofFrame } from './roofGeometry';
 import { roofHeightAt } from './roofGeometry';
+import { pointInPolygon } from './geometry';
 
 /**
  * Ab welcher Abweichung eine Wand überhaupt als abweichend gilt [m].
@@ -93,8 +94,46 @@ export interface Hoehenbefundeingabe {
   level: Level;
   walls: readonly Wall[];
   nodes: Record<string, BimNode>;
-  /** Dachgerüst dieses Geschosses, wenn eines erfasst ist. */
-  roofFrame?: RoofFrame | null;
+  /**
+   * Dachgerüste dieses Geschosses — seit 1.36.0 kann es mehrere geben.
+   *
+   * Maßgeblich ist das Dach **über der jeweiligen Wand**, nicht irgendeines
+   * des Geschosses. Beim L-Haus stünde sonst die Traufwand des Nordflügels
+   * unter dem Dach des Hauptbaus, und ihre Höhe würde angeglichen, obwohl
+   * dort eine Schräge sitzt.
+   */
+  roofFrames?: readonly (RoofFrame | null)[];
+}
+
+/**
+ * Liegt der Punkt unter diesem Dach?
+ *
+ * **Warum nicht einfach `pointInPolygon`.** Die Punkte, die hier gefragt
+ * werden, sind Wandmitten — und die Wände *sind* der Umriss. Sie liegen
+ * also genau auf der Polygonkante, und dort ist die Antwort von
+ * `pointInPolygon` nicht definiert: Bei der Prüfung fiel genau das auf, die
+ * Westwand galt als drinnen, die Ostwand als draußen. Dasselbe Haus, dieselbe
+ * Lage, zwei Antworten.
+ *
+ * Der Punkt wird deshalb einen Zentimeter zur Umrissmitte hin gerückt, bevor
+ * gefragt wird. Ein Zentimeter ist weniger als jede Wandstärke und damit
+ * sicher innerhalb des Gebäudes, aber mehr als jede Rundung.
+ */
+function unterDach(frame: RoofFrame, p: Vec2): boolean {
+  if (frame.umriss.length < 3) return true;
+  let sx = 0;
+  let sy = 0;
+  for (const q of frame.umriss) {
+    sx += q.x;
+    sy += q.y;
+  }
+  const mx = sx / frame.umriss.length;
+  const my = sy / frame.umriss.length;
+  const dx = mx - p.x;
+  const dy = my - p.y;
+  const l = Math.hypot(dx, dy);
+  const innen = l > 1e-9 ? { x: p.x + (dx / l) * 0.01, y: p.y + (dy / l) * 0.01 } : p;
+  return pointInPolygon(innen, frame.umriss);
 }
 
 /** Mitte einer Wand im Grundriss — oder `null`, wenn ein Knoten fehlt. */
@@ -115,7 +154,8 @@ function mitte(wall: Wall, nodes: Record<string, BimNode>): { x: number; y: numb
  * liest, wäre eine Drohung statt einer Auskunft.
  */
 export function hoehenbefund(eingabe: Hoehenbefundeingabe): Hoehenbefund {
-  const { level, walls, nodes, roofFrame } = eingabe;
+  const { level, walls, nodes } = eingabe;
+  const rahmen = (eingabe.roofFrames ?? []).filter((r): r is RoofFrame => !!r);
   const soll = Number.isFinite(level.height) && level.height > 0 ? level.height : 2.5;
 
   const aenderungen: Hoehenaenderung[] = [];
@@ -131,7 +171,7 @@ export function hoehenbefund(eingabe: Hoehenbefundeingabe): Hoehenbefund {
       continue;
     }
 
-    if (roofFrame) {
+    if (rahmen.length) {
       const p = mitte(wall, nodes);
       // Ohne Knoten lässt sich die Lage unter dem Dach nicht bestimmen. Dann
       // wird nicht angefasst — im Zweifel stehen lassen.
@@ -139,10 +179,19 @@ export function hoehenbefund(eingabe: Hoehenbefundeingabe): Hoehenbefund {
         ausnahmen.push({ wallId: wall.id, ist: wall.height, grund: 'dachschraege' });
         continue;
       }
-      const lichte = roofHeightAt(roofFrame, p);
-      if (Number.isFinite(lichte) && lichte < soll - TOTZONE) {
-        ausnahmen.push({ wallId: wall.id, ist: wall.height, grund: 'dachschraege' });
-        continue;
+      /*
+       * Das Dach **über dieser Wand**. Ein Gerüst ohne Umriss gilt für das
+       * ganze Geschoss (Projekte vor 1.36.0); sonst entscheidet der Umriss.
+       * Liegt die Wand unter keinem Dach, gibt es dort keine Schräge und
+       * die Wand wird angeglichen wie jede andere.
+       */
+      const darueber = rahmen.find((r) => unterDach(r, p));
+      if (darueber) {
+        const lichte = roofHeightAt(darueber, p);
+        if (Number.isFinite(lichte) && lichte < soll - TOTZONE) {
+          ausnahmen.push({ wallId: wall.id, ist: wall.height, grund: 'dachschraege' });
+          continue;
+        }
       }
     }
 

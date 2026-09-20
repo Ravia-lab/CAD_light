@@ -26,6 +26,7 @@ import { BAUTEIL_BEZEICHNUNG, VORGABE_U, istErfasst, uWertOeffnung, uWertWand } 
 import { documentBridgeHeatLoss, envelopeArea } from './thermalBridges';
 import { buildPipeNetwork } from './pipeNetwork';
 import { acousticReport, protectionIssues, sourceDemand, waterProtectionVerdict } from './heatPump';
+import { daecherVon, raeumeOhneGeschossDarueber } from './dachlandschaft';
 
 /** Objekte, die Wärme in den Raum geben — nur sie brauchen eine Leistung. */
 const HEAT_EMITTERS = new Set(['radiator', 'radiator-tube', 'convector', 'underfloor']);
@@ -135,6 +136,10 @@ export const REMEDIES: Record<string, string> = {
   'project.thermal-bridges-low': 'Die ψ-Werte im Reiter „Wärmebrücken" gegen den Katalog des Herstellers halten.',
   'project.reheat-factor': 'Nichts zu tun, solange keine Zusatzleistung angesetzt werden soll — in Deutschland der Regelfall.',
   'project.setback-hours': 'Im Reiter „Wärmebrücken" unter „Absenkbetrieb" die Absenkzeit eintragen oder die Absenkung abschalten.',
+  'roof.above-storey':
+    'Im Reiter „Dach" unter „Dieses Dach sitzt über" die mit ▲ gekennzeichneten Räume abwählen — dort gehört eine Decke hin, kein Dach. Ist es Absicht (Vordach über einem Erker, Pultdach am Anbau), kann der Hinweis stehen bleiben.',
+  'roof.overlap':
+    'Im Reiter „Dach" die Raumzuweisung der beiden Dächer prüfen: Jeder Raum gehört unter genau eines. Welches sonst gilt, entscheidet die Reihenfolge im Dokument — reproduzierbar, aber von niemandem gewollt.',
   'roof.pitch': 'Dachneigung im Reiter „Dach" prüfen — übliche Dächer liegen zwischen 15 und 50 Grad.',
   'roof.u-value': 'U-Wert der Dachfläche im Reiter „Dach" eintragen. Ein gedämmtes Dach liegt bei 0,14 bis 0,24.',
   'roof.collar': 'Die Kehlbalkenlage muss über dem Kniestock liegen, sonst gibt es keine Schräge dazwischen.',
@@ -1099,8 +1104,71 @@ export function validateModel(doc: BimDocument): ValidationReport {
   }
 
   // --- Dach -----------------------------------------------------------------
+  /*
+   * **Die Regel, die keine Geometrie kennt.**
+   *
+   * Wo ein Geschoss darüberliegt, ist kein Dach, sondern eine Decke. Aus dem
+   * Grundriss allein folgt das nicht — er weiß nichts über das Geschoss
+   * darüber. Verboten wird es trotzdem nicht: Ein Vordach über einem Erker,
+   * ein Pultdach über einem Anbau, der an das Obergeschoss stößt, sind
+   * zulässige Fälle. Gemeldet wird es, damit niemand aus Versehen ein
+   * Geschoss überdacht, das bewohnt ist — dort fiele die Heizlast des
+   * darüberliegenden Raums gegen Außenluft statt gegen einen beheizten
+   * Nachbarn aus.
+   */
+  {
+    const geschosse = Object.values(doc.levels).sort((a, b) => a.order - b.order);
+    for (let i = 0; i < geschosse.length; i++) {
+      const level = geschosse[i];
+      const oben = geschosse[i + 1];
+      if (!oben) continue;
+      const hier = rooms.filter((r) => r.levelId === level.id);
+      const raeumeOben = rooms.filter((r) => r.levelId === oben.id);
+      const ohne = new Set(raeumeOhneGeschossDarueber(hier, raeumeOben));
+      for (const dach of daecherVon(level)) {
+        if (dach.kind === 'flat') continue;
+        const falsch = (dach.roomIds ?? []).filter((id) => !ohne.has(id) && hier.some((r) => r.id === id));
+        if (!falsch.length) continue;
+        const namen = falsch
+          .map((id) => hier.find((r) => r.id === id)?.name ?? id)
+          .slice(0, 4)
+          .join(', ');
+        add(
+          'warning',
+          'roof.above-storey',
+          `„${dach.name ?? 'Dach'}" über ${level.name} deckt ${falsch.length} ${falsch.length === 1 ? 'Raum' : 'Räume'}, über ${falsch.length === 1 ? 'dem' : 'denen'} ${oben.name} liegt (${namen}).`,
+        );
+      }
+    }
+  }
+
+  /*
+   * **Zwei Dächer über demselben Raum.** Welches gilt, entscheidet dann die
+   * Reihenfolge im Dokument — eine Antwort, die reproduzierbar ist und
+   * trotzdem niemand gewollt hat. Raumhöhe, Volumen und Dachfläche hängen
+   * daran.
+   */
   for (const level of Object.values(doc.levels)) {
-    const roof = level.roof;
+    const belegt = new Map<string, string>();
+    for (const dach of daecherVon(level)) {
+      for (const id of dach.roomIds ?? []) {
+        const schon = belegt.get(id);
+        if (schon) {
+          const raum = rooms.find((r) => r.id === id);
+          add(
+            'warning',
+            'roof.overlap',
+            `„${raum?.name ?? id}" liegt unter zwei Dächern („${schon}" und „${dach.name ?? 'Dach'}").`,
+          );
+        } else {
+          belegt.set(id, dach.name ?? 'Dach');
+        }
+      }
+    }
+  }
+
+  for (const level of Object.values(doc.levels)) {
+    const roof = daecherVon(level)[0];
     if (!roof || roof.kind === 'flat') continue;
 
     if (roof.pitch < 5 || roof.pitch > 70) {

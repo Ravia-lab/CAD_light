@@ -800,6 +800,18 @@ export interface DetectRoomsInput {
    * Wandflächen und Raumhöhe.
    */
   roof?: RoofDefinition;
+  /**
+   * Fertige Dachgerüste des Geschosses — eines je Dach.
+   *
+   * **Warum fertig übergeben und nicht hier gebaut.** Seit 1.36.0 kann ein
+   * Geschoss mehrere Dächer tragen, und welcher Gebäudeteil zu welchem Dach
+   * gehört, hängt an einer Raumauswahl — also an dem Ergebnis, das diese
+   * Funktion gerade erst erzeugt. Das Henne-Ei-Problem löst der Aufrufer:
+   * Er baut die Landschaft aus dem vorigen Stand (`dachlandschaft.ts`) und
+   * reicht sie herein. Bleibt das Feld leer, wird wie bisher aus `roof` ein
+   * einzelnes Gerüst über dem ganzen Geschoss gebaut.
+   */
+  roofFrames?: RoofFrame[];
   /** Gauben und Dachflächenfenster dieses Geschosses. */
   roofOpenings?: RoofOpening[];
   /**
@@ -918,6 +930,18 @@ function matchPrevious(prepared: PreparedFace[], previous: Room[]): (Room | unde
  * Erkennt alle geschlossenen Räume und berechnet Fläche, Volumen,
  * Wandabschnitte und Öffnungsflächen pro Himmelsrichtung.
  */
+
+/** Schwerpunkt eines Polygons als einfaches Mittel der Stützpunkte. */
+function centroidOf(poly: readonly Vec2[]): Vec2 {
+  let sx = 0;
+  let sy = 0;
+  for (const p of poly) {
+    sx += p.x;
+    sy += p.y;
+  }
+  return poly.length ? { x: sx / poly.length, y: sy / poly.length } : { x: 0, y: 0 };
+}
+
 export function detectRooms(input: DetectRoomsInput): Room[] {
   const {
     walls,
@@ -929,6 +953,7 @@ export function detectRooms(input: DetectRoomsInput): Room[] {
     previous = [],
     weldTolerance = WELD_TOLERANCE,
     roof,
+    roofFrames,
     roofOpenings = [],
     constructions,
   } = input;
@@ -961,7 +986,41 @@ export function detectRooms(input: DetectRoomsInput): Room[] {
   // ein geneigtes Dach darüberliegt: der Regelfall ohne Dach darf nichts
   // kosten.
   const umriss = roof && roof.kind !== 'flat' ? umrissAusFacetten(facetten) : [];
-  const roofFrame: RoofFrame | null = buildRoofFrame(roof, outline, roofOpenings, umriss);
+  const einzelRahmen: RoofFrame | null = buildRoofFrame(roof, outline, roofOpenings, umriss);
+  /**
+   * Alle Dachgerüste dieses Geschosses.
+   *
+   * Vom Aufrufer übergeben, sonst das eine aus `roof`. Damit rechnet ein
+   * Projekt von vor 1.36.0 auf den Zehntelmillimeter genauso wie vorher —
+   * die Liste hat dann genau einen Eintrag, und die Auswahl darunter fällt
+   * immer auf ihn.
+   */
+  const dachRahmen: RoofFrame[] = roofFrames?.length
+    ? roofFrames
+    : einzelRahmen
+      ? [einzelRahmen]
+      : [];
+
+  /**
+   * Welches Dach liegt über diesem Punkt?
+   *
+   * `roofHeightAt` rechnet für **jeden** Punkt eine Höhe aus, auch weit
+   * außerhalb — die Dachebene hört ja nicht auf. Beim L-Haus lieferte das
+   * Dach des Nordflügels damit auch über dem Wohnzimmer eine Zahl, und zwar
+   * eine falsche. Gefragt wird deshalb zuerst, ob der Punkt überhaupt unter
+   * diesem Dach liegt. Ein Gerüst ohne Umriss gilt für das ganze Geschoss —
+   * das ist der Zustand vor 1.26.0 und der eines Dachs ohne Raumauswahl.
+   */
+  const rahmenAn = (p: Vec2): RoofFrame | null => {
+    for (const f of dachRahmen) {
+      if (f.umriss.length < 3) return f;
+      if (pointInPolygon(p, f.umriss)) return f;
+    }
+    return null;
+  };
+  // Hier ist der gefragte Punkt immer ein Raumschwerpunkt und liegt damit
+  // sicher *innerhalb* des Umrisses — die Nachsicht an der Kante, die
+  // `dachlandschaft.ts` braucht, ist an dieser Stelle nicht nötig.
 
   const rooms: Room[] = [];
   const probesByRoom = new Map<string, Vec2[][]>();
@@ -1047,6 +1106,18 @@ export function detectRooms(input: DetectRoomsInput): Room[] {
       if (w.height < BRUESTUNGS_HOEHE) continue;
       height = w.height;
     }
+
+    /*
+     * **Das Dach dieses Raums — einmal bestimmt, zweimal gebraucht.**
+     *
+     * Gefragt wird am Schwerpunkt des Raumpolygons, nicht an einer Ecke:
+     * Eine Ecke liegt in der Wand und damit je nach Rundung mal innerhalb,
+     * mal außerhalb des Umrisses. Ein Raum, der unter zwei Dächern liegt,
+     * bekommt das, unter dem seine Mitte liegt — genauer wird es erst, wenn
+     * man die Raumfläche teilt, und eine geteilte Raumhöhe ist keine Größe,
+     * die die Norm kennt.
+     */
+    const roofFrame = rahmenAn(centroidOf(polygon));
 
     // --- Wandabschnitte & Öffnungen -------------------------------------
     const boundaries: RoomBoundary[] = [];

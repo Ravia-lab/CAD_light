@@ -157,6 +157,7 @@ import { solidFootprint } from '../lib/verticalSymbols';
 import { rohrbezeichnung } from '../lib/rohrbezeichnung';
 import { planPipeNetwork, type PipeLayoutResult } from '../lib/pipeLayout';
 import { baseRoofHeightAt, buildRoofFrame, dormerSide } from '../lib/roofGeometry';
+import { baueDachlandschaft, daecherVon, raeumeOhneGeschossDarueber } from '../lib/dachlandschaft';
 import { importIfc } from '../lib/ifcImport';
 import { ordneRaumnamenZu } from '../lib/raumnutzung';
 import { importRaumplan } from '../lib/raumplanImport';
@@ -650,6 +651,12 @@ interface BimState {
   updateLevel: (id: string, patch: Partial<Level>) => void;
   /** Dach über einem Geschoss anlegen oder ändern. `null` entfernt es. */
   setRoof: (levelId: string, patch: Partial<RoofDefinition> | null) => void;
+  /** Ein weiteres Dach über diesem Geschoss anlegen — für L-, T- und U-Häuser. */
+  addRoof: (levelId: string) => void;
+  /** Ein einzelnes Dach entfernen. */
+  entferneRoof: (levelId: string, roofId: string) => void;
+  /** Ein einzelnes Dach ändern. */
+  setRoofById: (levelId: string, roofId: string, patch: Partial<RoofDefinition>) => void;
 
   // --- Treppen, Schächte, Rohrnetz ---------------------------------------
   addVertical: (kind: VerticalKind, position: Vec2) => VerticalElement;
@@ -1424,6 +1431,29 @@ function recomputeRooms(doc: BimDocument, nurAktivesGeschoss = false): void {
         northAngle: doc.meta.northAngle,
         previous: previousAll.filter((r) => r.levelId === level.id),
         roof: level.roof,
+        /*
+         * **Die Dachlandschaft aus dem vorigen Stand.**
+         *
+         * Welcher Gebäudeteil unter welchem Dach liegt, hängt an einer
+         * Raumauswahl — also an dem Ergebnis, das die Raumerkennung gerade
+         * erst erzeugt. Das Henne-Ei-Problem wird hier aufgelöst: Die
+         * Landschaft entsteht aus den Räumen des **vorigen** Durchgangs.
+         *
+         * Das ist kein Kunstgriff, sondern die Reihenfolge, in der auch
+         * gearbeitet wird: Erst stehen die Räume, dann legt man das Dach
+         * darüber. Nur im allerersten Durchgang eines frisch gezeichneten
+         * Geschosses fehlt die Zuordnung — dann deckt das Dach das ganze
+         * Geschoss, was ohne Raumauswahl ohnehin gilt.
+         */
+        roofFrames: baueDachlandschaft({
+          level,
+          walls,
+          nodes: doc.nodes,
+          rooms: previousAll.filter((r) => r.levelId === level.id),
+          roofOpenings: Object.values(doc.roofOpenings ?? {}).filter((o) => o.levelId === level.id),
+        })
+          .map((t) => t.frame)
+          .filter((fr): fr is NonNullable<typeof fr> => fr !== null),
         roofOpenings: Object.values(doc.roofOpenings ?? {}).filter((o) => o.levelId === level.id),
       }),
     );
@@ -1642,17 +1672,16 @@ function belegeRaum(get: () => BimState, roomId: string): FloorLoopBatchResult |
  * sie auseinander, zeigte der Knopf eine andere Zahl, als er anschließend
  * ändert.
  */
-function dachGeruest(doc: BimDocument, level: Level): ReturnType<typeof buildRoofFrame> {
-  if (!level.roof) return null;
+function dachGeruest(doc: BimDocument, level: Level): ReturnType<typeof buildRoofFrame>[] {
+  if (!daecherVon(level).length) return [];
   const levelWalls = Object.values(doc.walls).filter((w) => w.levelId === level.id);
-  const outline: { x: number; y: number }[] = [];
-  for (const w of levelWalls) {
-    const na = doc.nodes[w.a];
-    const nb = doc.nodes[w.b];
-    if (na) outline.push({ x: na.x, y: na.y });
-    if (nb) outline.push({ x: nb.x, y: nb.y });
-  }
-  return buildRoofFrame(level.roof, outline, [], gebaeudeUmriss(levelWalls, doc.nodes));
+  return baueDachlandschaft({
+    level,
+    walls: levelWalls,
+    nodes: doc.nodes,
+    rooms: Object.values(doc.rooms ?? {}).filter((r) => r.levelId === level.id),
+    roofOpenings: Object.values(doc.roofOpenings ?? {}).filter((o) => o.levelId === level.id),
+  }).map((t) => t.frame);
 }
 
 
@@ -4409,15 +4438,114 @@ export const useBimStore = create<BimState>()((set, get) => {
         doc.annotations = rest;
       }),
 
+    /**
+     * Ein Dach hinzufügen.
+     *
+     * **Der Vorschlag für die Räume ist die halbe Funktion.** Ein neues Dach
+     * bekommt die Räume, über denen **kein Geschoss liegt** und die noch
+     * keinem anderen Dach gehören. Das ist die Regel „wo ein Geschoss
+     * darüberliegt, ist eine Decke und kein Dach", als Vorbelegung statt als
+     * Verbot: Wer ein Vordach über einem Erker will, hakt den Raum von Hand
+     * dazu, und die Prüfung sagt, dass er es getan hat.
+     */
+    addRoof: (levelId) => {
+      const doc0 = get().doc;
+      const level0 = doc0.levels[levelId];
+      if (!level0) return;
+      const geschosse = Object.values(doc0.levels).sort((a, b) => a.order - b.order);
+      const index = geschosse.findIndex((l) => l.id === levelId);
+      const darueber = geschosse[index + 1];
+      const hier = Object.values(doc0.rooms ?? {}).filter((r) => r.levelId === levelId);
+      const oben = darueber
+        ? Object.values(doc0.rooms ?? {}).filter((r) => r.levelId === darueber.id)
+        : [];
+      const vergeben = new Set(daecherVon(level0).flatMap((r) => r.roomIds ?? []));
+      const frei = raeumeOhneGeschossDarueber(hier, oben).filter((id) => !vergeben.has(id));
+
+      mutate((doc) => {
+        const level = doc.levels[levelId];
+        if (!level) return;
+        const bisher = daecherVon(level);
+        doc.levels[levelId] = {
+          ...level,
+          roof: undefined,
+          roofs: [
+            ...bisher,
+            {
+              ...DEFAULT_ROOF,
+              id: `dach-${Date.now().toString(36)}`,
+              name: `Dach ${bisher.length + 1}`,
+              roomIds: frei,
+            },
+          ],
+        };
+      });
+      set({
+        statusMessage: frei.length
+          ? `Dach angelegt über ${frei.length} ${frei.length === 1 ? 'Raum' : 'Räumen'} ohne Geschoss darüber.`
+          : 'Dach angelegt — es deckt noch keinen Raum. Räume unten zuweisen.',
+      });
+    },
+
+    /** Ein Dach entfernen. Das letzte zu entfernen heißt: waagerechte Decke. */
+    entferneRoof: (levelId, roofId) => {
+      mutate((doc) => {
+        const level = doc.levels[levelId];
+        if (!level) return;
+        const rest = daecherVon(level).filter((r) => r.id !== roofId);
+        doc.levels[levelId] = {
+          ...level,
+          roof: undefined,
+          roofs: rest.length ? rest : undefined,
+        };
+      });
+      set({ statusMessage: 'Dach entfernt.' });
+    },
+
+    /**
+     * Ein einzelnes Dach ändern.
+     *
+     * **Warum jede Änderung auf `roofs` schreibt.** `level.roof` (eines) und
+     * `level.roofs` (mehrere) stehen nebeneinander, damit alte Projekte
+     * aufgehen. Zwei Quellen für dieselbe Sache sind aber ein Fehler, der
+     * darauf wartet zu passieren — deshalb wandert ein Projekt beim ersten
+     * Schreiben nach `roofs`, und `roof` wird geleert. Gelesen wird ohnehin
+     * nur über `daecherVon`.
+     */
+    setRoofById: (levelId, roofId, patch) => {
+      mutate((doc) => {
+        const level = doc.levels[levelId];
+        if (!level) return;
+        const daecher = daecherVon(level).map((r) =>
+          r.id === roofId ? { ...DEFAULT_ROOF, ...r, ...patch } : r,
+        );
+        doc.levels[levelId] = { ...level, roof: undefined, roofs: daecher };
+      });
+    },
+
     setRoof: (levelId, patch) => {
       mutate((doc) => {
         const level = doc.levels[levelId];
         if (!level) return;
         if (patch === null) {
-          doc.levels[levelId] = { ...level, roof: undefined };
+          doc.levels[levelId] = { ...level, roof: undefined, roofs: undefined };
           return;
         }
-        doc.levels[levelId] = { ...level, roof: { ...DEFAULT_ROOF, ...level.roof, ...patch } };
+        /*
+         * Der alte Weg — er ändert **das erste** Dach. Er bleibt, weil ihn
+         * der Dachreiter für den Regelfall (ein Haus, ein Dach) benutzt und
+         * weil die Einbettungsschnittstelle ihn kennt.
+         */
+        const daecher = daecherVon(level);
+        if (daecher.length > 1) {
+          doc.levels[levelId] = {
+            ...level,
+            roof: undefined,
+            roofs: daecher.map((r, i) => (i === 0 ? { ...DEFAULT_ROOF, ...r, ...patch } : r)),
+          };
+          return;
+        }
+        doc.levels[levelId] = { ...level, roof: { ...DEFAULT_ROOF, ...level.roof, ...patch }, roofs: undefined };
       });
       const roof = get().doc.levels[levelId]?.roof;
       set({
@@ -5100,7 +5228,7 @@ export const useBimStore = create<BimState>()((set, get) => {
       if (!level) {
         return { soll: 0, aenderungen: [], ausnahmen: [], groessteAbweichung: 0, gesamt: 0 };
       }
-      return hoehenbefund({ level, walls: waende, nodes: doc.nodes, roofFrame: dachGeruest(doc, level) });
+      return hoehenbefund({ level, walls: waende, nodes: doc.nodes, roofFrames: dachGeruest(doc, level) });
     },
 
     /**
@@ -5131,7 +5259,7 @@ export const useBimStore = create<BimState>()((set, get) => {
         level,
         walls: Object.values(doc.walls),
         nodes: doc.nodes,
-        roofFrame: dachGeruest(doc, level),
+        roofFrames: dachGeruest(doc, level),
       });
       if (befund.aenderungen.length === 0) {
         const m = befundSatz(befund);
