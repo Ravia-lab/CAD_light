@@ -29,6 +29,7 @@ import {
   WALL_THICKNESS_PRESETS,
 } from '../types/bim';
 import { verlegeartAus } from '../lib/plantDefaults';
+import { loeschbilanz } from '../lib/planLeeren';
 import { UI_MODUS_LABELS, zeigtAnsicht, zeigtKopfknopf, zeigtWerkzeug, type UiModus } from '../lib/uimodus';
 import { useBimStore } from '../store/useBimStore';
 import { SPRACHEN, t } from '../lib/sprache';
@@ -186,6 +187,8 @@ export default function ToolRail() {
   const future = useBimStore((s) => s.future.length);
   const clearAll = useBimStore((s) => s.clearAll);
   const loadDemo = useBimStore((s) => s.loadDemo);
+  /** Steht die Rückfrage zum Leeren offen? */
+  const [loeschenOffen, setLoeschenOffen] = useState(false);
 
   /*
       * Die Leiste darf rollen.
@@ -274,15 +277,104 @@ export default function ToolRail() {
         <Icon>{icons.demo}</Icon>
       </RailButton>
       <RailButton
-        title="Alle Geometrie löschen"
+        title="Alles löschen — Plan, Gelände, Leitungen, Dächer. Geschosse, Ebenen und Bauteilkatalog bleiben; Strg+Z holt alles zurück."
         danger
-        onClick={() => {
-          if (confirm('Wirklich die gesamte Geometrie löschen?')) clearAll();
-        }}
+        onClick={() => setLoeschenOffen(true)}
       >
         <Icon>{icons.trash}</Icon>
       </RailButton>
+
+      {loeschenOffen && (
+        <AllesLoeschenDialog
+          onClose={() => setLoeschenOffen(false)}
+          onLoeschen={() => {
+            clearAll();
+            setLoeschenOffen(false);
+          }}
+        />
+      )}
     </div>
+  );
+}
+
+/**
+ * Die Rückfrage vor dem Leeren.
+ *
+ * **Warum kein `confirm()` mehr.** Bis 1.36.2 stand hier die
+ * Browser-Rückfrage „Wirklich die gesamte Geometrie löschen?". Sie hatte drei
+ * Mängel, und jeder für sich hätte gereicht: Sie sagte nicht, *was* weggeht —
+ * und genau das ist die Frage, wenn man mehrere Projekte nebeneinander
+ * offen hat. Sie sagte nicht, was **bleibt**, weshalb niemand den Knopf
+ * drückte, der seine Geschosse behalten wollte. Und sie sagte nicht, dass
+ * Strg+Z alles zurückholt — die einzige Angabe, die einem Anwender die Angst
+ * vor einem roten Papierkorb nimmt.
+ *
+ * Die Liste kommt aus `loeschbilanz()`; sie zählt den Stand *vor* dem
+ * Löschen. Ein leerer Plan bekommt keinen Dialog mit „0 Wände", sondern die
+ * Auskunft, dass es nichts zu löschen gibt.
+ */
+function AllesLoeschenDialog({ onClose, onLoeschen }: { onClose: () => void; onLoeschen: () => void }) {
+  const doc = useBimStore((s) => s.doc);
+  const posten = loeschbilanz(doc);
+
+  /*
+   * Durch ein Portal an den Seitenkörper — nicht in die Werkzeugleiste.
+   *
+   * Die Leiste rollt (`overflow-y-auto`), und ein rollender Kasten ist für
+   * alles darin ein Bezugsrahmen. Genau daran war in 1.36.1 die Sprachliste
+   * gescheitert. `position: fixed` überlebt Überlauf zwar, nicht aber einen
+   * `transform` oder `filter` an einem Vorfahren — und `backdrop-blur` steht
+   * hier im selben Haus. Der Umweg kostet nichts und nimmt die ganze Klasse
+   * von Fehlern aus dem Spiel.
+   */
+  return createPortal(
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-graphite-950/70 p-6 backdrop-blur-sm">
+      <div className="panel w-[420px] max-w-full p-5">
+        <div className="text-[13px] font-semibold text-slate-100">{t('Alles löschen?')}</div>
+
+        {posten.length === 0 ? (
+          <p className="mt-2 text-[11px] leading-relaxed text-slate-400">
+            {t('Es ist nichts gezeichnet — hier gibt es nichts zu löschen.')}
+          </p>
+        ) : (
+          <>
+            <p className="mt-1.5 text-[11px] leading-relaxed text-slate-400">
+              {t('Weg ist dann:')}
+            </p>
+            <div className="mt-2 max-h-56 space-y-1 overflow-y-auto rounded-lg bg-white/[0.03] px-3 py-2.5 text-[11px] text-slate-300">
+              {posten.map((p) => (
+                <div key={p.label} className="flex justify-between gap-3">
+                  <span className="truncate text-slate-400">{t(p.label)}</span>
+                  <span className="tabular-nums">{p.anzahl}</span>
+                </div>
+              ))}
+            </div>
+            <p className="mt-2.5 text-[11px] leading-relaxed text-slate-500">
+              {t('Geschosse, Ebenen, Bauteilkatalog und die erfassten Kennwerte bleiben stehen.')}{' '}
+              <span className="text-slate-400">{t('Strg+Z holt alles zurück.')}</span>
+            </p>
+          </>
+        )}
+
+        <div className="mt-4 flex justify-end gap-2">
+          <button
+            onClick={onClose}
+            className="chip px-3 py-1.5 text-slate-400 hover:bg-white/[0.06] hover:text-slate-200"
+          >
+            {t('Abbrechen')}
+          </button>
+          {posten.length > 0 && (
+            <button
+              onClick={onLoeschen}
+              className="rounded-lg bg-rose-500/15 px-3 py-1.5 text-[11px] font-medium text-rose-300 transition-colors hover:bg-rose-500/25"
+            >
+              {t('Alles löschen')}
+            </button>
+          )}
+        </div>
+      </div>
+    </div>,
+    document.body,
   );
 }
 

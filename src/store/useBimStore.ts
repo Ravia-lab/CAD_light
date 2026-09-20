@@ -135,7 +135,9 @@ import {
   fixtureFootprint,
   measureLayableArea,
 } from '../lib/floorLoopLayout';
-import { BESTANDS_EBENEN, EBENEN_KATALOG, auswahlGesperrt, type Gewerkesatz } from '../lib/ebenen';
+import { BESTANDS_EBENEN, EBENEN_KATALOG, auswahlGesperrt, istSichtbar, type Gewerkesatz } from '../lib/ebenen';
+import { stehtAufGeschoss } from '../lib/aufstellgeschoss';
+import { bilanzSatz, leerePlan, loeschbilanz, type Loeschposten } from '../lib/planLeeren';
 import { planeUebernahme } from '../lib/aussenwand';
 import type { UiModus } from '../lib/uimodus';
 import { belagsWiderstand } from '../lib/bodenbelag';
@@ -858,7 +860,8 @@ interface BimState {
   /** Die Sichtbarkeit auf einen Gewerkesatz stellen — ein Blatt auf Knopfdruck. */
   ebenenSatz: (satz: Gewerkesatz) => void;
   deleteSelection: () => void;
-  clearAll: () => void;
+  /** Den ganzen Plan leeren. Gibt zurück, was weggenommen wurde. */
+  clearAll: () => Loeschposten[];
   loadDemo: () => void;
   /**
    * Leeres Dokument unter einem Namen — die Grundlage eines neuen
@@ -1926,10 +1929,18 @@ export const useBimStore = create<BimState>()((set, get) => {
         if (a.levelId !== doc.activeLevelId || a.generated) continue;
         if (inBox(a.position)) found.push({ kind: 'accessory', id: a.id });
       }
-      // Die Außenanlage gehört keinem Geschoss an und wird in jedem gezeigt —
-      // also ist sie auch in jedem Geschoss mit dem Rahmen zu fassen.
+      /*
+       * Das Gelände gehört keinem Geschoss an und wird in jedem gezeigt —
+       * also ist es auch in jedem Geschoss mit dem Rahmen zu fassen.
+       *
+       * Das **Gerät** darin nicht: Es steht auf dem Geschoss, auf dem es
+       * aufgestellt wurde, und wird anderswo nur durchscheinend gezeigt. Ein
+       * Rahmen, der es dort mitnimmt, nähme etwas mit, das man nicht sieht —
+       * und löschte es beim nächsten Tastendruck.
+       */
       for (const pump of Object.values(doc.site.pumps)) {
         if (pump.form === 'indoor') continue; // steht nicht im Lageplan
+        if (!stehtAufGeschoss(doc, pump, doc.activeLevelId)) continue;
         if (inBox(pump.position)) found.push({ kind: 'heatpump', id: pump.id });
       }
       for (const element of Object.values(doc.site.elements)) {
@@ -1945,16 +1956,71 @@ export const useBimStore = create<BimState>()((set, get) => {
       set({ selections: next, selection: next.length ? next[next.length - 1] : null });
     },
 
+    /*
+     * Strg+A — und zwar wirklich alles.
+     *
+     * **Was hier falsch war.** Bis 1.36.2 fasste „Alles auswählen" nur Wände
+     * und TGA-Objekte des aktiven Geschosses. Wer danach Entf drückte, sah
+     * das Gebäude verschwinden — und die Grundstücksgrenze, die Leitungen,
+     * die Maßketten und die Wärmepumpe stehen bleiben. Gemeldet wurde genau
+     * das: „leider kann ich grundstückgrenzen beim löschen nicht entfernen".
+     * Eine Auswahl, die „alles" heißt und die Hälfte meint, ist schlimmer als
+     * keine: Man hält den Plan für leer und arbeitet auf Resten weiter.
+     *
+     * **Was jetzt darin ist.** Alles, was auf diesem Geschoss liegt und sich
+     * einzeln anfassen lässt, dazu das Gelände — es gehört keinem Geschoss
+     * und wird in jedem gezeigt.
+     *
+     * **Was bewusst nicht darin ist.**
+     * - *Räume.* Sie sind abgeleitet; sie verschwinden mit ihren Wänden und
+     *   nicht auf Zuruf. In der Auswahl stünden sie nur als Zahl, die beim
+     *   Löschen nicht aufgeht.
+     * - *Öffnungen.* Sie gehen mit ihrer Wand, und die ist schon dabei.
+     * - *Erzeugte Armaturen.* Dieselbe Regel wie beim Rahmen: Was der
+     *   Rohrausleger beim nächsten Lauf ohnehin neu setzt, gehört nicht in
+     *   eine Auswahl, die man löschen oder verschieben will.
+     * - *Die Wärmepumpe fremder Geschosse.* Sie scheint hier nur durch.
+     * - *Gesperrtes und Ausgeblendetes.* Was man nicht sieht oder nicht
+     *   anfassen darf, wählt man auch nicht mit aus — sonst meldete das
+     *   Löschen hinterher „gesperrt" für etwas, das man nie gewählt hat.
+     *
+     * Für das Leeren des ganzen Projekts gibt es `allesLoeschen()`; Strg+A
+     * bleibt eine Auswahl auf *einem* Geschoss.
+     */
     selectAll: () => {
       const doc = get().doc;
-      const next: Selection[] = [
+      const hier = doc.activeLevelId;
+      const roh: Selection[] = [
         ...Object.values(doc.walls)
-          .filter((w) => w.levelId === doc.activeLevelId)
+          .filter((w) => w.levelId === hier)
           .map((w) => ({ kind: 'wall' as const, id: w.id })),
         ...Object.values(doc.fixtures)
-          .filter((f) => f.levelId === doc.activeLevelId)
+          .filter((f) => f.levelId === hier)
           .map((f) => ({ kind: 'fixture' as const, id: f.id })),
+        ...Object.values(doc.pipes)
+          .filter((r) => r.levelId === hier)
+          .map((r) => ({ kind: 'pipe' as const, id: r.id })),
+        ...Object.values(doc.pipeAccessories ?? {})
+          .filter((a) => a.levelId === hier && !a.generated)
+          .map((a) => ({ kind: 'accessory' as const, id: a.id })),
+        ...Object.values(doc.verticals ?? {})
+          .filter((v) => v.levelId === hier)
+          .map((v) => ({ kind: 'vertical' as const, id: v.id })),
+        ...Object.values(doc.solids ?? {})
+          .filter((b) => b.levelId === hier)
+          .map((b) => ({ kind: 'solid' as const, id: b.id })),
+        ...Object.values(doc.durchbrueche ?? {})
+          .filter((d) => d.levelId === hier)
+          .map((d) => ({ kind: 'durchbruch' as const, id: d.id })),
+        ...Object.values(doc.annotations ?? {})
+          .filter((a) => a.levelId === hier)
+          .map((a) => ({ kind: 'annotation' as const, id: a.id })),
+        ...Object.values(doc.site.elements).map((e) => ({ kind: 'site' as const, id: e.id })),
+        ...Object.values(doc.site.pumps)
+          .filter((p) => stehtAufGeschoss(doc, p, hier))
+          .map((p) => ({ kind: 'heatpump' as const, id: p.id })),
       ];
+      const next = roh.filter((sel) => !auswahlGesperrt(doc, sel) && istSichtbar(doc, sel.kind, sel.id));
       set({ selections: next, selection: next.length ? next[next.length - 1] : null });
     },
     setHover: (hover) => set({ hover }),
@@ -3843,6 +3909,9 @@ export const useBimStore = create<BimState>()((set, get) => {
       const pump: HeatPump = {
         id: uid('wp'),
         label: 'Wärmepumpe',
+        // Aufgestellt wird auf dem Geschoss, auf dem man steht. Nur dort ist
+        // das Gerät danach greifbar — siehe `aufstellgeschoss.ts`.
+        levelId: get().doc.activeLevelId,
         source: 'air',
         form: 'monoblock-outdoor',
         position: { x: roundMm(position.x), y: roundMm(position.y) },
@@ -4821,20 +4890,31 @@ export const useBimStore = create<BimState>()((set, get) => {
       set({ selection: null, selections: [], statusMessage: meldung });
     },
 
-    clearAll: () =>
-      mutate((doc) => {
-        doc.nodes = {};
-        doc.walls = {};
-        doc.openings = {};
-        doc.fixtures = {};
-        doc.verticals = {};
-        doc.solids = {};
-        doc.durchbrueche = {};
-        doc.pipes = {};
-        doc.annotations = {};
-        doc.roofOpenings = {};
-        doc.rooms = {};
-      }),
+    /*
+     * „Alles löschen" — jetzt wirklich alles.
+     *
+     * Was hier stand, räumte elf Sammlungen und ließ Grundstück, Wärmepumpe,
+     * Armaturen, Freihandnotizen, Referenzbild, Dächer und die ausgelegte
+     * Anlage stehen. Die Begründung dafür stand nirgends, und im Plan sah man
+     * nur das Ergebnis: eine leere Zeichenfläche mit einer
+     * Grundstücksgrenze darauf, die sich mit demselben Knopf nicht mehr
+     * entfernen ließ. Was bleibt und was geht, steht jetzt an einer Stelle
+     * und mit Begründung in `planLeeren.ts`.
+     *
+     * Zurückgegeben wird die Bilanz — der Aufrufer zeigt sie *vor* der
+     * Rückfrage und danach in der Statuszeile.
+     */
+    clearAll: () => {
+      const bilanz = loeschbilanz(get().doc);
+      mutate((doc) => leerePlan(doc));
+      set({
+        selection: null,
+        selections: [],
+        trace: null,
+        statusMessage: bilanzSatz(bilanz),
+      });
+      return bilanz;
+    },
 
     loadDemo: () => {
       mutate((doc) => {

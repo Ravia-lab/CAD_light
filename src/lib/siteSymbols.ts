@@ -280,7 +280,15 @@ export interface PumpOverlay {
   exceeded: boolean;
 }
 
-/** Die Wärmepumpe mit ihren beiden Bedingungskreisen. */
+/**
+ * Die Wärmepumpe mit ihren beiden Bedingungskreisen.
+ *
+ * `fremd` heißt: Das Gerät steht auf einem **anderen** Geschoss und scheint
+ * hier nur durch. Es wird blass gezeichnet und ohne seine Schallkreise —
+ * siehe `aufstellgeschoss.ts`. Die Kreise gehören zum Nachweis, und ein
+ * Nachweis, der auf dem Geschoss auftaucht, auf dem das Gerät gar nicht
+ * steht, ist eine Aussage über nichts.
+ */
 export function drawHeatPump(
   ctx: CanvasRenderingContext2D,
   pump: HeatPump,
@@ -289,33 +297,36 @@ export function drawHeatPump(
   sy: Px,
   zoom: number,
   selected: boolean,
+  fremd = false,
 ): void {
   const x = sx(pump.position.x);
   const y = sy(pump.position.y);
   ctx.save();
+  if (fremd) ctx.globalAlpha = 0.28;
+  const kreise = fremd ? undefined : overlay;
 
-  if (overlay) {
+  if (kreise) {
     // Schallradien zuerst, damit das Gerät darüber liegt.
     ctx.setLineDash([8, 6]);
     ctx.lineWidth = 1.2;
-    ctx.strokeStyle = overlay.exceeded ? SITE_COLORS.noiseBad : SITE_COLORS.noiseOk;
+    ctx.strokeStyle = kreise.exceeded ? SITE_COLORS.noiseBad : SITE_COLORS.noiseOk;
     ctx.globalAlpha = 0.75;
     ctx.beginPath();
-    ctx.arc(x, y, overlay.limitRadius * zoom, 0, Math.PI * 2);
+    ctx.arc(x, y, kreise.limitRadius * zoom, 0, Math.PI * 2);
     ctx.stroke();
 
     ctx.globalAlpha = 0.35;
     ctx.setLineDash([3, 5]);
     ctx.beginPath();
-    ctx.arc(x, y, overlay.safeRadius * zoom, 0, Math.PI * 2);
+    ctx.arc(x, y, kreise.safeRadius * zoom, 0, Math.PI * 2);
     ctx.stroke();
 
-    if (overlay.protectionRadius > 0) {
+    if (kreise.protectionRadius > 0) {
       ctx.globalAlpha = 0.8;
       ctx.setLineDash([2, 3]);
       ctx.strokeStyle = SITE_COLORS.hazard;
       ctx.beginPath();
-      ctx.arc(x, y, overlay.protectionRadius * zoom, 0, Math.PI * 2);
+      ctx.arc(x, y, kreise.protectionRadius * zoom, 0, Math.PI * 2);
       ctx.stroke();
     }
     ctx.globalAlpha = 1;

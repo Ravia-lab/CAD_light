@@ -48,6 +48,7 @@ import { pruefeAnlagenschema } from './pruefungen/anlagenschema';
 import { pruefeRohrdaemmung } from './pruefungen/rohrdaemmung';
 import { pruefeRohrbezeichnung } from './pruefungen/rohrbezeichnung';
 import { pruefeWandhoehen } from './pruefungen/wandhoehen';
+import { pruefePlanLeeren } from './pruefungen/planleeren';
 import { pruefeSprache } from './pruefungen/sprache';
 import { pruefeDachlandschaft } from './pruefungen/dachlandschaft';
 import { pruefeRohrausleger } from './pruefungen/rohrausleger';
@@ -3816,6 +3817,9 @@ pruefeSprache(check);
 
 console.log('\n▸ Wandhöhen — eine Deckenhöhe je Geschoss');
 pruefeWandhoehen(check);
+
+console.log('\n▸ Alles löschen — was weggeht, was bleibt, wo die Pumpe steht');
+pruefePlanLeeren(check);
 
 console.log('\n▸ Rohrbezeichnung — heißt die Leitung so, wie sie bestellt wird?');
 pruefeRohrbezeichnung(check);

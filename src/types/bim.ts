@@ -2269,6 +2269,28 @@ export interface HeatPump {
   /** Trinkwarmwasser über die Wärmepumpe? Zuschlag je Person [kW]. */
   domesticHotWater: boolean;
   occupants: number;
+  /**
+   * Das Geschoss, auf dem das Gerät **aufgestellt** wurde.
+   *
+   * **Warum eine Außeneinheit ein Geschoss braucht.** Sie steht im Gelände
+   * und nicht in einem Raum — genau deshalb lag sie bis 1.36.2 ohne
+   * Geschossbezug in `site.pumps` und wurde in *jedem* Grundriss gezeichnet.
+   * Das war nicht nur eine Frage der Darstellung: Wer sie im Obergeschoss
+   * antippte, hatte dasselbe Gerät in der Hand wie im Erdgeschoss und konnte
+   * es dort löschen. Ein Gerät, das man auf einem Geschoss aufstellt, auf dem
+   * es gar nicht steht, wieder wegnehmen kann, ist eine Falle.
+   *
+   * Der Eintrag ändert nichts an der Zugehörigkeit zum Gelände: Das Gerät
+   * bleibt ein Objekt des Grundstücks, wird im Modell einmal gezeigt und geht
+   * einmal in den Schallnachweis ein. Er sagt nur, **wo man es anfasst**.
+   *
+   * Fehlt er — ältere Projekte kennen ihn nicht —, gilt das Geschoss bei
+   * ±0,00; siehe `aufstellgeschoss()`. Eine Umschreibung der Datei findet
+   * dafür bewusst nicht statt: Das Feld ist eine Bedienhilfe und keine
+   * Rechengröße, und eine stillschweigende Änderung am Dokument des Anwenders
+   * wäre der höhere Preis.
+   */
+  levelId?: LevelId;
 }
 
 /** Art eines Objekts im Außengelände. */

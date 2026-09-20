@@ -115,6 +115,7 @@ import type { RoofFrame } from '../lib/roofGeometry';
 import { useBimStore } from '../store/useBimStore';
 import { baueDachlandschaft } from '../lib/dachlandschaft';
 import { drawHeatPump, drawSiteElement, hitTestPump, hitTestSiteArea, hitTestSiteElement } from '../lib/siteSymbols';
+import { stehtAufGeschoss } from '../lib/aufstellgeschoss';
 import { ROOM_TEMPLATES, ROOM_TEMPLATE_BY_KIND, ROOM_SIZE_PRESETS, polygonArea, templatePolygon } from '../lib/roomTemplates';
 import { acousticReport, protectionIssues, requiredDistance, ROOM_ANGLE, ratedSoundPower, IRRELEVANCE_MARGIN, IMMISSION_LIMITS } from '../lib/heatPump';
 import CalibrationOverlay from './CalibrationOverlay';
@@ -906,10 +907,18 @@ export default function Editor2D({ className = '' }: { className?: string }) {
         }
       }
 
-      // Die Wärmepumpe liegt im Plan ganz oben und wird auch zuerst
-      // getroffen — sie ist das Objekt, das man beim Planen bewegt.
+      /*
+       * Die Wärmepumpe liegt im Plan ganz oben und wird auch zuerst
+       * getroffen — sie ist das Objekt, das man beim Planen bewegt.
+       *
+       * Aber nur auf dem Geschoss, auf dem sie **aufgestellt** ist. Auf allen
+       * anderen scheint sie durch, und der Zeiger greift durch sie hindurch
+       * auf das, was dort wirklich liegt (siehe `aufstellgeschoss.ts`). Bis
+       * 1.36.2 war sie überall greifbar — und damit überall löschbar.
+       */
       for (const pump of pumps) {
         if (pump.form === 'indoor') continue;
+        if (!stehtAufGeschoss(doc, pump, doc.activeLevelId)) continue;
         if (hitTestPump(pump, world)) if (anfassbar('heatpump', pump.id)) return { kind: 'heatpump' as const, id: pump.id };
       }
 
@@ -1291,6 +1300,10 @@ export default function Editor2D({ className = '' }: { className?: string }) {
     // das ist der eigentliche Zweck der ganzen Darstellung.
     for (const pump of pumps) {
       if (pump.form === 'indoor') continue;
+      // Steht sie auf einem anderen Geschoss, scheint sie nur durch: blass
+      // und ohne Schallkreise. Sichtbar bleibt sie trotzdem — beim Planen der
+      // Leitung im Obergeschoss will man wissen, wo das Gerät steht.
+      const hier = stehtAufGeschoss(doc, pump, doc.activeLevelId);
       drawHeatPump(
         ctx,
         pump,
@@ -1301,6 +1314,7 @@ export default function Editor2D({ className = '' }: { className?: string }) {
         // Wie bei Wand und TGA-Objekt über `selections`: sonst bliebe eine im
         // Rahmen gefasste Wärmepumpe unmarkiert, obwohl sie mitgezogen wird.
         selections.some((s2) => s2.kind === 'heatpump' && s2.id === pump.id),
+        !hier,
       );
     }
 
