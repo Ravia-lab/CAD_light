@@ -220,10 +220,12 @@ console.log('\n▸ Das Raumbuch nimmt an, was es zeigt');
   await p.keyboard.press('Enter');
   await p.waitForTimeout(700);
   expect('Aus einer Zahl entsteht ein Heizkörper', (await zahlen()).objekte, vorher + 1);
+  // „Duschbad" ist eine Standardbezeichnung und macht den Raum zum Bad
+  // (seit 1.39.0) — dort setzt die Zahl einen Badheizkörper (seit 1.40.0).
   const hk = await zustand(() => {
     const d = window.__ravia.getState().doc;
     const raum = Object.values(d.rooms).find((r) => r.name === 'Duschbad');
-    const f = Object.values(d.fixtures).filter((x) => x.roomId === raum?.id && x.type === 'radiator');
+    const f = Object.values(d.fixtures).filter((x) => x.roomId === raum?.id && x.type === 'towel-radiator');
     const neu = f[f.length - 1];
     return { watt: neu?.params.powerW ?? 0, herkunft: neu?.params.powerSource ?? '', anWand: Boolean(neu?.wallId) };
   });
@@ -232,7 +234,7 @@ console.log('\n▸ Das Raumbuch nimmt an, was es zeigt');
   expect('An einer Wand, nicht im Nichts', hk.anWand, true);
   expect(
     'Die Statuszeile sagt, wo er gelandet ist',
-    /Heizkörper mit 850 W (unter das breiteste Fenster|an die längste Außenwand|in die Raummitte)/.test(
+    /Badheizkörper mit 850 W (unter das breiteste Fenster|an die längste Außenwand|in die Raummitte)/.test(
       await p.locator('footer').innerText(),
     ),
     true,

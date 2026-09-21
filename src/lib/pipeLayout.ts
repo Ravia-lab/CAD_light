@@ -175,6 +175,20 @@ export interface PipeLayoutOptions {
  */
 export const RING_MINDEST_DN = { zuleitung: 25, ring: 15, anbindung: 12 } as const;
 
+/**
+ * Größte Nennweite der Kreisleitung: DN 20 = Cu 22 × 1.
+ *
+ * Handwerkerregel „dann von dort 22 oder 18er Rohr Kreisleitung". Die
+ * Hydraulik allein würde am Ringanfang eines Einfamilienhauses mit 8–9 kW
+ * schnell Cu 28 wählen, weil das Druckgefälle in Cu 22 dort 250–350 Pa/m
+ * erreicht — gegenüber dem Richtwert 150 Pa/m. Das ist über kurze Länge
+ * ausführbar und in der Praxis so üblich; ein Ring in Cu 28 passt dagegen in
+ * keinen Sockelleistenkanal. Die Obergrenze gilt deshalb fest, und wo Cu 22
+ * die Richtwerte reißt, sagt es ein Hinweis mit den Zahlen, damit die
+ * Pumpenförderhöhe geprüft wird.
+ */
+export const RING_HOECHST_DN = 20;
+
 /** Die strengere zweier Untergrenzen; fehlt eine, gilt die andere. */
 function mindestFuer(a: number | undefined, b: number | undefined): number | undefined {
   if (a === undefined || a <= 0) return b;
@@ -850,6 +864,8 @@ export function planPipeNetwork(doc: BimDocument, options: PipeLayoutOptions): P
   let laufendeNummer = 0;
   let routeLength = 0;
   let zuGross = 0;
+  /** Ringabschnitte, in denen Cu 22 die Richtwerte reißt — der schlimmste zählt. */
+  let ringUeber: { anzahl: number; v: number; gradient: number; laenge: number } = { anzahl: 0, v: 0, gradient: 0, laenge: 0 };
 
   /*
    * Alle Abschnitte aller Läufe zusammen — daran hängen später die T-Stücke
@@ -1040,7 +1056,16 @@ export function planPipeNetwork(doc: BimDocument, options: PipeLayoutOptions): P
       // hergibt, entscheidet die Tabelle in `hydraulics` und nicht diese
       // Schleife. Bei Verbundrohr ist DN 32 das Maß 40 × 3,5.
       minDn: mindestFuer(amErzeuger ? mindestDn : undefined, ringRolle ? RING_MINDEST_DN[ringRolle] : undefined),
+      maxDn: ringRolle === 'ring' ? RING_HOECHST_DN : undefined,
     });
+    if (ringRolle === 'ring' && dim.reason === 'größte' && dim.warning) {
+      ringUeber = {
+        anzahl: ringUeber.anzahl + 1,
+        v: Math.max(ringUeber.v, dim.velocity),
+        gradient: Math.max(ringUeber.gradient, dim.gradient),
+        laenge: ringUeber.laenge + laenge,
+      };
+    }
 
     if (amErzeuger && mindestDn !== undefined) {
       // Was die Hydraulik allein ergeben hätte — für die Begründung. Sie
@@ -1177,6 +1202,18 @@ export function planPipeNetwork(doc: BimDocument, options: PipeLayoutOptions): P
             text: `${zuGross} Abschnitt${zuGross === 1 ? '' : 'e'} überschreitet den Sockelleistenkanal: er trägt Rohre bis ${SOCKELLEISTE_MAX_AUSSEN} mm Außendurchmesser (Kanal 40 × 105 mm). Für diese Abschnitte einen größeren Aufputzkanal oder eine andere Trasse wählen.`,
           },
     );
+  }
+
+  if (ringUeber.anzahl > 0) {
+    const de = (x: number, n = 2) => x.toFixed(n).replace('.', ',');
+    notes.push({
+      severity: 'warn',
+      text:
+        `Ringanfang über den Richtwerten: Die Kreisleitung bleibt bei Cu 22 (Handwerkerregel, höchstens 22 mm), ` +
+        `auf ${de(ringUeber.laenge, 1)} m läuft sie dabei mit bis zu ${de(ringUeber.v)} m/s und ${Math.round(ringUeber.gradient)} Pa/m ` +
+        `(Richtwert ${SIZING_LIMITS.verteilung.maxVelocity.toFixed(1).replace('.', ',')} m/s, ${SIZING_LIMITS.maxGradient} Pa/m). ` +
+        'Pumpenförderhöhe prüfen — oder den Ring in zwei Kreise teilen bzw. die Spreizung erhöhen.',
+    });
   }
 
   // --- Armaturen -----------------------------------------------------------

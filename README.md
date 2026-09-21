@@ -716,7 +716,12 @@ als Baum oder — mit dem Schalter „Ring" — als **Ringleitung** entlang der
 Außenwände. Beim Ring gilt die Handwerkerregel fest: Zuleitung vom
 Wärmeerzeuger zum Verteiler oder Pufferspeicher mindestens 1" (Cu 28), die
 Kreisleitung Cu 22 bzw. Cu 18, jede Heizkörperanbindung mindestens Cu 15 —
-ein Heizkörper wird nie mit 12 mm angeschlossen. Der Ring beginnt am
+ein Heizkörper wird nie mit 12 mm angeschlossen. Die Kreisleitung wird
+höchstens Cu 22: Reißt sie am Ringanfang die Richtwerte (1,0 m/s, 150 Pa/m),
+bleibt es bei Cu 22, und ein Hinweis nennt Geschwindigkeit und Druckgefälle,
+damit die Pumpenförderhöhe geprüft wird. Geprüft wird das nicht nur am
+Rechenbeispiel, sondern an einem echten, anonymisierten Bestandsscan
+(`npm run smoke:bestand`, zwei Aufstellorte der Wärmepumpe). Der Ring beginnt am
 nächsten Punkt zur Quelle und lässt die größere Lücke neben dem Anfang offen;
 Türen in Außenwänden und nötige Kernbohrungen werden als Hinweis genannt.
 

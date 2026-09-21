@@ -60,7 +60,8 @@ import { emptyPlant, emptySite } from '../../src/lib/plantDefaults';
 import { pointInPolygon } from '../../src/lib/geometry';
 import { hauseinfuehrung } from '../../src/lib/hauseinfuehrung';
 import { planeRing } from '../../src/lib/ringleitung';
-import { planPipeNetwork, RING_MINDEST_DN } from '../../src/lib/pipeLayout';
+import { planPipeNetwork, RING_HOECHST_DN, RING_MINDEST_DN } from '../../src/lib/pipeLayout';
+import { fluidProperties, sizePipe } from '../../src/lib/hydraulics';
 import { STANDARD_RAUMNAMEN, istStandardraumname, nutzungAusName } from '../../src/lib/raumnutzung';
 import { FIXTURE_BY_TYPE } from '../../src/types/bim';
 import type { CheckFn } from './typ';
@@ -330,5 +331,43 @@ export function pruefeRingleitung(check: CheckFn): void {
     check('Gewählt ist gewählt, auch klein geschrieben', istStandardraumname('  bad '), true);
     check('„Bad OG" ist ein eigener Name', istStandardraumname('Bad OG'), false);
     check('Keine doppelten Einträge', new Set(STANDARD_RAUMNAMEN).size, STANDARD_RAUMNAMEN.length);
+  }
+
+  // =========================================================================
+  // 7 · Kreisleitung höchstens Cu 22 — gemeldet am echten Bestandsscan
+  // =========================================================================
+  /*
+   * Am Ringanfang eines Einfamilienhauses mit 8,6 kW kam „Ringleitung Cu 28"
+   * heraus: Cu 22 hält dort zwar die Geschwindigkeit, reißt aber das
+   * Druckgefälle 150 Pa/m. Die Handwerkerregel sagt 22 oder 18 — also gilt
+   * DN 20 als Obergrenze, und ein Hinweis nennt die Zahlen.
+   *
+   * Handrechnung: 0,75 m³/h in Cu 22 × 1 (lichte Weite 20 mm):
+   *   A = π · 0,010² = 3,1416e-4 m², Q = 0,75 / 3600 = 2,0833e-4 m³/s,
+   *   v = Q / A = 0,663 m/s  (< 1,0 m/s, die Geschwindigkeit hält).
+   */
+  {
+    const fluid = fluidProperties(50);
+    const frei = sizePipe(0.75, { material: 'kupfer', maxVelocity: 1.0, maxGradient: 150, fluid });
+    check('Ohne Obergrenze wählt die Hydraulik Cu 28 (DN 25)', frei.dimension.dn, 25);
+    const gedeckelt = sizePipe(0.75, { material: 'kupfer', maxVelocity: 1.0, maxGradient: 150, fluid, maxDn: RING_HOECHST_DN });
+    check('Mit Obergrenze DN 20 bleibt es bei Cu 22', gedeckelt.dimension.dn, 20);
+    check('… und die Begründung sagt „größte"', gedeckelt.reason, 'größte');
+    check('… v = 0,663 m/s (Handrechnung)', Math.abs(gedeckelt.velocity - 0.663) < 0.005, true);
+    check('… das Druckgefälle liegt über 150 Pa/m', gedeckelt.gradient > 150, true);
+    check('… und es gibt eine Warnung', typeof gedeckelt.warning, 'string');
+
+    // Das Prüfhaus mit 2 kW je Heizfläche: 10 kW am Ringanfang.
+    const haus = baueHaus({ pumpe: 'monoblock-outdoor' });
+    for (const f of Object.values(haus.fixtures)) f.params = { ...f.params, powerW: 2000 };
+    const stark = planPipeNetwork(haus, { mode: 'sanierung', levelId: 'eg', anordnung: 'ring' });
+    const ringWeiten = [...new Set(stark.runs
+      .filter((r) => (r.label ?? '').startsWith('Ringleitung'))
+      .map((r) => (r.label ?? '').replace('Ringleitung ', '')))];
+    check('Starker Ring: nur Cu 22 und Cu 18', ringWeiten.every((w) => w === 'Cu 22 × 1' || w === 'Cu 18 × 1'), true);
+    check('Starker Ring: am Anfang Cu 22', ringWeiten.includes('Cu 22 × 1'), true);
+    check('Starker Ring: Hinweis mit den Zahlen',
+      stark.notes.some((n) => n.severity === 'warn' && n.text.startsWith('Ringanfang über den Richtwerten')), true);
+    check('Starker Ring: kein Fehler', stark.notes.filter((n) => n.severity === 'error').length, 0);
   }
 }

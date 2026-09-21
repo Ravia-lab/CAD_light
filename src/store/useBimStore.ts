@@ -2693,17 +2693,21 @@ export const useBimStore = create<BimState>()((set, get) => {
 
       if (watt === undefined) return { ok: true, message: '' };
 
-      const platz = heizkoerperplatz(room, d0.walls, d0.nodes, d0.openings, FIXTURE_BY_TYPE.radiator?.depth ?? 0.1);
-      const erstellt = get().addFixture('radiator', platz.position, {
+      // Im Bad hängt ein Badheizkörper, kein Plattenheizkörper — so setzt ihn
+      // der Handwerker, und so trägt ihn die Heizflächenauslegung (EN 442, n = 1,3).
+      const typ = room.usage === 'bath' ? 'towel-radiator' : 'radiator';
+      const def = FIXTURE_BY_TYPE[typ];
+      const platz = heizkoerperplatz(room, d0.walls, d0.nodes, d0.openings, def?.depth ?? 0.1);
+      const erstellt = get().addFixture(typ, platz.position, {
         rotation: platz.rotation,
         wallId: platz.wallId,
         roomId,
-        params: { ...FIXTURE_BY_TYPE.radiator.params, powerW: watt, powerSource: 'datenblatt' },
+        params: { ...def.params, powerW: watt, powerSource: 'datenblatt' },
       });
       if (!erstellt) return { ok: false, message: 'Heizkörper konnte nicht angelegt werden' };
       return {
         ok: true,
-        message: `„${room.name}": Heizkörper mit ${Math.round(watt)} W ${PLATZ_TEXT[platz.grund]}.`,
+        message: `„${room.name}": ${typ === 'towel-radiator' ? 'Badheizkörper' : 'Heizkörper'} mit ${Math.round(watt)} W ${PLATZ_TEXT[platz.grund]}.`,
       };
     },
 

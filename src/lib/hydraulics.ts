@@ -1042,6 +1042,12 @@ export interface SizingOptions {
   maxGradient?: number;
   /** Kleinste zulässige Nennweite [mm] — etwa wegen Anschlussmaß am Gerät. */
   minDn?: number;
+  /**
+   * Größte zulässige Nennweite [mm] — eine Vorgabe aus der Verlegeart, nicht
+   * aus der Hydraulik (Ringleitung: höchstens Cu 22). Reißt die größte
+   * erlaubte Weite die Grenzen, bleibt es bei ihr, und `warning` sagt es.
+   */
+  maxDn?: number;
   fluid?: FluidProperties;
   condition?: PipeCondition;
 }
@@ -1076,6 +1082,7 @@ export function sizePipe(flow: number, options: SizingOptions = {}): PipeSizing 
   const source = options.table ?? PIPE_TABLES[options.material ?? 'kupfer'];
   const table = [...source]
     .filter((d) => (options.minDn === undefined ? true : d.dn >= options.minDn))
+    .filter((d) => (options.maxDn === undefined ? true : d.dn <= options.maxDn))
     .sort((a, b) => a.inner - b.inner);
 
   if (table.length === 0) {
