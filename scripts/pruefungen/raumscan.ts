@@ -318,10 +318,12 @@ export function pruefeRaumscan(check: CheckFn): void {
   check(
     'Adresse aus der Datei',
     r.adresse ?? 'fehlt',
-    'Frankfurter Straße 6, 61169 Friedberg (Hessen)',
+    // Die Beispieldatei ist anonymisiert (Adresse und Koordinaten ersetzt,
+    // 21.09.2026) — geprüft wird, dass beide Felder gelesen werden.
+    'Musterstraße 1, 12345 Musterstadt',
   );
-  check('Breitengrad', r.koordinaten?.breite ?? 0, 50.3292, 0.001);
-  check('Längengrad', r.koordinaten?.laenge ?? 0, 8.7505, 0.001);
+  check('Breitengrad', r.koordinaten?.breite ?? 0, 50.0, 0.001);
+  check('Längengrad', r.koordinaten?.laenge ?? 0, 8.0, 0.001);
 
   // --- Raumnutzung ----------------------------------------------------------
   //  Zwei der sieben Bereiche heißen im Scan „unidentified". Ein Import, der

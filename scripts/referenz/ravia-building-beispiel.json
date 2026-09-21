@@ -435,13 +435,13 @@
   }
  ],
  "project": {
-  "address": "Friedberg (Hessen)",
+  "address": "Musterstadt",
   "location": {
    "accuracyM": 12,
-   "latitude": 50.3292,
-   "longitude": 8.7505
+   "latitude": 50.0,
+   "longitude": 8.0
   },
-  "name": "Referenzwohnung Friedberg",
+  "name": "Referenzwohnung",
   "raviaProjectId": 1234,
   "sessionId": "8f0c2d1e-4b7a-4c1e-9f55-0f3c9f3b2a10"
  },
