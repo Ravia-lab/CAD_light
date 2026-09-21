@@ -38,6 +38,7 @@ const b = await chromium.launch({
 const p = await b.newPage({ viewport: { width: 1600, height: 1000 } });
 const errs = [];
 p.on('pageerror', (e) => errs.push('PAGEERROR ' + e.message));
+p.on('console', (m) => { if (m.text().startsWith('DIFF ')) console.log('  · ' + m.text()); });
 p.on('console', (m) => { if (m.type() === 'error' && !/ERR_CONNECTION_RESET/.test(m.text())) errs.push(m.text()); });
 
 let failures = 0;
@@ -134,6 +135,80 @@ for (const [ort, wp] of [
   await p.evaluate(() => { const S = window.__ravia.getState(); S.setTool('select'); S.setSelection(null); });
   await p.waitForTimeout(300);
   await p.locator('main canvas').first().screenshot({ path: `./screenshots/bestand-${wp.x > 0 ? 'ost' : 'west'}.png` });
+}
+
+console.log('\n▸ Heizkörper an der Innenwand: Stich von der kürzesten Stelle (gemeldet: „spart sehr viel Rohr und Bögen")');
+{
+  const r = await p.evaluate((scan) => {
+    const S = () => window.__ravia.getState();
+    S().loadRaumscan(scan);
+    for (const raum of Object.values(S().doc.rooms)) S().setzeRaumHeizleistung(raum.id, raum.usage === 'bath' ? 600 : 1000);
+    // Im Flurbereich von „Raum 2", an der Innenwand unter „Raum 9".
+    const f = S().addFixture('radiator', { x: 3.6, y: -5.6 }, { params: { powerW: 500 } });
+    const id = typeof f === 'string' ? f : f?.id;
+    S().addHeatPump({ x: 13.3, y: -2 });
+    const erg = S().legeRohrnetzAus('sanierung', 'ring');
+    const stueck = Object.values(S().doc.pipes).filter((x) => x.service === 'heating-flow' && x.label?.startsWith('Anbindung'));
+    // Die Stücke des Stichs: an einem Ende liegt der Heizkörper, der Rest hängt dran.
+    const fx = S().doc.fixtures[id];
+    const len = (x) => Math.hypot(x.points[1].x - x.points[0].x, x.points[1].y - x.points[0].y);
+    const nahe = stueck.filter((x) => x.points.some((q) => Math.hypot(q.x - fx.position.x, q.y - fx.position.y) < 3.2));
+    return {
+      served: erg.served,
+      hinweis: erg.notes.find((n) => n.text.startsWith('Nicht an einer Außenwand, deshalb als Stich'))?.text ?? '',
+      fehler: erg.notes.filter((n) => n.severity === 'error').length,
+      weiten: [...new Set(nahe.map((x) => x.label))],
+      laengeStich: Math.round(nahe.reduce((s0, x) => s0 + len(x), 0) * 100) / 100,
+    };
+  }, SCAN);
+  console.log(`  · ${r.hinweis}`);
+  expect('Alle zehn Heizkörper versorgt', r.served, 10);
+  expect('Der Innenwand-Heizkörper hängt an einem Stich', /Heizkörper \d+,\d+ m/.test(r.hinweis), true);
+  const m = Number((r.hinweis.match(/Heizkörper (\d+,\d+) m/)?.[1] ?? '99').replace(',', '.'));
+  // Luftlinie zum Ring an der Nordwand ≈ 2,6 m; an der Wand entlang ≈ 2,8 m.
+  expect('Der Stich ist kurz (< 3,5 m)', m < 3.5, true);
+  expect('Der Stich in Cu 15', r.weiten.every((w) => w === 'Anbindung Cu 15 × 1'), true);
+  expect('Kein Fehler', r.fehler, 0);
+  await p.evaluate(() => { const S = window.__ravia.getState(); S.setTool('select'); S.setSelection(null); S.setViewport({ center: { x: 4.5, y: -5 }, zoom: 110 }); });
+  await p.waitForTimeout(300);
+  await p.locator('main canvas').first().screenshot({ path: './screenshots/bestand-stich.png' });
+  await p.evaluate(() => window.__ravia.getState().setViewport({ center: { x: 5, y: -3 }, zoom: 55 }));
+}
+
+console.log('\n▸ Raumnamen gehen beim Spiegeln mit (gemeldet: „werden durcheinandergewürfelt")');
+{
+  const r = await p.evaluate((scan) => {
+    const S = () => window.__ravia.getState();
+    S().loadRaumscan(scan);
+    // Jeden Raum eindeutig benennen und die Nutzung merken.
+    let i = 0;
+    for (const raum of Object.values(S().doc.rooms)) S().updateRoom(raum.id, { name: `Prüfraum ${++i}` });
+    const vorher = Object.fromEntries(Object.values(S().doc.rooms).map((x) => [x.id, [x.name, x.usage]]));
+    const vergleiche = () => {
+      const jetzt = Object.fromEntries(Object.values(S().doc.rooms).map((x) => [x.id, [x.name, x.usage]]));
+      const diff = Object.keys(vorher).filter((id) => JSON.stringify(vorher[id]) !== JSON.stringify(jetzt[id]));
+      if (diff.length) console.log("DIFF " + JSON.stringify(diff.map((id) => [id, vorher[id], jetzt[id]])));
+      return diff.length;
+    };
+    const ergebnis = {};
+    S().spiegleGrundriss('senkrecht', 'alles'); ergebnis.lr = vergleiche();
+    S().spiegleGrundriss('waagerecht', 'alles'); ergebnis.ou = vergleiche();
+    // Ganze Zeichnung auswählen und über die Auswahl spiegeln und verschieben.
+    const waende = Object.keys(S().doc.walls).map((id) => ({ kind: 'wall', id }));
+    S().setSelections?.(waende);
+    if (!S().setSelections) window.__ravia.setState({ selections: waende });
+    S().mirrorSelection('x'); ergebnis.auswahl = vergleiche();
+    S().moveSelection({ x: 25, y: -18 }); ergebnis.verschoben = vergleiche();
+    S().undo(); S().undo(); S().undo(); S().undo(); ergebnis.zurueck = vergleiche();
+    ergebnis.anzahl = Object.keys(vorher).length;
+    return ergebnis;
+  }, SCAN);
+  expect('Neun benannte Räume', r.anzahl, 9);
+  expect('Links/rechts gespiegelt: kein Name verrutscht', r.lr, 0);
+  expect('Oben/unten gespiegelt: kein Name verrutscht', r.ou, 0);
+  expect('Über die Auswahl gespiegelt: kein Name verrutscht', r.auswahl, 0);
+  expect('Weit verschoben: kein Name verrutscht', r.verschoben, 0);
+  expect('Viermal Strg+Z: alles wie vorher', r.zurueck, 0);
 }
 
 console.log('\n▸ Nichts in der Konsole');

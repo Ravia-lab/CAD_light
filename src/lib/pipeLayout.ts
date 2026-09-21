@@ -921,12 +921,23 @@ export function planPipeNetwork(doc: BimDocument, options: PipeLayoutOptions): P
         rolleVon.set(a, 'ring');
       }
       const umwege: string[] = [];
+      const stiche: { name: string; laenge: number; bohrungen: number }[] = [];
       for (const a of r.anschluesse) {
         const ziel = gruppe.ziele.find((z) => z.id === a.id)!;
         if (a.gerade) {
           const seg = { from: { ...a.punkt }, to: { ...ziel.position }, targets: [a.id] };
           segmente.push(seg);
           rolleVon.set(seg, 'anbindung');
+        } else if (a.stich && a.stich.length >= 2) {
+          // Stich an den Innenwänden, vom Ring zum Heizkörper: die Punkte
+          // laufen vom Heizkörper zum Ring, verlegt wird vom Ring aus.
+          const pkt = [...a.stich].reverse();
+          for (let k = 1; k < pkt.length; k++) {
+            const seg = { from: { ...pkt[k - 1] }, to: { ...pkt[k] }, targets: [a.id] };
+            segmente.push(seg);
+            rolleVon.set(seg, 'anbindung');
+          }
+          stiche.push({ name: ziel.label ?? ziel.type, laenge: a.abstand, bohrungen: a.stichKernbohrungen ?? 0 });
         } else {
           // Liegt der Verbraucher nicht an einer Außenwand seines Raums, wird
           // die Anbindung trassiert — mit denselben Regeln wie jede andere
@@ -948,6 +959,15 @@ export function planPipeNetwork(doc: BimDocument, options: PipeLayoutOptions): P
           `${r.kernbohrungen} Kernbohrung(en) durch Trennwände. Mindestweiten: Zuleitung DN ${RING_MINDEST_DN.zuleitung}, ` +
           `Ring DN ${RING_MINDEST_DN.ring}, Anbindung DN ${RING_MINDEST_DN.anbindung}.`,
       });
+      if (stiche.length) {
+        notes.push({
+          severity: 'info',
+          text:
+            'Nicht an einer Außenwand, deshalb als Stich von der kürzesten Stelle des Rings, an den Innenwänden entlang: ' +
+            stiche.map((x) => `${x.name} ${x.laenge.toFixed(2).replace('.', ',')} m` +
+              (x.bohrungen ? ` (${x.bohrungen} Kernbohrung${x.bohrungen === 1 ? '' : 'en'})` : '')).join(', ') + '.',
+        });
+      }
       if (umwege.length) {
         notes.push({
           severity: 'info',

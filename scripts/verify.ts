@@ -50,6 +50,7 @@ import { pruefeRohrbezeichnung } from './pruefungen/rohrbezeichnung';
 import { pruefeWandhoehen } from './pruefungen/wandhoehen';
 import { pruefePlanLeeren } from './pruefungen/planleeren';
 import { pruefeRingleitung } from './pruefungen/ringleitung';
+import { pruefeRaumnamenMitnehmen } from './pruefungen/raumnamenMitnehmen';
 import { pruefeSprache } from './pruefungen/sprache';
 import { pruefeDachlandschaft } from './pruefungen/dachlandschaft';
 import { pruefeRohrausleger } from './pruefungen/rohrausleger';
@@ -3825,6 +3826,7 @@ pruefePlanLeeren(check);
 
 console.log('\n▸ Ringleitung — Wärmepumpe als Erzeuger, Badheizkörper, Raumnamen');
 pruefeRingleitung(check);
+pruefeRaumnamenMitnehmen(check);
 
 console.log('\n▸ Rohrbezeichnung — heißt die Leitung so, wie sie bestellt wird?');
 pruefeRohrbezeichnung(check);

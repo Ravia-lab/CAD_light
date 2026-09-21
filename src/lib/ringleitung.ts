@@ -46,6 +46,7 @@ import type { BimNode, Opening, Room, Vec2, Wall } from '../types/bim';
 import { gebaeudeUmriss } from './roomDetection';
 import { closestPointOnSegment, offsetPolygonPerEdge, pointInPolygon, segmentIntersection } from './geometry';
 import { getWallGeometry } from './wallGeometry';
+import { planeStich } from './ringStich';
 
 /**
  * Abstand Rohrmitte zur Wandfläche [m].
@@ -79,6 +80,14 @@ export interface RingAnschluss {
   gerade: boolean;
   /** Länge der geraden Anbindung [m]. */
   abstand: number;
+  /**
+   * Stichleitung vom Ring zum Heizkörper, wenn er nicht an der Außenwand
+   * hängt (Flur, Trennwand): Eckpunkte vom Heizkörper zum Ring, an den
+   * Innenwänden entlang, mit Kernbohrung statt Türumweg. Siehe `ringStich`.
+   */
+  stich?: Vec2[];
+  /** Durchbohrte Trennwände auf dem Stich. */
+  stichKernbohrungen?: number;
 }
 
 export interface RingAbschnitt {
@@ -270,16 +279,58 @@ export function planeRing(eingabe: {
 
   // --- Anschlusspunkte ------------------------------------------------------
   const raumVon = new Map(rooms.map((r) => [r.id, r]));
-  const roh = verbraucher.map((v) => {
+  const basis = verbraucher.map((v) => {
     const raum = v.roomId ? raumVon.get(v.roomId) : undefined;
     const imRaum = raum && raum.innerPolygon.length >= 3 ? naechsterImRaum(u, v.position, raum.innerPolygon) : undefined;
     const ziel = imRaum ?? naechster(u, v.position)!;
+    return { v, ziel, gerade: !!imRaum && ziel.abstand <= GERADE_ANBINDUNG };
+  });
+
+  /*
+   * Welches Ringstück ohnehin liegt, bestimmen die Heizkörper an den
+   * Außenwänden. Ein Stich, der an ein Stück dahinter ginge, müsste den Ring
+   * dorthin verlängern — diese Verlängerung zählt beim Suchen des Stichs mit.
+   */
+  const geradeVorwaerts = basis
+    .filter((b) => b.gerade)
+    .map((b) => (((b.ziel.s - start.s) % u.umfang) + u.umfang) % u.umfang);
+  const verlaengerung = (() => {
+    if (!geradeVorwaerts.length) return undefined;
+    const letzterG = Math.max(...geradeVorwaerts);
+    const ersterG = Math.min(...geradeVorwaerts.map((d) => (d < 1e-6 ? u.umfang : d)));
+    const ccw = u.umfang - letzterG >= (ersterG >= u.umfang ? 0 : ersterG);
+    const reicht = ccw ? letzterG : ersterG >= u.umfang ? 0 : u.umfang - ersterG;
+    return (p: Vec2) => {
+      const am = naechster(u, p);
+      if (!am) return 0;
+      const vor = (((am.s - start.s) % u.umfang) + u.umfang) % u.umfang;
+      const d = ccw ? vor : (u.umfang - vor) % u.umfang;
+      return Math.max(0, d - reicht);
+    };
+  })();
+
+  const roh = basis.map(({ v, ziel, gerade }) => {
+    if (!gerade) {
+      /*
+       * Nicht an der Außenwand: Stich von der kürzesten Stelle des Rings,
+       * gesucht über die verlegbaren Wege (an den Wänden, durch Trennwände),
+       * nicht über die Luftlinie. Der Anschlusspunkt ist das Ende des Stichs.
+       */
+      const stich = planeStich({ walls, nodes, openings, umriss, ring: u.punkte, von: v.position, zielKosten: verlaengerung });
+      const am = stich ? naechster(u, stich.ende) : undefined;
+      if (stich && am) {
+        return {
+          id: v.id, punkt: stich.ende, s: am.s, abstand: stich.laenge, gerade: false,
+          stich: stich.punkte, stichKernbohrungen: stich.kernbohrungen,
+        };
+      }
+    }
     return {
       id: v.id,
       punkt: ziel.punkt,
       s: ziel.s,
       abstand: ziel.abstand,
-      gerade: !!imRaum && ziel.abstand <= GERADE_ANBINDUNG,
+      gerade,
     };
   });
 
@@ -300,7 +351,10 @@ export function planeRing(eingabe: {
   };
 
   const anschluesse: RingAnschluss[] = roh
-    .map((r) => ({ id: r.id, punkt: r.punkt, weg: weg(r.s), gerade: r.gerade, abstand: r.abstand }))
+    .map((r) => ({
+      id: r.id, punkt: r.punkt, weg: weg(r.s), gerade: r.gerade, abstand: r.abstand,
+      ...('stich' in r && r.stich ? { stich: r.stich, stichKernbohrungen: r.stichKernbohrungen } : {}),
+    }))
     .sort((a, b) => a.weg - b.weg);
   const laenge = anschluesse[anschluesse.length - 1].weg;
 

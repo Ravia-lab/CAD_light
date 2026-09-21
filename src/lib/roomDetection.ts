@@ -894,11 +894,96 @@ function matchPrevious(prepared: PreparedFace[], previous: Room[]): (Room | unde
   const matched: (Room | undefined)[] = prepared.map(() => undefined);
   if (previous.length === 0) return matched;
 
-  // Anwärter je Vorgängerraum sammeln.
+  /*
+   * **Erst nach Wänden, dann nach Lage.**
+   *
+   * Ein Raum ist, wer von denselben Wänden umschlossen wird. Solange sich an
+   * der Topologie nichts ändert — und das ist beim Spiegeln, Verschieben und
+   * Drehen des ganzen Plans der Fall —, hat jede Fläche genau denselben Satz
+   * Wandkennungen wie vorher. Der Schwerpunkt dagegen landet nach dem
+   * Spiegeln im Nachbarraum, und die Lagezuordnung darunter verteilte die
+   * Namen dann quer durchs Haus („die Raumnamen werden durcheinandergewürfelt").
+   *
+   * Deshalb zuerst die Zuordnung über den identischen Wandsatz, eindeutig in
+   * beiden Richtungen. Nur was danach übrig ist — geteilte Räume, neu
+   * gezogene Wände, verschmolzene Flächen —, geht über die Lage wie bisher.
+   */
+  const schluessel = (ids: Iterable<string | undefined>) =>
+    [...new Set([...ids].filter((x): x is string => Boolean(x)))].sort().join('|');
+  const alteSchluessel = new Map<string, number[]>();
+  previous.forEach((r, idx) => {
+    const k = schluessel(r.boundaries.map((b) => b.wallId));
+    if (!k) return;
+    const liste = alteSchluessel.get(k);
+    if (liste) liste.push(idx);
+    else alteSchluessel.set(k, [idx]);
+  });
+  const neueSchluessel = prepared.map((f) => schluessel(f.edgeWalls.map((w) => w?.id)));
+  const vergeben = new Set<number>();
+  const zaehler = new Map<string, number>();
+  for (const k of neueSchluessel) zaehler.set(k, (zaehler.get(k) ?? 0) + 1);
+  for (let i = 0; i < prepared.length; i++) {
+    const k = neueSchluessel[i];
+    const alt = k ? alteSchluessel.get(k) : undefined;
+    // Nur eindeutige Paare: ein alter Raum, eine neue Fläche mit diesem Satz.
+    if (!alt || alt.length !== 1 || zaehler.get(k) !== 1) continue;
+    matched[i] = previous[alt[0]];
+    vergeben.add(alt[0]);
+  }
+
+  /*
+   * Zweite Stufe: **fast** derselbe Wandsatz. Im Aufmaß hängen oft offene
+   * Wandenden in einen Raum hinein (ein Scan misst die Wand nicht bis zur
+   * Ecke). Ob so ein Stummel beim Schließen der Fläche mitgezählt wird, kann
+   * nach dem Spiegeln anders ausfallen als vorher — der Raum ist trotzdem
+   * derselbe. Zugeordnet wird deshalb auch bei einer Übereinstimmung der
+   * Wandsätze von mindestens der Hälfte (Jaccard ≥ 0,5), wenn beide einander
+   * die beste Wahl sind. Beim Teilen eines Raums greift das nicht: Die neue
+   * Wand zerlegt die alten Wände an den Stößen in neue Kennungen, und keine
+   * Hälfte teilt mehr als ein, zwei Wände mit dem Vorgänger.
+   */
+  const menge = (k: string) => new Set(k ? k.split('|') : []);
+  const aehnlich = (a: Set<string>, b: Set<string>) => {
+    let gemeinsam = 0;
+    for (const x of a) if (b.has(x)) gemeinsam += 1;
+    const vereinigt = a.size + b.size - gemeinsam;
+    return vereinigt > 0 ? gemeinsam / vereinigt : 0;
+  };
+  const offeneFlaechen = prepared.map((_, i) => i).filter((i) => !matched[i] && neueSchluessel[i]);
+  const offeneAlte = previous.map((_, j) => j).filter((j) => !vergeben.has(j) && previous[j].boundaries.length > 0);
+  if (offeneFlaechen.length && offeneAlte.length) {
+    const neuM = new Map(offeneFlaechen.map((i) => [i, menge(neueSchluessel[i])]));
+    const altM = new Map(offeneAlte.map((j) => [j, menge(schluessel(previous[j].boundaries.map((b) => b.wallId)))]));
+    const besteAlt = (i: number) => {
+      let best = -1, wert = 0;
+      for (const j of offeneAlte) {
+        const w = aehnlich(neuM.get(i)!, altM.get(j)!);
+        if (w > wert + 1e-9) { wert = w; best = j; }
+      }
+      return { best, wert };
+    };
+    const besteNeu = (j: number) => {
+      let best = -1, wert = 0;
+      for (const i of offeneFlaechen) {
+        const w = aehnlich(neuM.get(i)!, altM.get(j)!);
+        if (w > wert + 1e-9) { wert = w; best = i; }
+      }
+      return best;
+    };
+    for (const i of offeneFlaechen) {
+      const { best, wert } = besteAlt(i);
+      if (best < 0 || wert < 0.5 || vergeben.has(best) || besteNeu(best) !== i) continue;
+      matched[i] = previous[best];
+      vergeben.add(best);
+    }
+  }
+
+  // Anwärter je Vorgängerraum sammeln — für alles, was der Wandsatz nicht klärt.
   const claims = new Map<number, number[]>();
   for (let i = 0; i < prepared.length; i++) {
+    if (matched[i]) continue;
     const idx = previous.findIndex(
-      (r) => r.innerPolygon.length >= 3 && pointInPolygon(prepared[i].centroid, r.innerPolygon),
+      (r, j) => !vergeben.has(j) && r.innerPolygon.length >= 3 && pointInPolygon(prepared[i].centroid, r.innerPolygon),
     );
     if (idx < 0) continue;
     const list = claims.get(idx);

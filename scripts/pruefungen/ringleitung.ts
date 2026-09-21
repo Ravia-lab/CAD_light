@@ -62,6 +62,8 @@ import { hauseinfuehrung } from '../../src/lib/hauseinfuehrung';
 import { planeRing } from '../../src/lib/ringleitung';
 import { planPipeNetwork, RING_HOECHST_DN, RING_MINDEST_DN } from '../../src/lib/pipeLayout';
 import { fluidProperties, sizePipe } from '../../src/lib/hydraulics';
+import { planeStich } from '../../src/lib/ringStich';
+import { gebaeudeUmriss } from '../../src/lib/roomDetection';
 import { STANDARD_RAUMNAMEN, istStandardraumname, nutzungAusName } from '../../src/lib/raumnutzung';
 import { FIXTURE_BY_TYPE } from '../../src/types/bim';
 import type { CheckFn } from './typ';
@@ -369,5 +371,81 @@ export function pruefeRingleitung(check: CheckFn): void {
     check('Starker Ring: Hinweis mit den Zahlen',
       stark.notes.some((n) => n.severity === 'warn' && n.text.startsWith('Ringanfang über den Richtwerten')), true);
     check('Starker Ring: kein Fehler', stark.notes.filter((n) => n.severity === 'error').length, 0);
+  }
+
+  // =========================================================================
+  // 8 · Heizkörper im Flur: Stich von der kürzesten Stelle, an den Innenwänden
+  // =========================================================================
+  /*
+   * „Bei Ring haben wir einen Spezialfall: ein Heizkörper im Flur. Das wird
+   * von der kürzesten Stelle als Stich an den Innenwänden verlegt — das spart
+   * sehr viel Rohr und Bögen."
+   *
+   * Prüfhaus 10 × 8 m (Achsen), Außenwände 36 cm, Trennwände 11,5 cm:
+   *
+   *        (0,8) ──────── (5,8) ──────── (10,8)
+   *          │   Nord-W     │    Nord-O     │
+   *        (0,5) ─ (2,5) ── (5,5) ── (8,5) ─ (10,5)
+   *          │  W    │   Flur  ▼HK        │  O   │
+   *        (0,3) ─ (2,3) ─────────── (8,3) ─ (10,3)
+   *          │               Süd                  │
+   *        (0,0) ──────────────────────────── (10,0)
+   *
+   * Der Flur (x 2…8, y 3…5) hat keine Außenwand. Sein Heizkörper hängt an der
+   * Nordwand des Flurs bei x = 4,5, Anschlusspunkt 0,11 m vor der Achse:
+   * (4,5 | 4,89).
+   *
+   * Handrechnung des Stichs: an der Flurwand 0,39 m nach Osten bis vor die
+   * Trennwand Nord-W/Nord-O (deren Westfläche liegt bei 5 − 0,0575 = 4,9425,
+   * die Rasterspur 5 cm davor bei ≈ 4,90), einmal durch die Flurwand nach
+   * Norden (Kernbohrung) und an der Trennwand hoch bis zum Ring bei
+   * y = 8 − 0,18 − 0,05 = 7,77. Länge ≈ 0,40 + (7,77 − 4,89) = 3,28 m,
+   * zwei Bögen… bzw. einer, wenn die Spur auf der Heizkörperachse liegt;
+   * gefordert ist höchstens zwei.
+   *
+   * Die Luftlinie zum Ring wäre gerade nach Norden quer durch Nord-W
+   * (2,88 m) — frei über den Boden, im Sockelleistenkanal nicht verlegbar.
+   * Nach Süden wären es 4,66 m quer durch Flur und Süd.
+   */
+  {
+    const n = (id: string, x: number, y: number): BimNode => ({ id, x, y, levelId: 'eg' } as BimNode);
+    const nodes: Record<string, BimNode> = Object.fromEntries([
+      n('a', 0, 0), n('b', 10, 0), n('c', 10, 3), n('d', 10, 5), n('e', 10, 8), n('f', 5, 8), n('g', 0, 8),
+      n('h', 0, 5), n('i', 0, 3), n('j', 2, 3), n('k', 8, 3), n('l', 2, 5), n('m', 5, 5), n('o', 8, 5),
+    ].map((k) => [k.id, k]));
+    const w = (id: string, a: string, b: string, aussen: boolean): Wall => ({
+      id, a, b, levelId: 'eg', type: aussen ? 'exterior' : 'interior',
+      thickness: aussen ? 0.36 : 0.115, uValue: aussen ? 0.28 : 1.3, height: 2.5, layerId: 'layer-walls',
+    } as Wall);
+    const walls: Wall[] = [
+      w('s', 'a', 'b', true), w('o1', 'b', 'c', true), w('o2', 'c', 'd', true), w('o3', 'd', 'e', true),
+      w('n1', 'e', 'f', true), w('n2', 'f', 'g', true), w('w1', 'g', 'h', true), w('w2', 'h', 'i', true), w('w3', 'i', 'a', true),
+      w('t1', 'i', 'j', false), w('t2', 'j', 'k', false), w('t3', 'k', 'c', false),
+      w('t4', 'h', 'l', false), w('t5', 'l', 'm', false), w('t6', 'm', 'o', false), w('t7', 'o', 'd', false),
+      w('t8', 'j', 'l', false), w('t9', 'k', 'o', false), w('t10', 'm', 'f', false),
+    ];
+    const umriss = gebaeudeUmriss(walls, nodes);
+    // Der Ring: 0,23 m innen vor den Außenachsen.
+    const ring = [{ x: 0.23, y: 0.23 }, { x: 9.77, y: 0.23 }, { x: 9.77, y: 7.77 }, { x: 0.23, y: 7.77 }];
+    const st = planeStich({ walls, nodes, openings: [], umriss, ring, von: { x: 4.5, y: 4.89 } });
+    check('Flur: es gibt einen Stich', !!st, true);
+    if (st) {
+      check('Flur: er endet am Ring der Nordwand (y = 7,77)', Math.round(st.ende.y * 100) / 100, 7.77);
+      check('Flur: … an der Trennwand Nord-W/Nord-O (x ≈ 4,90)', Math.abs(st.ende.x - 4.9) <= 0.06, true);
+      check('Flur: Länge ≈ 3,28 m (Handrechnung)', Math.abs(st.laenge - 3.28) <= 0.1, true);
+      check('Flur: eine Kernbohrung durch die Flurwand', st.kernbohrungen, 1);
+      check('Flur: höchstens zwei Bögen', st.boegen <= 2, true);
+      check('Flur: keine Türschwelle', st.schwellen, 0);
+      // Jeder Knick achsparallel: Sockelleistenkanal.
+      const schraeg = st.punkte.slice(1).filter((p, k) => Math.abs(p.x - st.punkte[k].x) > 1e-6 && Math.abs(p.y - st.punkte[k].y) > 1e-6);
+      check('Flur: jedes Stück achsparallel', schraeg.length, 0);
+    }
+    // Läge der Ring an der Nordwand gar nicht (Zuschlag 100 m für die
+    // Verlängerung dorthin), sucht der Stich eine andere Stelle.
+    const ohneNord = planeStich({
+      walls, nodes, openings: [], umriss, ring, von: { x: 4.5, y: 4.89 },
+      zielKosten: (p) => (p.y > 7 ? 100 : 0),
+    });
+    check('Flur: ohne Nordring endet der Stich woanders', !!ohneNord && ohneNord.ende.y < 7, true);
   }
 }
