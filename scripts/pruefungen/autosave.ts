@@ -142,7 +142,7 @@ export function pruefeAutosave(check: CheckFn): void {
   mitSpeicher(Number.POSITIVE_INFINITY, () => {
     const erg = saveNow(dokument(0));
     check('Auch ein leeres Dokument wird gesichert', erg.ok, true);
-    check('… aber beim Start nicht angeboten', loadAutosave(), null as unknown as string);
+    check('… aber beim Start nicht angeboten', loadAutosave() === null, true);
 
     /*
      * Die Gegenprobe: **eine** Wand genügt, damit es kein leerer Stand mehr
@@ -171,7 +171,9 @@ export function pruefeAutosave(check: CheckFn): void {
       geworfen = (e as Error).message;
     }
     check('Ein voller Speicher wirft nicht', geworfen, '');
-    check('Er meldet einen Fehlschlag', erg?.ok, false);
+    // Dreiwertig: fehlt das Ergebnis ganz, steht dort 'fehlt' und nicht false —
+    // sonst bestünde die Prüfung auch dann, wenn gar nichts zurückkommt.
+    check('Er meldet einen Fehlschlag', erg?.ok ?? 'fehlt', false);
     check(
       'Und sagt, was zu tun ist',
       erg && !erg.ok ? erg.meldung.length > 30 : false,
@@ -207,7 +209,7 @@ export function pruefeAutosave(check: CheckFn): void {
     try {
       const erg = saveNow(dokument(3));
       check('Gesperrter Speicher: Sichern meldet einen Fehlschlag', erg.ok, false);
-      check('Gesperrter Speicher: Laden gibt nichts zurück', loadAutosave(), null as unknown as string);
+      check('Gesperrter Speicher: Laden gibt nichts zurück', loadAutosave() === null, true);
       clearAutosave();
     } catch (e) {
       geworfen = (e as Error).message;
@@ -223,7 +225,7 @@ export function pruefeAutosave(check: CheckFn): void {
     saveNow(dokument(5));
     check('Vor dem Löschen ist ein Stand da', loadAutosave() !== null, true);
     clearAutosave();
-    check('Danach nicht mehr', loadAutosave(), null as unknown as string);
+    check('Danach nicht mehr', loadAutosave() === null, true);
   });
 
   // =========================================================================

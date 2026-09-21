@@ -12,7 +12,7 @@
     "paket": "node scripts/paket.mjs",
     "typecheck": "tsc --noEmit",
     "typecheck:pruefung": "tsc --noEmit -p tsconfig.pruefung.json",
-    "verify": "esbuild scripts/verify.ts --bundle --platform=node --format=esm --outfile=node_modules/.cache/verify.mjs --log-level=warning && node node_modules/.cache/verify.mjs",
+    "verify": "tsc --noEmit -p tsconfig.pruefung.json && esbuild scripts/verify.ts --bundle --platform=node --format=esm --outfile=node_modules/.cache/verify.mjs --log-level=warning && node node_modules/.cache/verify.mjs",
     "smoke:ui": "node scripts/smoke-ui.mjs",
     "smoke:ai": "node scripts/smoke-ai.mjs",
     "smoke:feat": "node scripts/smoke-features.mjs",

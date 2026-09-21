@@ -195,7 +195,7 @@ export function pruefePlanLeeren(check: CheckFn): void {
   // =========================================================================
   {
     const doc = dokument();
-    check('Mit Eintrag gilt der Eintrag', aufstellgeschoss(doc, pumpe('wp1', 'kg')), 'kg');
+    check('Mit Eintrag gilt der Eintrag', aufstellgeschoss(doc, pumpe('wp1', 'kg')) ?? 'keins', 'kg');
     check('Im EG greifbar', stehtAufGeschoss(doc, pumpe('wp1', 'eg'), 'eg'), true);
     check('Im KG nicht', stehtAufGeschoss(doc, pumpe('wp1', 'eg'), 'kg'), false);
 
@@ -207,16 +207,16 @@ export function pruefePlanLeeren(check: CheckFn): void {
      * unterste Geschoss" danebenläge: Eine Außeneinheit steht nicht im
      * Keller.
      */
-    check('Ohne Eintrag gilt das EG', aufstellgeschoss(doc, pumpe('wp2')), 'eg');
+    check('Ohne Eintrag gilt das EG', aufstellgeschoss(doc, pumpe('wp2')) ?? 'keins', 'eg');
     check('Ein unbekanntes Geschoss zählt nicht',
-      aufstellgeschoss(doc, pumpe('wp3', 'dg-gibts-nicht')), 'eg');
+      aufstellgeschoss(doc, pumpe('wp3', 'dg-gibts-nicht')) ?? 'keins', 'eg');
 
     // Bei Gleichstand das untere: zwei Geschosse auf 0,00, order 0 gewinnt.
     const gleich = {
       ...doc,
       levels: { a: geschoss('a', 'A', 0, 1), b: geschoss('b', 'B', 0, 0) },
     } as BimDocument;
-    check('Bei Gleichstand das untere', aufstellgeschoss(gleich, pumpe('wp4')), 'b');
+    check('Bei Gleichstand das untere', aufstellgeschoss(gleich, pumpe('wp4')) ?? 'keins', 'b');
 
     // Ohne Geschoss gibt es keinen Aufstellort — und damit nirgends Zugriff.
     const ohne = { ...doc, levels: {} } as BimDocument;

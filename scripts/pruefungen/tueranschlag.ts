@@ -185,10 +185,15 @@ export function pruefeTueranschlag(check: CheckFn): void {
   // 5 · Fenster und Durchgänge schlagen nicht auf
   // =========================================================================
   {
+    // Geprüft wird `=== null` und nicht das Ergebnis selbst gegen `null`.
+    // `check` vergleicht Zahlen, Texte und Wahrheitswerte; ein Objekt gegen
+    // `null` zu halten ging nur mit einer Typumgehung, und die typstrenge
+    // Prüfung über `scripts` (`npm run typecheck:pruefung`) schlug seit 1.32.0
+    // genau daran an. Die Aussage ist dieselbe, nur jetzt ohne Umweg.
     const fenster = tueranschlag(tuer({ kind: 'window' }), innenwand, nodes, [nord, sued]);
-    check('Ein Fenster hat keinen Anschlag', fenster, null as unknown as string);
+    check('Ein Fenster hat keinen Anschlag', fenster === null, true);
     const durchgang = tueranschlag(tuer({ kind: 'passage' }), innenwand, nodes, [nord, sued]);
-    check('Ein Durchgang auch nicht', durchgang, null as unknown as string);
+    check('Ein Durchgang auch nicht', durchgang === null, true);
   }
 
   // =========================================================================
