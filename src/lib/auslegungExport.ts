@@ -60,6 +60,11 @@ import type { Erzeugerbilanz } from './erzeugerHydraulik';
  */
 export const EMITTER_EXPONENT_ANNAHME: Partial<Record<FixtureType, number>> = {
   radiator: 1.3,
+  // Röhrenradiator und Badheizkörper liegen in derselben Größenordnung wie
+  // der Plattenheizkörper — auch das ist eine Annahme bis zum Datenblatt.
+  // Bis 1.38.0 fehlten beide hier, und ihr Exponent ging als Lücke hinaus.
+  'radiator-tube': 1.3,
+  'towel-radiator': 1.3,
   convector: 1.4,
   underfloor: 1.1,
 };
@@ -70,7 +75,10 @@ export const NORM_TEMPERATUREN = { vorlauf: 55, ruecklauf: 45, raum: 20 } as con
 /** Welche Norm die Leistung dieser Bauart beschreibt. */
 function regelFuer(type: FixtureType): ExportEmitter['rule'] {
   if (type === 'underfloor') return 'EN 1264';
-  if (type === 'radiator' || type === 'convector') return 'EN 442';
+  // DIN EN 442 gilt für alle Raumheizkörper — auch Röhrenradiatoren und
+  // Badheizkörper. Bis 1.38.0 standen beide hier nicht und gingen mit der
+  // Regel „unbekannt" an RaVia, das dann nicht umrechnen konnte.
+  if (type === 'radiator' || type === 'radiator-tube' || type === 'towel-radiator' || type === 'convector') return 'EN 442';
   return 'unbekannt';
 }
 

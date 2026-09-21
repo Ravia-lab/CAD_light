@@ -72,7 +72,7 @@ interface Step {
  * überhaupt etwas zu tun findet — ein Schritt, der zum Klicken einlädt und
  * dann mit „keine Verbraucher" abbricht, ist schlimmer als keiner.
  */
-const VERBRAUCHER = new Set<FixtureType>(['radiator', 'radiator-tube', 'convector', 'manifold']);
+const VERBRAUCHER = new Set<FixtureType>(['radiator', 'radiator-tube', 'towel-radiator', 'convector', 'manifold']);
 
 export default function GuidePanel({ onOpenTab }: { onOpenTab: (tab: string) => void }) {
   const doc = useBimStore((s) => s.doc);
@@ -376,6 +376,7 @@ export default function GuidePanel({ onOpenTab }: { onOpenTab: (tab: string) => 
       actions: [
         { label: 'Für Neubau auslegen', run: () => legeRohrnetzAus('neubau') },
         { label: 'Für Sanierung auslegen', run: () => legeRohrnetzAus('sanierung') },
+        { label: 'Als Ringleitung auslegen', run: () => legeRohrnetzAus('sanierung', 'ring') },
       ],
     },
     {

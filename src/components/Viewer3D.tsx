@@ -368,6 +368,7 @@ interface BuildInput {
 const FIXTURE_HEIGHT: Partial<Record<FixtureType, number>> = {
   radiator: 0.6,
   'radiator-tube': 0.6,
+  'towel-radiator': 1.2,
   convector: 0.12,
   underfloor: 0.02,
   manifold: 0.7,

@@ -305,6 +305,8 @@ export default function Editor2D({ className = '' }: { className?: string }) {
   const spaceRef = useRef(false);
   /** Spiegel des Radiergummi-Schalters — Zeigerereignisse lesen keinen Store. */
   const radiergummiRef = useRef(false);
+  /** Wo die Heizsymbole der Raumstempel zuletzt gezeichnet wurden — zum Antippen. */
+  const heizSymboleRef = useRef<HeizSymbolLage[]>([]);
   /**
    * Welchem Zeiger der laufende Vorgang gehört.
    *
@@ -1346,8 +1348,13 @@ export default function Editor2D({ className = '' }: { className?: string }) {
     }
 
     // ---------------------------------------------------------- Raumlabels
+    heizSymboleRef.current = [];
     if (showRoomLabels && doc.layers['layer-rooms']?.visible) {
-      for (const room of rooms) drawRoomLabel(ctx, room, sx, sy, zoom);
+      for (const room of rooms) {
+        const gewaehlt = selections.some((s2) => s2.kind === 'room' && s2.id === room.id);
+        const lage = drawRoomLabel(ctx, room, sx, sy, zoom, gewaehlt);
+        if (lage) heizSymboleRef.current.push(lage);
+      }
     }
 
     // -------------------------------------------------- Angesprungener Befund
@@ -2781,6 +2788,30 @@ export default function Editor2D({ className = '' }: { className?: string }) {
           scheduleRender();
           break;
         }
+        /*
+         * Das Heizsymbol am Raumstempel schaltet beheizt/unbeheizt um.
+         *
+         * Vor `pickAt`, aus demselben Grund wie die Griffe: Das Symbol liegt
+         * mitten im Raum, und der Raum ist selbst ein Trefferziel. Gesperrte
+         * Räume schalten nicht — dieselbe Regel wie beim Verschieben.
+         */
+        const symbol = heizSymboleRef.current.find(
+          (l) => ptr.screen.x >= l.x && ptr.screen.x <= l.x + l.w && ptr.screen.y >= l.y && ptr.screen.y <= l.y + l.h,
+        );
+        if (symbol && !istGesperrt(s.doc, 'room', symbol.roomId)) {
+          const raum = s.doc.rooms[symbol.roomId];
+          if (raum) {
+            s.updateRoom(raum.id, { isHeated: !raum.isHeated });
+            s.setSelection({ kind: 'room', id: raum.id });
+            s.setStatus(
+              raum.isHeated
+                ? `„${raum.name}" unbeheizt — geht als Nachbarbereich ein · Strg+Z nimmt zurück`
+                : `„${raum.name}" beheizt · Strg+Z nimmt zurück`,
+            );
+            scheduleRender();
+            break;
+          }
+        }
         const hit = pickAt(ptr.world);
         // Alt+Klick auf einen KI-Vorschlag verwirft ihn direkt.
         if (hit?.kind === 'trace' && (e.altKey || e.ctrlKey || e.metaKey)) {
@@ -3988,14 +4019,71 @@ function drawOpeningSymbol(
   ctx.restore();
 }
 
+/** Wo das Heizsymbol eines Raumstempels steht — in Bildschirmpunkten, zum Antippen. */
+interface HeizSymbolLage {
+  roomId: string;
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+
+/**
+ * Das Heizsymbol vor dem Raumnamen.
+ *
+ * **Wozu.** „Beheizt" ist die folgenreichste Ja/Nein-Angabe eines Raums: Ein
+ * unbeheizter Raum hat keine Heizlast, geht aber als Nachbar mit seiner
+ * Temperatur in die Räume daneben ein. Bis 1.38.0 stand sie nur im
+ * Eigenschaftsfenster — im Plan sah ein Abstellraum aus wie ein Wohnzimmer.
+ * Gewünscht war ein Zeichen neben dem Namen, das man auch gleich umschalten
+ * kann.
+ *
+ * **Was gezeichnet wird.** Ein beheizter Raum trägt immer ein kleines
+ * Heizkörpersymbol in der Farbe der Heizungsebene. Ein unbeheizter trägt
+ * keines — ein durchgestrichenes Symbol in jedem Abstellraum wäre Rauschen.
+ * Ist der unbeheizte Raum aber **gewählt**, erscheint das Symbol blass und
+ * durchgestrichen: als Stelle, an der man ihn einschaltet.
+ *
+ * Ein Tipp auf das Symbol schaltet um (siehe `handlePointerDown`). Das ist
+ * ein gewöhnlicher Änderungsschritt; Strg+Z nimmt ihn zurück.
+ */
+function drawHeizSymbol(ctx: CanvasRenderingContext2D, x: number, y: number, an: boolean): void {
+  const w = 11;
+  const h = 9;
+  ctx.save();
+  ctx.lineWidth = 1.2;
+  ctx.strokeStyle = an ? '#FB923C' : 'rgba(148,163,184,0.7)';
+  ctx.fillStyle = an ? 'rgba(251,146,60,0.18)' : 'transparent';
+  ctx.beginPath();
+  ctx.rect(x, y - h / 2, w, h);
+  ctx.fill();
+  ctx.stroke();
+  // Drei Glieder — das Zeichen, an dem man überall einen Heizkörper erkennt.
+  ctx.beginPath();
+  for (const t of [0.3, 0.5, 0.7]) {
+    ctx.moveTo(x + w * t, y - h / 2 + 1.5);
+    ctx.lineTo(x + w * t, y + h / 2 - 1.5);
+  }
+  ctx.stroke();
+  if (!an) {
+    ctx.strokeStyle = 'rgba(248,113,113,0.85)';
+    ctx.beginPath();
+    ctx.moveTo(x - 1.5, y + h / 2 + 1.5);
+    ctx.lineTo(x + w + 1.5, y - h / 2 - 1.5);
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
 function drawRoomLabel(
   ctx: CanvasRenderingContext2D,
   room: Room,
   sx: Sx,
   sy: Sy,
   zoom: number,
-): void {
-  if (room.area < 0.8) return;
+  ausgewaehlt = false,
+): HeizSymbolLage | undefined {
+  if (room.area < 0.8) return undefined;
   const cx = sx(room.centroid.x);
   const cy = sy(room.centroid.y);
 
@@ -4028,7 +4116,10 @@ function drawRoomLabel(
   const hoehePx = ys.length ? Math.max(...ys) - Math.min(...ys) : 0;
   // 8 px Luft zu jeder Seite — direkt an der Wand gelesen wirkt eine
   // Beschriftung wie ein Teil davon.
-  const platzBreit = Math.max(0, breitePx - 16);
+  /** Mit Symbol braucht die Namenszeile 15 px mehr. */
+  const symbolZeigen = room.isHeated || ausgewaehlt;
+  const SYMBOL = 15;
+  const platzBreit = Math.max(0, breitePx - 16 - (symbolZeigen ? SYMBOL : 0));
 
   ctx.save();
   ctx.textAlign = 'center';
@@ -4045,12 +4136,22 @@ function drawRoomLabel(
   const voll = zoom >= 34 && zeilen >= 3 && passtName && passtFlaeche;
   const mittel = !voll && zeilen >= 2 && passtName && passtFlaeche;
 
+  const namensText = passtName ? room.name : kuerze(ctx, room.name, platzBreit);
+  const namensY = cy - (voll ? 9 : mittel ? 6 : 0);
+  // Name und Symbol bilden zusammen eine Zeile, und die steht mittig.
+  const zeilenBreite = ctx.measureText(namensText).width + (symbolZeigen ? SYMBOL : 0);
+  const textMitte = symbolZeigen ? cx + SYMBOL / 2 : cx;
   ctx.fillStyle = C.text;
-  ctx.fillText(
-    passtName ? room.name : kuerze(ctx, room.name, platzBreit),
-    cx,
-    cy - (voll ? 9 : mittel ? 6 : 0),
-  );
+  ctx.fillText(namensText, textMitte, namensY);
+
+  let lage: HeizSymbolLage | undefined;
+  if (symbolZeigen) {
+    const sxLinks = cx - zeilenBreite / 2;
+    drawHeizSymbol(ctx, sxLinks, namensY, room.isHeated);
+    // Die Trefferfläche ist großzügiger als das Symbol: auf dem Tablet
+    // trifft ein Finger kein 11-Pixel-Ziel.
+    lage = { roomId: room.id, x: sxLinks - 6, y: namensY - 11, w: 23, h: 22 };
+  }
 
   if (voll || mittel) {
     ctx.font = '400 11px JetBrains Mono, ui-monospace, monospace';
@@ -4066,6 +4167,7 @@ function drawRoomLabel(
     }
   }
   ctx.restore();
+  return lage;
 }
 
 /**
@@ -4924,7 +5026,7 @@ function PlanLegende({ onClose }: { onClose: () => void }) {
        * niemand erklärt.
        */
       if (
-        (f.type === 'radiator' || f.type === 'radiator-tube') &&
+        (f.type === 'radiator' || f.type === 'radiator-tube' || f.type === 'towel-radiator') &&
         (f.params.radiatorConnection || f.params.valveSide)
       ) {
         anschlusspunkte = true;

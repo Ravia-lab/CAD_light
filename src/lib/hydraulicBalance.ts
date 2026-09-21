@@ -255,6 +255,7 @@ export function dimensionForDn(dn: number, material: PipeMaterial = 'kupfer'): D
 export const HEATING_CONSUMER_TYPES: readonly string[] = [
   'radiator',
   'radiator-tube',
+  'towel-radiator',
   'convector',
   'underfloor',
 ];

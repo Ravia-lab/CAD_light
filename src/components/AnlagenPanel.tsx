@@ -1507,6 +1507,13 @@ export default function AnlagenPanel() {
           >
             Sanierung
           </button>
+          <button
+            className="chip flex-1 bg-white/[0.04] hover:bg-white/[0.08]"
+            title="Ringleitung im Sockelleistenkanal an den Außenwänden, Heizkörper mit kurzen Anbindungen — Zuleitung mindestens 1&quot;, Ring mindestens Cu 18, Anbindung mindestens Cu 15"
+            onClick={() => setRohrbericht(legeRohrnetzAus('sanierung', 'ring'))}
+          >
+            Ring
+          </button>
         </div>
         <p className="mt-1.5 text-[10px] leading-relaxed text-slate-500">
           Führt die Trasse vom Verteiler zu jedem Verbraucher, legt jeden Abschnitt nach seinem Volumenstrom aus,

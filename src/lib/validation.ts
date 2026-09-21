@@ -29,7 +29,7 @@ import { acousticReport, protectionIssues, sourceDemand, waterProtectionVerdict 
 import { daecherVon, raeumeOhneGeschossDarueber } from './dachlandschaft';
 
 /** Objekte, die Wärme in den Raum geben — nur sie brauchen eine Leistung. */
-const HEAT_EMITTERS = new Set(['radiator', 'radiator-tube', 'convector', 'underfloor']);
+const HEAT_EMITTERS = new Set(['radiator', 'radiator-tube', 'towel-radiator', 'convector', 'underfloor']);
 
 /** Welche Leitungsarten zu welchem Gewerk gehören. */
 const SERVICE_CATEGORY: Record<string, 'heating' | 'sanitary' | 'ventilation'> = {

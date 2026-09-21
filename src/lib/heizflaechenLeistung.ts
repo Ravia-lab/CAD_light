@@ -136,7 +136,7 @@ export function anteilJeHeizflaeche(heizlast: number, anzahl: number): number {
 }
 
 /** Die Bauarten, die als Heizfläche im Sinne dieser Umrechnung gelten. */
-export const HEIZFLAECHEN_BAUARTEN: readonly FixtureType[] = ['radiator', 'radiator-tube', 'convector'];
+export const HEIZFLAECHEN_BAUARTEN: readonly FixtureType[] = ['radiator', 'radiator-tube', 'towel-radiator', 'convector'];
 
 export function istHeizflaeche(type: FixtureType): boolean {
   return HEIZFLAECHEN_BAUARTEN.includes(type);

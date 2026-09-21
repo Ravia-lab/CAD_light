@@ -37,6 +37,7 @@ import AnlagenPanel from './components/AnlagenPanel';
 import SchemaView from './components/SchemaView';
 import ToolRail, { TopBar } from './components/Toolbar';
 import ProjektDialog from './components/ProjektDialog';
+import { RaumnamenListe } from './components/RaumnameFeld';
 import { clearAutosave, loadAutosave, relativeTime, scheduleAutosave } from './lib/autosave';
 import type { AutosaveEntry, SicherungsErgebnis } from './lib/autosave';
 import { aktivesProjekt, setzeAktivesProjekt } from './lib/projectStore';
@@ -451,6 +452,9 @@ export default function App() {
       {speicherProblem && (
         <SpeicherBand meldung={speicherProblem} onOeffnen={() => setProjekteOffen(true)} />
       )}
+
+      {/* Die Vorschlagsliste der Raumnamen — einmal für alle Namensfelder. */}
+      <RaumnamenListe />
 
       {projekteOffen && (
         <ProjektDialog

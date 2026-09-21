@@ -285,3 +285,66 @@ export function ordneRaumnamenZu(
   }
   return aus;
 }
+
+/**
+ * Die Standardbezeichnungen, die das Namensfeld zur Auswahl anbietet.
+ * ---------------------------------------------------------------------------
+ * **Wozu.** Wer im Raum steht und tippt, schreibt „wz2", „janner", „kueche"
+ * — genau so standen die Namen in einem echten Aufmaß. Das ist sein gutes
+ * Recht, und das Feld nimmt weiterhin jeden Text. Daneben bietet es die
+ * Bezeichnungen an, die auf jedem Grundriss stehen: ein Griff statt zwölf
+ * Tastendrücke auf dem Tablet, und der Name ist so geschrieben, dass die
+ * Nutzung sicher erkannt wird.
+ *
+ * **Hier steht nur der Name, keine Nutzung.** Die Nutzung eines gewählten
+ * Namens kommt aus `nutzungAusName` — derselben Regel, die auch den IFC-Import
+ * und den Scan einstuft. Eine zweite Tabelle „Name → Nutzung" neben den
+ * Stichworten wäre genau die zweite Wahrheit, die irgendwann abweicht. Dass
+ * jeder Eintrag hier eine Nutzung ergibt, hält der Prüfblock `raumnamen` fest.
+ *
+ * **Was bewusst fehlt.** Namen, die keine Nutzung hergeben („Ankleide",
+ * „Galerie"): Wer sie aus einer Liste wählt, erwartet, dass damit etwas
+ * entschieden ist — und das wäre es nicht. Wer sie braucht, tippt sie; dann
+ * bleibt die Nutzung offen und die Prüfliste fragt danach.
+ *
+ * Die Reihenfolge folgt dem Weg durch eine Wohnung, nicht dem Alphabet — so
+ * findet man beim Aufmaß den nächsten Raum dort, wo man ihn erwartet.
+ */
+export const STANDARD_RAUMNAMEN: readonly string[] = [
+  'Wohnzimmer',
+  'Wohnen / Essen',
+  'Esszimmer',
+  'Küche',
+  'Wohnküche',
+  'Schlafzimmer',
+  'Kinderzimmer',
+  'Gästezimmer',
+  'Arbeitszimmer',
+  'Büro',
+  'Bad',
+  'Duschbad',
+  'Gäste-WC',
+  'WC',
+  'Flur',
+  'Diele',
+  'Windfang',
+  'Treppenhaus',
+  'Abstellraum',
+  'Speisekammer',
+  'Hauswirtschaftsraum',
+  'Heizungsraum',
+  'Technikraum',
+  'Keller',
+];
+
+/**
+ * Ist dieser Name eine der Standardbezeichnungen — so gewählt, nicht getippt?
+ *
+ * Verglichen wird genau, nur ohne Rand-Leerzeichen und ohne Groß-/Klein-
+ * schreibung. „bad" aus der Liste gewählt ist dasselbe wie „Bad"; „Bad OG"
+ * ist eine eigene Bezeichnung und wird nicht angefasst.
+ */
+export function istStandardraumname(name: string): boolean {
+  const n = name.trim().toLocaleLowerCase('de');
+  return STANDARD_RAUMNAMEN.some((s) => s.toLocaleLowerCase('de') === n);
+}

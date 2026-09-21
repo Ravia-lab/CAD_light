@@ -72,6 +72,7 @@ const SOURCES: Partial<Record<string, PipeService>> = {
 const CONSUMERS = new Set([
   'radiator',
   'radiator-tube',
+  'towel-radiator',
   'convector',
   'underfloor',
   'wc',

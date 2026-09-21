@@ -171,6 +171,35 @@ const drawRadiatorTube: SymbolDrawer = (ctx, f) => {
   anschlussPunkte(ctx, f);
 };
 
+/**
+ * Der Badheizkörper im Grundriss.
+ *
+ * Von oben sieht man von ihm vor allem die beiden senkrechten Holme — als
+ * zwei Kreise an den Enden — und die Querrohre dazwischen als Doppellinie.
+ * Das unterscheidet ihn auf den ersten Blick vom Kompaktheizkörper mit
+ * seinen Lamellen, und genau darum geht es: Im Bad soll man sehen, dass dort
+ * ein Badheizkörper geplant ist und nicht ein Typ 22.
+ */
+const drawTowelRadiator: SymbolDrawer = (ctx, f) => {
+  const w = f.length;
+  const h = Math.max(f.depth, 0.05);
+  const r = h * 0.45;
+  ctx.beginPath();
+  ctx.moveTo(-w / 2 + r + r, 0);
+  ctx.arc(-w / 2 + r, 0, r, 0, Math.PI * 2);
+  ctx.moveTo(w / 2, 0);
+  ctx.arc(w / 2 - r, 0, r, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.beginPath();
+  line(ctx, -w / 2 + 2 * r, -h * 0.18, w / 2 - 2 * r, -h * 0.18);
+  line(ctx, -w / 2 + 2 * r, h * 0.18, w / 2 - 2 * r, h * 0.18);
+  ctx.globalAlpha = 0.7;
+  ctx.stroke();
+  ctx.globalAlpha = 1;
+
+  anschlussPunkte(ctx, f);
+};
+
 const drawConvector: SymbolDrawer = (ctx, f) => {
   const w = f.length;
   const h = f.depth;
@@ -526,6 +555,7 @@ const drawDuct: SymbolDrawer = (ctx, f) => {
 const DRAWERS: Record<FixtureType, SymbolDrawer> = {
   radiator: drawRadiator,
   'radiator-tube': drawRadiatorTube,
+  'towel-radiator': drawTowelRadiator,
   convector: drawConvector,
   underfloor: drawUnderfloor,
   manifold: drawManifold,

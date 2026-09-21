@@ -700,7 +700,8 @@ interface BimState {
    * Leitungen bleiben stehen. Wer eine Trasse selbst gelegt hat, hat sich
    * etwas dabei gedacht — das darf ein Knopf nicht wegwischen.
    */
-  legeRohrnetzAus: (mode: PipeRoutingMode) => PipeLayoutResult;
+  /** Rohrnetz auslegen. `anordnung: 'ring'` legt eine Ringleitung an den Außenwänden. */
+  legeRohrnetzAus: (mode: PipeRoutingMode, anordnung?: 'baum' | 'ring') => PipeLayoutResult;
   updatePipe: (id: string, patch: Partial<PipeRun>) => void;
   /**
    * Eine Armatur von Hand setzen — aus der Werkzeugkiste im Haus.
@@ -2752,7 +2753,7 @@ export const useBimStore = create<BimState>()((set, get) => {
        * selben Raum sind eine Entscheidung, die jemand treffen muss —
        * stillschweigend darf sie nicht fallen.
        */
-      const heizkoerperTypen: FixtureType[] = ['radiator', 'radiator-tube', 'convector'];
+      const heizkoerperTypen: FixtureType[] = ['radiator', 'radiator-tube', 'towel-radiator', 'convector'];
 
       for (const room of raeume) {
         if (room.innerPolygon.length < 3) {
@@ -3814,7 +3815,7 @@ export const useBimStore = create<BimState>()((set, get) => {
         doc.durchbrueche[id] = neu;
       }),
 
-    legeRohrnetzAus: (mode) => {
+    legeRohrnetzAus: (mode, anordnung) => {
       const s = get();
       let anzahlDurchbrueche = 0;
       let ohneRegelmass = 0;
@@ -3835,6 +3836,7 @@ export const useBimStore = create<BimState>()((set, get) => {
          * zwei Stufen zu hoch.
          */
         material: s.doc.plant?.design.material,
+        anordnung,
       });
 
       mutate((doc) => {

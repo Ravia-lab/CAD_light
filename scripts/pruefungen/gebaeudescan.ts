@@ -207,8 +207,11 @@ export function pruefeGebaeudescan(check: CheckFn): void {
     m2.emitters[2].kind = 'tube';
     m2.emitters[3].kind = 'convector';
     const r3 = importBuildingModel(m2);
+    // Seit 1.39.0 gibt es den Badheizkörper als eigene Bauart. Vorher musste
+    // der Scan ihn auf den Kompaktheizkörper abbilden und die Bauart nur im
+    // Text mitführen — jetzt kommt er als das an, was er ist.
     check('Badheizkörper / Röhren / Konvektor', r3.fixtures.slice(1).map((f) => `${f.type}:${f.params.radiatorType ?? '-'}`).join(','),
-      'radiator:Badheizkörper,radiator-tube:Röhren,convector:-');
+      'towel-radiator:Badheizkörper,radiator-tube:Röhren,convector:-');
   }
 
   // Älteres Modell (1.1.0) ohne Heizkörper bleibt lesbar.

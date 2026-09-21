@@ -4,6 +4,7 @@
  * Gebäude-Kennwerte, die man beim Planen ständig im Blick haben will.
  */
 
+import RaumnameFeld from './RaumnameFeld';
 import type {
   Annotation,
   AnnotationAnchor,
@@ -696,11 +697,7 @@ function RoomProperties({ room }: { room: Room }) {
   return (
     <Section title="Raum">
       <Field label="Bezeichnung">
-        <input
-          className="field"
-          value={room.name}
-          onChange={(e) => updateRoom(room.id, { name: e.target.value })}
-        />
+        <RaumnameFeld wert={room.name} onAendern={(patch) => updateRoom(room.id, patch)} />
       </Field>
 
       <Field label="Nutzung">
@@ -925,6 +922,7 @@ function RoomProperties({ room }: { room: Room }) {
 const HEIZFLAECHEN_TYPEN: readonly FixtureType[] = [
   'radiator',
   'radiator-tube',
+  'towel-radiator',
   'convector',
   'underfloor',
 ];
@@ -1273,7 +1271,7 @@ function FixtureProperties({ fixture }: { fixture: Fixture }) {
        * der Export gab für ihn stillschweigend den Richtwert aus.
        */}
       {fixture.category === 'heating' &&
-        (fixture.type === 'radiator' || fixture.type === 'radiator-tube' || fixture.type === 'convector') && (
+        (fixture.type === 'radiator' || fixture.type === 'radiator-tube' || fixture.type === 'towel-radiator' || fixture.type === 'convector') && (
         <div className="space-y-2 rounded-lg border border-white/[0.07] bg-white/[0.02] p-2.5">
           <div className="label-xs">Fürs Auslegen</div>
           <div className="grid grid-cols-2 gap-2">

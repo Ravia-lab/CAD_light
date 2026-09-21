@@ -710,6 +710,23 @@ viele Meter DN 15 blank. Leitungen werden als Polylinie verlegt und rasten an
 TGA-Objekten ein — ein Klick auf den Heizkörper schließt den Zug dort an. Der
 Export summiert alles je Gewerk, Nennweite und Dämmstärke.
 
+**Automatische Auslegung als Baum oder als Ring.** „Auslegen" legt das Netz
+selbst: Neubau als Baum über Verteiler (Fußbodenkanal), Sanierung wahlweise
+als Baum oder — mit dem Schalter „Ring" — als **Ringleitung** entlang der
+Außenwände. Beim Ring gilt die Handwerkerregel fest: Zuleitung vom
+Wärmeerzeuger zum Verteiler oder Pufferspeicher mindestens 1" (Cu 28), die
+Kreisleitung Cu 22 bzw. Cu 18, jede Heizkörperanbindung mindestens Cu 15 —
+ein Heizkörper wird nie mit 12 mm angeschlossen. Der Ring beginnt am
+nächsten Punkt zur Quelle und lässt die größere Lücke neben dem Anfang offen;
+Türen in Außenwänden und nötige Kernbohrungen werden als Hinweis genannt.
+
+Steht eine **Monoblock-Wärmepumpe** außen am Haus und ist drinnen kein
+Kessel, ist sie der Wärmeerzeuger: die Hauseinführung wird an der nächsten
+Außenwand angenommen (mit Abstand zu Ecken und Öffnungen) und als
+„Außenleitung Wärmepumpe" mit Umgebung Außenluft verlegt. Die Annahme steht
+im Befund — sie ist vor Ort zu bestätigen. Das Ergebnis bleibt ein
+Vorschlag, der zu prüfen ist.
+
 ---
 
 ## Planausdruck im Maßstab

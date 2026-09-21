@@ -327,7 +327,11 @@ export function importBuildingModel(data: unknown): BuildingImportErgebnis {
     const s = e.suggestion ?? undefined;
     const bestaetigt = !!s?.confirmed;
     if (!bestaetigt) unbestaetigt++;
-    const typ: FixtureType = e.kind === 'tube' ? 'radiator-tube' : e.kind === 'convector' ? 'convector' : 'radiator';
+    const typ: FixtureType =
+      e.kind === 'tube' ? 'radiator-tube'
+        : e.kind === 'convector' ? 'convector'
+          : e.kind === 'towel' ? 'towel-radiator'
+            : 'radiator';
     const bauartText =
       e.kind === 'towel' ? 'Badheizkörper'
         : e.kind === 'tube' ? 'Röhren'

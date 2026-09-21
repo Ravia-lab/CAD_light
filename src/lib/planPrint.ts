@@ -682,7 +682,7 @@ export function buildPlanSvg(doc: BimDocument, options: PlanPrintOptions): PlanF
       const anschluss = f.params?.radiatorConnection;
       const seite = f.params?.valveSide;
       let punkte = '';
-      if ((anschluss || seite) && (f.type === 'radiator' || f.type === 'radiator-tube')) {
+      if ((anschluss || seite) && (f.type === 'radiator' || f.type === 'radiator-tube' || f.type === 'towel-radiator')) {
         const y = h / 2 + Math.min(0.045, f.depth * 0.45) * mm;
         const r = Math.min(0.028, f.length * 0.05) * mm;
         const t = anschluss === 'mitte' ? [-0.025 / Math.max(f.length, 0.001), 0.025 / Math.max(f.length, 0.001)] : [-0.4, 0.4];

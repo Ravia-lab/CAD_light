@@ -526,6 +526,7 @@ export type FixtureType =
   // Heizung
   | 'radiator' // Heizkörper (Kompakt)
   | 'radiator-tube' // Röhrenradiator
+  | 'towel-radiator' // Badheizkörper (Handtuchheizkörper)
   | 'convector' // Unterflurkonvektor
   | 'underfloor' // Fußbodenheizkreis
   | 'manifold' // Heizkreisverteiler
@@ -833,6 +834,24 @@ export const FIXTURE_LIBRARY: FixtureDefinition[] = [
   // --- Heizung ---
   { type: 'radiator', category: 'heating', label: 'Heizkörper', length: 1.0, depth: 0.1, elevation: 0.15, wallMounted: true, params: { powerW: 1200, radiatorType: '22', flowTemperature: 55, returnTemperature: 45 } },
   { type: 'radiator-tube', category: 'heating', label: 'Röhrenradiator', length: 0.6, depth: 0.12, elevation: 0.15, wallMounted: true, params: { powerW: 700, radiatorType: 'Röhren' } },
+  /*
+   * Der Badheizkörper — senkrecht, schmal, mit Querrohren.
+   *
+   * Er fehlte im Katalog, und das hatte Folgen, die man nicht sah: Wer im
+   * Bad einen Heizkörper setzte, bekam einen Kompaktheizkörper Typ 22 mit
+   * 1.200 W — das Doppelte dessen, was ein üblicher Badheizkörper leistet,
+   * und eine Bauart, die dort niemand einbaut. Der Scan aus RaVia Scan
+   * erkannte die Bauart sogar (`kind: 'towel'`) und musste sie auf den
+   * Kompaktheizkörper abbilden.
+   *
+   * Vorgaben: 0,50 m breit und 1,20 m hoch sind die gängige Größe, 500 W bei
+   * 55/45 °C liegen für diese Größe im üblichen Bereich — ausdrücklich eine
+   * Vorbelegung, die tatsächliche Normleistung trägt der Planer ein. Die
+   * Montagehöhe 0,20 m ist Unterkante über Fertigfußboden. Rechnerisch ist
+   * er ein Heizkörper wie jeder andere (DIN EN 442); was ihn unterscheidet,
+   * sind Maß, Symbol und Leistung.
+   */
+  { type: 'towel-radiator', category: 'heating', label: 'Badheizkörper', length: 0.5, depth: 0.06, elevation: 0.2, wallMounted: true, params: { powerW: 500, radiatorType: 'Bad', flowTemperature: 55, returnTemperature: 45 } },
   { type: 'convector', category: 'heating', label: 'Unterflurkonvektor', length: 1.4, depth: 0.2, elevation: 0, wallMounted: true, params: { powerW: 900 } },
   { type: 'underfloor', category: 'heating', label: 'FBH-Heizkreis', length: 0.9, depth: 0.9, elevation: 0, wallMounted: false, params: { powerW: 800, flowTemperature: 35, returnTemperature: 28 } },
   { type: 'manifold', category: 'heating', label: 'Heizkreisverteiler', length: 0.6, depth: 0.15, elevation: 0.5, wallMounted: true, params: {} },

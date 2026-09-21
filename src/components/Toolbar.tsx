@@ -469,6 +469,13 @@ export function TopBar({ onProjekte }: { onProjekte: () => void }) {
   const vorhaben = useBimStore((s) => s.doc.meta.vorhaben);
   const [verlegeartWahl, setVerlegeartWahl] = useState<PipeRoutingMode | null>(null);
   const verlegeart: PipeRoutingMode = verlegeartWahl ?? verlegeartAus(vorhaben);
+  /**
+   * Ringleitung statt Baum. Nur im Bestand: Die Ringleitung liegt im
+   * Sockelleistenkanal an den Außenwänden — im Neubau liegt die Leitung im
+   * Fußbodenaufbau, und dort ist der kurze Weg quer durch den Raum richtig.
+   */
+  const [ringWahl, setRingWahl] = useState(false);
+  const ring = ringWahl && verlegeart === 'sanierung';
   const setVerlegeart = setVerlegeartWahl;
   const legeRohrnetzAus = useBimStore((s) => s.legeRohrnetzAus);
 
@@ -795,19 +802,32 @@ export function TopBar({ onProjekte }: { onProjekte: () => void }) {
           {(['neubau', 'sanierung'] as const).map((m) => (
             <button
               key={m}
-              onClick={() => setVerlegeart(m)}
+              onClick={() => {
+                setVerlegeart(m);
+                setRingWahl(false);
+              }}
               title={
                 m === 'neubau'
                   ? 'Neubau — Leitungen auf der Rohdecke im Fußbodenaufbau, der Weg darf quer durch den Raum'
                   : 'Sanierung — Leitungen sichtbar an der Wand im Sockelleistenkanal, die Trasse folgt den Wänden'
               }
-              className={`chip px-2 ${verlegeart === m ? 'bg-accent/15 text-accent' : 'text-slate-500 hover:text-slate-300'}`}
+              className={`chip px-2 ${verlegeart === m && !ring ? 'bg-accent/15 text-accent' : 'text-slate-500 hover:text-slate-300'}`}
             >
               {m === 'neubau' ? 'Neubau' : 'Sanierung'}
             </button>
           ))}
           <button
-            onClick={() => legeRohrnetzAus(verlegeart)}
+            onClick={() => {
+              setVerlegeart('sanierung');
+              setRingWahl(true);
+            }}
+            title="Ringleitung — Vor- und Rücklauf im Sockelleistenkanal einmal an den Außenwänden entlang, die Heizkörper mit kurzen Anbindungen daran. Zuleitung mindestens 1&quot;, Ring mindestens Cu 18, Anbindung mindestens Cu 15."
+            className={`chip px-2 ${ring ? 'bg-accent/15 text-accent' : 'text-slate-500 hover:text-slate-300'}`}
+          >
+            Ring
+          </button>
+          <button
+            onClick={() => legeRohrnetzAus(verlegeart, ring ? 'ring' : 'baum')}
             className="tool-btn h-8 w-8"
             title="Rohrnetz automatisch auslegen — Trasse, Nennweiten, Dämmung nach Anlage 8 GEG und Armaturen. Von Hand gezogene Leitungen bleiben stehen."
           >

@@ -181,7 +181,7 @@ export function heizflaechenArten(doc: BimDocument): Map<string, 'flaeche' | 'he
     if (f.type === 'underfloor' || f.type === 'manifold') {
       map.set(f.roomId, 'flaeche');
     } else if (
-      (f.type === 'radiator' || f.type === 'radiator-tube' || f.type === 'convector') &&
+      (f.type === 'radiator' || f.type === 'radiator-tube' || f.type === 'towel-radiator' || f.type === 'convector') &&
       map.get(f.roomId) !== 'flaeche'
     ) {
       map.set(f.roomId, 'heizkoerper');

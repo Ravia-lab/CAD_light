@@ -456,7 +456,14 @@ export function pruefeAnschlussgroesse(check: CheckFn): void {
   // Und ein Erzeuger, der gar keiner ist: Beginnt die Trasse mangels
   // Wärmeerzeuger am Verteiler, hat das Anschlussmaß einer Wärmepumpe dort
   // nichts zu suchen.
-  const ohneKessel = mitPumpe(baueHaus(), { connectionDn: 32 });
+  //
+  // Seit 1.39.0 ist eine **Monoblock**-Außeneinheit selbst der Erzeuger, und
+  // die Trasse beginnt an der Hauseinführung — der Stamm von dort zum
+  // Verteiler wird dann zu Recht angehoben (geprüft in `wpErzeuger.ts`).
+  // Der Fall „kein Erzeuger" ist deshalb hier mit einer **Split**-Wärmepumpe
+  // nachgestellt: Deren Leitung nach draußen führt Kältemittel, das
+  // Heizungsnetz beginnt an der Inneneinheit, und die fehlt.
+  const ohneKessel = mitPumpe(baueHaus(), { connectionDn: 32, form: 'split' });
   delete ohneKessel.fixtures.kessel;
   ohneKessel.fixtures.vt = {
     ...ohneKessel.fixtures.hfW,

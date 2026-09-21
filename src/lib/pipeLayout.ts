@@ -30,6 +30,9 @@
  * an einer Stelle geraten hat, ist an keiner Stelle mehr nachvollziehbar.
  */
 
+import { planeRing } from './ringleitung';
+import { stehtAufGeschoss } from './aufstellgeschoss';
+import { hauseinfuehrung } from './hauseinfuehrung';
 import type {
   BimDocument,
   Fixture,
@@ -143,6 +146,40 @@ export interface PipeLayoutOptions {
    * schaltet die Anhebung ab; `undefined` heißt „selbst nachsehen".
    */
   anschlussDn?: number;
+  /**
+   * Wie die Heizkörper am Erzeuger hängen.
+   *
+   * `baum` (Vorgabe): jeder Heizkörper auf dem kürzesten Weg, die Wege wachsen
+   * zu einem Stamm zusammen — die Verlegung im Fußbodenaufbau des Neubaus.
+   *
+   * `ring`: eine Ringleitung an den Außenwänden entlang, die Heizkörper mit
+   * kurzen Anbindungen daran — die übliche Verlegung im Bestand. Mit den
+   * Mindestweiten des Handwerks: Zuleitung 1" (DN 25), Ring nicht unter
+   * Cu 18 (DN 15), Anbindung nicht unter Cu 15 (DN 12). Siehe `ringleitung.ts`.
+   */
+  anordnung?: 'baum' | 'ring';
+}
+
+/**
+ * Mindestweiten der Ringverlegung [DN].
+ *
+ * Handwerksregel, keine Norm — und so vom Auftraggeber genannt: „zum
+ * Verteiler hin (oder Speicher, Puffer) 1", dann 22er oder 18er Rohr
+ * Kreisleitung, für Heizkörper mit 15 — in der Heizung werden keine
+ * Heizkörper mit 12 angeschlossen." Die Hydraulik darf darüber gehen, nie
+ * darunter.
+ *
+ * Als DN, weil `sizePipe` in DN denkt und die Werkstofftabelle daraus das
+ * Rohr wählt: DN 25 ist Cu 28 × 1,5 bzw. Verbund 32 × 3; DN 15 ist Cu 18 × 1;
+ * DN 12 ist Cu 15 × 1 bzw. Verbund 16 × 2.
+ */
+export const RING_MINDEST_DN = { zuleitung: 25, ring: 15, anbindung: 12 } as const;
+
+/** Die strengere zweier Untergrenzen; fehlt eine, gilt die andere. */
+function mindestFuer(a: number | undefined, b: number | undefined): number | undefined {
+  if (a === undefined || a <= 0) return b;
+  if (b === undefined) return a;
+  return Math.max(a, b);
 }
 
 /**
@@ -298,7 +335,7 @@ export interface PipeLayoutResult {
 }
 
 /** Heizflächen, die unmittelbar am Netz hängen — ohne Verteiler dazwischen. */
-const HEIZFLAECHEN = new Set<Fixture['type']>(['radiator', 'radiator-tube', 'convector']);
+const HEIZFLAECHEN = new Set<Fixture['type']>(['radiator', 'radiator-tube', 'towel-radiator', 'convector']);
 
 /**
  * Der Verteiler, an dem eine Heizfläche hängt.
@@ -423,7 +460,10 @@ function erzeugerAnschluss(doc: BimDocument): ReturnType<typeof anschlussVonGera
  */
 export function planPipeNetwork(doc: BimDocument, options: PipeLayoutOptions): PipeLayoutResult {
   const notes: PlanningNote[] = [];
-  const material: PipeMaterial = options.material ?? 'verbund';
+  const ring = options.anordnung === 'ring';
+  // Die Ringleitung liegt sichtbar im Sockelleistenkanal — dort ist Kupfer
+  // der Regelfall, und die Mindestweiten oben sind in Kupfer gedacht.
+  const material: PipeMaterial = options.material ?? (ring ? 'kupfer' : 'verbund');
   /*
    * Mit welcher Spreizung wird dimensioniert?
    *
@@ -478,16 +518,81 @@ export function planPipeNetwork(doc: BimDocument, options: PipeLayoutOptions): P
    * von außerhalb (Steigstrang, anderes Geschoss); dann versorgt jeder
    * Verteiler seine Kreise für sich, und das steht als Hinweis dabei.
    */
-  const erzeuger = fixtures.find((f) => f.type === 'boiler');
+  const erzeugerImHaus = fixtures.find((f) => f.type === 'boiler');
   const speicher = fixtures.filter((f) => f.type === 'storage');
   const verteiler = fixtures.filter((f) => f.type === 'manifold');
 
   /*
-   * Die Quelle des Stammes. Der Speicher steht bewusst vor dem Verteiler —
-   * bei einer Wärmepumpe steht der Erzeuger draußen, und im Haus beginnt das
-   * Netz am Puffer. Geraten wird kein Standort.
+   * --- Die Wärmepumpe im Garten als Wärmeerzeuger --------------------------
+   *
+   * Bis 1.38.0 kannte der Rohrausleger nur Erzeuger *im* Haus. Eine
+   * Monoblock-Wärmepumpe steht draußen und ist trotzdem der Wärmeerzeuger —
+   * wer sie gesetzt hatte, bekam „Kein Wärmeerzeuger auf diesem Geschoss".
+   *
+   * Jetzt gilt: Gibt es im Haus keinen Wärmeerzeuger und steht auf diesem
+   * Geschoss eine **Monoblock**-Außeneinheit, ist sie der Erzeuger. Die
+   * Trasse im Haus beginnt an der Hauseinführung (siehe
+   * `hauseinfuehrung.ts`), und von dort bis zum Gerät läuft die Außenleitung.
+   *
+   * **Warum nur Monoblock.** Bei einer Split-Wärmepumpe führt die Leitung
+   * zwischen Außen- und Inneneinheit Kältemittel, kein Heizungswasser. Das
+   * Heizungsnetz beginnt dort an der Inneneinheit — und die ist ein
+   * Wärmeerzeuger im Haus, den man setzt. Die Außeneinheit hier als Quelle
+   * zu nehmen, würde Heizungswasser in eine Kältemittelleitung zeichnen.
    */
-  const stamm = erzeuger ?? speicher[0];
+  const pumpe = erzeugerImHaus
+    ? undefined
+    : Object.values(doc.site?.pumps ?? {}).find(
+        (p) => p.form === 'monoblock-outdoor' && stehtAufGeschoss(doc, p, options.levelId),
+      );
+  const einfuehrung = pumpe ? hauseinfuehrung(pumpe.position, walls, doc.nodes, openings, rooms) : undefined;
+  /**
+   * Die Wärmepumpe als Quelle — ein gedachtes Objekt an der Hauseinführung.
+   * Es wird nicht ins Modell geschrieben; es gibt der Trassierung nur einen
+   * Anfangspunkt im Haus.
+   */
+  const wpQuelle: Fixture | undefined =
+    pumpe && einfuehrung
+      ? {
+          id: `wp-quelle-${pumpe.id}`,
+          type: 'boiler',
+          category: 'heating',
+          levelId: options.levelId,
+          position: einfuehrung.innen,
+          rotation: 0,
+          length: 0,
+          depth: 0,
+          elevation: 0,
+          label: pumpe.label || 'Wärmepumpe',
+          params: {},
+        }
+      : undefined;
+  if (pumpe && !einfuehrung) {
+    notes.push({
+      severity: 'warn',
+      text:
+        `Die Wärmepumpe „${pumpe.label || 'Wärmepumpe'}" steht auf diesem Geschoss, aber an keiner Außenwand fand sich eine Stelle für die Hauseinführung ` +
+        '(ohne Öffnung, nicht an der Ecke, mit einem Raum dahinter). Einen Wärmeerzeuger oder Speicher im Haus setzen, dann beginnt die Trasse dort.',
+    });
+  }
+  if (pumpe && einfuehrung) {
+    notes.push({
+      severity: 'info',
+      text:
+        `Wärmeerzeuger ist die Wärmepumpe „${pumpe.label || 'Wärmepumpe'}". Die Hauseinführung ist an der nächstgelegenen Außenwand ` +
+        `**angenommen** (${einfuehrung.aussenLaenge.toFixed(2).replace('.', ',')} m Außenleitung bis zur Wand) — ` +
+        'wo die Kernbohrung wirklich sitzt, entscheiden Kellerlage und Aufstellplan.',
+    });
+  }
+  /** Der Erzeuger, an dem das Netz hängt — im Haus gesetzt oder die Wärmepumpe. */
+  const erzeuger = erzeugerImHaus ?? wpQuelle;
+
+  /*
+   * Die Quelle des Stammes. Der Speicher steht bewusst vor der Wärmepumpe —
+   * im Haus beginnt das Netz dann am Puffer, und die Wärmepumpe lädt ihn.
+   * Ein Wärmeerzeuger im Haus geht allem vor. Geraten wird kein Standort.
+   */
+  const stamm = erzeugerImHaus ?? speicher[0] ?? wpQuelle;
 
   if (!stamm && verteiler.length === 0) {
     const flaechen = fixtures.filter((f) => f.type === 'underfloor');
@@ -501,7 +606,7 @@ export function planPipeNetwork(doc: BimDocument, options: PipeLayoutOptions): P
     return { runs: [], accessories: [], routeLength: 0, pipeLength: 0, served: 0, notes };
   }
 
-  if (!erzeuger) {
+  if (!erzeuger || (stamm && stamm.id !== erzeuger.id && !erzeugerImHaus && !wpQuelle)) {
     notes.push({
       severity: 'info',
       text: stamm
@@ -546,6 +651,11 @@ export function planPipeNetwork(doc: BimDocument, options: PipeLayoutOptions): P
 
   if (stamm) {
     for (const v of verteiler) anschluesse.push({ ziel: v, quelle: stamm, geraten: false });
+  }
+  // Die Wärmepumpe lädt den Speicher: eine eigene Leitung von der
+  // Hauseinführung zum Puffer, bemessen auf alles, was am Puffer hängt.
+  if (wpQuelle && stamm && stamm.id !== wpQuelle.id && stamm.type === 'storage') {
+    anschluesse.push({ ziel: stamm, quelle: wpQuelle, geraten: false });
   }
 
   if (ohneVerteiler.length) {
@@ -646,8 +756,10 @@ export function planPipeNetwork(doc: BimDocument, options: PipeLayoutOptions): P
    * bekommt die **Summe der Ströme seiner Kreise**; die Raumheizlast bleibt
    * der Rückfall für den Fall, dass an den Kreisen keine Leistung steht.
    */
+  /** Sammelpunkte tragen die Summe dessen, was hinter ihnen hängt. */
+  const sammelt = (f: Fixture) => f.type === 'manifold' || f.type === 'storage';
   for (const ziel of ziele) {
-    if (ziel.type === 'manifold') continue;
+    if (sammelt(ziel)) continue;
     const strom = verbraucherStrom(ziel, [], lasten, { flow: vorlauf, rueck: ruecklauf });
     if (!strom || strom.flow <= 0) {
       ohneLeistung.push(ziel.label ?? ziel.type);
@@ -656,8 +768,15 @@ export function planPipeNetwork(doc: BimDocument, options: PipeLayoutOptions): P
     stroeme.set(ziel.id, strom);
   }
 
-  for (const ziel of ziele) {
-    if (ziel.type !== 'manifold') continue;
+  /*
+   * Erst die Verteiler, dann der Speicher: Hängt ein Verteiler am Puffer,
+   * muss seine Summe feststehen, bevor der Puffer seine bildet.
+   */
+  const sammelReihenfolge = [
+    ...ziele.filter((z) => z.type === 'manifold'),
+    ...ziele.filter((z) => z.type === 'storage'),
+  ];
+  for (const ziel of sammelReihenfolge) {
     let flow = 0;
     let watt = 0;
     for (const a of anschluesse) {
@@ -742,23 +861,135 @@ export function planPipeNetwork(doc: BimDocument, options: PipeLayoutOptions): P
 
   // --- Trasse --------------------------------------------------------------
   for (const gruppe of gruppen.values()) {
-  const netz: RoutedNetwork = routePipes({
-    mode: options.mode,
-    levelId: options.levelId,
-    rooms,
-    walls,
-    nodes: doc.nodes,
-    openings,
-    source: gruppe.quelle.position,
-    targets: gruppe.ziele.map((z) => ({ id: z.id, position: z.position })),
-    grid: options.grid,
-  });
-  notes.push(...netz.notes);
-  alleSegmente.push(...netz.segments);
+  /** Die Rolle je Abschnitt — sie trägt die Mindestweite der Ringverlegung. */
+  const rolleVon = new Map<object, keyof typeof RING_MINDEST_DN>();
+  const baum = (quelle: Vec2, ziele: { id: string; position: Vec2 }[]): RoutedNetwork =>
+    routePipes({
+      mode: options.mode,
+      levelId: options.levelId,
+      rooms,
+      walls,
+      nodes: doc.nodes,
+      openings,
+      source: quelle,
+      targets: ziele,
+      grid: options.grid,
+    });
 
-  for (const seg of netz.segments) {
+  /*
+   * Ringverlegung für den Lauf am Stamm. Die übrigen Läufe — Verteiler zu
+   * seinen Kreisen, Wärmepumpe zum Speicher — bleiben Bäume: Eine
+   * Fußbodenheizung hängt nicht an einem Ring.
+   */
+  let netz: RoutedNetwork | undefined;
+  if (ring && stamm && gruppe.quelle.id === stamm.id) {
+    const plan = planeRing({
+      walls,
+      nodes: doc.nodes,
+      openings,
+      rooms,
+      quelle: gruppe.quelle.position,
+      verbraucher: gruppe.ziele.map((z) => ({ id: z.id, position: z.position, roomId: z.roomId })),
+    });
+    if (!plan.ok) {
+      notes.push({ severity: 'warn', text: `Ringleitung nicht möglich: ${plan.grund} Die Trasse ist deshalb als Baum gelegt.` });
+    } else {
+      const r = plan.plan;
+      const segmente: RoutedNetwork['segments'] = [];
+      const alle = r.anschluesse.map((a) => a.id);
+      const zuleitung = { from: { ...gruppe.quelle.position }, to: { ...r.anfang }, targets: alle };
+      segmente.push(zuleitung);
+      rolleVon.set(zuleitung, 'zuleitung');
+      for (const a of r.abschnitte) {
+        segmente.push(a);
+        rolleVon.set(a, 'ring');
+      }
+      const umwege: string[] = [];
+      for (const a of r.anschluesse) {
+        const ziel = gruppe.ziele.find((z) => z.id === a.id)!;
+        if (a.gerade) {
+          const seg = { from: { ...a.punkt }, to: { ...ziel.position }, targets: [a.id] };
+          segmente.push(seg);
+          rolleVon.set(seg, 'anbindung');
+        } else {
+          // Liegt der Verbraucher nicht an einer Außenwand seines Raums, wird
+          // die Anbindung trassiert — mit denselben Regeln wie jede andere
+          // Leitung im Bestand.
+          const weg = baum(a.punkt, [{ id: a.id, position: ziel.position }]);
+          notes.push(...weg.notes);
+          for (const seg of weg.segments) {
+            segmente.push(seg);
+            rolleVon.set(seg, 'anbindung');
+          }
+          umwege.push(ziel.label ?? ziel.type);
+        }
+      }
+      netz = { legs: [], segments: segmente, notes: [] };
+      notes.push({
+        severity: 'info',
+        text:
+          `Ringleitung an den Außenwänden: ${r.laenge.toFixed(1).replace('.', ',')} m Ring, ${r.anschluesse.length} Anbindungen, ` +
+          `${r.kernbohrungen} Kernbohrung(en) durch Trennwände. Mindestweiten: Zuleitung DN ${RING_MINDEST_DN.zuleitung}, ` +
+          `Ring DN ${RING_MINDEST_DN.ring}, Anbindung DN ${RING_MINDEST_DN.anbindung}.`,
+      });
+      if (umwege.length) {
+        notes.push({
+          severity: 'info',
+          text: `Nicht an einer Außenwand, deshalb mit trassierter Anbindung: ${umwege.join(', ')}.`,
+        });
+      }
+      if (r.tueren.length) {
+        notes.push({
+          severity: 'warn',
+          text:
+            `Die Ringleitung läuft über ${r.tueren.length} Tür(en) in der Außenwand ` +
+            `(${r.tueren.map((t) => `${t.breite.toFixed(2).replace('.', ',')} m`).join(', ')}). ` +
+            'Im Sockelleistenkanal geht das nicht durch — je Stelle festlegen: über die Tür, im Boden oder außen herum. Eine Fachregel dazu gibt es nicht.',
+        });
+      }
+    }
+  }
+  if (!netz) netz = baum(gruppe.quelle.position, gruppe.ziele.map((z) => ({ id: z.id, position: z.position })));
+  notes.push(...netz.notes);
+  /*
+   * Die Außenleitung: von der Wärmepumpe durch die Wand bis zum Anfang der
+   * Trasse. Sie trägt alles, was an der Wärmepumpe hängt — also dieselben
+   * Verbraucher wie die ganze Gruppe.
+   */
+  const aussenSegment =
+    wpQuelle && pumpe && einfuehrung && gruppe.quelle.id === wpQuelle.id
+      ? {
+          from: { x: pumpe.position.x, y: pumpe.position.y },
+          to: { x: einfuehrung.innen.x, y: einfuehrung.innen.y },
+          targets: [...new Set(netz.segments.flatMap((sg) => sg.targets))],
+        }
+      : undefined;
+  if (aussenSegment) rolleVon.set(aussenSegment, 'zuleitung');
+  const segmente = aussenSegment ? [aussenSegment, ...netz.segments] : netz.segments;
+  alleSegmente.push(...segmente);
+
+  for (const seg of segmente) {
     const laenge = Math.hypot(seg.to.x - seg.from.x, seg.to.y - seg.from.y);
-    if (laenge < 1e-6) continue;
+    /*
+     * Die Anbindung am Ring steigt vom Sockelleistenkanal zum Ventil.
+     *
+     * Hängt der Heizkörper an der Außenwand, liegt der Ring im Grundriss genau
+     * unter ihm — die Anbindung hat dann **keine** Länge in der Ebene, sondern
+     * nur in der Höhe: vom Kanal (4 cm) zum Anschluss (15 cm). Ohne diese
+     * Höhe fiele sie ganz weg, und mit ihr das Cu 15 im Plan und im
+     * Massenauszug. Sie wird deshalb als senkrechtes Stück geführt
+     * (`elevationTo`), so wie jeder andere Steigstrang auch.
+     */
+    // Nur das letzte Stück steigt — das, das am Heizkörper endet. Eine
+    // trassierte Anbindung hat mehrere Stücke, und nur eines davon hängt am Ventil.
+    const amVerbraucher = (() => {
+      if (seg.targets.length !== 1) return false;
+      const ziel = gruppe.ziele.find((z) => z.id === seg.targets[0]);
+      if (!ziel) return false;
+      return [seg.from, seg.to].some((p) => Math.hypot(p.x - ziel.position.x, p.y - ziel.position.y) < 1e-3);
+    })();
+    const steigt = rolleVon.get(seg) === 'anbindung' && amVerbraucher && Math.abs(HOEHE.heizkoerper - hoehe) > 1e-6;
+    if (laenge < 1e-6 && !steigt) continue;
     routeLength += laenge;
 
     const strom = seg.targets.reduce((sum, id) => sum + (stroeme.get(id)?.flow ?? 0), 0);
@@ -772,8 +1003,11 @@ export function planPipeNetwork(doc: BimDocument, options: PipeLayoutOptions): P
      */
     const mitte = { x: (seg.from.x + seg.to.x) / 2, y: (seg.from.y + seg.to.y) / 2 };
     const raum = raumAn(mitte, rooms);
+    const ringRolle = rolleVon.get(seg);
     const rolle: keyof typeof SIZING_LIMITS =
-      seg.targets.length === 1 ? 'anbindung' : raum && raum.isHeated ? 'wohnraum' : 'verteilung';
+      ringRolle === 'anbindung' || (!ringRolle && seg.targets.length === 1)
+        ? 'anbindung'
+        : ringRolle ? 'verteilung' : raum && raum.isHeated ? 'wohnraum' : 'verteilung';
     const grenze = SIZING_LIMITS[rolle] as { maxVelocity: number; quelle: string };
 
     /*
@@ -805,7 +1039,7 @@ export function planPipeNetwork(doc: BimDocument, options: PipeLayoutOptions): P
       // fertige Dimension: Welches Rohr der gewählte Werkstoff dafür
       // hergibt, entscheidet die Tabelle in `hydraulics` und nicht diese
       // Schleife. Bei Verbundrohr ist DN 32 das Maß 40 × 3,5.
-      minDn: amErzeuger ? mindestDn : undefined,
+      minDn: mindestFuer(amErzeuger ? mindestDn : undefined, ringRolle ? RING_MINDEST_DN[ringRolle] : undefined),
     });
 
     if (amErzeuger && mindestDn !== undefined) {
@@ -825,15 +1059,23 @@ export function planPipeNetwork(doc: BimDocument, options: PipeLayoutOptions): P
       }
     }
 
-    if (options.mode === 'sanierung' && dim.dimension.outer > SOCKELLEISTE_MAX_AUSSEN) zuGross += 1;
+    // Die Außenleitung liegt nicht im Sockelleistenkanal — sie zählt hier nicht.
+    // Außenleitung und Zuleitung liegen nicht im Kanal: die eine draußen, die
+    // andere geht durch die Wand zum Ring bzw. im Technikraum zum Puffer.
+    if (
+      options.mode === 'sanierung' && seg !== aussenSegment && ringRolle !== 'zuleitung' &&
+      dim.dimension.outer > SOCKELLEISTE_MAX_AUSSEN
+    ) zuGross += 1;
 
     /*
      * Die Lage entscheidet über die Dämmpflicht — und zwar schärfer, als man
      * vermutet: „im Fußbodenaufbau" heißt nicht pauschal 6 mm, und für
      * unbeheizte Räume gibt es keine Ermäßigung. Siehe `pipeInsulation`.
      */
+    // Die Außenleitung liegt draußen: doppelte Dämmdicke nach Anlage 8.
     const umgebung: PipeSurrounding =
-      options.mode === 'neubau' ? 'fussboden' : raum && raum.isHeated ? 'beheizt' : 'unbeheizt';
+      seg === aussenSegment ? 'aussenluft'
+        : options.mode === 'neubau' ? 'fussboden' : raum && raum.isHeated ? 'beheizt' : 'unbeheizt';
     const daemmung = insulationForDimension(dim.dimension, {
       surrounding: umgebung,
       service: 'heating-flow',
@@ -842,9 +1084,11 @@ export function planPipeNetwork(doc: BimDocument, options: PipeLayoutOptions): P
     } as never);
     for (const n of daemmung.notes) notes.push(n);
 
-    // Vorlauf und Rücklauf: ein Weg, zwei Rohre, seitlich versetzt.
-    const dx = (seg.to.x - seg.from.x) / laenge;
-    const dy = (seg.to.y - seg.from.y) / laenge;
+    // Vorlauf und Rücklauf: ein Weg, zwei Rohre, seitlich versetzt. Ein rein
+    // senkrechtes Stück hat keine Richtung in der Ebene — dann liegen die
+    // beiden Rohre nebeneinander in x.
+    const dx = laenge > 1e-6 ? (seg.to.x - seg.from.x) / laenge : 1;
+    const dy = laenge > 1e-6 ? (seg.to.y - seg.from.y) / laenge : 0;
     const nx = -dy * (PAARABSTAND / 2);
     const ny = dx * (PAARABSTAND / 2);
 
@@ -868,6 +1112,7 @@ export function planPipeNetwork(doc: BimDocument, options: PipeLayoutOptions): P
         nominalDiameter: dim.dimension.dn,
         insulation: daemmung.thickness,
         elevation: hoehe,
+        ...(steigt ? { elevationTo: HOEHE.heizkoerper } : {}),
         generated: true,
         routing: options.mode,
         surrounding: umgebung,
@@ -876,7 +1121,12 @@ export function planPipeNetwork(doc: BimDocument, options: PipeLayoutOptions): P
         gradient: dim.gradient,
         outerDiameter: dim.dimension.outer,
         material,
-        label: `${seg.targets.length === 1 ? 'Anbindung' : 'Verteilung'} ${WERKSTOFF_KUERZEL[material]} ${dim.dimension.label}`,
+        label: `${
+          seg === aussenSegment ? 'Außenleitung Wärmepumpe'
+            : ringRolle === 'ring' ? 'Ringleitung'
+              : ringRolle === 'zuleitung' ? 'Zuleitung'
+                : ringRolle === 'anbindung' || seg.targets.length === 1 ? 'Anbindung' : 'Verteilung'
+        } ${WERKSTOFF_KUERZEL[material]} ${dim.dimension.label}`,
       });
     }
   }
@@ -910,10 +1160,23 @@ export function planPipeNetwork(doc: BimDocument, options: PipeLayoutOptions): P
   }
 
   if (zuGross > 0) {
-    notes.push({
-      severity: 'error',
-      text: `${zuGross} Abschnitt${zuGross === 1 ? '' : 'e'} überschreitet den Sockelleistenkanal: er trägt Rohre bis ${SOCKELLEISTE_MAX_AUSSEN} mm Außendurchmesser (Kanal 40 × 105 mm). Für diese Abschnitte einen größeren Aufputzkanal oder eine andere Trasse wählen.`,
-    });
+    /*
+     * Bei der Ringleitung ist ein Ring in Cu 22 der Regelfall und kein
+     * Planungsfehler — nur passt er nicht in den 40 × 105-Standardkanal. Das
+     * ist dann eine Produktwahl (Kanal für 22 mm), und so wird es gesagt:
+     * als Hinweis, nicht als Fehler.
+     */
+    notes.push(
+      ring
+        ? {
+            severity: 'warn',
+            text: `${zuGross} Ringabschnitt${zuGross === 1 ? '' : 'e'} in mehr als ${SOCKELLEISTE_MAX_AUSSEN} mm Außendurchmesser (Cu 22 am Ringanfang) — der Standardkanal 40 × 105 mm nimmt das nicht auf. Einen Sockelleistenkanal für 22 mm vorsehen.`,
+          }
+        : {
+            severity: 'error',
+            text: `${zuGross} Abschnitt${zuGross === 1 ? '' : 'e'} überschreitet den Sockelleistenkanal: er trägt Rohre bis ${SOCKELLEISTE_MAX_AUSSEN} mm Außendurchmesser (Kanal 40 × 105 mm). Für diese Abschnitte einen größeren Aufputzkanal oder eine andere Trasse wählen.`,
+          },
+    );
   }
 
   // --- Armaturen -----------------------------------------------------------

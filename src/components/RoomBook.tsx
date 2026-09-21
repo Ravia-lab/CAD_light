@@ -10,6 +10,7 @@
  * Excel in deutscher Einstellung die Datei ohne Import-Dialog.
  */
 
+import RaumnameFeld from './RaumnameFeld';
 import { useEffect, useMemo, useState } from 'react';
 import type { Room, RoomUsage } from '../types/bim';
 import { useBimStore } from '../store/useBimStore';
@@ -273,7 +274,7 @@ export default function RoomBook() {
                   power={r.power}
                   aktiv={active}
                   waehlen={waehlen}
-                  umbenennen={(name) => updateRoom(r.room.id, { name })}
+                  umbenennen={(patch) => updateRoom(r.room.id, patch)}
                   nutzung={(usage) => updateRoom(r.room.id, { usage })}
                   leistung={(watt) => {
                     const ergebnis = setzeRaumHeizleistung(r.room.id, watt);
@@ -376,7 +377,7 @@ function Ausfuellzeile({
   power: number;
   aktiv: boolean;
   waehlen: () => void;
-  umbenennen: (name: string) => void;
+  umbenennen: (patch: { name: string; usage?: RoomUsage }) => void;
   nutzung: (usage: RoomUsage) => void;
   leistung: (watt: number | undefined) => void;
 }) {
@@ -406,11 +407,11 @@ function Ausfuellzeile({
       onFocusCapture={waehlen}
     >
       <div className="flex items-center gap-1.5">
-        <input
+        <RaumnameFeld
           className="field min-w-0 flex-1 text-[11.5px]"
-          value={room.name}
-          onChange={(e) => umbenennen(e.target.value)}
-          aria-label={`Name des Raums ${room.name}`}
+          wert={room.name}
+          onAendern={umbenennen}
+          ariaLabel={`Name des Raums ${room.name}`}
         />
         <span className="shrink-0 font-mono text-[10px] text-slate-500">{level}</span>
       </div>

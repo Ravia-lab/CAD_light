@@ -827,7 +827,7 @@ function collectFloorHeating(
 // 5 — Heizflächen
 // ===========================================================================
 
-const RADIATOR_TYPES: readonly FixtureType[] = ['radiator', 'radiator-tube', 'convector'];
+const RADIATOR_TYPES: readonly FixtureType[] = ['radiator', 'radiator-tube', 'towel-radiator', 'convector'];
 
 function collectRadiators(doc: BimDocument, sheet: Sheet, notes: MaterialNote[]): void {
   const fixtures = Object.values(doc.fixtures ?? {});
