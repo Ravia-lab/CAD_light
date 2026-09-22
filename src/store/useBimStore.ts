@@ -157,7 +157,7 @@ import {
 } from '../lib/roomDetection';
 import { solidFootprint } from '../lib/verticalSymbols';
 import { rohrbezeichnung } from '../lib/rohrbezeichnung';
-import { planPipeNetwork, type PipeLayoutResult } from '../lib/pipeLayout';
+import { planeGebaeudeNetz, type GebaeudeNetzErgebnis } from '../lib/gebaeudeNetz';
 import { baseRoofHeightAt, buildRoofFrame, dormerSide } from '../lib/roofGeometry';
 import { baueDachlandschaft, daecherVon, raeumeOhneGeschossDarueber } from '../lib/dachlandschaft';
 import { importIfc } from '../lib/ifcImport';
@@ -702,7 +702,11 @@ interface BimState {
    * etwas dabei gedacht — das darf ein Knopf nicht wegwischen.
    */
   /** Rohrnetz auslegen. `anordnung: 'ring'` legt eine Ringleitung an den Außenwänden. */
-  legeRohrnetzAus: (mode: PipeRoutingMode, anordnung?: 'baum' | 'ring') => PipeLayoutResult;
+  /**
+   * Das Rohrnetz auslegen — über alle Geschosse, mit Steigleitung zwischen
+   * ihnen (siehe `src/lib/gebaeudeNetz.ts`).
+   */
+  legeRohrnetzAus: (mode: PipeRoutingMode, anordnung?: 'baum' | 'ring') => GebaeudeNetzErgebnis;
   updatePipe: (id: string, patch: Partial<PipeRun>) => void;
   /**
    * Eine Armatur von Hand setzen — aus der Werkzeugkiste im Haus.
@@ -3837,7 +3841,17 @@ export const useBimStore = create<BimState>()((set, get) => {
       const s = get();
       let anzahlDurchbrueche = 0;
       let ohneRegelmass = 0;
-      const ergebnis = planPipeNetwork(s.doc, {
+      /*
+       * Ausgelegt wird das **Gebäude**, nicht nur das sichtbare Geschoss.
+       *
+       * Steht der Speicher im Keller und hängen die Heizkörper darüber, gibt
+       * es ohne Steigleitung gar keine Verbindung — gemeldet am 22.09.2026.
+       * `planeGebaeudeNetz` findet das Quellgeschoss, setzt die Stränge und
+       * rechnet von außen nach innen, damit jeder Strangabschnitt trägt, was
+       * über ihm hängt. Gibt es nichts zu verbinden, ist das Ergebnis genau
+       * die Auslegung des sichtbaren Geschosses wie zuvor.
+       */
+      const ergebnis = planeGebaeudeNetz(s.doc, {
         mode,
         levelId: s.doc.activeLevelId,
         /*
@@ -3857,17 +3871,20 @@ export const useBimStore = create<BimState>()((set, get) => {
         anordnung,
       });
 
+      /** Die Geschosse, die neu geplant wurden — nur dort wird ersetzt. */
+      const geplant = new Set(ergebnis.geschosse.map((g) => g.levelId));
+
       mutate((doc) => {
         // Von Hand gezogene Leitungen bleiben; erzeugte werden ersetzt.
         const behalten = Object.values(doc.pipes ?? {}).filter(
-          (r) => !(r.generated && r.levelId === doc.activeLevelId),
+          (r) => !(r.generated && geplant.has(r.levelId)),
         );
         doc.pipes = Object.fromEntries([
           ...behalten.map((r) => [r.id, r] as const),
           ...ergebnis.runs.map((r) => [r.id, r] as const),
         ]);
         const armaturen = Object.values(doc.pipeAccessories ?? {}).filter(
-          (a) => !(a.generated && a.levelId === doc.activeLevelId),
+          (a) => !(a.generated && geplant.has(a.levelId)),
         );
         doc.pipeAccessories = Object.fromEntries([
           ...armaturen.map((a) => [a.id, a] as const),
@@ -3888,9 +3905,9 @@ export const useBimStore = create<BimState>()((set, get) => {
          * werden dabei ersetzt, von Hand gesetzte bleiben stehen.
          */
         const eigene = Object.values(doc.durchbrueche ?? {}).filter(
-          (d) => !(d.generated && d.levelId === doc.activeLevelId),
+          (d) => !(d.generated && geplant.has(d.levelId)),
         );
-        const leitungen = Object.values(doc.pipes).filter((r) => r.levelId === doc.activeLevelId);
+        const leitungen = Object.values(doc.pipes).filter((r) => geplant.has(r.levelId));
         const gebohrt = durchbruecheFuerTrassen(doc, leitungen, () => uid('db'));
         doc.durchbrueche = Object.fromEntries([
           ...eigene.map((d) => [d.id, d] as const),
@@ -3914,7 +3931,10 @@ export const useBimStore = create<BimState>()((set, get) => {
           ? schwer.text
           : `Rohrnetz ausgelegt — ${ergebnis.served} Verbraucher, ${ergebnis.routeLength.toFixed(1)} m Trasse, ` +
             `${ergebnis.pipeLength.toFixed(1)} m Rohr, ${ergebnis.accessories.length} Armaturen, ` +
-            `${anzahlDurchbrueche} ${anzahlDurchbrueche === 1 ? 'Durchbruch' : 'Durchbrüche'}`,
+            `${anzahlDurchbrueche} ${anzahlDurchbrueche === 1 ? 'Durchbruch' : 'Durchbrüche'}` +
+            (ergebnis.geschosse.length > 1
+              ? ` · ${ergebnis.geschosse.length} Geschosse, ${ergebnis.straenge.length} Steigleitung(en)`
+              : ''),
       });
       return ergebnis;
     },

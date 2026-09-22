@@ -31,6 +31,8 @@
  */
 
 import { planeRing } from './ringleitung';
+import { steigRuns } from './steigstrang';
+import { rohrlaenge } from './rohrlaenge';
 import { stehtAufGeschoss } from './aufstellgeschoss';
 import { hauseinfuehrung } from './hauseinfuehrung';
 import type {
@@ -122,6 +124,28 @@ export interface PipeLayoutOptions {
   maxGradient?: number;
   /** Rasterweite der Trassierung [m]. */
   grid?: number;
+  /**
+   * Einspeisung aus einem anderen Geschoss — der Fuß der Steigleitung.
+   *
+   * Steht der Wärmeerzeuger oder der Speicher im Keller und die Heizkörper
+   * darüber, beginnt die Verteilung dieses Geschosses **am Strang**. Ohne
+   * diese Angabe meldete die Auslegung nur „die Zuleitung kommt von
+   * außerhalb dieses Geschosses" und ließ sie weg. Wo der Strang steht,
+   * entscheidet `src/lib/steigstrang.ts`; hier ist er nur der Anfangspunkt.
+   * Wird nicht verwendet, wenn auf diesem Geschoss selbst ein Erzeuger oder
+   * Speicher steht.
+   */
+  einspeisung?: { position: Vec2; label: string };
+  /**
+   * Fuß einer Steigleitung, die von diesem Geschoss aus weiterführt.
+   *
+   * `strom` ist der Volumenstrom [m³/h] von allem, was oberhalb (oder
+   * unterhalb) hängt. Der Fuß wird wie ein Verbraucher trassiert — die
+   * Leitung vom Erzeuger dorthin gehört zu diesem Geschoss —, und am Punkt
+   * selbst steht das senkrechte Stück durch die Decke
+   * (`src/lib/steigstrang.ts`).
+   */
+  steigfuesse?: { position: Vec2; label: string; strom: number; bisHoehe: number }[];
   /** Liegt die Trasse in einem beheizten Bereich? Bestimmt die Dämmpflicht. */
   heated?: boolean;
   /**
@@ -345,6 +369,12 @@ export interface PipeLayoutResult {
   pipeLength: number;
   /** Versorgte Verbraucher. */
   served: number;
+  /**
+   * Volumenstrom am Stamm [m³/h] — alles, was unmittelbar an der Quelle
+   * dieses Geschosses hängt. Die Steigleitung eines darunterliegenden
+   * Geschosses wird damit bemessen.
+   */
+  designFlow: number;
   notes: PlanningNote[];
 }
 
@@ -598,6 +628,28 @@ export function planPipeNetwork(doc: BimDocument, options: PipeLayoutOptions): P
         'wo die Kernbohrung wirklich sitzt, entscheiden Kellerlage und Aufstellplan.',
     });
   }
+  /**
+   * Der Fuß der Steigleitung als Quelle — wieder ein gedachtes Objekt, das
+   * nicht ins Modell geschrieben wird. Es gilt nur, wenn auf diesem Geschoss
+   * weder Erzeuger noch Speicher steht: sonst ist die Quelle dort.
+   */
+  const steigQuelle: Fixture | undefined =
+    options.einspeisung && !erzeugerImHaus && speicher.length === 0
+      ? {
+          id: 'steig-quelle',
+          type: 'boiler',
+          category: 'heating',
+          levelId: options.levelId,
+          position: options.einspeisung.position,
+          rotation: 0,
+          length: 0,
+          depth: 0,
+          elevation: 0,
+          label: options.einspeisung.label,
+          params: {},
+        }
+      : undefined;
+
   /** Der Erzeuger, an dem das Netz hängt — im Haus gesetzt oder die Wärmepumpe. */
   const erzeuger = erzeugerImHaus ?? wpQuelle;
 
@@ -606,7 +658,7 @@ export function planPipeNetwork(doc: BimDocument, options: PipeLayoutOptions): P
    * im Haus beginnt das Netz dann am Puffer, und die Wärmepumpe lädt ihn.
    * Ein Wärmeerzeuger im Haus geht allem vor. Geraten wird kein Standort.
    */
-  const stamm = erzeugerImHaus ?? speicher[0] ?? wpQuelle;
+  const stamm = erzeugerImHaus ?? speicher[0] ?? wpQuelle ?? steigQuelle;
 
   if (!stamm && verteiler.length === 0) {
     const flaechen = fixtures.filter((f) => f.type === 'underfloor');
@@ -617,10 +669,16 @@ export function planPipeNetwork(doc: BimDocument, options: PipeLayoutOptions): P
           'Eine Fußbodenheizung hängt immer an einem Verteiler — den setzen, dann lässt sich anbinden.'
         : 'Kein Wärmeerzeuger, kein Speicher und kein Verteiler auf diesem Geschoss. Ohne Ausgangspunkt lässt sich keine Trasse führen — eines davon setzen.',
     });
-    return { runs: [], accessories: [], routeLength: 0, pipeLength: 0, served: 0, notes };
+    return { runs: [], accessories: [], routeLength: 0, pipeLength: 0, served: 0, designFlow: 0, notes };
   }
 
-  if (!erzeuger || (stamm && stamm.id !== erzeuger.id && !erzeugerImHaus && !wpQuelle)) {
+  if (steigQuelle && stamm?.id === steigQuelle.id) {
+    notes.push({
+      severity: 'info',
+      text:
+        `Kein Wärmeerzeuger und kein Speicher auf diesem Geschoss — die Verteilung beginnt am Fuß der Steigleitung („${steigQuelle.label}").`,
+    });
+  } else if (!erzeuger || (stamm && stamm.id !== erzeuger.id && !erzeugerImHaus && !wpQuelle)) {
     notes.push({
       severity: 'info',
       text: stamm
@@ -672,6 +730,29 @@ export function planPipeNetwork(doc: BimDocument, options: PipeLayoutOptions): P
     anschluesse.push({ ziel: stamm, quelle: wpQuelle, geraten: false });
   }
 
+  /*
+   * Der Fuß der Steigleitung ist für dieses Geschoss ein Verbraucher wie
+   * jeder andere: Die Leitung vom Erzeuger dorthin wird hier trassiert und
+   * hier bemessen. Sein Volumenstrom ist die Summe der Geschosse dahinter —
+   * er wird übergeben, nicht geraten.
+   */
+  const steigZiele: Fixture[] = stamm
+    ? (options.steigfuesse ?? []).map((f, i) => ({
+        id: `steig-fuss-${i}`,
+        type: 'manifold',
+        category: 'heating',
+        levelId: options.levelId,
+        position: f.position,
+        rotation: 0,
+        length: 0.1,
+        depth: 0.1,
+        elevation: 0,
+        label: f.label,
+        params: {},
+      } as Fixture))
+    : [];
+  for (const ziel of steigZiele) anschluesse.push({ ziel, quelle: stamm!, geraten: false });
+
   if (ohneVerteiler.length) {
     notes.push({
       severity: 'warn',
@@ -713,7 +794,7 @@ export function planPipeNetwork(doc: BimDocument, options: PipeLayoutOptions): P
       severity: 'error',
       text: 'Keine Verbraucher auf diesem Geschoss. Heizkörper oder Fußbodenheizung setzen, dann lässt sich das Netz auslegen.',
     });
-    return { runs: [], accessories: [], routeLength: 0, pipeLength: 0, served: 0, notes };
+    return { runs: [], accessories: [], routeLength: 0, pipeLength: 0, served: 0, designFlow: 0, notes };
   }
 
   /*
@@ -782,12 +863,19 @@ export function planPipeNetwork(doc: BimDocument, options: PipeLayoutOptions): P
     stroeme.set(ziel.id, strom);
   }
 
+  // Der Strang trägt, was dahinter liegt — die Zahl kommt von außen.
+  steigZiele.forEach((ziel, i) => {
+    stroeme.set(ziel.id, { flow: options.steigfuesse![i].strom, watt: 0 });
+  });
+
   /*
    * Erst die Verteiler, dann der Speicher: Hängt ein Verteiler am Puffer,
    * muss seine Summe feststehen, bevor der Puffer seine bildet.
    */
   const sammelReihenfolge = [
-    ...ziele.filter((z) => z.type === 'manifold'),
+    // Der Strangfuß ist ein Sammelpunkt mit bereits bekanntem Strom — er
+    // bildet keine Summe aus Kreisen und bleibt hier außen vor.
+    ...ziele.filter((z) => z.type === 'manifold' && !steigZiele.some((x) => x.id === z.id)),
     ...ziele.filter((z) => z.type === 'storage'),
   ];
   for (const ziel of sammelReihenfolge) {
@@ -819,7 +907,7 @@ export function planPipeNetwork(doc: BimDocument, options: PipeLayoutOptions): P
 
   const versorgte = ziele.filter((z) => stroeme.has(z.id));
   if (versorgte.length === 0) {
-    return { runs: [], accessories: [], routeLength: 0, pipeLength: 0, served: 0, notes };
+    return { runs: [], accessories: [], routeLength: 0, pipeLength: 0, served: 0, designFlow: 0, notes };
   }
 
   /*
@@ -1407,10 +1495,44 @@ export function planPipeNetwork(doc: BimDocument, options: PipeLayoutOptions): P
   notes.length = 0;
   notes.push(...zusammengefasst);
 
-  const pipeLength = runs.reduce(
-    (sum, r) => sum + Math.hypot(r.points[1].x - r.points[0].x, r.points[1].y - r.points[0].y),
-    0,
-  );
+  /*
+   * --- Das senkrechte Stück der Steigleitung -------------------------------
+   *
+   * Bis hierher liegt die Leitung vom Erzeuger zum Strangfuß. Was fehlt, ist
+   * der Strang selbst: von der Verlegehöhe dieses Geschosses bis an die
+   * Rohdecke. Er wird mit dem Strom bemessen, der oben hängt — dieselbe
+   * Rechnung wie jede andere Leitung, nur senkrecht.
+   */
+  for (const [i, fuss] of (options.steigfuesse ?? []).entries()) {
+    if (!stroeme.get(`steig-fuss-${i}`)) continue;
+    const strang = steigRuns({
+      doc,
+      levelId: options.levelId,
+      position: fuss.position,
+      vonHoehe: hoehe,
+      bisHoehe: fuss.bisHoehe,
+      strom: fuss.strom,
+      material,
+      vorlauf,
+      ruecklauf,
+      nummer: laufendeNummer + 1 + i,
+      label: fuss.label,
+      surrounding: options.mode === 'neubau' ? 'fussboden' : 'beheizt',
+    });
+    runs.push(...strang.runs);
+    notes.push({
+      severity: 'info',
+      text:
+        `${fuss.label}: ${strang.bezeichnung} für ${fuss.strom.toFixed(3).replace('.', ',')} m³/h, ` +
+        `${Math.abs(fuss.bisHoehe - hoehe).toFixed(2).replace('.', ',')} m senkrecht bis zur Rohdecke. ` +
+        'Die Deckendurchführung ist eine Kernbohrung und vor Ort festzulegen.' +
+        (strang.warnung ? ` ${strang.warnung}` : ''),
+    });
+  }
+
+  // Die verlegte Länge zählt den Höhenversatz mit — ein Strang liegt
+  // senkrecht und hätte im Grundriss sonst die Länge null (`rohrlaenge`).
+  const pipeLength = runs.reduce((sum, r) => sum + rohrlaenge(r), 0);
 
   notes.push({
     severity: 'info',
@@ -1455,12 +1577,25 @@ export function planPipeNetwork(doc: BimDocument, options: PipeLayoutOptions): P
   entzerreArmaturen(accessories, vorlaeufe);
 
   void DEFAULT_FLUID;
+  /*
+   * Der Volumenstrom am Stamm: alles, was unmittelbar an der Quelle hängt —
+   * Heizflächen und Verteiler, nicht deren Kreise (die stecken schon im
+   * Strom des Verteilers). Er ist die Bemessungsgröße für die Steigleitung
+   * aus dem Geschoss darunter.
+   */
+  const designFlow = stamm
+    ? anschluesse
+        .filter((a) => a.quelle.id === stamm.id)
+        .reduce((summe, a) => summe + (stroeme.get(a.ziel.id)?.flow ?? 0), 0)
+    : 0;
+
   return {
     runs,
     accessories,
     routeLength: Math.round(routeLength * 1000) / 1000,
     pipeLength: Math.round(pipeLength * 1000) / 1000,
     served: versorgte.length,
+    designFlow: Math.round(designFlow * 1000) / 1000,
     notes,
   };
 }

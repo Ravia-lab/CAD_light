@@ -113,6 +113,62 @@ const feld = (stand, was) => Object.keys(stand).sort().map((k) => `${k}=${stand[
 expect('Die Solltemperaturen stehen richtig', feld(nachher.stand, 'soll'), feld(vorher.stand, 'soll'));
 expect('Die Heizlasten sind bei ihrem Raum geblieben', feld(nachher.stand, 'watt'), feld(vorher.stand, 'watt'));
 
+console.log('\n▸ Steigleitung: Wärmepumpe und Speicher im KG, Heizkörper darüber');
+{
+  const r = await p.evaluate(() => {
+    const S = () => window.__ravia.getState();
+    const d0 = S().doc;
+    const kg = Object.values(d0.levels).find((l) => l.name === 'KG');
+    const eg = Object.values(d0.levels).find((l) => l.name === 'EG');
+    const og = Object.values(d0.levels).find((l) => l.name === 'OG');
+    // Technikraum im Keller: Pufferspeicher, dazu die Wärmepumpe im Garten.
+    S().setActiveLevel(kg.id);
+    const raumKg = Object.values(S().doc.rooms).filter((x) => x.levelId === kg.id).sort((a2, b2) => b2.area - a2.area)[0];
+    S().addFixture('storage', { x: raumKg.centroid.x, y: raumKg.centroid.y }, { params: { volumeL: 300 } });
+    S().addHeatPump({ x: -3, y: 2 });
+    // Heizkörper in EG und OG, keiner im Keller.
+    for (const lvl of [eg, og]) {
+      S().setActiveLevel(lvl.id);
+      for (const raum of Object.values(S().doc.rooms).filter((x) => x.levelId === lvl.id)) {
+        S().setzeRaumHeizleistung(raum.id, 800);
+      }
+    }
+    S().setActiveLevel(eg.id);
+    const erg = S().legeRohrnetzAus('sanierung', 'ring');
+    const d = S().doc;
+    const rohre = Object.values(d.pipes).filter((x) => x.service === 'heating-flow');
+    const straenge = rohre.filter((x) => (x.label ?? '').startsWith('Steigleitung'));
+    const proGeschoss = {};
+    for (const x of rohre) {
+      const name = d.levels[x.levelId].name;
+      proGeschoss[name] = (proGeschoss[name] ?? 0) + 1;
+    }
+    return {
+      geschosse: erg.geschosse.map((g) => `${g.name}:${g.served}`).sort(),
+      straenge: erg.straenge.map((x) => `${d.levels[x.vonLevelId].name}→${d.levels[x.nachLevelId].name}`),
+      stroeme: erg.straenge.map((x) => x.strom),
+      rohreProGeschoss: proGeschoss,
+      strangRohre: straenge.length,
+      senkrecht: straenge.every((x) => x.elevationTo !== undefined && Math.abs(x.elevationTo - x.elevation) > 1),
+      fehler: erg.notes.filter((n) => n.severity === 'error').map((n) => n.text.slice(0, 100)),
+      status: S().statusMessage,
+    };
+  });
+  console.log(`  · ${r.status}`);
+  expect('Drei Geschosse geplant', r.geschosse.length, 3);
+  expect('Zwei Strangabschnitte', r.straenge, ['EG→OG', 'KG→EG']);
+  expect('Je Strang ein Vorlauf (Rücklauf paarweise dazu)', r.strangRohre, 2);
+  expect('Die Stränge stehen senkrecht', r.senkrecht, true);
+  // Der untere Strang trägt EG und OG, der obere nur das OG.
+  const untenGroesser = Math.max(...r.stroeme) > Math.min(...r.stroeme);
+  expect('Der untere Strang trägt mehr als der obere', untenGroesser, true);
+  expect('Auf jedem Geschoss liegen Rohre', Object.keys(r.rohreProGeschoss).sort(), ['EG', 'KG', 'OG']);
+  expect('Kein Befund der Stufe Fehler', r.fehler, []);
+  await p.evaluate(() => { const S = window.__ravia.getState(); S.setTool('select'); S.setSelection(null); });
+  await p.waitForTimeout(300);
+  await p.locator('main canvas').first().screenshot({ path: './screenshots/geschosse-steigleitung.png' });
+}
+
 console.log('\n▸ Nichts in der Konsole');
 expect('Keine Fehler im Browser', errs.slice(0, 3), []);
 

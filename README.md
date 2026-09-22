@@ -710,6 +710,19 @@ viele Meter DN 15 blank. Leitungen werden als Polylinie verlegt und rasten an
 TGA-Objekten ein — ein Klick auf den Heizkörper schließt den Zug dort an. Der
 Export summiert alles je Gewerk, Nennweite und Dämmstärke.
 
+**Über alle Geschosse — die Steigleitung.** „Auslegen" plant das **Gebäude**,
+nicht nur das sichtbare Geschoss (`src/lib/gebaeudeNetz.ts`). Zuerst wird das
+Quellgeschoss gesucht: wo Wärmeerzeuger oder Speicher stehen, sonst das
+Geschoss, auf dem die Monoblock-Wärmepumpe im Garten steht. Von dort laufen
+Stränge nach oben und unten, Geschoss für Geschoss. Wo der Strang steht,
+entscheidet `steigstrang.ts`: ein Installationsschacht, der beide Geschosse
+verbindet; sonst lotrecht über der Quelle, an die nächste Wand gezogen; sonst
+der nächstgelegene Raum. Gerechnet wird **von außen nach innen**, damit jeder
+Strangabschnitt trägt, was über ihm hängt — beim Dreigeschosser also KG → EG
+den Strom von EG *und* OG. Die Deckendurchführung ist eine Kernbohrung und
+steht als Hinweis im Befund. Der typische Fall: Wärmepumpe im Garten,
+Verrohrung in den Technikraum im Keller zum Puffer, und von dort nach oben.
+
 **Automatische Auslegung als Baum oder als Ring.** „Auslegen" legt das Netz
 selbst: Neubau als Baum über Verteiler (Fußbodenkanal), Sanierung wahlweise
 als Baum oder — mit dem Schalter „Ring" — als **Ringleitung** entlang der

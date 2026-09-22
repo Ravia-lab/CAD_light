@@ -37,7 +37,7 @@ import {
 } from '../types/bim';
 import { mindestens } from '../lib/uimodus';
 import { useBimStore } from '../store/useBimStore';
-import type { PipeLayoutResult } from '../lib/pipeLayout';
+import type { GebaeudeNetzErgebnis } from '../lib/gebaeudeNetz';
 import { HEAT_PUMP_SERIES, REFRIGERANTS, minimumRoomVolume } from '../lib/deviceCatalog';
 import { buildSchematic, designPlant, type CircuitDesign } from '../lib/plantDesign';
 import { pruefeSchema, type SchemaBefund } from '../lib/schemaPruefung';
@@ -131,7 +131,7 @@ export default function AnlagenPanel() {
   const setSchematic = useBimStore((s) => s.setSchematic);
   const uebernehmeSchemaVorlage = useBimStore((s) => s.uebernehmeSchemaVorlage);
   const legeRohrnetzAus = useBimStore((s) => s.legeRohrnetzAus);
-  const [rohrbericht, setRohrbericht] = useState<PipeLayoutResult | null>(null);
+  const [rohrbericht, setRohrbericht] = useState<GebaeudeNetzErgebnis | null>(null);
   const setStatus = useBimStore((s) => s.setStatus);
   const uiMode = useBimStore((s) => s.uiMode);
   const [seriesFilter, setSeriesFilter] = useState<string>('');
