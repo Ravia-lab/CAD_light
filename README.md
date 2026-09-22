@@ -730,6 +730,17 @@ Kernbohrung durch die Trennwand statt eines Umwegs über die Tür, mit so wenig
 Bögen wie möglich. Müsste der Ring für den Stich erst verlängert werden, zählt
 diese Verlängerung mit (`src/lib/ringStich.ts`).
 
+**Raumangaben beim Öffnen einer Datei — geschossweise.** Räume werden beim
+Laden neu erkannt, Name, Nutzung, Solltemperatur, „beheizt" und eine von RaVia
+gerechnete Heizlast wandern über den Schwerpunkt zurück. Gesucht wird dabei
+**nur im eigenen Geschoss** (`src/lib/raumZuordnung.ts`): Bei
+übereinanderliegenden Grundrissen liegt der Schwerpunkt des Schlafzimmers im
+OG genau über dem Wohnzimmer im EG, und bis 1.41.0 gewann der erste Treffer —
+Namen des OG landeten im EG, der Keller galt als beheizt. Das Geschoss kommt
+aus `levelId`, dem Geschossnamen oder der Raumkennung; jeder erkannte Raum
+wird höchstens einmal vergeben. Aus demselben Grund sucht auch eine neu
+gesetzte Heizfläche ihren Raum nur im eigenen Geschoss.
+
 **Raumnamen beim Spiegeln, Verschieben und Drehen.** Räume werden nach jeder
 Änderung neu erkannt; Name, Nutzung und Solltemperatur gehen jetzt mit dem
 Raum, der von denselben Wänden umschlossen wird — nicht mehr mit der Lage.

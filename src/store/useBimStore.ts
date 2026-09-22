@@ -163,6 +163,7 @@ import { baueDachlandschaft, daecherVon, raeumeOhneGeschossDarueber } from '../l
 import { importIfc } from '../lib/ifcImport';
 import { ordneRaumnamenZu } from '../lib/raumnutzung';
 import { importRaumplan } from '../lib/raumplanImport';
+import { ordneRaeumeZu } from '../lib/raumZuordnung';
 import type { RaumHinweis, RaumplanImportErgebnis } from '../lib/raumplanImport';
 import { importBuildingModel } from '../lib/buildingModelImport';
 import { begradige } from '../lib/begradigen';
@@ -2634,9 +2635,17 @@ export const useBimStore = create<BimState>()((set, get) => {
             ...options,
           };
           // Raumzuordnung sofort setzen, damit der Export ohne weitere
-          // Geometrieänderung vollständig ist.
+          // Geometrieänderung vollständig ist — **im eigenen Geschoss**.
+          // Ohne den Geschossfilter bekam ein Heizkörper im OG den Raum aus
+          // dem EG, der zufällig darunter liegt; bis zum nächsten vollen
+          // Rechenlauf stand er dann im falschen Raum (dieser Aufruf läuft
+          // mit `skipRooms`). Dieselbe Verwechslung wie beim Öffnen einer
+          // Projektdatei, siehe `src/lib/raumZuordnung.ts`.
           const room = Object.values(doc.rooms).find(
-            (r) => r.innerPolygon.length >= 3 && pointInPolygon(fixture.position, r.innerPolygon),
+            (r) =>
+              r.levelId === fixture.levelId &&
+              r.innerPolygon.length >= 3 &&
+              pointInPolygon(fixture.position, r.innerPolygon),
           );
           fixture.roomId = room?.id;
           doc.fixtures[fixture.id] = fixture;
@@ -2702,6 +2711,11 @@ export const useBimStore = create<BimState>()((set, get) => {
         rotation: platz.rotation,
         wallId: platz.wallId,
         roomId,
+        // Der Heizkörper gehört auf das Geschoss **des Raums** — nicht auf
+        // das gerade sichtbare. Über das Raumbuch und über die Schnittstelle
+        // lässt sich die Heizlast eines Raums setzen, der nicht im
+        // aktiven Geschoss liegt.
+        levelId: room.levelId,
         params: { ...def.params, powerW: watt, powerSource: 'datenblatt' },
       });
       if (!erstellt) return { ok: false, message: 'Heizkörper konnte nicht angelegt werden' };
@@ -5889,20 +5903,16 @@ export const useBimStore = create<BimState>()((set, get) => {
       // Raumbezogene Angaben zuordnen — über den Schwerpunkt, weil sich die
       // Raum-IDs bei der Neuerkennung ändern können.
       const savedRooms = (raw.rooms as Record<string, unknown>[] | undefined) ?? [];
-      for (const saved of savedRooms) {
-        const polygon = saved.polygon as Vec2[] | undefined;
-        if (!polygon?.length) continue;
-        let cx = 0;
-        let cy = 0;
-        for (const p of polygon) {
-          cx += p.x;
-          cy += p.y;
-        }
-        const centre = { x: cx / polygon.length, y: cy / polygon.length };
-        const match = Object.values(fresh.rooms).find(
-          (r) => r.innerPolygon.length >= 3 && pointInPolygon(centre, r.innerPolygon),
-        );
-        if (!match) continue;
+      /*
+       * Die Zuordnung läuft **geschossweise** (`ordneRaeumeZu`). Über den
+       * bloßen Schwerpunkt gesucht, landeten bei übereinanderliegenden
+       * Grundrissen die Angaben des Obergeschosses im Erdgeschoss — siehe
+       * `src/lib/raumZuordnung.ts`.
+       */
+      const treffer = ordneRaeumeZu(savedRooms, Object.values(fresh.rooms), fresh.levels);
+      savedRooms.forEach((saved, i) => {
+        const match = treffer[i];
+        if (!match) return;
         fresh.rooms[match.id] = {
           ...match,
           name: (saved.name as string) ?? match.name,
@@ -5917,7 +5927,7 @@ export const useBimStore = create<BimState>()((set, get) => {
           // dass die Auslegung wieder auf dem Überschlag steht.
           normHeatLoad: (saved.normHeatLoad as Room['normHeatLoad']) ?? match.normHeatLoad,
         };
-      }
+      });
 
       set({
         doc: fresh,
