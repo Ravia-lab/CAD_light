@@ -710,6 +710,16 @@ viele Meter DN 15 blank. Leitungen werden als Polylinie verlegt und rasten an
 TGA-Objekten ein — ein Klick auf den Heizkörper schließt den Zug dort an. Der
 Export summiert alles je Gewerk, Nennweite und Dämmstärke.
 
+**Die Hüllflächenbilanz — Prüfsumme gegen verlorene Bauteile (Punkt 13).**
+Der Export trägt seit 2.3.0 je Raum und für das Gebäude `envelope`:
+Σ A·(U+ΔU_WB) nach Bauteilart (Wand, Fenster, Tür, Boden, Decke, Dach,
+Giebel) und nach Randbedingung, dazu den Anteil der waagerechten Bauteile.
+Das ist **keine Heizlast** — keine Temperaturfaktoren, keine Lüftung, keine
+Aufheizleistung —, sondern die Summe der Eingangsgrößen. Sie beantwortet in
+einer Zahl, ob Boden, Decke und Dach in der Rechnung der Gegenstelle
+angekommen sind; am Referenzhaus stecken dort 46,5 % des gesamten A·U. Die
+Abnahme dazu steht in `handbuch/PUNKT-13-ABNAHME.md`.
+
 **Über alle Geschosse — die Steigleitung.** „Auslegen" plant das **Gebäude**,
 nicht nur das sichtbare Geschoss (`src/lib/gebaeudeNetz.ts`). Zuerst wird das
 Quellgeschoss gesucht: wo Wärmeerzeuger oder Speicher stehen, sonst das

@@ -19,6 +19,8 @@
  * Store und macht strukturelles Sharing für React-Renderer trivial.
  */
 
+import type { Huellflaechenbilanz } from '../lib/huellflaechenbilanz';
+
 // ===========================================================================
 // Identifikatoren & Primitiven
 // ===========================================================================
@@ -3171,6 +3173,16 @@ export interface ExportRoom {
   exteriorWallArea: number;
   /** Alle Hüllbauteile des Raums: Wände, Boden, Decke. */
   surfaces: ExportSurface[];
+  /**
+   * **Hüllflächenbilanz des Raums — die Prüfsumme gegen verlorene Bauteile.**
+   *
+   * Σ A·(U+ΔU_WB) je Bauteilart und je Randbedingung, dazu der Anteil von
+   * Boden, Decke, Dach und Giebel. Ausdrücklich **keine Heizlast**: ohne
+   * Temperaturkorrekturfaktoren, ohne Lüftung, ohne Aufheizleistung. Sie
+   * dient dem Vergleich — wer die Übernahme prüfen will, hält seine eigene
+   * Summe je Bauteilart daneben. Siehe `src/lib/huellflaechenbilanz.ts`.
+   */
+  envelope: Huellflaechenbilanz;
   polygon: Vec2[];
   /** Beheizt? Unbeheizte Räume sind Nachbarbereich, keine Lastquelle. */
   isHeated: boolean;
@@ -3869,8 +3881,14 @@ export interface RaviaExport {
    * Öffnung sowie `checksum` an jedem Raum gebracht. Alle Felder aus 2.0.0
    * stehen weiterhin unverändert; eine Gegenstelle, die 2.0.0 oder 2.1.0
    * liest, rechnet ohne Änderung weiter.
+   *
+   * **2.3.0** bringt die Hüllflächenbilanz `envelope` — je Raum und für das
+   * Gebäude, Σ A·(U+ΔU_WB) nach Bauteilart und Randbedingung. Sie ist
+   * zusätzlich und ersetzt nichts: Wer die Flächen einzeln übernimmt, ändert
+   * nichts; wer prüfen will, ob Boden, Decke und Dach angekommen sind, hat
+   * jetzt eine Zahl statt einer Liste (Punkt 13).
    */
-  version: '2.2.0';
+  version: '2.3.0';
   generator: string;
   exportedAt: string;
   /** Einheiten explizit im Dokument — keine Konvention, die verloren gehen kann. */
@@ -3963,6 +3981,12 @@ export interface RaviaExport {
   hydraulics?: ExportHydraulics;
   rooms: ExportRoom[];
   totals: ExportBuildingTotals;
+  /**
+   * Dieselbe Bilanz über **alle** Räume: Σ A·(U+ΔU_WB) je Bauteilart und je
+   * Randbedingung. Eine Zahl, an der die Gegenstelle in einem Blick sieht,
+   * ob Boden, Decke und Dach in ihrer Rechnung angekommen sind.
+   */
+  envelope: Huellflaechenbilanz;
   validation: ValidationReport;
   /**
    * Außenanlage und Wärmepumpe. Für die Heizlast selbst ohne Belang — für

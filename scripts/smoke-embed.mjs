@@ -96,6 +96,13 @@ await p.addInitScript(() => {
       ifcHead: ifc.slice(0, 12),
       ready: rep.ready,
       docWalls: Object.keys(window.RaViaCAD.getDocument().walls).length,
+      version: ex.version,
+      // Punkt 13: die Hüllflächenbilanz, an der die Gegenstelle prüfen kann,
+      // ob Boden, Decke und Dach in ihrer Rechnung angekommen sind.
+      envelopeKinds: Object.keys(ex.envelope?.byKind ?? {}).sort(),
+      envelopeH: ex.envelope?.total?.heatTransferCoefficient ?? 0,
+      envelopeShare: ex.envelope?.shareHorizontal ?? 0,
+      raeumeMitBilanz: ex.rooms.filter((r) => r.envelope && r.envelope.total).length,
     };
   });
   expect('Export liefert das Schema', shapes.schema, 'ravia.bim.light');
@@ -103,6 +110,12 @@ await p.addInitScript(() => {
   expect('IFC ist STEP', shapes.ifcHead, 'ISO-10303-21');
   expect('Prüfbericht rechenfähig', shapes.ready, true);
   expect('Rohdokument erreichbar', shapes.docWalls > 0, true);
+  expect('Exportfassung 2.3.0', shapes.version, '2.3.0');
+  expect('Hüllflächenbilanz im Export', shapes.envelopeH > 0, true);
+  expect('… je Raum', shapes.raeumeMitBilanz, shapes.rooms);
+  expect('… mit Boden, Decke und Wand', ['ceiling', 'floor', 'wall'].every((k) => shapes.envelopeKinds.includes(k)), true);
+  expect('… und dem Anteil der waagerechten Bauteile', shapes.envelopeShare > 0, true);
+  console.log(`    Hüllflächenbilanz: ${shapes.envelopeH} W/K · ${Math.round(shapes.envelopeShare * 100)} % Boden/Decke/Dach`);
 
   // Änderungsereignis: entprellt, deshalb warten wir kurz.
   const changed = await p.evaluate(async () => {

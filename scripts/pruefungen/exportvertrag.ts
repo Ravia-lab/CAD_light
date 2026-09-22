@@ -43,6 +43,8 @@ import { buildRaviaExport } from '../../src/lib/raviaExport';
 const WURZEL_PFLICHT = [
   'schema',
   'version',
+  // Seit 2.3.0: dieselbe Bilanz über alle Räume (Punkt 13).
+  'envelope',
   'generator',
   'exportedAt',
   'units',
@@ -99,6 +101,13 @@ const RAUM_PFLICHT = [
   'groundContactArea',
   'characteristicGroundDimension',
   'surfaces',
+  /*
+   * Seit 2.3.0: die Hüllflächenbilanz des Raums — Σ A·(U+ΔU_WB) je Bauteilart
+   * und je Randbedingung. Sie steht in **jedem** Raum, auch im
+   * innenliegenden ohne Außenbauteil (dann mit Nullen): Ein Feld, das mal da
+   * ist und mal nicht, taugt nicht als Prüfsumme.
+   */
+  'envelope',
   'polygon',
 ] as const;
 
@@ -374,7 +383,7 @@ export function pruefeExportvertrag(check: CheckFn): void {
 
   // === 1 — Kennung und Version ============================================
   check('Schemakennung', ex.schema, 'ravia.bim.light');
-  check('Fassung', ex.version, '2.2.0');
+  check('Fassung', ex.version, '2.3.0');
   check('Der Erzeuger steht im Dokument', ex.generator.length > 0, true);
   check('Und der Zeitpunkt', /^\d{4}-\d{2}-\d{2}T/.test(ex.exportedAt), true);
 
@@ -484,7 +493,7 @@ export function pruefeExportvertrag(check: CheckFn): void {
   const zurueck = JSON.parse(JSON.stringify(ex)) as RaviaExport;
   check('Die Wurzel übersteht die Datei', fehlende(zurueck, WURZEL_PFLICHT), '');
   check('… und bringt nichts Neues mit', unbekannte(zurueck, WURZEL_PFLICHT, WURZEL_WAHLFREI), '');
-  check('Die Fassung steht auch danach da', zurueck.version, '2.2.0');
+  check('Die Fassung steht auch danach da', zurueck.version, '2.3.0');
 
   // === 7 — Eine Hüllfläche, nicht zwei ====================================
   //

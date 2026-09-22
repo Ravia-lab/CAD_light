@@ -64,6 +64,7 @@ import type {
 } from '../types/bim';
 import { SOIL_LABELS, durchbruchWirt } from '../types/bim';
 import { durchbruchFlaeche, durchbruchMitte } from './durchbruchSymbols';
+import { huellflaechenbilanz } from './huellflaechenbilanz';
 import { rohrlaenge, steiganteil } from './rohrlaenge';
 import { rohrmeterJeRaum } from './rohrImRaum';
 import type { RohrAnteil } from './rohrImRaum';
@@ -203,7 +204,8 @@ export function buildRaviaExport(doc: BimDocument): RaviaExport {
 
   return {
     schema: 'ravia.bim.light',
-    version: '2.2.0',
+    // 2.3.0: Hüllflächenbilanz je Raum und für das Gebäude (`envelope`).
+    version: '2.3.0',
     generator: GENERATOR,
     exportedAt: new Date().toISOString(),
     units: {
@@ -254,6 +256,8 @@ export function buildRaviaExport(doc: BimDocument): RaviaExport {
     ...(hasPlant(doc) ? { plant: buildPlantExport(doc) } : {}),
     rooms: exportRooms,
     totals: buildTotals(doc, exportRooms, Object.values(doc.fixtures)),
+    // Dieselbe Bilanz über alle Räume — die eine Zahl für das ganze Gebäude.
+    envelope: huellflaechenbilanz(exportRooms.flatMap((r) => r.surfaces)),
     validation: validateModel(doc),
     geometry: {
       nodes: Object.values(doc.nodes),
@@ -1618,6 +1622,12 @@ function buildRoom(
     totalWindowArea: roundCm2(totalWindowArea),
     exteriorWallArea: roundCm2(exteriorWallArea),
     surfaces,
+    /*
+     * Punkt 13: Die Bilanz steht **neben** den Flächen, nicht statt ihrer.
+     * Wer die Flächen einzeln übernimmt, braucht sie nicht; wer prüfen will,
+     * ob er alle übernommen hat, hat mit ihr eine Zahl statt einer Liste.
+     */
+    envelope: huellflaechenbilanz(surfaces),
     polygon: room.innerPolygon.map((p) => ({ x: roundMm(p.x), y: roundMm(p.y) })),
     fixtures,
     installedHeatingPower: Math.round(installedHeatingPower),
