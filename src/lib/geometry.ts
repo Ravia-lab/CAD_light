@@ -279,6 +279,68 @@ export function pointInPolygon(p: Vec2, poly: readonly Vec2[]): boolean {
   return inside;
 }
 
+/**
+ * Ein Punkt, der **sicher im Inneren** des Polygons liegt.
+ *
+ * Gebraucht wird das überall dort, wo ein Polygon über „welcher Raum enthält
+ * diesen Punkt?" wiedergefunden wird. Der naheliegende Kandidat — der
+ * Mittelwert der Ecken — liegt bei konkaven Grundrissen **außerhalb**: Beim
+ * offenen Wohnbereich „Wohnen/Essen + Flur + Küche" (L-förmig) fällt er in
+ * den fehlenden Schenkel. Der Flächenschwerpunkt hilft nur zum Teil; bei vier
+ * der Swiss-Dwellings-Wohnungen liegt auch er außerhalb.
+ *
+ * Deshalb hier in zwei Stufen:
+ *
+ *  1. Mittelwert der Ecken, solange er innen liegt — damit bleibt alles, was
+ *     bisher zugeordnet wurde, bei genau demselben Punkt.
+ *  2. Sonst ein **Abtaststrahl**: zwischen je zwei benachbarten Ecken-Höhen
+ *     wird waagerecht geschnitten, die Schnittstellen werden paarweise zu
+ *     Innenstrecken; die **längste** Strecke gewinnt, ihre Mitte ist das
+ *     Ergebnis. Die längste Strecke ist die unempfindlichste: Millimeter am
+ *     Rand ändern an ihrer Mitte nichts.
+ *
+ * Beispiel von Hand — L-Form (0,0) (6,0) (6,2) (2,2) (2,6) (0,6):
+ * Eckenmittel (16/6, 16/6) = (2,667 | 2,667) liegt außen. Ecken-Höhen 0, 2, 6
+ * ergeben die Abtasthöhen 1 und 4; bei y = 1 reicht das Innere von x = 0 bis
+ * x = 6 (Länge 6), bei y = 4 von x = 0 bis x = 2 (Länge 2). Die längere
+ * gewinnt: (3 | 1).
+ */
+export function innererPunkt(poly: readonly Vec2[]): Vec2 {
+  const n = poly.length;
+  if (n === 0) return { x: 0, y: 0 };
+  let sx = 0;
+  let sy = 0;
+  for (const p of poly) {
+    sx += p.x;
+    sy += p.y;
+  }
+  const mittel = { x: sx / n, y: sy / n };
+  if (n < 3 || pointInPolygon(mittel, poly)) return mittel;
+
+  const hoehen = [...new Set(poly.map((p) => p.y))].sort((a, b) => a - b);
+  let beste = -1;
+  let ergebnis = mittel;
+  for (let i = 0; i + 1 < hoehen.length; i++) {
+    const y = (hoehen[i] + hoehen[i + 1]) / 2;
+    const schnitte: number[] = [];
+    for (let k = 0, j = n - 1; k < n; j = k++) {
+      const a = poly[k];
+      const b = poly[j];
+      if (a.y > y !== b.y > y) schnitte.push(((b.x - a.x) * (y - a.y)) / (b.y - a.y) + a.x);
+    }
+    schnitte.sort((p, q) => p - q);
+    // Paarweise: von der 1. zur 2. Schnittstelle innen, von der 2. zur 3. außen.
+    for (let k = 0; k + 1 < schnitte.length; k += 2) {
+      const laenge = schnitte[k + 1] - schnitte[k];
+      if (laenge > beste) {
+        beste = laenge;
+        ergebnis = { x: (schnitte[k] + schnitte[k + 1]) / 2, y };
+      }
+    }
+  }
+  return ergebnis;
+}
+
 export function polygonBounds(poly: readonly Vec2[]): Bounds {
   let minX = Infinity;
   let minY = Infinity;

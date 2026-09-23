@@ -329,6 +329,18 @@ export default function Editor2D({ className = '' }: { className?: string }) {
   const draftZeigerRef = useRef<number | null>(null);
   /** Startpunkt eines Rechtsklicks, um Pan von Kontextabbruch zu trennen. */
   const rightDownRef = useRef<Vec2 | null>(null);
+  /*
+   * Der Zug, der lief, als die rechte Maustaste gedrückt wurde.
+   *
+   * Die rechte Taste schwenkt das Bild, deshalb wird beim Drücken auf „pan"
+   * umgeschaltet. Damit war der laufende Zug überschrieben — und der
+   * Rechtsklick, der ihn *abschließen* sollte, fand beim Loslassen nur noch
+   * den Schwenk vor und warf ihn weg. Gemeldet als „die Grundstücksgrenze
+   * lässt sich umfahren, aber nicht abschließen". Hier wird er gemerkt und
+   * beim Loslassen zurückgeholt — auch nach einem echten Schwenk: Bild
+   * verschieben soll den Zug nicht kosten.
+   */
+  const rechtsZugRef = useRef<Draft | null>(null);
   /** Aufgezogener Auswahlrahmen in Weltkoordinaten. */
   const marqueeRef = useRef<{ from: Vec2; to: Vec2 } | null>(null);
 
@@ -2477,7 +2489,10 @@ export default function Editor2D({ className = '' }: { className?: string }) {
     // (dann entscheidet erst das Loslassen, ob es ein Schwenk oder ein
     // Kontextabbruch war; siehe handlePointerUp).
     if (e.button === 1 || e.button === 2 || tool === 'pan' || spaceRef.current) {
-      if (e.button === 2) rightDownRef.current = ptr.screen;
+      if (e.button === 2) {
+        rightDownRef.current = ptr.screen;
+        rechtsZugRef.current = draftRef.current.mode === 'idle' ? null : draftRef.current;
+      }
       draftRef.current = { mode: 'pan', lastScreen: ptr.screen };
       scheduleRender();
       return;
@@ -3183,6 +3198,9 @@ export default function Editor2D({ className = '' }: { className?: string }) {
     // Rechte Maustaste: wurde nicht geschwenkt, war es ein Abbruch-Klick.
     if (e.button === 2 && rightDownRef.current) {
       const moved = distance(rightDownRef.current, pointerRef.current.screen);
+      // Erst den Zug zurückholen, den das Drücken beiseitegelegt hat.
+      if (rechtsZugRef.current) draftRef.current = rechtsZugRef.current;
+      rechtsZugRef.current = null;
       if (moved < 4) {
         // Rechtsklick ohne Schwenk ist in jedem CAD das Zeichen „fertig".
         // Deshalb wird der laufende Zug übernommen und nicht weggeworfen.

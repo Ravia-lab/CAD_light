@@ -110,7 +110,11 @@ console.log('\n▸ Handlungsanweisungen');
   const text = await p.locator('aside').innerText();
   expect('Fehler wird gemeldet', /Nicht rechenfähig/.test(text), true);
   expect('Mit Handlungsanweisung', /So beheben Sie das:/.test(text), true);
-  expect('Sprunghinweis', /Anklicken springt zur Stelle im Plan/.test(text), true);
+  // Der Wortlaut des Hinweises stand hier einmal wörtlich drin und wurde in
+  // der Oberfläche später genauer gefasst („springt hin, zoomt heran und
+  // markiert die Stelle"). Geprüft wird deshalb, was die Zusage ausmacht:
+  // Anklicken führt zur Stelle.
+  expect('Sprunghinweis', /Anklicken springt hin/.test(text), true);
   await p.locator('aside').screenshot({ path: './screenshots/bedienung-2-pruefung.png' });
 
   await p.keyboard.press('Control+z');

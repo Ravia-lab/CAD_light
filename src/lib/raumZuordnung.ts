@@ -24,7 +24,15 @@
  *     bleibt die Suche über alle Geschosse — eine alte Datei ohne
  *     Geschossangabe soll weiter geladen werden können.
  *  2. **Schwerpunkt im Innenpolygon**, wie bisher.
- *  3. **Jeder erkannte Raum nur einmal.** Zwei gespeicherte Räume, die
+ *  3. **Ein Punkt, der wirklich im Raum liegt.** Gesucht wird über einen
+ *     Punkt des gespeicherten Polygons. Das war der Mittelwert der Ecken —
+ *     und der liegt bei konkaven Grundrissen außerhalb. Beim offenen
+ *     Wohnbereich „Wohnen/Essen + Flur + Küche" (L-förmig) fiel er in den
+ *     fehlenden Schenkel, kein Raum enthielt ihn, und der Raum hieß nach dem
+ *     Öffnen wieder „Raum 1". Aufgefallen beim Gegenlauf der
+ *     Swiss-Dwellings-Wohnungen: 11 von 338 Räumen. Jetzt liefert
+ *     `innererPunkt` einen Punkt, der garantiert im Polygon liegt.
+ *  4. **Jeder erkannte Raum nur einmal.** Zwei gespeicherte Räume, die
  *     denselben erkannten Raum beanspruchen, sind ein Umbau; den Zuschlag
  *     bekommt der mit der ähnlicheren Fläche, danach der mit dem näheren
  *     Schwerpunkt, danach der mit gleicher Kennung. Ohne diese Regel
@@ -34,7 +42,7 @@
  */
 
 import type { Level, Room, Vec2 } from '../types/bim';
-import { pointInPolygon } from './geometry';
+import { innererPunkt, pointInPolygon } from './geometry';
 
 /** Ein Raum, wie er in der Projektdatei steht — nur die Felder, die hier zählen. */
 export interface GespeicherterRaum {
@@ -47,16 +55,6 @@ export interface GespeicherterRaum {
   area?: unknown;
 }
 
-/** Schwerpunkt als einfaches Mittel der Stützpunkte — wie in `roomDetection`. */
-function schwerpunkt(polygon: readonly Vec2[]): Vec2 {
-  let x = 0;
-  let y = 0;
-  for (const p of polygon) {
-    x += p.x;
-    y += p.y;
-  }
-  return { x: x / polygon.length, y: y / polygon.length };
-}
 
 function polygonVon(saved: GespeicherterRaum): Vec2[] | undefined {
   const p = saved.polygon;
@@ -129,7 +127,7 @@ export function ordneRaeumeZu(
   gespeichert.forEach((saved, index) => {
     const polygon = polygonVon(saved);
     if (!polygon) return;
-    const mitte = schwerpunkt(polygon);
+    const mitte = innererPunkt(polygon);
     const levelId = geschossVon(saved, levels);
     const flaeche = typeof saved.area === 'number' ? saved.area : undefined;
 

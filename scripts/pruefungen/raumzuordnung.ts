@@ -27,6 +27,7 @@
  */
 
 import type { Level, Room } from '../../src/types/bim';
+import { innererPunkt, pointInPolygon, polygonCentroid } from '../../src/lib/geometry';
 import { geschossVon, ordneRaeumeZu } from '../../src/lib/raumZuordnung';
 import type { CheckFn } from './typ';
 
@@ -206,5 +207,110 @@ export function pruefeRaumzuordnung(check: CheckFn): void {
     check('… und zwar bei jedem Raum', alterWeg[1]?.id ?? 'fehlt', 'room-eg-1');
     const neu = ordneRaeumeZu(datei, ERKANNT, LEVELS);
     check('Der neue Weg nicht', [neu[0]?.id, neu[1]?.id].join(','), 'room-og-0,room-og-1');
+  }
+
+  // =========================================================================
+  // 6 · Offener Wohnbereich — der Suchpunkt muss im Raum liegen
+  // =========================================================================
+  /*
+   * **Die zweite Meldung, gefunden im Gegenlauf der 46 Swiss-Dwellings-
+   * Wohnungen (23.09.2026):** 11 von 338 Räumen hießen nach Speichern und
+   * Öffnen wieder „Raum 1" — immer derselbe Zuschnitt, der offene Wohnbereich
+   * „Wohnen/Essen + Flur + Küche".
+   *
+   * **Die Ursache:** Gesucht wurde über den Mittelwert der Ecken. Bei einem
+   * L-förmigen Raum liegt der im fehlenden Schenkel, also außerhalb des
+   * eigenen Raums. Kein erkannter Raum enthielt ihn, die Angaben fielen
+   * stumm weg.
+   *
+   * **Das Prüfpolygon** — L-Form, 6 × 2 m unten, 2 × 4 m links oben:
+   *
+   *        (0,6) ─ (2,6)
+   *          │       │
+   *          │     (2,2) ───── (6,2)
+   *          │                   │
+   *        (0,0) ───────────── (6,0)
+   *
+   * Alle Sollwerte unten sind von Hand gerechnet, nicht aus einem Lauf
+   * abgeschrieben.
+   */
+  {
+    const L = [
+      { x: 0, y: 0 }, { x: 6, y: 0 }, { x: 6, y: 2 },
+      { x: 2, y: 2 }, { x: 2, y: 6 }, { x: 0, y: 6 },
+    ];
+
+    // Eckenmittel: x = (0+6+6+2+2+0)/6 = 16/6, y = (0+0+2+2+6+6)/6 = 16/6.
+    const mittel = {
+      x: L.reduce((sum, q) => sum + q.x, 0) / L.length,
+      y: L.reduce((sum, q) => sum + q.y, 0) / L.length,
+    };
+    check('L-Form: Eckenmittel x', mittel.x, 16 / 6, 1e-9);
+    check('L-Form: Eckenmittel y', mittel.y, 16 / 6, 1e-9);
+    // 2,667 > 2 in beiden Richtungen — das ist der ausgesparte Schenkel.
+    check('L-Form: das Eckenmittel liegt außerhalb', pointInPolygon(mittel, L), false);
+
+    /*
+     * Auch der Flächenschwerpunkt hilft nicht: Rechteck unten 6 × 2 = 12 m²
+     * mit Schwerpunkt (3|1), Rechteck oben 2 × 4 = 8 m² mit (1|4).
+     *   x = (12·3 + 8·1) / 20 = 44/20 = 2,2   y = (12·1 + 8·4) / 20 = 2,2
+     * (2,2 | 2,2) liegt ebenfalls im ausgesparten Schenkel.
+     */
+    const flaechenmitte = polygonCentroid(L);
+    check('L-Form: Flächenschwerpunkt x', flaechenmitte.x, 2.2, 1e-9);
+    check('L-Form: Flächenschwerpunkt y', flaechenmitte.y, 2.2, 1e-9);
+    check('L-Form: auch der Flächenschwerpunkt liegt außerhalb', pointInPolygon(flaechenmitte, L), false);
+
+    /*
+     * Der Abtaststrahl: Ecken-Höhen 0, 2, 6 ergeben die Höhen 1 und 4.
+     *   y = 1 → innen von x = 0 bis x = 6, Länge 6, Mitte (3|1)
+     *   y = 4 → innen von x = 0 bis x = 2, Länge 2, Mitte (1|4)
+     * Die längere Strecke gewinnt.
+     */
+    const innen = innererPunkt(L);
+    check('L-Form: innerer Punkt x', innen.x, 3, 1e-9);
+    check('L-Form: innerer Punkt y', innen.y, 1, 1e-9);
+    check('L-Form: er liegt im Polygon', pointInPolygon(innen, L), true);
+
+    // Beim Rechteck bleibt alles wie bisher: das Eckenmittel liegt innen.
+    const rechteck = innererPunkt(LINKS);
+    check('Rechteck: innerer Punkt bleibt das Eckenmittel x', rechteck.x, 2, 1e-9);
+    check('Rechteck: innerer Punkt bleibt das Eckenmittel y', rechteck.y, 3, 1e-9);
+
+    /*
+     * U-Form (0,0) (6,0) (6,6) (4,6) (4,2) (2,2) (2,6) (0,6): Eckenmittel
+     * x = 24/8 = 3, y = 28/8 = 3,5 — mitten im Einschnitt, also außen.
+     * Bei y = 4 zerfällt das Innere in zwei Strecken von je 2 m (0…2 und
+     * 4…6); bei y = 1 ist es eine Strecke von 6 m. Die gewinnt: (3|1).
+     */
+    const U = [
+      { x: 0, y: 0 }, { x: 6, y: 0 }, { x: 6, y: 6 }, { x: 4, y: 6 },
+      { x: 4, y: 2 }, { x: 2, y: 2 }, { x: 2, y: 6 }, { x: 0, y: 6 },
+    ];
+    const uMittel = {
+      x: U.reduce((sum, q) => sum + q.x, 0) / U.length,
+      y: U.reduce((sum, q) => sum + q.y, 0) / U.length,
+    };
+    check('U-Form: Eckenmittel (3|3,5) liegt im Einschnitt', pointInPolygon(uMittel, U), false);
+    const uInnen = innererPunkt(U);
+    check('U-Form: innerer Punkt x', uInnen.x, 3, 1e-9);
+    check('U-Form: innerer Punkt y', uInnen.y, 1, 1e-9);
+    check('U-Form: er liegt im Polygon', pointInPolygon(uInnen, U), true);
+
+    /*
+     * Und der Fall, wie er im Projekt auftritt: ein erkannter L-Raum, dazu
+     * die gespeicherte Angabe mit demselben Polygon. Vorher fiel der Name
+     * weg, weil der Suchpunkt außerhalb lag.
+     */
+    const erkannt = [raum('room-eg-wohnen', 'eg', L, 20)];
+    const treffer = ordneRaeumeZu([gespeichert('room-eg-wohnen', 'EG', L, 20)], erkannt, LEVELS);
+    check('Offener Wohnbereich wird wiedergefunden', treffer[0]?.id ?? 'fehlt', 'room-eg-wohnen');
+
+    // Gegenprobe: mit dem Eckenmittel als Suchpunkt findet sich nichts.
+    check(
+      'Gegenprobe — mit dem Eckenmittel fände sich kein Raum',
+      erkannt.some((r) => pointInPolygon(mittel, r.innerPolygon)),
+      false,
+    );
   }
 }
