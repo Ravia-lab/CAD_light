@@ -48,8 +48,13 @@ import type { HostPatch, HostPatchReport } from './hostPatch';
  * legt das gescannte Geschoss dann **neben** die vorhandenen, statt das
  * Modell zu ersetzen. Alles Zuwachs: Wer das nackte Modell schickt, bekommt
  * das Verhalten von 1.3.0.
+ *
+ * 1.5.0 — `getDocument` gibt es jetzt auch über die Nachrichtenbrücke. Auf
+ * `window.RaViaCAD` stand es schon lange, nur war das aus einem Rahmen
+ * heraus unerreichbar: Beide Seiten sind getrennte Fenster, und über die
+ * Brücke war `getDocument` kein Befehl. Wieder reiner Zuwachs.
  */
-export const EMBED_API_VERSION = '1.4.0';
+export const EMBED_API_VERSION = '1.5.0';
 
 /** Kurzfassung des Modells — das, was eine Gegenstelle meistens wissen will. */
 export interface RaviaSummary {
@@ -230,6 +235,17 @@ export function installEmbedApi(store: StoreLike, target: Window = window): () =
         break;
       case 'getExport':
         reply(event, 'export', data.id, api.getExport());
+        break;
+      /*
+       * Das Rohdokument. Stand bis 1.4.0 nur auf `window.RaViaCAD` — und das
+       * ist aus einem Rahmen heraus gar nicht erreichbar, weil beide Seiten
+       * getrennte Fenster sind. Wer eingebettet arbeitet, hat also einen
+       * Befehl vor sich gehabt, den es für ihn nicht gab: Die Antwort war
+       * „Unbekannter Befehl: getDocument". Aufgefallen beim Schreiben der
+       * Befehlsliste für die RaVia-Testumgebung.
+       */
+      case 'getDocument':
+        reply(event, 'document', data.id, api.getDocument());
         break;
       case 'getIfc':
         reply(event, 'ifc', data.id, api.getIfc());

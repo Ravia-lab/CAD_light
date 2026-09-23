@@ -70,7 +70,7 @@ await p.addInitScript(() => {
   // 1.1.0: der Rückweg ist dazugekommen, die lesenden Befehle sind
   // unverändert geblieben.
   // 1.3.0: `loadBuilding` (Gebäudemodell aus RaVia Scan) — reiner Zuwachs.
-  expect('Version gemeldet', api.version, '1.4.0');
+  expect('Version gemeldet', api.version, '1.5.0');
   expect(
     'Alle Methoden da',
     api.methods,
@@ -159,7 +159,7 @@ console.log('\n▸ Nachrichtenbrücke (postMessage aus dem umgebenden Fenster)')
 
   const status = await p.locator('#status').innerText();
   expect('Verbindung steht', status, 'verbunden');
-  expect('Version angezeigt', await p.locator('#version').innerText(), '1.4.0');
+  expect('Version angezeigt', await p.locator('#version').innerText(), '1.5.0');
 
   const panel = await p.locator('#summary').innerText();
   expect('Kurzfassung angekommen', /Räume/.test(panel), true);
@@ -289,6 +289,16 @@ console.log('\n▸ Schreibweg (applyPatch über postMessage)');
     raum.id,
   );
   expect('Strg+Z nimmt den Schreibvorgang zurück', zurueck, raum.soll);
+
+  /*
+   * `getDocument` über die Brücke. Bis 1.5.0 gab es den Befehl nur auf
+   * `window.RaViaCAD` — und das ist aus einem Rahmen heraus unerreichbar.
+   * Eine eingebettete Gegenstelle bekam „Unbekannter Befehl: getDocument".
+   */
+  const roh = await befehl('getDocument');
+  expect('Antwort heißt document', roh.type, 'document');
+  expect('Das Rohdokument bringt Räume mit', Object.keys(roh.payload?.rooms ?? {}).length > 0, true);
+  expect('… und Wände', Object.keys(roh.payload?.walls ?? {}).length > 0, true);
 
   const felder = await befehl('getWritableFields');
   expect('Antwort heißt writableFields', felder.type, 'writableFields');
@@ -472,7 +482,7 @@ console.log('\n▸ Zweiter Aufruf mit warmem Zwischenspeicher');
   await p.goto(BASIS + 'einbettung-beispiel.html', { waitUntil: 'networkidle' });
   await p.locator('#status').filter({ hasText: 'verbunden' }).waitFor({ timeout: 20000 }).catch(() => {});
   expect('Auch mit warmem Zwischenspeicher verbunden', await p.locator('#status').innerText(), 'verbunden');
-  expect('… mit Version', await p.locator('#version').innerText(), '1.4.0');
+  expect('… mit Version', await p.locator('#version').innerText(), '1.5.0');
 }
 
 console.log('\nERRORS:', errs.length ? errs.join('\n') : 'keine');

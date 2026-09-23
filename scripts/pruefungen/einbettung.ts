@@ -477,4 +477,45 @@ export function pruefeEinbettung(check: CheckFn): void {
     check('… und wird zusätzlich von sich aus angestoßen',
       zeilen.includes('verbinde();'), true);
   }
+
+  // =========================================================================
+  // Die Nachrichtenbrücke darf keinen Befehl weniger können als `window.RaViaCAD`
+  // =========================================================================
+  /*
+   * **Der Fehler, den diese Prüfung festhält.** `getDocument` stand im
+   * Vertrag `RaviaCadApi` und auf `window.RaViaCAD` — in der Nachrichtenbrücke
+   * fehlte der Fall. Für eine Gegenstelle im selben Fenster war der Befehl
+   * also da, für eine eingebettete nicht; sie bekam „Unbekannter Befehl:
+   * getDocument". Und eingebettet ist der Normalfall: Aus einem Rahmen heraus
+   * ist `window.RaViaCAD` der Gegenseite gar nicht erreichbar, beide sind
+   * getrennte Fenster. Aufgefallen beim Schreiben der Befehlsliste für die
+   * RaVia-Testumgebung, nicht durch einen Test — deshalb dieser hier.
+   *
+   * Geprüft wird die Regel, nicht der eine Befehl: **Jede Methode des
+   * Vertrags muss auch über die Brücke ankommen.** Gelesen wird dafür der
+   * Quelltext selbst; so kann die Liste nicht auseinanderlaufen, ohne dass es
+   * auffällt.
+   */
+  {
+    const hier = dirname(fileURLToPath(import.meta.url));
+    const quelle = readFileSync(resolve(hier, '..', '..', 'src', 'lib', 'embedApi.ts'), 'utf8');
+
+    // Die Methoden des Vertrags: alles zwischen `interface RaviaCadApi {` und
+    // der schließenden Klammer, was wie `name(` aussieht.
+    const block = quelle.split('export interface RaviaCadApi {')[1]?.split('\n}')[0] ?? '';
+    const vertrag = [...block.matchAll(/^\s{2}(\w+)\(/gm)].map((m) => m[1]).sort();
+
+    // Die Befehle der Brücke: die `case`-Marken im Nachrichtenschalter.
+    const bruecke = [...quelle.matchAll(/^\s{6}case '(\w+)':/gm)].map((m) => m[1]).sort();
+
+    check('Der Vertrag hat Methoden', vertrag.length > 0, true);
+    check('Die Brücke hat Befehle', bruecke.length > 0, true);
+    // `onChange` ist kein Befehl, sondern ein Abonnement; über die Brücke
+    // heißt es `subscribe`/`unsubscribe`. Alles andere muss dort ankommen.
+    const fehlend = vertrag.filter((m) => m !== 'onChange' && !bruecke.includes(m));
+    check('Kein Befehl fehlt in der Nachrichtenbrücke', fehlend.join(', '), '');
+    check('getDocument ist über die Brücke erreichbar', bruecke.includes('getDocument'), true);
+    check('ping, subscribe und unsubscribe kommen dazu',
+      ['ping', 'subscribe', 'unsubscribe'].every((b) => bruecke.includes(b)), true);
+  }
 }
