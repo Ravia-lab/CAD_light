@@ -1534,12 +1534,41 @@ export function planPipeNetwork(doc: BimDocument, options: PipeLayoutOptions): P
   // senkrecht und hätte im Grundriss sonst die Länge null (`rohrlaenge`).
   const pipeLength = runs.reduce((sum, r) => sum + rohrlaenge(r), 0);
 
+  /*
+   * **Versorgt ist, wer eine Trasse bekommen hat — nicht, wer einen
+   * Volumenstrom hat.**
+   *
+   * `versorgte` sind alle Ziele mit Leistung. Ob die Wegsuche sie auch
+   * erreicht hat, steht damit noch nicht fest: Ein Heizkörper in einem Raum
+   * ohne Türverbindung bekommt keinen Weg, `routePipes` meldet das als
+   * Fehler und lässt ihn aus. Gezählt wurde er trotzdem — im Lauf über die
+   * Swiss-Dwellings-Wohnungen kam bei 18 von 54 Grundrissen die Meldung
+   * „8 Verbraucher, 0 m Rohr" heraus, mit acht Fehlern daneben. Wer nur auf
+   * die Zahl sieht, hält die Auslegung für gelungen.
+   *
+   * Gezählt wird deshalb, wer in einem Abschnitt der Trasse vorkommt. Und
+   * wer fehlt, steht als eigene Meldung da, nicht nur als Einzelfehler weiter
+   * oben.
+   */
+  const erreicht = new Set(alleSegmente.flatMap((seg) => seg.targets));
+  const versorgteZiele = versorgte.filter((z) => erreicht.has(z.id));
+  const unerreichbar = versorgte.filter((z) => !erreicht.has(z.id));
+  if (unerreichbar.length) {
+    notes.push({
+      severity: 'error',
+      text:
+        `${unerreichbar.length} von ${versorgte.length} Verbrauchern sind ohne Trasse geblieben ` +
+        `(${unerreichbar.map((z) => z.label ?? z.id).join(', ')}). Die Auslegung ist unvollständig — ` +
+        'meist fehlt die Tür- oder Durchgangsverbindung des Raums zum übrigen Grundriss.',
+    });
+  }
+
   notes.push({
     severity: 'info',
     text:
       `${options.mode === 'sanierung' ? 'Sanierung: Sockelleistenkanal an der Wand' : 'Neubau: auf der Rohdecke im Fußbodenaufbau'} · ` +
       `${Math.round(routeLength * 10) / 10} m Trasse, ${Math.round(pipeLength * 10) / 10} m Rohr (Vor- und Rücklauf), ` +
-      `${versorgte.length} Verbraucher, ${accessories.length} Armaturen.`,
+      `${versorgteZiele.length} Verbraucher, ${accessories.length} Armaturen.`,
   });
 
   /*
@@ -1594,7 +1623,7 @@ export function planPipeNetwork(doc: BimDocument, options: PipeLayoutOptions): P
     accessories,
     routeLength: Math.round(routeLength * 1000) / 1000,
     pipeLength: Math.round(pipeLength * 1000) / 1000,
-    served: versorgte.length,
+    served: versorgteZiele.length,
     designFlow: Math.round(designFlow * 1000) / 1000,
     notes,
   };

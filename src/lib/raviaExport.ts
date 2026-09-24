@@ -62,7 +62,7 @@ import type {
   SolidElement,
   VerticalElement,
 } from '../types/bim';
-import { SOIL_LABELS, durchbruchWirt } from '../types/bim';
+import { DACH_VORGABE, SOIL_LABELS, durchbruchWirt } from '../types/bim';
 import { durchbruchFlaeche, durchbruchMitte } from './durchbruchSymbols';
 import { huellflaechenbilanz } from './huellflaechenbilanz';
 import { rohrlaenge, steiganteil } from './rohrlaenge';
@@ -205,7 +205,9 @@ export function buildRaviaExport(doc: BimDocument): RaviaExport {
   return {
     schema: 'ravia.bim.light',
     // 2.3.0: Hüllflächenbilanz je Raum und für das Gebäude (`envelope`).
-    version: '2.3.0',
+    // 2.4.0: `envelope.withoutUValue` — wie viele Flächen ohne brauchbaren
+    //        U-Wert in die Bilanz gingen. Reiner Zuwachs.
+    version: '2.4.0',
     generator: GENERATOR,
     exportedAt: new Date().toISOString(),
     units: {
@@ -1331,12 +1333,20 @@ function buildRoom(
         azimuth,
         grossArea: roundCm2(face.area),
         netArea: roundCm2(Math.max(0, face.area - windowArea)),
+        /*
+         * Der Ersatzwert war einmal `roof.uValue` selbst — also genau der
+         * Wert, dessen Fehlen er auffangen sollte. Führte eine Projektdatei
+         * das Dach ohne Aufbau, stand im Export `uValue: undefined` und
+         * daneben „Annahme": eine Fläche, die auf der Gegenseite stumm mit
+         * 0 W/K in die Rechnung geht. Jetzt steht dort eine Zahl, und sie
+         * heißt ehrlich Annahme.
+         */
         ...uWertAus(
           [
             [roofConstruction?.uValue, 'aufbau'],
             [roof.uValue, 'bauteil'],
           ],
-          roof.uValue,
+          DACH_VORGABE.uValue,
         ),
         construction: roofConstruction?.name,
         constructionId: roof.constructionId,

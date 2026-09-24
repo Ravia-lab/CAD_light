@@ -49,12 +49,16 @@ import type { HostPatch, HostPatchReport } from './hostPatch';
  * Modell zu ersetzen. Alles Zuwachs: Wer das nackte Modell schickt, bekommt
  * das Verhalten von 1.3.0.
  *
+ * 1.6.0 — `reportDiscardedRooms`: Die Gegenstelle meldet, welche Räume sie
+ * beim Übernehmen verworfen hat (RaVias `verworfene_raeume`). CAD Light
+ * setzt daraufhin einen Hinweis an den gezeichneten Raum. Reiner Zuwachs.
+ *
  * 1.5.0 — `getDocument` gibt es jetzt auch über die Nachrichtenbrücke. Auf
  * `window.RaViaCAD` stand es schon lange, nur war das aus einem Rahmen
  * heraus unerreichbar: Beide Seiten sind getrennte Fenster, und über die
  * Brücke war `getDocument` kein Befehl. Wieder reiner Zuwachs.
  */
-export const EMBED_API_VERSION = '1.5.0';
+export const EMBED_API_VERSION = '1.6.0';
 
 /** Kurzfassung des Modells — das, was eine Gegenstelle meistens wissen will. */
 export interface RaviaSummary {
@@ -88,6 +92,16 @@ export interface RaviaCadApi {
   validate(): ValidationReport;
   /** Rohdokument, nur lesend gedacht. */
   getDocument(): BimDocument;
+  /**
+   * Rückmeldung zum Übernahmelauf: Welche Räume hat die Gegenstelle
+   * verworfen?
+   *
+   * Übergeben wird die Antwort, **wie sie kommt** — CAD Light liest daraus
+   * `verworfene_raeume` (oder `rejected`). Entscheidend ist die Kennung: Sie
+   * muss die aus `getExport().rooms[].id` sein, sonst lässt sich der Hinweis
+   * an keinen gezeichneten Raum hängen.
+   */
+  reportDiscardedRooms(antwort: unknown): { hinweise: number; ohneRaum: number; message: string };
   /**
    * Fachdaten zurückschreiben — Solltemperaturen, Luftwechsel, U-Werte,
    * Norm-Heizlasten, Randbedingungen des Projekts.
@@ -134,6 +148,7 @@ interface StoreLike {
     loadIfc: RaviaCadApi['loadIfc'];
     loadBuilding: RaviaCadApi['loadBuilding'];
     applyHostPatch: (patch: HostPatch) => HostPatchReport;
+    meldeVerworfeneRaeume: RaviaCadApi['reportDiscardedRooms'];
   };
   subscribe: (listener: (state: { doc: BimDocument }, prev: { doc: BimDocument }) => void) => () => void;
 }
@@ -197,6 +212,7 @@ export function installEmbedApi(store: StoreLike, target: Window = window): () =
     getSummary: () => buildSummary(store.getState().doc),
     validate: () => validateModel(store.getState().doc),
     getDocument: () => store.getState().doc,
+    reportDiscardedRooms: (antwort) => store.getState().meldeVerworfeneRaeume(antwort),
     loadProject: (data) => store.getState().loadProject(data),
     loadIfc: (text) => store.getState().loadIfc(text),
     loadBuilding: (data, optionen) => store.getState().loadBuilding(data, optionen),
@@ -246,6 +262,9 @@ export function installEmbedApi(store: StoreLike, target: Window = window): () =
        */
       case 'getDocument':
         reply(event, 'document', data.id, api.getDocument());
+        break;
+      case 'reportDiscardedRooms':
+        reply(event, 'discardedRoomsReported', data.id, api.reportDiscardedRooms(data.payload));
         break;
       case 'getIfc':
         reply(event, 'ifc', data.id, api.getIfc());

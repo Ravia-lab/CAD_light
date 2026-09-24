@@ -69,6 +69,7 @@ import {
   clamp,
   distance,
   distanceToSegment,
+  innererPunkt,
   normalize,
   pointInPolygon,
   snapToAngle,
@@ -360,6 +361,8 @@ export default function Editor2D({ className = '' }: { className?: string }) {
   const selections = useBimStore((s) => s.selections);
   const showDimensions = useBimStore((s) => s.showDimensions);
   const showRoomLabels = useBimStore((s) => s.showRoomLabels);
+  /** Rückmeldung der Gegenstelle: Räume, die drüben nicht ankamen. */
+  const verworfeneRaeume = useBimStore((s) => s.verworfeneRaeume);
   const showRoofLines = useBimStore((s) => s.showRoofLines);
   const pipeService = useBimStore((s) => s.pipeService);
   const showDiagnostics = useBimStore((s) => s.showDiagnostics);
@@ -1364,7 +1367,7 @@ export default function Editor2D({ className = '' }: { className?: string }) {
     if (showRoomLabels && doc.layers['layer-rooms']?.visible) {
       for (const room of rooms) {
         const gewaehlt = selections.some((s2) => s2.kind === 'room' && s2.id === room.id);
-        const lage = drawRoomLabel(ctx, room, sx, sy, zoom, gewaehlt);
+        const lage = drawRoomLabel(ctx, room, sx, sy, zoom, gewaehlt, verworfeneRaeume[room.id]?.kurz);
         if (lage) heizSymboleRef.current.push(lage);
       }
     }
@@ -2092,6 +2095,7 @@ export default function Editor2D({ className = '' }: { className?: string }) {
     showDimensions,
     showRoomLabels,
     showRoofLines,
+    verworfeneRaeume,
     snap.gridSize,
     store,
     tool,
@@ -4100,8 +4104,21 @@ function drawRoomLabel(
   sy: Sy,
   zoom: number,
   ausgewaehlt = false,
+  verlust?: string,
 ): HeizSymbolLage | undefined {
-  if (room.area < 0.8) return undefined;
+  /*
+   * **Der Hinweis „nicht übernommen" hat Vorrang vor der Platzregel.**
+   *
+   * Der Stempel bleibt ab 0,8 m² weg, weil er sonst über die Wände läuft.
+   * Genau die Räume, die RaVia verwirft, sind aber die *kleinen* — ein
+   * Schacht mit 0,06 m² fällt unter jede Schwelle. Bliebe die Regel auch für
+   * den Hinweis stehen, stünde er nirgends, und der Anwender suchte weiter
+   * nach dem Raum, der drüben fehlt. Deshalb: kein Stempel, aber eine Marke.
+   */
+  if (room.area < 0.8) {
+    if (verlust) zeichneVerlustMarke(ctx, room, sx, sy, verlust);
+    return undefined;
+  }
   const cx = sx(room.centroid.x);
   const cy = sy(room.centroid.y);
 
@@ -4185,7 +4202,53 @@ function drawRoomLabel(
     }
   }
   ctx.restore();
+  if (verlust) zeichneVerlustMarke(ctx, room, sx, sy, verlust);
   return lage;
+}
+
+/**
+ * Die Marke am Raum, den die Gegenstelle nicht übernommen hat.
+ *
+ * Ein Kreis mit Ausrufezeichen auf dem Raumschwerpunkt und, wenn Platz ist,
+ * der Kurztext daneben. Bernstein statt Rot: Es ist kein Fehler im Modell —
+ * der Raum ist gezeichnet und gültig —, sondern eine Rückmeldung von
+ * außerhalb.
+ */
+function zeichneVerlustMarke(
+  ctx: CanvasRenderingContext2D,
+  room: Room,
+  sx: Sx,
+  sy: Sy,
+  kurz: string,
+): void {
+  /*
+   * Gesetzt wird auf einen Punkt, der **im Raum liegt** — bei einem
+   * L-förmigen Grundriss liegt der Schwerpunkt außerhalb, und die Marke
+   * stünde im Nachbarraum. Dieselbe Funktion, die auch die Raumzuordnung
+   * benutzt (siehe `lib/geometry.ts`).
+   */
+  const p = innererPunkt(room.innerPolygon.length >= 3 ? room.innerPolygon : [room.centroid]);
+  const cx = sx(p.x);
+  const cy = sy(p.y);
+  ctx.save();
+  ctx.beginPath();
+  ctx.arc(cx, cy, 8, 0, Math.PI * 2);
+  ctx.fillStyle = 'rgba(245,158,11,0.92)';
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(120,53,15,0.9)';
+  ctx.lineWidth = 1;
+  ctx.stroke();
+  ctx.fillStyle = '#1f1300';
+  ctx.font = '700 11px Inter, system-ui, sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('!', cx, cy + 0.5);
+  // Der Text steht rechts daneben, damit er die Marke nicht verdeckt.
+  ctx.font = '600 10px Inter, system-ui, sans-serif';
+  ctx.textAlign = 'left';
+  ctx.fillStyle = 'rgba(245,158,11,0.95)';
+  ctx.fillText(kurz, cx + 12, cy + 0.5);
+  ctx.restore();
 }
 
 /**

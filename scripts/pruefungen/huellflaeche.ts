@@ -23,6 +23,8 @@
 import { huellflaechenbilanz, type BilanzFlaeche } from '../../src/lib/huellflaechenbilanz';
 import { buildRaviaExport } from '../../src/lib/raviaExport';
 import { buildReferenceDocument } from '../reference';
+import { daecherVon } from '../../src/lib/dachlandschaft';
+import { DACH_VORGABE } from '../../src/types/bim';
 import type { CheckFn } from './typ';
 
 export function pruefeHuellflaeche(check: CheckFn): void {
@@ -139,6 +141,82 @@ export function pruefeHuellflaeche(check: CheckFn): void {
      * übernimmt, rechnet mit gut der Hälfte der Hüllfläche.
      */
     check('Anteil Boden/Decke/Dach/Giebel am Referenzhaus', ex.envelope.shareHorizontal, 0.465, 0.01);
-    check('Die Fassung sagt es', ex.version, '2.3.0');
+    check('Die Fassung sagt es', ex.version, '2.4.0');
+  }
+
+  // =========================================================================
+  // Ein Dach ohne Aufbau darf die Bilanz nicht vergiften
+  // =========================================================================
+  /*
+   * **Der Fehler (23.09.2026, Lauf über die TABULA-Testgebäude A02 und A06).**
+   * Eine Projektdatei darf ein Dach führen, das nur die *Form* beschreibt —
+   * Neigung, Kniestock, First —, weil ein Aufmaß genau das hergibt. Der
+   * U-Wert fehlte dann. `loadProject` füllte ihn nicht auf, und der Export
+   * setzte als Ersatzwert ausgerechnet `roof.uValue` ein, also den fehlenden
+   * Wert selbst. Im Export stand `uValue: undefined` bei „Annahme".
+   *
+   * Die Folge war nicht eine zu kleine Zahl, sondern **gar keine**: Ein
+   * einziges `undefined` machte aus `Σ A·(U+ΔU_WB)` ein `NaN`, und die
+   * Hüllflächenbilanz des ganzen Gebäudes kam als `null` heraus. Die
+   * Prüfsumme gegen verlorene Bauteile war damit ausgerechnet bei den
+   * Häusern mit Dach wertlos.
+   *
+   * Zwei Riegel, beide hier geprüft: Das Dach wird beim Öffnen vervollständigt
+   * (`DACH_VORGABE`), und die Bilanz rechnet auch mit einer kaputten Fläche
+   * weiter — mit 0 W/K, aber sie **zählt** sie in `withoutUValue`.
+   */
+  {
+    // 10 m² mit U = 0,2 → 2,0 W/K. Von Hand: 10 · 0,2 = 2.
+    const gut = huellflaechenbilanz([{ kind: 'roof', netArea: 10, uValue: 0.2, boundary: 'exterior' }]);
+    check('Dach mit U-Wert: 10 m² · 0,2 = 2,0 W/K', gut.total.heatTransferCoefficient, 2, 1e-9);
+    check('… und keine Fläche ohne U-Wert', gut.withoutUValue, 0);
+
+    // Dieselbe Fläche ohne U-Wert — früher wurde daraus NaN.
+    const kaputt = huellflaechenbilanz([
+      { kind: 'wall', netArea: 20, uValue: 0.3, boundary: 'exterior' },
+      { kind: 'roof', netArea: 10, uValue: undefined as unknown as number, boundary: 'exterior' },
+    ]);
+    check('Eine Fläche ohne U-Wert reißt die Summe nicht mit', Number.isFinite(kaputt.total.heatTransferCoefficient), true);
+    check('Die Wand zählt weiter: 20 · 0,3 = 6,0 W/K', kaputt.total.heatTransferCoefficient, 6, 1e-9);
+    check('Und die kaputte Fläche wird gezählt', kaputt.withoutUValue, 1);
+
+    // Auch ein Fenster ohne U-Wert darf die Summe nicht reißen.
+    const fenster = huellflaechenbilanz([
+      { kind: 'wall', netArea: 8, uValue: 0.25, boundary: 'exterior',
+        openings: [{ kind: 'window', area: 2, uValue: Number.NaN }] },
+    ]);
+    check('Fenster ohne U-Wert: die Wand bleibt stehen (8 · 0,25 = 2,0)', fenster.total.heatTransferCoefficient, 2, 1e-9);
+    check('… und wird gezählt', fenster.withoutUValue, 1);
+  }
+
+  // =========================================================================
+  // Und dasselbe eine Stufe davor: ein Dach, das nur die Form führt
+  // =========================================================================
+  /*
+   * So kommt ein Dach aus einer Aufmaßdatei herein — Neigung, Kniestock,
+   * First, aber kein Aufbau. Genau so stehen die Dächer in den
+   * TABULA-Testgebäuden A02 und A06. `daecherVon` ist die eine Stelle, an der
+   * ein Dach in eine rechenbare Form kommt; sie füllt die Lücke, ohne die
+   * Form anzutasten.
+   */
+  {
+    const roh = {
+      id: 'lvl-dg', name: 'DG', elevation: 2.8, height: 2.4, order: 1,
+      floorUValue: 0.9, floorBoundary: 'adjacent-room' as const,
+      ceilingUValue: 0.8, ceilingBoundary: 'exterior' as const,
+      roof: { kind: 'gable' as const, pitch: 45, kneeHeight: 1, azimuth: 180, ridgeOffset: 0, collarHeight: 2.4, collarUValue: 0.8 },
+    };
+    const [dach] = daecherVon(roh as unknown as Parameters<typeof daecherVon>[0]);
+    check('Das Dach bekommt einen U-Wert', Number.isFinite(dach?.uValue) && dach.uValue > 0, true);
+    check('… nämlich die Vorgabe 0,20 W/(m²K)', dach.uValue, DACH_VORGABE.uValue, 1e-9);
+    check('Der Giebel auch', dach.gableUValue, DACH_VORGABE.gableUValue, 1e-9);
+    check('Die Form aus der Datei bleibt: 45°', dach.pitch, 45, 1e-9);
+    check('… und der Kehlbalken auch', dach.collarUValue ?? 0, 0.8, 1e-9);
+    check('Eine Kennung steht immer da', dach.id ?? '—', 'dach-1');
+
+    // Gegenprobe: Ein eingetragener Aufbau wird nicht überschrieben.
+    const [eigen] = daecherVon({ ...roh, roof: { ...roh.roof, uValue: 0.16, gableUValue: 0.19 } } as unknown as Parameters<typeof daecherVon>[0]);
+    check('Ein eingetragener Dachaufbau bleibt', eigen.uValue, 0.16, 1e-9);
+    check('… und der Giebelaufbau auch', eigen.gableUValue, 0.19, 1e-9);
   }
 }

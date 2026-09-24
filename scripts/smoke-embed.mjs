@@ -70,13 +70,13 @@ await p.addInitScript(() => {
   // 1.1.0: der Rückweg ist dazugekommen, die lesenden Befehle sind
   // unverändert geblieben.
   // 1.3.0: `loadBuilding` (Gebäudemodell aus RaVia Scan) — reiner Zuwachs.
-  expect('Version gemeldet', api.version, '1.5.0');
+  expect('Version gemeldet', api.version, '1.6.0');
   expect(
     'Alle Methoden da',
     api.methods,
     [
       'applyPatch', 'getDocument', 'getExport', 'getIfc', 'getSummary', 'getWritableFields',
-      'loadBuilding', 'loadIfc', 'loadProject', 'onChange', 'validate', 'version',
+      'loadBuilding', 'loadIfc', 'loadProject', 'onChange', 'reportDiscardedRooms', 'validate', 'version',
     ],
   );
 
@@ -110,7 +110,7 @@ await p.addInitScript(() => {
   expect('IFC ist STEP', shapes.ifcHead, 'ISO-10303-21');
   expect('Prüfbericht rechenfähig', shapes.ready, true);
   expect('Rohdokument erreichbar', shapes.docWalls > 0, true);
-  expect('Exportfassung 2.3.0', shapes.version, '2.3.0');
+  expect('Exportfassung 2.4.0', shapes.version, '2.4.0');
   expect('Hüllflächenbilanz im Export', shapes.envelopeH > 0, true);
   expect('… je Raum', shapes.raeumeMitBilanz, shapes.rooms);
   expect('… mit Boden, Decke und Wand', ['ceiling', 'floor', 'wall'].every((k) => shapes.envelopeKinds.includes(k)), true);
@@ -159,7 +159,7 @@ console.log('\n▸ Nachrichtenbrücke (postMessage aus dem umgebenden Fenster)')
 
   const status = await p.locator('#status').innerText();
   expect('Verbindung steht', status, 'verbunden');
-  expect('Version angezeigt', await p.locator('#version').innerText(), '1.5.0');
+  expect('Version angezeigt', await p.locator('#version').innerText(), '1.6.0');
 
   const panel = await p.locator('#summary').innerText();
   expect('Kurzfassung angekommen', /Räume/.test(panel), true);
@@ -299,6 +299,70 @@ console.log('\n▸ Schreibweg (applyPatch über postMessage)');
   expect('Antwort heißt document', roh.type, 'document');
   expect('Das Rohdokument bringt Räume mit', Object.keys(roh.payload?.rooms ?? {}).length > 0, true);
   expect('… und Wände', Object.keys(roh.payload?.walls ?? {}).length > 0, true);
+
+  /*
+   * Die Rückmeldung der Gegenstelle: Welche Räume hat sie verworfen?
+   * Geschickt wird die Antwort in RaVias eigener Form (`verworfene_raeume`,
+   * deutsche Feldnamen) — so, wie sie am 23.09.2026 abgestimmt wurde.
+   */
+  const verworfen = await p.evaluate(async () => {
+    const cad = document.getElementById('cad').contentWindow;
+    const ex = cad.RaViaCAD.getExport();
+    const raum = ex.rooms[ex.rooms.length - 1];
+    return { id: raum.id, name: raum.name };
+  });
+  const gemeldet = await befehl('reportDiscardedRooms', {
+    raeume_ergebnis: [],
+    verworfene_raeume: [
+      { id: verworfen.id, name: verworfen.name, flaeche: 0.06, grund: 'flaeche_unter_mindestgroesse', geschoss: 'EG' },
+      { id: 'room-gibts-nicht', name: 'Phantom', flaeche: 0.02, grund: 'flaeche_unter_mindestgroesse' },
+    ],
+  });
+  expect('Antwort heißt discardedRoomsReported', gemeldet.type, 'discardedRoomsReported');
+  expect('Ein Hinweis wurde gesetzt', gemeldet.payload?.hinweise, 1);
+  expect('Der Raum ohne Entsprechung bleibt übrig', gemeldet.payload?.ohneRaum, 1);
+  const hinweisImStore = await p.evaluate((id) => {
+    const s = document.getElementById('cad').contentWindow.__ravia.getState();
+    return s.verworfeneRaeume[id]?.text ?? null;
+  }, verworfen.id);
+  expect('Der Hinweis hängt am gezeichneten Raum',
+    /wurde von RaVia nicht übernommen/.test(hinweisImStore ?? ''), true);
+  expect('… und nennt die Mindestgröße', /Mindestgröße von 0,10 m²/.test(hinweisImStore ?? ''), true);
+
+  /*
+   * Und das Entscheidende: Steht die Marke auch **im Plan**? Gezählt werden
+   * bernsteinfarbene Bildpunkte auf der Zeichenfläche — vorher keine,
+   * nachher welche. Ein Hinweis, der nur im Zustand steht, hilft niemandem.
+   */
+  const bernstein = () => p.evaluate(() => {
+    const dok = document.getElementById('cad').contentDocument;
+    const cv = dok.querySelector('canvas');
+    if (!cv) return -1;
+    const g = cv.getContext('2d');
+    const d = g.getImageData(0, 0, cv.width, cv.height).data;
+    let n = 0;
+    for (let i = 0; i < d.length; i += 4) {
+      // rgba(245,158,11) mit Toleranz — die Marke und ihr Text.
+      if (Math.abs(d[i] - 245) < 25 && Math.abs(d[i + 1] - 158) < 30 && d[i + 2] < 70) n++;
+    }
+    return n;
+  });
+  await p.waitForTimeout(600);
+  const punkteMitHinweis = await bernstein();
+  expect('Die Marke steht im Plan', punkteMitHinweis > 20, true);
+
+  // Ein neuer Übernahmelauf ohne Verworfene räumt die Hinweise wieder ab.
+  const leer = await befehl('reportDiscardedRooms', { verworfene_raeume: [] });
+  expect('Leere Meldung räumt die Hinweise ab', leer.payload?.hinweise, 0);
+  const danach = await p.evaluate(() =>
+    Object.keys(document.getElementById('cad').contentWindow.__ravia.getState().verworfeneRaeume).length);
+  expect('Kein Hinweis bleibt stehen', danach, 0);
+  await p.waitForTimeout(600);
+  const punkteDanach = await bernstein();
+  // Bernstein kommt auch anderswo im Plan vor (Warnfarbe der Bemaßung);
+  // gemessen wird deshalb der Rückgang, nicht der Nullwert.
+  console.log(`    bernsteinfarbene Punkte: mit Hinweis ${punkteMitHinweis}, danach ${punkteDanach}`);
+  expect('Und die Marke ist wieder weg', punkteDanach < punkteMitHinweis, true);
 
   const felder = await befehl('getWritableFields');
   expect('Antwort heißt writableFields', felder.type, 'writableFields');
@@ -482,7 +546,7 @@ console.log('\n▸ Zweiter Aufruf mit warmem Zwischenspeicher');
   await p.goto(BASIS + 'einbettung-beispiel.html', { waitUntil: 'networkidle' });
   await p.locator('#status').filter({ hasText: 'verbunden' }).waitFor({ timeout: 20000 }).catch(() => {});
   expect('Auch mit warmem Zwischenspeicher verbunden', await p.locator('#status').innerText(), 'verbunden');
-  expect('… mit Version', await p.locator('#version').innerText(), '1.5.0');
+  expect('… mit Version', await p.locator('#version').innerText(), '1.6.0');
 }
 
 console.log('\nERRORS:', errs.length ? errs.join('\n') : 'keine');

@@ -52,6 +52,7 @@ import { pruefePlanLeeren } from './pruefungen/planleeren';
 import { pruefeRingleitung } from './pruefungen/ringleitung';
 import { pruefeRaumnamenMitnehmen } from './pruefungen/raumnamenMitnehmen';
 import { pruefeRaumzuordnung } from './pruefungen/raumzuordnung';
+import { pruefeVerworfeneRaeume } from './pruefungen/verworfeneRaeume';
 import { pruefeSteigleitung } from './pruefungen/steigleitung';
 import { pruefeHuellflaeche } from './pruefungen/huellflaeche';
 import { pruefeSprache } from './pruefungen/sprache';
@@ -715,7 +716,7 @@ console.log('\n▸ Export für die Heizlastberechnung');
   };
 
   const ex = buildRaviaExport(doc as never);
-  check('Schema-Version', ex.version, '2.3.0');
+  check('Schema-Version', ex.version, '2.4.0');
   check('Einheiten dokumentiert', ex.units.uValue, 'W/(m2K)');
 
   const room = ex.rooms.find((r) => r.polygon.some((p) => p.x < 4))!;
@@ -3833,6 +3834,9 @@ pruefeRaumnamenMitnehmen(check);
 pruefeRaumzuordnung(check);
 pruefeSteigleitung(check);
 pruefeHuellflaeche(check);
+
+console.log('\n▸ Verworfene Räume — was drüben nicht ankam');
+pruefeVerworfeneRaeume(check);
 
 console.log('\n▸ Rohrbezeichnung — heißt die Leitung so, wie sie bestellt wird?');
 pruefeRohrbezeichnung(check);

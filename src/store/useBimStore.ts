@@ -75,6 +75,7 @@ import type {
 } from '../types/bim';
 import {
   ANNOTATION_LABELS,
+  DACH_VORGABE,
   DEFAULT_CONSTRUCTIONS,
   FIXTURE_BY_TYPE,
   OPENING_PRESETS,
@@ -105,19 +106,8 @@ export function pipeLength(points: readonly Vec2[]): number {
   return total;
 }
 
-/**
- * Voreinstellung für ein neues Dach: Satteldach 38° mit 1,00 m Kniestock —
- * die in Deutschland häufigste Ausführung im Wohnungsbau.
- */
-const DEFAULT_ROOF: RoofDefinition = {
-  kind: 'gable',
-  pitch: 38,
-  kneeHeight: 1,
-  azimuth: 90,
-  ridgeOffset: 0,
-  uValue: 0.2,
-  gableUValue: 0.24,
-};
+/** Voreinstellung für ein neues Dach — siehe `DACH_VORGABE` in den Typen. */
+const DEFAULT_ROOF: RoofDefinition = DACH_VORGABE;
 import { erkenneSkizze } from '../lib/skizze';
 import { getroffene } from '../lib/notizen';
 import { vorzugsrichtung, EPS, closestPointOnSegment, distance, distanceToSegment, pointInPolygon, roundMm } from '../lib/geometry';
@@ -126,6 +116,7 @@ import { hoehenText } from '../lib/beschriftung3d';
 import { zieheHeizflaechenNach } from '../lib/heizflaechenAbgleich';
 import { rohrlaenge } from '../lib/rohrlaenge';
 import { istHeizflaeche } from '../lib/heizflaechenLeistung';
+import { hinweiseZuRaeumen, leseVerworfene, type RaumverlustHinweis } from '../lib/verworfeneRaeume';
 import { heizkoerperplatz, PLATZ_TEXT } from '../lib/heizkoerperplatz';
 import {
   DEFAULT_EDGE_CLEARANCE,
@@ -517,6 +508,17 @@ interface BimState {
   openingDefaults: OpeningDefaults;
   aiState: AiAnalysisState;
   statusMessage: string;
+  /**
+   * Räume, die RaVia beim Übernehmen verworfen hat — je Raumkennung ein
+   * Hinweis.
+   *
+   * **Warum außerhalb von `doc`.** Das ist keine Eigenschaft des Gebäudes,
+   * sondern eine Rückmeldung der Gegenstelle zu *einem* Übernahmelauf. Läge
+   * sie im Dokument, wanderte sie in die Rückgängig-Kette, in die
+   * Projektdatei und in den Export — und stünde dort noch, wenn der Raum
+   * längst vergrößert ist.
+   */
+  verworfeneRaeume: Record<string, RaumverlustHinweis>;
   /** Auto-Trace-Vorschau — bewusst außerhalb von `doc` (kein Undo-Rauschen). */
   trace: TraceState | null;
   /**
@@ -881,6 +883,17 @@ interface BimState {
    */
   neuesDokument: (name: string) => BimDocument;
   /** Projektdatei (RaVia-Export) verlustfrei zurücklesen. */
+  /**
+   * Die Antwort von RaVias `raeume-uebernehmen` auswerten.
+   *
+   * Entgegengenommen wird die Antwort **so, wie sie kommt** — das Lesen
+   * steckt in `lib/verworfeneRaeume.ts`. Zurück kommt, was daraus wurde:
+   * wie viele Hinweise gesetzt sind und wie viele verworfene Räume sich
+   * keinem gezeichneten Raum zuordnen ließen.
+   */
+  meldeVerworfeneRaeume: (antwort: unknown) => { hinweise: number; ohneRaum: number; message: string };
+  /** Die Hinweise wieder wegräumen — nach dem nächsten Übernahmelauf. */
+  loescheVerworfeneHinweise: () => void;
   loadProject: (data: unknown) => { ok: boolean; message: string };
   /** IFC4-Datei als neues Projekt einlesen. */
   loadIfc: (text: string) => { ok: boolean; message: string };
@@ -2009,6 +2022,7 @@ export const useBimStore = create<BimState>()((set, get) => {
     },
     aiState: { status: 'idle' },
     statusMessage: 'Bereit',
+    verworfeneRaeume: {},
     trace: null,
     skizze: null,
     radiergummi: false,
@@ -5781,6 +5795,21 @@ export const useBimStore = create<BimState>()((set, get) => {
      * unverändert zurück, Räume werden neu erkannt und bekommen Namen,
      * Nutzung und Temperaturen aus der Datei zurückgespielt.
      */
+    meldeVerworfeneRaeume: (antwort) => {
+      const verworfene = leseVerworfene(antwort);
+      const { hinweise, ohneRaum } = hinweiseZuRaeumen(verworfene, Object.keys(get().doc.rooms));
+      const karte: Record<string, RaumverlustHinweis> = {};
+      for (const h of hinweise) karte[h.roomId] = h;
+      const message = verworfene.length === 0
+        ? 'RaVia hat alle Räume übernommen.'
+        : `${verworfene.length} Raum/Räume wurden von RaVia nicht übernommen` +
+          `${ohneRaum.length ? ` (${ohneRaum.length} davon ohne passenden Raum im Plan)` : ''}.`;
+      set({ verworfeneRaeume: karte, statusMessage: message });
+      return { hinweise: hinweise.length, ohneRaum: ohneRaum.length, message };
+    },
+
+    loescheVerworfeneHinweise: () => set({ verworfeneRaeume: {} }),
+
     loadProject: (data) => {
       const raw = data as Record<string, unknown> | null;
       if (!raw || typeof raw !== 'object') return { ok: false, message: 'Keine gültige JSON-Datei' };
@@ -5823,6 +5852,16 @@ export const useBimStore = create<BimState>()((set, get) => {
               floorBoundary: l.floorBoundary ?? 'ground',
               ceilingUValue: l.ceilingUValue ?? 0.2,
               ceilingBoundary: l.ceilingBoundary ?? 'unheated',
+              /*
+               * Ein Dach aus einer Datei kann die Form führen und den Aufbau
+               * weglassen — ein Aufmaß hat Neigung und Kniestock, aber keinen
+               * U-Wert. Ohne diese Zeile stand im Export `uValue: undefined`
+               * am Dach, und auf der Gegenseite ging die Dachfläche stumm mit
+               * 0 W/K in die Rechnung. Gefunden im Lauf über die
+               * TABULA-Testgebäude (A02, A06).
+               */
+              ...(l.roof ? { roof: { ...DACH_VORGABE, ...l.roof } } : {}),
+              ...(l.roofs ? { roofs: l.roofs.map((r) => ({ ...DACH_VORGABE, ...r })) } : {}),
             },
           ]),
         );
@@ -5955,6 +5994,8 @@ export const useBimStore = create<BimState>()((set, get) => {
         future: [],
         selection: null,
         trace: null,
+        // Eine Rückmeldung zum *vorigen* Modell gilt für dieses nicht mehr.
+        verworfeneRaeume: {},
         einpassenZaehler: get().einpassenZaehler + 1,
         statusMessage:
           `Projekt geladen: ${Object.keys(fresh.walls).length} Wände, ${Object.keys(fresh.rooms).length} Räume` +

@@ -36,6 +36,7 @@
  */
 
 import type { BimNode, Level, RoofDefinition, RoofOpening, Room, Vec2, Wall } from '../types/bim';
+import { DACH_VORGABE } from '../types/bim';
 import { buildRoofFrame, type RoofFrame } from './roofGeometry';
 import { gebaeudeUmriss } from './roomDetection';
 import { pointInPolygon } from './geometry';
@@ -78,10 +79,38 @@ export interface Dachteil {
 export function daecherVon(level: Level | undefined): RoofDefinition[] {
   if (!level) return [];
   if (level.roofs && level.roofs.length) {
-    return level.roofs.map((r, i) => ({ ...r, id: r.id ?? `dach-${i + 1}` }));
+    return level.roofs.map((r, i) => vollstaendig(r, r.id ?? `dach-${i + 1}`));
   }
-  if (level.roof) return [{ ...level.roof, id: level.roof.id ?? 'dach-1' }];
+  if (level.roof) return [vollstaendig(level.roof, level.roof.id ?? 'dach-1')];
   return [];
+}
+
+/**
+ * Ein Dach mit allem, was zum Rechnen nötig ist.
+ *
+ * **Warum das hier steht.** Eine Projektdatei darf ein Dach führen, das nur
+ * die *Form* beschreibt — Neigung, Kniestock, First. Genau so kommt ein
+ * Aufmaß herein, und genau so stehen die Dächer in den TABULA-Testgebäuden.
+ * Der Aufbau fehlt dann. Bis 1.46.0 wanderte dieses Loch ungefüllt weiter:
+ * Im Export stand `uValue: undefined` an der Dachfläche, und eine einzige
+ * solche Fläche machte aus `Σ A·(U+ΔU_WB)` ein `NaN` — die Hüllflächenbilanz
+ * des ganzen Gebäudes kam als `null` heraus. Ausgerechnet die Prüfsumme
+ * gegen verlorene Bauteile war damit bei jedem Haus mit Dach wertlos.
+ *
+ * Gefüllt wird nur, was **fehlt**. Was in der Datei steht, bleibt stehen —
+ * auch eine 0 wäre eine Angabe, nur eben keine brauchbare für einen U-Wert;
+ * deshalb zählt hier „endliche Zahl größer null".
+ */
+function vollstaendig(roof: RoofDefinition, id: string): RoofDefinition {
+  const zahl = (wert: number | undefined, ersatz: number): number =>
+    typeof wert === 'number' && Number.isFinite(wert) && wert > 0 ? wert : ersatz;
+  return {
+    ...DACH_VORGABE,
+    ...roof,
+    id,
+    uValue: zahl(roof.uValue, DACH_VORGABE.uValue),
+    gableUValue: zahl(roof.gableUValue, DACH_VORGABE.gableUValue),
+  };
 }
 
 /** Trägt das Geschoss überhaupt ein geneigtes Dach? */

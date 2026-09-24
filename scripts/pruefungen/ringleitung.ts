@@ -288,7 +288,24 @@ export function pruefeRingleitung(check: CheckFn): void {
     const p = aussen[0]?.points ?? [];
     check('Baum: Außenleitung 3,33 m lang',
       p.length === 2 ? Math.hypot(p[1].x - p[0].x, p[1].y - p[0].y) : NaN, 3.33, 1e-6);
-    check('Baum: alle versorgt', baum.served, 5);
+    /*
+     * **Diese Prüfung stand hier falsch.** Sie verlangte `served === 5` und
+     * war grün — obwohl die Trassierung im selben Lauf vier Fehler meldet:
+     * Das Prüfhaus hat genau **eine** Tür (`t1`), die Räume hängen also nicht
+     * zusammen, und der Baum erreicht vom Erzeuger aus nur den ersten
+     * Heizkörper. Gezählt wurden trotzdem alle fünf, weil `served` die Ziele
+     * *mit Volumenstrom* zählte statt die *mit Trasse*. Aufgefallen im Lauf
+     * über die Swiss-Dwellings-Wohnungen: 18 von 54 Grundrissen meldeten
+     * „8 Verbraucher, 0 m Rohr".
+     *
+     * Der Ring versorgt dasselbe Haus vollständig (Abschnitt 3) — er läuft
+     * außen an den Wänden entlang und braucht die Türen nicht.
+     */
+    check('Baum: nur der erreichbare Heizkörper zählt als versorgt', baum.served, 1);
+    check('… und die vier ohne Trasse werden gemeldet',
+      baum.notes.some((n) => n.severity === 'error' && n.text.includes('4 von 5 Verbrauchern sind ohne Trasse')), true);
+    check('… die Meldung nennt sie beim Namen',
+      baum.notes.some((n) => n.text.includes('hkNE') && n.text.includes('bhkNW')), true);
 
     // Split: Die Leitung nach draußen führt Kältemittel. Ohne Inneneinheit
     // im Haus gibt es keinen Anfang des Heizungsnetzes.

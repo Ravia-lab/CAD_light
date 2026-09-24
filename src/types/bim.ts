@@ -1004,6 +1004,30 @@ export type RoofKind =
   | 'mansard'
   | 'flat-sloped';
 
+/**
+ * Voreinstellung für ein Dach: Satteldach 38° mit 1,00 m Kniestock — die in
+ * Deutschland häufigste Ausführung im Wohnungsbau.
+ *
+ * **Warum das hier steht und nicht im Store.** Eine Projektdatei darf ein
+ * Dach unvollständig führen: `kind`, `pitch` und `kneeHeight` beschreiben die
+ * Form, die U-Werte beschreiben den Aufbau, und ein Aufmaß hat oft nur die
+ * Form. Wer die Datei liest, muss die Lücke schließen können — der Store beim
+ * Öffnen und der Export beim Schreiben. Läge die Vorgabe im Store, dürfte der
+ * Export sie nicht sehen (Schichtgrenze), und genau das ist passiert: Eine
+ * Datei ohne `uValue` am Dach ergab Dachflächen mit `uValue: undefined` im
+ * Export — eine Fläche, die auf der Gegenseite stumm mit 0 W/K in die
+ * Rechnung geht.
+ */
+export const DACH_VORGABE: RoofDefinition = {
+  kind: 'gable',
+  pitch: 38,
+  kneeHeight: 1,
+  azimuth: 90,
+  ridgeOffset: 0,
+  uValue: 0.2,
+  gableUValue: 0.24,
+};
+
 export const ROOF_KIND_LABELS: Record<RoofKind, string> = {
   flat: 'Flachdach / horizontale Decke',
   gable: 'Satteldach',
@@ -3882,13 +3906,18 @@ export interface RaviaExport {
    * stehen weiterhin unverändert; eine Gegenstelle, die 2.0.0 oder 2.1.0
    * liest, rechnet ohne Änderung weiter.
    *
+   * **2.4.0** ergänzt die Bilanz um `withoutUValue`: wie viele Flächen ohne
+   * brauchbaren U-Wert eingegangen sind. Reiner Zuwachs — wer das Feld nicht
+   * liest, merkt nichts davon; wer es liest, erkennt eine unvollständige
+   * Bilanz, statt sie für bare Münze zu nehmen.
+   *
    * **2.3.0** bringt die Hüllflächenbilanz `envelope` — je Raum und für das
    * Gebäude, Σ A·(U+ΔU_WB) nach Bauteilart und Randbedingung. Sie ist
    * zusätzlich und ersetzt nichts: Wer die Flächen einzeln übernimmt, ändert
    * nichts; wer prüfen will, ob Boden, Decke und Dach angekommen sind, hat
    * jetzt eine Zahl statt einer Liste (Punkt 13).
    */
-  version: '2.3.0';
+  version: '2.4.0';
   generator: string;
   exportedAt: string;
   /** Einheiten explizit im Dokument — keine Konvention, die verloren gehen kann. */

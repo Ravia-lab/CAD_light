@@ -55,6 +55,18 @@ export interface Huellflaechenbilanz {
    * Zahl da, damit man ihn nicht erst ausrechnen muss.
    */
   shareHorizontal: number;
+  /**
+   * Flächen, deren U-Wert keine endliche Zahl war [Stück].
+   *
+   * **Warum das hier steht.** Eine einzige Fläche mit `undefined` als U-Wert
+   * machte aus der Summe ein `NaN` — und damit aus der *Prüfsumme gegen
+   * verlorene Bauteile* eine Zahl, die selbst nichts mehr aussagt. Genau das
+   * ist passiert: Ein Dach aus einer Projektdatei ohne Aufbau, und die
+   * Gebäudebilanz war `null`. Solche Flächen gehen jetzt mit 0 W/K ein und
+   * werden **gezählt**; steht hier etwas anderes als 0, ist die Bilanz
+   * unvollständig, und man sieht es, statt es zu übersehen.
+   */
+  withoutUValue: number;
   /** Was die Zahl **nicht** enthält — im Datensatz, nicht nur im Handbuch. */
   note: string;
 }
@@ -109,12 +121,20 @@ function addiere(ziel: Partial<Record<string, BilanzPosten>>, schluessel: string
 export function huellflaechenbilanz(flaechen: readonly BilanzFlaeche[]): Huellflaechenbilanz {
   const byKind: Partial<Record<string, BilanzPosten>> = {};
   const byBoundary: Partial<Record<string, BilanzPosten>> = {};
+  let ohneU = 0;
+
+  /** Eine Zahl, oder 0 — und dann gezählt. Siehe `withoutUValue`. */
+  const zahl = (x: unknown): number => {
+    if (typeof x === 'number' && Number.isFinite(x)) return x;
+    ohneU++;
+    return 0;
+  };
 
   for (const f of flaechen) {
     const art = ART[f.kind] ?? 'other';
     const rand = RAND[f.boundary ?? ''] ?? 'other';
-    const u = f.uValue + (f.thermalBridgeSupplement ?? 0);
-    const h = f.netArea * u;
+    const u = zahl(f.uValue) + (Number.isFinite(f.thermalBridgeSupplement) ? f.thermalBridgeSupplement! : 0);
+    const h = zahl(f.netArea) * u;
     addiere(byKind, art, f.netArea, h);
     addiere(byBoundary, rand, f.netArea, h);
 
@@ -126,8 +146,10 @@ export function huellflaechenbilanz(flaechen: readonly BilanzFlaeche[]): Huellfl
      */
     for (const o of f.openings ?? []) {
       const oart: BilanzArt = o.kind === 'door' ? 'door' : o.kind === 'window' ? 'window' : 'other';
-      addiere(byKind, oart, o.area, o.area * o.uValue);
-      addiere(byBoundary, rand, o.area, o.area * o.uValue);
+      const oflaeche = zahl(o.area);
+      const oh = oflaeche * zahl(o.uValue);
+      addiere(byKind, oart, oflaeche, oh);
+      addiere(byBoundary, rand, oflaeche, oh);
     }
   }
 
@@ -152,6 +174,7 @@ export function huellflaechenbilanz(flaechen: readonly BilanzFlaeche[]): Huellfl
     byBoundary: auf(byBoundary) as Huellflaechenbilanz['byBoundary'],
     total: { netArea: runde(netArea), heatTransferCoefficient: runde(h) },
     shareHorizontal: h > 0 ? Math.round((horizontal / h) * 1000) / 1000 : 0,
+    withoutUValue: ohneU,
     note:
       'Σ A·(U+ΔU_WB) ohne Temperaturkorrekturfaktoren, ohne Lüftung, ohne Aufheizleistung — ' +
       'Eingangsgröße zur Prüfung der Übernahme, keine Heizlast.',
