@@ -45,6 +45,7 @@ import {
 import { buildReferenceDocument, buildReferenceReport } from './reference';
 import { pruefeDruckplan } from './pruefungen/druckplan';
 import { pruefeAnlagenschema } from './pruefungen/anlagenschema';
+import { pruefeUebersichtsschema } from './pruefungen/uebersichtsschema';
 import { pruefeRohrdaemmung } from './pruefungen/rohrdaemmung';
 import { pruefeRohrbezeichnung } from './pruefungen/rohrbezeichnung';
 import { pruefeWandhoehen } from './pruefungen/wandhoehen';
@@ -3814,6 +3815,7 @@ pruefeDruckplan(check);
 
 console.log('\n▸ Anlagenschema — Topologie, Stutzen, Stoffe');
 pruefeAnlagenschema(check);
+pruefeUebersichtsschema(check);
 
 console.log('\n▸ Rohrdämmung — Anlage 8 GEG');
 pruefeRohrdaemmung(check);

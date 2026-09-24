@@ -169,6 +169,15 @@ console.log('\n▸ Der Druckdialog des Schemas');
 
 console.log('\n▸ Schema von Hand bearbeiten');
 {
+  /*
+   * Bearbeitet wird in der **Ausführung**. Seit 1.50.0 öffnet die
+   * Schema-Ansicht mit der Übersicht, und die ist abgeleitet: Sie nimmt
+   * bewusst keine Änderung an. Ohne diesen Umschalter suchte der Lauf hier
+   * ein anklickbares Bauteil, das es in dieser Ansicht nicht gibt.
+   */
+  await p.getByRole('button', { name: 'Ausführung', exact: true }).click();
+  await p.waitForTimeout(900);
+
   const canvas = p.locator('main canvas').first();
   const box = await canvas.boundingBox();
 

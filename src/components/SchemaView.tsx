@@ -20,7 +20,10 @@ import type { PipeService, SchematicComponent, SchematicKind, SchematicLink, Vec
 import { PIPE_SERVICE_COLORS, PIPE_SERVICE_LABELS } from '../types/bim';
 import { useBimStore } from '../store/useBimStore';
 import type { SchemaBeschriftungsart } from '../lib/schemaBeschriftung';
-import { SCHEMATIC_LEGEND, drawSymbol, hitTestSymbol, pickPortPair, symbolPortPoints } from '../lib/schematicSymbols';
+import { SCHEMATIC_LEGEND, drawSymbol, hitTestSymbol } from '../lib/schematicSymbols';
+import { leitungsverlauf } from '../lib/schemaLeitung';
+import { uebersichtsschema } from '../lib/schemaUebersicht';
+import { UEBERSICHT_MASSE, zeichneUebersicht } from '../lib/uebersichtZeichnen';
 import {
   buildComponentTable,
   buildSchematicSvg,
@@ -107,6 +110,17 @@ export default function SchemaView({ className = '' }: { className?: string }) {
    * niemand zuverlässig.
    */
   const [mode, setMode] = useState<'auswahl' | 'verbinden' | 'einfuegen'>('auswahl');
+  /**
+   * Welches der beiden Bilder auf dem Schirm steht.
+   *
+   * **Die Übersicht ist der Regelfall** — sie ist das, was der Monteur liest.
+   * Die Ausführung ist das vollständige Fließbild; sie wird gebraucht, wenn
+   * jemand das Schema *bearbeitet*, denn Armaturen von Hand einfügen,
+   * verbinden und löschen geht nur dort. Die Übersicht wird abgeleitet und
+   * lässt sich deshalb nicht bearbeiten — was man in ihr ändern wollte,
+   * ändert man in der Ausführung, und sie folgt.
+   */
+  const [ansicht, setAnsicht] = useState<'uebersicht' | 'ausfuehrung'>('uebersicht');
   const [linkFrom, setLinkFrom] = useState<string | null>(null);
   const [linkService, setLinkService] = useState<PipeService>('heating-flow');
   const [insertKind, setInsertKind] = useState<SchematicKind>('shutoff');
@@ -116,14 +130,16 @@ export default function SchemaView({ className = '' }: { className?: string }) {
   const components = useMemo(() => Object.values(plant.schematic.components), [plant.schematic.components]);
   const links = useMemo(() => Object.values(plant.schematic.links), [plant.schematic.links]);
   const byId = useMemo(() => new Map(components.map((c) => [c.id, c])), [components]);
+  const uebersicht = useMemo(() => uebersichtsschema(components, links), [components, links]);
 
   /** Ausdehnung des Schemas im Raster — daraus folgt die Einpassung. */
   const extent = useMemo(() => {
-    if (!components.length) return null;
-    const xs = components.map((c) => c.x);
-    const ys = components.map((c) => c.y);
+    const quelle: { x: number; y: number }[] = ansicht === 'uebersicht' ? uebersicht.bauteile : components;
+    if (!quelle.length) return null;
+    const xs = quelle.map((c) => c.x);
+    const ys = quelle.map((c) => c.y);
     return { minX: Math.min(...xs), maxX: Math.max(...xs), minY: Math.min(...ys), maxY: Math.max(...ys) };
-  }, [components]);
+  }, [ansicht, components, uebersicht]);
 
   const fit = useCallback((): boolean => {
     const { w, h } = sizeRef.current;
@@ -135,16 +151,25 @@ export default function SchemaView({ className = '' }: { className?: string }) {
     // Rand von zwei Rasterfeldern: die Beschriftungen ragen über die Symbole
     // hinaus, und ein „Monoblock Luft/Wasser R290 6 kW" am linken Rand wäre
     // sonst angeschnitten.
-    const spanX = (extent.maxX - extent.minX + 4) * GRID;
-    const spanY = (extent.maxY - extent.minY + 3) * GRID;
+    const raster = ansicht === 'uebersicht' ? UEBERSICHT_MASSE.grid : GRID;
+    /*
+     * Rand um das Bild. In der Übersicht größer: Über dem Bild liegen die
+     * Umschaltleiste und die Leitungslegende, unter ihm der Hinweissatz. Mit
+     * dem knappen Rand der Ausführung verschwand die Fußbodenheizung hinter
+     * der Legende — sichtbar ist sie damit nur, wer scrollt.
+     */
+    const luftX = ansicht === 'uebersicht' ? 9 : 4;
+    const luftY = ansicht === 'uebersicht' ? 7 : 3;
+    const spanX = (extent.maxX - extent.minX + luftX) * raster;
+    const spanY = (extent.maxY - extent.minY + luftY) * raster;
     const zoom = Math.min(w / spanX, h / spanY, 1.4);
     setView({
       zoom,
-      x: w / 2 - ((extent.minX + extent.maxX) / 2) * GRID * zoom,
-      y: h / 2 - ((extent.minY + extent.maxY) / 2) * GRID * zoom,
+      x: w / 2 - ((extent.minX + extent.maxX) / 2) * raster * zoom,
+      y: h / 2 - ((extent.minY + extent.maxY) / 2) * raster * zoom,
     });
     return true;
-  }, [extent]);
+  }, [ansicht, extent]);
 
   // Der Einpassvorgang wird über eine Referenz erreichbar gehalten, damit der
   // ResizeObserver ihn aufrufen kann, ohne selbst neu aufgesetzt zu werden.
@@ -198,6 +223,16 @@ export default function SchemaView({ className = '' }: { className?: string }) {
     ctx.translate(view.x, view.y);
     ctx.scale(view.zoom, view.zoom);
 
+    if (ansicht === 'uebersicht') {
+      zeichneUebersicht(ctx, uebersicht, {
+        papier: PAPER,
+        strich: LINE,
+        rahmen: '#64748B',
+      });
+      ctx.restore();
+      return;
+    }
+
     // --- Leitungen zuerst, damit die Symbole darüber freistellen ----------
     for (const link of links) {
       const a = byId.get(link.from);
@@ -238,7 +273,7 @@ export default function SchemaView({ className = '' }: { className?: string }) {
     }
 
     ctx.restore();
-  }, [byId, components, linkFrom, links, selected, view]);
+  }, [ansicht, byId, components, linkFrom, links, selected, uebersicht, view]);
 
   useEffect(() => {
     render();
@@ -266,6 +301,19 @@ export default function SchemaView({ className = '' }: { className?: string }) {
     const rect = e.currentTarget.getBoundingClientRect();
     const screen = { x: e.clientX - rect.left, y: e.clientY - rect.top };
     if (e.button === 1 || e.button === 2) {
+      panRef.current = screen;
+      e.currentTarget.setPointerCapture(e.pointerId);
+      return;
+    }
+    /*
+     * In der Übersicht wird **nicht** bearbeitet, nur geschoben.
+     *
+     * Sie ist abgeleitet: Ein hier verschobenes Symbol wäre beim nächsten
+     * Erzeugen wieder an seinem Platz, und ein hier gelöschtes stünde weiter
+     * im Ausführungsschema. Ein Bild, das Änderungen annimmt und dann
+     * vergisst, ist schlimmer als eines, das sie ablehnt.
+     */
+    if (ansicht === 'uebersicht') {
       panRef.current = screen;
       e.currentTarget.setPointerCapture(e.pointerId);
       return;
@@ -426,6 +474,47 @@ export default function SchemaView({ className = '' }: { className?: string }) {
         onContextMenu={(e) => e.preventDefault()}
       />
 
+      {/* Welches Bild — die Übersicht ist der Regelfall */}
+      {components.length > 0 && (
+        <div className="panel absolute left-3 top-11 flex items-center gap-1 px-2.5 py-1.5">
+          {(
+            [
+              ['uebersicht', 'Übersicht', 'Das Prinzipbild: Erzeugung, Speicherung, Übergabe'],
+              ['ausfuehrung', 'Ausführung', 'Das vollständige Fließbild — hier wird bearbeitet'],
+            ] as const
+          ).map(([id, label, hint]) => (
+            <button
+              key={id}
+              title={hint}
+              className={`chip whitespace-nowrap ${
+                ansicht === id ? 'bg-accent/15 text-accent' : 'bg-white/[0.05] text-slate-300 hover:bg-white/[0.1]'
+              }`}
+              onClick={() => {
+                setAnsicht(id);
+                setSelected(null);
+                setLinkFrom(null);
+                setMode('auswahl');
+                fittedRef.current = false;
+              }}
+            >
+              {label}
+            </button>
+          ))}
+          {ansicht === 'uebersicht' && (
+            <span className="ml-1 text-[10px] text-slate-500">
+              {uebersicht.bauteile.filter((b) => b.kind !== 'node').length} von {uebersicht.vollstaendig} Bauteilen
+            </span>
+          )}
+        </div>
+      )}
+
+      {/* Der Satz gehört zum Bild, nicht zur Oberfläche */}
+      {ansicht === 'uebersicht' && components.length > 0 && (
+        <div className="panel pointer-events-none absolute bottom-3 left-3 right-14 px-3 py-2">
+          <p className="text-[10px] leading-relaxed text-slate-400">{uebersicht.hinweis}</p>
+        </div>
+      )}
+
       {components.length === 0 && (
         <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
           <div className="panel pointer-events-auto max-w-[26rem] px-4 py-3 text-center">
@@ -441,7 +530,16 @@ export default function SchemaView({ className = '' }: { className?: string }) {
 
       {/* Legende der Leitungsarten */}
       {showLegend && components.length > 0 && (
-        <div className="panel absolute right-3 top-3 max-w-[15rem] px-2.5 py-2">
+        /*
+         * In der Übersicht sitzt sie **unten** rechts. Oben rechts steht dort
+         * der letzte Verbraucherzweig, und die Legende verdeckte genau seine
+         * Beschriftung — ausgerechnet die Fußbodenheizung.
+         */
+        <div
+          className={`panel absolute max-w-[15rem] px-2.5 py-2 ${
+            ansicht === 'uebersicht' ? 'bottom-[5.5rem] right-14' : 'top-3 right-3'
+          }`}
+        >
           <div className="mb-1 flex items-baseline justify-between">
             <span className="label-xs pr-3">Leitungen</span>
             <button className="text-[10px] text-slate-600 hover:text-slate-300" onClick={() => setShowLegend(false)}>
@@ -457,9 +555,9 @@ export default function SchemaView({ className = '' }: { className?: string }) {
         </div>
       )}
 
-      {/* Bearbeitungsleiste */}
-      {components.length > 0 && (
-        <div className="panel absolute left-3 top-11 flex flex-col gap-2 px-2.5 py-2">
+      {/* Bearbeitungsleiste — nur dort, wo bearbeitet wird */}
+      {components.length > 0 && ansicht === 'ausfuehrung' && (
+        <div className="panel absolute left-3 top-[5.25rem] flex flex-col gap-2 px-2.5 py-2">
           <div className="flex items-center gap-1">
             <span className="label-xs mr-1 shrink-0">Bearbeiten</span>
             {(
@@ -651,20 +749,10 @@ function drawLink(
   link: SchematicLink,
   index: number,
 ): void {
-  const from = symbolPortPoints(a.kind, a.x * GRID, a.y * GRID, SIZE);
-  const to = symbolPortPoints(b.kind, b.x * GRID, b.y * GRID, SIZE);
-  // Benannte Stutzen haben Vorrang; die Nähe-Heuristik steckt in
-  // `pickPortPair` und gilt nur noch für von Hand ergänzte Leitungen.
-  const paar = pickPortPair(from, to, link);
-  if (!paar) return;
-
-  const p = paar.p;
-  const q = paar.q;
-  // Ein Stück gerade aus dem Stutzen heraus, damit die Ecke nicht am Symbol
-  // klebt — 12 px sind bei Rasterweite 96 gut sichtbar und stören nicht.
-  const lead = 12;
-  const out = offsetBySide(p, lead);
-  const inn = offsetBySide(q, lead);
+  // Wo die Leitung langläuft, rechnet `schemaLeitung` — dieselbe Routine,
+  // die auch die Übersicht benutzt. Hier wird nur noch gemalt.
+  const verlauf = leitungsverlauf(a, b, link, { grid: GRID, size: SIZE });
+  if (!verlauf) return;
 
   ctx.save();
   ctx.strokeStyle = PIPE_SERVICE_COLORS[link.service];
@@ -672,24 +760,10 @@ function drawLink(
   ctx.lineJoin = 'round';
   ctx.lineCap = 'round';
   ctx.beginPath();
-  ctx.moveTo(p.x, p.y);
-  ctx.lineTo(out.x, out.y);
-  // Zwischenstück: erst waagerecht, dann senkrecht — oder umgekehrt, je
-  // nachdem, aus welcher Richtung die Stutzen zeigen.
-  const horizontalFirst = p.port.side === 'left' || p.port.side === 'right';
-  if (horizontalFirst) {
-    ctx.lineTo(inn.x, out.y);
-    ctx.lineTo(inn.x, inn.y);
-  } else {
-    ctx.lineTo(out.x, inn.y);
-    ctx.lineTo(inn.x, inn.y);
-  }
-  ctx.lineTo(q.x, q.y);
+  verlauf.punkte.forEach((pt, i) => (i === 0 ? ctx.moveTo(pt.x, pt.y) : ctx.lineTo(pt.x, pt.y)));
   ctx.stroke();
 
-  // Fließrichtung als Pfeilspitze in der Mitte des Zwischenstücks.
-  const mid = horizontalFirst ? { x: (out.x + inn.x) / 2, y: out.y } : { x: out.x, y: (out.y + inn.y) / 2 };
-  drawArrow(ctx, mid, horizontalFirst ? (inn.x >= out.x ? 0 : Math.PI) : inn.y >= out.y ? Math.PI / 2 : -Math.PI / 2);
+  drawArrow(ctx, verlauf.pfeil.at, verlauf.pfeil.winkel);
 
   if (link.label) {
     // Beschriftungen wandern abwechselnd auf ein Drittel und zwei Drittel
@@ -697,9 +771,10 @@ function drawLink(
     // an jeder Kreuzung zwei Texte — genau dort, wo das Schema ohnehin am
     // dichtesten ist.
     const t = index % 2 === 0 ? 0.32 : 0.68;
-    const at = horizontalFirst
-      ? { x: out.x + (inn.x - out.x) * t, y: out.y }
-      : { x: out.x, y: out.y + (inn.y - out.y) * t };
+    const { von, bis } = verlauf.zwischenstueck;
+    const at = verlauf.waagerechtZuerst
+      ? { x: von.x + (bis.x - von.x) * t, y: von.y }
+      : { x: von.x, y: von.y + (bis.y - von.y) * t };
     ctx.font = '10px ui-monospace, monospace';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'bottom';
@@ -712,20 +787,6 @@ function drawLink(
     ctx.fillText(link.label, at.x, at.y - 5);
   }
   ctx.restore();
-}
-
-/** Den Punkt um `d` in Richtung der Stutzenseite verschieben. */
-function offsetBySide(p: { x: number; y: number; port: { side: string } }, d: number): { x: number; y: number } {
-  switch (p.port.side) {
-    case 'left':
-      return { x: p.x - d, y: p.y };
-    case 'right':
-      return { x: p.x + d, y: p.y };
-    case 'top':
-      return { x: p.x, y: p.y - d };
-    default:
-      return { x: p.x, y: p.y + d };
-  }
 }
 
 function drawArrow(ctx: CanvasRenderingContext2D, at: { x: number; y: number }, angle: number): void {
