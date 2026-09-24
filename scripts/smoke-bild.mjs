@@ -372,9 +372,22 @@ let blattMasse = null;
         x: Number(t.getAttribute('x') ?? NaN),
         y: Number(t.getAttribute('y') ?? NaN),
       }))
-      .filter((o) => /^DN \d+/.test(o.text) && Number.isFinite(o.x) && Number.isFinite(o.y)),
+      /*
+       * **Diese Prüfung suchte „DN 20" und war seit 1.28.0 rot.** Seitdem
+       * steht im Plan die Handelsbezeichnung — `Cu 22 × 1`, `PE-X 16 × 2`
+       * —, weil der Handwerker danach bestellt; die Nennweite steht im
+       * Inspektor und in der Legende daneben. Gesehen hat das niemand,
+       * weil `smoke:bild` bei keiner Freigabe mitlief. Gefunden beim
+       * ersten vollständigen Lauf von `npm run freigabe` (24.09.2026).
+       *
+       * Gesucht wird deshalb beides: die Handelsbezeichnung *und* die alte
+       * Schreibweise, denn ein Rohr ohne bekannten Werkstoff trägt weiter
+       * „DN 20".
+       */
+      .filter((o) => /^(DN \d+|Cu |St |ES |PE-Xa |MSV |PP-R )/.test(o.text)
+        && Number.isFinite(o.x) && Number.isFinite(o.y)),
   );
-  expect('Nennweiten stehen im Plan', dn.length > 0, true);
+  expect('Rohrbezeichnungen stehen im Plan', dn.length > 0, true);
   // Zwei gleiche Beschriftungen näher als 3 mm beieinander sind ein Doppel.
   // Der Abstand von Vor- zu Rücklauf beträgt 5 cm im Modell; auf dem Blatt
   // sind das im Maßstab 1:50 genau ein Millimeter.
@@ -385,7 +398,7 @@ let blattMasse = null;
       if (Math.hypot(dn[i].x - dn[j].x, dn[i].y - dn[j].y) < 3) doppelt++;
     }
   }
-  expect('Keine Nennweite steht zweimal am selben Ort', doppelt, 0);
+  expect('Keine Rohrbezeichnung steht zweimal am selben Ort', doppelt, 0);
   // Und der Gegenbeweis von der anderen Seite: es kann höchstens so viele
   // Beschriftungen geben wie Vorläufe. Wären Vor- *und* Rücklauf beschriftet,
   // stünde hier ungefähr das Doppelte.

@@ -667,7 +667,9 @@ export function planPipeNetwork(doc: BimDocument, options: PipeLayoutOptions): P
       text: flaechen.length
         ? `${flaechen.length} Flächenheizkreis(e) auf diesem Geschoss, aber kein Heizkreisverteiler. ` +
           'Eine Fußbodenheizung hängt immer an einem Verteiler — den setzen, dann lässt sich anbinden.'
-        : 'Kein Wärmeerzeuger, kein Speicher und kein Verteiler auf diesem Geschoss. Ohne Ausgangspunkt lässt sich keine Trasse führen — eines davon setzen.',
+        : 'Kein Wärmeerzeuger, kein Speicher und kein Verteiler auf diesem Geschoss. Ohne Ausgangspunkt ' +
+          'lässt sich keine Trasse führen. Im Anlagenreiter steht ein Vorschlag, wo er hingehört — ' +
+          'ein Klick setzt ihn, verschieben geht danach jederzeit.',
     });
     return { runs: [], accessories: [], routeLength: 0, pipeLength: 0, served: 0, designFlow: 0, notes };
   }

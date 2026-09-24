@@ -295,6 +295,87 @@ console.log('\n▸ Rohrausleger');
   await p.screenshot({ path: './screenshots/anlage-rohrnetz.png' });
 }
 
+/*
+ * ---------------------------------------------------------------------------
+ * Der Erzeuger-Assistent
+ * ---------------------------------------------------------------------------
+ * **Der Anlass.** Im End-to-End-Lauf über die 54 Testgebäude war „kein
+ * Ausgangspunkt" in *jedem einzelnen* Fall der Abbruchgrund beim ersten
+ * Auslegen. Geprüft wird hier der ganze Weg, den der Anwender geht: Modell
+ * ohne Erzeuger → der Vorschlag steht sichtbar da → ein Klick setzt ihn →
+ * das Auslegen läuft durch.
+ */
+console.log('\n▸ Erzeuger-Assistent');
+{
+  // Alle Erzeuger, Speicher und Verteiler entfernen — der Ausgangszustand
+  // eines frisch aufgenommenen Bestandsgebäudes.
+  const vorher = await p.evaluate(() => {
+    const s = window.__ravia.getState();
+    const weg = Object.values(s.doc.fixtures)
+      .filter((f) => ['boiler', 'storage', 'manifold'].includes(f.type))
+      .map((f) => f.id);
+    // `deleteSelection` löscht die Auswahl — also erst auswählen, dann löschen.
+    for (const id of weg) {
+      window.__ravia.getState().setSelection({ kind: 'fixture', id });
+      window.__ravia.getState().deleteSelection();
+    }
+    const d = window.__ravia.getState().doc;
+    return {
+      entfernt: weg.length,
+      nochDa: Object.values(d.fixtures).filter((f) => ['boiler', 'storage', 'manifold'].includes(f.type)).length,
+      pumpen: Object.keys(d.site?.pumps ?? {}).length,
+    };
+  });
+  expect('Erzeuger und Speicher entfernt', vorher.nochDa, 0);
+
+  if (vorher.pumpen === 0) {
+    // Der Vorschlag muss in der Oberfläche stehen, nicht nur im Zustand.
+    const aside = p.locator('aside');
+    await p.waitForTimeout(400);
+    const text = await aside.innerText();
+    expect('Der Vorschlag steht im Anlagenblatt', /Es steht noch kein Wärmeerzeuger/.test(text), true);
+    expect('… und nennt einen Ort', /Vorschlag:/.test(text), true);
+
+    await aside.getByRole('button', { name: 'Hier setzen' }).click();
+    await p.waitForTimeout(500);
+
+    const danach = await p.evaluate(() => {
+      const d = window.__ravia.getState().doc;
+      const kessel = Object.values(d.fixtures).find((f) => f.type === 'boiler');
+      const raum = kessel ? Object.values(d.rooms).find((r) => r.levelId === kessel.levelId
+        && r.innerPolygon.length >= 3
+        && r.innerPolygon.some(() => true)) : undefined;
+      return {
+        gesetzt: !!kessel,
+        aufGeschoss: kessel?.levelId ?? null,
+        aktivesGeschoss: d.activeLevelId,
+        hatRaum: !!raum,
+        status: window.__ravia.getState().statusMessage,
+      };
+    });
+    expect('Ein Klick setzt den Erzeuger', danach.gesetzt, true);
+    expect('Das aktive Geschoss wandert mit', danach.aufGeschoss, danach.aktivesGeschoss);
+    expect('Die Statuszeile sagt, wo er steht', /Wärmeerzeuger gesetzt/.test(danach.status ?? ''), true);
+
+    // Und jetzt läuft die Auslegung durch, die vorher abbrach.
+    const nachSetzen = await p.evaluate(() => {
+      const r = window.__ravia.getState().legeRohrnetzAus('neubau');
+      return { served: r.served, laenge: Math.round(r.pipeLength), fehler: r.notes.filter((n) => n.severity === 'error').length };
+    });
+    expect('Danach werden Verbraucher versorgt', nachSetzen.served > 0, true);
+    expect('… und es liegt Rohr', nachSetzen.laenge > 0, true);
+    expect('Kein „kein Ausgangspunkt" mehr', nachSetzen.fehler, 0);
+
+    // Steht einer, verschwindet der Vorschlag wieder.
+    await p.waitForTimeout(400);
+    const jetzt = await aside.innerText();
+    expect('Der Vorschlag verschwindet, sobald einer steht',
+      /Es steht noch kein Wärmeerzeuger/.test(jetzt), false);
+  } else {
+    console.log('    (Wärmepumpe im Gelände — sie ist der Erzeuger, kein Vorschlag nötig)');
+  }
+}
+
 console.log('\nERRORS:', errs.length ? errs.join('\n') : 'keine');
 if (errs.length) failures += errs.length;
 console.log(`\n${failures === 0 ? '✓ RAUCHTEST BESTANDEN' : `✗ ${failures} FEHLER`}\n`);

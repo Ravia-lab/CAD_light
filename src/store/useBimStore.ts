@@ -117,6 +117,7 @@ import { zieheHeizflaechenNach } from '../lib/heizflaechenAbgleich';
 import { rohrlaenge } from '../lib/rohrlaenge';
 import { istHeizflaeche } from '../lib/heizflaechenLeistung';
 import { hinweiseZuRaeumen, leseVerworfene, type RaumverlustHinweis } from '../lib/verworfeneRaeume';
+import { hatAusgangspunkt, schlageErzeugerVor } from '../lib/erzeugerplatz';
 import { heizkoerperplatz, PLATZ_TEXT } from '../lib/heizkoerperplatz';
 import {
   DEFAULT_EDGE_CLEARANCE,
@@ -892,6 +893,15 @@ interface BimState {
    * keinem gezeichneten Raum zuordnen ließen.
    */
   meldeVerworfeneRaeume: (antwort: unknown) => { hinweise: number; ohneRaum: number; message: string };
+  /**
+   * Den vorgeschlagenen Wärmeerzeuger setzen.
+   *
+   * Der Vorschlag selbst kommt aus `lib/erzeugerplatz.ts` und wird dem
+   * Anwender **vorher gezeigt** — hier wird nur ausgeführt, was er bestätigt
+   * hat. Gibt die Kennung zurück, damit der Aufrufer das Symbol gleich
+   * fassen kann, oder `null`, wenn sich kein Ort begründen ließ.
+   */
+  setzeErzeugerNachVorschlag: () => { ok: boolean; message: string; fixtureId?: string };
   /** Die Hinweise wieder wegräumen — nach dem nächsten Übernahmelauf. */
   loescheVerworfeneHinweise: () => void;
   loadProject: (data: unknown) => { ok: boolean; message: string };
@@ -5795,6 +5805,29 @@ export const useBimStore = create<BimState>()((set, get) => {
      * unverändert zurück, Räume werden neu erkannt und bekommen Namen,
      * Nutzung und Temperaturen aus der Datei zurückgespielt.
      */
+    setzeErzeugerNachVorschlag: () => {
+      const doc = get().doc;
+      if (hatAusgangspunkt(doc)) {
+        return { ok: false, message: 'Es steht bereits ein Erzeuger, Speicher oder Verteiler im Modell.' };
+      }
+      const vorschlag = schlageErzeugerVor(doc, doc.activeLevelId);
+      if (!vorschlag) {
+        return { ok: false, message: 'Kein Raum gefunden, der sich als Aufstellort begründen ließe — Erzeuger von Hand setzen.' };
+      }
+      /*
+       * Gesetzt wird auf dem Geschoss des Vorschlags, nicht auf dem aktiven:
+       * Der Heizraum liegt unten, gearbeitet wird oft oben. Das aktive
+       * Geschoss wandert mit, sonst setzt der Anwender ein Symbol, das er
+       * nicht sieht.
+       */
+      if (vorschlag.levelId !== doc.activeLevelId) get().setActiveLevel(vorschlag.levelId);
+      const kessel = get().addFixture('boiler', vorschlag.position, { levelId: vorschlag.levelId });
+      if (!kessel) return { ok: false, message: 'Der Erzeuger ließ sich an dieser Stelle nicht setzen.' };
+      const message = `Wärmeerzeuger gesetzt: ${vorschlag.ort}. ${vorschlag.grund}`;
+      set({ statusMessage: message });
+      return { ok: true, message, fixtureId: kessel.id };
+    },
+
     meldeVerworfeneRaeume: (antwort) => {
       const verworfene = leseVerworfene(antwort);
       const { hinweise, ohneRaum } = hinweiseZuRaeumen(verworfene, Object.keys(get().doc.rooms));

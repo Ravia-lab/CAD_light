@@ -36,6 +36,7 @@ import {
   ZWEITERZEUGER_LABELS,
 } from '../types/bim';
 import { mindestens } from '../lib/uimodus';
+import { hatAusgangspunkt, schlageErzeugerVor } from '../lib/erzeugerplatz';
 import { useBimStore } from '../store/useBimStore';
 import type { GebaeudeNetzErgebnis } from '../lib/gebaeudeNetz';
 import { HEAT_PUMP_SERIES, REFRIGERANTS, minimumRoomVolume } from '../lib/deviceCatalog';
@@ -131,6 +132,16 @@ export default function AnlagenPanel() {
   const setSchematic = useBimStore((s) => s.setSchematic);
   const uebernehmeSchemaVorlage = useBimStore((s) => s.uebernehmeSchemaVorlage);
   const legeRohrnetzAus = useBimStore((s) => s.legeRohrnetzAus);
+  const setzeErzeugerNachVorschlag = useBimStore((s) => s.setzeErzeugerNachVorschlag);
+  /*
+   * Der Vorschlag wird bei jeder Modelländerung neu bestimmt — er ist
+   * billig (eine Schleife über die Räume) und verschwindet von selbst,
+   * sobald ein Erzeuger steht.
+   */
+  const erzeugerVorschlag = useMemo(
+    () => (hatAusgangspunkt(doc) ? undefined : schlageErzeugerVor(doc, doc.activeLevelId)),
+    [doc],
+  );
   const [rohrbericht, setRohrbericht] = useState<GebaeudeNetzErgebnis | null>(null);
   const setStatus = useBimStore((s) => s.setStatus);
   const uiMode = useBimStore((s) => s.uiMode);
@@ -1519,6 +1530,36 @@ export default function AnlagenPanel() {
           Führt die Trasse vom Verteiler zu jedem Verbraucher, legt jeden Abschnitt nach seinem Volumenstrom aus,
           dämmt ihn nach Anlage 8 GEG und setzt die Armaturen. Von Hand gezogene Leitungen bleiben stehen.
         </p>
+        {/*
+          * Der Erzeuger-Assistent.
+          *
+          * Ohne Erzeuger, Speicher oder Verteiler bricht die Auslegung ab —
+          * zu Recht, aber die Meldung kam bisher erst **nach** dem Druck auf
+          * „Auslegen", und sie sagte nicht, wohin das Gerät gehört. Im
+          * End-to-End-Lauf über die 54 Testgebäude war das in jedem
+          * einzelnen Fall der Abbruchgrund beim ersten Versuch.
+          *
+          * Jetzt steht der Vorschlag **vorher** da, mit Ort und Begründung,
+          * und ein Klick setzt ihn. Geraten wird nichts: Was gesetzt wird,
+          * hat der Anwender gelesen.
+          */}
+        {erzeugerVorschlag && (
+          <div className="mt-2 rounded-lg border border-amber-500/30 bg-amber-500/[0.07] px-2.5 py-2">
+            <p className="text-[10.5px] font-medium text-amber-200">
+              Es steht noch kein Wärmeerzeuger im Modell.
+            </p>
+            <p className="mt-0.5 text-[10px] leading-relaxed text-amber-100/70">
+              Vorschlag: <span className="font-medium">{erzeugerVorschlag.ort}</span>. {erzeugerVorschlag.grund}
+            </p>
+            <button
+              className="chip mt-1.5 w-full bg-amber-500/15 text-amber-200 hover:bg-amber-500/25"
+              title="Setzt einen Wärmeerzeuger an die vorgeschlagene Stelle. Verschieben geht danach jederzeit."
+              onClick={() => setzeErzeugerNachVorschlag()}
+            >
+              Hier setzen
+            </button>
+          </div>
+        )}
         {rohrbericht && (
           <div className="mt-2 space-y-1 rounded-lg bg-graphite-900/60 px-2.5 py-2">
             <div className="grid grid-cols-2 gap-x-3 gap-y-0.5 text-[10.5px] text-slate-300">

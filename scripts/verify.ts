@@ -53,6 +53,7 @@ import { pruefeRingleitung } from './pruefungen/ringleitung';
 import { pruefeRaumnamenMitnehmen } from './pruefungen/raumnamenMitnehmen';
 import { pruefeRaumzuordnung } from './pruefungen/raumzuordnung';
 import { pruefeVerworfeneRaeume } from './pruefungen/verworfeneRaeume';
+import { pruefeErzeugerplatz } from './pruefungen/erzeugerplatz';
 import { pruefeSteigleitung } from './pruefungen/steigleitung';
 import { pruefeHuellflaeche } from './pruefungen/huellflaeche';
 import { pruefeSprache } from './pruefungen/sprache';
@@ -3837,6 +3838,9 @@ pruefeHuellflaeche(check);
 
 console.log('\n▸ Verworfene Räume — was drüben nicht ankam');
 pruefeVerworfeneRaeume(check);
+
+console.log('\n▸ Erzeuger-Assistent — wo steht der Wärmeerzeuger?');
+pruefeErzeugerplatz(check);
 
 console.log('\n▸ Rohrbezeichnung — heißt die Leitung so, wie sie bestellt wird?');
 pruefeRohrbezeichnung(check);
