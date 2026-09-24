@@ -17,13 +17,16 @@
  * geplant" muss sichtbar bleiben.
  */
 
-import { useMemo, useRef, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import type {
+  AnlagenAntworten,
   BivalenzBetrieb,
+  HeizkreisArt,
   HeatPumpModel,
   HeatSourceKind,
   PipeMaterial,
   PumpForm,
+  Refrigerant,
   SecondGenerator,
   Vorhaben,
   ZweitErzeugerArt,
@@ -42,8 +45,7 @@ import type { GebaeudeNetzErgebnis } from '../lib/gebaeudeNetz';
 import { HEAT_PUMP_SERIES, REFRIGERANTS, minimumRoomVolume } from '../lib/deviceCatalog';
 import { buildSchematic, designPlant, type CircuitDesign } from '../lib/plantDesign';
 import { pruefeSchema, type SchemaBefund } from '../lib/schemaPruefung';
-import { PASSUNG_LABELS, schlageSchemaVor } from '../lib/schemaAuswahl';
-import { ANBINDUNG_LABELS, TRINKWASSERART_LABELS } from '../lib/schemaKatalog';
+import { abweichungen, antwortenAusAnlage, kaeltemittelImHaus } from '../lib/anlagenFragen';
 import { PRESET_VERDICT_LABELS, balanceNetwork } from '../lib/hydraulicBalance';
 import { buildCsvTemplate, importDevices, mergeIntoCatalog, type DeviceImportReport } from '../lib/deviceImport';
 import { buildMaterialSchedule, materialScheduleCsv } from '../lib/materialSchedule';
@@ -130,7 +132,6 @@ export default function AnlagenPanel() {
   const removePlantStorage = useBimStore((s) => s.removePlantStorage);
   const setPlantCircuits = useBimStore((s) => s.setPlantCircuits);
   const setSchematic = useBimStore((s) => s.setSchematic);
-  const uebernehmeSchemaVorlage = useBimStore((s) => s.uebernehmeSchemaVorlage);
   const legeRohrnetzAus = useBimStore((s) => s.legeRohrnetzAus);
   const setzeErzeugerNachVorschlag = useBimStore((s) => s.setzeErzeugerNachVorschlag);
   /*
@@ -251,9 +252,50 @@ export default function AnlagenPanel() {
    * gezeichnete Schema: der Vorschlag soll sagen, was zur Anlage passt, und
    * nicht, was gerade auf dem Blatt steht.
    */
-  const vorschlaege = useMemo(() => schlageSchemaVor(design, plant), [design, plant]);
-  /** Nicht passende Vorlagen einblenden — mit ihrer Begründung. */
-  const [alleZeigen, setAlleZeigen] = useState(false);
+  /*
+   * Die sechs Antworten.
+   *
+   * Stehen sie schon im Projekt, gelten sie. Fehlen sie — ältere Projektdatei
+   * oder frisches Projekt —, werden sie aus dem gelesen, was an Speichern und
+   * Kreisen da ist. So steht im Feld nie etwas anderes als in der Anlage.
+   */
+  const antworten = useMemo(
+    () =>
+      plant.antworten ??
+      antwortenAusAnlage(
+        plant.storages,
+        plant.circuits,
+        design.selected?.model.form,
+        design.selected?.model.refrigerant,
+      ),
+    [plant.antworten, plant.storages, plant.circuits, design.selected],
+  );
+  const setzeAnlagenAntworten = useBimStore((s) => s.setzeAnlagenAntworten);
+  const setzeAntwort = useCallback(
+    (patch: Partial<AnlagenAntworten>) => setzeAnlagenAntworten({ ...antworten, ...patch }),
+    [antworten, setzeAnlagenAntworten],
+  );
+
+  /** Wo die Antworten von der Auslegung abweichen — Sätze, keine Korrekturen. */
+  const abweichungsliste = useMemo(
+    () =>
+      abweichungen(antworten, {
+        /*
+         * **Der geforderte Inhalt, nicht der gewählte.**
+         *
+         * `buffer.selected` ist der Speicher, der in der Anlage steht — und
+         * seit die Anlage aus den Antworten entsteht, ist das der vom
+         * Anwender eingetragene. Dagegen zu vergleichen hieße, seine Antwort
+         * gegen sich selbst zu halten: Die Abweichung wäre immer null, und
+         * der Hinweis käme nie. Maßgebend ist `required`, der aus
+         * Mindestlaufzeit und Spreizung gerechnete Bedarf.
+         */
+        pufferLiter: design.buffer.required > 0 ? design.buffer.required : undefined,
+        pufferGrund: design.buffer.reason,
+        kreiseImModell: design.circuits.length,
+      }),
+    [antworten, design],
+  );
 
   const befunde = useMemo<SchemaBefund[]>(() => {
     const komponenten = Object.values(plant.schematic.components);
@@ -1306,109 +1348,194 @@ export default function AnlagenPanel() {
           </span>
         </div>
         {/*
-          Vorgeschlagene Hydraulikschemata.
+          Die sechs Fragen, aus denen die Anlage entsteht.
 
-          Sie stehen **vor** dem Erzeugen-Knopf, weil sie die Frage davor
-          beantworten: nicht „wie sieht mein Schema aus", sondern „welches
-          Schema ist das eigentlich". Zu jeder Vorlage steht, warum sie passt
-          — und zu den nicht passenden, welches Merkmal sie ausschließt. Das
-          ist der eigentliche Ertrag: eine Liste ohne Begründung wäre nur eine
-          zweite Meinung.
+          Hier stand bis 1.51.0 die Liste der vorgeschlagenen Hydraulikschemata
+          — „BWP-H-06 … 8 nicht passende zeigen". Gemeldet aus der Benutzung:
+          irreführend. Zu Recht: Sie verlangte, eine Musterlösung
+          *wiederzuerkennen*, bevor man sagen durfte, was man baut. Jetzt
+          umgekehrt — sechs Angaben zu dem, was auf der Baustelle steht, und
+          daraus entsteht die Anlage.
+
+          **Alles in einem Feld, nicht nacheinander.** Die Angaben hängen
+          voneinander ab, beim zweiten Gebäude ändert man zwei davon, und wer
+          den vierten Schritt ausfüllt, soll den zweiten noch sehen.
         */}
-        <div className="mb-2">
-          <div className="flex items-baseline justify-between">
-            <span className="label-xs">Passende Schemata</span>
-            <span className="text-[9.5px] text-slate-600">
-              {vorschlaege.passende.length} von {vorschlaege.vorschlaege.length}
-            </span>
-          </div>
-          <p className="mt-0.5 text-[9.5px] leading-relaxed text-slate-600">
-            {ANBINDUNG_LABELS[vorschlaege.merkmale.anbindung]} ·{' '}
-            {TRINKWASSERART_LABELS[vorschlaege.merkmale.trinkwasser]} ·{' '}
-            {vorschlaege.merkmale.kreise === 1 ? 'ein Heizkreis' : `${vorschlaege.merkmale.kreise} Heizkreise`}
-            {vorschlaege.merkmale.gemischt ? ', gemischt' : ''}
-          </p>
-
-          <div className="mt-1.5 space-y-1">
-            {(alleZeigen ? vorschlaege.vorschlaege : vorschlaege.passende).slice(0, alleZeigen ? 20 : 5).map((v) => (
-              <div
-                key={v.vorlage.id}
-                className={`rounded-lg px-2.5 py-2 ${
-                  v.passung === 'passt'
-                    ? 'bg-emerald-500/10'
-                    : v.passung === 'moeglich'
-                      ? 'bg-white/[0.05]'
-                      : 'bg-white/[0.02]'
-                }`}
-              >
-                <div className="flex items-baseline justify-between gap-2">
-                  <span
-                    className={`text-[11px] font-medium ${
-                      v.passung === 'passt' ? 'text-emerald-300' : 'text-slate-300'
-                    }`}
-                  >
-                    {v.vorlage.kennung}
-                  </span>
-                  <span className="shrink-0 text-[9px] uppercase tracking-wider text-slate-600">
-                    {PASSUNG_LABELS[v.passung]}
-                  </span>
-                </div>
-                <p className="mt-0.5 text-[10.5px] leading-snug text-slate-300">{v.vorlage.name}</p>
-                <p className="mt-0.5 text-[9.5px] leading-relaxed text-slate-500">{v.begruendung}</p>
-                {v.vorlage.herstellernamen.length > 0 && (
-                  <p className="mt-0.5 text-[9px] leading-relaxed text-slate-600">
-                    Bei den Herstellern:{' '}
-                    {v.vorlage.herstellernamen
-                      .slice(0, 3)
-                      .map((h) => `${h.hersteller} ${h.bezeichnung}`)
-                      .join(' · ')}
-                  </p>
-                )}
-                {v.passung !== 'passt-nicht' && (
-                  <button
-                    className="chip mt-1.5 w-full bg-accent/12 text-accent hover:bg-accent/20"
-                    onClick={() => {
-                      if (
-                        plant.schematic.manual &&
-                        !window.confirm(
-                          'Das Schema wurde von Hand bearbeitet. Eine Vorlage zu übernehmen verwirft alle Änderungen daran. Fortfahren?',
-                        )
-                      ) {
-                        return;
-                      }
-                      uebernehmeSchemaVorlage(v.vorlage.id);
-                    }}
-                  >
-                    Diese Anbindung übernehmen
-                  </button>
-                )}
-              </div>
-            ))}
-          </div>
-
-          {vorschlaege.vorschlaege.length > vorschlaege.passende.length && (
-            <button
-              className="chip mt-1 w-full text-slate-500 hover:text-slate-300"
-              onClick={() => setAlleZeigen((v) => !v)}
-            >
-              {alleZeigen
-                ? 'nur passende zeigen'
-                : `${vorschlaege.vorschlaege.length - vorschlaege.passende.length} nicht passende zeigen`}
-            </button>
-          )}
-
-          {vorschlaege.hinweise.map((h, i2) => (
-            <p
-              key={i2}
-              className={`mt-1 text-[9.5px] leading-relaxed ${
-                h.severity === 'info' ? 'text-slate-600' : 'text-orange-300/90'
-              }`}
-            >
-              {h.text}
+        <div className="mb-2 space-y-2">
+          <div>
+            <span className="label-xs">Was wird gebaut?</span>
+            <p className="mt-0.5 text-[9.5px] leading-relaxed text-slate-600">
+              Sechs Angaben. Sie werden mit dem Projekt gespeichert, und aus ihnen entstehen Speicher und
+              Heizkreise. Was Sie eintragen, gilt — weicht die Auslegung ab, steht es daneben.
             </p>
-          ))}
-        </div>
+          </div>
 
+          {/* 1 · Bauart */}
+          <label className="block">
+            <span className="label-xs">1 · Bauart des Wärmeerzeugers</span>
+            <select
+              className="field mt-1 w-full"
+              value={antworten.bauform}
+              onChange={(e) => setzeAntwort({ bauform: e.target.value as PumpForm })}
+            >
+              {(Object.keys(PUMP_FORM_LABELS) as PumpForm[]).map((f) => (
+                <option key={f} value={f} className="bg-graphite-850">
+                  {PUMP_FORM_LABELS[f]}
+                </option>
+              ))}
+            </select>
+            <p className="mt-0.5 text-[9.5px] leading-relaxed text-slate-600">
+              {kaeltemittelImHaus(antworten.bauform)
+                ? 'Bei dieser Bauart geht der Kältekreis mit ins Haus — bei brennbarem Kältemittel gilt drinnen der Schutzbereich nach DIN EN 378.'
+                : 'Ins Haus geht nur Heizungswasser; der Kältekreis bleibt draußen. Die Hydraulikstation steht trotzdem im Technikraum.'}
+            </p>
+          </label>
+
+          {/* 2 · Kältemittel */}
+          <label className="block">
+            <span className="label-xs">2 · Kältemittel</span>
+            <select
+              className="field mt-1 w-full"
+              value={antworten.kaeltemittel}
+              onChange={(e) => setzeAntwort({ kaeltemittel: e.target.value as Refrigerant })}
+            >
+              {(['R290', 'R32', 'R454C', 'R410A', 'R744', 'R1234ze', 'andere'] as Refrigerant[]).map((k) => (
+                <option key={k} value={k} className="bg-graphite-850">
+                  {k}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          {/* 3 · Heizstab */}
+          <label className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              checked={antworten.heizstab}
+              onChange={(e) => setzeAntwort({ heizstab: e.target.checked })}
+            />
+            <span className="text-[11px] text-slate-300">3 · Heizstab als Zusatzheizer</span>
+          </label>
+
+          {/* 4 · Trinkwasserspeicher */}
+          <div>
+            <span className="label-xs">4 · Trinkwasserspeicher</span>
+            <div className="mt-1 flex items-center gap-2">
+              <select
+                className="field w-full"
+                value={antworten.trinkwasserLiter}
+                onChange={(e) => setzeAntwort({ trinkwasserLiter: Number(e.target.value) })}
+              >
+                <option value={0} className="bg-graphite-850">keiner</option>
+                {[120, 150, 180, 200, 250, 300, 400, 500].map((l) => (
+                  <option key={l} value={l} className="bg-graphite-850">
+                    {l} l
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          {/* 5 · Heizkreise */}
+          <div>
+            <span className="label-xs">5 · Heizkreise</span>
+            <div className="mt-1 flex gap-1">
+              {([1, 2] as const).map((n) => (
+                <button
+                  key={n}
+                  className={`chip flex-1 ${
+                    antworten.kreise.length === n
+                      ? 'bg-accent/15 text-accent'
+                      : 'bg-white/[0.05] text-slate-300 hover:bg-white/[0.1]'
+                  }`}
+                  onClick={() =>
+                    setzeAntwort({
+                      kreise:
+                        n === 1
+                          ? [antworten.kreise[0] ?? 'ungemischt']
+                          : [antworten.kreise[0] ?? 'ungemischt', antworten.kreise[1] ?? 'gemischt'],
+                    })
+                  }
+                >
+                  {n === 1 ? 'ein Kreis' : 'zwei Kreise'}
+                </button>
+              ))}
+            </div>
+            <div className="mt-1 space-y-1">
+              {antworten.kreise.map((art, i) => (
+                <div key={i} className="flex items-center gap-1">
+                  <span className="w-14 shrink-0 text-[10px] text-slate-500">Kreis {i + 1}</span>
+                  {(['ungemischt', 'gemischt'] as HeizkreisArt[]).map((a) => (
+                    <button
+                      key={a}
+                      className={`chip flex-1 ${
+                        art === a ? 'bg-accent/15 text-accent' : 'bg-white/[0.05] text-slate-300 hover:bg-white/[0.1]'
+                      }`}
+                      onClick={() => {
+                        const kreise = [...antworten.kreise];
+                        kreise[i] = a;
+                        setzeAntwort({ kreise });
+                      }}
+                    >
+                      {a}
+                    </button>
+                  ))}
+                </div>
+              ))}
+            </div>
+            <p className="mt-0.5 text-[9.5px] leading-relaxed text-slate-600">
+              Gemischt heißt: eigener Mischer, eigene Umwälzpumpe, eigene Vorlauftemperatur — der Fall
+              Fußbodenheizung neben Heizkörpern.
+            </p>
+          </div>
+
+          {/* 6 · Pufferspeicher */}
+          <div>
+            <span className="label-xs">6 · Pufferspeicher</span>
+            <div className="mt-1 flex gap-1">
+              <select
+                className="field flex-1"
+                value={antworten.pufferLiter}
+                onChange={(e) => setzeAntwort({ pufferLiter: Number(e.target.value) })}
+              >
+                <option value={0} className="bg-graphite-850">keiner</option>
+                {[50, 80, 100, 120, 200, 300, 400, 500, 800].map((l) => (
+                  <option key={l} value={l} className="bg-graphite-850">
+                    {l} l
+                  </option>
+                ))}
+              </select>
+              {antworten.pufferLiter > 0 && (
+                <select
+                  className="field flex-1"
+                  value={antworten.pufferArt}
+                  onChange={(e) =>
+                    setzeAntwort({ pufferArt: e.target.value as 'buffer-parallel' | 'buffer-series' })
+                  }
+                >
+                  <option value="buffer-parallel" className="bg-graphite-850">parallel (hydraulisch getrennt)</option>
+                  <option value="buffer-series" className="bg-graphite-850">in Reihe im Rücklauf</option>
+                </select>
+              )}
+            </div>
+          </div>
+
+          {/* Was die Auslegung dazu sagt */}
+          {abweichungsliste.length > 0 && (
+            <div className="rounded-lg bg-amber-500/[0.07] px-2.5 py-2">
+              <span className="text-[10px] font-medium text-amber-200">Was die Auslegung dazu sagt</span>
+              {abweichungsliste.map((a, i) => (
+                <p key={i} className="mt-1 text-[9.5px] leading-relaxed text-amber-100/70">
+                  {a.text}
+                </p>
+              ))}
+              <p className="mt-1.5 text-[9px] leading-relaxed text-slate-500">
+                Es bleibt bei Ihren Angaben. Diese Sätze stehen hier, damit die Abweichung bekannt ist — nicht,
+                um sie zu ändern.
+              </p>
+            </div>
+          )}
+        </div>
         <button
           className="chip w-full bg-accent/12 text-accent hover:bg-accent/20"
           onClick={() => {
@@ -1422,18 +1549,21 @@ export default function AnlagenPanel() {
               return;
             }
             const { components, links, notes } = buildSchematic(design);
-            // Das erzeugte Bild bekommt die Kennung der Vorlage, zu der es
-            // gehört — sonst ist es anonym, und niemand kann später sagen,
-            // nach welcher Musterlösung diese Anlage gebaut ist.
-            setSchematic(components, links, false, vorschlaege.beste?.vorlage.id);
+            /*
+             * **Ohne Vorlagenkennung.** Bis 1.50.1 bekam das erzeugte Bild
+             * die Kennung der Musterlösung, nach der es gebaut war. Seit die
+             * Anlage aus den sechs Antworten entsteht, gibt es keine Vorlage
+             * mehr, die es zu nennen gäbe — sie zu behaupten, wäre eine
+             * Herkunft, die nicht stimmt.
+             */
+            setSchematic(components, links, false, undefined);
             // Der Generator sagt, was er entschieden hat und warum — etwa,
             // dass das Überströmventil wegen des Trennpuffers entfällt oder
             // dass dem Gerät ein Heizstab fehlt. Diese Sätze gehören dem
             // Anwender und nicht ins Nichts.
             const wichtig = notes.filter((x) => x.severity !== 'info');
             setStatus(
-              `Anlagenschema erzeugt${vorschlaege.beste ? ` nach ${vorschlaege.beste.vorlage.kennung}` : ''} — ` +
-                `${components.length} Bauteile, ${links.length} Verbindungen` +
+              `Anlagenschema erzeugt — ${components.length} Bauteile, ${links.length} Verbindungen` +
                 (notes.length ? ` · ${notes.length} Hinweis${notes.length === 1 ? '' : 'e'}` : '') +
                 (wichtig.length ? `: ${wichtig[0].text}` : notes.length ? `: ${notes[0].text}` : ''),
             );

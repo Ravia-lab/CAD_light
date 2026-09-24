@@ -4994,6 +4994,90 @@ export interface CascadeDefinition {
   note?: string;
 }
 
+/**
+ * Die sechs Fragen, aus denen die Anlage entsteht.
+ * ---------------------------------------------------------------------------
+ * **Warum es sie gibt.** Bis 1.50.1 stand im Anlagenblatt eine Liste
+ * vorgeschlagener Hydraulikschemata: „BWP-H-06 — Wärmepumpe, mehrere
+ * Heizkreise und Trinkwassererwärmung, mit parallelem Pufferspeicher im
+ * bivalenten System mit Festbrennstoff", dazu „8 nicht passende zeigen".
+ * Gemeldet aus der Benutzung: irreführend. Zu Recht — die Liste verlangt vom
+ * Anwender, eine Musterlösung *wiederzuerkennen*, bevor er sagen durfte, was
+ * er baut. Er weiß aber nicht, wie die Lösung heißt; er weiß, was auf der
+ * Baustelle steht.
+ *
+ * Deshalb die umgekehrte Richtung: sechs Angaben zu dem, was er kennt, und
+ * daraus entsteht die Anlage. Der Katalog ist aus dem Blatt verschwunden.
+ *
+ * **Alle sechs auf einmal, nicht nacheinander.** Ein Ablauf mit sechs
+ * Schritten sieht ordentlich aus und ist im Betrieb schlechter: Die Angaben
+ * hängen voneinander ab (ohne Puffer keine Puffergröße, ohne Trinkwasser kein
+ * Volumen), beim zweiten Gebäude ändert man zwei Felder und nicht sechs
+ * Schritte, und wer den vierten Schritt ausfüllt, sieht den zweiten nicht
+ * mehr. Ein Feld mit allem darin ist außerdem das, was man ausdrucken und
+ * jemandem hinlegen kann.
+ *
+ * **Die Antwort gilt.** Weicht sie von der Auslegung ab — 200 l Puffer
+ * gewählt, 300 l gerechnet —, bleibt die Antwort stehen, und daneben steht
+ * in einem Satz, was die Auslegung sagt. Der Anwender weiß, was gebaut wird;
+ * das Programm weiß, was es gerechnet hat. Beides gehört nebeneinander, nicht
+ * übereinander.
+ */
+export interface AnlagenAntworten {
+  /** 1 · Welche Bauart hat der Wärmeerzeuger? */
+  bauform: PumpForm;
+  /**
+   * 2 · Welches Kältemittel?
+   *
+   * Nicht nur Buchhaltung: Bei brennbaren Kältemitteln (R290, R32) hängt am
+   * Aufstellort ein Schutzbereich, und R290 steht deshalb praktisch immer
+   * draußen. Die Angabe entscheidet außerdem mit, ob eine Hydraulikstation
+   * im Haus gebraucht wird.
+   */
+  kaeltemittel: Refrigerant;
+  /** 3 · Gibt es einen Heizstab als Zusatzheizer? */
+  heizstab: boolean;
+  /** 4 · Trinkwasserspeicher — Inhalt [l]. `0` heißt: keiner. */
+  trinkwasserLiter: number;
+  /**
+   * 5 · Die Heizkreise, je Kreis gemischt oder ungemischt.
+   *
+   * Ein Eintrag je Kreis; ein oder zwei Kreise sind der Regelfall im
+   * Wohngebäude. **Gemischt** heißt: eigener Mischer, eigene Umwälzpumpe,
+   * eigene Vorlauftemperatur — der Fall Fußbodenheizung neben Heizkörpern.
+   */
+  kreise: HeizkreisArt[];
+  /** 6 · Pufferspeicher — Inhalt [l]. `0` heißt: keiner. */
+  pufferLiter: number;
+  /** Bauart des Puffers, wenn einer vorgesehen ist. */
+  pufferArt: 'buffer-parallel' | 'buffer-series';
+}
+
+export type HeizkreisArt = 'ungemischt' | 'gemischt';
+
+export const HEIZKREIS_ART_LABELS: Record<HeizkreisArt, string> = {
+  ungemischt: 'ungemischt',
+  gemischt: 'gemischt (eigener Mischer und eigene Pumpe)',
+};
+
+/**
+ * Womit das Feld aufgeht, solange nichts beantwortet ist.
+ *
+ * Die häufigste Anlage im Wohnungsbau: Monoblock-Wärmepumpe mit R290
+ * draußen, Heizstab als Zusatzheizer, 200-Liter-Trinkwasserspeicher, ein
+ * ungemischter Heizkreis, kein Puffer. Ausdrücklich eine **Vorbelegung** und
+ * keine Empfehlung — jedes Feld ist zu prüfen.
+ */
+export const ANTWORTEN_VORGABE: AnlagenAntworten = {
+  bauform: 'monoblock-outdoor',
+  kaeltemittel: 'R290',
+  heizstab: true,
+  trinkwasserLiter: 200,
+  kreise: ['ungemischt'],
+  pufferLiter: 0,
+  pufferArt: 'buffer-parallel',
+};
+
 export interface PlantDefinition {
   /** Gewähltes Gerät aus dem Katalog. */
   generatorModelId?: string;
@@ -5033,6 +5117,15 @@ export interface PlantDefinition {
   cooling?: 'keine' | 'passiv' | 'aktiv';
   /** Weiterer Verbraucher am selben Erzeuger, z. B. ein Schwimmbad. */
   additionalConsumer?: 'kein' | 'schwimmbad';
+  /**
+   * Die Antworten aus dem Anlagenblatt — was der Anwender gesagt hat.
+   *
+   * Sie werden mit dem Projekt gespeichert und sind die Quelle für Speicher
+   * und Heizkreise. Fehlen sie (ältere Projektdatei), gilt weiter, was in
+   * `storages` und `circuits` steht; die Felder im Blatt stehen dann auf dem,
+   * was daraus zu lesen ist.
+   */
+  antworten?: AnlagenAntworten;
   /** Speicher der Anlage. */
   storages: Record<string, PlantStorage>;
   /** Heizkreise. */

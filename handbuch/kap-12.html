@@ -1,8 +1,25 @@
 <section id="kap-12" class="kapitel" data-titel="12 · Hydraulikschemata: Katalog, Vorschlag, Prüfung">
 <h2 id="k12">12 · Hydraulikschemata: Katalog, Vorschlag, Prüfung</h2>
-<p class="lead">Die meisten Wärmepumpenanlagen sind Standardfälle. Dieses Kapitel zeigt den Katalog der benannten Musterlösungen, wie das Programm daraus die passende vorschlägt — und vor allem, warum es sagt, welches Schema <em>nicht</em> passt und woran es liegt.</p>
+<p class="lead">Die meisten Wärmepumpenanlagen sind Standardfälle. Dieses Kapitel zeigt den Katalog der benannten Musterlösungen und woher sie stammen — als <b>Nachschlagewerk</b>. Die Schemaprüfung in <a href="#k12-6">Abschnitt 12.6</a> arbeitet damit weiter; die Auswahlliste im Programm gibt es seit 1.51.0 nicht mehr.</p>
 
-<p class="wo">Im Programm: Reiter <b>Anlage</b> → Abschnitt <b>Anlagenschema</b>. Die Vorschlagsliste steht <em>über</em> dem Knopf „Schema erzeugen", weil sie die Frage davor beantwortet: nicht „wie sieht mein Schema aus", sondern „welches Schema ist das eigentlich".</p>
+<h3 id="k12-0">12.0 Was hier geblieben ist und was nicht</h3>
+
+<p>Bis zur Fassung 1.50.1 stand im Anlagenblatt eine Liste vorgeschlagener Schemata: „BWP-H-06 — Wärmepumpe, mehrere Heizkreise und Trinkwassererwärmung, mit parallelem Pufferspeicher im bivalenten System mit Festbrennstoff", dazu ein Knopf „8 nicht passende zeigen". Gemeldet aus der Benutzung: <b>irreführend</b>.</p>
+
+<p>Zu Recht. Die Liste verlangte, eine Musterlösung <em>wiederzuerkennen</em>, bevor man sagen durfte, was man baut. Der Heizungsbauer weiß aber nicht, wie die Lösung heißt — er weiß, was im Technikraum steht. Seit 1.51.0 geht es deshalb umgekehrt: <b>sechs Fragen zu dem, was er kennt</b>, und daraus entsteht die Anlage. Sie stehen in <a href="#k10-0">Abschnitt 10.0</a>.</p>
+
+<table class="tab">
+<caption>Was aus diesem Kapitel noch im Programm steht</caption>
+<thead><tr><th>Abschnitt</th><th>Im Programm</th></tr></thead>
+<tbody>
+<tr><td>12.1 Woher die Vorlagen kommen</td><td>Als Hintergrund. Die Inhalte stecken weiter in der Wissensbasis (<a href="#k16">Kapitel 16</a>).</td></tr>
+<tr><td>12.2 Die fünfzehn Vorlagen</td><td>Als Nachschlagewerk in diesem Handbuch. Wer wissen will, wie seine Konstellation in der Branche heißt, findet sie hier.</td></tr>
+<tr><td>12.3 bis 12.5 — Vorschlag, Vergleich, Übernehmen</td><td><b>Nicht mehr.</b> An ihre Stelle sind die sechs Fragen getreten.</td></tr>
+<tr><td>12.6 Die Schemaprüfung</td><td><b>Unverändert.</b> Sie prüft das gezeichnete Schema gegen die Auslegung und meldet Fehler und Warnungen wie bisher.</td></tr>
+</tbody>
+</table>
+
+<div class="merke"><b>Merke</b><p>Verschwunden ist die <b>Auswahl</b>, nicht das Wissen. Die Vorbedingungen der Musterlösungen — wann ein Puffer nötig ist, wann ein Überströmventil entfällt — stecken weiter in der Auslegung und in der Schemaprüfung. Sie treten dem Anwender nur nicht mehr als Liste entgegen, die er beantworten müsste.</p></div>
 
 <h3 id="k12-1">12.1 Woher die Vorlagen kommen</h3>
 
@@ -122,6 +139,8 @@
 <div class="baustelle"><b>Auf der Baustelle heißt das</b><p>Jede Vorlage bringt außer dem Bild drei Dinge mit, die auf dem Blatt stehen: die <b>Bauteilkette</b> in Fließrichtung (Erzeugerkreis, Heizkreis, Trinkwasserzweig), die <b>Vorbedingungen</b> mit ihrem Beleg, und die <b>Auslegungswerte</b> mit ihrer Quelle. Die wiederkehrenden Auslegungswerte des Leitfadens sind: 3 bis 5 K Spreizung primärseitig bei maximaler Kälteleistung, 5 bis 7 K heizungsseitig (bei statischen Heizflächen bis 10 K), höchstens 10 K bei der Trinkwassererwärmung, mindestens 0,25 m² Wärmeübertragerfläche je kW im Trinkwassererwärmer und 20 bis 25 l Puffer je kW zur Laufzeitoptimierung beziehungsweise 30 bis 40 l je kW zur Überbrückung von Sperrzeiten.</p></div>
 
 <h3 id="k12-3">12.3 Wie der Vorschlag entsteht</h3>
+<div class="warnung"><b>Diesen Schritt gibt es nicht mehr</b><p>Er beschreibt die Vorschlagsliste im Anlagenblatt, die seit der Fassung 1.51.0 entfallen ist. Was an ihre Stelle getreten ist, steht in <a href="#k10-0">Abschnitt 10.0</a>. Der Abschnitt bleibt hier stehen, weil die Regeln, nach denen damals ausgewählt wurde, dieselben sind, nach denen heute die Auslegung rechnet.</p></div>
+
 
 <p>Bis Fassung 1.12.0 gab es genau einen Weg zu einem Anlagenschema: einen Knopf, der eines erzeugte. Was dabei herauskam, war das Ergebnis von einem Dutzend Verzweigungen tief im Zeichner — richtig, aber ohne Namen und ohne Alternative. Der Anwender konnte nicht sehen, dass seine Anlage ein Standardfall ist, und schon gar nicht, welcher.</p>
 
@@ -214,6 +233,8 @@
 <p>Sortiert wird zuerst nach Passung, dann nach Rangwert, dann nach Kennung. Die letzte Stufe ist nur dafür da, dass zwei Läufe dieselbe Reihenfolge liefern — ein Vorschlagsfenster, das bei jedem Öffnen anders sortiert ist, ist unbrauchbar.</p>
 
 <h3 id="k12-4">12.4 Der Vergleich in beide Richtungen</h3>
+<div class="warnung"><b>Diesen Schritt gibt es nicht mehr</b><p>Er beschreibt die Vorschlagsliste im Anlagenblatt, die seit der Fassung 1.51.0 entfallen ist. Was an ihre Stelle getreten ist, steht in <a href="#k10-0">Abschnitt 10.0</a>. Der Abschnitt bleibt hier stehen, weil die Regeln, nach denen damals ausgewählt wurde, dieselben sind, nach denen heute die Auslegung rechnet.</p></div>
+
 
 <p>Vier Merkmale liegen quer zu den sechs gewichteten: zweiter Wärmeerzeuger, Kühlung, Kaskade und weiterer Verbraucher. Sie beschreiben, ob eine Anlage <b>größer</b> ist als das Grundschema.</p>
 
@@ -232,6 +253,8 @@
 <p>Praktisch heißt das: fast jede Wärmepumpe bringt einen Heizstab mit, und das Programm setzt ihn als Rückfallwert für „zweiter Wärmeerzeuger". Würde er wie ein Kessel behandelt, bekäme jedes Grundschema einen Abzug, den es nicht verdient — und die bivalenten Schemata rückten grundlos nach vorn. Als „echter" zweiter Erzeuger zählen deshalb nur Solar, Kessel und Festbrennstoff.</p>
 
 <h3 id="k12-5">12.5 Eine Vorlage übernehmen</h3>
+<div class="warnung"><b>Diesen Schritt gibt es nicht mehr</b><p>Er beschreibt die Vorschlagsliste im Anlagenblatt, die seit der Fassung 1.51.0 entfallen ist. Was an ihre Stelle getreten ist, steht in <a href="#k10-0">Abschnitt 10.0</a>. Der Abschnitt bleibt hier stehen, weil die Regeln, nach denen damals ausgewählt wurde, dieselben sind, nach denen heute die Auslegung rechnet.</p></div>
+
 
 <p class="wo">Im Programm: Knopf <b>Diese Anbindung übernehmen</b> unter jedem passenden Vorschlag.</p>
 

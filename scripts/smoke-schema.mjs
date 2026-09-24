@@ -138,59 +138,31 @@ console.log('\n▸ Das Rohrnetz im Grundriss');
   expect('Nur eine Leitung je Paar wird beschriftet', beschriftet, stand.vorlauf);
 }
 
-console.log('\n▸ Schemavorschläge im Anlagenblatt');
+console.log('\n▸ Die sechs Fragen stehen im Anlagenblatt');
 {
+  /*
+   * Hier stand bis 1.50.1 die Vorschlagsliste: BWP-Kennung, Begründung,
+   * Herstellerzuordnung, „Diese Anbindung übernehmen". Sie ist mit 1.51.0
+   * entfallen — gemeldet als irreführend. An ihrer Stelle stehen die sechs
+   * Fragen; geprüft werden sie ausführlich in `smoke:fragen`. Hier wird nur
+   * festgehalten, dass die alte Liste wirklich weg ist und die neue da —
+   * sonst bliebe ein Rauchtest zurück, der eine Oberfläche prüft, die es
+   * nicht mehr gibt.
+   */
   const aside = p.locator('aside');
   await aside.getByRole('button', { name: 'Anlage', exact: true }).click();
   await p.waitForTimeout(700);
-  // Der Abschnitt „Anlagenschema" ist eingeklappt; erst darin steht die Liste.
   const fold = aside.getByRole('button', { name: /Anlagenschema/ }).first();
   if (await fold.isVisible().catch(() => false)) {
     await fold.click();
     await p.waitForTimeout(600);
   }
-  expect('Der Abschnitt steht im Anlagenblatt',
-    await aside.getByText('Passende Schemata').first().isVisible(), true);
 
   const text = await aside.innerText();
-  // Der Demo-Grundriss hat mehrere Kreise — es muss ein BWP-Schema mit
-  // Parallelpuffer vorgeschlagen werden, und die Kennung gehört sichtbar dazu.
-  expect('Eine BWP-Kennung wird genannt', /BWP-H-\d\d/.test(text), true);
-  expect('Die Begründung steht dabei', /Stimmt in allen Merkmalen überein|Baubar, weicht aber ab/.test(text), true);
-  expect('Die Herstellerzuordnung steht dabei', /Bei den Herstellern/.test(text), true);
-  expect('Der Vorbehalt zur Feinplanung steht da',
-    /Vorgaben der Hersteller bindend|keine Planung/.test(text), true);
-}
-
-console.log('\n▸ Eine Vorlage übernehmen');
-{
-  const vorher = await p.evaluate(() =>
-    Object.values(window.__ravia.getState().doc.plant.storages).map((s) => s.kind),
-  );
-  const knopf = p.locator('aside').getByText('Diese Anbindung übernehmen').first();
-  expect('Der Übernehmen-Knopf ist da', await knopf.isVisible(), true);
-  await knopf.click();
-  await p.waitForTimeout(600);
-  const nachher = await p.evaluate(() => {
-    const s = window.__ravia.getState().doc.plant;
-    return {
-      speicher: Object.values(s.storages).map((x) => x.kind),
-      vorlage: s.schematic.vorlageId ?? '—',
-      manual: s.schematic.manual,
-    };
-  });
-  expect('Die Kennung der Vorlage steht im Modell', /^(bwp-h-\d\d|herst-h-\d\d)/.test(nachher.vorlage), true);
-  expect('Das Schema gilt nicht mehr als von Hand bearbeitet', nachher.manual, false);
-  // Übernommen wird die Anbindung: entweder steht danach ein Puffer im
-  // Anlagenblatt, oder die Vorlage ist eine Direktanbindung ohne Speicher.
-  const anbindung = nachher.speicher.filter((k) =>
-    ['buffer-series', 'buffer-parallel', 'separator', 'combi'].includes(k),
-  );
-  expect('Es steht höchstens eine Anbindung im Anlagenblatt', anbindung.length <= 1, true);
-  void vorher;
-
-  const status = await p.evaluate(() => window.__ravia.getState().statusMessage ?? '');
-  expect('Die Statuszeile nennt das übernommene Schema', /übernommen/.test(status), true);
+  expect('Die Schemaauswahl ist verschwunden', /Passende Schemata/.test(text), false);
+  expect('Kein Übernehmen-Knopf mehr', /Diese Anbindung übernehmen/.test(text), false);
+  expect('Die sechs Fragen stehen da', /Was wird gebaut\?/i.test(text), true);
+  expect('Und sie werden als Angaben benannt, nicht als Vorschlag', /Was Sie eintragen, gilt/.test(text), true);
 }
 
 console.log('\nERRORS:', errs.length ? errs.join(' | ') : 'keine');

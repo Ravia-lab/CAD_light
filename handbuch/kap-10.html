@@ -4,6 +4,56 @@
 
 <p class="wo">Im Programm: Reiter <b>Anlage</b>. Das Blatt hat zwei Betriebsarten. Im einfachen Modus endet es nach der Geräteauswahl mit einer Zusammenfassung in ganzen Sätzen; im Modus <b>Fachplaner</b> stehen alle Abschnitte mit ihren Zwischenwerten da. Dieses Kapitel beschreibt den Fachplaner-Modus.</p>
 
+<h3 id="k10-0">10.0 Die sechs Fragen: was wird gebaut?</h3>
+
+<p class="lead">Am Anfang des Anlagenblatts stehen sechs Angaben. Aus ihnen entstehen die Speicher und die Heizkreise — und damit das Schema, das Rohrnetz und die Stückliste.</p>
+
+<p class="wo">Im Programm: Reiter <b>Anlage</b> → Abschnitt <b>Anlagenschema</b> → <b>Was wird gebaut?</b></p>
+
+<table class="tab">
+<caption>Die sechs Angaben</caption>
+<thead><tr><th>#</th><th>Frage</th><th>Was daran hängt</th></tr></thead>
+<tbody>
+<tr><td>1</td><td>Bauart des Wärmeerzeugers</td><td>Ob der Kältekreis mit ins Haus geht oder nur Heizungswasser. Beim Monoblock bleibt er draußen, beim Splitgerät nicht.</td></tr>
+<tr><td>2</td><td>Kältemittel</td><td>Bei brennbaren Kältemitteln (R290, R32, R454C) und einer Bauart mit Kältekreis im Haus gilt drinnen der Schutzbereich nach DIN EN 378. Das Programm sagt es, statt die Wahl zu sperren.</td></tr>
+<tr><td>3</td><td>Heizstab als Zusatzheizer</td><td>Ohne ihn muss die Wärmepumpe die Heizlast bei Norm-Außentemperatur allein decken.</td></tr>
+<tr><td>4</td><td>Trinkwasserspeicher</td><td>Inhalt in Litern, oder „keiner“. Daraus entsteht der Speicher samt Umschaltventil im Schema.</td></tr>
+<tr><td>5</td><td>Heizkreise</td><td>Ein oder zwei Kreise, je Kreis gemischt oder ungemischt. <b>Gemischt</b> heißt: eigener Mischer, eigene Umwälzpumpe, eigene Vorlauftemperatur — der Fall Fußbodenheizung neben Heizkörpern.</td></tr>
+<tr><td>6</td><td>Pufferspeicher</td><td>Inhalt in Litern, oder „keiner“; dazu die Bauart — parallel (hydraulisch getrennt) oder in Reihe im Rücklauf. Der Unterschied ist nicht kosmetisch, siehe <a href="#k10-10">Abschnitt 10.10</a>.</td></tr>
+</tbody>
+</table>
+
+<h4 id="k10-0-1">10.0.1 Alles in einem Feld, nicht nacheinander</h4>
+
+<p>Die sechs Angaben stehen untereinander auf einem Blatt und nicht als sechs Schritte hintereinander. Das ist Absicht:</p>
+
+<ul>
+<li>Sie <b>hängen voneinander ab</b>. Ohne Puffer gibt es keine Puffergröße, ohne Trinkwasserspeicher kein Volumen. In einem Ablauf sieht man beim vierten Schritt den zweiten nicht mehr.</li>
+<li>Beim <b>zweiten Gebäude</b> ändert man zwei Felder und nicht sechs Schritte.</li>
+<li>Ein Feld mit allem darin lässt sich <b>ausdrucken und jemandem hinlegen</b>. Ein Ablauf nicht.</li>
+</ul>
+
+<h4 id="k10-0-2">10.0.2 Was Sie eintragen, gilt</h4>
+
+<p>Weicht eine Angabe von dem ab, was die Auslegung rechnet, wird sie <b>nicht überschrieben</b>. Stattdessen erscheint darunter ein Kasten „Was die Auslegung dazu sagt“ mit einem Satz je Abweichung: die eingetragene Zahl, die gerechnete, und der Grund.</p>
+
+<div class="beispiel">
+<b>Ein Beispiel</b>
+<p>Sie tragen „kein Pufferspeicher“ ein. Die Auslegung führt einen Puffer, weil der Erzeuger eine Mindestlaufzeit braucht.</p>
+<p>Im Kasten steht dann: „Die Auslegung führt einen Puffer von 19 l. Maßgebend ist die Mindestlaufzeit von 6 min bei 5 K Spreizung. Ohne Puffer bleibt es bei Ihrer Angabe — der Mindestinhalt ist dann anderweitig nachzuweisen.“</p>
+<p class="ergebnis">= im Projekt stehen weiterhin 0 Liter</p>
+</div>
+
+<div class="merke"><b>Merke</b><p>Sie wissen, was gebaut wird; das Programm weiß, was es gerechnet hat. <b>Beides gehört nebeneinander, nicht übereinander.</b> Ein Programm, das die eingetragene Zahl still korrigiert, nimmt dem Anwender die Entscheidung ab, ohne es zu sagen — und beim nächsten Öffnen steht dort eine Zahl, die er nie eingetragen hat.</p></div>
+
+<h4 id="k10-0-3">10.0.3 Was beim Ändern erhalten bleibt</h4>
+
+<p>Haben Sie einen Heizkreis benannt, ihm Räume zugeordnet und eigene Temperaturen eingetragen, behält er das alles, wenn Sie anschließend eine andere der sechs Angaben ändern. Nur seine <em>Art</em> folgt der Antwort. Ohne diese Regel wäre jede Änderung an einem der sechs Felder ein Rücksetzen der halben Anlage.</p>
+
+<p>Die Antworten werden <b>mit dem Projekt gespeichert</b>. Eine ältere Projektdatei ohne sie wird gelesen, indem das Feld aus den vorhandenen Speichern und Kreisen gefüllt wird — im Blatt steht dann nie etwas anderes, als in der Anlage steckt.</p>
+
+<div class="warnung"><b>Was hier nicht entschieden wird</b><p>Gerätewahl, Puffergröße, Sicherheitsarmaturen und Pumpenauslegung rechnet das Programm wie bisher aus der Heizlast. Die sechs Fragen beschreiben nur die <b>Konstellation</b>: welche Bauteile es gibt und wie sie zusammenhängen.</p></div>
+
 <h3 id="k10-1">10.1 Die acht Schritte</h3>
 
 <p>Die einzelnen Rechenkerne des Programms wissen nichts voneinander. Der eine rechnet die Heizlast, der nächste sucht ein Gerät, der dritte legt den Speicher aus, der vierte die Rohre, der fünfte die Absicherung. Das ist Absicht — jeder Kern soll für sich prüfbar bleiben. Was sie nicht wissen, ist die <b>Reihenfolge</b>, und die ist nicht beliebig:</p>

@@ -12,6 +12,7 @@
 
 import { create } from 'zustand';
 import type {
+  AnlagenAntworten,
   AiAnalysisState,
   AiFloorplanAnalysis,
   AuswahlQuelle,
@@ -108,6 +109,7 @@ export function pipeLength(points: readonly Vec2[]): number {
 
 /** Voreinstellung für ein neues Dach — siehe `DACH_VORGABE` in den Typen. */
 const DEFAULT_ROOF: RoofDefinition = DACH_VORGABE;
+import { anlageAusAntworten } from '../lib/anlagenFragen';
 import { erkenneSkizze } from '../lib/skizze';
 import { getroffene } from '../lib/notizen';
 import { vorzugsrichtung, EPS, closestPointOnSegment, distance, distanceToSegment, pointInPolygon, roundMm } from '../lib/geometry';
@@ -822,6 +824,14 @@ interface BimState {
     cooling?: PlantDefinition['cooling'];
     additionalConsumer?: PlantDefinition['additionalConsumer'];
   }) => void;
+  /**
+   * Die sechs Antworten im Anlagenblatt setzen — und die Anlage daraus bauen.
+   *
+   * **Ein Schritt in der Rückgängig-Kette je Änderung.** Wer den Puffer von
+   * 200 auf 300 Liter stellt, hat eine Änderung gemacht und nicht drei
+   * (Antwort, Speicher, Kreise).
+   */
+  setzeAnlagenAntworten: (antworten: AnlagenAntworten) => void;
   /** Einen vorgeschlagenen Speicher übernehmen. */
   addPlantStorage: (storage: PlantStorage) => void;
   removePlantStorage: (id: string) => void;
@@ -4260,6 +4270,28 @@ export const useBimStore = create<BimState>()((set, get) => {
           : undefined;
         doc.site.pumps[id] = { ...pump, ...patch, ...(position ? { position } : {}) };
       }),
+
+    setzeAnlagenAntworten: (antworten) =>
+      mutate(
+        (doc) => {
+          const { storages, circuits } = anlageAusAntworten(
+            antworten,
+            { storages: doc.plant.storages, circuits: doc.plant.circuits },
+            Object.values(doc.rooms),
+          );
+          doc.plant = { ...doc.plant, antworten, storages, circuits };
+        },
+        {
+          skipRooms: true,
+          /*
+           * Die Heizkreistemperaturen hängen an den Kreisen, und an ihnen
+           * hängt jede abgeleitete Heizflächenleistung. Wer aus einem
+           * ungemischten einen gemischten Kreis macht, ändert die Auslegung
+           * des ganzen Zweiges mit.
+           */
+          ziehenachHeizflaechen: true,
+        },
+      ),
 
     updatePlant: (patch) =>
       mutate((doc) => {
