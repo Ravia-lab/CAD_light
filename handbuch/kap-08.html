@@ -30,22 +30,24 @@
 
 <h3 id="k8-2">8.2 Der Katalog, Objekt für Objekt</h3>
 
-<p>Die Symbolbibliothek führt 22 Objekte. Dazu kommt eine 23. Darstellung, die kein Symbol im engeren Sinn ist: die raumfüllende Fußbodenheizung, die statt eines Zeichens die ganze Verlegekurve über die Raumfläche legt. Sie hat einen eigenen Abschnitt, <a href="#k8-5">8.5</a>.</p>
+<p>Die Symbolbibliothek führt <b>24 Objekte</b>: zehn für Heizung, neun für Sanitär, fünf für Lüftung. Eines davon hat zwei Gesichter — der FBH-Heizkreis erscheint als kleines Einzelsymbol und als raumfüllende Belegung, die statt eines Zeichens die ganze Verlegekurve über die Raumfläche legt. Die Flächenbelegung ist der Regelfall und hat einen eigenen Abschnitt, <a href="#k8-5">8.5</a>.</p>
 
 <p>Jedes Objekt bringt Vorgabemaße und Vorgabekennwerte mit. <b>Beides sind Vorbelegungen und keine Zusagen.</b> Die tatsächliche Baulänge, die tatsächliche Leistung, der tatsächliche Anschluss werden am Objekt eingetragen — dafür ist der Reiter <b>Objekt</b> da.</p>
 
 <h4 id="k8-2-1">8.2.1 Heizung</h4>
 
 <table class="tab">
-<caption>Die acht Heizungsobjekte</caption>
+<caption>Die zehn Heizungsobjekte</caption>
 <thead><tr><th>Objekt</th><th>Vorgabe L × T [m]</th><th>Montagehöhe [m]</th><th>An der Wand</th><th>Kennwerte</th></tr></thead>
 <tbody>
 <tr><td>Heizkörper</td><td>1,00 × 0,10</td><td>0,15</td><td>ja</td><td>1200 W · Typ 22 · 55/45 °C</td></tr>
 <tr><td>Röhrenradiator</td><td>0,60 × 0,12</td><td>0,15</td><td>ja</td><td>700 W · Bauart „Röhren“</td></tr>
+<tr><td>Badheizkörper</td><td>0,50 × 0,06</td><td>0,20</td><td>ja</td><td>500 W · Bauart „Bad“ · 55/45 °C</td></tr>
 <tr><td>Unterflurkonvektor</td><td>1,40 × 0,20</td><td>0,00</td><td>ja</td><td>900 W</td></tr>
 <tr><td>FBH-Heizkreis</td><td>0,90 × 0,90</td><td>0,00</td><td>nein</td><td>800 W · 35/28 °C</td></tr>
 <tr><td>Heizkreisverteiler</td><td>0,60 × 0,15</td><td>0,50</td><td>ja</td><td>keine</td></tr>
 <tr><td>Wärmeerzeuger</td><td>0,60 × 0,45</td><td>0,60</td><td>ja</td><td>15 000 W</td></tr>
+<tr><td>Speicher</td><td>0,70 × 0,70</td><td>0,00</td><td>nein</td><td>300 l</td></tr>
 <tr><td>Steigstrang Heizung</td><td>0,16 × 0,16</td><td>0,00</td><td>nein</td><td>keine</td></tr>
 <tr><td>Raumthermostat</td><td>0,10 × 0,04</td><td>1,40</td><td>ja</td><td>keine</td></tr>
 </tbody>
@@ -58,6 +60,14 @@
 <p>Im Plan zeichnet das Programm die Lamellen nach der Baulänge: ein 2-Meter-Heizkörper bekommt mehr Striche als ein 60-Zentimeter-Gerät. Das ist kein Zierat, sondern der schnellste Weg, im Plan lange von kurzen Heizkörpern zu unterscheiden, ohne nachzumessen.</p>
 
 <div class="warnung"><b>Achtung</b><p>Ein Heizkörper ohne Leistungsangabe fällt aus dem Rohrausleger heraus — für ihn wird keine Trasse gelegt und kein Volumenstrom gerechnet. Das Programm meldet ihn namentlich, es erfindet keine Zahl. Der Grund steht in <a href="#k9-4">Abschnitt 9.4</a>: ein Netz, das an einer Stelle geraten hat, ist an keiner Stelle mehr nachvollziehbar.</p></div>
+
+<p><b>Badheizkörper.</b> Der Handtuchheizkörper im Bad. Rechnerisch ist er ein Heizkörper wie jeder andere — er wird nach DIN EN 442 beschrieben und mit demselben Heizkörperexponenten von 1,3 umgerechnet wie Platten- und Röhrenheizkörper. Was ihn unterscheidet, sind Maß, Symbol und Leistung: 0,50 m breit und 1,20 m hoch ist die gängige Größe, 500 W bei 55/45 °C liegen dafür im üblichen Bereich. Beides ist ausdrücklich eine <b>Vorbelegung</b>; die tatsächliche Normleistung trägt der Planer ein. Die Montagehöhe 0,20 m ist die Unterkante über Fertigfußboden.</p>
+
+<div class="baustelle"><b>Auf der Baustelle heißt das</b><p>Tragen Sie im Raumbuch eine Heizlast für ein Bad ein, setzt das Programm dort von sich aus einen Badheizkörper statt eines Plattenheizkörpers — das ist in neun von zehn Bädern das, was hinterher hängt. Ist es hier anders, tauschen Sie das Objekt aus; die Leistung bleibt dabei stehen.</p></div>
+
+<p><b>Speicher.</b> Im Grundriss ist der Speicher der <b>Aufstellort</b>, nicht das Gerät. Das Gerät mit Volumen, Bauart und Anschlüssen steht im Anlagenblatt (<a href="#k10">Kapitel 10</a>) — dort wird es ausgelegt, dort steht die maßgebende Zahl. Was im Grundriss zu beantworten ist, ist die andere Frage: <em>wo</em> steht er, und passt er da überhaupt hin. Dieselbe Trennung gilt schon beim Wärmeerzeuger, und aus demselben Grund. Die 300 Liter stehen trotzdem daneben, weil die Stellfläche vom Volumen abhängt und man im Raum eine Zahl sehen will. Weicht sie von der Auslegung ab, meldet es die Prüfung.</p>
+
+<p>Für die Rohrnetzauslegung ist der Speicher gleichwertig mit dem Wärmeerzeuger: Die Trasse beginnt an beiden (siehe <a href="#k9-4">Abschnitt 9.4</a>).</p>
 
 <p><b>Röhrenradiator</b> und <b>Unterflurkonvektor</b> sind derselbe Fall mit anderer Bauform. Der Konvektor hat eine Besonderheit, die man ihm nicht ansieht: er liegt <i>im</i> Boden. Deshalb ist seine Montagehöhe null, und deshalb spart er bei der Fußbodenheizung Fläche aus (siehe <a href="#k8-5-3">8.5.3</a>).</p>
 

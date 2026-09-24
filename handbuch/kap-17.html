@@ -2,7 +2,7 @@
 <h2 id="k17">17 · Schnittstellen: Export, IFC, Einbettung in RaVia</h2>
 <p class="lead">Alles, was dieses Programm tut, läuft auf eine Datei zu: die Übergabe an die Heizlastberechnung. Dieses Kapitel sagt, was in dieser Datei steht, welche anderen Wege es daneben gibt — IFC4 hin und zurück, Einbettung in RaVia, der Rückweg von dort — und was der Betrieb davon merkt.</p>
 
-<h3 id="k17-1">17.1 Der Export <code>ravia.bim.light</code> v2.2.0</h3>
+<h3 id="k17-1">17.1 Der Export <code>ravia.bim.light</code> 2.4.0</h3>
 
 <p class="wo">Im Programm: Werkzeugleiste oben rechts → blauer Knopf <b>RaVia JSON</b>. Der Knopf trägt den Hinweis „Gebäudedaten als RaVia-BIM-JSON exportieren (DIN EN 12831) — dient zugleich als Projektdatei".</p>
 
@@ -331,7 +331,19 @@
 <li><code>pipeLengths</code> an jedem Raum — die <b>Rohrmeter, die in diesem Raum liegen</b>, getrennt nach Gewerk, Nennweite und Dämmstärke. Damit lässt sich die Wärmeabgabe der Verteilleitungen dem Raum zurechnen, durch den sie laufen; beim Flur mit dem Heizkreisverteiler ist das der Unterschied zwischen einem unbeheizten und einem vollständig mitbeheizten Raum. Das Feld fehlt, wenn in diesem Raum kein Rohr liegt. Siehe 9.9.</li>
 </ul>
 
-<div class="merke"><b>Merke</b><p>Beide Schritte sind <b>additiv</b>. Eine Gegenstelle, die gegen 2.0.0 gebaut hat, liest eine 2.2.0-Datei ohne Änderung und rechnet dasselbe wie vorher. Sie bekommt nur weniger Auskunft.</p></div>
+<p><b>2.3.0</b> brachte gegenüber 2.2.0 ein Feld, und zwar das folgenreichste seit 2.0.0:</p>
+
+<ul>
+<li><code>envelope</code> an jedem Raum und für das ganze Gebäude — die <b>Hüllflächenbilanz</b>. Siehe <a href="#k17-1-8">Abschnitt 17.1.8</a>.</li>
+</ul>
+
+<p><b>2.4.0</b> brachte gegenüber 2.3.0 ein weiteres Feld innerhalb dieser Bilanz:</p>
+
+<ul>
+<li><code>envelope.withoutUValue</code> — <b>wie viele Flächen ohne brauchbaren U-Wert</b> in die Bilanz eingegangen sind. Steht dort etwas anderes als 0, ist die Bilanz unvollständig, und man sieht es. Siehe <a href="#k17-1-8">Abschnitt 17.1.8</a>.</li>
+</ul>
+
+<div class="merke"><b>Merke</b><p>Alle vier Schritte sind <b>additiv</b>. Eine Gegenstelle, die gegen 2.0.0 gebaut hat, liest eine 2.4.0-Datei ohne Änderung und rechnet dasselbe wie vorher. Sie bekommt nur weniger Auskunft.</p></div>
 
 <h4 id="k17-1-7">17.1.7 Der Wächter über dem Format</h4>
 
@@ -340,6 +352,53 @@
 <p>Das ist der ganze Zweck: <b>Die Entscheidung soll nicht ausbleiben können.</b> Ohne diesen Wächter wandert das Format still weiter, während die Gegenstelle gegen eine Fassung baut, die es nicht mehr gibt — ein Feld wird umbenannt, weil der neue Name schöner ist, und auf der anderen Seite fällt eine Transmissionsfläche lautlos aus der Bilanz. Lautlos, weil ein fehlender Wert in einer Summe wie eine Null wirkt und das Ergebnis plausibel bleibt.</p>
 
 <p>Der Block hat sich beim ersten Lauf selbst bewährt: Er fand drei Raumfelder, die in keiner Liste standen — und auf dem Weg dorthin eine Öffnung, die aus dem Export verschwinden konnte. Und er hat 2026 eine eigene Schwäche gezeigt: Ein Feld, das nur unter Bedingungen erscheint, ist für ihn unsichtbar, solange die Bedingung in seinem Prüfhaus nicht eintritt. Genau so ist <code>pipeLengths</code> beim ersten Lauf durchgeschlüpft. Das Prüfhaus hat jetzt eine Leitung.</p>
+
+
+<h4 id="k17-1-8">17.1.8 Die Hüllflächenbilanz — die Prüfsumme gegen verlorene Bauteile</h4>
+
+<p>Bei der Übernahme in ein Rechenprogramm kann etwas passieren, das niemand bemerkt: Boden, Decke und Dach kommen nicht an. Die Rechnung läuft trotzdem durch, das Ergebnis sieht plausibel aus, und es ist still zu niedrig — am Referenzhaus sind diese drei Bauteilarten über 40 % der Hüllfläche.</p>
+
+<p>CAD Light liefert diese Flächen längst, je Raum in <code>surfaces</code>, jede mit Fläche, U-Wert und Randbedingung. Was fehlte, war eine Zahl, an der sich <b>in einem Blick</b> ablesen lässt, ob sie angekommen sind. Genau das ist die Hüllflächenbilanz.</p>
+
+<div class="formel">
+  <p class="worte">In Worten: Jede Hüllfläche wird mit ihrem U-Wert und ihrem Wärmebrückenzuschlag multipliziert, und alles wird aufsummiert. Heraus kommt, wie viel Wärme das Gebäude je Grad Temperaturunterschied durch seine Hülle verliert.</p>
+  <p class="math">H = Σ A_netto · (U + ΔU_WB)</p>
+  <dl class="zeichen">
+    <dt>H</dt><dd>Hüll-Leitwert in Watt je Kelvin [W/K]</dd>
+    <dt>A_netto</dt><dd>Nettofläche des Bauteils [m²] — Wandflächen <b>ohne</b> ihre Öffnungen, damit kein Quadratmeter doppelt zählt</dd>
+    <dt>U</dt><dd>Wärmedurchgangskoeffizient [W/(m²·K)]</dd>
+    <dt>ΔU_WB</dt><dd>Wärmebrückenzuschlag des Bauteils [W/(m²·K)]</dd>
+  </dl>
+</div>
+
+<p>Die Summe steht nicht nur als eine Zahl da. Sie ist zweifach aufgeteilt:</p>
+
+<ul>
+<li>nach <b>Bauteilart</b>: Wand, Fenster, Tür, Boden, Decke, Dach, Giebel;</li>
+<li>nach <b>Randbedingung</b>: Außenluft, Erdreich, unbeheizt, Nachbarraum.</li>
+</ul>
+
+<p>Dazu kommt <code>shareHorizontal</code>: der Anteil, den Boden, Decke, Dach und Giebel zusammen ausmachen — also genau der Anteil, um den es geht. Er steht als eigene Zahl da, damit man ihn nicht erst ausrechnen muss.</p>
+
+<div class="warnung"><b>Achtung: das ist keine Heizlast</b><p>In dieser Zahl fehlen mit Absicht die Temperaturkorrekturfaktoren der Norm (f<sub>x</sub> für Erdreich, unbeheizte Bereiche und Nachbarräume), die Lüftung und die Aufheizleistung. Sie gehören in die Rechnung der Gegenstelle und werden hier <b>nicht</b> angewandt. Was hier steht, ist die Eingangsgröße: Fläche mal Wärmedurchgangskoeffizient, also das, was CAD Light gemessen und der Anwender eingetragen hat. Damit das nicht von der Kenntnis dieses Handbuchs abhängt, steht der Satz als Feld <code>note</code> im Datensatz selbst.</p></div>
+
+<h4 id="k17-1-9">17.1.9 Wenn ein Bauteil keinen U-Wert hat</h4>
+
+<p>Eine Bilanz, die bei einer einzigen fehlenden Zahl <code>null</code> wird, ist als Prüfsumme gegen verlorene Bauteile eine Zahl, die selbst nichts mehr aussagt. Genau das ist passiert: ein Dach aus einer Projektdatei ohne Aufbau — und die Gebäudebilanz war leer.</p>
+
+<p>Seit der Fassung 1.47.0 gehen solche Flächen mit 0 W/K in die Summe ein und werden <b>gezählt</b>. Die Zahl steht als <code>withoutUValue</code> daneben.</p>
+
+<div class="merke"><b>Merke</b><p><code>withoutUValue: 0</code> heißt: jede Fläche hatte einen U-Wert, die Bilanz ist vollständig. Jede andere Zahl heißt: so viele Flächen gingen mit null ein — die Bilanz ist zu klein, und zwar um einen unbekannten Betrag. Sie ist dann als Prüfsumme nicht mehr belastbar, und der Grund steht im selben Datensatz statt in einem Protokoll, das niemand liest.</p></div>
+
+<div class="baustelle"><b>Auf der Baustelle heißt das</b><p>Steht dort eine Zahl größer null, fehlt an irgendeinem Bauteil der Aufbau. Am häufigsten ist es das Dach, weil es aus einer älteren Projektdatei ohne Aufbau kommt. Kapitel 6 sagt, wo Sie ihn nachtragen.</p></div>
+
+<h4 id="k17-1-10">17.1.10 Wie man damit eine Übernahme prüft</h4>
+
+<p>Wer prüfen will, ob die Gegenstelle alles bekommen hat, bildet dort dieselbe Summe je Bauteilart und hält sie gegen diese. Fehlen Boden, Decke oder Dach, ist die Differenz nicht zu übersehen. Ohne diese Bilanz muss man dafür zwei Programme nebeneinander aufmachen und Flächen zählen.</p>
+
+<p>Gerundet wird auf drei Nachkommastellen. W/K in Milliwatt je Kelvin aufzuschreiben wäre eine Genauigkeit, die die U-Werte nicht hergeben.</p>
+
+<div class="merke"><b>Merke</b><p>Die Bilanz ist eine <b>Prüfsumme</b>, kein Rechenweg. Sie ist dazu da, einen Übernahmefehler sichtbar zu machen — nicht dazu, eine Heizlast zu ersetzen. Stimmen beide Summen überein, ist bewiesen, dass die Flächen angekommen sind; was die Gegenstelle daraus rechnet, ist ihre Sache.</p></div>
 
 <h3 id="k17-2">17.2 IFC4-Export: das Modell für alle anderen</h3>
 
@@ -548,10 +607,13 @@
 <thead><tr><th>Befehl</th><th>Was er liefert oder tut</th></tr></thead>
 <tbody>
 <tr><td>Kurzfassung</td><td>Projektname, Zahl der Geschosse, Räume, Wände und Öffnungen, Nutzfläche, Luftvolumen, installierte Heizleistung, ob das Modell rechenfähig ist, Zahl der Fehler und Warnungen.</td></tr>
-<tr><td>Export</td><td>Der vollständige Export nach <code>ravia.bim.light</code> v2.0.0 — derselbe Inhalt wie die Datei.</td></tr>
+<tr><td>Export</td><td>Der vollständige Export nach <code>ravia.bim.light</code> — derselbe Inhalt wie die Datei, in der Fassung, die das Programm gerade schreibt (siehe <a href="#k17-1-6">Abschnitt 17.1.6</a>).</td></tr>
+<tr><td>Rohdokument</td><td>Das Modell, wie das Programm es intern führt — lesend gedacht, für Gegenstellen, die mehr brauchen als der Export hergibt. Seit der Schnittstellenfassung 1.5.0 auch über die Nachrichtenbrücke erreichbar und nicht nur im selben Fenster.</td></tr>
 <tr><td>IFC</td><td>Dasselbe Modell als IFC4-Text.</td></tr>
 <tr><td>Prüfung</td><td>Der Prüfbericht — dieselbe Prüfung wie im Reiter <b>Prüfung</b>.</td></tr>
 <tr><td>Projekt laden / IFC laden</td><td>Ein Modell von außen einsetzen.</td></tr>
+<tr><td>Gebäudescan übernehmen</td><td>Ein Gebäudemodell der App <b>RaVia Scan</b> direkt einsetzen — ohne Datei. Wahlweise als Ersatz oder als zusätzliches Geschoss neben dem vorhandenen Modell. Siehe <a href="#k17-4-6">Abschnitt 17.4.6</a>.</td></tr>
+<tr><td>Verworfene Räume melden</td><td>Die Gegenstelle sagt zurück, welche Räume sie beim Übernehmen <em>nicht</em> gerechnet hat. CAD Light setzt daraufhin einen Hinweis an den gezeichneten Raum. Siehe <a href="#k17-7">Abschnitt 17.7</a>.</td></tr>
 <tr><td>Zurückschreiben</td><td>Fachdaten ins Modell schreiben — siehe <a href="#k17-5">Abschnitt 17.5</a>.</td></tr>
 <tr><td>Selbstauskunft</td><td>Welche Felder schreibbar sind, in welcher Einheit und in welchen Grenzen. Damit muss die Gegenstelle nicht ausprobieren, was geht, und kann ihre eigene Eingabemaske daraus bauen.</td></tr>
 <tr><td>Anmelden / abmelden für Änderungen</td><td>Die Gegenstelle wird benachrichtigt, sobald sich am Modell etwas ändert.</td></tr>
@@ -569,9 +631,49 @@
 
 <h4 id="k17-4-5">17.4.5 Die Fassung der Schnittstelle</h4>
 
-<p>Die Schnittstelle trägt eine eigene Fassungsnummer, unabhängig von der des Programms und der des Exportformats. Sie steht auf <b>1.2.0</b>. In 1.0.0 konnte die Gegenstelle nur lesen; mit 1.1.0 sind das Zurückschreiben und die Selbstauskunft dazugekommen, mit 1.2.0 die Heizflächen als Rechenfälle und die Vorbemessung der Hydraulik. Die lesenden Befehle sind dabei jedes Mal unverändert geblieben — daher die kleine Stelle in der Nummer: eine Gegenstelle, die gegen 1.0.0 gebaut wurde, läuft weiter.</p>
+<p>Die Schnittstelle trägt eine eigene Fassungsnummer, unabhängig von der des Programms und der des Exportformats. Sie steht auf <b>1.6.0</b>.</p>
+
+<table class="tab">
+<caption>Was jede Fassung der Schnittstelle gebracht hat</caption>
+<thead><tr><th>Fassung</th><th>Neu</th></tr></thead>
+<tbody>
+<tr><td>1.0.0</td><td>Die Gegenstelle kann lesen: Kurzfassung, Export, IFC, Prüfung.</td></tr>
+<tr><td>1.1.0</td><td>Zurückschreiben von Fachdaten und die Selbstauskunft über die schreibbaren Felder.</td></tr>
+<tr><td>1.2.0</td><td>Die Heizflächen als Rechenfälle und die Vorbemessung der Hydraulik.</td></tr>
+<tr><td>1.3.0</td><td><b>Gebäudescan übernehmen</b> — das Modell der App RaVia Scan direkt, ohne Datei.</td></tr>
+<tr><td>1.4.0</td><td>Der Gebäudescan kann das gescannte Geschoss <b>neben</b> die vorhandenen legen, statt das Modell zu ersetzen.</td></tr>
+<tr><td>1.5.0</td><td>Das <b>Rohdokument</b> auch über die Nachrichtenbrücke. Im selben Fenster ging es längst; aus einem Rahmen heraus war es unerreichbar, weil beide Seiten getrennte Fenster sind und es über die Brücke kein Befehl war. Dort kam bis dahin „Unbekannter Befehl“.</td></tr>
+<tr><td>1.6.0</td><td><b>Verworfene Räume melden</b> — die Gegenstelle sagt zurück, welche Räume sie nicht übernommen hat.</td></tr>
+</tbody>
+</table>
+
+<div class="merke"><b>Merke</b><p>Die lesenden Befehle sind bei jedem dieser Schritte unverändert geblieben — daher immer nur die mittlere Stelle der Nummer. Eine Gegenstelle, die gegen 1.0.0 gebaut wurde, läuft unverändert weiter. Sie kann nur weniger.</p></div>
 
 <p>Dem Programm liegt ein lauffähiges Beispiel für die Einbettung bei; es dient zugleich als Prüffall, damit die Schnittstelle nicht unbemerkt kaputtgeht.</p>
+
+<h4 id="k17-4-6">17.4.6 Der Gebäudescan aus RaVia Scan</h4>
+
+<p>Das iPhone scannt die Wohnung, die App <b>RaVia Scan</b> rechnet den Scan noch auf dem Gerät in ein Gebäudemodell um, RaVia prüft es und reicht es über die Einbettung hierher durch. Es gibt dabei keinen Dateiexport und keinen Dateiimport — und CAD Light bekommt die Rohdaten des Scanners <b>nie</b> zu sehen.</p>
+
+<p>Anders als beim Einlesen eines Raumplans wird hier nichts mehr erkannt oder geradegerückt. Das hat die App getan, und das Modell sagt auch, wie:</p>
+
+<table class="tab">
+<caption>Was aus dem Scan ankommt</caption>
+<thead><tr><th>Größe</th><th>In welcher Form</th></tr></thead>
+<tbody>
+<tr><td>Wände</td><td>Als Achsen; Außenwände bereits um die halbe Stärke nach außen versetzt. Die Stärke ist entweder <b>gemessen</b> (aus einem Flächenpaar) oder <b>geschätzt</b> — das Modell sagt, welches von beiden.</td></tr>
+<tr><td>Öffnungen</td><td>Mit Wandbezug und Mittenabstand vom Wandanfang.</td></tr>
+<tr><td>Nordrichtung</td><td>Als Planwinkel, dazu die Genauigkeit des Kompasses, mit der das Gerät gemessen hat — etwa ±15,7°. Die Achslage ist dieselbe wie hier, übernommen wird also ohne Spiegelung und ohne Drehung.</td></tr>
+<tr><td>Dach</td><td>Eine Schätzung je Geschoss aus den erfassten Dachschrägen.</td></tr>
+<tr><td>Heizkörper</td><td>Mit den Maßen vom LiDAR und der Bauart, die der Monteur vor Ort bestätigt hat. Die App schlägt sie nur vor.</td></tr>
+</tbody>
+</table>
+
+<p>Was in CAD Light noch geschieht, ist Übersetzung in die Begriffe dieses Modells: Knoten aus den Wandenden, Teilung an T-Stößen (sonst schließt die Raumerkennung nicht, siehe <a href="#k4-4-2">Abschnitt 4.4.2</a>), Heizkörper als Objekte der Symbolbibliothek.</p>
+
+<div class="warnung"><b>Achtung</b><p>Eine <b>Heizleistung wird nicht gesetzt</b>. RaVia Scan misst Geometrie und rechnet nichts; welche Leistung ein vorgefundener Heizkörper hat, ist eine Frage der Auslegung und nicht des Aufmaßes. Die Heizkörper kommen also mit Maß und Bauart, aber ohne Watt.</p></div>
+
+<div class="baustelle"><b>Auf der Baustelle heißt das</b><p>Ein Scan hat Lücken — offene Wandenden dort, wo das Gerät um eine Ecke nicht herumkam, weil ein Schrank davorstand. Die Raumerkennung schließt dort nicht. Der Grundriss zeigt jedes offene Wandende als orangefarbenen Punkt; <a href="#k4-4-2">Abschnitt 4.4.2</a> sagt, was damit zu tun ist. Rechnen Sie nach einem Scan damit als Regelfall, nicht als Ausnahme.</p></div>
 
 <h3 id="k17-5">17.5 Der Rückweg: wenn RaVia ins Modell schreibt</h3>
 
@@ -721,7 +823,7 @@
 <p class="ergebnis">= 2,7 W/K weniger, also −37,5 % — der Raum steht auf „geändert"</p>
 </div>
 
-<p>Der Hüll-Leitwert wird ausschließlich für den Vergleich gebildet und steht <b>nicht</b> im Export. Es soll keine zweite Wahrheit neben der Rechnung in RaVia geben.</p>
+<p>Dieser Hüll-Leitwert wird für den <b>Vergleich zweier Stände</b> gebildet. Seit der Formatfassung 2.3.0 steht eine Summe derselben Bauart auch im Export — als <code>envelope</code>, siehe <a href="#k17-1-8">Abschnitt 17.1.8</a>. Beide sind Σ A·(U+ΔU_WB) und beide sind ausdrücklich <b>keine Heizlast</b>: Die rechnet RaVia, und es soll keine zweite Wahrheit daneben geben.</p>
 
 <h4 id="k17-6-4">17.6.4 Wofür man das braucht</h4>
 
@@ -732,5 +834,43 @@
 <p><b>Vor der erneuten Übergabe.</b> Sie sehen, was RaVia neu rechnen muss. Bleibt ein Raum auf „unverändert", ist seine Heizlast von vorher weiter gültig.</p>
 
 <div class="baustelle"><b>Auf der Baustelle heißt das</b><p>Heben Sie jede übergebene Exportdatei auf. Sie ist gleichzeitig der Modellstand, das Archiv und die Vergleichsgrundlage für die nächste Runde. Der Dateiname trägt das Datum bereits im Namen.</p></div>
+
+
+<h3 id="k17-7">17.7 Wenn RaVia einen Raum nicht übernimmt</h3>
+
+<p class="lead">Zehn Räume gezeichnet, neun angekommen — und niemand sagt welcher fehlt. Nach dem, was <em>nicht</em> da ist, sucht man am längsten.</p>
+
+<h4 id="k17-7-1">17.7.1 Warum Räume wegfallen</h4>
+
+<p>RaVia lässt beim Übernehmen Räume weg, die es nicht rechnen kann. Zwei Gründe gibt es dafür:</p>
+
+<table class="tab">
+<caption>Die Gründe, aus denen ein Raum verworfen wird</caption>
+<thead><tr><th>Grund</th><th>Was dahintersteckt</th></tr></thead>
+<tbody>
+<tr><td>Die Fläche liegt unter der Mindestgröße von 0,10 m².</td><td>Fast immer ein Schacht, ein Kaminzug oder Aufmaßrauschen — eine Fläche zwischen vier Wandstücken, die kein Raum ist.</td></tr>
+<tr><td>Die Fläche fehlt oder ist keine Zahl.</td><td>Der Raum ist geometrisch nicht geschlossen, oder seine Fläche ist bei der Übertragung verlorengegangen.</td></tr>
+</tbody>
+</table>
+
+<p>Beides ist sachlich richtig. Was fehlte, war die Rückmeldung.</p>
+
+<h4 id="k17-7-2">17.7.2 Was das Programm daraus macht</h4>
+
+<p>Seit der Schnittstellenfassung 1.6.0 nennt RaVia die verworfenen Räume in derselben Antwort, in der auch die übernommenen stehen. CAD Light hängt daraus einen Hinweis <b>an den gezeichneten Raum</b>: eine bernsteinfarbene Marke mit einem Ausrufungszeichen, mitten im Raum, dazu der Text.</p>
+
+<p>Entscheidend dafür ist eine einzige Verabredung: Die Kennung, die RaVia zurückschickt, muss die aus unserem Export sein (<code>rooms[].id</code>), unverändert durchgereicht. Nur daran lässt sich der Hinweis an einen Raum hängen. Alles andere — Name, Fläche, Grund, Geschoss — ist Beiwerk und macht den Text genauer.</p>
+
+<div class="merke"><b>Merke</b><p>Die Marke wird auch bei Räumen unter 0,8 m² gezeichnet, also gerade bei denen, die zu klein für eine Beschriftung sind. Das ist Absicht: Es sind genau die Räume, um die es hier geht. Ein Hinweis, der an der winzigen Fläche wegbliebe, hätte seinen einzigen Anwendungsfall verfehlt.</p></div>
+
+<h4 id="k17-7-3">17.7.3 Warum das Lesen so nachsichtig ist</h4>
+
+<p>Die Gegenstelle ist ein eigenes Programm mit eigenem Zeitplan. Sie schreibt heute deutsche Feldnamen, sie kann morgen englische schreiben, und sie kann einen Grund schicken, den CAD Light noch nicht kennt. Deshalb werden beide Schreibweisen gelesen, und ein <b>unbekannter Grund wird angezeigt statt verschluckt</b> — wörtlich, so wie er ankam.</p>
+
+<p>Der Gedanke dahinter ist derselbe wie überall in diesem Kapitel: Ein Hinweis, der ausbleibt, ist schlimmer als ein unvollständiger. Bliebe er aus, stünde der Anwender wieder vor dem Nichts, und genau das war der Zustand, den diese Rückmeldung beenden sollte.</p>
+
+<div class="warnung"><b>Achtung</b><p>Die Hinweise sind eine <b>Rückmeldung zu einem bestimmten Übernahmelauf</b> und gehören nicht zum Modell. Sie werden deshalb nicht mitgespeichert und verschwinden, sobald ein anderes Projekt geladen wird. Wer wissen will, ob der Fehler behoben ist, übergibt erneut.</p></div>
+
+<div class="baustelle"><b>Auf der Baustelle heißt das</b><p>Sehen Sie eine solche Marke, ist meistens nichts kaputt: Dort steht ein Schacht, den die Raumerkennung als Raum gezählt hat. Machen Sie ein massives Bauteil daraus (<a href="#k4-4-5">Abschnitt 4.4.5</a>), dann ist es auch im Plan kein Raum mehr. Ist es dagegen ein wirklicher Raum, fehlt ihm eine Wand — und er hat keine brauchbare Fläche, weil er nicht geschlossen ist.</p></div>
 
 </section>

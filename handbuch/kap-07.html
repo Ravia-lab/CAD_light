@@ -68,6 +68,48 @@ tippen sie ein. Was daraus wird, hängt vom Raum ab:</p>
 das Ding aber eine Anbindeleitung, und die fährt dorthin, wo es steht. Prüfen
 Sie vor der Rohrnetzauslegung im Plan nach.</p></div>
 
+
+<h4 id="k7-1-0-2">7.1.0.2 Heizlast für alle Räume auf einmal</h4>
+
+<p>Wer 30 Räume erfasst hat und in keinem eine Leistung stehen hat, braucht 30 Eingaben, bevor überhaupt ein Rohrnetz ausgelegt werden kann. Für diesen Anfang gibt es einen Knopf.</p>
+
+<p class="wo">Im Programm: Reiter <b>Räume</b> → Modus <b>Ausfüllen</b> → <b>Heizlast überschlägig für alle Räume</b></p>
+
+<p>Er trägt in jeden beheizten Raum <b>ohne</b> Leistung den Überschlag ein. Gerechnet wird der nicht mit einer Faustzahl in W/m², sondern aus den Flächen, U-Werten und Temperaturen <em>dieses</em> Gebäudes — es ist derselbe Überschlag, den <a href="#k13-4">Abschnitt 13.4</a> Zeile für Zeile aufschreibt. Gerundet wird auf 50 W: Der Überschlag gibt keine Watt-Genauigkeit her, und eine krumme Zahl täuscht eine vor.</p>
+
+<p>Unangetastet bleiben:</p>
+
+<table class="tab">
+<caption>Was der Knopf überspringt — und warum</caption>
+<thead><tr><th>Fall</th><th>Warum</th></tr></thead>
+<tbody>
+<tr><td>Im Raum steht schon eine Leistung.</td><td>Sie ist abgelesen. Eine abgelesene Zahl durch einen Überschlag zu ersetzen wäre ein Rückschritt.</td></tr>
+<tr><td>Der Raum ist unbeheizt.</td><td>Er hat keine Heizlast. Siehe <a href="#k7-1-0-3">Abschnitt 7.1.0.3</a>.</td></tr>
+<tr><td>Der Raum hat eine raumdeckende Fußbodenheizung.</td><td>Ihre Leistung folgt aus der Auslegung, nicht aus einer Eingabe.</td></tr>
+<tr><td>Im Raum hängt mehr als eine Heizfläche.</td><td>Welche der drei gemeint wäre, kann das Programm nicht wissen.</td></tr>
+</tbody>
+</table>
+
+<p>Die Meldung danach nennt beide Zahlen — wie viele Räume belegt wurden und wie viele übersprungen — und sagt ausdrücklich dazu, was das Ergebnis ist:</p>
+
+<p class="wo">„14 Räume mit dem Überschlag belegt, zusammen 9,4 kW (6 übersprungen). Das ist ein Überschlag aus Flächen und U-Werten, keine Norm-Heizlast — die rechnet RaVia.“</p>
+
+<div class="warnung"><b>Achtung</b><p>Dieser Knopf ist ein <b>Anfangswert, kein Ergebnis</b>. Er soll verhindern, dass ein Projekt am leeren Raumbuch stehenbleibt, und er gibt eine Größenordnung, mit der sich das Rohrnetz schon auslegen lässt. Die maßgebende Heizlast nach DIN EN 12831 rechnet RaVia aus den übergebenen Flächen — und sie wird von dieser Zahl abweichen. Bevor bestellt wird, ist die Zahl aus RaVia die richtige.</p></div>
+
+<h4 id="k7-1-0-3">7.1.0.3 Räume unter einem Quadratmeter</h4>
+
+<p>Digitalisierungsrauschen und Schächte kommen als winzige Räume ins Modell: eine Fläche zwischen vier Wandstücken, die niemand betritt. Sie bekommen dann Heizkörper, die nie eine Trasse erreichen, und auf der Gegenseite fallen sie ohnehin weg (siehe <a href="#k17-7">Abschnitt 17.7</a>).</p>
+
+<p>Im Lauf über 54 Testgebäude waren 34 von 460 Räumen kleiner als 1 m², zehn davon als beheizt geführt.</p>
+
+<p class="wo">Im Programm: Reiter <b>Räume</b> → Modus <b>Ausfüllen</b> → <b>N Raum/Räume unter 1 m² als unbeheizt führen</b></p>
+
+<p>Der Knopf erscheint nur, wenn es solche Räume gibt, und er nennt ihre Zahl. Er setzt sie auf „unbeheizt“ — mehr nicht. Die Räume bleiben bestehen, behalten ihre Fläche und gehen als Nachbarn weiterhin in die Räume daneben ein. <kbd>Strg</kbd> + <kbd>Z</kbd> nimmt es zurück, und die Meldung nennt die ersten drei Namen, damit man sieht, was betroffen war.</p>
+
+<div class="merke"><b>Merke</b><p>Entschieden wird das nicht still. Die Modellprüfung meldet solche Räume längst einzeln; dieser Knopf ist nur der Griff dazu. Wenn einer der genannten Räume ein wirklicher Raum ist, ist nicht er das Problem, sondern eine fehlende Wand — dann bleibt die Zahl ohne Bedeutung, und Sie zeichnen nach.</p></div>
+
+<div class="baustelle"><b>Auf der Baustelle heißt das</b><p>Ein Schacht gehört eigentlich nicht als unbeheizter Raum geführt, sondern als massives Bauteil (<a href="#k4-4-5">Abschnitt 4.4.5</a>) — dann ist er auch im Plan kein Raum mehr und zieht seine Fläche vom Raum ab. Der Knopf hier ist der schnelle Weg, wenn es zehn davon sind und die Zeit drängt.</p></div>
+
 <h4 id="k7-1-1">7.1.1 Was Sie je Raum eintragen</h4>
 
 <table class="tab">
@@ -115,6 +157,43 @@ Sie vor der Rohrnetzauslegung im Plan nach.</p></div>
 <p>Für jeden Wandabschnitt führt das Programm außerdem Länge, Brutto- und Nettofläche, Öffnungsfläche, Himmelsrichtung, Azimut, U-Wert und die Randbedingung mit. Das ist der eigentliche Inhalt des Exports; siehe <a href="#k17">Kapitel 17</a>.</p>
 
 <p>Das Raumbuch lässt sich als CSV-Datei (durch Zeichen getrennte Werte) ausgeben. Getrennt wird mit Semikolon, Dezimaltrennzeichen ist das Komma — so öffnet ein Tabellenprogramm in deutscher Einstellung die Datei ohne Importdialog. Die Dachkennwerte stehen bewusst am Ende: bei Geschossen ohne Dach bleiben diese Spalten leer, statt die vorderen zu verschieben.</p>
+
+
+<h4 id="k7-1-3">7.1.3 Der Raumname: tippen oder wählen</h4>
+
+<p>Das Namensfeld nimmt jeden Text. Wer im Raum steht und auf dem Tablet tippt, schreibt „wz2“, „janner“ oder „kueche“ — so standen die Namen in einem echten Aufmaß, und das ist sein gutes Recht.</p>
+
+<p>Daneben bietet das Feld <b>24 Standardbezeichnungen</b> zur Auswahl an, die auf jedem Grundriss stehen: ein Griff statt zwölf Tastendrücken. Die Reihenfolge folgt dem Weg durch eine Wohnung und nicht dem Alphabet, damit man den nächsten Raum dort findet, wo man ihn erwartet:</p>
+
+<p class="wo">Wohnzimmer · Wohnen / Essen · Esszimmer · Küche · Wohnküche · Schlafzimmer · Kinderzimmer · Gästezimmer · Arbeitszimmer · Büro · Bad · Duschbad · Gäste-WC · WC · Flur · Diele · Windfang · Treppenhaus · Abstellraum · Speisekammer · Hauswirtschaftsraum · Heizungsraum · Technikraum · Keller</p>
+
+<p>Wird ein Name aus dieser Liste gewählt, setzt das Programm zugleich die <b>Nutzung</b> — und damit Solltemperatur und Luftwechsel. Das ist der eigentliche Gewinn: Die Nutzung ist die folgenreichere der beiden Angaben, und sie wird beim schnellen Aufmaß am ehesten vergessen.</p>
+
+<div class="merke"><b>Merke</b><p>Verglichen wird genau, nur ohne Groß- und Kleinschreibung: „bad“ aus der Liste gewählt ist dasselbe wie „Bad“. <b>„Bad OG“ ist dagegen eine eigene Bezeichnung</b> und wird nicht angefasst — Ihre Schreibweise bleibt stehen, und die Nutzung bleibt Ihre Entscheidung.</p></div>
+
+<p>Bewusst <b>nicht</b> in der Liste stehen Namen, die keine Nutzung hergeben — „Ankleide“, „Galerie“. Wer sie aus einer Liste wählt, erwartet, dass damit etwas entschieden ist, und das wäre es nicht. Wer sie braucht, tippt sie; dann bleibt die Nutzung offen, und die Prüfliste fragt danach.</p>
+
+<h4 id="k7-1-4">7.1.4 Das Heizsymbol am Raumstempel</h4>
+
+<p>„Beheizt“ ist die folgenreichste Ja/Nein-Angabe eines Raums: Ein unbeheizter Raum hat keine eigene Heizlast, geht aber als Nachbar mit seiner Temperatur in die Räume daneben ein (siehe <a href="#k7-2">Abschnitt 7.2</a>). Bis zur Fassung 1.38.0 stand sie nur im Eigenschaftsfenster — im Plan sah ein Abstellraum aus wie ein Wohnzimmer.</p>
+
+<p>Neben dem Raumnamen steht deshalb ein kleines Heizkörpersymbol:</p>
+
+<table class="tab">
+<caption>Was das Heizsymbol zeigt</caption>
+<thead><tr><th>Zustand</th><th>Was Sie sehen</th></tr></thead>
+<tbody>
+<tr><td>beheizt</td><td>Das Symbol in der Farbe der Heizungsebene, orange.</td></tr>
+<tr><td>unbeheizt</td><td>Kein Symbol. Ein durchgestrichenes Zeichen in jedem Abstellraum wäre Rauschen.</td></tr>
+<tr><td>unbeheizt <b>und gewählt</b></td><td>Das Symbol blass und durchgestrichen — als die Stelle, an der man ihn einschaltet.</td></tr>
+</tbody>
+</table>
+
+<p>Ein Tipp auf das Symbol schaltet um. Das ist ein gewöhnlicher Änderungsschritt: <kbd>Strg</kbd> + <kbd>Z</kbd> nimmt ihn zurück.</p>
+
+<h4 id="k7-1-5">7.1.5 Die bernsteinfarbene Marke im Raum</h4>
+
+<p>Steht mitten in einem Raum eine bernsteinfarbene Marke mit einem Ausrufungszeichen, kommt sie nicht aus der Modellprüfung, sondern von der Gegenstelle: <b>RaVia hat diesen Raum bei der letzten Übergabe nicht übernommen</b>. Der Text daneben sagt warum. Was dahintersteckt und was zu tun ist, steht in <a href="#k17-7">Abschnitt 17.7</a>.</p>
 
 <h3 id="k7-2">7.2 Die Nachbartemperatur — die wichtigste Zahl an einer Innenwand</h3>
 

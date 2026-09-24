@@ -285,4 +285,28 @@ Firsthöhe: 2,20 + 4,563 · tan 30° = 2,20 + 2,635 = <b>4,835 m</b>.</p>
 
 <p>Die Modellprüfung sieht sich dieselben Zahlen an und meldet unter anderem einen unplausiblen U-Wert der Dachfläche, eine Kehlbalkenlage unter dem Kniestock, Wandhöhen, die nicht zum Kniestock passen — und den Fall, in dem nach WoFlV weniger als die Hälfte der Grundfläche eines Raums zählt. Das ist kein Fehler, aber meistens ein Hinweis darauf, dass Kniestock oder Neigung noch nicht stimmen. Mehr dazu in <a href="#k7-5">Abschnitt 7.5</a>.</p>
 
+
+<h3 id="k6-5">6.5 Ein Dach ohne Aufbau — und was das Programm dann einsetzt</h3>
+
+<p>Eine Projektdatei darf ein Dach unvollständig führen. Form, Neigung und Kniestock beschreiben die Gestalt, die U-Werte beschreiben den Aufbau — und ein Aufmaß hat oft nur die Gestalt. Wer die Datei öffnet, muss die Lücke schließen können, sonst entstehen Dachflächen <b>ohne</b> U-Wert, und die gehen auf der Gegenseite stumm mit 0 W/K in die Rechnung ein.</p>
+
+<p>Das Programm füllt deshalb beim Öffnen und beim Exportieren nur die <em>fehlenden</em> Angaben aus einer Voreinstellung auf. Was in der Datei steht, bleibt unangetastet:</p>
+
+<table class="tab">
+<caption>Die Voreinstellung für ein unvollständig geführtes Dach</caption>
+<thead><tr><th>Angabe</th><th>Vorgabe</th><th>Warum diese</th></tr></thead>
+<tbody>
+<tr><td>Form</td><td>Satteldach</td><td rowspan="2">Satteldach mit 38° ist die in Deutschland häufigste Ausführung im Wohnungsbau.</td></tr>
+<tr><td>Neigung</td><td>38°</td></tr>
+<tr><td>Kniestock</td><td>1,00 m</td><td>Der übliche Kniestock im ausgebauten Dachgeschoss.</td></tr>
+<tr><td>Firstrichtung</td><td>90°</td><td>First quer zur x-Achse des Plans.</td></tr>
+<tr><td>U-Wert Dachfläche</td><td>0,20 W/(m²·K)</td><td rowspan="2">Größenordnung eines gedämmten Daches. Ausdrücklich eine Vorbelegung — nicht das gemessene Bauteil.</td></tr>
+<tr><td>U-Wert Giebel</td><td>0,24 W/(m²·K)</td></tr>
+</tbody>
+</table>
+
+<div class="warnung"><b>Achtung</b><p>Diese Zahlen sind <b>Lückenfüller, keine Erfassung</b>. Sie verhindern, dass eine Dachfläche ohne Wärmedurchgangskoeffizient in eine Summe läuft und dort wie eine Null wirkt. Für eine belastbare Rechnung tragen Sie den wirklichen Aufbau ein — im Reiter <b>Dach</b> oder über den Bauteilkatalog (<a href="#k7-3">Abschnitt 7.3</a>).</p></div>
+
+<p>Ob in einem Projekt noch solche Lücken stecken, lässt sich an einer Zahl ablesen: <code>envelope.withoutUValue</code> im Export zählt alle Flächen, die ohne brauchbaren U-Wert in die Hüllflächenbilanz eingegangen sind. Steht dort etwas anderes als 0, ist die Bilanz unvollständig. Siehe <a href="#k17-1-9">Abschnitt 17.1.9</a>.</p>
+
 </section>

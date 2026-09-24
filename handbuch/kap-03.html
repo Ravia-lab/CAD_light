@@ -154,11 +154,33 @@ beziehungsweise nichts zu wiederholen gibt. Mehr dazu in
 
 <ul>
   <li><b>Demo-Grundriss laden</b> — das Beispielprojekt.</li>
-  <li><b>Alle Geometrie löschen</b> — mit Rückfrage. Es räumt die Geometrie ab,
-  lässt aber Geschosse, Bauteilkatalog und Anlagentechnik stehen. Wer ein
-  wirklich leeres Blatt will, legt in der Projektverwaltung ein neues Projekt
-  an.</li>
+  <li><b>Alles löschen</b> — mit Rückfrage, die vorher aufzählt, was weggeht.
+  Geleert wird alles, was <em>gezeichnet</em> oder <em>gesetzt</em> wurde:
+  Wände, Öffnungen, TGA-Objekte, Leitungen und Armaturen, Treppen, Schächte,
+  massive Bauteile, Durchbrüche, Beschriftungen, Freihandnotizen, das
+  Referenzbild, die Dächer über den Geschossen, das Grundstück samt Grenze,
+  Nachbargebäude, Baum, Sonde, Kollektor und Wärmepumpe — und die ausgelegte
+  Anlage.</li>
 </ul>
+
+<p>Stehen bleiben die Dinge, die nicht der Plan sind, sondern der Rahmen, in
+dem er entsteht:</p>
+
+<ul>
+  <li><b>Die Geschosse.</b> Wer den Grundriss verwirft, verwirft nicht das Haus
+  mit drei Geschossen von 2,50 m. Ihre Dächer gehen allerdings mit: Ein Dach
+  ist Geometrie und keine Einstellung.</li>
+  <li><b>Die Ebenen.</b> Sichtbarkeiten und Sperren sind Arbeitszustand.</li>
+  <li><b>Der Bauteilkatalog.</b> Er ist eine Bibliothek. Aufbauten, die jemand
+  angelegt hat, mit dem Grundriss zu löschen, wäre der teuerste denkbare
+  Fehlgriff — sie stecken in der Regel in mehr Arbeit als die Wände.</li>
+  <li><b>Die erfassten Kennwerte</b>: Bundesland, Gebietstyp und Bodenart des
+  Grundstücks, Systemtemperaturen, Sicherheitsangaben, Trinkwarmwasser. Sie
+  sind Eingaben zum Vorhaben und nicht zum Plan — die Sonde im Garten geht
+  weg, die Bodenart bleibt.</li>
+</ul>
+
+<div class="merke"><b>Merke</b><p>Auch das bleibt <b>rückgängig zu machen</b>: Die Leerung läuft durch dieselbe Änderungsschleife wie jeder andere Schritt, und <kbd>Strg</kbd> + <kbd>Z</kbd> holt den ganzen Plan zurück. Ein „Alles löschen“, das die Vorgeschichte mitnimmt, wäre keine Funktion, sondern eine Falle.</p></div>
 
 <h3 id="k3-4">3.4 Die Kopfzeile</h3>
 
@@ -387,7 +409,15 @@ und ist keiner offen, wird die Auswahl aufgehoben.</p>
   <li><kbd>Strg</kbd> oder <kbd>Umschalt</kbd> beim Klicken oder beim Aufziehen
   des Rahmens <b>fügt zur Auswahl hinzu</b>, statt sie zu ersetzen. Ein bereits
   gefasstes Objekt fällt dabei wieder heraus.</li>
-  <li><kbd>Strg</kbd> + <kbd>A</kbd> wählt alles.</li>
+  <li><kbd>Strg</kbd> + <kbd>A</kbd> wählt alles, was auf dem <b>aktiven
+  Geschoss</b> liegt und sich einzeln anfassen lässt, dazu das Gelände — das
+  gehört keinem Geschoss und wird in jedem gezeigt. Nicht mit gewählt werden:
+  <b>Räume</b> (sie sind abgeleitet und verschwinden mit ihren Wänden),
+  <b>Öffnungen</b> (sie gehen mit ihrer Wand, und die ist schon dabei),
+  <b>erzeugte Armaturen</b> (die setzt der Rohrausleger beim nächsten Lauf
+  ohnehin neu), die <b>Wärmepumpe fremder Geschosse</b> (sie scheint hier nur
+  durch) sowie <b>Gesperrtes und Ausgeblendetes</b> — sonst meldete das
+  Löschen hinterher „gesperrt“ für etwas, das man nie gewählt hat.</li>
 </ul>
 <p>Die Statuszeile meldet nach dem Rahmen, wie viele Objekte gefasst wurden —
 oder „Nichts im Rahmen".</p>
@@ -426,7 +456,7 @@ Plan.</p>
   Raum antippen, Namen eintragen, Heizkörper antippen. Zum Zeichnen brauchen
   Sie weiter den Stift — oder Sie stellen unter <b>Eingabe</b> auf „Finger
   darf zeichnen“ um.</p>
-</div></p>
+</div>
 
 <h4 id="k3-9-4">3.9.4 Gruppenoperationen</h4>
 <p>Auf einer Mehrfachauswahl wirken:</p>
@@ -523,6 +553,7 @@ lässt sich auf vier Wegen beenden, und alle vier <b>übernehmen</b> ihn:</p>
   <li><kbd>Enter</kbd>,</li>
   <li>Rechtsklick ohne Ziehen.</li>
 </ul>
+<p>Der Rechtsklick schließt den Zug <b>auch nach einem Schwenk</b> ab. Das war bis zur Fassung 1.45.0 nicht so: Die rechte Taste schaltet beim Drücken auf „Bild verschieben“ um, und damit war der laufende Zug überschrieben — der Rechtsklick, der ihn abschließen sollte, fand beim Loslassen nur noch den Schwenk vor und warf ihn weg. Gemeldet wurde es so: „die Grundstücksgrenze lässt sich umfahren, aber nicht abschließen“. Das Bild zu verschieben soll den Zug nicht kosten, und seither tut es das auch nicht.</p>
 <p>Die <kbd>Rücktaste</kbd> nimmt während eines Zuges den <b>letzten Punkt</b>
 zurück, statt die Auswahl zu löschen. Ein Fehlklick beim Umfahren kostet damit
 einen Tastendruck und nicht die ganze Umfahrung. Auch <kbd>Esc</kbd> übernimmt

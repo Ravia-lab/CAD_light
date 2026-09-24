@@ -586,4 +586,133 @@
 
 <p>Die Angabe reist mit dem Export zur Gegenstelle (siehe 17.1) — dort als <code>pipeLengths</code> an jedem Raum.</p>
 
+
+<h3 id="k9-10">9.10 Über alle Geschosse: die Steigleitung</h3>
+
+<p>Bis zur Fassung 1.43.0 plante der Ausleger <b>ein</b> Geschoss. Im Einfamilienhaus ist das genau der Fall, der nicht vorkommt: Die Wärmepumpe steht im Garten, die Leitung geht in den Technikraum im Keller, dort stehen Speicher und Verteiler — und die Heizkörper hängen im Erdgeschoss und im Obergeschoss. Wer das Obergeschoss auslegte, bekam den Hinweis „die Zuleitung kommt von außerhalb dieses Geschosses“, und das Rohr fehlte.</p>
+
+<p>Der Ausleger arbeitet jetzt über das ganze Gebäude. Er geht in vier Schritten vor:</p>
+
+<ol>
+<li><b>Das Quellgeschoss finden.</b> Auf welchem Geschoss steht der Wärmeerzeuger oder der Speicher? Steht innen keiner, entscheidet die Monoblock-Wärmepumpe im Gelände: Dann beginnt das Netz an der Hauseinführung ihres Geschosses.</li>
+<li><b>Die Stränge setzen.</b> Vom Quellgeschoss aus nach oben und nach unten, Geschoss für Geschoss.</li>
+<li><b>Von außen nach innen rechnen.</b> Das oberste Geschoss zuerst. Sein Volumenstrom steht danach fest und wird dem Strangabschnitt darunter mitgegeben. Beim Dreigeschosser trägt der Abschnitt Keller → Erdgeschoss also den Strom von Erdgeschoss <b>und</b> Obergeschoss.</li>
+<li><b>Zusammensetzen.</b> Läufe, Armaturen, Längen und Befunde aller Geschosse in einem Ergebnis. Jeder Befund trägt den Geschossnamen vor sich — sonst weiß niemand, wo etwas fehlt.</li>
+</ol>
+
+<h4 id="k9-10-1">9.10.1 Wo der Strang steht</h4>
+
+<p>Der Aufstellort des Strangs folgt einer Rangfolge, nicht einer Rechnung:</p>
+
+<table class="tab">
+<caption>Wo der Steigstrang angesetzt wird</caption>
+<thead><tr><th>Rang</th><th>Ort</th><th>Warum</th></tr></thead>
+<tbody>
+<tr><td>1</td><td>Ein <b>Installationsschacht</b>, der über beide Geschosse geht.</td><td>Dafür ist er da. Wo ein Schacht durchgeht, liegt der Strang hinein und nirgendwo sonst.</td></tr>
+<tr><td>2</td><td><b>Lotrecht über der Quelle</b>, an die nächste Wand gerückt.</td><td>Der kürzeste Weg nach oben ist der senkrechte. An der Wand liegt er verkleidbar.</td></tr>
+<tr><td>3</td><td>Der <b>nächstgelegene Raum</b> des Zielgeschosses.</td><td>Wenn über der Quelle kein Raum liegt — etwa über einem Kellerabgang —, muss der Strang danebenrücken.</td></tr>
+</tbody>
+</table>
+
+<p>Jede Deckendurchführung steht als <b>Kernbohrung</b> im Befund. Das ist kein Nebensatz: Auf der Baustelle ist sie ein eigener Arbeitsgang, und im Bestand muss vorher jemand wissen, ob dort Bewehrung liegt.</p>
+
+<div class="warnung"><b>Achtung</b><p>Der Strang wird gesetzt, nicht nachgewiesen. Ob die Decke an dieser Stelle durchbohrt werden <em>darf</em>, entscheidet die Statik und nicht dieses Programm. Der Befund nennt die Stelle, damit sie geprüft wird.</p></div>
+
+<h3 id="k9-11">9.11 Die Ringleitung: wie im Bestand wirklich verlegt wird</h3>
+
+<p class="lead">Neben der Baumtrasse gibt es eine zweite Verlegeart. Sie heißt <b>Ring</b> und bildet ab, was ein Heizungsbauer in einem bewohnten Altbau tatsächlich tut.</p>
+
+<p class="wo">Im Programm: Reiter <b>Rohrnetz</b> → <b>Sanierung</b> → Anordnung <b>Ring</b></p>
+
+<h4 id="k9-11-1">9.11.1 Warum der Baum hier nicht passt</h4>
+
+<p>Die Baumtrassierung aus <a href="#k9-4-3">Abschnitt 9.4.3</a> sucht für jeden Heizkörper den kürzesten Weg und lässt die Wege zusammenwachsen. Im Neubau ist das richtig: Dort liegt die Leitung im Fußbodenaufbau und darf quer durch den Raum.</p>
+
+<p>Im Bestand entsteht daraus ein Netz, das niemand so verlegt — Stränge quer durch Türen, Stichleitungen durch halbe Wohnungen, jede anders. Der Auftrag, in den Worten des Installateurs, lautet anders: „zum Verteiler hin (oder Speicher, Puffer) 1 Zoll, dann von dort 22er oder 18er Rohr Kreisleitung, für Heizkörper mit 15.“ Die Leitung läuft im Sockelleistenkanal an den Außenwänden entlang einmal um das Geschoss, durch jede Trennwand mit einer Kernbohrung, und jeder Heizkörper — fast immer unter einem Fenster, also an einer Außenwand — hängt mit einer kurzen Anbindung daran.</p>
+
+<h4 id="k9-11-2">9.11.2 Wie der Ring entsteht</h4>
+
+<ol>
+<li>Genommen wird der <b>Gebäudeumriss des Geschosses</b> — derselbe wie für das Dach —, je Kante um die halbe Stärke <em>ihrer</em> Wand plus 0,05 m Wandabstand nach innen versetzt. Das ist die Linie, auf der die Leitung liegt.</li>
+<li>Der Ring <b>beginnt am Punkt, der der Quelle am nächsten liegt</b>: Erzeuger, Speicher oder Hauseinführung.</li>
+<li>Jeder Verbraucher hängt am nächsten Ringpunkt <b>in seinem eigenen Raum</b>. Nur wo sein Raum keine Außenwand hat, darf der Anschlusspunkt anderswo liegen — dann wird die Anbindung trassiert und nicht gerade gezogen (siehe <a href="#k9-11-4">9.11.4</a>). Bis 0,80 m Abstand wird gerade angebunden.</li>
+<li>Der Ring läuft <b>in eine Richtung</b> und endet am letzten Verbraucher. Welche Richtung, entscheidet die größere Lücke neben dem Anfang: Sie bleibt unverlegt. So ist der Ring so kurz, wie er bei einem Anfang an dieser Stelle sein kann.</li>
+<li>Jeder Ringabschnitt trägt <b>alle Verbraucher, die hinter ihm hängen</b>. Daraus folgt der Volumenstrom, daraus die Dimension — der Ring wird zum Ende hin enger, so wie der Installateur von 22 auf 18 wechselt.</li>
+</ol>
+
+<div class="merke"><b>Merke</b><p>Der Ring ist keine Ringleitung im hydraulischen Sinn: Er ist <b>nicht geschlossen</b>. Er läuft vom Anfang in eine Richtung bis zum letzten Heizkörper, und die Lücke bleibt offen. Ein geschlossener Ring wäre zwei Wege zu jedem Heizkörper, und keiner wüsste, welchen das Wasser nimmt.</p></div>
+
+<h4 id="k9-11-3">9.11.3 Was der Ring mindestens und was er höchstens wird</h4>
+
+<p>Drei Untergrenzen und eine Obergrenze sind fest gesetzt. Sie sind <b>Handwerksregeln, keine Norm</b>. Die Hydraulik darf über sie hinausgehen, nie darunter:</p>
+
+<table class="tab">
+<caption>Feste Maße der Ringverlegung</caption>
+<thead><tr><th>Abschnitt</th><th>Mindestens</th><th>Das heißt in Kupfer</th></tr></thead>
+<tbody>
+<tr><td>Zuleitung zu Verteiler, Speicher oder Puffer</td><td>DN 25</td><td>Cu 28 × 1,5 (Verbundrohr: 32 × 3)</td></tr>
+<tr><td>Kreisleitung (der Ring selbst)</td><td>DN 15</td><td>Cu 18 × 1</td></tr>
+<tr><td>Anbindung zum Heizkörper</td><td>DN 12</td><td>Cu 15 × 1 (Verbundrohr: 16 × 2)</td></tr>
+<tr><td>Kreisleitung <b>höchstens</b></td><td>DN 20</td><td>Cu 22 × 1</td></tr>
+</tbody>
+</table>
+
+<p>DN, das ist die <b>Nennweite</b> — eine Kennzahl für die lichte Weite, keine gemessene Größe. Welches Rohr der gewählte Werkstoff dafür hergibt, entscheidet die Werkstofftabelle (siehe <a href="#k13-8">Abschnitt 13.8</a>).</p>
+
+<p>Die Obergrenze hat einen handfesten Grund: Der handelsübliche Sockelleistenkanal misst 40 × 105 mm und ist „geeignet bis 20 mm Außendurchmesser“. Cu 22 passt gerade noch, Cu 28 passt nicht. Das ist eine harte Schranke der Sanierungsvariante und kein Richtwert.</p>
+
+<div class="beispiel">
+<b>Beispiel zum Nachrechnen</b>
+<p>Einfamilienhaus, 8 bis 9 kW Heizlast, alle Heizkörper am Ring. Am Ringanfang trägt der erste Abschnitt den ganzen Volumenstrom. Die Hydraulik allein würde hier Cu 28 wählen, denn in Cu 22 erreicht das spezifische Druckgefälle an dieser Stelle 250 bis 350 Pa/m — gegenüber dem Richtwert von 150 Pa/m.</p>
+<p>Das Programm bleibt trotzdem bei Cu 22 und schreibt einen Hinweis mit beiden Zahlen, Geschwindigkeit und Druckgefälle.</p>
+<p class="ergebnis">Über die kurze Länge am Ringanfang ist das ausführbar und in der Praxis üblich — aber die Pumpenförderhöhe muss geprüft werden.</p>
+</div>
+
+<div class="baustelle"><b>Auf der Baustelle heißt das</b><p>Wenn der Hinweis kommt, haben Sie drei Wege: die Pumpe kann es (dann nachrechnen und weitermachen), den Ring teilen (zwei kürzere Ringe ab dem Verteiler), oder die Spreizung erhöhen (weniger Volumenstrom bei gleicher Leistung).</p></div>
+
+<h4 id="k9-11-4">9.11.4 Der Heizkörper im Flur: der Stich an den Innenwänden</h4>
+
+<p>Der Flur hat keine Außenwand, der Ring läuft also nicht durch ihn. Die allgemeine Trassierung half hier nicht weiter: Sie kennt nur Türen als Weg von Raum zu Raum und bewertet jede mit einem Ersatzweg von 500 m — sie läuft deshalb lieber einmal um den halben Grundriss, als eine Wand zu durchbohren. Der Heizungsbauer macht es umgekehrt: Er bohrt einmal durch die Trennwand und führt den Stich an einer Innenwand entlang zum Ring.</p>
+
+<p>Gesucht wird deshalb auf einem Raster von 0,05 m der <b>billigste verlegbare Weg</b> vom Heizkörper bis zum ersten erreichten Ringpunkt. „Die kürzeste Stelle“ ergibt sich damit aus der Suche und nicht aus der Luftlinie. Die Kosten je Schritt bilden die Verlegung im Sockelleistenkanal ab:</p>
+
+<table class="tab">
+<caption>Was ein Schritt beim Stich kostet</caption>
+<thead><tr><th>Lage oder Ereignis</th><th>Kosten</th><th>Gemeint ist</th></tr></thead>
+<tbody>
+<tr><td>In der Kanalspur, bis 0,075 m vor der Wandfläche</td><td>die Länge selbst</td><td>Das Rohr liegt im Kanal. Kanaltiefe 40 mm, Rohrachse 20 bis 75 mm vor der Wand.</td></tr>
+<tr><td>Knapp daneben, bis 0,20 m vor der Wandfläche</td><td>das 1,5-fache</td><td>Der Stich soll an der Wand kleben, nicht zwei Handbreit davor laufen.</td></tr>
+<tr><td>Frei im Raum</td><td>das 4-fache</td><td>Ein Kanal quer über den Boden ist keine Sanierungsverlegung.</td></tr>
+<tr><td>Quer durch eine Trennwand</td><td>+ 1,0 m Ersatzweg</td><td>Eine Kernbohrung.</td></tr>
+<tr><td>Unter einer Türschwelle hindurch</td><td>+ 2,0 m Ersatzweg</td><td>Bodendurchführung — teurer als die Bohrung, aber möglich.</td></tr>
+<tr><td>Längs <em>in</em> der Wand</td><td>das 10-fache</td><td>Gesperrt. Durchbohrt wird quer, nicht der Länge nach.</td></tr>
+<tr><td>Jeder Richtungswechsel</td><td>+ 0,3 m Ersatzweg</td><td>Ein Bogen kostet Rohr, Zeit und Druckverlust.</td></tr>
+</tbody>
+</table>
+
+<p>Außenwände und alles außerhalb des Gebäudeumrisses sind gesperrt: Der Stich geht nicht außen herum.</p>
+
+<div class="merke"><b>Merke</b><p>Diese Zahlen sind eine <b>Rangfolge, keine Rechnung</b>. Sie sagen: lieber eine Kernbohrung und 3 m an der Wand als 6 m um eine Tür herum; lieber 40 cm Umweg an der Wand als 3 m quer durchs Zimmer. Die verlegte Länge, die hinterher im Auszug steht, ist die wirkliche Länge des gefundenen Weges — nicht die Kostensumme.</p></div>
+
+<h4 id="k9-11-5">9.11.5 Was der Ring nicht entscheidet — und was er deshalb meldet</h4>
+
+<p>Zwei Dinge kann das Programm nicht wissen, und beide nennt es, statt sie zu übergehen:</p>
+
+<ul>
+<li><b>Eine Tür in der Außenwand</b> — Haustür, Terrassentür — kann der Sockelleistenkanal nicht durchlaufen. Ob die Leitung über die Tür, im Boden oder außen herum geht, hängt an Zarge, Bodenaufbau und Optik. Eine Fachregel dazu gibt es nicht. Jede solche Stelle steht im Befund.</li>
+<li><b>Jede Trennwand, durch die der Ring geht, ist eine Kernbohrung.</b> Sie werden gezählt und stehen im Befund — für das Angebot und für die Terminplanung ist die Zahl der Bohrungen eine der wenigen Größen, die man vorher wissen will.</li>
+</ul>
+
+<h3 id="k9-12">9.12 „Versorgt“ heißt: an einer Trasse</h3>
+
+<p>Nach jeder Auslegung steht in der Statuszeile ein Satz wie „Sanierung: Sockelleistenkanal an der Wand · 41,3 m Trasse, 82,6 m Rohr (Vor- und Rücklauf), 8 Verbraucher, 14 Armaturen.“</p>
+
+<p>Die Zahl der Verbraucher zählt seit der Fassung 1.47.0, <b>wer in einem Abschnitt der Trasse vorkommt</b> — nicht, wer eine Leistung hat. Der Unterschied ist nicht akademisch. Steht der Erzeuger in einem Raum ohne Tür — einem Schacht etwa —, findet die Wegsuche zu keinem einzigen Heizkörper einen Weg. Vorher kam dann „8 Verbraucher, 0 m Rohr“ heraus, mit acht Fehlern daneben. Wer nur auf die Zahl sah, hielt die Auslegung für gelungen.</p>
+
+<p>Wer keine Trasse bekommen hat, steht jetzt zusätzlich in einer eigenen Fehlermeldung, mit Namen:</p>
+
+<p class="wo">„3 von 8 Verbrauchern sind ohne Trasse geblieben (Heizkörper Bad, Heizkörper Flur OG, Badheizkörper Gast). Die Auslegung ist unvollständig — meist fehlt die Tür- oder Durchgangsverbindung des Raums zum übrigen Grundriss.“</p>
+
+<div class="baustelle"><b>Auf der Baustelle heißt das</b><p>Diese Meldung ist fast immer ein Zeichenfehler und kein Planungsproblem: Dem Raum fehlt die Tür. Setzen Sie die Türöffnung, und legen Sie neu aus.</p></div>
+
 </section>

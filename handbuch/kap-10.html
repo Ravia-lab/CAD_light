@@ -1011,4 +1011,51 @@
 
 <div class="merke"><b>Merke</b><p>Ein Anlagenblatt ohne Fehlermeldung ist <b>keine Freigabe</b>. Geprüft wird nur, was sich aus dem Modell und den eingetragenen Randbedingungen ablesen lässt. Betriebsweise, Regeleinstellung, Montageort, Fühlersitz, Schall, Kondensat und Wasserqualität sieht das Anlagenblatt nicht.</p></div>
 
+
+<h3 id="k10-14">10.14 Es steht noch kein Wärmeerzeuger im Modell</h3>
+
+<p class="lead">Die Rohrauslegung braucht einen Ausgangspunkt. Steht keiner im Modell, bricht sie ab — zu Recht, denn ein Aufstellort wird nicht geraten. Nur kam diese Meldung bisher <em>nachdem</em> jemand auf „Auslegen“ gedrückt hatte, und sie sagte, <b>was</b> fehlt, nicht <b>wohin</b> es gehört.</p>
+
+<p>Im End-to-End-Lauf über 54 Testgebäude war das in <b>jedem einzelnen Fall</b> der Abbruchgrund beim ersten Auslegen. Für einen Handwerker, der in einer Viertelstunde fertig sein will, war es der teuerste Handgriff im ganzen Ablauf: Er musste erraten, dass er erst ein Symbol aus der TGA-Palette holen muss, und dann, wohin damit.</p>
+
+<p class="wo">Im Programm: Reiter <b>Anlage</b> → bernsteinfarbener Kasten „Es steht noch kein Wärmeerzeuger im Modell“ → <b>Hier setzen</b></p>
+
+<p>Der Kasten steht da, <b>bevor</b> man auf „Auslegen“ drückt. Er nennt den Ort und den Grund — etwa „Technikraum, Kellergeschoss. Technikraum im Kellergeschoss — dort steht der Erzeuger im Regelfall.“ Ein Klick setzt das Symbol dorthin. Verschieben geht danach jederzeit.</p>
+
+<h4 id="k10-14-1">10.14.1 Wie der Ort gefunden wird</h4>
+
+<p>Die Reihenfolge folgt dem, was ein Heizungsbauer täte:</p>
+
+<table class="tab">
+<caption>Die Rangfolge des Vorschlags</caption>
+<thead><tr><th>Rang</th><th>Wo gesucht wird</th><th>Warum</th></tr></thead>
+<tbody>
+<tr><td>1</td><td><b>Technik- oder Hauswirtschaftsraum</b>, von unten nach oben gesucht; bei mehreren der größte.</td><td>Dort steht er in neun von zehn Häusern.</td></tr>
+<tr><td>2</td><td>Der <b>größte Raum im untersten Geschoss</b>.</td><td>Gibt es keinen Technikraum, ist im Keller der Raum richtig, in dem Platz ist. Der Vorschlag nennt dann ausdrücklich „bitte prüfen und bei Bedarf verschieben“ und sagt die Fläche dazu.</td></tr>
+<tr><td>3</td><td>Der <b>größte Raum des Geschosses, auf dem gearbeitet wird</b>.</td><td>Für das Haus mit nur einem Geschoss.</td></tr>
+</tbody>
+</table>
+
+<p>Zwei Arten von Räumen fallen dabei durch, und beide aus demselben Grund:</p>
+
+<ul>
+<li>Räume unter <b>4 m²</b> — darunter ist kein Aufstellraum, sondern eine Nische.</li>
+<li>Räume, deren Name nach <b>Schacht, Kamin, Abzug oder Lüftung</b> klingt.</li>
+</ul>
+
+<div class="warnung"><b>Achtung</b><p>Ein Schacht hat keine Tür, und was keine Tür hat, erreicht keine Trasse. Genau daran ist im Testlauf jede Auslegung gescheitert, die den Erzeuger dort stehen hatte — mit acht Heizkörpern, die alle als „ohne Trasse“ gemeldet wurden. Siehe <a href="#k9-12">Abschnitt 9.12</a>.</p></div>
+
+<h4 id="k10-14-2">10.14.2 Wann der Kasten verschwindet</h4>
+
+<p>Der Vorschlag wird bei jeder Modelländerung neu bestimmt und verschwindet von selbst, sobald ein Ausgangspunkt im Modell steht. Als Ausgangspunkt zählen gleichermaßen:</p>
+
+<ul>
+<li>ein <b>Wärmeerzeuger</b>,</li>
+<li>ein <b>Speicher</b>,</li>
+<li>ein <b>Heizkreisverteiler</b>,</li>
+<li>eine <b>Monoblock-Wärmepumpe im Gelände</b> — sie <em>ist</em> der Erzeuger, und die Hauseinführung nimmt das Programm an (siehe <a href="#k10-4">Abschnitt 10.4</a>).</li>
+</ul>
+
+<div class="merke"><b>Merke</b><p>Das Programm <b>rät den Standort nicht</b> — es schlägt ihn vor, mit Begründung, und Sie entscheiden. Der Unterschied ist wichtig: Ein geratener Kessel im Wohnzimmer wäre schlimmer als gar keiner, weil ihn niemand mehr hinterfragt. Was gesetzt wird, haben Sie gelesen.</p></div>
+
 </section>

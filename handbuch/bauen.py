@@ -79,7 +79,7 @@ def pruefungen() -> str:
 
 
 PRUEFUNGEN = pruefungen()
-STAND = '16.09.2026'
+STAND = '24.09.2026'
 
 # ---------------------------------------------------------------------------
 # 1 · Kapitel einlesen

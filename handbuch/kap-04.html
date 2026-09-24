@@ -269,6 +269,22 @@
 
 <p>Wer von mehreren Anwärtern gewinnt: die Fläche mit der kleinsten Flächendifferenz zum alten Raum. Beim Teilen ist das die größere Hälfte. Name, Nutzung und Solltemperatur bleiben also an dem Stück, das der alte Raum im Wesentlichen noch ist; der abgetrennte Teil ist der neue.</p>
 
+
+<h4 id="k4-4-7">4.4.7 Und was er über Speichern und Öffnen hinweg behält</h4>
+
+<p>Beim Öffnen einer Projektdatei werden die Räume ebenfalls neu erkannt, und ihre Kennungen können sich dabei ändern. Name, Nutzung, Solltemperatur, „beheizt“ und eine bereits gerechnete Heizlast müssen deshalb wieder ihrem Raum zugeordnet werden. Das geschieht nach vier Regeln, in dieser Reihenfolge:</p>
+
+<ol>
+<li><b>Geschoss zuerst.</b> Ein gespeicherter Raum wird nur mit Räumen <em>desselben</em> Geschosses verglichen.</li>
+<li><b>Der Schwerpunkt muss im Raum liegen.</b> Welcher erkannte Raum enthält den Schwerpunkt des gespeicherten?</li>
+<li><b>Ersatzweise ein Punkt, der wirklich im Raum liegt.</b> Bei konkaven Grundrissen liegt der Mittelwert der Ecken außerhalb der Fläche — beim offenen Wohnbereich „Wohnen / Essen + Flur + Küche“ in L-Form fällt er in den fehlenden Schenkel. Das Programm sucht deshalb ausdrücklich einen Punkt, der garantiert innerhalb des Polygons liegt.</li>
+<li><b>Jeder erkannte Raum nur einmal.</b> Zwei gespeicherte Räume, die denselben erkannten beanspruchen, sind ein Umbau. Den Zuschlag bekommt der mit der ähnlicheren Fläche, danach der mit dem näheren Schwerpunkt, danach der mit gleicher Kennung.</li>
+</ol>
+
+<div class="warnung"><b>Warum die erste Regel die wichtigste ist</b><p>Bei übereinanderliegenden Grundrissen — dem Normalfall — liegt der Schwerpunkt des Schlafzimmers im Obergeschoss genau über dem Wohnzimmer im Erdgeschoss. Wurde ohne Geschossgrenze gesucht, hieß das nach Speichern und Öffnen: Namen aus dem Obergeschoss im Erdgeschoss, der Keller plötzlich beheizt, die Heizlast des Obergeschosses im Erdgeschoss. Das ist der Grund, warum das Geschoss <em>vor</em> der Geometrie geprüft wird.</p></div>
+
+<p>Führt eine alte Projektdatei gar keine Geschossangabe, bleibt die Suche über alle Geschosse. Eine Datei soll sich weiter öffnen lassen, auch wenn sie älter ist als diese Regel.</p>
+
 <h3 id="k4-5">4.5 Raumvorlagen und Fertigmaße</h3>
 
 <p>Wände einzeln zu ziehen ist der ehrliche Weg und der langsamste. Die allermeisten Räume sind rechteckig, und die meisten der übrigen sind ein Rechteck mit einer ausgeschnittenen Ecke.</p>
