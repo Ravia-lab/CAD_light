@@ -158,15 +158,23 @@ export default function SchemaView({ className = '' }: { className?: string }) {
      * dem knappen Rand der Ausführung verschwand die Fußbodenheizung hinter
      * der Legende — sichtbar ist sie damit nur, wer scrollt.
      */
-    const luftX = ansicht === 'uebersicht' ? 9 : 4;
-    const luftY = ansicht === 'uebersicht' ? 7 : 3;
+    const luftX = ansicht === 'uebersicht' ? 6 : 4;
+    const luftY = ansicht === 'uebersicht' ? 6 : 3;
     const spanX = (extent.maxX - extent.minX + luftX) * raster;
     const spanY = (extent.maxY - extent.minY + luftY) * raster;
     const zoom = Math.min(w / spanX, h / spanY, 1.4);
+    /*
+     * In der Übersicht rückt das Bild um einen Rasterschritt nach oben.
+     *
+     * Unten liegt der Hinweissatz über der Zeichenfläche, oben ist der Rand
+     * frei. Mittig eingepasst verschwand deshalb der Trinkwasserspeicher
+     * hinter dem Hinweis — ausgerechnet das unterste Bauteil des Bildes.
+     */
+    const mitteY = (extent.minY + extent.maxY) / 2 + (ansicht === 'uebersicht' ? 1 : 0);
     setView({
       zoom,
       x: w / 2 - ((extent.minX + extent.maxX) / 2) * raster * zoom,
-      y: h / 2 - ((extent.minY + extent.maxY) / 2) * raster * zoom,
+      y: h / 2 - mitteY * raster * zoom,
     });
     return true;
   }, [ansicht, extent]);
@@ -531,13 +539,14 @@ export default function SchemaView({ className = '' }: { className?: string }) {
       {/* Legende der Leitungsarten */}
       {showLegend && components.length > 0 && (
         /*
-         * In der Übersicht sitzt sie **unten** rechts. Oben rechts steht dort
-         * der letzte Verbraucherzweig, und die Legende verdeckte genau seine
-         * Beschriftung — ausgerechnet die Fußbodenheizung.
+         * In der Übersicht sitzt sie **unten links**. Oben rechts steht der
+         * letzte Verbraucherzweig, unten rechts der Trinkwasserzweig — an
+         * beiden Stellen verdeckte sie eine Beschriftung. Unten links ist in
+         * diesem Bildaufbau nur Rücklauf, und der trägt keine Schrift.
          */
         <div
           className={`panel absolute max-w-[15rem] px-2.5 py-2 ${
-            ansicht === 'uebersicht' ? 'bottom-[5.5rem] right-14' : 'top-3 right-3'
+            ansicht === 'uebersicht' ? 'bottom-[5.5rem] left-3' : 'top-3 right-3'
           }`}
         >
           <div className="mb-1 flex items-baseline justify-between">

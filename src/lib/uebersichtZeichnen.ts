@@ -18,6 +18,7 @@
  */
 
 import { PIPE_SERVICE_COLORS } from '../types/bim';
+import type { SchematicKind } from '../types/bim';
 import type { Uebersichtsschema, UebersichtBauteil } from './schemaUebersicht';
 import { drawSymbol } from './schematicSymbols';
 import { leitungsverlauf } from './schemaLeitung';
@@ -38,7 +39,70 @@ export interface UebersichtFarben {
   rahmen: string;
 }
 
-export const UEBERSICHT_MASSE: UebersichtMasse = { grid: 26, size: 30 };
+/**
+ * Rasterweite und Grundgröße.
+ *
+ * Entscheidend ist ihr **Verhältnis**, nicht der absolute Wert: Die Ansicht
+ * passt das Bild ohnehin in die Fläche ein. Größere Symbole bei gleichem
+ * Raster heißt, dass die Geräte den Platz zwischen den Spalten füllen — und
+ * genau so sieht ein Schema aus, in dem man die Geräte zuerst sieht. Bei
+ * `size` deutlich kleiner als `grid` entsteht dagegen eine Reihe kleiner
+ * Zeichen mit viel Luft dazwischen, und das Bild wirkt leer.
+ */
+export const UEBERSICHT_MASSE: UebersichtMasse = { grid: 30, size: 30 };
+
+/**
+ * Wie groß ein Bauteil gezeichnet wird — als Vielfaches der Grundgröße.
+ * ---------------------------------------------------------------------------
+ * **Der Anlass.** „Eine Wärmepumpe ist nicht so groß wie ein Dreiwegeventil."
+ * Im ersten Wurf waren alle Symbole gleich groß, und damit sah das Bild aus
+ * wie eine Reihe gleichwertiger Kästchen. Ein Schema wird aber nicht Symbol
+ * für Symbol gelesen, sondern zuerst im Überblick: Das Auge sucht die
+ * **Geräte**, und die sollen sich vom Zubehör abheben.
+ *
+ * So machen es die veröffentlichten Schemata auch: Erzeuger und Speicher sind
+ * die großen Körper, die Armaturen sitzen als kleine Zeichen in der Leitung.
+ *
+ * Die Staffelung in drei Stufen:
+ *
+ *  · **Geräte und Speicher** — was man liefern lässt und was Platz braucht.
+ *  · **Übergabe und Baugruppen** — Heizkörper, Fläche, Verteiler, Station.
+ *  · **In der Leitung** — Pumpen, Ventile, Sicherheitsarmaturen.
+ *
+ * Wer hier fehlt, wird in der Grundgröße gezeichnet.
+ */
+const GROESSE: Partial<Record<SchematicKind, number>> = {
+  // Geräte und Speicher
+  'heatpump-outdoor': 1.7,
+  'heatpump-indoor': 1.7,
+  boiler: 1.6,
+  // Stehende Gefäße: Ein 300-Liter-Speicher ist das größte Teil im
+  // Technikraum und soll im Bild auch so aussehen.
+  buffer: 1.8,
+  cylinder: 1.8,
+  separator: 1.5,
+  solar: 1.5,
+  // Übergabe und Baugruppen
+  'hydraulic-station': 1.35,
+  freshwater: 1.35,
+  radiator: 1.4,
+  'floor-loop': 1.4,
+  manifold: 1.2,
+  'electric-heater': 1.05,
+  // In der Leitung
+  pump: 0.8,
+  'circulation-pump': 0.8,
+  'valve-3way': 0.8,
+  'valve-diverter': 0.8,
+  'mixing-valve-dhw': 0.8,
+  'safety-valve': 0.85,
+  'expansion-vessel': 0.95,
+};
+
+/** Die Größe eines Symbols in Bildschirmpunkten. */
+export function symbolgroesse(kind: SchematicKind, masse: UebersichtMasse = UEBERSICHT_MASSE): number {
+  return masse.size * (GROESSE[kind] ?? 1);
+}
 
 /**
  * Das Bild zeichnen. Der Aufrufer hat vorher verschoben und skaliert.
@@ -67,9 +131,10 @@ export function zeichneUebersicht(
      * Zeichen. Mit gleichem Abstand auf allen Seiten schnitt die obere
      * Rahmenkante genau durch das Wort „Sicherheitsventil".
      */
-    const seite = masse.size * 0.95;
-    const oben = masse.size * 1.75;
-    const unten = masse.size * 1.5;
+    const groesste = Math.max(...teile.map((t) => symbolgroesse(t.kind, masse)));
+    const seite = groesste * 1.05;
+    const oben = groesste * 1.9;
+    const unten = groesste * 1.6;
     const x = Math.min(...xs) - seite;
     const y = Math.min(...ys) - oben;
     const w = Math.max(...xs) + seite - x;
@@ -99,7 +164,12 @@ export function zeichneUebersicht(
     const a = nach.get(l.from);
     const b = nach.get(l.to);
     if (!a || !b) continue;
-    const verlauf = leitungsverlauf(a, b, l, masse);
+    const verlauf = leitungsverlauf(
+      { ...a, groesse: a.kind === 'node' ? masse.size : symbolgroesse(a.kind, masse) },
+      { ...b, groesse: b.kind === 'node' ? masse.size : symbolgroesse(b.kind, masse) },
+      l,
+      masse,
+    );
     if (!verlauf) continue;
 
     ctx.save();
@@ -159,7 +229,7 @@ export function zeichneUebersicht(
       ctx.restore();
       continue;
     }
-    drawSymbol(ctx, b.kind, x, y, masse.size, {
+    drawSymbol(ctx, b.kind, x, y, symbolgroesse(b.kind, masse), {
       color: farben.strich,
       background: farben.papier,
       label: b.anzahl && b.anzahl > 1 ? `${b.anzahl} × ${b.label}` : b.label,

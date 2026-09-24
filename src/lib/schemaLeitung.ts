@@ -26,6 +26,16 @@ export interface LeitungsEnde {
   /** Rasterplatz, nicht Bildschirmpunkt. */
   x: number;
   y: number;
+  /**
+   * Symbolgröße dieses Bauteils [px], falls sie von der allgemeinen abweicht.
+   *
+   * Im Übersichtsschema sind die Symbole **verschieden groß**: Eine
+   * Wärmepumpe ist kein Dreiwegeventil. Die Stutzen liegen am Rand des
+   * Symbols, also verschiebt jede abweichende Größe auch sie — ohne diese
+   * Angabe endete die Leitung mitten im großen Symbol oder in der Luft neben
+   * dem kleinen.
+   */
+  groesse?: number;
 }
 
 export interface Leitungsverlauf {
@@ -77,8 +87,8 @@ export function leitungsverlauf(
   benannt: { fromPort?: string; toPort?: string },
   masse: { grid: number; size: number; vorlauf?: number },
 ): Leitungsverlauf | undefined {
-  const von = symbolPortPoints(a.kind, a.x * masse.grid, a.y * masse.grid, masse.size);
-  const nach = symbolPortPoints(b.kind, b.x * masse.grid, b.y * masse.grid, masse.size);
+  const von = symbolPortPoints(a.kind, a.x * masse.grid, a.y * masse.grid, a.groesse ?? masse.size);
+  const nach = symbolPortPoints(b.kind, b.x * masse.grid, b.y * masse.grid, b.groesse ?? masse.size);
   const paar = pickPortPair(von, nach, benannt);
   if (!paar) return undefined;
 

@@ -28,6 +28,7 @@ import {
 } from '../../src/lib/schemaUebersicht';
 import { portsOf } from '../../src/lib/schematicSymbols';
 import { leitungsverlauf } from '../../src/lib/schemaLeitung';
+import { UEBERSICHT_MASSE } from '../../src/lib/uebersichtZeichnen';
 import { buildReferenceDocument } from '../reference';
 
 /** Der Trennpuffer aus Fall (b) — dieselbe Vorlage wie im Prüfblock „Anlagenschema". */
@@ -203,7 +204,7 @@ export function pruefeUebersichtsschema(check: CheckFn): void {
      */
     const namen = u.gruppen.map((g) => g.name).sort();
     check('Übersicht · zwei Baugruppen', u.gruppen.length, 2);
-    check('Übersicht · Baugruppen benannt', namen.join('|'), 'Heizkreisgruppe|Sicherheitsgruppe');
+    check('Übersicht · Baugruppen benannt', namen.join('|'), 'Mischergruppe|Sicherheitsgruppe');
 
     const sicherheit = u.gruppen.find((g) => g.name === 'Sicherheitsgruppe');
     check('Übersicht · die Sicherheitsgruppe fasst zwei Bauteile', sicherheit?.bauteile.length ?? 0, 2);
@@ -244,7 +245,7 @@ export function pruefeUebersichtsschema(check: CheckFn): void {
       const hatVon = portsOf(a.kind).some((p) => p.id === l.fromPort);
       const hatNach = portsOf(b.kind).some((p) => p.id === l.toPort);
       if (!hatVon || !hatNach) ohneStutzen += 1;
-      if (leitungsverlauf(a, b, l, { grid: 26, size: 30 })) zeichenbar += 1;
+      if (leitungsverlauf(a, b, l, UEBERSICHT_MASSE)) zeichenbar += 1;
     }
     check('Übersicht · jede Leitung sitzt an einem Stutzen, den es gibt', ohneStutzen, 0);
     check('Übersicht · jede Leitung lässt sich zeichnen', zeichenbar, u.leitungen.length);
@@ -278,6 +279,43 @@ export function pruefeUebersichtsschema(check: CheckFn): void {
       }
     }
     check('Übersicht · Heizungs- und Trinkwasser bleiben getrennt', vermischt, 0);
+
+    /*
+     * **Was hineinläuft, muss auch wieder heraus.**
+     *
+     * Gemeldet aus der Benutzung: „hier fehlt der Rücklauf". Die
+     * Speicherladeleitung war einbahnig gezeichnet — der Vorlauf ging in den
+     * Trinkwasserspeicher hinein, und zurück kam nichts. In einem Fließbild
+     * ist das keine Unschönheit, sondern eine falsche Aussage: Es behauptet
+     * einen Strang, der nirgends endet.
+     *
+     * Geprüft wird deshalb für **jedes** Bauteil, das einen Heizungsvorlauf
+     * bekommt und einen Rücklaufstutzen hat: Hängt an diesem Stutzen auch
+     * eine Leitung? Die Prüfung ist allgemein und nicht auf den Speicher
+     * gemünzt — sie greift genauso beim Puffer, beim Verteiler und bei jedem
+     * Verbraucher.
+     */
+    const RUECKSTUTZEN: Partial<Record<SchematicKind, string>> = {
+      cylinder: 'return',
+      freshwater: 'prim-return',
+      buffer: 'sys-return',
+      separator: 'sys-return',
+      radiator: 'return',
+      'floor-loop': 'return',
+      manifold: 'return',
+    };
+    const ohneRuecklauf: string[] = [];
+    for (const b of u.bauteile) {
+      const stutzen = RUECKSTUTZEN[b.kind];
+      if (!stutzen) continue;
+      const bekommtVorlauf = u.leitungen.some((l) => l.to === b.id && l.service === 'heating-flow');
+      if (!bekommtVorlauf) continue;
+      const gibtZurueck = u.leitungen.some(
+        (l) => (l.from === b.id && l.fromPort === stutzen) || (l.to === b.id && l.toPort === stutzen),
+      );
+      if (!gibtZurueck) ohneRuecklauf.push(`${b.kind}/${b.id}`);
+    }
+    check(`Übersicht · jeder Vorlauf hat seinen Rücklauf${ohneRuecklauf.length ? ` (${ohneRuecklauf.join(', ')})` : ''}`, ohneRuecklauf.length, 0);
   }
 
   // =========================================================================

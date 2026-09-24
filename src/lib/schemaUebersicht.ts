@@ -226,7 +226,7 @@ const KURZNAME: Partial<Record<SchematicKind, string>> = {
   manifold: 'Verteiler',
   radiator: 'Heizkörper',
   'floor-loop': 'Fußbodenheizung',
-  pump: 'Pumpe',
+  pump: 'Umwälzpumpe',
 };
 
 /**
@@ -296,18 +296,18 @@ function zoneVon(kind: SchematicKind, imRuecklauf: boolean): UebersichtZone {
  */
 const SP = {
   erzeuger: 0,
-  station: 5,
-  zweiterzeuger: 9,
-  sicherheit: 13,
-  umschalt: 17,
-  puffer: 22,
-  balken: 28,
-  mischer: 33,
-  kreispumpe: 37,
-  verbraucher: 42,
-  speicher: 20,
+  station: 4,
+  zweiterzeuger: 8,
+  sicherheit: 12,
+  umschalt: 16,
+  puffer: 21,
+  balken: 26,
+  mischer: 30,
+  kreispumpe: 34,
+  verbraucher: 39,
+  speicher: 19,
   verbruehschutz: 26,
-  zapf: 31,
+  zapf: 32,
 } as const;
 
 const ZE = {
@@ -318,7 +318,7 @@ const ZE = {
   /** Die Sicherheitsgruppe steht über dem Vorlauf, wie am Gerät. */
   sicherheit: -7,
   /** Der Trinkwasserzweig hängt unter dem Umschaltventil. */
-  trinkwasser: 14,
+  trinkwasser: 12,
   /** Der erste Verbraucherzweig; weitere stapeln sich nach oben. */
   ersterZweig: -5,
   /** Abstand zwischen zwei Verbraucherzweigen. */
@@ -520,6 +520,11 @@ export function uebersichtsschema(
   // =========================================================================
   // 2 · Speicherung und Verteilung
   // =========================================================================
+  /** Der Trinkwasserspeicher im Bild — sein Rücklauf wird erst später gelegt. */
+  let bSpeicher: UebersichtBauteil | undefined;
+  /** Der Stutzen, aus dem der Speicher ins Heizungswasser zurückgibt. */
+  let speicherRueck: string | undefined;
+
   const umschalt = erste('valve-diverter');
   const speicher = erste('cylinder') ?? erste('freshwater');
   const verbrueh = erste('mixing-valve-dhw');
@@ -542,6 +547,18 @@ export function uebersichtsschema(
     if (speicher) {
       const bSp = setze('u-speicher', speicher.kind, SP.speicher, ZE.trinkwasser, [speicher], kurzform(speicher.spec, speicher.kind));
       leite(b, 'dhw', bSp, speicher.kind === 'cylinder' ? 'flow' : 'prim-flow', 'heating-flow');
+      /*
+       * Der **Rücklauf** der Speicherladung wird hier nur vorgemerkt und
+       * weiter unten gelegt, sobald der Anlagenrücklauf steht.
+       *
+       * Bis 1.50.1 fehlte er ganz: Das Bild zeigte eine Ladeleitung, die in
+       * den Speicher hineinlief und nicht wieder heraus. Für ein Fließbild
+       * ist das kein Schönheitsfehler, sondern eine falsche Aussage — es
+       * behauptet einen Strang, der nirgends endet. Gemeldet aus der
+       * Benutzung: „hier fehlt der Rücklauf".
+       */
+      bSpeicher = bSp;
+      speicherRueck = speicher.kind === 'cylinder' ? 'return' : 'prim-return';
       const zapf = knoten('u-k-zapf', SP.zapf, ZE.trinkwasser, 'speicherung', 'Zapfstellen');
       if (verbrueh) {
         const bV = setze('u-verbrueh', 'mixing-valve-dhw', SP.verbruehschutz, ZE.trinkwasser, [verbrueh], kurzform(verbrueh.spec, 'mixing-valve-dhw'));
@@ -681,7 +698,8 @@ export function uebersichtsschema(
         gruppe.map((g) => g.pumpe!).filter(Boolean),
         undefined,
         undefined,
-        'Kreispumpe',
+        // Sie heißt beim Heizungsbauer Umwälzpumpe, nicht Kreispumpe.
+        'Umwälzpumpe',
       );
       leite(ab.b, ab.port, b, 'in', 'heating-flow');
       ab = { b, port: 'out' };
@@ -694,7 +712,11 @@ export function uebersichtsschema(
      * Hydraulikstation zusammenfassen.
      */
     if (rahmen.length === 2) {
-      gruppen.push({ id: `u-g-kreis-${i}`, name: 'Heizkreisgruppe', bauteile: rahmen });
+      /*
+       * **Mischergruppe**, nicht „Heizkreisgruppe": Was Mischer und Pumpe in
+       * einem Gehäuse zusammenfasst, heißt im Handel und auf der Baustelle so.
+       */
+      gruppen.push({ id: `u-g-kreis-${i}`, name: 'Mischergruppe', bauteile: rahmen });
     }
 
     /*
@@ -771,6 +793,24 @@ export function uebersichtsschema(
     leite(ruecklaufSammler.b, ausPort, bPuffer, 'sys-return', 'heating-return');
     ruecklaufSammler = { b: bPuffer, port: 'gen-return' };
   }
+
+  /*
+   * Der Rücklauf der Speicherladung mündet in den Anlagenrücklauf.
+   *
+   * Er gehört **erzeugerseitig** dazu: Das Umschaltventil schickt den Vorlauf
+   * entweder in den Heizkreis oder in den Speicher; beide Wege kommen am
+   * selben Rücklauf zum Erzeuger zurück. Die Einmündung bekommt einen
+   * Knotenpunkt, damit im Bild zu sehen ist, dass sich dort zwei Stränge
+   * treffen und nicht einer den anderen ablöst.
+   */
+  if (ruecklaufSammler && bSpeicher && speicherRueck) {
+    const k = knoten('u-k-tww-rueck', SP.speicher, ZE.rueck, 'speicherung');
+    const ausPort = ruecklaufSammler.b === balkenRueck ? 'west' : ruecklaufSammler.port;
+    leite(ruecklaufSammler.b, ausPort, k, 'east', 'heating-return');
+    leite(bSpeicher, speicherRueck, k, 'south', 'heating-return');
+    ruecklaufSammler = { b: k, port: 'west' };
+  }
+
   if (ruecklaufSammler && anlagenpumpe) {
     const b = setze(
       'u-anlagenpumpe',
@@ -780,7 +820,14 @@ export function uebersichtsschema(
       [anlagenpumpe],
       kurzform(anlagenpumpe.spec, 'pump'),
       undefined,
-      'Anlagenpumpe',
+      /*
+       * **Externe Pumpe**, nicht „Anlagenpumpe".
+       *
+       * In einer Wärmepumpenanlage sitzt die Umwälzpumpe des Erzeugerkreises
+       * in aller Regel im Gerät. Steht hier eine im Bild, ist es die extern
+       * gesetzte — und genau so heißt sie auf der Baustelle.
+       */
+      'Externe Pumpe',
     );
     b.zone = 'speicherung';
     leite(ruecklaufSammler.b, ruecklaufSammler.port, b, 'in', 'heating-return');
