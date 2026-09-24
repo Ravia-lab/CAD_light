@@ -54,6 +54,7 @@ import { pruefeRaumnamenMitnehmen } from './pruefungen/raumnamenMitnehmen';
 import { pruefeRaumzuordnung } from './pruefungen/raumzuordnung';
 import { pruefeVerworfeneRaeume } from './pruefungen/verworfeneRaeume';
 import { pruefeErzeugerplatz } from './pruefungen/erzeugerplatz';
+import { pruefeHeizlastInEinemRutsch } from './pruefungen/heizlastInEinemRutsch';
 import { pruefeSteigleitung } from './pruefungen/steigleitung';
 import { pruefeHuellflaeche } from './pruefungen/huellflaeche';
 import { pruefeSprache } from './pruefungen/sprache';
@@ -3841,6 +3842,9 @@ pruefeVerworfeneRaeume(check);
 
 console.log('\n▸ Erzeuger-Assistent — wo steht der Wärmeerzeuger?');
 pruefeErzeugerplatz(check);
+
+console.log('\n▸ Heizlast in einem Rutsch, kleine Räume');
+pruefeHeizlastInEinemRutsch(check);
 
 console.log('\n▸ Rohrbezeichnung — heißt die Leitung so, wie sie bestellt wird?');
 pruefeRohrbezeichnung(check);

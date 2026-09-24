@@ -40,6 +40,10 @@ export default function RoomBook() {
   const setStatus = useBimStore((s) => s.setStatus);
   const updateRoom = useBimStore((s) => s.updateRoom);
   const setzeRaumHeizleistung = useBimStore((s) => s.setzeRaumHeizleistung);
+  const uebernimmUeberschlag = useBimStore((s) => s.uebernimmUeberschlagAlsHeizleistung);
+  const fuehreKleineRaeumeAlsUnbeheizt = useBimStore((s) => s.fuehreKleineRaeumeAlsUnbeheizt);
+  /** Beheizte Räume unter 1 m² — fast immer Schächte oder Aufmaßrauschen. */
+  const kleineRaeume = Object.values(doc.rooms).filter((r) => r.isHeated && r.area < 1).length;
   const uiMode = useBimStore((s) => s.uiMode);
 
   const [sort, setSort] = useState<SortKey>('level');
@@ -244,6 +248,41 @@ export default function RoomBook() {
           Ausfüllen
         </button>
       </div>
+
+      {/*
+        * Die zwei Knöpfe, die den Weg vom Grundriss zur Auslegung kurz machen.
+        *
+        * **Heizlast in einem Rutsch.** Die Leistung je Raum war bisher eine
+        * Eingabe pro Zeile — beim Mehrfamilienhaus 42 Stück, bevor überhaupt
+        * etwas ausgelegt werden kann. Gerechnet wird nicht mit einer
+        * W/m²-Faustzahl, sondern mit dem Überschlag aus den Flächen und
+        * U-Werten dieses Gebäudes. Eingetragene Zahlen bleiben stehen.
+        *
+        * **Kleine Räume.** Schächte und Digitalisierungsrauschen kommen als
+        * winzige Räume ins Modell, bekommen Heizkörper, die nie eine Trasse
+        * erreichen, und fallen auf der Gegenseite ohnehin weg. Der Knopf
+        * erscheint nur, wenn es solche Räume überhaupt gibt.
+        */}
+      {ausfuellen && (
+        <div className="space-y-1.5">
+          <button
+            className="chip w-full bg-accent/12 text-accent hover:bg-accent/20"
+            title="Trägt in jeden beheizten Raum ohne Leistung den Überschlag aus Flächen, U-Werten und Temperaturen ein — auf 50 W gerundet. Vorhandene Zahlen bleiben stehen."
+            onClick={() => uebernimmUeberschlag({ levelId: allLevels ? undefined : doc.activeLevelId })}
+          >
+            Heizlast überschlägig für alle Räume
+          </button>
+          {kleineRaeume > 0 && (
+            <button
+              className="chip w-full bg-amber-500/12 text-amber-200 hover:bg-amber-500/20"
+              title="Räume unter 1 m² sind fast immer Schächte oder Aufmaßrauschen. Als unbeheizt geführt, bekommen sie keinen Heizkörper. Strg+Z nimmt es zurück."
+              onClick={() => fuehreKleineRaeumeAlsUnbeheizt(1)}
+            >
+              {kleineRaeume} Raum/Räume unter 1 m² als unbeheizt führen
+            </button>
+          )}
+        </div>
+      )}
 
       <div className="rounded-lg bg-graphite-900/60 px-1.5 py-1.5">
         <div className="grid grid-cols-[1fr_auto_auto] gap-x-2 border-b border-white/[0.06] pb-1.5">

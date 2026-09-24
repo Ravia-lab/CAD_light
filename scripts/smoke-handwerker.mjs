@@ -277,6 +277,83 @@ console.log('\n▸ Die Tür sagt, wohin sie aufgeht');
   );
 }
 
+// ===========================================================================
+console.log('\n▸ Heizlast in einem Rutsch');
+// ===========================================================================
+/*
+ * **Der Anlass (QA-Bericht, 24.09.2026).** Die Leistung je Raum war eine
+ * Eingabe pro Zeile — beim Mehrfamilienhaus 42 Stück, bevor überhaupt etwas
+ * ausgelegt werden kann. Geprüft wird der ganze Weg: Knopf drücken, Räume
+ * bekommen den Überschlag, ein bereits eingetragener Wert bleibt stehen.
+ */
+{
+  // Der Türtest davor hat auf einen anderen Reiter gewechselt — zurück ins Raumbuch.
+  await p.locator('aside > div:first-child button', { hasText: /^Räume$/ }).first().click();
+  await p.waitForTimeout(500);
+
+  /*
+   * Der Demoplan bringt schon überall Leistungen mit — sonst hätte der Knopf
+   * nichts zu tun. Für die Prüfung werden sie geleert, **bis auf** die 850 W
+   * am Duschbad: An denen zeigt sich, dass ein eingetragener Wert stehen
+   * bleibt. Genau das ist die Regel, auf die es ankommt.
+   */
+  const vorher = await zustand(() => {
+    const s = window.__ravia.getState();
+    const d = s.doc;
+    const raum = Object.values(d.rooms).find((r) => r.name === 'Duschbad');
+    for (const f of Object.values(d.fixtures)) {
+      if (f.roomId === raum?.id) continue;
+      if (typeof f.params.powerW !== 'number') continue;
+      s.updateFixture(f.id, { params: { ...f.params, powerW: undefined } });
+    }
+    const jetzt = window.__ravia.getState().doc;
+    // Der Badheizkörper aus dem Schritt davor — an seiner Kennung, nicht am Raum:
+    // im Duschbad kann inzwischen mehr als ein Objekt stehen.
+    const hk = Object.values(jetzt.fixtures)
+      .filter((f) => f.roomId === raum?.id && f.type === 'towel-radiator').pop();
+    return {
+      raeume: Object.values(jetzt.rooms).filter((r) => r.isHeated).length,
+      hkId: hk?.id ?? '',
+      duschbadW: hk?.params.powerW ?? 0,
+      mitLeistung: Object.values(jetzt.fixtures)
+        .filter((f) => typeof f.params.powerW === 'number' && f.params.powerW > 0).length,
+    };
+  });
+  expect('Zum Prüfen geleert: nur das Duschbad trägt noch eine Zahl', vorher.mitLeistung, 1);
+
+  const knopf = p.locator('aside button', { hasText: 'Heizlast überschlägig für alle Räume' });
+  expect('Der Knopf ist da', await knopf.count(), 1);
+  await knopf.click();
+  await p.waitForTimeout(900);
+
+  const nachher = await zustand((hkId) => {
+    const d = window.__ravia.getState().doc;
+    const hk = d.fixtures[hkId];
+    const mit = Object.values(d.fixtures)
+      .filter((f) => typeof f.params.powerW === 'number' && f.params.powerW > 0);
+    return {
+      duschbadW: hk?.params.powerW ?? 0,
+      mitLeistung: mit.length,
+      alleAuf50: mit.every((f) => f.params.powerW % 50 === 0),
+      status: window.__ravia.getState().statusMessage,
+    };
+  }, vorher.hkId);
+
+  expect('Danach haben mehr Räume eine Leistung', nachher.mitLeistung > vorher.mitLeistung, true);
+  expect('Die eingetragenen 850 W bleiben stehen', nachher.duschbadW, 850);
+  expect('Alle gesetzten Werte sind auf 50 W gerundet', nachher.alleAuf50, true);
+  expect('Die Statuszeile sagt, dass es ein Überschlag ist',
+    /Überschlag aus Flächen und U-Werten, keine Norm-Heizlast/.test(nachher.status ?? ''), true);
+  expect('… und nennt die Summe in kW mit Komma', /zusammen \d+,\d kW/.test(nachher.status ?? ''), true);
+
+  // Ein zweiter Druck darf nichts mehr ändern — es steht ja überall etwas.
+  await knopf.click();
+  await p.waitForTimeout(700);
+  const zweiter = await zustand(() => window.__ravia.getState().statusMessage);
+  expect('Ein zweiter Druck ändert nichts mehr',
+    /Keine Heizleistung eingetragen/.test(zweiter ?? ''), true);
+}
+
 console.log('\nFEHLER auf der Seite:', fehler.length ? fehler.join('\n') : 'keine');
 if (fehler.length) failures += fehler.length;
 console.log(`\n${failures === 0 ? '✓ RAUCHTEST BESTANDEN' : `✗ ${failures} FEHLER`}\n`);

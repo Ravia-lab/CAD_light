@@ -654,6 +654,46 @@ interface BimState {
    * Tabellenzelle.
    */
   setzeRaumHeizleistung: (roomId: string, watt: number | undefined) => { ok: boolean; message: string };
+  /**
+   * Die überschlägige Heizlast für **alle** Räume auf einmal eintragen.
+   *
+   * **Warum das eine eigene Aktion ist.** Die Leistung je Raum ist bisher
+   * eine Eingabe pro Zeile. Beim Mehrfamilienhaus mit 42 Räumen sind das 42
+   * Eingaben, bevor überhaupt etwas ausgelegt werden kann — der größte
+   * einzelne Zeitfresser im Ablauf des Handwerkers.
+   *
+   * Gerechnet wird **nicht** mit einer W/m²-Faustzahl, sondern mit dem
+   * Überschlag aus `lib/heatLoadEstimate.ts`: denselben Flächen, U-Werten
+   * und Temperaturen, die ohnehin im Modell stehen. Das ist dieselbe Zahl,
+   * die im Anlagenblatt für die Gerätewahl benutzt wird — sie kommt aus
+   * diesem Gebäude und nicht aus einer Tabelle.
+   *
+   * **Was sie nicht anfasst:** Räume, in denen schon eine Leistung steht
+   * (`nurLeere`, Vorgabe `true`), unbeheizte Räume, Räume mit
+   * Fußbodenheizung und Räume mit mehr als einer Heizfläche. Eine Zahl, die
+   * jemand eingetragen hat, überschreibt ein Knopf nicht.
+   *
+   * Und sie bleibt ein **Überschlag**: Die Norm-Heizlast rechnet RaVia und
+   * schreibt sie zurück. Der Bericht sagt das, damit es niemand verwechselt.
+   */
+  uebernimmUeberschlagAlsHeizleistung: (optionen?: { levelId?: string; nurLeere?: boolean }) => {
+    gesetzt: number;
+    uebersprungen: number;
+    summeW: number;
+    message: string;
+  };
+  /**
+   * Räume unter einer Mindestgröße als unbeheizt führen.
+   *
+   * Digitalisierungsrauschen und Schächte kommen als winzige Räume ins
+   * Modell — im Lauf über die 54 Testgebäude waren 34 von 460 Räumen unter
+   * 1 m², zehn davon als beheizt geführt. Sie bekommen Heizkörper, die nie
+   * eine Trasse erreichen, und auf der Gegenseite fallen sie ohnehin weg.
+   *
+   * Entschieden wird das nicht still: Die Modellprüfung meldet solche Räume
+   * längst als `room.tiny`; diese Aktion ist der Knopf dazu.
+   */
+  fuehreKleineRaeumeAlsUnbeheizt: (schwelle?: number) => { geaendert: number; message: string };
   moveFixture: (id: string, position: Vec2) => void;
   updateMeta: (patch: Partial<BimDocument['meta']>) => void;
   updateLevel: (id: string, patch: Partial<Level>) => void;
@@ -2910,6 +2950,62 @@ export const useBimStore = create<BimState>()((set, get) => {
         },
         { skipRooms: true },
       ),
+
+    uebernimmUeberschlagAlsHeizleistung: (optionen) => {
+      const nurLeere = optionen?.nurLeere ?? true;
+      const doc = get().doc;
+      const ueberschlag = estimateHeatLoad(doc);
+      const jeRaum = new Map(ueberschlag.rooms.map((r) => [r.roomId, r]));
+
+      let gesetzt = 0;
+      let uebersprungen = 0;
+      let summeW = 0;
+      for (const raum of Object.values(doc.rooms)) {
+        if (optionen?.levelId && raum.levelId !== optionen.levelId) continue;
+        if (!raum.isHeated) { uebersprungen++; continue; }
+        const last = jeRaum.get(raum.id);
+        if (!last || last.total <= 0) { uebersprungen++; continue; }
+
+        // Steht schon eine Leistung im Raum? Dann bleibt sie stehen.
+        if (nurLeere) {
+          const vorhanden = Object.values(get().doc.fixtures)
+            .some((f) => f.roomId === raum.id && istHeizflaeche(f.type)
+              && typeof f.params.powerW === 'number' && f.params.powerW > 0);
+          if (vorhanden) { uebersprungen++; continue; }
+        }
+
+        // Auf 50 W runden: Der Überschlag gibt keine Watt-Genauigkeit her,
+        // und eine krumme Zahl täuscht eine vor.
+        const watt = Math.round(last.total / 50) * 50;
+        const antwort = get().setzeRaumHeizleistung(raum.id, watt);
+        if (antwort.ok) { gesetzt++; summeW += watt; } else uebersprungen++;
+      }
+
+      const message = gesetzt === 0
+        ? 'Keine Heizleistung eingetragen — entweder steht überall schon eine, oder es gibt keinen beheizten Raum mit Überschlag.'
+        // Komma, nicht Punkt — der Satz steht in einer deutschen Oberfläche.
+        : `${gesetzt} ${gesetzt === 1 ? 'Raum' : 'Räume'} mit dem Überschlag belegt, ` +
+          `zusammen ${(summeW / 1000).toFixed(1).replace('.', ',')} kW` +
+          `${uebersprungen ? ` (${uebersprungen} übersprungen)` : ''}. ` +
+          'Das ist ein Überschlag aus Flächen und U-Werten, keine Norm-Heizlast — die rechnet RaVia.';
+      set({ statusMessage: message });
+      return { gesetzt, uebersprungen, summeW, message };
+    },
+
+    fuehreKleineRaeumeAlsUnbeheizt: (schwelle = 1) => {
+      const doc = get().doc;
+      const klein = Object.values(doc.rooms).filter((r) => r.isHeated && r.area < schwelle);
+      if (!klein.length) {
+        return { geaendert: 0, message: `Kein beheizter Raum unter ${schwelle.toFixed(2).replace('.', ',')} m².` };
+      }
+      for (const r of klein) get().updateRoom(r.id, { isHeated: false });
+      const namen = klein.slice(0, 3).map((r) => `„${r.name}"`).join(', ');
+      const message =
+        `${klein.length} Raum/Räume unter ${schwelle.toFixed(2).replace('.', ',')} m² als unbeheizt geführt ` +
+        `(${namen}${klein.length > 3 ? ' …' : ''}). Rückgängig geht mit Strg+Z.`;
+      set({ statusMessage: message });
+      return { geaendert: klein.length, message };
+    },
 
     moveFixture: (id, position) =>
       mutate(
