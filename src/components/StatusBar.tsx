@@ -4,6 +4,7 @@
  */
 
 import { useBimStore } from '../store/useBimStore';
+import EntfernenKnopf from './EntfernenKnopf';
 
 const TOOL_LABELS: Record<string, string> = {
   select: 'Auswählen',
@@ -32,7 +33,10 @@ const TOOL_LABELS: Record<string, string> = {
  * tritt der Hinweis zurück.
  */
 const TOOL_HINTS: Record<string, string> = {
-  select: 'Anklicken zum Bearbeiten · Rahmen ziehen wählt mehrere · Entf löscht',
+  // Kein „Entf löscht" mehr: Auf dem Tablet gibt es diese Taste nicht, und
+  // ein Hinweis, der eine Taste nennt, die das Gerät nicht hat, ist schlimmer
+  // als keiner. Der Knopf steht seit dieser Fassung unten in der Mitte.
+  select: 'Anklicken zum Bearbeiten · Rahmen ziehen wählt mehrere · Entfernen-Knopf unten (oder Entf)',
   wall: 'Klick setzt einen Punkt, der nächste zieht die Wand · Länge eintippen geht auch · Esc beendet',
   door: 'Auf eine Wand klicken — die Tür sitzt an der Klickstelle',
   window: 'Auf eine Wand klicken · Breite und Brüstung stehen danach rechts',
@@ -74,10 +78,24 @@ export default function StatusBar() {
       * zwei Zeilen zieht und die untere unter den Bildschirmrand schiebt.
      */
   return (
-    <footer
-      className="flex h-7 shrink-0 items-center gap-3 overflow-x-auto overscroll-x-contain whitespace-nowrap px-3 font-mono text-[10px] text-slate-500 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
-      style={{ touchAction: 'pan-x' }}
-    >
+    /*
+      Zwei Teile, und der Unterschied ist wichtig.
+      
+      Links läuft die Zeile wie bisher: Sie wischt waagerecht, weil auf einem
+      schmalen Gerät nicht alles nebeneinander passt. Rechts steht der
+      Entfernen-Knopf — und der darf **nicht mitwischen**. Ein Knopf, der der
+      einzige Weg zum Löschen ohne Tastatur ist und dabei aus dem Bild
+      scrollen kann, ist keiner.
+      
+      Die Zeile ist dafür von 28 auf 32 Pixel gewachsen. Das ist die Höhe,
+      die ein Knopf am unteren Bildschirmrand braucht, um mit dem Daumen
+      sicher getroffen zu werden; vier Pixel sind dafür ein guter Tausch.
+     */
+    <footer className="flex h-8 shrink-0 items-stretch gap-1 border-t border-white/[0.04] pr-2 font-mono text-[10px] text-slate-500">
+      <div
+        className="flex min-w-0 flex-1 items-center gap-3 overflow-x-auto overscroll-x-contain whitespace-nowrap px-3 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        style={{ touchAction: 'pan-x' }}
+      >
       <span className="flex items-center gap-1.5">
         <span className="h-1.5 w-1.5 rounded-full bg-accent" />
         <span className="text-slate-300">{TOOL_LABELS[tool] ?? tool}</span>
@@ -160,6 +178,9 @@ export default function StatusBar() {
           </span>
         </>
       )}
+      </div>
+
+      <EntfernenKnopf />
     </footer>
   );
 }

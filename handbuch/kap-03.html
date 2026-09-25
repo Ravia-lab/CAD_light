@@ -469,7 +469,7 @@ Plan.</p>
     <tr><td>Duplizieren</td><td><kbd>Strg</kbd> + <kbd>D</kbd> — die Kopie sitzt um einen halben Meter versetzt</td></tr>
     <tr><td>Spiegeln waagerecht</td><td><kbd>Strg</kbd> + <kbd>Umschalt</kbd> + <kbd>H</kbd></td></tr>
     <tr><td>Spiegeln senkrecht</td><td><kbd>Strg</kbd> + <kbd>Umschalt</kbd> + <kbd>V</kbd></td></tr>
-    <tr><td>Löschen</td><td><kbd>Entf</kbd></td></tr>
+    <tr><td>Löschen</td><td><kbd>Entf</kbd> — oder der Knopf rechts in der Statuszeile, siehe <a href="#k3-9-5">Abschnitt 3.9.5</a></td></tr>
   </tbody>
 </table>
 <p>Kopiert wird eine <b>geschlossene</b> Teilmenge: Wände samt ihrer Knoten und
@@ -477,6 +477,65 @@ Plan.</p>
 kopiert <kbd>Strg</kbd> + <kbd>C</kbd> den Raum mit Wänden, Fenstern, Türen und
 den Objekten darin; eine Trennwand, die zu zwei Räumen gehört, kommt mit, und
 der Nachbar behält seine eigene.</p>
+
+<h4 id="k3-9-5">3.9.5 Entfernen ohne Tastatur</h4>
+
+<p>Sobald im Grundriss etwas gefasst ist, erscheinen <b>rechts in der
+Statuszeile</b> zwei Knöpfe: <b>&bdquo;… entfernen&ldquo;</b> und
+<b>&bdquo;Abwählen&ldquo;</b>. Der erste trägt den Namen dessen, was gefasst
+ist — <span class="zeichen">Wand entfernen</span>, <span
+class="zeichen">Leitung entfernen</span>, bei mehreren gleichen <span
+class="zeichen">3 Wände entfernen</span>, bei gemischter Auswahl <span
+class="zeichen">5 Bauteile entfernen</span>.</p>
+
+<p><b>Warum der Knopf den Namen trägt.</b> Wer mit dem Finger wählt, weiß
+nicht immer, was er getroffen hat: Ein Rohr und die Wand darunter liegen im
+Plan zwei Millimeter auseinander. Der Knopf ist die letzte Stelle, an der das
+Programm sagen kann, was gleich verschwindet.</p>
+
+<div class="baustelle">
+  <b>Auf der Baustelle heißt das</b>
+  <p>Bis 1.51.0 führte im Grundriss genau ein Weg zum Entfernen: die Taste
+  <kbd>Entf</kbd>. Auf dem Tablet gibt es die nicht — dort ließ sich
+  Gezeichnetes anfassen, verschieben und in den Maßen ändern, aber nicht mehr
+  loswerden. Der einzige Löschknopf war <b>Alles löschen</b> in der
+  Werkzeugleiste, und das ist das Gegenteil dessen, was man will. In der
+  3D-Ansicht steht ein Entfernen-Knopf seit 1.25.0 aus genau diesem Grund; im
+  Grundriss ist er seit 1.52.0 nachgezogen.</p>
+</div>
+
+<p><b>Warum in der Statuszeile und nicht über dem Plan.</b> Der erste Entwurf
+setzte den Knopf wie in 3D als schwebende Leiste unten in die Mitte der
+Zeichenfläche. Dort verläuft bei einem Grundriss die untere Außenwand: Wer
+sie anfassen und ziehen wollte, griff auf den Knopf statt auf den Plan. In
+3D fällt das nicht auf, weil ein Zug dort nur die Kamera dreht — im Grundriss
+ist Verschieben die häufigste Handlung nach dem Auswählen. In der
+Statuszeile deckt der Knopf nichts zu, steht immer an derselben Stelle und
+wischt auch auf schmalen Geräten nicht aus dem Bild: Die Zeile links davon
+lässt sich waagerecht schieben, der Knopf bleibt stehen.</p>
+
+<p><b>Ohne Rückfrage.</b> Der Knopf tut, was <kbd>Entf</kbd> tut: sofort.
+<kbd>Strg</kbd> + <kbd>Z</kbd> holt es zurück, und die Statuszeile sagt, was
+weg ist. Ein Dialog, den man beim Aufmaß zwanzigmal am Tag wegtippt, erzieht
+zum Wegtippen und schützt beim einundzwanzigsten Mal auch nicht mehr.</p>
+
+<p><b>Bei Gesperrtem steht kein toter Knopf da.</b> Ist alles Gefasste
+gesperrt, zeigt die Zeile statt des Knopfes den Satz <span
+class="zeichen">Gesperrt — im Reiter &bdquo;Ebenen&ldquo; freigeben</span>.
+Ist nur ein Teil gesperrt, bleibt der Knopf, und davor steht, wie viele
+stehen bleiben — sonst gingen die Zahl im Knopf und die Zahl in der Meldung
+danach auseinander.</p>
+
+<table class="tab">
+  <caption>Wann die beiden Knöpfe <i>nicht</i> erscheinen</caption>
+  <thead><tr><th>Lage</th><th>Warum</th></tr></thead>
+  <tbody>
+    <tr><td>Kein Auswahl-Werkzeug aktiv</td><td>Beim Zeichnen gibt es keine Auswahl, auf die sie sich beziehen könnten.</td></tr>
+    <tr><td>Ein KI-Vorschlag steht zur Entscheidung</td><td>Dafür gibt es die Vorschlagsleiste mit ihren eigenen Wörtern (&bdquo;verwerfen&ldquo;, &bdquo;übernehmen&ldquo;). Ein zweites Verb daneben, das etwas anderes meint, wäre eine Falle.</td></tr>
+    <tr><td>Eine Skizze wartet auf Übernahme</td><td>Aus demselben Grund.</td></tr>
+    <tr><td>Nur das Referenzbild ist gefasst</td><td>Es ist kein Bauteil, sondern die Vorlage. Es verschwindet über den Reiter <b>Ebenen</b>; eine Wand ist in zehn Sekunden neu gezeichnet, ein eingepasstes Bild nicht.</td></tr>
+  </tbody>
+</table>
 
 <h3 id="k3-10">3.10 Fangen, Ortho-Zwang, Winkelraster, Längeneingabe</h3>
 
@@ -673,7 +732,7 @@ Mac wirkt die Befehlstaste wie <kbd>Strg</kbd>.</p>
     <tr><td><kbd>Strg</kbd> + <kbd>Umschalt</kbd> + <kbd>V</kbd></td><td>Auswahl senkrecht spiegeln</td></tr>
     <tr><td><kbd>Pfeiltasten</kbd></td><td>Auswahl um eine Rasterweite verschieben</td></tr>
     <tr><td><kbd>Umschalt</kbd> + <kbd>Pfeiltasten</kbd></td><td>Auswahl um die vierfache Rasterweite verschieben</td></tr>
-    <tr><td><kbd>Entf</kbd> oder <kbd>Rücktaste</kbd></td><td>Auswahl löschen. Ein gewählter KI-Vorschlag wird dabei nur verworfen und bleibt wiederherstellbar</td></tr>
+    <tr><td><kbd>Entf</kbd> oder <kbd>Rücktaste</kbd></td><td>Auswahl löschen. Ein gewählter KI-Vorschlag wird dabei nur verworfen und bleibt wiederherstellbar. Ohne Tastatur geht dasselbe über den Knopf rechts in der Statuszeile (<a href="#k3-9-5">Abschnitt 3.9.5</a>)</td></tr>
     <tr><td><kbd>Strg</kbd> + <kbd>Z</kbd></td><td>Rückgängig</td></tr>
     <tr><td><kbd>Strg</kbd> + <kbd>Umschalt</kbd> + <kbd>Z</kbd></td><td>Wiederherstellen</td></tr>
     <tr><td><kbd>Strg</kbd> + <kbd>Y</kbd></td><td>Wiederherstellen</td></tr>
