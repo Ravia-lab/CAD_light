@@ -49,6 +49,7 @@ import type {
   StorageKind,
 } from '../types/bim';
 import type { PlantDesignResult } from './plantDesign';
+import { zugeordneteVorlage } from './schemaZuordnung';
 
 // ---------------------------------------------------------------------------
 // Ergebnis
@@ -939,6 +940,164 @@ export function pruefeSchema(eingabe: SchemaPruefEingabe): SchemaBefund[] {
         beleg: QUELLE.daikin.text,
         url: QUELLE.daikin.url,
         thema: 'volumenstromwaechter',
+      });
+    }
+  }
+
+  // -------------------------------------------------------------------------
+  // Zwei Regeln, die das **Bild** prüfen und nicht die Stückliste
+  // -------------------------------------------------------------------------
+  //
+  // Beide stehen als *harte* Bedingung im Schemakatalog (BWP-H-03), beide
+  // sind am Entwurf vom 25.09.2026 aufgefallen — an einer von Hand
+  // gezeichneten Übersicht, während das Programm die Regel samt Quelle längst
+  // führte. Was nur im Katalogtext steht, prüft niemand; deshalb hier.
+  {
+    const puffer = alle('buffer');
+    const speicher = alle('cylinder');
+    const umschalter = alle('valve-diverter');
+
+    /*
+     * Regel 1 · Die Trinkwasserladung darf nicht über den Puffer laufen.
+     *
+     * Das Umschaltventil **schaltet um**: Im Warmwasserbetrieb geht die ganze
+     * Leistung in den Trinkwasserspeicher, am Puffer vorbei. Führte der
+     * einzige Weg dorthin durch den Puffer, wäre das eine andere Anlage —
+     * eine, die den Puffer erst aufheizt und den Speicher aus dem Puffer
+     * lädt.
+     *
+     * Geprüft wird durch Weglassen: Nimmt man die Pufferspeicher aus dem
+     * Netz, muss das Umschaltventil den Trinkwasserspeicher immer noch
+     * erreichen. Das ist die Aussage „führt nicht über den Puffer", ohne
+     * jeden Pfad einzeln aufzählen zu müssen.
+     */
+    if (puffer.length && speicher.length && umschalter.length) {
+      const gesperrt = new Set(puffer.map((c) => c.id));
+      const nachbarn = new Map<string, string[]>();
+      for (const l of verbindungen) {
+        // Trinkwasserleitungen zählen hier nicht: der Weg, um den es geht,
+        // ist der **Heizungsvorlauf** zur Ladeschlange.
+        if (l.service !== 'heating-flow' && l.service !== 'heating-return') continue;
+        if (gesperrt.has(l.from) || gesperrt.has(l.to)) continue;
+        const anfuegen = (a: string, b: string): void => {
+          const liste = nachbarn.get(a);
+          if (liste) liste.push(b);
+          else nachbarn.set(a, [b]);
+        };
+        anfuegen(l.from, l.to);
+        anfuegen(l.to, l.from);
+      }
+      const erreichbar = (von: string, ziel: string): boolean => {
+        const gesehen = new Set([von]);
+        const rand = [von];
+        while (rand.length) {
+          const k = rand.pop()!;
+          if (k === ziel) return true;
+          for (const n of nachbarn.get(k) ?? []) {
+            if (!gesehen.has(n)) {
+              gesehen.add(n);
+              rand.push(n);
+            }
+          }
+        }
+        return false;
+      };
+      const ohneWeg = umschalter.filter((u) => !speicher.some((sp) => erreichbar(u.id, sp.id)));
+      if (ohneWeg.length === umschalter.length) {
+        melde({
+          id: 'trinkwasser-ueber-puffer',
+          grad: 'fehler',
+          titel: 'Die Trinkwasserladung läuft über den Pufferspeicher',
+          text:
+            'Vom Umschaltventil führt kein Weg zum Trinkwasserspeicher, der den Pufferspeicher ausspart. ' +
+            'Das Umschaltventil schaltet aber um: Im Warmwasserbetrieb geht die ganze Leistung in den ' +
+            'Trinkwasserspeicher, am Puffer vorbei. Richtig: Die Trinkwasserladung wird **vor** dem Puffer ' +
+            'direkt am Gerät abgezweigt.',
+          beleg: QUELLE.bwp.text + ' — Schema 3, Zeichnung: das Umschaltventil sitzt im Erzeugervorlauf vor dem Pufferanschluss.',
+          url: QUELLE.bwp.url,
+          thema: 'trinkwasser-vor-dem-puffer',
+        });
+      }
+    }
+
+    /*
+     * Regel 2 · Der Parallelpuffer hat vier Anschlüsse.
+     *
+     * Erzeugervorlauf oben, Erzeugerrücklauf unten, Heizungsvorlauf oben,
+     * Heizungsrücklauf unten. Mit zweien wäre er ein Reihenpuffer, und das
+     * ist hydraulisch etwas anderes — der Reihenpuffer sitzt allein im
+     * Rücklauf und braucht nur eine Pumpe.
+     */
+    for (const p of puffer) {
+      const art = p.storageId ? anlage?.storages?.[p.storageId]?.kind : undefined;
+      if (art !== 'buffer-parallel') continue;
+      const anschluesse = leitungenAn(p.id).filter(
+        (l) => l.service === 'heating-flow' || l.service === 'heating-return',
+      ).length;
+      if (anschluesse !== 4) {
+        melde({
+          id: 'parallelpuffer-anschlusszahl',
+          grad: 'fehler',
+          titel: `Parallelpuffer mit ${anschluesse} statt vier Anschlüssen`,
+          text:
+            `„${p.label}" ist als Parallelpuffer geführt, im Schema hängen aber ${anschluesse} Heizungsleitungen ` +
+            'daran. Ein Parallelpuffer wird mit vier Anschlüssen eingebunden: Wärmepumpenvorlauf oben, ' +
+            'Wärmepumpenrücklauf unten, Heizungsvorlauf oben, Heizungsrücklauf unten. Mit weniger ist es ' +
+            'ein Reihenpuffer — der sitzt allein im Rücklauf und braucht nur eine Pumpe.',
+          beleg: QUELLE.bwp.text + ' — Schema 3, Zeichnung S. 10.',
+          url: QUELLE.bwp.url,
+          thema: 'puffer-vier-anschluesse',
+        });
+      }
+    }
+  }
+
+  // -------------------------------------------------------------------------
+  // Welche Musterlösung ist das?
+  // -------------------------------------------------------------------------
+  //
+  // Ein erzeugtes Fließbild ohne Kennung ist anonym: Es zeigt eine Anlage,
+  // aber nicht, nach welcher Musterlösung sie gebaut ist. Seit 1.51.0 wird
+  // die Vorlage nicht mehr ausgewählt, sondern aus der Anlage abgeleitet —
+  // und seitdem hatte niemand mehr geprüft, ob es überhaupt eine gibt.
+  //
+  // Nur wenn überhaupt ein Bild da ist: Die Frage „welche Musterlösung ist
+  // das?" setzt ein Fließbild voraus. Auf ein leeres Blatt gehört sie nicht —
+  // dort steht ohnehin schon, dass die Grundbauteile fehlen.
+  if (komponenten.length > 0) {
+    const zuordnung = zugeordneteVorlage(auslegung, anlage);
+    if (!zuordnung) {
+      melde({
+        id: 'keine-musterloesung',
+        grad: 'hinweis',
+        titel: 'Zu dieser Anlage passt keine Vorlage des Katalogs',
+        text:
+          'Der Katalog führt die elf Musterlösungen des BWP-Leitfadens und weitere Vorlagen; keine davon ' +
+          'deckt diese Anlage. Das ist kein Fehler — der Katalog hält Musterlösungen, nicht alle Anlagen. ' +
+          'Es heißt nur: Das Fließbild lässt sich nicht auf eine bekannte Schaltung zurückführen, und wer ' +
+          'es prüft, muss jede Leitung einzeln nachvollziehen.',
+        beleg: QUELLE.bwp.text,
+        url: QUELLE.bwp.url,
+      });
+    } else if (zuordnung.quelle === 'eingetragen' && zuordnung.passung === 'passt-nicht') {
+      /*
+       * Die eingetragene Vorlage gilt — sie wird nicht still durch eine
+       * bessere ersetzt. Steht aber ein **hartes** Merkmal dagegen, ist das
+       * Bild mit der Aussage darunter nicht mehr vereinbar, und dann gehört
+       * es gesagt.
+       */
+      const harte = zuordnung.abweichungen.filter((a) => a.hart);
+      melde({
+        id: 'vorlage-passt-nicht',
+        grad: 'warnung',
+        titel: `Die eingetragene Vorlage ${zuordnung.vorlage.kennung} passt nicht zur Anlage`,
+        text:
+          `Im Projekt steht „${zuordnung.vorlage.name}". Dagegen spricht: ` +
+          harte.map((a) => `${a.merkmal} — die Anlage hat ${a.anlage}, das Schema zeigt ${a.schema}`).join('; ') +
+          '. Die Eintragung bleibt stehen; sie ist Ihre Aussage, nicht unsere. Zu ändern ist entweder die ' +
+          'Anlage oder die Vorlage.',
+        beleg: QUELLE.bwp.text,
+        url: QUELLE.bwp.url,
       });
     }
   }

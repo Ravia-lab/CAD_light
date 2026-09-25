@@ -23,6 +23,8 @@ import type { SchemaBeschriftungsart } from '../lib/schemaBeschriftung';
 import { SCHEMATIC_LEGEND, drawSymbol, hitTestSymbol } from '../lib/schematicSymbols';
 import { leitungsverlauf } from '../lib/schemaLeitung';
 import { uebersichtsschema } from '../lib/schemaUebersicht';
+import { zugeordneteVorlage } from '../lib/schemaZuordnung';
+import { designPlant } from '../lib/plantDesign';
 import { UEBERSICHT_MASSE, zeichneUebersicht } from '../lib/uebersichtZeichnen';
 import {
   buildComponentTable,
@@ -82,6 +84,7 @@ const PAPER = '#0E1116';
 
 export default function SchemaView({ className = '' }: { className?: string }) {
   const plant = useBimStore((s) => s.doc.plant);
+  const doc = useBimStore((s) => s.doc);
   const projectName = useBimStore((s) => s.doc.meta.name);
   const moveComponent = useBimStore((s) => s.updateSchematicComponent);
   const addComponent = useBimStore((s) => s.addSchematicComponent);
@@ -130,6 +133,25 @@ export default function SchemaView({ className = '' }: { className?: string }) {
   const components = useMemo(() => Object.values(plant.schematic.components), [plant.schematic.components]);
   const links = useMemo(() => Object.values(plant.schematic.links), [plant.schematic.links]);
   const byId = useMemo(() => new Map(components.map((c) => [c.id, c])), [components]);
+  /*
+   * Welche Musterlösung ist das?
+   *
+   * Seit 1.51.0 wird die Vorlage nicht mehr ausgewählt, sondern aus der
+   * Anlage abgeleitet. Sie gehört unter das Bild: Wer ein fremdes Fließbild
+   * in die Hand bekommt, fragt als Erstes, nach welchem Schema gebaut ist.
+   * Steht dort nichts, passt keine Vorlage — und das sagt die Schemaprüfung.
+   */
+  const zuordnung = useMemo(() => {
+    if (!Object.keys(plant.schematic.components).length) return undefined;
+    try {
+      return zugeordneteVorlage(designPlant(doc), plant);
+    } catch {
+      // Eine Zuordnung ist eine Auskunft, kein Nachweis. Fällt sie aus,
+      // bleibt das Bild stehen — ohne Kennung, aber vollständig.
+      return undefined;
+    }
+  }, [doc, plant]);
+
   const uebersicht = useMemo(() => uebersichtsschema(components, links), [components, links]);
 
   /** Ausdehnung des Schemas im Raster — daraus folgt die Einpassung. */
@@ -519,6 +541,12 @@ export default function SchemaView({ className = '' }: { className?: string }) {
       {/* Der Satz gehört zum Bild, nicht zur Oberfläche */}
       {ansicht === 'uebersicht' && components.length > 0 && (
         <div className="panel pointer-events-none absolute bottom-3 left-3 right-14 px-3 py-2">
+          {zuordnung && (
+            <p className="mb-1 text-[10px] leading-relaxed text-slate-300">
+              <span className="font-semibold text-accent">{zuordnung.vorlage.kennung}</span>{' '}
+              {zuordnung.satz.replace(/^[^—]*— /, '')}
+            </p>
+          )}
           <p className="text-[10px] leading-relaxed text-slate-400">{uebersicht.hinweis}</p>
         </div>
       )}

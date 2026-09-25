@@ -94,6 +94,45 @@
 
 <div class="baustelle"><b>Auf der Baustelle heißt das</b><p>Die Übersicht ist das Blatt, das Sie dem Kunden zeigen und dem Monteur in die Hand geben, damit er versteht, was gebaut wird. <b>Gebaut wird danach nicht.</b> Was wirklich montiert wird, steht im vollständigen Schema und in der Stückliste — und was dieses Gebäude braucht, entscheidet die Ausführungsplanung, nicht das Beispielbild.</p></div>
 
+<h4 id="k11-0-6">11.0.6 Welche Musterlösung ist das?</h4>
+
+<p>Unter dem Übersichtsbild steht eine Kennung wie <span class="zeichen">BWP-H-03</span>
+und dahinter der Name der Musterlösung. Sie beantwortet die Frage, die jeder
+zuerst stellt, der ein fremdes Fließbild in die Hand bekommt: <b>nach welchem
+Schema ist das gebaut?</b></p>
+
+<p><b>Auswählen muss man dafür nichts.</b> Bis 1.50.1 stand im Anlagenblatt
+eine Liste der Katalogvorlagen zum Übernehmen. Sie verlangte, eine Lösung
+wiederzuerkennen, bevor man sagen durfte, was man baut — und ist deshalb in
+1.51.0 entfallen. Seit 1.53.0 wird die Vorlage stattdessen <b>aus der Anlage
+abgeleitet</b>: aus der Art der Puffereinbindung, der Trinkwassererwärmung,
+der Zahl und Art der Heizkreise und der Bauform des Erzeugers.</p>
+
+<div class="baustelle">
+  <b>Auf der Baustelle heißt das</b>
+  <p>Der Katalog führt die elf Standardschemata des BWP-Leitfadens Hydraulik.
+  Steht unter Ihrem Bild eine Kennung, können Sie im Leitfaden nachschlagen,
+  wie diese Schaltung dort gezeichnet und ausgelegt wird. Steht dort nichts,
+  passt keine der Vorlagen — dann meldet die Schemaprüfung
+  <span class="zeichen">Zu dieser Anlage passt keine Vorlage des Katalogs</span>.
+  Das ist kein Fehler: Der Katalog hält Musterlösungen, nicht alle Anlagen.
+  Es heißt nur, dass beim Prüfen jede Leitung einzeln nachzuvollziehen ist.</p>
+</div>
+
+<p><b>Abweichungen werden benannt, nicht versteckt.</b> Weicht die Anlage in
+einem Nebenmerkmal von der Vorlage ab, steht das im selben Satz. Beispiel:
+Das Referenzhaus hat einen gemischten und einen ungemischten Kreis, während
+das Leitfadenschema 3 alle Kreise gemischt zeigt — in der Praxis der
+Normalfall, im Musterbild nicht so gezeichnet. Das Bild sagt es dazu, statt
+die Kennung wegzulassen oder die Abweichung zu verschweigen.</p>
+
+<p><b>Eingetragenes gilt.</b> Steht in der Projektdatei bereits eine Vorlage —
+aus einem älteren Projekt oder weil sie bewusst gesetzt wurde —, wird sie
+nicht durch eine besser passende ersetzt. Das ist dieselbe Regel wie bei den
+sechs Angaben im Anlagenblatt. Spricht ein hartes Merkmal dagegen, meldet die
+Schemaprüfung <span class="zeichen">Die eingetragene Vorlage … passt nicht zur
+Anlage</span> und nennt, welches Merkmal.</p>
+
 <h3 id="k11-1">11.1 Was ein Prinzipschema ist — und was nicht</h3>
 
 <p>Beides in ein Bild zu zwingen ist der Fehler, den viele Werkzeuge machen. Die Leitungsführung im Technikraum ist für die Hydraulik belanglos, und die Reihenfolge der Armaturen lässt sich im Grundriss nicht ablesen. Deshalb gibt es eine eigene Ansicht auf einem eigenen Raster.</p>

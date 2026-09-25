@@ -57,6 +57,7 @@ import type { CircuitDesign, PlantDesignResult } from '../../src/lib/plantDesign
 import type { ModelMatch } from '../../src/lib/deviceCatalog';
 import { buildSchematic, designPlant } from '../../src/lib/plantDesign';
 import { pruefeSchema, type SchemaBefund } from '../../src/lib/schemaPruefung';
+import { zugeordneteVorlage } from '../../src/lib/schemaZuordnung';
 import { emptyPlant } from '../../src/lib/plantDefaults';
 import { sizePipe } from '../../src/lib/hydraulics';
 import { HEAT_PUMP_CATALOG } from '../../src/lib/deviceCatalog';
@@ -934,4 +935,182 @@ export function pruefeSchemapruefung(check: CheckFn): void {
     echt.some((b) => b.id === 'absperrung-erzeuger-fehlt'), false);
   check('Referenzhaus: Temperaturwächter am ungemischten Flächenkreis vorhanden',
     echt.some((b) => b.id === 'flaechenheizung-ohne-temperaturwaechter'), false);
+
+  // =========================================================================
+  // Die zwei Bildregeln aus 1.53.0
+  // =========================================================================
+  /*
+   * Sie sind am Referenzhaus stumm — das Erzeugte war nie falsch. Aufgefallen
+   * sind beide an einer **von Hand** gezeichneten Übersicht. Eine Regel, die
+   * nur schweigt, ist aber nichts wert: geprüft wird hier vor allem, dass sie
+   * anschlägt, wenn das Bild wirklich falsch ist.
+   *
+   * Gebaut werden dafür zwei winzige Fließbilder von Hand. Sie sind kein
+   * Ersatz für das Referenzhaus, sondern das Gegenstück dazu: dort das
+   * richtige Bild, hier das falsche.
+   */
+  {
+    const auslegungKlein = baueAuslegung();
+
+    /** Ein Anlagenblatt mit genau einem Speicher bekannter Art. */
+    const mitSpeicher = (id: string, kind: 'buffer-parallel' | 'buffer-series'): PlantDefinition => {
+      const p = emptyPlant();
+      return {
+        ...p,
+        storages: {
+          [id]: {
+            id,
+            kind,
+            volume: 200,
+            label: kind === 'buffer-parallel' ? 'Parallelpuffer' : 'Reihenpuffer',
+          } as PlantDefinition['storages'][string],
+        },
+      };
+    };
+
+    // --- Regel „Trinkwasserladung nicht über den Puffer" -------------------
+    //
+    // Falsches Bild: Vom Umschaltventil geht es **nur** über den Puffer zum
+    // Trinkwasserspeicher. Genau die Aussage, die das Umschaltventil
+    // widerlegt — es schaltet um, es verteilt nicht.
+    const ueberPuffer: Fliessbild = {
+      komponenten: [
+        bauteil('wp', 'heatpump-outdoor', 'Wärmepumpe'),
+        bauteil('uv', 'valve-diverter', 'Umschaltventil'),
+        bauteil('pu', 'buffer', 'Pufferspeicher'),
+        bauteil('tw', 'cylinder', 'Trinkwasserspeicher'),
+      ],
+      verbindungen: [
+        leitung('l1', 'wp', 'flow', 'uv', 'in', 'heating-flow'),
+        leitung('l2', 'uv', 'b', 'pu', 'flow-top', 'heating-flow'),
+        leitung('l3', 'pu', 'flow-out', 'tw', 'coil-in', 'heating-flow'),
+      ],
+    };
+    const befundeUeberPuffer = pruefe(ueberPuffer, auslegungKlein);
+    check('Bildregel · Warmwasser über den Puffer wird erkannt',
+      hat(befundeUeberPuffer, 'trinkwasser-ueber-puffer'), true);
+    check('Bildregel · und zwar als Fehler',
+      gradVon(befundeUeberPuffer, 'trinkwasser-ueber-puffer'), 'fehler');
+
+    // Richtiges Bild: dieselben Bauteile, aber die Ladeleitung zweigt **vor**
+    // dem Puffer ab. Ein Bauteil mehr wäre eine andere Anlage; hier ist nur
+    // eine Leitung anders gelegt — und das ist der ganze Unterschied.
+    const amPufferVorbei: Fliessbild = {
+      komponenten: ueberPuffer.komponenten,
+      verbindungen: [
+        leitung('l1', 'wp', 'flow', 'uv', 'in', 'heating-flow'),
+        leitung('l2', 'uv', 'a', 'pu', 'flow-top', 'heating-flow'),
+        leitung('l3', 'uv', 'b', 'tw', 'coil-in', 'heating-flow'),
+      ],
+    };
+    check('Bildregel · am Puffer vorbei ist in Ordnung',
+      hat(pruefe(amPufferVorbei, auslegungKlein), 'trinkwasser-ueber-puffer'), false);
+
+    // Ohne Puffer kann die Regel nicht greifen — sonst schlüge sie bei jeder
+    // Anlage ohne Puffer an, und das wäre das Gegenteil von hilfreich.
+    const ohnePuffer: Fliessbild = {
+      komponenten: ueberPuffer.komponenten.filter((c) => c.kind !== 'buffer'),
+      verbindungen: [
+        leitung('l1', 'wp', 'flow', 'uv', 'in', 'heating-flow'),
+        leitung('l3', 'uv', 'b', 'tw', 'coil-in', 'heating-flow'),
+      ],
+    };
+    check('Bildregel · ohne Puffer schweigt sie',
+      hat(pruefe(ohnePuffer, auslegungKlein), 'trinkwasser-ueber-puffer'), false);
+
+    // --- Regel „Parallelpuffer hat vier Anschlüsse" ------------------------
+    //
+    // Abgezählt: Erzeugervorlauf, Erzeugerrücklauf, Heizungsvorlauf,
+    // Heizungsrücklauf — vier. Das Prüfbild hängt zwei daran.
+    const zweiAnschluesse: Fliessbild = {
+      komponenten: [
+        bauteil('wp', 'heatpump-outdoor', 'Wärmepumpe'),
+        { ...bauteil('pu', 'buffer', 'Parallelpuffer'), storageId: 'sp-1' },
+        bauteil('hk', 'radiator', 'Heizkörper'),
+      ],
+      verbindungen: [
+        leitung('l1', 'wp', 'flow', 'pu', 'flow-top', 'heating-flow'),
+        leitung('l2', 'pu', 'return-bottom', 'wp', 'return', 'heating-return'),
+      ],
+    };
+    const befundeZwei = pruefe(zweiAnschluesse, auslegungKlein, mitSpeicher('sp-1', 'buffer-parallel'));
+    check('Bildregel · Parallelpuffer mit zwei Anschlüssen fällt auf',
+      hat(befundeZwei, 'parallelpuffer-anschlusszahl'), true);
+
+    // Vier Anschlüsse: still.
+    const vierAnschluesse: Fliessbild = {
+      komponenten: zweiAnschluesse.komponenten,
+      verbindungen: [
+        ...zweiAnschluesse.verbindungen,
+        leitung('l3', 'pu', 'flow-out', 'hk', 'flow', 'heating-flow'),
+        leitung('l4', 'hk', 'return', 'pu', 'return-top', 'heating-return'),
+      ],
+    };
+    check('Bildregel · Parallelpuffer mit vier Anschlüssen ist in Ordnung',
+      hat(pruefe(vierAnschluesse, auslegungKlein, mitSpeicher('sp-1', 'buffer-parallel')), 'parallelpuffer-anschlusszahl'),
+      false);
+
+    // Reihenpuffer: dieselben zwei Anschlüsse, aber die Regel gilt für ihn
+    // nicht — er sitzt allein im Rücklauf, und das ist hydraulisch etwas
+    // anderes, kein Fehler.
+    check('Bildregel · Reihenpuffer wird nicht an der Vier gemessen',
+      hat(pruefe(zweiAnschluesse, auslegungKlein, mitSpeicher('sp-1', 'buffer-series')), 'parallelpuffer-anschlusszahl'),
+      false);
+
+    // Und ohne Angabe der Speicherart schweigt sie ebenfalls: Was das
+    // Programm nicht weiß, behauptet es nicht.
+    check('Bildregel · ohne bekannte Speicherart schweigt sie',
+      hat(pruefe(zweiAnschluesse, auslegungKlein), 'parallelpuffer-anschlusszahl'), false);
+  }
+
+  // =========================================================================
+  // Welche Musterlösung ist das? — die Zuordnung ohne Auswahlliste
+  // =========================================================================
+  /*
+   * Seit 1.51.0 wird die Vorlage nicht mehr ausgewählt, sondern abgeleitet.
+   * Geprüft wird hier dreierlei: dass überhaupt eine herauskommt, dass eine
+   * **eingetragene** gewinnt, und dass eine eingetragene, die nicht passt,
+   * gemeldet wird, statt still ersetzt zu werden.
+   */
+  {
+    const z = zugeordneteVorlage(auslegung, doc.plant);
+    check('Zuordnung · das Referenzhaus bekommt eine Vorlage', Boolean(z), true);
+    check('Zuordnung · sie ist abgeleitet, nicht eingetragen', z?.quelle ?? 'keine', 'abgeleitet');
+    /*
+     * Welche es sein muss, folgt aus der Anlage: Wärmepumpe, **paralleler**
+     * Pufferspeicher, eigener Trinkwasserspeicher, **zwei** Heizkreise. Genau
+     * das ist im BWP-Leitfaden Schema 3 — „Wärmepumpe, mehrere Heizkreise und
+     * Trinkwassererwärmung mit parallelem Pufferspeicher". Schema 1 und 2
+     * scheiden an der Anbindung aus (kein Puffer / Puffer in Reihe), 4 bis 11
+     * an Bauteilen, die es hier nicht gibt (Solar, Kessel, Kombispeicher,
+     * Kühlung, Schwimmbad, Kaskade).
+     */
+    check('Zuordnung · und sie heißt BWP-H-03', z?.vorlage.kennung ?? 'keine', 'BWP-H-03');
+    check('Zuordnung · der Satz nennt die Kennung', (z?.satz ?? '').includes('BWP-H-03'), true);
+
+    // Eingetragenes schlägt Abgeleitetes — dieselbe Regel wie bei den sechs
+    // Antworten: was dasteht, gilt.
+    const mitEintrag = {
+      ...doc.plant,
+      schematic: { ...doc.plant.schematic, vorlageId: 'bwp-h-01-direkt-flaeche' },
+    };
+    const zEin = zugeordneteVorlage(auslegung, mitEintrag);
+    check('Zuordnung · Eingetragenes gewinnt', zEin?.quelle ?? 'keine', 'eingetragen');
+    check('Zuordnung · und wird nicht still ersetzt', zEin?.vorlage.kennung ?? 'keine', 'BWP-H-01');
+
+    /*
+     * BWP-H-01 ist das Schema **ohne** Puffer. Die Anlage hat einen — ein
+     * hartes Merkmal steht dagegen, also muss die Schemaprüfung es sagen.
+     */
+    const befundeEintrag = pruefeSchema({
+      komponenten: schema.components,
+      verbindungen: schema.links,
+      auslegung,
+      anlage: mitEintrag,
+    });
+    check('Zuordnung · unpassender Eintrag wird gemeldet', hat(befundeEintrag, 'vorlage-passt-nicht'), true);
+    check('Zuordnung · als Warnung, nicht als Fehler', gradVon(befundeEintrag, 'vorlage-passt-nicht'), 'warnung');
+    check('Zuordnung · das passende Referenzhaus schweigt', hat(echt, 'vorlage-passt-nicht'), false);
+    check('Zuordnung · und es fehlt keine Musterlösung', hat(echt, 'keine-musterloesung'), false);
+  }
 }

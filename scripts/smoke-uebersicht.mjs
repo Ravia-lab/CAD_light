@@ -140,6 +140,26 @@ console.log('\n▸ Die Übersicht ändert das Modell nicht');
   expect('Ziehen in der Übersicht lässt das Schema unverändert', nachher === vorher, true);
 }
 
+console.log('\n▸ Unter dem Bild steht, nach welcher Musterlösung gebaut ist');
+{
+  /*
+   * Seit 1.53.0 wird die Vorlage abgeleitet statt ausgewählt. Am
+   * Referenzhaus — Wärmepumpe, paralleler Puffer, eigener
+   * Trinkwasserspeicher, zwei Heizkreise — ist das BWP-H-03.
+   *
+   * Der Prüfblock weist das an der Ableitung nach. Was er nicht sehen kann:
+   * ob die Kennung auch im Bild steht. Ein Fließbild ohne sie ist anonym.
+   */
+  const zeile = await p.locator('text=BWP-H-03').count();
+  expect('Die Kennung BWP-H-03 steht am Bild', zeile > 0, true);
+
+  // Und die Abweichung wird benannt, nicht verschwiegen: Das Referenzhaus
+  // hat einen gemischten und einen ungemischten Kreis, das Leitfadenschema
+  // zeigt nur gemischte.
+  const hinweis = await p.locator('text=Beispielschema').count();
+  expect('Der Hinweissatz steht weiterhin darunter', hinweis > 0, true);
+}
+
 await p.screenshot({ path: './screenshots/uebersichtsschema.png' });
 
 console.log(`\n${failures === 0 ? '✓' : '✗'} ${failures === 0 ? 'Übersichtsschema in Ordnung' : `${failures} Abweichung(en)`}`);

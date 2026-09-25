@@ -407,17 +407,19 @@ export default function GuidePanel({ onOpenTab }: { onOpenTab: (tab: string) => 
       actions: [{ label: 'Bericht öffnen', run: () => setRohrnetzOffen(true) }],
     },
     {
-      title: 'Schema vorschlagen lassen',
-      tone: !state.generator ? 'blocked' : state.vorlageId ? 'done' : 'open',
+      title: 'Musterlösung ablesen',
+      // „offen" wäre falsch: Es gibt nichts mehr zu tun. Entweder die
+      // Zuordnung steht (dann fertig) oder es fehlt der Erzeuger.
+      tone: !state.generator ? 'blocked' : 'done',
       badge: vorlage?.kennung ?? state.vorlageId,
       hint: !state.generator
         ? 'Ein Schema passt zu einer ausgelegten Anlage. Erst mit gewähltem Gerät stehen Anbindung, Trinkwassererwärmung und Zahl der Kreise fest — und nur dagegen lassen sich die Vorlagen halten.'
         : state.vorlageId
-          ? `Übernommen ist „${vorlage?.name ?? state.vorlageId}". Damit ist beantwortet, nach welcher Musterlösung die Anlage gebaut ist — die Frage, die jeder stellt, der ein fremdes Fließbild in die Hand bekommt.`
-          : 'Im Reiter „Anlage" hält das Programm jede Vorlage des Katalogs gegen die ausgelegte Anlage und nennt zu jeder, was übereinstimmt und was nicht. Ohne übernommene Vorlage bleibt das Fließbild anonym: es zeigt eine Anlage, aber nicht, welche.',
+          ? `Eingetragen ist „${vorlage?.name ?? state.vorlageId}". Eine eingetragene Vorlage gilt und wird nicht still durch eine besser passende ersetzt; weicht die Anlage davon ab, sagt es die Schemaprüfung.`
+          : 'Seit 1.53.0 wird die Vorlage nicht mehr ausgewählt, sondern aus der Anlage abgeleitet: Unter dem Anlagenschema steht, nach welcher Musterlösung gebaut ist — und was davon abweicht. Zu tun ist dafür nichts; steht dort nichts, passt keine Vorlage des Katalogs, und die Schemaprüfung sagt es.',
       actions: [
         {
-          label: state.vorlageId ? 'Schema ansehen' : 'Vorschläge ansehen',
+          label: 'Schema ansehen',
           run: () => onOpenTab('anlage'),
         },
       ],
