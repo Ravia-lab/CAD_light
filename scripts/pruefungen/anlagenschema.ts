@@ -40,6 +40,7 @@
 
 import type { CheckFn } from './typ';
 import type {
+  AnlagenAntworten,
   BimDocument,
   Fixture,
   HeatingCircuit,
@@ -55,6 +56,7 @@ import { hasPort, portsOf } from '../../src/lib/schematicSymbols';
 import { MASSIVE_SHARE, isMassiveArea } from '../../src/lib/roomDetection';
 import { levelBaseHeights } from '../../src/lib/levelGeometry';
 import { buildReferenceDocument } from '../reference';
+import { ANTWORTEN_VORGABE } from '../../src/types/bim';
 
 /**
  * Stutzen, an denen **Trinkwasser** anliegt.
@@ -829,5 +831,104 @@ export function pruefeAnlagenschema(check: CheckFn): void {
       artOf(e, 'balancing-valve').filter((x) => x.label === 'Regulierventil').length, 2);
     check('Bei einem einzigen Kreis gibt es nichts abzugleichen',
       artOf(d, 'balancing-valve').filter((x) => x.label === 'Regulierventil').length, 0);
+  }
+}
+
+// ===========================================================================
+// Die Antwort gilt — auch im Bild
+// ===========================================================================
+
+/**
+ * **Der Fehler, gegen den dieser Block steht.**
+ *
+ * Bis 1.55.0 zeichnete `buildSchematic` Speicher und Puffer, die die
+ * *Auslegung* vorgeschlagen hatte, und nicht die, die der Anwender
+ * eingetragen hatte. Trug er „kein Trinkwasserspeicher" und „kein
+ * Pufferspeicher" ein, standen beide trotzdem im Bild — samt Umschaltventil,
+ * Ladeleitung und Verbrühschutz. Der Hinweiskasten daneben schrieb
+ * gleichzeitig „Ohne Puffer bleibt es bei Ihrer Angabe". Text und Bild
+ * widersprachen sich, und das Bild hatte unrecht.
+ *
+ * Gemeldet am 26.09. am laufenden Programm: „erzeugt dennoch einen
+ * Trinkwasserspeicher, das ist Quatsch" — „und Pufferspeicher".
+ *
+ * Der Prüfstand konnte es nicht sehen: Alle Fixtures hier setzten bis dahin
+ * `plant.antworten` gar nicht, und ohne Antwort **darf** die Auslegung
+ * vorschlagen. Genau diese Unterscheidung wird jetzt geprüft.
+ */
+export function pruefeAntwortGiltImBild(check: CheckFn): void {
+  const doc = buildReferenceDocument();
+
+  /** Das Referenzhaus mit ausdrücklichen Antworten. */
+  const mitAntworten = (antworten: AnlagenAntworten): BimDocument => ({
+    ...doc,
+    plant: { ...doc.plant!, storages: {}, antworten },
+  });
+
+  const arten = (schema: ReturnType<typeof buildSchematic>) =>
+    new Set(schema.components.map((c) => c.kind));
+
+  // =========================================================================
+  // 1 · „Keiner" heißt keiner
+  // =========================================================================
+  {
+    const plan = designPlant(mitAntworten({ ...ANTWORTEN_VORGABE, trinkwasserLiter: 0, pufferLiter: 0 }), {});
+    const bild = buildSchematic(plan);
+    const k = arten(bild);
+
+    check('Antwort im Bild · kein Trinkwasserspeicher', k.has('cylinder'), false);
+    check('Antwort im Bild · kein Parallelpuffer', k.has('buffer'), false);
+    check('Antwort im Bild · kein Reihenpuffer', k.has('buffer-series'), false);
+    /*
+     * Und mit dem Speicher fällt der **ganze Zweig**: Ein Umschaltventil
+     * ohne zweiten Abgang schaltet nichts um, ein Verbrühschutz ohne
+     * Warmwasser schützt vor nichts. Beides stehen zu lassen wäre dieselbe
+     * Art falscher Aussage wie der Speicher selbst.
+     */
+    check('Antwort im Bild · kein Umschaltventil', k.has('valve-diverter'), false);
+    check('Antwort im Bild · kein Verbrühschutz', k.has('mixing-valve-dhw'), false);
+
+    // Die Auslegung schweigt deshalb nicht — sie sagt es in Worten.
+    const gesagt = plan.notes.filter((n) => /Eingetragen ist/.test(n.text));
+    check('Antwort im Bild · die Auslegung sagt, was sie gerechnet hätte', gesagt.length, 2);
+    check('Antwort im Bild · und zwar als Warnung', gesagt.every((n) => n.severity === 'warn'), true);
+  }
+
+  // =========================================================================
+  // 2 · Gegenprobe: eingetragene Zahlen entstehen auch
+  // =========================================================================
+  {
+    const plan = designPlant(mitAntworten({ ...ANTWORTEN_VORGABE, trinkwasserLiter: 300, pufferLiter: 200 }), {});
+    const bild = buildSchematic(plan);
+    const k = arten(bild);
+
+    check('Antwort im Bild · 300 l Trinkwasser stehen im Bild', k.has('cylinder'), true);
+    check('Antwort im Bild · und das Umschaltventil dazu', k.has('valve-diverter'), true);
+    check('Antwort im Bild · 200 l Puffer stehen im Bild', k.has('buffer') || k.has('buffer-series'), true);
+
+    /*
+     * **Mit den eingetragenen Zahlen, nicht mit gerechneten.** Das ist die
+     * Festlegung „was eingetragen ist, gilt", am Bild nachgewiesen: Die
+     * Auslegung des Referenzhauses käme auf andere Werte.
+     */
+    const liter = (kind: string) =>
+      bild.components.find((c) => c.kind === kind)?.spec?.match(/(\d+) l/)?.[1];
+    check('Antwort im Bild · der Speicher trägt die eingetragene Zahl', liter('cylinder') ?? 'fehlt', '300');
+  }
+
+  // =========================================================================
+  // 3 · Ohne Antwort darf die Auslegung vorschlagen
+  // =========================================================================
+  {
+    /*
+     * Eine Projektdatei von vor 1.51.0 hat die Fragen nie gesehen. „0 l" ist
+     * dort keine Aussage, sondern ein leeres Blatt — und die Auslegung
+     * schlägt wie eh und je etwas vor. Ohne diese Gegenprobe hieße die Regel
+     * oben „es entsteht nie ein Speicher".
+     */
+    const ohne: BimDocument = { ...doc, plant: { ...doc.plant!, storages: {}, antworten: undefined } };
+    const plan = designPlant(ohne, {});
+    const bild = buildSchematic(plan);
+    check('Antwort im Bild · ohne Antwort schlägt die Auslegung vor', arten(bild).has('cylinder'), true);
   }
 }

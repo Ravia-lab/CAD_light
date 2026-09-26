@@ -54,6 +54,19 @@ await p.waitForTimeout(600);
 const leeren = () => p.evaluate(() => window.__ravia.getState().setSchematic([], [], false, undefined));
 const dialog = () => p.locator('[data-pruef="anlagendialog"]');
 
+/**
+ * Den Bogen öffnen, gleich ob ein Schema da ist oder nicht.
+ *
+ * „Angaben ändern" steht am Bild, „Angaben machen" im leeren Blatt — es gibt
+ * immer genau einen der beiden Wege hinein, und welcher, hängt am Zustand.
+ */
+const bogenOeffnen = async () => {
+  const amBild = p.locator('[data-pruef="angaben-aendern"]');
+  const imLeeren = p.locator('[data-pruef="leer-angaben"]');
+  await ((await amBild.count()) ? amBild : imLeeren).click();
+  await p.waitForTimeout(500);
+};
+
 const zurSchemaAnsicht = async () => {
   await p.getByRole('button', { name: 'Schema', exact: true }).first().click();
   await p.waitForTimeout(900);
@@ -170,6 +183,15 @@ console.log('\n▸ Ohne Schema wird gefragt, nicht verwiesen');
 
 console.log('\n▸ Eine Antwort darin kommt im Projekt an');
 {
+  /*
+   * Zuerst ein Speicher: Das Demohaus trägt keinen ein — im Feld steht
+   * „keiner", und seit 1.55.1 hält sich auch das Bild daran. Der Einbauort
+   * „im Speicher" braucht aber einen Behälter, sonst fällt der Heizstab
+   * bestimmungsgemäß in den Vorlauf zurück. Die Prüfung soll den Einbauort
+   * nachweisen und nicht den Rückfall.
+   */
+  await dialog().locator('[data-pruef="frage-puffer"]').selectOption('200');
+  await p.waitForTimeout(400);
   await dialog().locator('[data-pruef="frage-inneneinheit"]').selectOption('heizstab-speicher');
   await p.waitForTimeout(500);
   const stand = await p.evaluate(() => window.__ravia.getState().doc.plant.antworten?.inneneinheit ?? null);
@@ -243,17 +265,100 @@ console.log('\n▸ Wer nur schauen will, wird nicht festgehalten');
   await p.waitForTimeout(400);
   expect('Schließen schließt', await dialog().count(), 0);
 
-  // Und der leere Fall: einmal von selbst, danach nicht mehr.
+  /*
+   * **Und er kommt nicht ungefragt wieder.** Bis 1.55.0 stand hier die
+   * umgekehrte Erwartung: Über einem geleerten Blatt sollte er wieder
+   * aufgehen. Das war der gemeldete Fehler — „man kann das Schema nicht
+   * schließen". Wer den Bogen schloss, die Ansicht wechselte und zurückkam,
+   * bekam ihn wieder, weil `vonSelbst` nur so lange lebte wie die Ansicht.
+   *
+   * Die Regel lautet jetzt: Sobald **irgendeine** Antwort im Projekt steht,
+   * ist die Frage gestellt worden. Dann führt nur noch ein Knopf hinein.
+   */
   await leeren();
   await p.waitForTimeout(600);
-  expect('Über dem leeren Blatt geht er wieder auf', await dialog().count(), 1);
-  await dialog().getByRole('button', { name: 'Schließen', exact: true }).click();
-  await p.waitForTimeout(500);
-  expect('Nach dem Schließen bleibt er zu', await dialog().count(), 0);
-  expect('Das leere Blatt bietet ihn weiter an', await p.locator('[data-pruef="leer-angaben"]').count(), 1);
+  expect('Über dem geleerten Blatt bleibt er zu', await dialog().count(), 0);
+  expect('Das leere Blatt bietet ihn an', await p.locator('[data-pruef="leer-angaben"]').count(), 1);
   await p.locator('[data-pruef="leer-angaben"]').click();
   await p.waitForTimeout(500);
-  expect('Und der Knopf holt ihn zurück', await dialog().count(), 1);
+  expect('Und der Knopf holt ihn', await dialog().count(), 1);
+  await dialog().getByRole('button', { name: 'Schließen', exact: true }).click();
+  await p.waitForTimeout(500);
+  expect('Schließen schließt auch hier', await dialog().count(), 0);
+}
+
+console.log('\n▸ „Keiner" heißt keiner — auch im Bild');
+{
+  /*
+   * **Der gemeldete Fehler.** Bis 1.55.0 zeichnete das Schema Speicher und
+   * Puffer, die die *Auslegung* vorgeschlagen hatte, und nicht die, die der
+   * Anwender eingetragen hatte. Wer „keiner" antwortete, bekam beides ins
+   * Bild — während der Hinweiskasten daneben schrieb „Ohne Puffer bleibt es
+   * bei Ihrer Angabe". Text und Bild widersprachen sich.
+   *
+   * Der Prüfblock hält das an der Ableitung fest. Hier wird es am laufenden
+   * Programm nachgewiesen, mit einem echten Haus und einem echten Gerät.
+   */
+  await bogenOeffnen();
+  await dialog().locator('[data-pruef="frage-trinkwasser"]').selectOption('0');
+  await p.waitForTimeout(300);
+  await dialog().locator('[data-pruef="frage-puffer"]').selectOption('0');
+  await p.waitForTimeout(400);
+  await dialog().locator('[data-pruef="dialog-erzeugen"]').click();
+  await p.waitForTimeout(1200);
+
+  const bild = await p.evaluate(() => {
+    const c = Object.values(window.__ravia.getState().doc.plant.schematic.components);
+    const zaehl = {};
+    for (const x of c) zaehl[x.kind] = (zaehl[x.kind] ?? 0) + 1;
+    return {
+      speicher: zaehl.cylinder ?? 0,
+      puffer: (zaehl.buffer ?? 0) + (zaehl['buffer-series'] ?? 0),
+      umschalter: zaehl['valve-diverter'] ?? 0,
+      verbruehschutz: zaehl['mixing-valve-dhw'] ?? 0,
+      antwort: window.__ravia.getState().doc.plant.antworten,
+    };
+  });
+  expect('Die Antwort steht auf „keiner"', [bild.antwort?.trinkwasserLiter, bild.antwort?.pufferLiter], [0, 0]);
+  expect('Kein Trinkwasserspeicher im Bild', bild.speicher, 0);
+  expect('Kein Pufferspeicher im Bild', bild.puffer, 0);
+  expect('Kein Umschaltventil ohne zweiten Abgang', bild.umschalter, 0);
+  expect('Kein Verbrühschutz ohne Warmwasser', bild.verbruehschutz, 0);
+
+  // Gegenprobe: eingetragene Zahlen entstehen auch — und mit *ihren* Zahlen.
+  await bogenOeffnen();
+  await dialog().locator('[data-pruef="frage-trinkwasser"]').selectOption('300');
+  await p.waitForTimeout(400);
+  await dialog().locator('[data-pruef="dialog-erzeugen"]').click();
+  await p.waitForTimeout(1200);
+  const zurueck = await p.evaluate(() => {
+    const c = Object.values(window.__ravia.getState().doc.plant.schematic.components);
+    const s = c.find((x) => x.kind === 'cylinder');
+    return { da: Boolean(s), spec: s?.spec ?? '' };
+  });
+  expect('Mit 300 l steht der Speicher wieder da', zurueck.da, true);
+  expect('Und zwar mit den eingetragenen 300 l', /300 l/.test(zurueck.spec), true);
+}
+
+console.log('\n▸ Der Bogen kommt nicht ungefragt wieder');
+{
+  /*
+   * **Gemeldet als „man kann das Schema nicht schließen".** `vonSelbst` war
+   * ein Ref und lebte nur so lange wie die Ansicht: Wer den Dialog schloss,
+   * auf „2D" ging und zurückkam, bekam ihn wieder. Und wieder.
+   *
+   * Seit 1.55.1 hält ihn eine zweite Bedingung fern — sobald **irgendeine**
+   * Antwort im Projekt steht, ist die Frage gestellt worden.
+   */
+  await p.evaluate(() => window.__ravia.getState().setSchematic([], [], false, undefined));
+  await p.waitForTimeout(600);
+  expect('Über dem geleerten Blatt geht er nicht von selbst auf', await dialog().count(), 0);
+
+  await p.getByRole('button', { name: '2D', exact: true }).first().click();
+  await p.waitForTimeout(500);
+  await zurSchemaAnsicht();
+  expect('Auch nach dem Ansichtswechsel nicht', await dialog().count(), 0);
+  expect('Der Knopf im leeren Blatt steht weiterhin da', await p.locator('[data-pruef="leer-angaben"]').count(), 1);
 }
 
 await p.screenshot({ path: './screenshots/anlagendialog.png' });

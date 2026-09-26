@@ -244,7 +244,31 @@ export function anlageAusAntworten(
         material: 'kupfer' as const,
       }),
       id,
-      kind: alt && alt.kind !== 'dhw' && gemischt === alt.mixed ? alt.kind : uebergabe(art),
+      /*
+       * **Die Antwort bestimmt die Übergabeart — auch beim Ändern.**
+       *
+       * Bis 1.55.0 behielt ein vorhandener Kreis seine Art, solange sich
+       * `mixed` nicht änderte. Wer von „zwei Kreise, einer gemischt" auf
+       * „ein Kreis, ungemischt" ging, behielt damit eine Fußbodenheizung,
+       * die er gerade abgewählt hatte. Gemeldet am 26.09.: „er macht
+       * Fußbodenheizung obwohl ungemischt."
+       *
+       * Die Kopplung steht schon zweimal im Programm — in `uebergabe()` und
+       * im Hilfstext am Feld („Gemischt heißt … der Fall Fußbodenheizung
+       * neben Heizkörpern"). Sie galt nur beim Anlegen und nicht beim
+       * Ändern; das ist die Unstimmigkeit, nicht die Kopplung selbst.
+       *
+       * **Wand- und Gebläseheizflächen bleiben stehen.** Über sie sagt die
+       * Frage nichts, und sie wegzudrehen wäre eine Antwort auf eine Frage,
+       * die niemand gestellt hat.
+       *
+       * Was damit **nicht** geht: eine ungemischte Flächenheizung. Sie ist
+       * an einer Wärmepumpe mit passender Vorlauftemperatur ein echter Fall.
+       * Wer ihn braucht, braucht in Frage 5 eine zweite Achse — Mischer
+       * *und* Übergabeart getrennt. Solange es die nicht gibt, gilt die
+       * Kopplung, die im Feld steht.
+       */
+      kind: alt && (alt.kind === 'wall' || alt.kind === 'fancoil') ? alt.kind : uebergabe(art),
       label: alt?.label ?? (gemischt ? `Heizkreis ${i + 1}, gemischt` : `Heizkreis ${i + 1}`),
       mixed: gemischt,
       // Hat der Kreis schon eigene Temperaturen, bleiben sie: Wer 40/30

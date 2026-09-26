@@ -628,6 +628,34 @@ export function designPlant(doc: BimDocument, options: PlantDesignOptions = {}):
    * Warmwasser, kein Zuschlag, kein Speicher, kein Umschaltventil. Übrig
    * bleibt ein reines Heizungsschema.
    */
+  /*
+   * **Die Antworten entscheiden, was gebaut wird — auch hier.**
+   *
+   * Bis 1.55.0 galt das nur für den Heizstab. Speicher und Puffer entstanden
+   * weiter aus einem *Vorschlag* der Auslegung, sobald im Projekt keiner
+   * stand — und „kein Speicher" ist im Projekt nicht von „noch nichts
+   * eingetragen" zu unterscheiden. Wer „keiner" antwortete, bekam deshalb
+   * beides ins Bild, während der Hinweiskasten daneben schrieb „Ohne Puffer
+   * bleibt es bei Ihrer Angabe". Text und Bild widersprachen sich.
+   *
+   * Gemeldet am 26.09.: „erzeugt dennoch einen Trinkwasserspeicher, das ist
+   * Quatsch" — „und Pufferspeicher".
+   */
+  const antworten = antwortenDes(plant);
+  /**
+   * Hat der Anwender die Fragen überhaupt beantwortet?
+   *
+   * **Das ist der Unterschied, an dem alles hängt.** `antworten` gibt es
+   * immer — fehlen sie im Projekt, werden sie aus Speichern und Kreisen
+   * abgeleitet, und eine Anlage ohne Speicher ergibt dann „0 l". Das ist
+   * aber keine Aussage, sondern ein leeres Blatt: eine Projektdatei von vor
+   * 1.51.0 hat die Frage nie gesehen.
+   *
+   * „Keiner" gilt deshalb nur, wenn es **eingetragen** ist. Sonst schlägt
+   * die Auslegung wie bisher etwas vor.
+   */
+  const antwortGegeben = plant.antworten !== undefined;
+
   const warmwasser = plant.dhw.units > 0 && pump?.domesticHotWater !== false;
   const occupants = warmwasser ? plant.dhw.units * plant.dhw.occupantsPerUnit : 0;
   const dhwSurcharge = warmwasser ? domesticHotWaterSurcharge(occupants, plant.dhw.comfort) : 0;
@@ -802,8 +830,27 @@ export function designPlant(doc: BimDocument, options: PlantDesignOptions = {}):
     specificContent: selected?.model.source === 'air' ? 12 : 0,
   });
   const existingBuffer = Object.values(plant.storages).find((s) => s.kind === 'buffer-series' || s.kind === 'buffer-parallel');
+  /**
+   * Hat der Anwender „kein Pufferspeicher" eingetragen?
+   *
+   * Das ist etwas anderes als „im Projekt steht keiner": Letzteres heißt
+   * auch bei einem frischen Projekt nichts. Die Antwort dagegen ist eine
+   * Aussage, und sie gilt. Der geforderte Inhalt steht weiterhin in
+   * `buffer.required`, und der Hinweis daneben nennt ihn — nur gebaut wird
+   * er nicht.
+   */
+  const pufferAbgelehnt = antwortGegeben && antworten.pufferLiter === 0;
   let bufferStorage: PlantStorage | undefined = existingBuffer;
-  if (!existingBuffer && bufferNeed.required > 0) {
+  if (!existingBuffer && pufferAbgelehnt && bufferNeed.required > 0) {
+    notes.push({
+      severity: 'warn',
+      text:
+        `Die Auslegung fordert ${Math.round(bufferNeed.required)} l Puffer (${bufferNeed.reason}). ` +
+        'Eingetragen ist „kein Pufferspeicher" — es bleibt dabei, und im Schema steht keiner. ' +
+        'Der Mindestwasserinhalt ist dann anderweitig nachzuweisen.',
+    });
+  }
+  if (!existingBuffer && !pufferAbgelehnt && bufferNeed.required > 0) {
     /*
      * **Reihenpuffer oder Parallelpuffer?** Diese Entscheidung fiel bis
      * 1.12.0 gar nicht — es wurde immer ein Reihenpuffer gewählt. Das ist
@@ -832,15 +879,17 @@ export function designPlant(doc: BimDocument, options: PlantDesignOptions = {}):
     const mitMischer = designs.some((d) => d.circuit.mixed);
     const trennen = mehrereKreise || mitMischer;
     const art: StorageKind = trennen ? 'buffer-parallel' : 'buffer-series';
-    const model = selectStorage(art, bufferNeed.required);
+    // Auch hier: die eingetragene Zahl schlägt die gerechnete.
+    const gewollt = antwortGegeben && antworten.pufferLiter > 0 ? antworten.pufferLiter : undefined;
+    const model = selectStorage(art, gewollt ?? bufferNeed.required);
     if (model) {
       bufferStorage = {
         id: 'buffer-suggested',
         modelId: model.id,
-        label: model.label,
+        label: gewollt ? `${art === 'buffer-series' ? 'Reihenpuffer' : 'Pufferspeicher'} ${gewollt} l` : model.label,
         kind: art,
-        volume: model.volume,
-        suggested: true,
+        volume: gewollt ?? model.volume,
+        suggested: gewollt === undefined,
       };
       notes.push({
         severity: 'info',
@@ -877,17 +926,49 @@ export function designPlant(doc: BimDocument, options: PlantDesignOptions = {}):
       singleOrTwoFamilyHouse: plant.dhw.units <= 2,
     });
     for (const n of dhw.notes) notes.push(n);
-    if (!dhwStorage) {
+    /*
+     * **„Kein Trinkwasserspeicher" gilt auch hier.** Die Warmwasserrechnung
+     * läuft weiter — sie sagt, was gebraucht würde —, aber ein Speicher, den
+     * niemand eingetragen hat, wird nicht erfunden und deshalb auch nicht
+     * gezeichnet. Ohne ihn entfällt im Bild der ganze Trinkwasserzweig:
+     * Umschaltventil, Ladeleitung, Verbrühschutz, Zapfstelle.
+     */
+    const trinkwasserAbgelehnt = antwortGegeben && antworten.trinkwasserLiter === 0;
+    if (!dhwStorage && trinkwasserAbgelehnt) {
+      notes.push({
+        severity: 'warn',
+        text:
+          `Die Auslegung rechnet ${Math.round(dhw.recommendedVolume)} l Trinkwasserspeicher für ` +
+          `${plant.dhw.units} Wohneinheit${plant.dhw.units === 1 ? '' : 'en'}. Eingetragen ist „keiner" — ` +
+          'es bleibt dabei. Das Schema führt dann keinen Trinkwasserzweig; die Warmwasserbereitung ist ' +
+          'anderweitig nachzuweisen (Frischwasserstation, Durchlauferhitzer, getrenntes Gerät).',
+      });
+    }
+    if (!dhwStorage && !trinkwasserAbgelehnt) {
+      /*
+       * **Die eingetragene Zahl schlägt die gerechnete.**
+       *
+       * Steht im Projekt noch kein Speicher, aber eine Antwort mit Litern,
+       * dann ist diese Zahl die Aussage — nicht `dhw.recommendedVolume`.
+       * Normalerweise legt `anlageAusAntworten` den Speicher ohnehin an;
+       * dieser Zweig greift auf Wegen, die den Speicher nicht
+       * materialisieren (Prüffixture, geladene Fremddatei, Export ohne
+       * Speicherliste). Vor 1.55.1 bekam der Anwender dort seine 300 l
+       * eingetragen und 150 l gezeichnet.
+       */
       const kind: StorageKind = 'dhw-cylinder';
-      const model = selectStorage(kind, dhw.recommendedVolume);
+      const gewollt = antwortGegeben && antworten.trinkwasserLiter > 0 ? antworten.trinkwasserLiter : undefined;
+      const model = selectStorage(kind, gewollt ?? dhw.recommendedVolume);
       if (model) {
         dhwStorage = {
           id: 'dhw-suggested',
           modelId: model.id,
-          label: model.label,
+          label: gewollt ? `Trinkwasserspeicher ${gewollt} l` : model.label,
           kind,
-          volume: model.volume,
-          suggested: true,
+          volume: gewollt ?? model.volume,
+          // `suggested` sagt, woher die Zahl stammt. Kommt sie aus der
+          // Antwort, ist sie kein Vorschlag mehr.
+          suggested: gewollt === undefined,
         };
       }
     }
@@ -1056,7 +1137,13 @@ export function designPlant(doc: BimDocument, options: PlantDesignOptions = {}):
      * Einbauort des Heizstabs aus dem Gerätekatalog raten, und genau das war
      * bis 1.53.0 der Fehler.
      */
-    antworten: antwortenDes(plant, selected?.model.form, selected?.model.refrigerant),
+    /*
+     * Bauart und Kältemittel werden hier noch einmal aus dem gewählten Gerät
+     * nachgezogen. Oben, wo die Antworten für die Speicherfrage gebraucht
+     * werden, steht die Geräteauswahl noch nicht fest — und für „Puffer ja
+     * oder nein" spielt sie keine Rolle.
+     */
+    antworten: { ...antworten, bauform: selected?.model.form ?? antworten.bauform, kaeltemittel: selected?.model.refrigerant ?? antworten.kaeltemittel },
     heatLoadSource,
     heatLoadProvenance,
     heatLoad: Math.round(heatLoad * 100) / 100,

@@ -351,4 +351,50 @@ export function pruefeNormsymbole(check: CheckFn): void {
     const ohneStutzen = arten.filter((k) => portsOf(k).length === 0);
     check(`Normsymbole · kein Zeichen ohne Anschluss${ohneStutzen.length ? ` (${ohneStutzen.slice(0, 3).join(', ')})` : ''}`, ohneStutzen.length, 0);
   }
+
+  // =========================================================================
+  // 6 · Was in einem Gehäuse steckt — und was nicht
+  // =========================================================================
+  {
+    /*
+     * **Die Hydraulikstation führt keine Umwälzpumpe.**
+     *
+     * Zweimal gemeldet: „Inneneinheiten haben keine Pumpe eingebaut, die
+     * externe Pumpe kommt in den Heizkreis." In der Handzeichnung hatte ich
+     * sie entfernt und im Programm stehen lassen — mit der Folge, dass jedes
+     * erzeugte Schema zwei Pumpen zeigte: eine erfundene im Gehäuse und die
+     * ausgelegte daneben.
+     *
+     * Geprüft wird über den Kreis: Ein Pumpensymbol ist ein Kreis mit einem
+     * gefüllten Dreieck darin. Im Zeichen der Hydraulikstation darf **kein**
+     * Kreis mehr stehen — der Verdichter, der einen trüge, sitzt beim
+     * Splitgerät im Außenteil und beim Innengerät in dessen eigenem Zeichen.
+     */
+    const station = aufzeichnen('hydraulic-station');
+    const kreiseDarin = station.filter((p) => p.gerundet && p.punkte.length === 1);
+    check('Normsymbole · die Hydraulikstation führt keinen Kreis', kreiseDarin.length, 0);
+
+    /*
+     * Ihr Umschaltventil bleibt: Es **ist** im Gehäuse eingebaut, und sein
+     * gesperrter Weg ist gefüllt wie beim Einzelsymbol. Abgezählt: das
+     * Dreieckpaar der liegenden Acht plus der Abgang — drei, eines gefüllt.
+     */
+    const d = dreiecke(station);
+    check('Normsymbole · dafür das Umschaltventil mit drei Dreiecken', d.length, 3);
+    check('Normsymbole · davon eines gefüllt', d.filter((t) => t.gefuellt).length, 1);
+
+    /*
+     * Gegenprobe am Außengerät: Dort **gehört** ein Kreis hinein — der
+     * Verdichter mit seinem gefüllten Keil. Ohne diese Gegenprobe hieße die
+     * Regel oben nur „irgendwo darf kein Kreis sein".
+     */
+    const aussen = aufzeichnen('heatpump-outdoor');
+    /*
+     * Von Hand abgezählt: **zwei** Kreise — der Ventilator links (Kreis mit
+     * drei Speichen, `fan`) und der Verdichter rechts. Beides gehört ins
+     * Außengerät, und beides ist an seiner Innenzeichnung unterscheidbar.
+     */
+    check('Normsymbole · das Außengerät führt Ventilator und Verdichter', aussen.filter((p) => p.gerundet && p.punkte.length === 1).length, 2);
+    check('Normsymbole · und dessen Keil ist gefüllt', dreiecke(aussen).filter((t) => t.gefuellt).length, 1);
+  }
 }

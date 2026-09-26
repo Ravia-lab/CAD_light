@@ -423,4 +423,68 @@ export function pruefeAnlagenfragen(check: CheckFn): void {
     anInneneinheit(bleibt);
     check('Anlagenfragen · der Hinweis ändert die Antwort nicht', bleibt.inneneinheit, 'keine');
   }
+
+  // =========================================================================
+  // 12 · Die Übergabeart folgt der Antwort — auch beim Ändern
+  // =========================================================================
+  {
+    /*
+     * **Der Fehler, der das hier nötig macht.** Bis 1.55.0 behielt ein
+     * vorhandener Kreis seine Übergabeart, solange sich `mixed` nicht
+     * änderte. Wer von „zwei Kreise, einer gemischt" auf „ein Kreis,
+     * ungemischt" ging, behielt damit eine Fußbodenheizung, die er gerade
+     * abgewählt hatte. Gemeldet am Bild: „er macht Fußbodenheizung obwohl
+     * ungemischt."
+     *
+     * Die Kopplung steht schon zweimal im Programm — in der Ableitung und
+     * im Hilfstext am Feld. Sie galt nur beim Anlegen.
+     */
+    const kreisMit = (kind: HeatingCircuit['kind'], mixed: boolean) => ({
+      storages: {} as Record<string, PlantStorage>,
+      circuits: {
+        k1: {
+          id: 'k1', label: 'Heizkreis 1', kind, mixed, roomIds: [], material: 'kupfer',
+          flowTemperature: 45, returnTemperature: 35,
+        } as HeatingCircuit,
+      },
+    });
+
+    // Fläche war da, jetzt „ungemischt": Es wird ein Heizkörperkreis.
+    const a = anlageAusAntworten({ ...ANTWORTEN_VORGABE, kreise: ['ungemischt'] }, kreisMit('floor', false));
+    check('Anlagenfragen · ungemischt macht aus Fläche Heizkörper', Object.values(a.circuits)[0].kind, 'radiator');
+    check('Anlagenfragen · und der Kreis bleibt ungemischt', Object.values(a.circuits)[0].mixed, false);
+
+    // Umgekehrt ebenso.
+    const b = anlageAusAntworten({ ...ANTWORTEN_VORGABE, kreise: ['gemischt'] }, kreisMit('radiator', false));
+    check('Anlagenfragen · gemischt macht aus Heizkörper Fläche', Object.values(b.circuits)[0].kind, 'floor');
+    check('Anlagenfragen · und der Kreis wird gemischt', Object.values(b.circuits)[0].mixed, true);
+
+    /*
+     * **Wand- und Gebläseheizflächen bleiben.** Über sie sagt die Frage
+     * nichts; sie wegzudrehen wäre eine Antwort auf eine ungestellte Frage.
+     */
+    const c = anlageAusAntworten({ ...ANTWORTEN_VORGABE, kreise: ['ungemischt'] }, kreisMit('wall', true));
+    check('Anlagenfragen · Wandheizung bleibt Wandheizung', Object.values(c.circuits)[0].kind, 'wall');
+    const d = anlageAusAntworten({ ...ANTWORTEN_VORGABE, kreise: ['gemischt'] }, kreisMit('fancoil', false));
+    check('Anlagenfragen · Gebläsekonvektor bleibt stehen', Object.values(d.circuits)[0].kind, 'fancoil');
+
+    // Und das Übrige des Kreises übersteht die Änderung — Name und Räume
+    // gehören dem Anwender, nicht der Frage.
+    const e = anlageAusAntworten(
+      { ...ANTWORTEN_VORGABE, kreise: ['ungemischt'] },
+      {
+        storages: {},
+        circuits: {
+          k1: {
+            id: 'k1', label: 'Erdgeschoss Süd', kind: 'floor', mixed: false,
+            roomIds: ['r1', 'r2'], material: 'kupfer', flowTemperature: 40, returnTemperature: 32,
+          } as HeatingCircuit,
+        },
+      },
+    );
+    const k = Object.values(e.circuits)[0];
+    check('Anlagenfragen · der Name bleibt', k.label, 'Erdgeschoss Süd');
+    check('Anlagenfragen · die Räume bleiben', k.roomIds.length, 2);
+    check('Anlagenfragen · die Temperaturen bleiben', k.flowTemperature, 40);
+  }
 }

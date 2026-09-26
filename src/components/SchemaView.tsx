@@ -266,10 +266,23 @@ export default function SchemaView({ className = '' }: { className?: string }) {
    * der Bogen auf — einmal, und nur solange kein Schema da ist.
    */
   useEffect(() => {
-    if (components.length > 0 || vonSelbst.current) return;
+    /*
+     * **Einmal je Projekt, nicht einmal je Ansichtswechsel.**
+     *
+     * `vonSelbst` ist ein Ref und lebt nur so lange wie diese Ansicht. Wer
+     * den Dialog schloss, auf „2D" ging und zurückkam, bekam ihn wieder —
+     * und wieder. Von außen sieht das aus, als ließe er sich nicht
+     * schließen.
+     *
+     * Die zweite Bedingung hält ihn dauerhaft fern: Sobald **irgendeine**
+     * Antwort im Projekt steht, ist die Frage gestellt worden. Dann kommt
+     * der Bogen nur noch über „Angaben ändern" oder über den Knopf im
+     * leeren Blatt.
+     */
+    if (components.length > 0 || vonSelbst.current || plant.antworten !== undefined) return;
     vonSelbst.current = true;
     setDialogOffen(true);
-  }, [components.length]);
+  }, [components.length, plant.antworten]);
 
   useEffect(() => {
     if (fittedRef.current || !components.length) return;

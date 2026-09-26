@@ -627,15 +627,24 @@ const SYMBOLS: Record<SchematicKind, SymbolDefinition> = {
       line(ctx, 0.65, -0.2, 0.75, -0.2);
       line(ctx, 0.65, 0.2, 0.75, 0.2);
       ctx.stroke();
-      // Kein Verdichterkreis — das ist der ganze Unterschied zum Innengerät.
-      // Die Wärme kommt fertig über die Quellenleitung an; im Gehäuse wird
-      // sie nur noch umgeschaltet und gefördert. Deshalb stehen hier die
-      // beiden Baugruppen, die das tun, und die Leitungen laufen von links
-      // nach rechts durch.
-      //
-      // Umschaltventil im Vorlauf: Dreieckpaar mit gefülltem drittem Zweig
-      // (der angesteuerte Weg, siehe Kopf der Datei) und Stellmotor mit
-      // Diagonale — zwei Endlagen, Heizung oder Warmwasser.
+      /*
+       * Kein Verdichterkreis — das ist der ganze Unterschied zum Innengerät.
+       * Die Wärme kommt fertig über die Quellenleitung an; im Gehäuse wird
+       * sie nur noch umgeschaltet. Die Leitungen laufen von links nach
+       * rechts durch.
+       *
+       * **Und keine Umwälzpumpe.** Bis 1.55.0 stand eine im Rücklauf dieses
+       * Gehäuses. Gemeldet aus der Praxis, zweimal: „Inneneinheiten haben
+       * keine Pumpe eingebaut, die externe Pumpe kommt in den Heizkreis."
+       * Ich hatte das in der Handzeichnung korrigiert und im Programm
+       * stehen lassen — mit der Folge, dass jedes erzeugte Schema zwei
+       * Pumpen zeigte: eine erfundene im Gehäuse und die ausgelegte
+       * daneben.
+       *
+       * Umschaltventil im Vorlauf: Dreieckpaar mit gefülltem drittem Zweig
+       * — der **gesperrte** Weg, wie bei allen Dreiwegearmaturen seit
+       * 1.55.0 — und Stellmotor mit Diagonale für die zwei Endlagen.
+       */
       ctx.beginPath();
       bowTie(ctx, 0.28, -0.2, 0.16, 0.1);
       line(ctx, -0.65, -0.2, 0.12, -0.2);
@@ -656,21 +665,9 @@ const SYMBOLS: Record<SchematicKind, SymbolDefinition> = {
       box(ctx, 0.28, -0.37, 0.22, 0.11);
       line(ctx, 0.17, -0.315, 0.39, -0.425);
       ctx.stroke();
-      // Umwälzpumpe im Rücklauf: Kreis mit Dreieck, wie das Einzelsymbol.
-      // Die Spitze zeigt nach links, denn der Rücklauf läuft von der
-      // Heizung zurück zur Quelle — herum gedreht stünde die Pumpe gegen
-      // die eigene Anlage.
+      // Der Rücklauf läuft glatt durch — hier sitzt nichts.
       ctx.beginPath();
-      circle(ctx, -0.28, 0.2, 0.17);
-      line(ctx, -0.65, 0.2, -0.45, 0.2);
-      line(ctx, -0.11, 0.2, 0.65, 0.2);
-      ctx.stroke();
-      ctx.beginPath();
-      poly(ctx, [
-        [-0.2, 0.1],
-        [-0.2, 0.3],
-        [-0.4, 0.2],
-      ]);
+      line(ctx, -0.65, 0.2, 0.65, 0.2);
       ctx.stroke();
     },
   },
