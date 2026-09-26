@@ -159,6 +159,27 @@ export default function SchemaView({ className = '' }: { className?: string }) {
   const dragRef = useRef<{ id: string; dx: number; dy: number; moved: boolean } | null>(null);
 
   const components = useMemo(() => Object.values(plant.schematic.components), [plant.schematic.components]);
+  /**
+   * Welche Stutzen je Bauteil wirklich eine Leitung tragen.
+   *
+   * Ein Symbol zeichnete bis 1.55.1 jeden seiner Stutzen als Stummel — auch
+   * den, an dem nichts hängt. Ein gezeichneter Stutzen behauptet aber einen
+   * Anschluss.
+   */
+  const belegteStutzen = useMemo(() => {
+    const karte = new Map<string, string[]>();
+    const merke = (id: string, port: string | undefined) => {
+      if (!port) return;
+      const liste = karte.get(id);
+      if (liste) liste.push(port);
+      else karte.set(id, [port]);
+    };
+    for (const l of Object.values(plant.schematic.links)) {
+      merke(l.from, l.fromPort);
+      merke(l.to, l.toPort);
+    }
+    return karte;
+  }, [plant.schematic.links]);
   const links = useMemo(() => Object.values(plant.schematic.links), [plant.schematic.links]);
   const byId = useMemo(() => new Map(components.map((c) => [c.id, c])), [components]);
   /*
@@ -353,6 +374,7 @@ export default function SchemaView({ className = '' }: { className?: string }) {
         label: c.label,
         spec: c.spec ?? null,
         lineWidth: 1.3,
+        angeschlossen: belegteStutzen.get(c.id),
       });
     }
 

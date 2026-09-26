@@ -149,7 +149,7 @@ import { pruefeProjektmappe } from './pruefungen/projektmappe';
 import { pruefeUiModus } from './pruefungen/uimodus';
 import { pruefeHandbuchstand } from './pruefungen/handbuchstand';
 import { pruefeNormsymbole } from './pruefungen/normsymbole';
-import { pruefeAntwortGiltImBild } from './pruefungen/anlagenschema';
+import { pruefeAntwortGiltImBild, pruefeHydraulikregeln } from './pruefungen/anlagenschema';
 import { pruefeSchichtgrenze } from './pruefungen/schichtgrenze';
 import { pruefeBeschriftungslage } from './pruefungen/beschriftungslage';
 import { pruefeSchemabeschriftung } from './pruefungen/schemabeschriftung';
@@ -3960,6 +3960,9 @@ pruefeUiModus(check);
 console.log('\n▸ Schichtgrenze — steht der Rechenkern für sich allein?');
 console.log('\n▸ Die Antwort gilt — auch im Bild');
 pruefeAntwortGiltImBild(check);
+
+console.log('\n▸ Hydraulikregeln, die man nur am Bild sieht');
+pruefeHydraulikregeln(check);
 
 console.log('\n▸ Normsymbole — steht im Bild, was das Zeichen verspricht?');
 pruefeNormsymbole(check);

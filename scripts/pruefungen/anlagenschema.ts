@@ -52,6 +52,10 @@ import type {
   SchematicLink,
 } from '../../src/types/bim';
 import { buildSchematic, designPlant } from '../../src/lib/plantDesign';
+import { anlageAusAntworten } from '../../src/lib/anlagenFragen';
+import { uebersichtsschema } from '../../src/lib/schemaUebersicht';
+import { leitungsverlauf } from '../../src/lib/schemaLeitung';
+import { UEBERSICHT_MASSE, symbolgroesse } from '../../src/lib/uebersichtZeichnen';
 import { hasPort, portsOf } from '../../src/lib/schematicSymbols';
 import { MASSIVE_SHARE, isMassiveArea } from '../../src/lib/roomDetection';
 import { levelBaseHeights } from '../../src/lib/levelGeometry';
@@ -442,12 +446,27 @@ export function pruefeAnlagenschema(check: CheckFn): void {
     check('Der Schlammabscheider gibt direkt an den Erzeuger ab',
       erzeugerArten.includes(naechstes as SchematicKind), true);
 
-    // Die Füllleitung hängt an der Anlagenleitung, nicht am Abschlämmventil.
+    /*
+     * Die Füllleitung hängt an der Anlagenleitung, nicht am Abschlämmventil
+     * — und der Hahn ist richtig herum angeschlossen.
+     *
+     * Bis 1.55.1 stand hier die Erwartung „gibt über die Schlauchtülle ab".
+     * Sie hat den Fehler festgeschrieben, statt ihn zu finden: Der KFE-Hahn
+     * hat einen *Anlagenanschluss* und eine *Schlauchtülle*, und das
+     * Heizungswasser gehört an den Anlagenanschluss. Über die Tülle kommt
+     * das Füllwasser herein.
+     */
     const fuellung = einer(schema, 'filling-valve');
-    const ausFuellung = schema.links.filter((l) => l.from === fuellung?.id);
-    check('Die Füllarmatur gibt über die Schlauchtülle ab', ausFuellung[0]?.fromPort ?? 'fehlt', 'hose');
+    const anFuellung = schema.links.filter((l) => l.from === fuellung?.id || l.to === fuellung?.id);
+    const stutzen = (dienst: PipeService) =>
+      anFuellung
+        .filter((l) => l.service === dienst)
+        .map((l) => (l.from === fuellung?.id ? l.fromPort : l.toPort))
+        .join(', ');
+    check('Die Füllarmatur gibt das Heizungswasser am Anlagenanschluss ab', stutzen('heating-return'), 'in');
+    check('… und nimmt das Füllwasser an der Schlauchtülle auf', stutzen('cold-water'), 'hose');
     check('… und nicht an das Abschlämmventil des Abscheiders',
-      ausFuellung.every((l) => map.get(l.to)?.kind !== 'dirt-separator'), true);
+      anFuellung.every((l) => map.get(l.to)?.kind !== 'dirt-separator'), true);
   }
 
   // =========================================================================
@@ -930,5 +949,342 @@ export function pruefeAntwortGiltImBild(check: CheckFn): void {
     const plan = designPlant(ohne, {});
     const bild = buildSchematic(plan);
     check('Antwort im Bild · ohne Antwort schlägt die Auslegung vor', arten(bild).has('cylinder'), true);
+  }
+}
+
+// ===========================================================================
+// Hydraulikregeln, die man nur am Bild sieht
+// ===========================================================================
+
+/**
+ * **Drei Regeln, dreimal am laufenden Bild gemeldet.**
+ *
+ * Alle drei ließen sich an keinem Rechenwert festmachen — sie stehen im
+ * Fließbild und sonst nirgends:
+ *
+ *  1. *„Die externe Pumpe ist im Rücklauf, da gehört die nicht hin, die
+ *     gehört in den Vorlauf."* Eine Pumpe wird so eingebaut, dass der höchste
+ *     Gegendruck auf der Druckseite liegt; auf der Saugseite kavitiert sie.
+ *     Und sie muss **vor** dem Warmwasser-Umschaltventil sitzen, sonst
+ *     fördert sie im Warmwasserbetrieb nicht.
+ *  2. *„Fußbodenheizung braucht keine 2. Pumpe, da es die Mischerpumpe
+ *     gibt."* Ohne hydraulische Trennung gibt es einen Volumenstrom und
+ *     darin eine Pumpe. Die Mischergruppe bringt sie mit — sie ist ab Werk
+ *     „gedämmte Anschlussverrohrung, Heizkreis-Umwälzpumpe und 3-Wege-Mischer
+ *     mit Stellmotor".
+ *  3. *„Beim Trinkwasserspeicher ist unten wieder ein Stück Rohr zu erkennen,
+ *     das gehört da nicht hin."* Ein gezeichneter Stutzen behauptet einen
+ *     Anschluss.
+ */
+export function pruefeHydraulikregeln(check: CheckFn): void {
+  const doc = buildReferenceDocument();
+  const raeume = Object.values(doc.rooms);
+
+  /**
+   * Eine Anlage **auf dem Weg, den die Oberfläche geht**: Die sieben Antworten
+   * ergeben Speicher und Kreise, und nur die stehen dann im Dokument. Hätte
+   * ich die Kreise hier von Hand gesetzt, prüfte der Block eine Anlage, die
+   * so nie entsteht.
+   */
+  const anlage = (antworten: AnlagenAntworten): BimDocument => {
+    const aus = anlageAusAntworten(antworten, { storages: {}, circuits: {} }, raeume);
+    return {
+      ...doc,
+      plant: { ...doc.plant!, antworten, storages: aus.storages, circuits: aus.circuits },
+    };
+  };
+  const bildZu = (antworten: AnlagenAntworten) => buildSchematic(designPlant(anlage(antworten), {}));
+
+  // =========================================================================
+  // 1 · Die Erzeugerpumpe sitzt im Vorlauf, vor dem Umschaltventil
+  // =========================================================================
+  {
+    /*
+     * Ein ungemischter Kreis, 200 l Trinkwasser, kein Puffer. Dann ist die
+     * Erzeugerpumpe die einzige der Anlage, und es gibt ein Umschaltventil,
+     * gegen das sich ihre Lage im Strang messen lässt.
+     */
+    const bild = bildZu({ ...ANTWORTEN_VORGABE, kreise: ['ungemischt'], trinkwasserLiter: 200, pufferLiter: 0 });
+    const pumpen = bild.components.filter((c) => c.kind === 'pump');
+    check('Hydraulik · ungemischt ohne Puffer: genau eine Pumpe', pumpen.length, 1);
+
+    const anPumpe = bild.links.filter((l) => l.from === pumpen[0]?.id || l.to === pumpen[0]?.id);
+    check('Hydraulik · sie hat zwei Anschlüsse', anPumpe.length, 2);
+    /*
+     * **Beide Anschlüsse im Vorlauf.** Eine Pumpe wird so eingebaut, dass der
+     * höchste Gegendruck auf ihrer Druckseite liegt; auf der Saugseite baut
+     * sie Unterdruck auf und kavitiert. Im Rücklauf gezeichnet stand auf dem
+     * Blatt zudem eine Pumpe **entgegen** der eingezeichneten
+     * Fließrichtung — das ist nicht schief, das ist falsch.
+     */
+    check('Hydraulik · beide Anschlüsse sind Vorlauf', anPumpe.filter((l) => l.service === 'heating-flow').length, 2);
+    check('Hydraulik · keine Rücklaufleitung an der Pumpe', anPumpe.some((l) => l.service === 'heating-return'), false);
+
+    /*
+     * **Vor dem Umschaltventil**, nachgewiesen durch Weglassen: Nimmt man die
+     * Pumpe aus dem Vorlaufnetz, darf der Erzeuger das Umschaltventil nicht
+     * mehr erreichen. Läge sie dahinter — also im Heizkreisabgang —, bliebe
+     * der Weg offen, und im Warmwasserbetrieb förderte niemand.
+     */
+    const umschalt = bild.components.find((c) => c.kind === 'valve-diverter');
+    const erzeuger = bild.components.find(
+      (c) => c.kind === 'heatpump-outdoor' || c.kind === 'hydraulic-station' || c.kind === 'heatpump-indoor',
+    );
+    check('Hydraulik · es gibt ein Umschaltventil', Boolean(umschalt), true);
+    check('Hydraulik · und einen Erzeuger', Boolean(erzeuger), true);
+
+    /** Erreicht der Erzeuger das Umschaltventil über den Vorlauf, ohne `ohne`? */
+    const erreichbar = (ohne: string): boolean => {
+      const nachbarn = new Map<string, string[]>();
+      for (const l of bild.links) {
+        if (l.service !== 'heating-flow') continue;
+        if (l.from === ohne || l.to === ohne) continue;
+        for (const [a, b] of [[l.from, l.to], [l.to, l.from]] as const) {
+          const liste = nachbarn.get(a);
+          if (liste) liste.push(b);
+          else nachbarn.set(a, [b]);
+        }
+      }
+      const gesehen = new Set([erzeuger!.id]);
+      const rand = [erzeuger!.id];
+      while (rand.length > 0) {
+        const k = rand.pop()!;
+        if (k === umschalt!.id) return true;
+        for (const n of nachbarn.get(k) ?? []) {
+          if (!gesehen.has(n)) {
+            gesehen.add(n);
+            rand.push(n);
+          }
+        }
+      }
+      return false;
+    };
+    check('Hydraulik · der Vorlauf führt zum Umschaltventil', erreichbar('—'), true);
+    check('Hydraulik · ohne die Pumpe nicht: sie liegt davor', erreichbar(pumpen[0]!.id), false);
+  }
+
+  // =========================================================================
+  // 2 · Keine zweite Pumpe im selben Strang
+  // =========================================================================
+  {
+    /*
+     * *„Fußbodenheizung braucht keine 2. Pumpe, da es die Mischerpumpe
+     * gibt."* Ein **gemischter** Kreis ohne Puffer: Es gibt einen einzigen
+     * Volumenstrom, und die Mischergruppe bringt die Pumpe dafür mit — sie
+     * ist ab Werk „die gedämmte Anschlussverrohrung, die
+     * Heizkreis-Umwälzpumpe und der 3-Wege-Mischer mit Stellmotor". Eine
+     * Erzeugerpumpe daneben wäre die zweite in Reihe; zwei Pumpen in Reihe
+     * arbeiten gegeneinander, und der Volumenstrom ist dann keine Größe
+     * mehr, die jemand ausgelegt hat.
+     */
+    const bild = bildZu({ ...ANTWORTEN_VORGABE, kreise: ['gemischt'], trinkwasserLiter: 0, pufferLiter: 0 });
+    const pumpen = bild.components.filter((c) => c.kind === 'pump');
+    check('Hydraulik · gemischt ohne Puffer: eine Pumpe', pumpen.length, 1);
+    check('Hydraulik · und zwar die des Mischers', pumpen[0]?.label ?? 'keine', 'Kreispumpe');
+    // Der Mischer, zu dem sie gehört, steht auch im Bild — sonst wäre die
+    // Begründung „die Mischergruppe hat sie schon" gegenstandslos.
+    check('Hydraulik · der Mischer steht im Bild', bild.components.some((c) => c.kind === 'valve-3way'), true);
+
+    /*
+     * **Gegenprobe mit hydraulischer Trennung.** Hinter einem Parallelpuffer
+     * sind es zwei Stränge: Die Erzeugerseite fördert für sich, der Kreis für
+     * sich. Dann sind zwei Pumpen richtig — und ohne diese Probe hieße die
+     * Regel oben „es gibt nie zwei", was der Anlagentechnik widerspricht.
+     */
+    const getrennt = bildZu({
+      ...ANTWORTEN_VORGABE,
+      kreise: ['gemischt'],
+      trinkwasserLiter: 0,
+      pufferLiter: 200,
+      pufferArt: 'buffer-parallel',
+    });
+    check(
+      'Hydraulik · mit Trennpuffer sind zwei richtig',
+      getrennt.components.filter((c) => c.kind === 'pump').length,
+      2,
+    );
+  }
+
+  // =========================================================================
+  // 3 · Kein Stutzen ohne Leitung
+  // =========================================================================
+  {
+    /*
+     * *„Beim Trinkwasserspeicher ist unten wieder ein Stück Rohr zu
+     * erkennen, das gehört da nicht hin."* Ein gezeichneter Stutzen behauptet
+     * einen Anschluss. Geprüft wird die Zusage, auf der die Zeichnung
+     * aufsetzt: `drawSymbol` fragt für jeden Stutzen nach, ob eine Leitung
+     * daran hängt, und das Bild liefert die Antwort aus seinen Leitungen.
+     * Zählen lässt sich das am Zeichenweg — ohne `angeschlossen` zeichnet der
+     * Speicher alle vier Stutzen, mit der Angabe nur die belegten.
+     */
+    const bild = bildZu({ ...ANTWORTEN_VORGABE, kreise: ['ungemischt'], trinkwasserLiter: 200, pufferLiter: 0 });
+    const speicher = bild.components.find((c) => c.kind === 'cylinder');
+    check('Hydraulik · der Speicher steht im Bild', Boolean(speicher), true);
+
+    const belegt = new Set(
+      bild.links.flatMap((l) => [
+        l.from === speicher?.id ? l.fromPort : undefined,
+        l.to === speicher?.id ? l.toPort : undefined,
+      ]),
+    );
+    /*
+     * Vier Stutzen hat der Speicher: `flow` und `return` für die
+     * Ladeschlange, `cold` und `hot` für das Trinkwasser. Das vollständige
+     * Schema zeichnet alle vier — die Systemtrennung ist hier gerade die
+     * Aussage. Also darf hier **kein** Stutzen frei sein.
+     */
+    check('Hydraulik · alle vier Stutzen des Speichers tragen eine Leitung',
+      portsOf('cylinder').filter((p) => !belegt.has(p.id)).map((p) => p.id).join(', '), '');
+
+    /*
+     * **In der Übersicht ist es anders**, und genau dort war der Fehler zu
+     * sehen: Sie lässt die Trinkwasserverteilung weg, also bleibt unten ein
+     * Stutzen ohne Leitung. Er darf dann nicht gezeichnet werden. Die
+     * Prüfung steht hier und nicht im Symbolblock, weil erst das Bild sagt,
+     * welche Stutzen belegt sind.
+     */
+    const u = uebersichtsschema(bild.components, bild.links);
+    const uSpeicher = u.bauteile.find((b) => b.kind === 'cylinder');
+    check('Hydraulik · Übersicht: der Speicher steht auch dort', Boolean(uSpeicher), true);
+    const uBelegt = new Set(
+      u.leitungen.flatMap((l) => [
+        l.from === uSpeicher?.id ? l.fromPort : undefined,
+        l.to === uSpeicher?.id ? l.toPort : undefined,
+      ]),
+    );
+    check(
+      'Hydraulik · Übersicht: der Kaltwasserstutzen ist dort frei',
+      uBelegt.has('cold'),
+      false,
+    );
+    check(
+      'Hydraulik · Übersicht: die Ladeschlange hängt dort trotzdem',
+      uBelegt.has('flow') && uBelegt.has('return'),
+      true,
+    );
+  }
+
+  // =========================================================================
+  // 4 · Keine Leitung läuft quer durch ein Gerät
+  // =========================================================================
+  {
+    /*
+     * Der Stummel unter dem Speicher hatte zwei Ursachen. Die eine war der
+     * gezeichnete Stutzen ohne Leitung (oben). Die andere ist hier: Die
+     * Leitung verließ den Speicher nach links, bog wieder nach rechts ab und
+     * stieg mitten durch den Behälter nach oben. Weil das Symbol freistellt,
+     * blieb davon links unten ein Stummel stehen.
+     *
+     * Geprüft wird die Regel und nicht dieser eine Fall: **Kein Schenkel
+     * einer Leitung schneidet die Fläche eines der beiden Bauteile, die sie
+     * verbindet.** Gerechnet wird aus dem fertigen Streckenzug, also
+     * unabhängig davon, wie `leitungsverlauf` intern entscheidet.
+     *
+     * Der Rand zählt nicht mit: Stutzen liegen auf dem Rand, und ein
+     * Schenkel, der am Rand entlangläuft, deckt nur seinen eigenen Stummel
+     * zu. Deshalb 0,45 der Symbolgröße statt 0,5 — dieselbe Zahl wie im
+     * Zeichner.
+     */
+    const durchstiche = (
+      punkte: readonly { x: number; y: number }[],
+      kaesten: readonly { x0: number; x1: number; y0: number; y1: number }[],
+    ): number => {
+      if (punkte.length < 5) return 0;
+      /*
+       * Die **Achse** eines Endes ist die Linie, auf der seine Stutzen
+       * liegen — ablesbar am Stummel, der aus dem Stutzen herausführt. Was
+       * auf dieser Linie durch das Symbol läuft, ist kein Durchstich,
+       * sondern die Darstellung einer Armatur *in* der Leitung: Ein
+       * Absperrventil im Rücklaufband wird von seiner eigenen Leitung
+       * durchquert, und das ist richtig so.
+       */
+      const achse = (rand: { x: number; y: number }, spitze: { x: number; y: number }) =>
+        rand.y === spitze.y
+          ? { waagerecht: true, lage: spitze.y }
+          : { waagerecht: false, lage: spitze.x };
+      const achsen = [
+        achse(punkte[0]!, punkte[1]!),
+        achse(punkte[punkte.length - 1]!, punkte[punkte.length - 2]!),
+      ];
+      let n = 0;
+      // Der erste und der letzte Schenkel sind die Stutzenstummel; sie
+      // starten auf dem Rand und laufen nach außen. Geprüft wird alles
+      // dazwischen.
+      for (let i = 1; i + 2 < punkte.length; i += 1) {
+        const v = punkte[i]!;
+        const w = punkte[i + 1]!;
+        const trifft = kaesten.some((k, j) => {
+          const s = achsen[j]!;
+          if (s.waagerecht ? v.y === w.y && v.y === s.lage : v.x === w.x && v.x === s.lage) return false;
+          return (
+            Math.min(v.x, w.x) < k.x1 &&
+            Math.max(v.x, w.x) > k.x0 &&
+            Math.min(v.y, w.y) < k.y1 &&
+            Math.max(v.y, w.y) > k.y0
+          );
+        });
+        if (trifft) n += 1;
+      }
+      return n;
+    };
+    const kasten = (x: number, y: number, groesse: number, grid: number) => ({
+      x0: x * grid - groesse * 0.45,
+      x1: x * grid + groesse * 0.45,
+      y0: y * grid - groesse * 0.45,
+      y1: y * grid + groesse * 0.45,
+    });
+
+    const faelle: AnlagenAntworten[] = [
+      { ...ANTWORTEN_VORGABE, kreise: ['ungemischt'], trinkwasserLiter: 200, pufferLiter: 0 },
+      { ...ANTWORTEN_VORGABE, kreise: ['gemischt'], trinkwasserLiter: 200, pufferLiter: 0 },
+      { ...ANTWORTEN_VORGABE, kreise: ['gemischt', 'ungemischt'], trinkwasserLiter: 300, pufferLiter: 200 },
+    ];
+    let quer = 0;
+    let gezaehlt = 0;
+    for (const antworten of faelle) {
+      const bild = bildZu(antworten);
+      const nachId = new Map(bild.components.map((c) => [c.id, c]));
+
+      // Ausführung: einheitliche Symbolgröße, Raster 74 und Größe 34 wie in
+      // der Ansicht.
+      for (const l of bild.links) {
+        const a = nachId.get(l.from);
+        const b = nachId.get(l.to);
+        if (!a || !b) continue;
+        const v = leitungsverlauf(a, b, l, { grid: 74, size: 34 });
+        if (!v) continue;
+        gezaehlt += 1;
+        quer += durchstiche(v.punkte, [kasten(a.x, a.y, 34, 74), kasten(b.x, b.y, 34, 74)]);
+      }
+
+      // Übersicht: dort sind die Symbole verschieden groß, und gerade die
+      // großen Behälter sind es, durch die eine Leitung laufen konnte.
+      const u = uebersichtsschema(bild.components, bild.links);
+      const nachU = new Map(u.bauteile.map((b) => [b.id, b]));
+      const gr = (k: SchematicKind) => (k === 'node' ? UEBERSICHT_MASSE.size : symbolgroesse(k));
+      for (const l of u.leitungen) {
+        const a = nachU.get(l.from);
+        const b = nachU.get(l.to);
+        if (!a || !b) continue;
+        const v = leitungsverlauf(
+          { ...a, groesse: gr(a.kind) },
+          { ...b, groesse: gr(b.kind) },
+          l,
+          UEBERSICHT_MASSE,
+        );
+        if (!v) continue;
+        gezaehlt += 1;
+        quer += durchstiche(v.punkte, [
+          kasten(a.x, a.y, gr(a.kind), UEBERSICHT_MASSE.grid),
+          kasten(b.x, b.y, gr(b.kind), UEBERSICHT_MASSE.grid),
+        ]);
+      }
+    }
+    // Ohne Leitungen wäre die Null oben geschenkt — die Zahl steht deshalb
+    // daneben. Drei Anlagen, beide Bilder: unter hundert Leitungen wäre der
+    // Aufbau kaputt, nicht die Regel erfüllt.
+    check('Hydraulik · genug Leitungen geprüft', gezaehlt > 100, true);
+    check('Hydraulik · keine Leitung läuft quer durch ein Gerät', quer, 0);
   }
 }

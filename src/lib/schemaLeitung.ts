@@ -98,7 +98,71 @@ export function leitungsverlauf(
   const aus = versetze(p, d);
   const ein = versetze(q, d);
 
-  const waagerechtZuerst = p.port.side === 'left' || p.port.side === 'right';
+  /*
+   * **Keine Leitung läuft quer durch ihr eigenes Gerät.**
+   *
+   * Die Regel „wer seitlich austritt, läuft erst waagerecht" allein reichte
+   * nicht. Der Trinkwasserspeicher gibt seinen Heizungsrücklauf nach **links**
+   * ab, der Sammelpunkt liegt aber genau **über** ihm: Das waagerechte
+   * Zwischenstück lief vom Stutzen wieder nach rechts, bog auf Höhe der
+   * Behältermitte ab und stieg senkrecht durch den Behälter nach oben. Weil
+   * die Symbole freistellen, blieb davon genau ein Stummel links unten
+   * stehen — „unten ist wieder ein Stück Rohr zu erkennen, das gehört da
+   * nicht hin".
+   *
+   * Zurücklaufen ist dabei **nicht** das Problem: Im Rücklaufband fließt es
+   * von rechts nach links, der Ausgang eines Ventils liegt trotzdem rechts,
+   * und die Leitung deckt ihren eigenen Stummel dabei zu. Sichtbar falsch
+   * wird es erst, wenn ein Schenkel **quer** durch die Fläche eines der
+   * beiden Symbole läuft. Genau das wird hier vermieden.
+   */
+  const kasten = (e: LeitungsEnde, halbe: number) => ({
+    x0: e.x * masse.grid - halbe,
+    x1: e.x * masse.grid + halbe,
+    y0: e.y * masse.grid - halbe,
+    y1: e.y * masse.grid + halbe,
+  });
+  /**
+   * Schneidet die achsparallele Strecke die Fläche dieses Symbols **quer**?
+   *
+   * „Quer" ist die ganze Frage. Ein Absperrventil im Rücklaufband wird von
+   * seiner eigenen Leitung durchquert — waagerecht, auf der Höhe seiner
+   * beiden Stutzen. Das ist keine Verletzung, sondern die Darstellung einer
+   * Armatur in der Leitung. `achse` ist deshalb die Linie, auf der die
+   * Stutzen dieses Endes liegen; was darauf läuft, zählt nicht mit.
+   */
+  const stichtDurch = (
+    v: Vec2,
+    w: Vec2,
+    k: { x0: number; x1: number; y0: number; y1: number },
+    achse: { waagerecht: boolean; lage: number },
+  ): boolean => {
+    if (achse.waagerecht ? v.y === w.y && v.y === achse.lage : v.x === w.x && v.x === achse.lage) return false;
+    return (
+      Math.min(v.x, w.x) < k.x1 &&
+      Math.max(v.x, w.x) > k.x0 &&
+      Math.min(v.y, w.y) < k.y1 &&
+      Math.max(v.y, w.y) > k.y0
+    );
+  };
+  // 0,45 statt 0,5: Die Stutzen liegen auf dem Rand, und ein Schenkel, der
+  // den Rand entlangläuft, ist kein Durchstich.
+  const seitlich = (seite: string) => seite === 'left' || seite === 'right';
+  const enden = [
+    { k: kasten(a, (a.groesse ?? masse.size) * 0.45), achse: { waagerecht: seitlich(p.port.side), lage: seitlich(p.port.side) ? aus.y : aus.x } },
+    { k: kasten(b, (b.groesse ?? masse.size) * 0.45), achse: { waagerecht: seitlich(q.port.side), lage: seitlich(q.port.side) ? ein.y : ein.x } },
+  ];
+  /** Wie viele Schenkel dieser Reihenfolge stechen quer durch ein Symbol? */
+  const durchstiche = (waagerecht: boolean): number => {
+    const e: Vec2 = waagerecht ? { x: ein.x, y: aus.y } : { x: aus.x, y: ein.y };
+    return (
+      (enden.some((n) => stichtDurch(aus, e, n.k, n.achse)) ? 1 : 0) +
+      (enden.some((n) => stichtDurch(e, ein, n.k, n.achse)) ? 1 : 0)
+    );
+  };
+  const nachAlterRegel = p.port.side === 'left' || p.port.side === 'right';
+  const waagerechtZuerst =
+    durchstiche(nachAlterRegel) <= durchstiche(!nachAlterRegel) ? nachAlterRegel : !nachAlterRegel;
   const ecke: Vec2 = waagerechtZuerst ? { x: ein.x, y: aus.y } : { x: aus.x, y: ein.y };
 
   const mitte: Vec2 = waagerechtZuerst

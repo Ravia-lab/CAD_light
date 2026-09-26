@@ -1435,15 +1435,35 @@ export function buildSchematic(result: PlantDesignResult): {
    * Zeilen: Sicherheitsgruppe über dem Vorlauf, Heizkreise darüber gestapelt,
    * Rücklauf darunter, Trinkwasser ganz unten.
    */
+  /*
+   * **Der Vorlauf läuft monoton von links nach rechts.**
+   *
+   * Bis 1.55.1 saß die Absperrung des Erzeugervorlaufs auf Spalte 6, also
+   * **links** vom Heizstab auf Spalte 7 — im Fließweg aber dahinter. Die
+   * Leitung machte dort einen Rückwärtsknick, den niemand gezeichnet hätte.
+   * Gemeldet als „die Zeichnung ist unnötig aufgezogen, Linienführung sollte
+   * besser strukturiert sein". Ein Fließbild liest man an den Ecken; eine
+   * Ecke ohne Anlass ist eine falsche Fährte.
+   */
+  /*
+   * **Zwei Spalten je Armatur im Erzeugerband.**
+   *
+   * Zwischen Heizstab und Luftabscheider stehen im ungünstigsten Fall fünf
+   * Armaturen hintereinander — Absperrung, Pumpe, Absperrung,
+   * Rückschlagklappe, Volumenstromwächter. Auf je einer Spalte überschrieben
+   * sich ihre Beschriftungen gegenseitig: „ElektroAbsperrung Erzeuger
+   * Vorlauf" stand als ein Wort auf dem Blatt. Ein Name, den man nicht lesen
+   * kann, ist kein Name.
+   */
   const COL = {
-    outdoor: 0, indoor: 4, heater: 7, air: 10, vlNode: 13, divert: 17, buffer: 20,
-    vlBar: 23, mixer: 27, cpump: 31, manifold: 35, terminal: 39,
-    meter: 16, circ: 11, dirt: 6, fill: 12, over: 25,
+    outdoor: 0, indoor: 4, heater: 7, air: 19, vlNode: 22, divert: 26, buffer: 29,
+    vlBar: 32, mixer: 36, cpump: 40, manifold: 44, terminal: 48,
+    meter: 25, circ: 11, dirt: 6, fill: 20, over: 34,
     dhwIn: 8, dhwSafety: 12, cylinder: 17, tapMix: 22, tap: 26,
     // Übergabearmaturen: sie sitzen zwischen Anbindung und Heizfläche.
     // `mArm` gehört zum Verteiler, `hArm` zum Heizkörper — beide belegen
     // denselben Zeilenblock wie ihr Kreis, deshalb zwei eigene Spalten.
-    mArm: 33, hArm: 35,
+    mArm: 42, hArm: 44,
   };
   const ROW = { blow: -11, safety: -6, flow: 0, ret: 5, service: 9, dhw: 14, tap: 18 };
   /**
@@ -1454,6 +1474,34 @@ export function buildSchematic(result: PlantDesignResult): {
    * zugeordnet und fällt nicht auf den Platz des nächsten.
    */
   const RUECKLAUF_VERSATZ = 2;
+
+  /*
+   * =========================================================================
+   * Wie viele Pumpen darf dieser Kreis haben?
+   * =========================================================================
+   *
+   * **Eine.** Ohne hydraulische Trennung gibt es genau einen Volumenstrom,
+   * und in einem Strang steht genau eine Pumpe. Zwei in Reihe arbeiten
+   * gegeneinander: Die Kennlinien addieren sich nicht sauber, die Regelung
+   * der einen sieht die andere als Störgröße, und der Volumenstrom ist keine
+   * Größe mehr, die jemand ausgelegt hat.
+   *
+   * **Der gemischte Kreis bringt seine Pumpe mit.** Eine Mischergruppe ist
+   * ab Werk eine Baugruppe aus „gedämmter Anschlussverrohrung, der
+   * Heizkreis-Umwälzpumpe und dem 3-Wege-Mischer mit Stellmotor" (Stiebel
+   * Eltron, Planungshandbuch WPL 09 ICS, Baugruppe HSBC-HKM). Hinter einer
+   * hydraulischen Trennung bekommt auch der ungemischte Kreis eine eigene.
+   *
+   * Gemeldet am Bild: „Fußbodenheizung braucht keine 2. Pumpe, da es die
+   * Mischerpumpe gibt." Bis 1.55.1 zeichnete das Schema in genau diesem Fall
+   * beide — die Mischerpumpe und die Erzeugerpumpe, in einem Strang.
+   *
+   * `zweitePumpe` ist deshalb wahr, wenn die Erzeugerpumpe eine **zweite**
+   * wäre: keine Trennung, und jeder Kreis fördert schon selbst.
+   */
+  const trennt = result.buffer.selected && result.buffer.selected.kind !== 'buffer-series';
+  const zweitePumpe =
+    !trennt && result.circuits.length > 0 && result.circuits.every((c) => c.circuit.mixed);
 
   // =========================================================================
   // Erzeuger
@@ -1644,12 +1692,52 @@ export function buildSchematic(result: PlantDesignResult): {
    * Speicher rückwärts leer. Enthält das Gerät sie bereits, entfällt sie.
    */
   {
-    const absperrVor = put('shutoff', 'Absperrung Erzeuger Vorlauf', COL.heater - 1, ROW.flow);
+    const absperrVor = put('shutoff', 'Absperrung Erzeuger Vorlauf', COL.heater + 2, ROW.flow);
     link(vorlauf.c, vorlauf.port, absperrVor, 'in', 'heating-flow');
     vorlauf = { c: absperrVor, port: 'out' };
   }
+
+  /*
+   * =========================================================================
+   * Die Umwälzpumpe des Erzeugerkreises — **im Vorlauf**
+   * =========================================================================
+   *
+   * Bis 1.55.1 stand sie im Rücklauf. Gemeldet am Bild: „die externe Pumpe
+   * ist im Rücklauf, da gehört die nicht hin, die gehört in den Vorlauf".
+   *
+   * **Warum der Vorlauf.** Eine Pumpe wird so eingebaut, dass der höchste
+   * Gegendruck auf der *Druckseite* liegt und nicht auf der Saugseite; baut
+   * sich auf der Saugseite Unterdruck auf, kavitiert sie. Der Einbau im
+   * Rücklauf stammt aus der Zeit der Gusspumpen und hoher Vorlauftemperaturen
+   * — mit Dämmschalen und Hocheffizienzpumpen ist das Argument weg.
+   *
+   * **Und sie muss vor dem Warmwasser-Umschaltventil liegen**, sonst fördert
+   * sie im Warmwasserbetrieb nicht. Deshalb hier und nicht weiter rechts.
+   *
+   * **Nur, wenn sie gebraucht wird.** Führt jeder Heizkreis seine eigene
+   * Pumpe und ist die Anlage nicht hydraulisch getrennt, wäre sie die zweite
+   * Pumpe in einem einzigen Kreis — siehe unten.
+   */
+  let umwaelz: SchematicComponent | undefined;
+  if (result.pump && !zweitePumpe) {
+    umwaelz = put(
+      'pump',
+      'Umwälzpumpe',
+      COL.heater + 4,
+      ROW.flow,
+      `erf. ${result.pump.flow.toFixed(2)} m³/h · ${result.pump.head.toFixed(1)} m`,
+    );
+    link(vorlauf.c, vorlauf.port, umwaelz, 'in', 'heating-flow');
+    vorlauf = { c: umwaelz, port: 'out' };
+    // Zweite Absperrung: erst mit ihr liegt die Pumpe zwischen zwei
+    // Absperrungen und lässt sich ohne Entleeren tauschen.
+    const absperrPumpe = put('shutoff', 'Absperrung Pumpe', COL.heater + 6, ROW.flow);
+    link(vorlauf.c, vorlauf.port, absperrPumpe, 'in', 'heating-flow');
+    vorlauf = { c: absperrPumpe, port: 'out' };
+  }
+
   if (!enthalten?.pump) {
-    const klappe = put('check-valve', 'Rückschlagklappe', COL.heater + 1, ROW.flow, 'gegen Schwerkraftzirkulation');
+    const klappe = put('check-valve', 'Rückschlagklappe', COL.heater + 8, ROW.flow, 'gegen Schwerkraftzirkulation');
     link(vorlauf.c, vorlauf.port, klappe, 'in', 'heating-flow');
     vorlauf = { c: klappe, port: 'out' };
   }
@@ -1669,7 +1757,7 @@ export function buildSchematic(result: PlantDesignResult): {
     const waechter = put(
       'flow-switch',
       'Volumenstromwächter',
-      COL.heater + 2,
+      COL.heater + 10,
       ROW.flow,
       `Frostschutz ${Math.round(glykol * 100)} Vol-%`,
     );
@@ -1942,25 +2030,30 @@ export function buildSchematic(result: PlantDesignResult): {
     link(schlamm, 'drain', abschlamm, 'north', 'waste');
   }
 
-  // --- Umwälzpumpe ---------------------------------------------------------
-  // Nur, wenn eine ausgelegt ist. `designPump` liefert ohne Heizkreis kein
-  // Ergebnis — und eine Pumpe ohne Förderstrom und Förderhöhe wäre eine Zahl,
-  // die niemand gerechnet hat.
-  let umwaelz: SchematicComponent | undefined;
-  if (result.pump) {
-    umwaelz = put(
-      'pump',
-      'Umwälzpumpe',
-      COL.circ,
-      ROW.ret,
-      `erf. ${result.pump.flow.toFixed(2)} m³/h · ${result.pump.head.toFixed(1)} m`,
-    );
-    vorschalten(umwaelz, 'in', 'out');
-    // Zweite Absperrung auf der Anlagenseite: erst mit ihr liegt die Pumpe
-    // zwischen zwei Absperrungen und lässt sich ohne Entleeren tauschen.
-    // Die erste sitzt am Erzeuger, siehe oben.
-    const absperrPumpe = put('shutoff', 'Absperrung Pumpe', COL.circ - 2, ROW.ret);
-    vorschalten(absperrPumpe, 'in', 'out');
+  // --- Anschlussstelle der Füllleitung -------------------------------------
+  /*
+   * Sie gehört **in** den Rücklaufstrang und entsteht deshalb hier, nicht
+   * unten bei ihren Armaturen.
+   *
+   * Bis 1.55.1 hing die Füllleitung an der Umwälzpumpe („vor der Pumpe, wo
+   * der Druck am niedrigsten ist"). Die Begründung galt, solange die Pumpe im
+   * Rücklauf saß; sie sitzt jetzt im Vorlauf, und damit hing eine als
+   * Heizungsrücklauf gezeichnete Leitung an einem Vorlaufstutzen — falscher
+   * Stoff an falscher Stelle. Der zweite Anlauf über `rueckEin` traf den
+   * Trennpuffer und gab ihm einen fünften Anschluss.
+   *
+   * Richtig ist eine eigene Abzweigstelle im Rücklauf, und zwar **vor** dem
+   * Schlammabscheider in Fließrichtung: Füllwasser bringt Späne und Zunder
+   * aus der Montage mit, und die sollen im Abscheider bleiben und nicht im
+   * Verflüssiger. Entleert wird über dieselbe Armatur, deshalb der Rücklauf —
+   * der tiefste Punkt der Anlage liegt hier.
+   */
+  const fuellArmatur = armatur('filling-valve', 'Füll- und Entleerungsarmatur');
+  const trennerArmatur = armatur('backflow-preventer');
+  let fuellKnoten: SchematicComponent | undefined;
+  if (fuellArmatur && trennerArmatur) {
+    fuellKnoten = put('node', 'Anschluss Füllleitung', COL.fill, ROW.ret);
+    vorschalten(fuellKnoten, 'east', 'west');
   }
 
   // --- Wärmemengenzähler ---------------------------------------------------
@@ -2218,22 +2311,33 @@ export function buildSchematic(result: PlantDesignResult): {
    * beide Armaturen führt: ohne Sicherheitsauslegung gibt es weder Nennweite
    * noch Flüssigkeitskategorie, und ein „Typ CA" ohne Herkunft wäre geraten.
    *
-   * Angeschlossen wird an die **Anlagenleitung**, nicht an das Abschlämmventil
-   * des Abscheiders: vor der Pumpe, wo der Druck am niedrigsten ist. Fehlt die
-   * Pumpe, geht sie an den Anlagenrücklauf.
+   * Angeschlossen wird an die eigene Abzweigstelle im Rücklauf, die oben mit
+   * dem Strang entstanden ist — nicht an das Abschlämmventil des Abscheiders
+   * und an kein Bauteil, das schon zwei Stutzen belegt hat. Die Begründung für
+   * die Stelle steht dort.
    */
-  const fuellArmatur = armatur('filling-valve', 'Füll- und Entleerungsarmatur');
-  const trenner = armatur('backflow-preventer');
-  if (fuellArmatur && trenner) {
-    const fuellKnoten = put('node', 'Anschluss Füllleitung', COL.fill, ROW.service);
-    const fuellung = put('filling-valve', 'Füll- und Entleerarmatur', COL.fill + 5, ROW.service, kurz(fuellArmatur.spec));
-    const systemtrenner = put('backflow-preventer', 'Systemtrenner', COL.fill + 10, ROW.service, kurz(trenner.spec));
-    const fuellNetz = put('node', 'Trinkwasser', COL.fill + 14, ROW.service, 'Hausanschluss');
-    link(fuellNetz, 'west', systemtrenner, 'in', 'cold-water');
-    link(systemtrenner, 'out', fuellung, 'in', 'cold-water');
-    link(fuellung, 'hose', fuellKnoten, 'east', 'heating-return');
-    if (umwaelz) link(fuellKnoten, 'north', umwaelz, 'in', 'heating-return');
-    else link(fuellKnoten, 'north', rueckEin.c, rueckEin.port, 'heating-return');
+  if (fuellKnoten && fuellArmatur && trennerArmatur) {
+    /*
+     * **Die beiden Stutzen des KFE-Hahns waren vertauscht.**
+     *
+     * Er hat einen *Anlagenanschluss* und eine *Schlauchtülle*. Angeschlossen
+     * war bis 1.55.1 das Trinkwasser am Anlagenanschluss und die Heizung an
+     * der Tülle — also genau andersherum, als der Hahn gebaut ist. Auf dem
+     * Blatt war das die Stelle, an der die Leitung einen Haken um das Symbol
+     * schlug: Sie musste von oben an einen Stutzen, der nach unten zeigt.
+     *
+     * Richtig herum gelesen ergibt die Strecke eine Linie ohne Haken:
+     * Hausanschluss → Systemtrenner → Schlauch hinauf zur Tülle → Hahn →
+     * Anlagenanschluss in den Rücklauf. Der Hahn sitzt dafür zwei Zeilen
+     * über der Trinkwasserstrecke, so wie er in Wirklichkeit über dem
+     * Füllschlauch am Rohr sitzt.
+     */
+    const fuellung = put('filling-valve', 'Füll- und Entleerarmatur', COL.fill + 3, ROW.service - 2, kurz(fuellArmatur.spec));
+    const systemtrenner = put('backflow-preventer', 'Systemtrenner', COL.fill - 3, ROW.service, kurz(trennerArmatur.spec));
+    const fuellNetz = put('node', 'Trinkwasser', COL.fill - 8, ROW.service, 'Hausanschluss');
+    link(fuellNetz, 'east', systemtrenner, 'in', 'cold-water');
+    link(systemtrenner, 'out', fuellung, 'hose', 'cold-water');
+    link(fuellung, 'in', fuellKnoten, 'south', 'heating-return');
   }
 
   // =========================================================================

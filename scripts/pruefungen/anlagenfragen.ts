@@ -468,8 +468,21 @@ export function pruefeAnlagenfragen(check: CheckFn): void {
     const d = anlageAusAntworten({ ...ANTWORTEN_VORGABE, kreise: ['gemischt'] }, kreisMit('fancoil', false));
     check('Anlagenfragen · Gebläsekonvektor bleibt stehen', Object.values(d.circuits)[0].kind, 'fancoil');
 
-    // Und das Übrige des Kreises übersteht die Änderung — Name und Räume
-    // gehören dem Anwender, nicht der Frage.
+    /*
+     * **Name und Räume gehören dem Anwender, nicht der Frage** — die
+     * Temperaturen gehören zur Heizfläche.
+     *
+     * Wechselt die Übergabeart, folgen sie ihr: Aus einem Flächenkreis mit
+     * 40/32 °C wird unter „ungemischt" ein Heizkörperkreis, und der läuft
+     * mit 55/45 °C. Bis 1.55.1 blieben die 40/32 °C stehen — gemeldet am
+     * Bild als „bei Fußbodenheizung hat man andere Temperaturen, 35/28 zum
+     * Beispiel", dort in der Gegenrichtung: Die Fläche trug die 55/45 °C des
+     * Heizkörpers, von dem sie abstammte.
+     *
+     * 35/28 °C (Δθ 7 K) für die Flächenheizung, 55/45 °C (Δθ 10 K) für
+     * Heizkörper im Energiesparhaus sind die üblichen Wertepaare; 55 °C
+     * Vorlauf in einem Estrich wären nach DIN EN 1264 ohnehin unzulässig.
+     */
     const e = anlageAusAntworten(
       { ...ANTWORTEN_VORGABE, kreise: ['ungemischt'] },
       {
@@ -485,6 +498,29 @@ export function pruefeAnlagenfragen(check: CheckFn): void {
     const k = Object.values(e.circuits)[0];
     check('Anlagenfragen · der Name bleibt', k.label, 'Erdgeschoss Süd');
     check('Anlagenfragen · die Räume bleiben', k.roomIds.length, 2);
-    check('Anlagenfragen · die Temperaturen bleiben', k.flowTemperature, 40);
+    check('Anlagenfragen · aus Fläche wird Heizkörper', k.kind, 'radiator');
+    check('Anlagenfragen · und die Temperaturen folgen mit', `${k.flowTemperature}/${k.returnTemperature}`, '55/45');
+
+    /*
+     * **Gegenprobe: ohne Artwechsel bleiben eigene Temperaturen stehen.**
+     * Wer 40/32 an einer Fläche eingetragen hat und nur den Puffer ändert,
+     * will nicht bei jeder Änderung wieder 35/28 sehen. Ohne diese Probe
+     * hieße die Regel oben „die Temperaturen werden immer überschrieben".
+     */
+    const f = anlageAusAntworten(
+      { ...ANTWORTEN_VORGABE, kreise: ['gemischt'] },
+      {
+        storages: {},
+        circuits: {
+          k1: {
+            id: 'k1', label: 'Erdgeschoss Süd', kind: 'floor', mixed: true,
+            roomIds: ['r1'], material: 'kupfer', flowTemperature: 40, returnTemperature: 32,
+          } as HeatingCircuit,
+        },
+      },
+    );
+    const g = Object.values(f.circuits)[0];
+    check('Anlagenfragen · ohne Artwechsel bleibt die Fläche', g.kind, 'floor');
+    check('Anlagenfragen · und ihre eigenen Temperaturen', `${g.flowTemperature}/${g.returnTemperature}`, '40/32');
   }
 }

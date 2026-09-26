@@ -165,6 +165,97 @@ console.log('\n▸ Die sieben Fragen stehen im Anlagenblatt');
   expect('Und sie werden als Angaben benannt, nicht als Vorschlag', /Was Sie eintragen, gilt/.test(text), true);
 }
 
+console.log('\n▸ Die vier Hydraulikregeln am laufenden Bild');
+{
+  /*
+   * Vier Punkte aus einer Fehlermeldung vom Blatt, an der laufenden
+   * Oberfläche nachgestellt. Sie stehen zusätzlich als Prüfblock in
+   * `verify`; hier zählt, dass sie den ganzen Weg überstehen — Dialog,
+   * Auslegung, Zeichner, Zustand.
+   *
+   *  1 · Die Erzeugerpumpe steht im **Vorlauf**.
+   *  2 · Ein gemischter Kreis bekommt **keine zweite** Pumpe.
+   *  3 · Fußbodenheizung rechnet mit **35/28 °C**.
+   *  4 · Der Trinkwasserspeicher zeichnet **keinen** Stutzen ohne Leitung.
+   */
+  await p.getByRole('button', { name: 'Schema', exact: true }).first().click();
+  await p.waitForTimeout(900);
+
+  const dlg = p.locator('[data-pruef="anlagendialog"]');
+  const oeffne = async () => {
+    if (!(await dlg.count())) {
+      const a = p.locator('[data-pruef="angaben-aendern"]');
+      const l = p.locator('[data-pruef="leer-angaben"]');
+      await ((await a.count()) ? a : l).first().click();
+      await p.waitForTimeout(500);
+    }
+  };
+  const erzeuge = async () => {
+    await dlg.locator('[data-pruef="dialog-erzeugen"]').click();
+    await p.waitForTimeout(1500);
+  };
+
+  // --- Ein gemischter Kreis, kein Speicher, kein Puffer -------------------
+  await oeffne();
+  await dlg.locator('[data-pruef="frage-trinkwasser"]').selectOption('0');
+  await p.waitForTimeout(250);
+  await dlg.locator('[data-pruef="frage-puffer"]').selectOption('0');
+  await p.waitForTimeout(250);
+  await dlg.getByRole('button', { name: 'gemischt', exact: true }).click();
+  await p.waitForTimeout(400);
+  await erzeuge();
+
+  const gemischt = await p.evaluate(() => {
+    const d = window.__ravia.getState().doc;
+    const s = d.plant.schematic;
+    const c = Object.values(s.components);
+    const pumpen = c.filter((x) => x.kind === 'pump');
+    const k = Object.values(d.plant.circuits)[0];
+    return {
+      pumpen: pumpen.map((x) => x.label),
+      kreis: k ? [k.kind, k.flowTemperature, k.returnTemperature] : null,
+    };
+  });
+  expect('Ein gemischter Kreis bekommt genau eine Pumpe', gemischt.pumpen.length, 1);
+  expect('Und zwar die der Mischergruppe', gemischt.pumpen[0], 'Kreispumpe');
+  expect('Die Fläche rechnet mit 35/28 °C', JSON.stringify(gemischt.kreis), '["floor",35,28]');
+
+  // --- Ein ungemischter Kreis mit 200 l Trinkwasser -----------------------
+  await oeffne();
+  await dlg.getByRole('button', { name: 'ungemischt', exact: true }).click();
+  await p.waitForTimeout(400);
+  await dlg.locator('[data-pruef="frage-trinkwasser"]').selectOption('200');
+  await p.waitForTimeout(300);
+  await erzeuge();
+
+  const ungemischt = await p.evaluate(() => {
+    const s = window.__ravia.getState().doc.plant.schematic;
+    const c = Object.values(s.components);
+    const l = Object.values(s.links);
+    const pumpe = c.find((x) => x.kind === 'pump');
+    const an = l.filter((x) => x.from === pumpe?.id || x.to === pumpe?.id);
+    const sp = c.find((x) => x.kind === 'cylinder');
+    const stutzen = new Set();
+    for (const x of l) {
+      if (x.from === sp?.id) stutzen.add(x.fromPort);
+      if (x.to === sp?.id) stutzen.add(x.toPort);
+    }
+    return {
+      pumpe: pumpe?.label ?? 'keine',
+      dienste: an.map((x) => x.service).sort(),
+      stutzen: [...stutzen].sort().join(','),
+    };
+  });
+  // Die Pumpe hängt an zwei Leitungen, und beide sind Vorlauf: Sie steht in
+  // Fließrichtung vor dem Umschaltventil, nicht dahinter im Rücklauf.
+  expect('Die Erzeugerpumpe steht im Bild', ungemischt.pumpe, 'Umwälzpumpe');
+  expect('Sie hängt nur an Vorlaufleitungen',
+    JSON.stringify(ungemischt.dienste), '["heating-flow","heating-flow"]');
+  // Vier Stutzen hat der Speicher, und im vollständigen Bild trägt jeder
+  // eine Leitung — sonst stünde dort ein Stück Rohr ohne Anschluss.
+  expect('Jeder Stutzen des Speichers trägt eine Leitung', ungemischt.stutzen, 'cold,dhw,flow,return');
+}
+
 console.log('\nERRORS:', errs.length ? errs.join(' | ') : 'keine');
 if (errs.length) failures += errs.length;
 console.log(`\n${failures === 0 ? '✓ RAUCHTEST BESTANDEN' : `✗ ${failures} FEHLER`}\n`);

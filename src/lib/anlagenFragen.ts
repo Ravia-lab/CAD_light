@@ -238,6 +238,23 @@ export function anlageAusAntworten(
     const id = alt?.id ?? `kreis-${i + 1}`;
     const t = temperaturen(art, i);
     const gemischt = art === 'gemischt';
+    /** Die Übergabeart, die aus der Antwort folgt — siehe Kommentar unten. */
+    const neueArt: HeatingCircuit['kind'] =
+      alt && (alt.kind === 'wall' || alt.kind === 'fancoil') ? alt.kind : uebergabe(art);
+    /**
+     * Hat die Antwort die Übergabeart **geändert**?
+     *
+     * Dann folgen ihr auch die Temperaturen. Bis 1.55.1 blieben sie stehen:
+     * Aus einem Heizkörperkreis mit 55/45 °C wurde eine Fußbodenheizung — und
+     * sie trug weiter 55/45 °C ins Bild. Gemeldet am Schema: „bei
+     * Fußbodenheizung hat man andere Temperaturen, 35/28 zum Beispiel."
+     *
+     * Die Wertepaare sind die üblichen: **35/28 °C** (Δθ 7 K) für die
+     * Flächenheizung, **55/45 °C** (Δθ 10 K) für Heizkörper im
+     * Energiesparhaus. Eine Vorlauftemperatur von 55 °C in einem Estrich
+     * wäre nicht nur unwirtschaftlich, sie ist nach DIN EN 1264 unzulässig.
+     */
+    const artGeaendert = Boolean(alt) && alt.kind !== neueArt;
     circuits[id] = {
       ...(alt ?? {
         roomIds: [],
@@ -268,13 +285,17 @@ export function anlageAusAntworten(
        * *und* Übergabeart getrennt. Solange es die nicht gibt, gilt die
        * Kopplung, die im Feld steht.
        */
-      kind: alt && (alt.kind === 'wall' || alt.kind === 'fancoil') ? alt.kind : uebergabe(art),
+      kind: neueArt,
       label: alt?.label ?? (gemischt ? `Heizkreis ${i + 1}, gemischt` : `Heizkreis ${i + 1}`),
       mixed: gemischt,
-      // Hat der Kreis schon eigene Temperaturen, bleiben sie: Wer 40/30
-      // eingetragen hat, will nicht bei jeder Änderung wieder 35/28 sehen.
-      flowTemperature: alt?.flowTemperature ?? t.vorlauf,
-      returnTemperature: alt?.returnTemperature ?? t.ruecklauf,
+      /*
+       * Hat der Kreis schon eigene Temperaturen, bleiben sie: Wer 40/30
+       * eingetragen hat, will nicht bei jeder Änderung wieder 35/28 sehen.
+       * **Es sei denn, die Übergabeart hat gewechselt** — dann gehören die
+       * alten Temperaturen zu einer Heizfläche, die es nicht mehr gibt.
+       */
+      flowTemperature: artGeaendert ? t.vorlauf : (alt?.flowTemperature ?? t.vorlauf),
+      returnTemperature: artGeaendert ? t.ruecklauf : (alt?.returnTemperature ?? t.ruecklauf),
       roomIds: alt?.roomIds ?? [],
       material: alt?.material ?? 'kupfer',
     };

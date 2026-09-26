@@ -118,6 +118,23 @@ export function zeichneUebersicht(
   masse: UebersichtMasse = UEBERSICHT_MASSE,
 ): void {
   const nach = new Map(u.bauteile.map((b) => [b.id, b]));
+  /*
+   * Welche Stutzen tragen im **Übersichtsbild** eine Leitung?
+   *
+   * Das ist nicht dieselbe Menge wie im vollständigen Schema: Die Übersicht
+   * lässt die Trinkwasserseite und die Armaturen weg. Ein Symbol, das
+   * trotzdem alle seine Stutzen zeichnet, setzt dort ein Stück Rohr ins
+   * Nichts — unter dem Trinkwasserspeicher war genau das zu sehen.
+   */
+  const belegteStutzen = new Map<string, string[]>();
+  for (const l of u.leitungen) {
+    for (const [id, port] of [[l.from, l.fromPort], [l.to, l.toPort]] as const) {
+      if (!port) continue;
+      const liste = belegteStutzen.get(id);
+      if (liste) liste.push(port);
+      else belegteStutzen.set(id, [port]);
+    }
+  }
 
   // --- Baugruppenrahmen ---------------------------------------------------
   for (const g of u.gruppen) {
@@ -230,6 +247,7 @@ export function zeichneUebersicht(
       continue;
     }
     drawSymbol(ctx, b.kind, x, y, symbolgroesse(b.kind, masse), {
+      angeschlossen: belegteStutzen.get(b.id),
       color: farben.strich,
       background: farben.papier,
       label: b.anzahl && b.anzahl > 1 ? `${b.anzahl} × ${b.label}` : b.label,

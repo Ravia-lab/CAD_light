@@ -1747,10 +1747,24 @@ export function buildSchematicSvg(
   }
 
   // --- Symbole -------------------------------------------------------------
+  /*
+   * Welche Stutzen tragen wirklich eine Leitung? Ein Stummel ohne Leitung
+   * behauptet einen Anschluss — auf dem Blatt genauso wie am Bildschirm.
+   */
+  const belegteStutzen = new Map<string, string[]>();
+  for (const l of links) {
+    for (const [id, port] of [[l.from, l.fromPort], [l.to, l.toPort]] as const) {
+      if (!port) continue;
+      const liste = belegteStutzen.get(id);
+      if (liste) liste.push(port);
+      else belegteStutzen.set(id, [port]);
+    }
+  }
   const recorder = new SvgRecorder();
   const ctx = asContext(recorder);
   for (const c of components) {
     drawSymbol(ctx, c.kind, X(c.x), Y(c.y), pitch * SYMBOL_RATIO, {
+      angeschlossen: belegteStutzen.get(c.id),
       color: INK,
       background: '#FFFFFF',
       label: art === 'name' ? c.label : null,

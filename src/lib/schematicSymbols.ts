@@ -108,6 +108,20 @@ export interface SymbolOptions {
   background?: string;
   /** Schriftgröße der Beschriftung [px]. Vorgabe: aus `size` abgeleitet. */
   fontSize?: number;
+  /**
+   * Welche Stutzen wirklich eine Leitung tragen.
+   *
+   * **Warum es das gibt.** Ein Symbol zeichnete bis 1.55.1 **jeden** seiner
+   * Stutzen als kurzen Stummel — auch den, an dem nichts hängt. Im
+   * Übersichtsschema, das die Trinkwasserseite weglässt, stand unter dem
+   * Speicher deshalb ein Stück Rohr, das nirgends hinführt. Gemeldet am
+   * Bild: „beim Trinkwasserspeicher ist unten wieder ein Stück Rohr zu
+   * erkennen, das gehört da nicht hin."
+   *
+   * Fehlt die Angabe, gilt alles als belegt — dann zeichnet das Symbol wie
+   * bisher. Der Zeichner, der es besser weiß, sagt es.
+   */
+  angeschlossen?: readonly string[];
 }
 
 /** Signatur aller Einzelsymbole. */
@@ -527,7 +541,16 @@ interface SymbolDefinition {
   knockout: Knockout;
   ports: SymbolPorts;
   /** Zeichnung in Einheitskoordinaten; Strich- und Füllfarbe sind gesetzt. */
-  draw: (ctx: Ctx) => void;
+  /**
+   * Zeichenvorschrift in Einheitskoordinaten.
+   *
+   * `belegt(portId)` beantwortet, ob an diesem Stutzen wirklich eine Leitung
+   * hängt. Symbole, deren Stutzen je nach Anlage offen bleiben können,
+   * fragen danach, bevor sie den Stummel zeichnen — ein gezeichneter Stutzen
+   * behauptet einen Anschluss. Ohne Angabe gilt alles als belegt; dann
+   * zeichnet das Symbol wie bisher.
+   */
+  draw: (ctx: Ctx, belegt: (portId: string) => boolean) => void;
 }
 
 // `SYMBOL_PORTS` und `symbolPortPoints` geben diese Objekte nach außen. Ein
@@ -771,7 +794,7 @@ const SYMBOLS: Record<SchematicKind, SymbolDefinition> = {
       port('flow', 'Heizung Vorlauf', 'left', -0.45, -0.25),
       port('return', 'Heizung Rücklauf', 'left', -0.45, 0.35),
     ],
-    draw: (ctx) => {
+    draw: (ctx, belegt) => {
       // Stehendes Gefäß mit gewölbten Böden.
       ctx.beginPath();
       ctx.moveTo(-0.3, -0.5);
@@ -779,10 +802,16 @@ const SYMBOLS: Record<SchematicKind, SymbolDefinition> = {
       ctx.lineTo(0.3, 0.5);
       ctx.quadraticCurveTo(0, 0.72, -0.3, 0.5);
       ctx.closePath();
-      line(ctx, 0, -0.66, 0, -0.85);
-      line(ctx, 0, 0.66, 0, 0.85);
-      line(ctx, -0.45, -0.25, -0.3, -0.25);
-      line(ctx, -0.45, 0.35, -0.3, 0.35);
+      /*
+       * **Stutzen nur dort, wo eine Leitung hängt.** Das Übersichtsschema
+       * lässt die Trinkwasserseite weg; der Kaltwasserstutzen unten stand
+       * dort als Stück Rohr im Nichts. Ein gezeichneter Stutzen behauptet
+       * einen Anschluss.
+       */
+      if (belegt('dhw')) line(ctx, 0, -0.66, 0, -0.85);
+      if (belegt('cold')) line(ctx, 0, 0.66, 0, 0.85);
+      if (belegt('flow')) line(ctx, -0.45, -0.25, -0.3, -0.25);
+      if (belegt('return')) line(ctx, -0.45, 0.35, -0.3, 0.35);
       ctx.stroke();
       // Wendel: der Glattrohr-Wärmeübertrager. Er reicht von der
       // Speichermitte bis unter den Kaltwassereintritt (y = -0.25 bis 0.35),
@@ -802,17 +831,17 @@ const SYMBOLS: Record<SchematicKind, SymbolDefinition> = {
       port('sys-flow', 'Verteilung Vorlauf', 'right', 0.45, -0.32),
       port('sys-return', 'Verteilung Rücklauf', 'right', 0.45, 0.32),
     ],
-    draw: (ctx) => {
+    draw: (ctx, belegt) => {
       ctx.beginPath();
       ctx.moveTo(-0.3, -0.48);
       ctx.quadraticCurveTo(0, -0.68, 0.3, -0.48);
       ctx.lineTo(0.3, 0.48);
       ctx.quadraticCurveTo(0, 0.68, -0.3, 0.48);
       ctx.closePath();
-      line(ctx, -0.45, -0.32, -0.3, -0.32);
-      line(ctx, -0.45, 0.32, -0.3, 0.32);
-      line(ctx, 0.3, -0.32, 0.45, -0.32);
-      line(ctx, 0.3, 0.32, 0.45, 0.32);
+      if (belegt('gen-flow')) line(ctx, -0.45, -0.32, -0.3, -0.32);
+      if (belegt('gen-return')) line(ctx, -0.45, 0.32, -0.3, 0.32);
+      if (belegt('sys-flow')) line(ctx, 0.3, -0.32, 0.45, -0.32);
+      if (belegt('sys-return')) line(ctx, 0.3, 0.32, 0.45, 0.32);
       ctx.stroke();
       // Waagerechte Striche = Temperaturschichtung, das Wesen des Puffers.
       ctx.save();
@@ -1836,6 +1865,44 @@ export function findPort(kind: SchematicKind, portId: string): SymbolPort | unde
  * `rotation` wird mitgedreht, damit ein um 90° gedrehtes Ventil auch seine
  * Stutzen dreht — sonst zeichnet der Generator die Leitung ins Leere.
  */
+/**
+ * Die **Rohrachse** eines Symbols — die Höhe, auf der seine Leitung liegt.
+ *
+ * **Der Anlass.** Jedes Durchgangssymbol war für sich in seine Zelle
+ * eingepasst: Der Absperrhahn mit Handrad sitzt etwas tiefer, damit das Rad
+ * oben Platz hat; der Schlammabscheider etwas höher, damit das
+ * Abschlämmventil unten hinpasst. Die Stutzen wanderten mit — 0,10 hier,
+ * −0,12 dort, 0,22 beim Wärmemengenzähler. Zwischen zwei benachbarten
+ * Armaturen einer geraden Leitung lag damit **immer** ein kleiner Versatz,
+ * und die Leitung machte einen Doppelknick, um ihn auszugleichen. Bei zwei
+ * eng stehenden Armaturen lief sie dafür sogar außen um die zweite herum.
+ * Gemeldet als „die Linienführung sollte besser strukturiert sein".
+ *
+ * **Die Festlegung.** Nicht die Zelle ist die Bezugsgröße, sondern die
+ * Leitung: Ein Durchgangssymbol wird so gezeichnet, dass seine Rohrachse auf
+ * `y = 0` liegt. Das Zeichen selbst sitzt dann leicht außermittig in seiner
+ * Zelle — das ist genau das, was ein Zeichner auch täte, denn die Leitung
+ * liest man, die Zellenmitte nicht.
+ *
+ * Umgesetzt wird das ohne Eingriff in die einzelnen Zeichenvorschriften:
+ * Hier wird abgelesen, wo ihre seitlichen Stutzen liegen, und `drawSymbol`
+ * verschiebt das ganze Zeichen um genau diesen Betrag nach oben. Ein
+ * doppelt gepflegter Zahlenwert je Symbol wäre eine zweite Wahrheit.
+ */
+const ACHSEN = new Map<SchematicKind, number>();
+export function symbolAchse(kind: SchematicKind): number {
+  const da = ACHSEN.get(kind);
+  if (da !== undefined) return da;
+  const seitlich = SYMBOLS[kind].ports.filter((p) => p.side === 'left' || p.side === 'right');
+  // Nur wenn alle seitlichen Stutzen auf derselben Höhe liegen, gibt es
+  // überhaupt eine Achse. Ein Mischer mit Stutzen auf zwei Höhen hat keine,
+  // und dort wäre jede Verschiebung geraten.
+  const y = seitlich[0]?.y ?? 0;
+  const achse = seitlich.length > 0 && seitlich.every((p) => p.y === y) ? y : 0;
+  ACHSEN.set(kind, achse);
+  return achse;
+}
+
 export function symbolPortPoints(
   kind: SchematicKind,
   x: number,
@@ -1846,11 +1913,15 @@ export function symbolPortPoints(
   const rad = (rotation * Math.PI) / 180;
   const cos = Math.cos(rad);
   const sin = Math.sin(rad);
-  return SYMBOLS[kind].ports.map((p) => ({
-    port: p,
-    x: x + (p.x * cos - p.y * sin) * size,
-    y: y + (p.x * sin + p.y * cos) * size,
-  }));
+  const achse = symbolAchse(kind);
+  return SYMBOLS[kind].ports.map((p) => {
+    const py = p.y - achse;
+    return {
+      port: p,
+      x: x + (p.x * cos - py * sin) * size,
+      y: y + (p.x * sin + py * cos) * size,
+    };
+  });
 }
 
 /**
@@ -1918,11 +1989,13 @@ interface ResolvedOptions {
   rotation: number;
   background: string;
   fontSize: number;
+  angeschlossen?: readonly string[];
 }
 
 const resolve = (kind: SchematicKind, size: number, options: SymbolOptions): ResolvedOptions => ({
   color: options.color,
   lineWidth: options.lineWidth ?? 1.3,
+  angeschlossen: options.angeschlossen,
   // Ohne Angabe steht der Legendenname über dem Symbol. Der Knoten ist kein
   // Bauteil und bekommt deshalb von sich aus keine Beschriftung.
   label:
@@ -2003,6 +2076,10 @@ export function drawSymbol(
   ctx.lineCap = 'round';
   ctx.strokeStyle = opt.color;
   ctx.fillStyle = opt.color;
+  // Das Zeichen rückt so, dass seine Rohrachse auf der Zellenhöhe liegt —
+  // samt Freistellfläche, die sonst neben dem Zeichen stünde.
+  const achse = symbolAchse(kind);
+  if (achse !== 0) ctx.translate(0, -achse);
 
   if (def.knockout !== 'none') {
     ctx.save();
@@ -2017,7 +2094,14 @@ export function drawSymbol(
     ctx.restore();
   }
 
-  def.draw(ctx);
+  /*
+   * Ohne Angabe gilt jeder Stutzen als belegt: Der Aufrufer, der es nicht
+   * weiß, bekommt das Bild von vorher. Wer es weiß, reicht die Liste durch.
+   */
+  const belegt = opt.angeschlossen
+    ? (id: string) => opt.angeschlossen!.includes(id)
+    : () => true;
+  def.draw(ctx, belegt);
   ctx.restore();
 
   drawSymbolLabels(ctx, kind, x, y, size, opt);

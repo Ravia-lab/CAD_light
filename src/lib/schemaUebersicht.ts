@@ -489,6 +489,55 @@ export function uebersichtsschema(
     vorlaufAus = { b: bH, port: 'out' };
   }
 
+  /*
+   * --- Die Pumpe des Erzeugerkreises — im Vorlauf --------------------------
+   *
+   * Bis 1.55.1 stand sie im Rücklauf, und dieses Bild suchte sie dort: über
+   * eine Pumpe, deren Leitungen **alle** Rücklauf sind. Mit dem Umzug in den
+   * Vorlauf fand die Suche nichts mehr, und die Pumpe fiel stillschweigend
+   * aus der Übersicht — als „tragendes Bauteil weggefallen" hat es nur der
+   * Prüfblock gemerkt.
+   *
+   * Gesucht wird sie jetzt daran, was sie **nicht** ist: keine Kreispumpe.
+   * Die Kreispumpen sammelt der Zweigdurchlauf weiter unten; deshalb steht
+   * die Auswahl hier schon fest, gezeichnet wird sie aber erst dort, wo sie
+   * im Strang sitzt — vor der Sicherheitsgruppe und **vor** dem
+   * Umschaltventil, sonst fördert sie im Warmwasserbetrieb nicht.
+   */
+  const nachId = new Map(components.map((c) => [c.id, c]));
+  const kreispumpen = new Set<string>();
+  for (const c of components) {
+    if (c.kind !== 'pump') continue;
+    // Eine Kreispumpe hängt an einem Mischer oder an einem Verteilbalken —
+    // die Erzeugerpumpe hängt am Erzeugerstrang.
+    const nachbarn = anBauteil(c.id).map((l) => (l.from === c.id ? l.to : l.from));
+    if (nachbarn.some((id) => nachId.get(id)?.kind === 'valve-3way' || nachId.get(id)?.kind === 'manifold')) {
+      kreispumpen.add(c.id);
+    }
+  }
+  const erzeugerpumpe = alle('pump').find((p) => !kreispumpen.has(p.id));
+  if (erzeugerpumpe && vorlaufAus) {
+    const bP = setze(
+      'u-erzeugerpumpe',
+      'pump',
+      SP.zweiterzeuger + 2,
+      ZE.vor,
+      [erzeugerpumpe],
+      kurzform(erzeugerpumpe.spec, 'pump'),
+      undefined,
+      /*
+       * **Externe Pumpe**, nicht „Anlagenpumpe". In einer Wärmepumpenanlage
+       * sitzt die Umwälzpumpe des Erzeugerkreises in aller Regel im Gerät.
+       * Steht hier eine im Bild, ist es die extern gesetzte — und genau so
+       * heißt sie auf der Baustelle.
+       */
+      'Externe Pumpe',
+    );
+    bP.zone = 'erzeugung';
+    leite(vorlaufAus.b, vorlaufAus.port, bP, 'in', 'heating-flow');
+    vorlaufAus = { b: bP, port: 'out' };
+  }
+
   // --- Die Sicherheitsgruppe ----------------------------------------------
   /*
    * Das Sicherheitsventil der **Heizung**, nicht das des Trinkwassererwärmers:
@@ -794,8 +843,6 @@ export function uebersichtsschema(
   // =========================================================================
   // 4 · Der Rücklauf zurück zum Erzeuger
   // =========================================================================
-  const anlagenpumpe = alle('pump').find((p) => anBauteil(p.id).every((l) => l.service === 'heating-return'));
-
   if (ruecklaufSammler && bPuffer) {
     // Der Balken nimmt die Zweige von rechts auf und gibt nach links ab —
     // sonst liefe die Leitung im Bild in sich selbst zurück.
@@ -821,28 +868,6 @@ export function uebersichtsschema(
     ruecklaufSammler = { b: k, port: 'west' };
   }
 
-  if (ruecklaufSammler && anlagenpumpe) {
-    const b = setze(
-      'u-anlagenpumpe',
-      'pump',
-      SP.umschalt,
-      ZE.rueck,
-      [anlagenpumpe],
-      kurzform(anlagenpumpe.spec, 'pump'),
-      undefined,
-      /*
-       * **Externe Pumpe**, nicht „Anlagenpumpe".
-       *
-       * In einer Wärmepumpenanlage sitzt die Umwälzpumpe des Erzeugerkreises
-       * in aller Regel im Gerät. Steht hier eine im Bild, ist es die extern
-       * gesetzte — und genau so heißt sie auf der Baustelle.
-       */
-      'Externe Pumpe',
-    );
-    b.zone = 'speicherung';
-    leite(ruecklaufSammler.b, ruecklaufSammler.port, b, 'in', 'heating-return');
-    ruecklaufSammler = { b, port: 'out' };
-  }
   if (ruecklaufSammler && ruecklaufEin) {
     leite(ruecklaufSammler.b, ruecklaufSammler.port, ruecklaufEin.b, ruecklaufEin.port, 'heating-return');
   }
@@ -886,6 +911,36 @@ export function uebersichtsschema(
   const weggelassen: UebersichtWeglassung[] = [...zaehler.entries()]
     .map(([kind, anzahl]) => ({ kind, name: SCHEMATIC_LEGEND[kind].name, anzahl, tragend: BEHALTEN.has(kind) }))
     .sort((a, b) => b.anzahl - a.anzahl || a.name.localeCompare(b.name, 'de'));
+
+  /*
+   * =========================================================================
+   * Leere Spalten herausnehmen
+   * =========================================================================
+   *
+   * **Warum das nötig ist.** Die Spaltentafel `SP` reserviert für jede
+   * Station einen festen Platz — Erzeuger, Station, Zweiterzeuger,
+   * Sicherheitsgruppe, Umschaltventil, Puffer, Balken, Mischer, Kreispumpe,
+   * Verbraucher. Eine Anlage hat davon selten alle. Eine Wärmepumpe mit
+   * einem gemischten Kreis, ohne Speicher und ohne Puffer, belegt sechs
+   * Spalten und lässt vier leer — die Leitung lief quer über ein Drittel des
+   * Blattes an nichts vorbei.
+   *
+   * Gemeldet am Bild: „die Zeichnung ist unnötig aufgezogen, Linienführung
+   * sollte besser strukturiert sein … es soll nur schematisch für den
+   * Handwerker bzw. die Kundendoku sein."
+   *
+   * **Die Reihenfolge bleibt, der Abstand wird gleich.** Zusammengerückt
+   * wird auf denselben Rasterabstand, den die Tafel zwischen zwei benachbarten
+   * Stationen vorsieht — enger nicht, sonst stoßen die Beschriftungen
+   * aneinander. Was nebeneinander stand, steht weiter nebeneinander; was
+   * hintereinander lag, bleibt hintereinander.
+   */
+  {
+    const SPALTENABSTAND = 4;
+    const benutzt = [...new Set(bauteile.map((b) => b.x))].sort((a, b) => a - b);
+    const neueSpalte = new Map(benutzt.map((x, i) => [x, i * SPALTENABSTAND]));
+    for (const b of bauteile) b.x = neueSpalte.get(b.x) ?? b.x;
+  }
 
   return {
     bauteile,
