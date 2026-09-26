@@ -270,6 +270,47 @@ export function modelToScene(p: Vec2, z = 0): ScenePoint {
 }
 
 /**
+ * Wo ein Stützpunkt landet, der in einer **flach gekippten Fläche** steckt.
+ * ---------------------------------------------------------------------------
+ * Eine Fläche wird in der Zeichenbibliothek in der xy-Ebene aufgebaut und
+ * anschließend mit einer Drehung um die x-Achse um −90° in die Grundebene
+ * gelegt. Diese Drehung ist
+ *
+ *     y' = y·cos(−90°) − z·sin(−90°) = z
+ *     z' = y·sin(−90°) + z·cos(−90°) = −y
+ *
+ * und für einen Stützpunkt, der wie jeder Punkt einer ebenen Fläche bei
+ * z = 0 liegt, also **(x, y, 0) → (x, 0, −y)**.
+ *
+ * Reine Nachrechnung, ohne die Zeichenbibliothek — damit die Prüfung sie
+ * gegen `modelToScene` halten kann.
+ */
+export function flachGekippt(stuetzpunkt: Vec2, hoehe = 0): ScenePoint {
+  return { x: stuetzpunkt.x, y: hoehe, z: -stuetzpunkt.y };
+}
+
+/**
+ * Die Stützpunkte, mit denen eine flach gekippte Fläche den Grundriss trifft.
+ * ---------------------------------------------------------------------------
+ * **Sie sind die Modellkoordinaten selbst.** Das sieht nach einer Funktion
+ * aus, die nichts tut, und genau darin liegt ihr Zweck: Die Frage „kommt hier
+ * `p.y` oder `−p.y` hinein?" wird an **einer** Stelle beantwortet und in der
+ * Prüfung gegen `modelToScene` gehalten.
+ *
+ * **Der Anlass.** Die Außenanlage — Grundstücksfläche, Nachbargebäude,
+ * befestigte Fläche, Kollektorfeld — baute ihre Flächen mit `−p.y` auf und
+ * kippte sie danach flach. Beide Vorzeichenwechsel hoben sich auf, und die
+ * Flächen lagen **an der Modellachse gespiegelt** im Bild. Bei einem
+ * rechteckigen Grundstück fiel das kaum auf; bei einem schiefwinkligen lag
+ * die grüne Fläche sichtbar neben ihrer gelben Grenzlinie — gemeldet als „in
+ * 3D ist das Grün verschoben". Die Raumböden machten es von jeher richtig;
+ * die beiden Stellen wussten nichts voneinander.
+ */
+export function flacheStuetzpunkte(points: readonly Vec2[]): Vec2[] {
+  return points.map((p) => ({ x: p.x, y: p.y }));
+}
+
+/**
  * Drehung um die Hochachse, die einen im Grundriss um `modelAngle` gedrehten
  * Körper in der Szene richtig hinstellt.
  *

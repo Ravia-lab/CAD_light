@@ -33,7 +33,7 @@
 import { planeRing } from './ringleitung';
 import { steigRuns } from './steigstrang';
 import { rohrlaenge } from './rohrlaenge';
-import { stehtAufGeschoss } from './aufstellgeschoss';
+import { fuehrtEinAufGeschoss } from './aufstellgeschoss';
 import { hauseinfuehrung } from './hauseinfuehrung';
 import type {
   BimDocument,
@@ -584,10 +584,18 @@ export function planPipeNetwork(doc: BimDocument, options: PipeLayoutOptions): P
    * Wärmeerzeuger im Haus, den man setzt. Die Außeneinheit hier als Quelle
    * zu nehmen, würde Heizungswasser in eine Kältemittelleitung zeichnen.
    */
+  /*
+   * **Auf welchem Geschoss die Wärmepumpe ins Haus führt** — nicht dort, wo
+   * sie aufgestellt ist. Sie steht im Garten und gehört damit dem
+   * Erdgeschoss; ihre Leitung geht aber in den Technikraum, und der liegt
+   * beim Einfamilienhaus im Keller. Mit dem Aufstellgeschoss versorgte sie
+   * unmittelbar die Heizkörper des Erdgeschosses, während der Speicher im
+   * Keller an nichts hing. Siehe `einfuehrungsgeschoss`.
+   */
   const pumpe = erzeugerImHaus
     ? undefined
     : Object.values(doc.site?.pumps ?? {}).find(
-        (p) => p.form === 'monoblock-outdoor' && stehtAufGeschoss(doc, p, options.levelId),
+        (p) => p.form === 'monoblock-outdoor' && fuehrtEinAufGeschoss(doc, p, options.levelId),
       );
   const einfuehrung = pumpe ? hauseinfuehrung(pumpe.position, walls, doc.nodes, openings, rooms) : undefined;
   /**
@@ -654,11 +662,23 @@ export function planPipeNetwork(doc: BimDocument, options: PipeLayoutOptions): P
   const erzeuger = erzeugerImHaus ?? wpQuelle;
 
   /*
-   * Die Quelle des Stammes. Der Speicher steht bewusst vor der Wärmepumpe —
-   * im Haus beginnt das Netz dann am Puffer, und die Wärmepumpe lädt ihn.
-   * Ein Wärmeerzeuger im Haus geht allem vor. Geraten wird kein Standort.
+   * --- Erzeuger → Speicher → Verbraucher -----------------------------------
+   *
+   * Die Quelle des **Stammes** ist der Speicher, sobald einer auf diesem
+   * Geschoss steht — auch dann, wenn daneben ein Wärmeerzeuger steht. Der
+   * Erzeuger lädt ihn (die Ladeleitung entsteht weiter unten als eigener
+   * Anschluss); die Verteilung geht vom Speicher aus.
+   *
+   * **Was hier bis 1.55.2 stand**, war `erzeugerImHaus ?? speicher[0]`: Der
+   * Erzeuger versorgte unmittelbar die Verbraucher, und der Speicher hing an
+   * nichts. Gemeldet als „eine Wärmepumpe geht an den Speicher, wenn der
+   * vorhanden ist … Erzeuger → Speicher (wenn vorhanden) → Verbraucher".
+   *
+   * Ohne Speicher auf diesem Geschoss bleibt es beim Erzeuger, und ohne
+   * beides beginnt die Verteilung am Fuß der Steigleitung. Geraten wird kein
+   * Standort.
    */
-  const stamm = erzeugerImHaus ?? speicher[0] ?? wpQuelle ?? steigQuelle;
+  const stamm = speicher[0] ?? erzeugerImHaus ?? wpQuelle ?? steigQuelle;
 
   if (!stamm && verteiler.length === 0) {
     const flaechen = fixtures.filter((f) => f.type === 'underfloor');
@@ -726,10 +746,25 @@ export function planPipeNetwork(doc: BimDocument, options: PipeLayoutOptions): P
   if (stamm) {
     for (const v of verteiler) anschluesse.push({ ziel: v, quelle: stamm, geraten: false });
   }
-  // Die Wärmepumpe lädt den Speicher: eine eigene Leitung von der
-  // Hauseinführung zum Puffer, bemessen auf alles, was am Puffer hängt.
-  if (wpQuelle && stamm && stamm.id !== wpQuelle.id && stamm.type === 'storage') {
-    anschluesse.push({ ziel: stamm, quelle: wpQuelle, geraten: false });
+  /*
+   * **Der Erzeuger lädt den Speicher.** Eine eigene Leitung vom Erzeuger —
+   * dem Gerät im Haus oder der Hauseinführung der Wärmepumpe — zum Speicher,
+   * bemessen auf alles, was am Speicher hängt.
+   *
+   * Bis 1.55.2 galt das nur für die Wärmepumpe. Stand ein Wärmeerzeuger im
+   * Haus **und** ein Speicher daneben, war der Erzeuger der Stamm und der
+   * Speicher blieb unangeschlossen: ein Behälter im Plan, in den keine
+   * Leitung führt.
+   */
+  if (erzeuger && stamm && stamm.id !== erzeuger.id && stamm.type === 'storage') {
+    anschluesse.push({ ziel: stamm, quelle: erzeuger, geraten: false });
+    notes.push({
+      severity: 'info',
+      text:
+        `„${erzeuger.label ?? 'Der Wärmeerzeuger'}" lädt den Speicher „${stamm.label ?? 'Speicher'}"; ` +
+        'die Verteilung beginnt am Speicher. Die Ladeleitung ist auf den Volumenstrom bemessen, ' +
+        'den der Speicher abgibt.',
+    });
   }
 
   /*

@@ -169,7 +169,8 @@ import type { SpiegelAchse } from '../lib/spiegeln';
 import type { BegradigenOptionen } from '../lib/begradigen';
 import { findeLuecken, oeffnungFuerLuecke } from '../lib/luecken';
 import type { LueckenSchluss } from '../lib/luecken';
-import { benenneGeschosse, erdgeschossIndex } from '../lib/levelGeometry';
+import { benenneGeschosse, erdgeschossIndex, levelBaseHeights } from '../lib/levelGeometry';
+import { treppenmasse } from '../lib/treppenlogik';
 import { VORHABEN_VORBELEGUNG, emptyPlant, emptySite } from '../lib/plantDefaults';
 import { ANBINDUNG_LABELS, schemaVorlage } from '../lib/schemaKatalog';
 import { applyHostPatch as applyPatchToDocument } from '../lib/hostPatch';
@@ -3782,17 +3783,33 @@ export const useBimStore = create<BimState>()((set, get) => {
 
     addVertical: (kind, position) => {
       const isStair = kind !== 'shaft';
+      /*
+       * **Die Stufenzahl folgt der Geschosshöhe**, nicht einer festen Zahl.
+       *
+       * Bis 1.55.2 stand hier `steps: 15`, gleichgültig wie hoch das Haus
+       * ist. Bei 3,05 m von Fußboden zu Fußboden sind das 20,3 cm Steigung —
+       * über dem Höchstmaß der DIN 18065, und zwar bei einer Treppe, die das
+       * Programm selbst gerade eingesetzt hat. `treppenmasse` teilt die
+       * wirkliche Höhe; die Lauflänge folgt aus den Auftritten und passt
+       * damit zur Stufenzahl statt daneben zu liegen.
+       */
+      const doc0 = get().doc;
+      const basis = levelBaseHeights(Object.values(doc0.levels));
+      const eigen = basis.get(doc0.activeLevelId) ?? 0;
+      const oben = [...basis.values()].filter((b) => b > eigen + 1e-6).sort((a, b) => a - b)[0];
+      const masse = oben !== undefined ? treppenmasse(oben - eigen) : undefined;
       const element: VerticalElement = {
         id: uid('v'),
         kind,
         name: isStair ? 'Treppe' : 'Schacht',
-        levelId: get().doc.activeLevelId,
+        levelId: doc0.activeLevelId,
         position: { x: roundMm(position.x), y: roundMm(position.y) },
-        // Vorgaben nach DIN 18065: 1,00 m Laufbreite, 17,5/26 cm Steigung.
+        // Vorgabe nach DIN 18065: 1,00 m Laufbreite. Ohne Geschoss darüber
+        // bleibt es beim Regellauf mit 15 Steigungen auf 3,60 m.
         width: isStair ? 1 : 0.4,
-        length: isStair ? 3.6 : 0.6,
+        length: isStair ? roundMm(masse?.laufLaenge ?? 3.6) : 0.6,
         rotation: 0,
-        steps: isStair ? 15 : undefined,
+        steps: isStair ? (masse?.steigungen ?? 15) : undefined,
         service: isStair ? undefined : 'mixed',
         deductsArea: true,
         openToAbove: isStair,

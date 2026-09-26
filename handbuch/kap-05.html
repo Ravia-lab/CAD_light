@@ -162,13 +162,18 @@
 
 <p>Sie geben drei Maße ein: Laufbreite, Lauflänge und die Zahl der Steigungen. Das Programm rechnet daraus die drei Zahlen, an denen man eine Treppe beurteilt.</p>
 
+<p><b>Seit 1.56.0 rechnet es mit der wirklichen Geschosshöhe.</b> Bis dahin stand hier „lichte Geschosshöhe plus 28 cm" — ein geschätzter Deckenaufbau. Bei einem Keller mit 2,30 m lichter Höhe lag die Treppe damit 45 cm zu tief, und zwar unbemerkt, weil die geschätzte Zahl im Objektblatt genauso falsch stand wie im Modell. Zu überwinden ist der Abstand von Fertigfußboden zu Fertigfußboden, und den kennt das Programm aus den Höhenlagen der Geschosse (Abschnitt 5.1).</p>
+
 <div class="formel">
-  <p class="worte">In Worten: Die Steigungshöhe ist der Weg, den die Treppe zu überwinden hat, geteilt durch die Zahl der Steigungen. Zu überwinden ist die lichte Geschosshöhe zuzüglich des Deckenaufbaus — das Programm setzt dafür fest 28 cm an.</p>
-  <p class="math">s = (lichte Geschosshöhe + 0,28 m) / Zahl der Steigungen</p>
+  <p class="worte">In Worten: Die Steigungshöhe ist der Weg, den die Treppe zu überwinden hat, geteilt durch die Zahl der Steigungen. Zu überwinden ist der Abstand von Fußboden zu Fußboden — also lichte Höhe plus Deckenstärke, beides aus dem Modell.</p>
+  <p class="math">s = Geschosshöhe / Zahl der Steigungen</p>
   <dl class="zeichen">
     <dt>s</dt><dd>Steigungshöhe in Metern [m] — die Höhe einer einzelnen Stufe</dd>
+    <dt>Geschosshöhe</dt><dd>Oberkante Fußboden unten bis Oberkante Fußboden oben [m]</dd>
   </dl>
 </div>
+
+<p><b>Es wird nicht gerundet</b>, und das ist keine Nachlässigkeit. Sechzehn Steigungen auf 3,00 m sind 187,5 mm. Auf 188 mm gerundet ergäbe die Treppe 3008 mm und passte nicht mehr zwischen die Geschosse — die letzte Stufe wäre 8 mm niedriger, genau die Stolperstelle, die die Regel „alle Steigungen gleich hoch" verhindern soll.</p>
 
 <div class="formel">
   <p class="worte">In Worten: Der Auftritt ist die Länge der Lauflinie, geteilt durch die Zahl der Auftritte. Auftritte gibt es einen weniger als Steigungen, weil die letzte Stufe schon der Fußboden oben ist. Gemessen wird auf der <b>Lauflinie</b>, nicht an der Bauteilkante: bei einer gewendelten Treppe ist der Weg länger, als das Bauteil tief ist.</p>
@@ -185,16 +190,45 @@
 
 <div class="beispiel">
 <b>Beispiel zum Nachrechnen</b>
-<p>Gerade Treppe im Einfamilienhaus. Lichte Geschosshöhe 2,75 m, Lauflänge 4,00 m, 17 Steigungen.</p>
-<p>Steigungshöhe s = (2,75 + 0,28) / 17 = 3,03 / 17 = 0,178 m</p>
+<p>Gerade Treppe im Einfamilienhaus. Lichte Geschosshöhe 2,75 m, Deckenstärke 0,25 m — also 3,00 m von Fußboden zu Fußboden. Lauflänge 4,00 m, 17 Steigungen.</p>
+<p>Steigungshöhe s = 3,00 / 17 = 0,176 m</p>
 <p>Auftritt a = 4,00 / (17 − 1) = 4,00 / 16 = 0,250 m</p>
-<p>Schrittmaß = 2 · 17,8 + 25,0</p>
-<p class="ergebnis">= 17,8 cm Steigung, 25,0 cm Auftritt, Schrittmaß 60,6 cm</p>
+<p>Schrittmaß = 2 · 17,6 + 25,0</p>
+<p class="ergebnis">= 17,6 cm Steigung, 25,0 cm Auftritt, Schrittmaß 60,2 cm</p>
 </div>
+
+<h4 id="k5-5-3">5.5.3 Wo die Decke aufhört — die lichte Durchgangshöhe</h4>
+
+<p><b>Das ist die eigentliche Treppenlogik.</b> Eine Treppe ist kein Bauteil in einem Geschoss, sondern die Verbindung zweier Geschosse — und dazu gehört ein Loch im Fußboden darüber. Wie groß das sein muss, ist kein Gestaltungsmaß: Es ist genau der Bereich, in dem man sonst den Kopf anstößt.</p>
+
+<p>DIN 18065 gibt die lichte Durchgangshöhe in Abschnitt 6.4 einheitlich für alle Gebäudearten mit <b>200 cm</b> an. Gemessen wird sie als kleinstes senkrechtes Fertigmaß zwischen der Linie entlang der Stufenvorderkanten und der Unterkante des darüber liegenden Bauteils.</p>
+
+<div class="formel">
+  <p class="worte">In Worten: Die Stufenvorderkante steigt mit dem Verhältnis von Steigung zu Auftritt. Offen sein muss die Decke ab der Stelle, an der über der Stufenkante keine zwei Meter mehr bleiben.</p>
+  <p class="math">d = (Unterkante der Decke − 2,00 m) · a / s</p>
+  <dl class="zeichen">
+    <dt>d</dt><dd>Weg auf der Lauflinie ab Antritt [m], ab dem die Decke offen ist</dd>
+    <dt>a / s</dt><dd>Auftritt geteilt durch Steigung — wie weit die Treppe waagerecht läuft, während sie einen Meter steigt</dd>
+  </dl>
+</div>
+
+<div class="beispiel">
+<b>Beispiel zum Nachrechnen</b>
+<p>Geschosshöhe 3,00 m, 16 Steigungen, Deckenstärke 25 cm. Die Unterkante der Decke liegt also 2,75 m über dem Fußboden.</p>
+<p>Steigung s = 3,00 / 16 = 0,1875 m</p>
+<p>Auftritt a = 0,63 − 2 · 0,1875 = 0,2550 m &nbsp;(aus der Schrittmaßregel)</p>
+<p>Verhältnis a / s = 0,2550 / 0,1875 = 1,36</p>
+<p>Offen ab d = (2,75 − 2,00) · 1,36 = 0,75 · 1,36</p>
+<p class="ergebnis">= die Decke ist ab 1,02 m Lauflänge offen; über dem Antritt bleibt sie stehen</p>
+</div>
+
+<p>Das Loch folgt dabei der <b>Lauflinie</b> und nicht dem Rechteck des Bauteils: Bei einer gewendelten Treppe biegt der Lauf ab, und das Loch biegt mit. Dasselbe Loch bekommen die Deckenplatte und der Fußboden des Geschosses darüber — bis 1.55.2 hatte nur die Platte eines, und wer von oben auf das Obergeschoss sah, sah einen geschlossenen Boden über der Treppe.</p>
+
+<p>Ein <b>Schacht</b> wird anders behandelt: Er ist über seine ganze Fläche offen. Er führt Leitungen und keine Köpfe.</p>
 
 <p>Das Programm warnt, sobald die Steigungshöhe unter 14 cm oder über 20 cm liegt oder der Auftritt unter 23 cm oder über 37 cm — die Bereiche nach DIN 18065. Bei gewendelten Treppen ist dabei fast immer die Lauflinie der Grund und nicht die Stufenzahl: Wer die Bauteiltiefe im Kopf hat, unterschätzt den Weg.</p>
 
-<div class="merke"><b>Merke</b><p>Das Programm zeichnet die Treppe und rechnet ihr Steigungsverhältnis. Es ist damit kein Treppennachweis: Kopffreiheit, Handlauf, Podestlängen und Rettungsweganforderungen prüft es nicht.</p></div>
+<div class="merke"><b>Merke</b><p>Das Programm zeichnet die Treppe, rechnet ihr Steigungsverhältnis und öffnet die Decke nach der lichten Durchgangshöhe. Es ist damit immer noch kein Treppennachweis: Handlauf, Podestlängen, Geländerhöhen und Rettungsweganforderungen prüft es nicht.</p></div>
 
 <p>Beim Schacht geben Sie statt der Laufmaße Breite und Tiefe an, dazu das Gewerk: Heizung, Sanitär, Lüftung, Elektro oder gemischt. Der Schacht wird leicht schraffiert und offen dargestellt, damit er nicht mit einem Raum verwechselt wird; ab einem gewissen Zoom steht der Anfangsbuchstabe des Gewerks darin.</p>
 

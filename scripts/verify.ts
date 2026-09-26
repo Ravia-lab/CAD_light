@@ -62,10 +62,11 @@ import { pruefeSteigleitung } from './pruefungen/steigleitung';
 import { pruefeHuellflaeche } from './pruefungen/huellflaeche';
 import { pruefeSprache } from './pruefungen/sprache';
 import { pruefeDachlandschaft } from './pruefungen/dachlandschaft';
-import { pruefeRohrausleger } from './pruefungen/rohrausleger';
+import { pruefeRohrausleger, pruefeErzeugerSpeicherVerbraucher } from './pruefungen/rohrausleger';
 import { pruefeRohrnetzrechner } from './pruefungen/rohrnetzrechner';
 import { pruefeWissensbasis } from './pruefungen/wissensbasis';
 import { pruefeGeschossdecken } from './pruefungen/geschossdecken';
+import { pruefeTreppenlogik } from './pruefungen/treppenlogik';
 import { pruefeSchemapruefung } from './pruefungen/schemapruefung';
 import { pruefeSchemavorschlag } from './pruefungen/schemavorschlag';
 import expectedReference from './fixtures/referenz-soll.json';
@@ -160,7 +161,7 @@ import { pruefeSkizze } from './pruefungen/skizze';
 import { pruefeNotizen } from './pruefungen/notizen';
 import { pruefeBeschriftungsflaeche, pruefeEckpunkte } from './pruefungen/eckpunkte';
 import { pruefeBegehen } from './pruefungen/begehen';
-import { pruefeRaumtreffer } from './pruefungen/raumtreffer';
+import { pruefeRaumtreffer, pruefeFlachGekippteFlaechen } from './pruefungen/raumtreffer';
 import { pruefeErzeugerhydraulik } from './pruefungen/erzeugerhydraulik';
 import { pruefeRaumscan } from './pruefungen/raumscan';
 import { pruefeGebaeudescan } from './pruefungen/gebaeudescan';
@@ -3861,6 +3862,9 @@ pruefeRohrbezeichnung(check);
 console.log('\n▸ Rohrausleger — Trasse, Dimension, Armaturen');
 pruefeRohrausleger(check);
 
+console.log('\n▸ Erzeuger → Speicher → Verbraucher');
+pruefeErzeugerSpeicherVerbraucher(check);
+
 console.log('\n▸ Rohrnetzrechner — kv, Voreinstellung, Teilstrecken, Blätter');
 pruefeRohrnetzrechner(check);
 
@@ -3869,6 +3873,9 @@ pruefeWissensbasis(check);
 
 console.log('\n▸ Geschossdecken — die Lücke zwischen den Geschossen');
 pruefeGeschossdecken(check);
+
+console.log('\n▸ Treppenlogik — Steigung, Auftritt, Loch in der Decke');
+pruefeTreppenlogik(check);
 
 console.log('\n▸ Schemaprüfung — Regeln gegen das Fließbild');
 pruefeSchemapruefung(check);
@@ -3902,6 +3909,9 @@ pruefeBegehen(check);
 
 console.log('\n▸ Raumtreffer — was ein Punkt im Raum im Modell bedeutet');
 pruefeRaumtreffer(check);
+
+console.log('\n▸ Flach gekippte Flächen');
+pruefeFlachGekippteFlaechen(check);
 
 console.log('\n▸ Werkzeugkiste — zielen, urteilen, setzen im begehbaren Haus');
 pruefeWerkzeugkiste(check);

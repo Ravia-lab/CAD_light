@@ -20,9 +20,9 @@
  */
 
 import type { CheckFn } from './typ';
-import type { BimDocument } from '../../src/types/bim';
+import type { BimDocument, Vec2 } from '../../src/types/bim';
 import { WANDZUSCHLAG, deuteTreffer, szeneZuModell } from '../../src/lib/raumtreffer';
-import { modelToScene } from '../../src/lib/wallGeometry';
+import { flachGekippt, flacheStuetzpunkte, modelToScene } from '../../src/lib/wallGeometry';
 
 /** Ein Zimmer 6 × 4 m (Achsmaß), 24er-Außenwände, eine 11,5er-Trennwand. */
 function baueHaus(): BimDocument {
@@ -200,4 +200,66 @@ export function pruefeRaumtreffer(check: CheckFn): void {
     const leer = { walls: {}, rooms: {}, nodes: {} } as unknown as BimDocument;
     check('Ein leeres Modell stürzt nicht ab', deuteTreffer(leer, 'eg', { x: 0, y: 0 }).art, 'nichts');
   }
+}
+
+// ===========================================================================
+// Flach gekippte Flächen liegen dort, wo ihr Grundriss liegt
+// ===========================================================================
+
+/**
+ * **Die Grundstücksfläche lag neben ihrer eigenen Grenzlinie.**
+ *
+ * Gemeldet am 3D-Bild: „in 3D ist das Grün verschoben, was für die Fläche
+ * gelten sollte." Die Grenz**linie** wurde Punkt für Punkt über
+ * `modelToScene` gesetzt, die Grenz**fläche** dagegen als ebene Fläche
+ * aufgebaut und flach gekippt — und dabei mit `−p.y` statt `p.y`. Die
+ * Kippung um −90° dreht das Vorzeichen bereits um; das zweite Minus hob es
+ * auf, und die Fläche lag **an der Modellachse gespiegelt**.
+ *
+ * Bei einem achsparallelen Rechteck fällt das kaum auf — es fällt bei der
+ * Spiegelung fast auf sich selbst zurück. Bei einem schiefwinkligen
+ * Grundstück liegt die Fläche sichtbar woanders als ihre Linie.
+ *
+ * Geprüft wird an einem **schiefen** Vieleck, und zwar gegen `modelToScene`:
+ * Fläche und Linie müssen denselben Punkt treffen.
+ */
+export function pruefeFlachGekippteFlaechen(check: CheckFn): void {
+  /*
+   * Ein Vieleck ohne jede Symmetrie — sonst prüft es sich selbst gesund.
+   * Kein Punkt liegt auf y = 0, keine zwei Punkte sind an y = 0 gespiegelt,
+   * und alle y sind positiv: Damit ist die Spiegelung an z = 0 für **jeden**
+   * Punkt eine echte Ortsveränderung.
+   */
+  const grundstueck: Vec2[] = [
+    { x: 0, y: 1 },
+    { x: 12, y: 3 },
+    { x: 15, y: 11 },
+    { x: 4, y: 9 },
+  ];
+
+  const stuetz = flacheStuetzpunkte(grundstueck);
+  check('Flach gekippt · gleich viele Stützpunkte', stuetz.length, grundstueck.length);
+
+  let daneben = 0;
+  let gespiegelt = 0;
+  for (let i = 0; i < grundstueck.length; i += 1) {
+    const ausFlaeche = flachGekippt(stuetz[i]!, 0.5);
+    const ausLinie = modelToScene(grundstueck[i]!, 0.5);
+    if (Math.abs(ausFlaeche.x - ausLinie.x) > 1e-9 || Math.abs(ausFlaeche.z - ausLinie.z) > 1e-9) daneben += 1;
+    // Die Gegenprobe zum alten Fehler: mit `−p.y` als Stützpunkt landet der
+    // Punkt bei +y statt −y. Der Abstand ist dann 2·y — bei diesem Vieleck
+    // zwischen 2 und 22 m, also nie null.
+    const falsch = flachGekippt({ x: grundstueck[i]!.x, y: -grundstueck[i]!.y }, 0.5);
+    if (Math.abs(falsch.z - ausLinie.z) > 1e-9) gespiegelt += 1;
+  }
+  check('Flach gekippt · die Fläche trifft ihre Linie', daneben, 0);
+  check('Flach gekippt · und das alte Vorzeichen täte es nicht', gespiegelt, grundstueck.length);
+
+  /*
+   * **Die Höhe bleibt die Höhe.** Ein Stützpunkt liegt in der Fläche bei
+   * z = 0; nach der Kippung ist die Höhe die, die der Aufrufer vorgibt —
+   * hier der Zentimeter, mit dem die Rasenfläche unter das Gelände gelegt
+   * wird, damit Zufahrt und Terrasse darüber sichtbar bleiben.
+   */
+  check('Flach gekippt · die Höhe wird durchgereicht', flachGekippt({ x: 3, y: 7 }, -0.01).y, -0.01);
 }

@@ -47,6 +47,9 @@ import { planPipeNetwork, SIZING_LIMITS, SOCKELLEISTE_MAX_AUSSEN } from '../../s
 import { routePipes, SOLLABSTAND, TUER_ZUSCHLAG } from '../../src/lib/pipeRouting';
 import { getWallGeometry } from '../../src/lib/wallGeometry';
 import { pointInPolygon } from '../../src/lib/geometry';
+import { aufstellgeschoss, einfuehrungsgeschoss } from '../../src/lib/aufstellgeschoss';
+import { buildReferenceDocument } from '../reference';
+import { planeGebaeudeNetz } from '../../src/lib/gebaeudeNetz';
 
 /**
  * Das Prüfhaus: zwei Räume, 5,00 × 4,00 m Achsmaß, dazwischen eine Trennwand
@@ -1083,5 +1086,225 @@ export function pruefeRohrausleger(check: CheckFn): void {
       ro.notes.some((n) => n.severity === 'error' && /Verteiler/.test(n.text) && !/Heizkörper/.test(n.text)),
       true,
     );
+  }
+}
+
+// ===========================================================================
+// Erzeuger → Speicher → Verbraucher
+// ===========================================================================
+
+/**
+ * **Die Reihenfolge der Anlage, am Rohrnetz nachgewiesen.**
+ *
+ * Gemeldet am laufenden Plan: *„eine Wärmepumpe geht an den Speicher, wenn
+ * der vorhanden ist — hier geht diese direkt ins EG, was so verkehrt wäre.
+ * Erzeuger → Speicher (wenn vorhanden) → Verbraucher."*
+ *
+ * Zwei Fehler steckten darin, und beide sind nur am Netz zu sehen:
+ *
+ *  1. Der Rohrausleger nahm für die Wärmepumpe das **Aufstellgeschoss**.
+ *     Sie steht im Garten und gehört damit dem Erdgeschoss — also begann das
+ *     Netz im Erdgeschoss und versorgte von dort unmittelbar die Heizkörper,
+ *     während der Speicher im Keller an nichts hing. Ihre Leitung führt aber
+ *     dorthin, wo sie gebraucht wird: in den Technikraum.
+ *  2. Stand ein Wärmeerzeuger **neben** dem Speicher, war er der Stamm und
+ *     der Speicher blieb unangeschlossen — ein Behälter im Plan, in den
+ *     keine Leitung führt.
+ */
+export function pruefeErzeugerSpeicherVerbraucher(check: CheckFn): void {
+  const doc = buildReferenceDocument();
+
+  /** Der Speicher im Keller — dort, wo beim Prüfhaus der Heizraum liegt. */
+  const speicherKG: Fixture = {
+    id: 'sp-kg',
+    type: 'storage',
+    category: 'heating',
+    levelId: 'kg',
+    position: { x: 1.2, y: 1.2 },
+    rotation: 0,
+    length: 0.6,
+    depth: 0.6,
+    elevation: 0,
+    label: 'Pufferspeicher',
+    params: {},
+  };
+
+  /** Dieselbe Wärmepumpe wie in `anschlussgroesse` — im Garten, Monoblock. */
+  const mitWaermepumpe = (basis: BimDocument): BimDocument => ({
+    ...basis,
+    site: {
+      ...basis.site,
+      pumps: {
+        wp: {
+          id: 'wp',
+          label: 'Wärmepumpe',
+          source: 'air',
+          form: 'monoblock-outdoor',
+          position: { x: -2, y: 2 },
+          azimuth: 180,
+          width: 1.1,
+          depth: 0.5,
+          height: 1.05,
+          standHeight: 0.3,
+          mounting: 'free',
+          soundPower: 54,
+          nightModeGuaranteed: false,
+          toneSurcharge: 0,
+          refrigerant: 'R290',
+          refrigerantMass: 1.4,
+          protectionRadius: 1,
+          heatingCapacity: 8,
+          ratingPoint: 'A-7/W35',
+          cop: 3.2,
+          operation: 'mono-energetic',
+          bivalencePoint: -7,
+          backupCapacity: 6,
+          flowTemperature: 50,
+          gridRegime: 'none',
+          blockedHours: 0,
+          domesticHotWater: true,
+          occupants: 4,
+        },
+      },
+    },
+  });
+
+  // =========================================================================
+  // 1 · Die Wärmepumpe führt dort ins Haus, wo der Speicher steht
+  // =========================================================================
+  {
+    const mitSpeicher: BimDocument = {
+      ...mitWaermepumpe(doc),
+      fixtures: { ...doc.fixtures, [speicherKG.id]: speicherKG },
+    };
+
+    /*
+     * **Im Keller** — dort steht der Speicher, dort führt die Leitung ins
+     * Haus. Nachgewiesen an der Ladeleitung: Sie entsteht nur, wenn die
+     * Wärmepumpe auf diesem Geschoss als Erzeuger gilt, und sie endet am
+     * Speicher.
+     */
+    check(
+      'Reihenfolge · die Wärmepumpe führt im Keller ins Haus',
+      einfuehrungsgeschoss(mitSpeicher, mitSpeicher.site.pumps.wp!) ?? 'keins',
+      'kg',
+    );
+    /*
+     * **Nicht im Erdgeschoss**, obwohl sie dort aufgestellt ist. Das ist die
+     * Unterscheidung, um die es geht: Angefasst wird das Gerät am Gelände,
+     * die Leitung geht in den Technikraum. Die Gegenprobe steht in Nummer 3.
+     */
+    check(
+      'Reihenfolge · aufgestellt ist sie trotzdem im Erdgeschoss',
+      aufstellgeschoss(mitSpeicher, mitSpeicher.site.pumps.wp!) ?? 'keins',
+      'eg',
+    );
+
+    // --- Das Erdgeschoss hängt an der Steigleitung, nicht an der Pumpe ----
+    /*
+     * Ohne Einspeisung von unten gäbe es im Erdgeschoss gar keine Quelle
+     * mehr — und genau das ist richtig: Die Zuleitung kommt vom Speicher im
+     * Keller. Das Gebäudenetz setzt sie; hier wird geprüft, dass die
+     * Wärmepumpe **nicht** an ihre Stelle tritt.
+     */
+    const eg = planPipeNetwork(mitSpeicher, { mode: 'neubau', levelId: 'eg' });
+    check(
+      'Reihenfolge · im Erdgeschoss ist die Wärmepumpe nicht mehr die Quelle',
+      eg.notes.some((n) => /Kein Wärmeerzeuger und kein Speicher auf diesem Geschoss/.test(n.text)),
+      true,
+    );
+    check(
+      'Reihenfolge · und keine Hauseinführung im Erdgeschoss',
+      eg.notes.some((n) => /Hauseinführung/.test(n.text)),
+      false,
+    );
+
+    // --- Im Keller lädt sie den Speicher ----------------------------------
+    const kg = planPipeNetwork(mitSpeicher, { mode: 'neubau', levelId: 'kg' });
+    check(
+      'Reihenfolge · im Keller lädt die Wärmepumpe den Speicher',
+      kg.notes.some((n) => /lädt den Speicher/.test(n.text)),
+      true,
+    );
+    check(
+      'Reihenfolge · und die Hauseinführung liegt im Keller',
+      kg.notes.some((n) => /Hauseinführung/.test(n.text)),
+      true,
+    );
+  }
+
+  // =========================================================================
+  // 2 · Das ganze Haus: Wärmepumpe → Speicher im Keller → Geschosse darüber
+  // =========================================================================
+  {
+    /*
+     * Der gemeldete Fall selbst, über alle drei Geschosse: Wärmepumpe im
+     * Garten, Speicher im Keller, Verbraucher im Erd- und Obergeschoss.
+     *
+     * Bis 1.55.2 war die Wärmepumpe im **Erdgeschoss** die Quelle — dort
+     * steht sie ja, gemessen am Gelände — und versorgte von dort unmittelbar
+     * die Heizkörper. Der Speicher im Keller lag daneben, ohne Anschluss.
+     */
+    const haus: BimDocument = {
+      ...mitWaermepumpe(doc),
+      fixtures: { ...doc.fixtures, [speicherKG.id]: speicherKG },
+    };
+    const netz = planeGebaeudeNetz(haus, { mode: 'neubau', levelId: 'eg' });
+    /** Steht dieser Satz in einem Befund, der mit diesem Geschoss beginnt? */
+    const sagt = (geschoss: string, muster: RegExp) =>
+      netz.notes.some((n) => n.text.startsWith(`${geschoss}:`) && muster.test(n.text));
+
+    check('Reihenfolge · der Erzeuger ist im Keller', sagt('KG', /Wärmeerzeuger ist die Wärmepumpe/), true);
+    check('Reihenfolge · dort lädt er den Speicher', sagt('KG', /lädt den Speicher/), true);
+    /*
+     * **Und nicht im Erdgeschoss.** Das ist der eigentliche Nachweis: Die
+     * Wärmepumpe darf dort weder Erzeuger sein noch eine Hauseinführung
+     * haben — das Erdgeschoss hängt an der Steigleitung aus dem Keller.
+     */
+    check('Reihenfolge · im Erdgeschoss ist sie nicht der Erzeuger', sagt('EG', /Wärmeerzeuger ist die Wärmepumpe/), false);
+    check(
+      'Reihenfolge · das Erdgeschoss hängt am Strang aus dem Keller',
+      sagt('EG', /die Verteilung beginnt am Fuß der Steigleitung \(„Steigleitung aus KG"\)/),
+      true,
+    );
+    /*
+     * Drei Geschosse ergeben **zwei** Strangabschnitte — KG→EG und EG→OG.
+     * Von unten nach oben, weil das Quellgeschoss unten liegt.
+     */
+    check('Reihenfolge · zwei Strangabschnitte', netz.straenge.length, 2);
+    check('Reihenfolge · der erste beginnt im Keller', netz.straenge[0]?.vonLevelId ?? 'keins', 'kg');
+
+    /*
+     * **Der Strang aus dem Keller trägt mehr als der darüber.** Er führt das
+     * Wasser für Erd- **und** Obergeschoss, der nächste nur noch das des
+     * Obergeschosses. Das ist die Probe darauf, dass wirklich von oben nach
+     * unten aufsummiert wird und nicht jedes Geschoss für sich rechnet.
+     */
+    check(
+      'Reihenfolge · und trägt mehr als der Strang darüber',
+      (netz.straenge[0]?.strom ?? 0) > (netz.straenge[1]?.strom ?? 0),
+      true,
+    );
+  }
+
+  // =========================================================================
+  // 3 · Gegenprobe: ohne Speicher verteilt die Wärmepumpe selbst
+  // =========================================================================
+  {
+    /*
+     * Ohne diese Probe hieße die Regel „die Wärmepumpe ist nie die Quelle",
+     * und das wäre falsch: Gibt es weder Speicher noch Wärmeerzeuger im
+     * Haus, verteilt sie wirklich selbst — dann führt ihre Leitung auf ihrem
+     * Aufstellgeschoss ins Haus, und dort beginnt das Netz.
+     */
+    const ohne = mitWaermepumpe(doc);
+    check(
+      'Reihenfolge · ohne Speicher führt sie auf ihrem Aufstellgeschoss ein',
+      einfuehrungsgeschoss(ohne, ohne.site.pumps.wp!) ?? 'keins',
+      aufstellgeschoss(ohne, ohne.site.pumps.wp!) ?? 'anderes',
+    );
+    const eg = planPipeNetwork(ohne, { mode: 'neubau', levelId: 'eg' });
+    check('Reihenfolge · und sie ist dort der Wärmeerzeuger', eg.notes.some((n) => /Wärmeerzeuger ist die Wärmepumpe/.test(n.text)), true);
+    check('Reihenfolge · das Netz entsteht', eg.runs.length > 0, true);
   }
 }

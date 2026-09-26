@@ -63,3 +63,45 @@ export function aufstellgeschoss(doc: BimDocument, pump: HeatPump): LevelId | un
 export function stehtAufGeschoss(doc: BimDocument, pump: HeatPump, levelId: LevelId): boolean {
   return aufstellgeschoss(doc, pump) === levelId;
 }
+
+/**
+ * Auf welchem Geschoss die **Leitung** der Wärmepumpe ins Haus führt.
+ * ---------------------------------------------------------------------------
+ * Das ist nicht dasselbe wie das Aufstellgeschoss, und die Verwechslung war
+ * ein gemeldeter Fehler: „eine Wärmepumpe geht an den Speicher, wenn der
+ * vorhanden ist — hier geht diese direkt ins EG, was so verkehrt wäre."
+ *
+ * **Angefasst** wird das Gerät dort, wo es steht: im Garten, also am Gelände
+ * und damit am Erdgeschoss. Das **Heizungswasser** geht dorthin, wo es
+ * gebraucht wird, und das ist der Technikraum — beim Einfamilienhaus der
+ * Keller, in dem Speicher und Verteiler stehen. Nahm man das Aufstellgeschoss
+ * auch für die Leitung, begann das Netz im Erdgeschoss: Die Wärmepumpe
+ * versorgte dort unmittelbar die Heizkörper, und der Speicher im Keller hing
+ * an nichts.
+ *
+ * **Die Reihenfolge** ist die der Anlage selbst: Erzeuger → Speicher →
+ * Verbraucher. Der Speicher gibt deshalb das Geschoss vor; ohne Speicher der
+ * Wärmeerzeuger im Haus; ohne beides bleibt es beim Aufstellgeschoss, denn
+ * dann verteilt die Wärmepumpe wirklich selbst.
+ */
+export function einfuehrungsgeschoss(doc: BimDocument, pump: HeatPump): LevelId | undefined {
+  const fixtures = Object.values(doc.fixtures);
+  const geordnet = (typ: 'storage' | 'boiler'): LevelId | undefined => {
+    let beste: { id: LevelId; order: number } | undefined;
+    for (const f of fixtures) {
+      if (f.type !== typ) continue;
+      const level = doc.levels[f.levelId];
+      if (!level) continue;
+      // Das **unterste** Geschoss gibt den Ausschlag: Stehen Speicher auf
+      // mehreren Ebenen, kommt die Leitung von außen unten herein.
+      if (!beste || level.order < beste.order) beste = { id: level.id, order: level.order };
+    }
+    return beste?.id;
+  };
+  return geordnet('storage') ?? geordnet('boiler') ?? aufstellgeschoss(doc, pump);
+}
+
+/** Führt die Leitung dieses Geräts auf *diesem* Geschoss ins Haus? */
+export function fuehrtEinAufGeschoss(doc: BimDocument, pump: HeatPump, levelId: LevelId): boolean {
+  return einfuehrungsgeschoss(doc, pump) === levelId;
+}

@@ -1,6 +1,6 @@
 af47e248dd81fdbe9395552e937adc8f7f623cea4196fe0cacb12751359eeca3  ./app/apple-touch-icon.png
 7dbe44633d6a311b40901f268dac575e4b50b759a466b3f82ceabf22307507e9  ./app/assets/index-B4hvZb00.css
-9743f7a6bf333d82d2cc007661025777cd1bc4824328afecca330ab1cd6773bb  ./app/assets/index-S1U7BxHR.js
+73131a3476a1457d7ecee095219647bdd3d04e3ad4850fe8724a0d673290ccf0  ./app/assets/index-bVtCKT_n.js
 be0276550393a72b94d673505567dceba801511d5e1ca5a87793190dc5d5a6ca  ./app/assets/inter-latin-300-normal-BVlfKGgI.woff2
 635cf706b3a3528c1617ce8edaa4e767489c1c61320a97b4aa649495ee49ac2a  ./app/assets/inter-latin-300-normal-i8F0SvXL.woff
 8909904ab6c872eb994093482a88a28eca2cd95912d7b6fecd72103b0dc07edc  ./app/assets/inter-latin-400-normal-C38fXH4l.woff2
@@ -17,12 +17,12 @@ cb182feeed4d798ff6961d3c79f7026279448fca0676438aaecb21f3fc39553a  ./app/assets/j
 a270dd0bf13d91053b8999b7c120ffadb59680cfd63fe1a6b388a13bf2809fe1  ./app/assets/jetbrains-mono-latin-500-normal-CJOVTJB7.woff
 51a2dab734880652f2bf6023b912f763b97d7f337765452c9da5a55d4ee950b0  ./app/assets/pdf-C9f1iiyp.js
 1baa1844c89c80a5b2797c916e75ab29254be46d8e9cb53cb6364d7aad84be36  ./app/assets/pdf.worker.min-yatZIOMy.mjs
-34ed9a0f298e4e744152bf873bb58f23c789e85edcbe640721c572077f4b4be4  ./app/assets/three-CUr3o4VO.js
-d1103b51708aef72212f1aaebcab9ff9fc9da8150be4052db6712a202f2ffe4e  ./app/assets/Viewer3D-BvrYfZ6n.js
+e9e880845c7fc4067d3a1bde1652a979dc5d70441b8872f6439d198390d73962  ./app/assets/three-DXFdqfpg.js
+0817bd43d35d0fb4e4ea94a0f1d1f484460ae728f3590ef2bffb85b026b82053  ./app/assets/Viewer3D-BiJak9i7.js
 9e5eed022397d9d8f4b426604149e579072e3f387d6314d36257baee13f6ed71  ./app/einbettung-beispiel.html
 4a0f23addf43f02ce45f84b008346e78a4ce19bd197247e522d9d35513ef3a51  ./app/einbettung-beispiel.js
-7267bd67eff6348f699685a5f5fd3dbc97f9a480c118fe2de982609c61057b73  ./app/handbuch.html
-1a949ded4bd00a1f352eb995bb1a12dc81fe603eb9a2b1594ee6e80775885bbc  ./app/index.html
+5a059bfa47e2810c24a5b46d202479532e19c3ffaad9144372caba96f5bf3b31  ./app/handbuch.html
+600f673d9bd82dbf3055b4aeba0fe1efdd954dd864187b999822aa264d2e8917  ./app/index.html
 f22327f9c318f39f6ac332f210e104640c734b6bf29dfaf3fa01c83baf5534ed  ./app/kachel-192.png
 71d62c3e81da5367194489148716ce797980c7e999c0c4318c845072ea80f922  ./app/kachel-512.png
 63210b04dc071b305b713b802efa05461492e7f85ca8735535958206f960cc73  ./app/manifest.webmanifest
@@ -39,4 +39,4 @@ b788c71c7d768dbeba50cdf7523bae986dc461928c9b5b1460208ed3c9340ab0  ./bin/pruefen.
 430a93195ab1daeb3f9ce356877ad9cec370091794d626e3d1332e509ded4a50  ./nginx/ravia-cad-light.conf
 eed35583a4fa2db239d77d37525751ae2d7ecd20bbf958635663c4d3d068ca73  ./nginx/ravia-cad.conf
 fd2207e25941e686aa775dfc0bd1d50095fc5ff5ac8de2a7d2abed495c47c459  ./SERVER-EINRICHTUNG.html
-e12aa3d3772ea8ad1e9d5d346d7fdb5c734243c49d6f749560c46fb99103c2ae  ./VERSION
+19f1c71cabd3cb062544023af771fbb2883524775fdaed6ca5855bae359b7b9c  ./VERSION

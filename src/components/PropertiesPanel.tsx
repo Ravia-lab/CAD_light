@@ -64,6 +64,8 @@ import { distanceToSegment, pointInPolygon, polygonArea, polygonPerimeter } from
 import { annotationLength } from '../lib/annotationSymbols';
 import { defaultGableRise } from '../lib/roofGeometry';
 import { solidFootprint, stairRunLength } from '../lib/verticalSymbols';
+import { DEFAULT_SLAB, levelBaseHeights } from '../lib/levelGeometry';
+import { oeffnungAb, treppenmasse } from '../lib/treppenlogik';
 import { rohrbezeichnungLang } from '../lib/rohrbezeichnung';
 import {
   durchbruchFlaeche,
@@ -1940,10 +1942,30 @@ function VerticalProperties({ element }: { element: VerticalElement }) {
 
   const ordered = Object.values(levels).sort((a, b) => a.order - b.order);
   const level = levels[element.levelId];
-  const rise = element.steps && level ? (level.height + 0.28) / element.steps : 0;
+  /*
+   * **Die Steigung kommt aus der wirklichen Geschosshöhe.**
+   *
+   * Bis 1.55.2 stand hier `(level.height + 0.28) / steps` — die lichte Höhe
+   * plus 28 cm geraten. Dieselbe Schätzung stand im Zeichner der 3D-Ansicht,
+   * und beide konnten auseinanderlaufen: Das Blatt nannte eine Steigung, die
+   * das Modell so nicht baute. Zu überwinden ist der Abstand von Fußboden zu
+   * Fußboden, und den sagt `levelBaseHeights`.
+   */
+  const basisHoehen = levelBaseHeights(ordered);
+  const eigeneBasis = basisHoehen.get(element.levelId);
+  const basisDarueber =
+    eigeneBasis === undefined
+      ? undefined
+      : [...basisHoehen.values()].filter((b) => b > eigeneBasis + 1e-6).sort((a, b) => a - b)[0];
+  const geschosshoehe =
+    eigeneBasis !== undefined && basisDarueber !== undefined
+      ? basisDarueber - eigeneBasis
+      : (level?.height ?? 0) + DEFAULT_SLAB;
   // Der Auftritt folgt der *Lauflinie*, nicht der Rechteckseite: bei einer
   // gewendelten Treppe ist der Weg länger als das Bauteil tief ist.
   const runLength = isStair ? stairRunLength(element) : 0;
+  const masse = isStair ? treppenmasse(geschosshoehe, { steps: element.steps, laufLaenge: runLength, laufbreite: element.width }) : undefined;
+  const rise = isStair && element.steps ? masse!.steigung : 0;
   const going = element.steps && element.steps > 1 ? runLength / (element.steps - 1) : 0;
 
   return (
@@ -2089,6 +2111,15 @@ function VerticalProperties({ element }: { element: VerticalElement }) {
             <Readout label="Steigungshöhe" value={`${(rise * 100).toFixed(1)} cm`} />
             <Readout label="Auftritt" value={`${(going * 100).toFixed(1)} cm`} />
             <Readout label="Schrittmaß 2s+a" value={`${(2 * rise * 100 + going * 100).toFixed(1)} cm`} />
+            {/*
+              Die Stelle, ab der die Decke offen sein muss — das Maß, das den
+              Treppenaufgang überhaupt erst begehbar macht. DIN 18065 fordert
+              2,00 m lichte Durchgangshöhe; darunter stößt man an.
+            */}
+            <Readout
+              label="Decke offen ab"
+              value={`${(oeffnungAb(masse!, Math.max(0, geschosshoehe - DEFAULT_SLAB)) * 100).toFixed(0)} cm Lauflänge`}
+            />
           </>
         )}
         <Readout label="Im Raum" value={room?.name ?? '—'} />

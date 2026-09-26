@@ -30,6 +30,7 @@ import type { BimNode, Durchbruch, Level, Room, Vec2, VerticalElement, Wall } fr
 import { durchbruchWirt } from '../types/bim';
 import { deckendurchbruchUmriss } from './durchbruchSymbols';
 import { getWallGeometry } from './wallGeometry';
+import { treppenmasse, treppenoeffnung } from './treppenlogik';
 import { verticalCorners } from './verticalSymbols';
 import { DEFAULT_LEVEL_HEIGHT } from './levelGeometry';
 import { polygonArea, pointInPolygon } from './geometry';
@@ -186,7 +187,24 @@ export function levelSlabs(input: SlabInput): SlabPlan[] {
       // beginnt. Ein Schacht, der weiter nach oben läuft, durchdringt jede
       // Decke bis zu seinem Zielgeschoss.
       if (!durchdringt(v, unten.id, sortiert)) continue;
-      const ecken = verticalCorners(v);
+      /*
+       * **Eine Treppe öffnet die Decke dort, wo der Kopf anstößt.**
+       *
+       * Bis 1.55.2 bekam sie ihr volles Rechteck als Loch — auch über dem
+       * Antritt, wo zwei Meter Luft sind und die Decke stehen bleibt. Das
+       * Maß dafür ist die lichte Durchgangshöhe, und sie ist rechenbar:
+       * `treppenoeffnung` schneidet den Lauf genau dort an, wo unter der
+       * Decke keine zwei Meter mehr bleiben. Ein Schacht dagegen ist über
+       * seine ganze Fläche offen — er führt Leitungen, keine Köpfe.
+       */
+      const ecken =
+        v.kind === 'shaft'
+          ? verticalCorners(v)
+          : treppenoeffnung(
+              v,
+              treppenmasse(oberkante - basisUnten, { steps: v.steps, laufLaenge: v.length, laufbreite: v.width }),
+              oberkante - staerke - basisUnten,
+            );
       if (ecken.length >= 3) holes.push(ecken);
     }
     // Deckendurchbrüche schneiden dieselbe Platte. Sie gehören dem Geschoss
@@ -368,4 +386,29 @@ export function slabArea(plan: SlabPlan): number {
   for (const p of plan.outlines) flaeche += Math.abs(polygonArea(p));
   for (const h of plan.holes) flaeche -= Math.abs(polygonArea(h));
   return Math.max(0, flaeche);
+}
+
+/**
+ * Die Löcher, die der **Fußboden** eines Geschosses braucht.
+ * ---------------------------------------------------------------------------
+ * **Der Anlass.** Eine Treppe war nur in ihrem eigenen Geschoss zu sehen: Im
+ * Geschoss darüber lag ein geschlossener Fußboden, und die Treppe stieß
+ * dagegen. Gemeldet als „Treppen sollten auch in 3D so dargestellt werden …
+ * da muss eine Treppenlogik dahinter."
+ *
+ * Die Deckenplatte hatte ihr Loch längst — `levelSlabs` schneidet es heraus.
+ * Der Fußboden darüber ist aber eine **eigene** Fläche, und die war zu: zwei
+ * Flächen an derselben Stelle, von denen die eine ein Loch hat und die
+ * andere nicht.
+ *
+ * Gesucht wird die Platte an ihrer **Oberkante**. Sie liegt genau auf der
+ * Höhe, auf der das Geschoss beginnt — damit kommt das Loch aus einer Quelle
+ * und nicht aus einer zweiten Rechnung, die irgendwann auseinanderliefe.
+ *
+ * Für das unterste Geschoss gibt es keine Platte darunter und damit keine
+ * Löcher; das ist richtig, denn dort liegt die Bodenplatte auf dem Erdreich.
+ */
+export function bodenloecher(platten: readonly SlabPlan[], geschossBasis: number): Vec2[][] {
+  const platte = platten.find((s) => Math.abs(s.top - geschossBasis) < 1e-6);
+  return platte?.holes ?? [];
 }

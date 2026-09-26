@@ -35,7 +35,7 @@
 import type { BimDocument, Fixture, Level, PipeAccessory, PipeRun, Vec2 } from '../types/bim';
 import { planPipeNetwork, type PipeLayoutOptions, type PipeLayoutResult } from './pipeLayout';
 import { steigpunkt, type SteigGrund } from './steigstrang';
-import { stehtAufGeschoss } from './aufstellgeschoss';
+import { fuehrtEinAufGeschoss } from './aufstellgeschoss';
 import type { PlanningNote } from './pipeRouting';
 
 export interface GeschossNetz {
@@ -137,8 +137,14 @@ export function planeGebaeudeNetz(
 
   // --- Quellgeschoss --------------------------------------------------------
   const mitQuelle = levels.find((l) => quelleAuf(doc, l.id));
+  /*
+   * Das Geschoss, auf dem die Wärmepumpe ins Haus führt — dieselbe Frage, die
+   * `planPipeNetwork` stellt, und deshalb dieselbe Antwort. Liefen die beiden
+   * auseinander, setzte dieses Modul die Steigleitung auf ein Geschoss, an dem
+   * die Trassierung dort gar nicht beginnt.
+   */
   const mitPumpe = levels.find((l) =>
-    Object.values(doc.site?.pumps ?? {}).some((p) => p.form === 'monoblock-outdoor' && stehtAufGeschoss(doc, p, l.id)),
+    Object.values(doc.site?.pumps ?? {}).some((p) => p.form === 'monoblock-outdoor' && fuehrtEinAufGeschoss(doc, p, l.id)),
   );
   const quellGeschoss = mitQuelle ?? mitPumpe;
 
@@ -330,6 +336,17 @@ export function planeGebaeudeNetz(
     served,
     notes,
     geschosse: geschosse.sort((a, b) => (doc.levels[a.levelId]?.order ?? 0) - (doc.levels[b.levelId]?.order ?? 0)),
-    straenge,
+    /*
+     * **Von unten nach oben**, so wie es die Schnittstelle zusagt.
+     *
+     * Gerechnet wird von außen nach innen — das oberste Geschoss zuerst,
+     * damit jeder Abschnitt weiß, was über ihm hängt. In dieser Reihenfolge
+     * entstanden die Abschnitte auch in der Liste, und wer sie las, bekam
+     * den obersten zuerst. Für die Rechnung ist das gleichgültig, für jeden
+     * Leser nicht: Ein Strang wird von unten gelesen, wie er gebaut wird.
+     */
+    straenge: straenge.sort(
+      (a, b) => (doc.levels[a.vonLevelId]?.order ?? 0) - (doc.levels[b.vonLevelId]?.order ?? 0),
+    ),
   };
 }

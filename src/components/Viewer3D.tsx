@@ -87,6 +87,7 @@ import {
   getWallGeometry,
   junctionExtension,
   modelToScene,
+  flacheStuetzpunkte,
   openingSpan,
   openingsOfWall,
   sceneRotationY,
@@ -116,8 +117,9 @@ import { buildRoofFrame, roofHeightAt } from '../lib/roofGeometry';
 import { baueDachlandschaft, frameAn, type Dachteil } from '../lib/dachlandschaft';
 import { sammleVerlegekurven, verlegelinien, type Verlegelinie } from '../lib/fussbodenkurven';
 import { kompassRose } from '../lib/kompass';
-import { levelBaseHeights } from '../lib/levelGeometry';
-import { groundSlab, holeFitsOutline, levelSlabs, topSlab, type SlabPlan } from '../lib/slabGeometry';
+import { DEFAULT_SLAB, levelBaseHeights } from '../lib/levelGeometry';
+import { bodenloecher, groundSlab, holeFitsOutline, levelSlabs, topSlab, type SlabPlan } from '../lib/slabGeometry';
+import { treppenmasse } from '../lib/treppenlogik';
 import { useBimStore } from '../store/useBimStore';
 
 // ---------------------------------------------------------------------------
@@ -557,6 +559,23 @@ function buildGeometry(input: BuildInput): BuiltGeometry {
 
   /** Höhenlage des Geschosses, in dem ein Bauteil steht. */
   const basis = (levelId: string): number => levelBase.get(levelId) ?? 0;
+  /**
+   * Das Geschoss unmittelbar über diesem — nach **Höhenlage**, nicht nach
+   * Namen oder Reihenfolge. `levelBase` ist die eine Stelle, die weiß, wie
+   * hoch die Geschosse übereinander liegen; eine zweite Rangordnung daneben
+   * liefe irgendwann anders.
+   */
+  const darueber = (levelId: string): string | undefined => {
+    const eigen = levelBase.get(levelId);
+    if (eigen === undefined) return undefined;
+    let beste: { id: string; basis: number } | undefined;
+    for (const [id, b] of levelBase) {
+      if (b <= eigen + 1e-6) continue;
+      if (!beste || b < beste.basis) beste = { id, basis: b };
+    }
+    return beste?.id;
+  };
+
   /** Ein fertiges Bauteil auf sein Geschoss heben. */
   const hebe = (geom: THREE.BufferGeometry, levelId: string): THREE.BufferGeometry => {
     const dz = basis(levelId);
@@ -834,6 +853,26 @@ function buildGeometry(input: BuildInput): BuiltGeometry {
    * war nirgends zu sehen. Räume ohne Angabe behalten das Grau; genau daran
    * erkennt man sie jetzt auf einen Blick.
    */
+  /**
+   * Die Löcher, die die Decke **unter** diesem Geschoss schon hat.
+   * ---------------------------------------------------------------------
+   * **Der Anlass.** Eine Treppe war nur in ihrem eigenen Geschoss zu sehen.
+   * Sah man von oben auf das Obergeschoss, lag dort ein geschlossener
+   * Fußboden über ihr, und sie stieß dagegen. Gemeldet als „Treppen sollten
+   * auch in 3D so dargestellt werden … da muss eine Treppenlogik dahinter."
+   *
+   * Die Deckenplatte hatte das Loch längst — `levelSlabs` schneidet es
+   * heraus. Der **Fußboden** des Geschosses darüber ist aber eine eigene
+   * Fläche, und die war zu. Zwei Flächen an derselben Stelle, von denen die
+   * eine ein Loch hat und die andere nicht.
+   *
+   * Gesucht wird die Platte an ihrer **Oberkante**: Sie liegt genau auf der
+   * Höhe, auf der dieses Geschoss beginnt. Damit kommt das Loch aus einer
+   * Quelle und nicht aus einer zweiten Rechnung, die auseinanderlaufen
+   * könnte.
+   */
+  const loecherUnter = (levelId: string): Vec2[][] => bodenloecher(slabs, basis(levelId));
+
   const floorByColour = new Map<string, THREE.BufferGeometry[]>();
   for (const room of rooms) {
     if (room.innerPolygon.length < 3) continue;
@@ -843,6 +882,20 @@ function buildGeometry(input: BuildInput): BuiltGeometry {
       shape.lineTo(room.innerPolygon[i].x, room.innerPolygon[i].y);
     }
     shape.closePath();
+    /*
+     * Nur Löcher, die **ganz** in diesem Raum liegen: Three hängt eine
+     * Aussparung an eine einzelne Kontur, und ein Treppenauge im
+     * Nachbarraum schnitte hier ein Loch ins Nichts. `holeFitsOutline`
+     * stellt dieselbe Frage wie beim Plattenschnitt.
+     */
+    for (const loch of loecherUnter(room.levelId)) {
+      if (!holeFitsOutline(loch, room.innerPolygon)) continue;
+      const pfad = new THREE.Path();
+      pfad.moveTo(loch[0].x, loch[0].y);
+      for (let i = 1; i < loch.length; i++) pfad.lineTo(loch[i].x, loch[i].y);
+      pfad.closePath();
+      shape.holes.push(pfad);
+    }
     const geom = new THREE.ShapeGeometry(shape);
     // Shape liegt in der XY-Ebene → in die XZ-Ebene kippen. Die Drehung MUSS
     // −90° sein: nur so wird Modell-y auf −z abgebildet, wie es `boxInWall`
@@ -968,11 +1021,23 @@ function buildGeometry(input: BuildInput): BuiltGeometry {
       continue;
     }
 
-    // Treppe als echte Stufenfolge entlang ihrer Lauflinie — dadurch stimmt
-    // auch bei der gewendelten Treppe, wo sie ankommt.
+    /*
+     * Treppe als echte Stufenfolge entlang ihrer Lauflinie — dadurch stimmt
+     * auch bei der gewendelten Treppe, wo sie ankommt.
+     *
+     * **Die Steigung kommt aus der Geschosshöhe**, nicht aus einem
+     * Näherungswert. Bis 1.55.2 stand hier `(levelHeight + 0.28) / steps`:
+     * die lichte Höhe des *aktiven* Geschosses plus 28 cm geraten. Damit traf
+     * die Treppe den oberen Fußboden nur zufällig — bei einem Keller mit
+     * 2,30 m lichter Höhe endete sie 45 cm zu tief. Zu überwinden ist der
+     * Abstand von Fußboden zu Fußboden, und den kennt `levelBase`.
+     */
     void corners;
-    const steps = Math.max(2, v.steps ?? 15);
-    const rise = (levelHeight + 0.28) / steps;
+    const oben = darueber(v.levelId);
+    const geschosshoehe = oben !== undefined ? basis(oben) - basis(v.levelId) : levelHeight + DEFAULT_SLAB;
+    const masse = treppenmasse(geschosshoehe, { steps: v.steps, laufLaenge: v.length, laufbreite: v.width });
+    const steps = masse.steigungen;
+    const rise = masse.steigung;
     const path = stairPath(v);
     const runLength = stairRunLength(v);
     const going = runLength / steps;
@@ -1339,11 +1404,19 @@ function buildSite(
     marker: new THREE.MeshStandardMaterial({ color: 0xfbbf24, roughness: 0.6 }),
   };
 
-  /** Ein Polygon des Modells als ebene Fläche in der Geländeebene. */
+  /**
+   * Ein Polygon des Modells als ebene Fläche in der Geländeebene.
+   *
+   * Die Stützpunkte kommen aus `flacheStuetzpunkte` und nicht aus der Hand:
+   * Hier stand bis 1.55.2 ein `−p.y`, das sich mit der Kippung um −90° zu
+   * einer **Spiegelung** aufhob. Die Grundstücksfläche lag damit neben ihrer
+   * eigenen Grenzlinie.
+   */
   const shapeOf = (points: readonly Vec2[]): THREE.Shape => {
+    const stuetz = flacheStuetzpunkte(points);
     const shape = new THREE.Shape();
-    shape.moveTo(points[0].x, -points[0].y);
-    for (let i = 1; i < points.length; i += 1) shape.lineTo(points[i].x, -points[i].y);
+    shape.moveTo(stuetz[0].x, stuetz[0].y);
+    for (let i = 1; i < stuetz.length; i += 1) shape.lineTo(stuetz[i].x, stuetz[i].y);
     shape.closePath();
     return shape;
   };

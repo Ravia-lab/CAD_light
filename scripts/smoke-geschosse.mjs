@@ -156,12 +156,25 @@ console.log('\n▸ Steigleitung: Wärmepumpe und Speicher im KG, Heizkörper dar
   });
   console.log(`  · ${r.status}`);
   expect('Drei Geschosse geplant', r.geschosse.length, 3);
-  expect('Zwei Strangabschnitte', r.straenge, ['EG→OG', 'KG→EG']);
+  /*
+   * **Von unten nach oben**, wie ein Strang gebaut und gelesen wird.
+   *
+   * Hier stand bis 1.56.0 ['EG→OG', 'KG→EG'] — die Reihenfolge, in der
+   * gerechnet wird: das oberste Geschoss zuerst, damit jeder Abschnitt
+   * weiß, was über ihm hängt. Diese Zusage hat die Schnittstelle nie
+   * gegeben; sie sagt „von unten nach oben". Der Rauchtest hatte die
+   * Rechenreihenfolge abgeschrieben statt die zugesagte zu prüfen.
+   */
+  expect('Zwei Strangabschnitte, von unten nach oben', r.straenge, ['KG→EG', 'EG→OG']);
   expect('Je Strang ein Vorlauf (Rücklauf paarweise dazu)', r.strangRohre, 2);
   expect('Die Stränge stehen senkrecht', r.senkrecht, true);
-  // Der untere Strang trägt EG und OG, der obere nur das OG.
-  const untenGroesser = Math.max(...r.stroeme) > Math.min(...r.stroeme);
-  expect('Der untere Strang trägt mehr als der obere', untenGroesser, true);
+  /*
+   * Der untere Strang trägt EG und OG, der obere nur das OG. Seit die Liste
+   * von unten nach oben steht, lässt sich das an der **Reihenfolge**
+   * festmachen statt am Größenvergleich zweier unsortierter Zahlen — und
+   * damit prüft es zugleich, dass die Sortierung stimmt.
+   */
+  expect('Der untere Strang trägt mehr als der obere', r.stroeme[0] > r.stroeme[1], true);
   expect('Auf jedem Geschoss liegen Rohre', Object.keys(r.rohreProGeschoss).sort(), ['EG', 'KG', 'OG']);
   expect('Kein Befund der Stufe Fehler', r.fehler, []);
   await p.evaluate(() => { const S = window.__ravia.getState(); S.setTool('select'); S.setSelection(null); });

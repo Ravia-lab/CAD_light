@@ -311,7 +311,23 @@ const PLATTE_BRUTTO = RAEUME + WANDSTREIFEN; // 70,876
  *   Treppe  Länge 3,00 × Breite 1,00 = 3,00 m²   (x 5,50…8,50 | y 2,50…3,50)
  *   Schacht Länge 0,80 × Breite 0,60 = 0,48 m²   (x 1,60… 2,40 | y 2,70…3,30)
  */
-const A_TREPPE = 3 * 1; // 3,00
+/*
+ * **Die Treppe öffnet nicht ihr ganzes Rechteck**, sondern den Teil, über
+ * dem die lichte Durchgangshöhe fehlt. Seit 1.55.2 rechnet das
+ * `treppenoeffnung`, und der Wert ist von Hand nachzuvollziehen:
+ *
+ *   Geschosshöhe EG → OG = lichte Höhe 2,75 + Deckenstärke 0,25 = 3,00 m
+ *   16 Steigungen (am Bauteil gesetzt)   →  s = 3,00 / 16   = 0,1875 m
+ *   Auftritt aus der Schrittmaßregel     →  a = 0,63 − 2s   = 0,2550 m
+ *   Unterkante der Decke über dem EG                        = 2,75 m
+ *   Offen ab   d = (2,75 − 2,00) · a / s = 0,75 · 1,36      = 1,0200 m
+ *   Lauflinie der geraden Treppe = ihre Länge               = 3,00 m
+ *   Loch = (3,00 − 1,02) × Breite 1,00                      = 1,98 m²
+ *
+ * Über dem Antritt bleibt die Decke also stehen — dort sind zwei Meter Luft,
+ * und ein Loch wäre eine Öffnung ohne Anlass.
+ */
+const A_TREPPE = (3 - 1.02) * 1; // 1,98
 const A_SCHACHT = 0.8 * 0.6; // 0,48
 
 /** Millimetertoleranz — „auf Millimeter genau" heißt 0,0005 m Spielraum. */
@@ -595,16 +611,16 @@ export function pruefeGeschossdecken(check: CheckFn): void {
   check('Löcher in der Decke über KG', ueberKg.holes.length, 1);
   check('Löcher in der Decke über EG', ueberEg.holes.length, 2);
   check('Lochfläche über KG [m²] (nur Schacht 0,48)', lochflaeche(ueberKg), A_SCHACHT, 1e-9);
-  check('Lochfläche über EG [m²] (0,48 + 3,00)', lochflaeche(ueberEg), A_SCHACHT + A_TREPPE, 1e-9);
+  check('Lochfläche über EG [m²] (0,48 + 1,98)', lochflaeche(ueberEg), A_SCHACHT + A_TREPPE, 1e-9);
 
   /*
    * Plattenflächen mit Aussparungen:
    *   über KG = 70,876 − 0,48         = 70,396 m²
-   *   über EG = 70,876 − 0,48 − 3,00  = 67,396 m²
+   *   über EG = 70,876 − 0,48 − 1,98  = 68,416 m²
    */
   check('Plattenfläche über KG [m²] (70,876 − 0,48)', slabArea(ueberKg), PLATTE_BRUTTO - A_SCHACHT, 1e-6);
   check(
-    'Plattenfläche über EG [m²] (70,876 − 0,48 − 3,00)',
+    'Plattenfläche über EG [m²] (70,876 − 0,48 − 1,98)',
     slabArea(ueberEg),
     PLATTE_BRUTTO - A_SCHACHT - A_TREPPE,
     1e-6,
