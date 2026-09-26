@@ -825,7 +825,7 @@ interface BimState {
     additionalConsumer?: PlantDefinition['additionalConsumer'];
   }) => void;
   /**
-   * Die sechs Antworten im Anlagenblatt setzen — und die Anlage daraus bauen.
+   * Die sieben Antworten im Anlagenblatt setzen — und die Anlage daraus bauen.
    *
    * **Ein Schritt in der Rückgängig-Kette je Änderung.** Wer den Puffer von
    * 200 auf 300 Liter stellt, hat eine Änderung gemacht und nicht drei

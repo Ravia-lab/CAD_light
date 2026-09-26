@@ -22,7 +22,7 @@
  *
  * **Eingetragenes schlägt Abgeleitetes.** Steht in der Datei schon eine
  * `vorlageId` — aus einem älteren Projekt oder weil jemand sie bewusst gesetzt
- * hat —, gilt sie. Das ist dieselbe Regel wie bei den sechs Antworten seit
+ * hat —, gilt sie. Das ist dieselbe Regel wie bei den sieben Antworten seit
  * 1.51.0: Was eingetragen ist, wird nicht still überschrieben. Weicht die
  * Anlage davon ab, steht die Abweichung daneben, nicht an ihrer Stelle.
  */

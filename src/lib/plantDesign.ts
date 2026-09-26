@@ -35,6 +35,7 @@
  */
 
 import type {
+  AnlagenAntworten,
   BimDocument,
   HeatPumpModel,
   HeatingCircuit,
@@ -79,6 +80,8 @@ import {
 import { connectionDiameter, designSafety, systemVolume, type SystemVolumeInput } from './safetyFittings';
 import { erzeugerBilanz, type Erzeugerbilanz } from './erzeugerHydraulik';
 import { plantOf } from './plantDefaults';
+import { antwortenDes, hatHeizstab, hatInneneinheit, heizstabImSpeicher } from './anlagenFragen';
+import { ANTWORTEN_VORGABE } from '../types/bim';
 import {
   SYSTEMTEMPERATUR_VORGABE,
   heizflaechenArten,
@@ -256,6 +259,20 @@ export interface PlantDesignResult {
   generator: Erzeugerbilanz;
   /** Sicherheitsausrüstung. */
   safety?: SafetyDesign;
+  /**
+   * Was der Anwender über die Anlage gesagt hat.
+   *
+   * Steht hier, weil das Schema es braucht: Ob eine Inneneinheit gezeichnet
+   * wird und wo der Heizstab sitzt, ist eine **Aussage des Anwenders** und
+   * nicht aus dem Gerätekatalog abzuleiten. Bis 1.53.0 entstand der Heizstab
+   * allein aus `model.indoor.backupHeater` — das Gerät bestimmte damit, was
+   * gebaut wird, und wer „ohne Heizstab" eintrug, bekam ihn trotzdem ins Bild.
+   *
+   * Optional, damit die Prüffixtures, die ein `PlantDesignResult` von Hand
+   * aufbauen, weiter übersetzen; `buildSchematic` fällt dann auf
+   * `ANTWORTEN_VORGABE` zurück.
+   */
+  antworten?: AnlagenAntworten;
   notes: PlanningNote[];
 }
 
@@ -1032,6 +1049,14 @@ export function designPlant(doc: BimDocument, options: PlantDesignOptions = {}):
   for (const n of safety?.notes ?? []) notes.push(n);
 
   return {
+    /*
+     * **Die Antworten wandern mit.** Das Schema wird an einer anderen Stelle
+     * gebaut als die Auslegung — `buildSchematic` bekommt nur dieses Ergebnis
+     * und hat keinen Zugriff auf das Dokument. Ohne dieses Feld müsste es den
+     * Einbauort des Heizstabs aus dem Gerätekatalog raten, und genau das war
+     * bis 1.53.0 der Fehler.
+     */
+    antworten: antwortenDes(plant, selected?.model.form, selected?.model.refrigerant),
     heatLoadSource,
     heatLoadProvenance,
     heatLoad: Math.round(heatLoad * 100) / 100,
@@ -1281,6 +1306,22 @@ export function buildSchematic(result: PlantDesignResult): {
     return erstes.length > 28 ? `${erstes.slice(0, 27)}…` : erstes;
   };
 
+  /*
+   * **Was der Anwender gesagt hat, schlägt den Gerätekatalog.**
+   *
+   * Inneneinheit und Einbauort des Heizstabs sind Aussagen über die Baustelle
+   * und nicht aus dem Datenblatt ableitbar: Ein Gerät *kann* einen Heizstab
+   * führen, ohne dass er angeschlossen wird, und die Flanschheizung im
+   * Speicher steht in keinem Geräteblatt. Bis 1.53.0 entstand der Stab allein
+   * aus `model.indoor.backupHeater` — wer „ohne Heizstab" eintrug, bekam ihn
+   * trotzdem ins Bild.
+   *
+   * Fehlt das Feld (Prüffixture von Hand), gilt die Vorbelegung. Sie
+   * entspricht dem Verhalten bis 1.53.0, damit ein altes Bild sich nicht
+   * stillschweigend ändert.
+   */
+  const antworten = result.antworten ?? ANTWORTEN_VORGABE;
+
   const model = result.selected?.model;
   const form = model?.form ?? 'monoblock-outdoor';
   /*
@@ -1375,6 +1416,32 @@ export function buildSchematic(result: PlantDesignResult): {
     ]
       .filter(Boolean)
       .join(' · ');
+    /*
+     * **Keine Inneneinheit ist eine Antwort, kein Versehen.**
+     *
+     * Bis 1.53.0 zeichnete dieses Bild immer eine Hydraulikstation, weil der
+     * Markt sie immer mitliefert. Das bleibt der Regelfall — aber es gibt die
+     * Anlage ohne: Monoblock mit eingebauter Hydraulik draußen, im Haus nur
+     * Verteilung. Wer das einträgt, bekommt kein Gehäuse ins Bild, das nicht
+     * gebaut wird.
+     *
+     * **Beim Splitgerät wird die Antwort nicht befolgt.** Dort steht der
+     * Verflüssiger im Haus; ohne ihn endete die Kältemittelleitung nirgends,
+     * und das Bild behauptete eine Anlage, die nicht funktioniert. Der
+     * Widerspruch steht als Abweichungshinweis am Feld — hier gewinnt die
+     * Physik.
+     */
+    if (!hatInneneinheit(antworten.inneneinheit) && !kaeltemittelInsHaus) {
+      notes.push({
+        severity: 'info',
+        text:
+          'Eingetragen ist „keine Inneneinheit". Das Bild führt deshalb keine Hydraulikstation; ' +
+          'Pumpe, Umschaltventil und Sicherheitsgruppe stehen einzeln im Schema. Am Markt liefert ' +
+          'praktisch jeder Hersteller zum Monoblock ein Innenteil — vor der Bestellung zu prüfen.',
+      });
+      erzeugerVor = { c: aussen, port: 'flow' };
+      erzeugerRueck = { c: aussen, port: 'return' };
+    } else {
     const innen = put(innenArt, innenName, COL.indoor, ROW.flow, innenText || undefined);
     if (kaeltemittelInsHaus) {
       // Zwischen den Einheiten laufen Kältemittelleitungen. Sie tragen eine
@@ -1396,6 +1463,7 @@ export function buildSchematic(result: PlantDesignResult): {
     }
     erzeugerVor = { c: innen, port: 'flow' };
     erzeugerRueck = { c: innen, port: 'return' };
+    }
   } else {
     const innen = put('heatpump-indoor', model ? model.label : 'Wärmepumpe', COL.indoor, ROW.flow, model?.hydraulicConnection);
     erzeugerVor = { c: innen, port: 'flow' };
@@ -1407,13 +1475,72 @@ export function buildSchematic(result: PlantDesignResult): {
   // liefern"), die Materialliste bestellt ihn — nur gezeichnet wurde er nie.
   // Er ist außerdem hydraulisch von Belang: mit aktiviertem Heizstab sinkt bei
   // mehreren Herstellern das geforderte Mindestwasservolumen erheblich.
+  /*
+   * **Zwei Fragen, nicht eine.** Wie groß ist der Stab — das weiß das
+   * Datenblatt. Ob und wo er eingebaut wird — das weiß nur der Anwender. Die
+   * Leistung kommt deshalb aus dem Katalog, die Entscheidung aus der Antwort.
+   *
+   * Kennt der Katalog keine Leistung, der Anwender hat aber einen Stab
+   * eingetragen, wird er trotzdem gezeichnet: Seine Aussage gilt, auch wenn
+   * das gewählte Gerät ihn nicht mitbringt — dann steht er als eigenes
+   * Bauteil in der Stückliste, und genau das ist die Wahrheit über die
+   * Baustelle. Unter dem Symbol steht dann keine erfundene Zahl.
+   */
   const heizstabKw = model?.indoor?.backupHeater ?? model?.electric.backupHeater ?? 0;
+  const heizstabGewollt = hatHeizstab(antworten.inneneinheit);
+  /*
+   * **Der Einbauort im Speicher braucht einen Speicher.**
+   *
+   * Die Entscheidung fällt hier und nicht unten am Behälter, weil der
+   * Vorlaufstrang an dieser Stelle gebaut wird: Wer den Stab erst unten in
+   * den Vorlauf hängt, hängt ihn an ein Bauteil, dessen Strang längst
+   * weitergeführt ist — und erzeugt eine Abzweigung, die niemand gezeichnet
+   * hat. Ob es einen Behälter gibt, steht im Auslegungsergebnis und ist hier
+   * bereits bekannt.
+   */
+  const stabImSpeicher =
+    heizstabImSpeicher(antworten.inneneinheit) && Boolean(result.buffer.selected || result.dhwStorage);
   let vorlauf = erzeugerVor;
-  if (heizstabKw > 0) {
-    const stab = put('electric-heater', 'Elektro-Heizstab', COL.heater, ROW.flow, `${heizstabKw.toFixed(1)} kW`);
+  if (heizstabGewollt && !stabImSpeicher) {
+    /*
+     * Einbauort eins der BWP-Legende: „Elektro-Zusatzheizung Wärmepumpe" im
+     * Vorlauf unmittelbar nach dem Gerät und **vor** dem
+     * Warmwasser-Umschaltventil, damit er beide Betriebsarten bedient.
+     */
+    const stab = put(
+      'electric-heater',
+      'Elektro-Heizstab',
+      COL.heater,
+      ROW.flow,
+      heizstabKw > 0 ? `${heizstabKw.toFixed(1)} kW` : 'Leistung nach Bivalenzpunkt',
+    );
     link(vorlauf.c, vorlauf.port, stab, 'in', 'heating-flow');
     vorlauf = { c: stab, port: 'out' };
-  } else if (model) {
+    if (heizstabImSpeicher(antworten.inneneinheit)) {
+      notes.push({
+        severity: 'warn',
+        text:
+          'Der Heizstab soll im Speicher sitzen, es ist aber kein Puffer- und kein ' +
+          'Trinkwasserspeicher ausgelegt. Gezeichnet ist er deshalb im Vorlauf.',
+      });
+    } else if (heizstabKw === 0 && model) {
+      notes.push({
+        severity: 'warn',
+        text: `Eingetragen ist ein Heizstab im Vorlauf, „${model.label}“ führt aber keinen. Er ist dann ein eigenes Bauteil — Leistung nach Bivalenzpunkt auslegen und getrennt bestellen.`,
+      });
+    }
+  } else if (!heizstabGewollt && heizstabKw > 0 && model) {
+    /*
+     * Das Gerät bringt einen mit, der Anwender will ihn nicht. Das ist
+     * zulässig — er wird dann nicht freigegeben —, aber es ist eine
+     * Entscheidung mit Folgen: Bei mehreren Herstellern sinkt mit
+     * aktiviertem Heizstab das geforderte Mindestwasservolumen erheblich.
+     */
+    notes.push({
+      severity: 'info',
+      text: `„${model.label}“ führt einen Heizstab mit ${heizstabKw.toFixed(1)} kW, eingetragen ist „ohne Heizstab“. Er wird nicht gezeichnet. Ohne ihn deckt das Gerät den Bivalenzpunkt allein ab, und das geforderte Mindestwasservolumen bleibt der volle Wert.`,
+    });
+  } else if (!heizstabGewollt && model) {
     notes.push({
       severity: 'info',
       text: `„${model.label}“ führt keinen Elektro-Heizstab. Ohne ihn deckt das Gerät den Bivalenzpunkt allein ab — und das geforderte Mindestwasservolumen bleibt der volle Wert.`,
@@ -1526,6 +1653,8 @@ export function buildSchematic(result: PlantDesignResult): {
   // =========================================================================
   const hatWw = Boolean(result.dhwStorage);
   let heizungAb: { c: SchematicComponent; port: string } = { c: vlKnoten, port: 'east' };
+  /** Der Trinkwasserspeicher, falls einer gezeichnet wird — für den Heizstab darin. */
+  let twBauteil: SchematicComponent | undefined;
 
   if (hatWw) {
     const umschalt = put('valve-diverter', 'Umschaltventil', COL.divert, ROW.flow, '3-Wege · Heizung / Warmwasser');
@@ -1544,6 +1673,7 @@ export function buildSchematic(result: PlantDesignResult): {
       ROW.dhw,
       result.dhw ? `${result.dhwStorage?.volume} l · ${result.dhw.storageTemperature} °C` : `${result.dhwStorage?.volume} l`,
     );
+    twBauteil = speicher;
     link(umschalt, 'dhw', speicher, 'flow', 'heating-flow', 'Speicherladung');
 
     /*
@@ -1617,6 +1747,47 @@ export function buildSchematic(result: PlantDesignResult): {
        */
       link(heizungAb.c, heizungAb.port, pufferBauteil, 'gen-flow', 'heating-flow');
       verteilerQuelle = { c: pufferBauteil, port: 'sys-flow' };
+    }
+  }
+
+  /*
+   * =========================================================================
+   * Heizstab im Speicher
+   * =========================================================================
+   * Einbauort zwei der BWP-Legende: „Elektro-Zusatzheizung Speicher" — als
+   * Flanschheizung im Trinkwasser- oder als Tauchheizkörper im Pufferspeicher.
+   *
+   * **Er bekommt keine Leitung.** Ein Stab im Behälter ist kein Glied in der
+   * Strecke, sondern im Behälter eingeschraubt; eine Leitung dorthin wäre ein
+   * Rohr, das nicht existiert. Er steht deshalb neben seinem Speicher, und
+   * sein Beitext nennt, in welchem.
+   *
+   * **Der Puffer hat Vorrang vor dem Trinkwasserspeicher.** Der Tauchheizkörper
+   * im Puffer trägt Heizung *und* — über die Speicherladung — Warmwasser; die
+   * Flanschheizung im Trinkwasserspeicher trägt nur Warmwasser. Wer beides
+   * hat und den Stab im Speicher will, meint den Puffer. Gibt es keinen
+   * Behälter, wandert er in den Vorlauf; das sagt der Abweichungshinweis am
+   * Feld schon vor dem Erzeugen.
+   */
+  if (stabImSpeicher) {
+    /*
+     * `stabImSpeicher` ist nur wahr, wenn die Auslegung einen Behälter führt —
+     * und dann steht hier auch einer im Bild. Ein `??`-Rückfall ins Nichts
+     * wäre eine Sicherung gegen einen Fall, den die Bedingung ausschließt;
+     * fiele sie je auseinander, wäre ein stilles Auslassen schlimmer als der
+     * Fehler.
+     */
+    const wirt = pufferBauteil ?? twBauteil;
+    if (wirt) {
+      const wo =
+        wirt === pufferBauteil ? 'Tauchheizkörper im Pufferspeicher' : 'Flanschheizung im Trinkwasserspeicher';
+      put(
+        'electric-heater',
+        'Elektro-Heizstab',
+        wirt.x + 2,
+        wirt.y + 2,
+        heizstabKw > 0 ? `${heizstabKw.toFixed(1)} kW · ${wo}` : wo,
+      );
     }
   }
 

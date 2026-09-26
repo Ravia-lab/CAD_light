@@ -1,5 +1,5 @@
 /**
- * Rauchtest für die sechs Anlagenfragen.
+ * Rauchtest für die sieben Anlagenfragen.
  *
  * Der Prüfblock `anlagenfragen` hält die Ableitung fest — was aus welcher
  * Antwort entsteht. Was er nicht sehen kann, ist das Blatt: ob das Feld
@@ -49,7 +49,7 @@ await p.waitForTimeout(800);
 
 console.log('\n▸ Das Feld steht da, der Katalog nicht mehr');
 {
-  expect('Die sechs Fragen sind da', await p.locator('text=Was wird gebaut?').count(), 1);
+  expect('Die sieben Fragen sind da', await p.locator('text=Was wird gebaut?').count(), 1);
   expect('Die Schemaauswahl ist weg', await p.locator('text=Passende Schemata').count(), 0);
   expect('„Diese Anbindung übernehmen" ist weg', await p.locator('text=Diese Anbindung übernehmen').count(), 0);
   expect('„nicht passende zeigen" ist weg', await p.locator('text=nicht passende zeigen').count(), 0);
@@ -57,7 +57,7 @@ console.log('\n▸ Das Feld steht da, der Katalog nicht mehr');
   for (const frage of [
     'Bauart des Wärmeerzeugers',
     'Kältemittel',
-    'Heizstab als Zusatzheizer',
+    'Inneneinheit',
     'Trinkwasserspeicher',
     'Heizkreise',
     'Pufferspeicher',

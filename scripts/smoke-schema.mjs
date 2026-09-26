@@ -138,7 +138,7 @@ console.log('\n▸ Das Rohrnetz im Grundriss');
   expect('Nur eine Leitung je Paar wird beschriftet', beschriftet, stand.vorlauf);
 }
 
-console.log('\n▸ Die sechs Fragen stehen im Anlagenblatt');
+console.log('\n▸ Die sieben Fragen stehen im Anlagenblatt');
 {
   /*
    * Hier stand bis 1.50.1 die Vorschlagsliste: BWP-Kennung, Begründung,
@@ -161,7 +161,7 @@ console.log('\n▸ Die sechs Fragen stehen im Anlagenblatt');
   const text = await aside.innerText();
   expect('Die Schemaauswahl ist verschwunden', /Passende Schemata/.test(text), false);
   expect('Kein Übernehmen-Knopf mehr', /Diese Anbindung übernehmen/.test(text), false);
-  expect('Die sechs Fragen stehen da', /Was wird gebaut\?/i.test(text), true);
+  expect('Die sieben Fragen stehen da', /Was wird gebaut\?/i.test(text), true);
   expect('Und sie werden als Angaben benannt, nicht als Vorschlag', /Was Sie eintragen, gilt/.test(text), true);
 }
 

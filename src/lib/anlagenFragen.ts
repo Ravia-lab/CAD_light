@@ -1,9 +1,9 @@
 /**
- * Aus sechs Antworten wird eine Anlage.
+ * Aus sieben Antworten wird eine Anlage.
  * ---------------------------------------------------------------------------
- * **Was hier passiert.** Der Anwender sagt im Anlagenblatt, was er baut —
- * Bauart des Erzeugers, Kältemittel, Heizstab, Trinkwasserspeicher,
- * Heizkreise, Pufferspeicher. Dieses Modul macht daraus die Speicher und
+ * **Was hier passiert.** Der Anwender sagt, was er baut — Bauart des
+ * Erzeugers, Kältemittel, Inneneinheit samt Einbauort des Heizstabs,
+ * Trinkwasserspeicher, Heizkreise, Pufferspeicher. Dieses Modul macht daraus die Speicher und
  * Heizkreise der Anlage. Kein Katalog, keine Wiedererkennung einer
  * Musterlösung: Was er einträgt, wird gebaut.
  *
@@ -26,6 +26,8 @@ import type {
   AnlagenAntworten,
   HeatingCircuit,
   HeizkreisArt,
+  Inneneinheit,
+  PlantDefinition,
   PlantStorage,
   PumpForm,
   Refrigerant,
@@ -63,6 +65,70 @@ import { ANTWORTEN_VORGABE } from '../types/bim';
  */
 export function kaeltemittelImHaus(bauform: PumpForm): boolean {
   return bauform === 'split' || bauform === 'monoblock-indoor' || bauform === 'indoor' || bauform === 'tower';
+}
+
+/**
+ * Führt die Anlage einen elektrischen Zuheizer?
+ *
+ * Eine Stelle, an der diese Frage beantwortet wird. Bis 1.53.0 stand dafür
+ * ein eigenes Kästchen `heizstab: boolean` im Feld; seit die Inneneinheit
+ * erfragt wird, folgt der Stab aus ihr. Zwei Felder, die einander bedingen,
+ * geraten irgendwann auseinander — „keine Inneneinheit, aber Heizstab im
+ * Gerät" war eintragbar und hätte kein Bild ergeben.
+ */
+export function hatHeizstab(inneneinheit: Inneneinheit): boolean {
+  return inneneinheit === 'mit-heizstab' || inneneinheit === 'heizstab-speicher';
+}
+
+/** Steht eine Hydraulik- oder Inneneinheit im Haus? */
+export function hatInneneinheit(inneneinheit: Inneneinheit): boolean {
+  return inneneinheit !== 'keine';
+}
+
+/**
+ * Sitzt der Stab im Speicher statt im Vorlauf?
+ *
+ * Die Unterscheidung stammt aus der Legende des BWP-Leitfadens Hydraulik:
+ * *Elektro-Zusatzheizung Wärmepumpe* im Vorlauf nach dem Gerät,
+ * *Elektro-Zusatzheizung Speicher* als Flanschheizung im Trinkwasser- oder
+ * als Tauchheizkörper im Pufferspeicher. Fürs Schema ist das kein Beiwerk:
+ * im Vorlauf liegt der Stab in der Leitung, im Speicher hängt er am Behälter.
+ */
+export function heizstabImSpeicher(inneneinheit: Inneneinheit): boolean {
+  return inneneinheit === 'heizstab-speicher';
+}
+
+/**
+ * Die Antworten zu einer Anlage — aus dem Projekt, sonst abgeleitet.
+ *
+ * **Warum das hier steht und nicht in der Oberfläche.** Dieselbe Ableitung
+ * brauchen inzwischen drei Stellen: das Anlagenblatt, der Anlagendialog am
+ * Schema und die Auslegung, die den Einbauort des Heizstabs zeichnen muss.
+ * Dreimal derselbe `??`-Ausdruck heißt dreimal die Möglichkeit, ihn
+ * verschieden zu schreiben — und dann steht im Dialog eine andere Antwort als
+ * im Blatt.
+ *
+ * **Und hier wandert die ältere Projektdatei.** Eine Datei aus 1.51.0 bis
+ * 1.53.0 trägt `heizstab: true|false` und keine `inneneinheit`. Aus dem
+ * Kästchen wird der Regelfall seiner Zeit: mit Stab die Hydraulikeinheit mit
+ * Heizstab im Vorlauf, ohne Stab die Hydraulikeinheit ohne. `keine
+ * Inneneinheit` entsteht bei der Wanderung nie — sie war damals nicht
+ * eintragbar, und sie zu unterstellen hieße, eine Aussage zu erfinden.
+ */
+export function antwortenDes(
+  plant: Pick<PlantDefinition, 'antworten' | 'storages' | 'circuits'>,
+  bauform?: PumpForm,
+  kaeltemittel?: Refrigerant,
+): AnlagenAntworten {
+  const gespeichert = plant.antworten;
+  if (gespeichert) {
+    if (gespeichert.inneneinheit) return gespeichert;
+    return {
+      ...gespeichert,
+      inneneinheit: gespeichert.heizstab === false ? 'ohne-heizstab' : 'mit-heizstab',
+    };
+  }
+  return antwortenAusAnlage(plant.storages, plant.circuits, bauform, kaeltemittel);
 }
 
 /**
@@ -122,7 +188,7 @@ export interface AnlageAusAntworten {
  * Räume zugeordnet hat, verliert das nicht, wenn er anschließend den Puffer
  * ändert: Der Kreis an derselben Stelle behält Name, Räume, Temperaturen und
  * Werkstoff. Nur seine Art folgt der Antwort. Sonst wäre jede Änderung an
- * einem der sechs Felder ein Rücksetzen der halben Anlage.
+ * einem der sieben Felder ein Rücksetzen der halben Anlage.
  */
 export function anlageAusAntworten(
   antworten: AnlagenAntworten,
@@ -283,12 +349,51 @@ export function abweichungen(
     });
   }
 
-  if (!antworten.heizstab && antworten.bauform !== 'indoor') {
+  if (!hatHeizstab(antworten.inneneinheit) && antworten.bauform !== 'indoor') {
     hin.push({
-      feld: 'heizstab',
+      feld: 'inneneinheit',
       text:
         'Ohne Zusatzheizer trägt die Wärmepumpe den Bivalenzpunkt allein. ' +
         'Das ist zulässig und verlangt ein Gerät, das die Heizlast bei Norm-Außentemperatur deckt.',
+    });
+  }
+
+  /*
+   * **Keine Inneneinheit bei einer Bauart, die eine braucht.**
+   *
+   * Beim Splitgerät steht der Verflüssiger im Haus, beim Innen- und
+   * Kompaktgerät das ganze Gerät. „Keine Inneneinheit" ist dort kein
+   * ungewöhnlicher Fall, sondern ein Widerspruch — und einer, der sich im
+   * Bild nicht auflösen lässt: Das Kältemittel käme ins Haus und endete
+   * nirgends. Die Antwort bleibt trotzdem stehen; hier steht nur, was daran
+   * nicht zusammengeht.
+   */
+  if (antworten.inneneinheit === 'keine' && kaeltemittelImHaus(antworten.bauform)) {
+    hin.push({
+      feld: 'inneneinheit',
+      text:
+        'Bei dieser Bauart geht der Kältekreis mit ins Haus — dort steht dann mindestens der ' +
+        'Verflüssiger. Ohne Inneneinheit bleibt offen, wo das Kältemittel Wärme abgibt.',
+    });
+  }
+
+  /*
+   * **Heizstab im Speicher, aber kein Speicher.**
+   *
+   * Der zweite Einbauort des BWP-Leitfadens ist die Flanschheizung im
+   * Trinkwasser- oder der Tauchheizkörper im Pufferspeicher. Ohne beides gibt
+   * es keinen Behälter, in dem er sitzen könnte.
+   */
+  if (
+    antworten.inneneinheit === 'heizstab-speicher' &&
+    antworten.pufferLiter === 0 &&
+    antworten.trinkwasserLiter === 0
+  ) {
+    hin.push({
+      feld: 'inneneinheit',
+      text:
+        'Der Heizstab soll im Speicher sitzen, es ist aber weder ein Puffer- noch ein ' +
+        'Trinkwasserspeicher eingetragen. Im Schema wird er deshalb in den Vorlauf gezeichnet.',
     });
   }
 
@@ -301,7 +406,7 @@ export function antwortenAusAnlage(
   circuits: Record<string, HeatingCircuit>,
   bauform?: PumpForm,
   kaeltemittel?: Refrigerant,
-  heizstab?: boolean,
+  inneneinheit?: Inneneinheit,
 ): AnlagenAntworten {
   const tww = Object.values(storages).find((s) => s.kind === 'dhw-cylinder' || s.kind === 'combi');
   const puffer = Object.values(storages).find(
@@ -314,7 +419,7 @@ export function antwortenAusAnlage(
   return {
     bauform: bauform ?? ANTWORTEN_VORGABE.bauform,
     kaeltemittel: kaeltemittel ?? ANTWORTEN_VORGABE.kaeltemittel,
-    heizstab: heizstab ?? ANTWORTEN_VORGABE.heizstab,
+    inneneinheit: inneneinheit ?? ANTWORTEN_VORGABE.inneneinheit,
     trinkwasserLiter: tww?.volume ?? 0,
     kreise: kreise.length ? kreise : ANTWORTEN_VORGABE.kreise,
     pufferLiter: puffer?.volume ?? 0,

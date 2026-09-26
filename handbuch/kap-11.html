@@ -129,9 +129,24 @@ die Kennung wegzulassen oder die Abweichung zu verschweigen.</p>
 <p><b>Eingetragenes gilt.</b> Steht in der Projektdatei bereits eine Vorlage —
 aus einem älteren Projekt oder weil sie bewusst gesetzt wurde —, wird sie
 nicht durch eine besser passende ersetzt. Das ist dieselbe Regel wie bei den
-sechs Angaben im Anlagenblatt. Spricht ein hartes Merkmal dagegen, meldet die
+sieben Angaben im Anlagenblatt. Spricht ein hartes Merkmal dagegen, meldet die
 Schemaprüfung <span class="zeichen">Die eingetragene Vorlage … passt nicht zur
 Anlage</span> und nennt, welches Merkmal.</p>
+
+<h4 id="k11-0-7">11.0.7 Das leere Blatt fragt, statt zu verweisen</h4>
+
+<p>Wer die Schema-Ansicht öffnete und noch kein Schema hatte, fand bis 1.53.0 den Satz <span class="zeichen">Im Reiter „Anlage“ das Gerät wählen und auf „Schema erzeugen“ klicken</span>. Das Programm wusste, was ihm fehlt, und schickte den Anwender weg — in einen Reiter unter vierzehn, in dem die Angaben leicht untergehen.</p>
+
+<p>Seit 1.54.0 geht an dieser Stelle der <b>Anlagendialog</b> auf: dieselben sieben Felder aus <a href="#k10-0">Abschnitt 10.0</a>, auf einem Blatt, mit dem Knopf <span class="zeichen">Schema erzeugen</span> darunter. Er ist der leere Zustand der Ansicht und kein Fenster davor.</p>
+
+<ul>
+<li><b>Von selbst geht er nur auf, solange kein Schema da ist</b> — und dann einmal. Wer ihn schließt, um nur zu schauen, wird nicht ein zweites Mal gefragt. Ein Dialog, den man beim dritten Ansehen wieder wegtippt, wird weggetippt — und dann auch beim zwanzigsten Mal, an dem er nötig gewesen wäre.</li>
+<li><b>Zurück führt der Knopf <span class="zeichen">Angaben ändern</span></b> oben links am Bild, neben der Umschaltung Übersicht/Ausführung.</li>
+<li><b>Das Anlagenblatt bleibt.</b> Wer dort sitzt, weil er das Gerät wählt, soll die Felder nicht suchen müssen. Beide zeigen dieselben Felder aus derselben Quelle — sonst driften sie auseinander.</li>
+<li><b>Es gibt nichts abzubrechen.</b> Jede Eingabe steht sofort im Projekt, wie im Anlagenblatt auch. Der Knopf heißt deshalb <span class="zeichen">Schließen</span> und nicht „Abbrechen“; zurück geht es mit <kbd>Strg</kbd>+<kbd>Z</kbd>.</li>
+</ul>
+
+<div class="merke"><b>Merke</b><p>Ein Assistent mit Weiter-Knopf wäre ein Rückschritt. Die Angaben hängen voneinander ab, und wer den vierten ausfüllt, muss den zweiten noch sehen. Der Dialog ist ein Blatt, kein Ablauf.</p></div>
 
 <h3 id="k11-1">11.1 Was ein Prinzipschema ist — und was nicht</h3>
 

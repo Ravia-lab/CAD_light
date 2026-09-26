@@ -25,6 +25,7 @@ import { leitungsverlauf } from '../lib/schemaLeitung';
 import { uebersichtsschema } from '../lib/schemaUebersicht';
 import { zugeordneteVorlage } from '../lib/schemaZuordnung';
 import { designPlant } from '../lib/plantDesign';
+import AnlagenDialog from './AnlagenDialog';
 import { UEBERSICHT_MASSE, zeichneUebersicht } from '../lib/uebersichtZeichnen';
 import {
   buildComponentTable,
@@ -98,6 +99,18 @@ export default function SchemaView({ className = '' }: { className?: string }) {
   const [selected, setSelected] = useState<string | null>(null);
   const panRef = useRef<{ x: number; y: number } | null>(null);
   const [showLegend, setShowLegend] = useState(true);
+  /*
+   * Der Anlagendialog — und die Regel, wann er von selbst aufgeht.
+   *
+   * **Nur solange kein Schema da ist, und nur einmal.** Ein Dialog, der beim
+   * dritten Ansehen des Bildes wieder aufgeht, wird weggetippt — und dann
+   * auch beim zwanzigsten Mal, an dem er nötig gewesen wäre. `vonSelbst`
+   * merkt sich, dass er einmal aufgegangen ist; wer ihn schließt, um nur zu
+   * schauen, wird nicht ein zweites Mal gefragt. Zurück führt der Knopf im
+   * leeren Blatt oder „Angaben ändern" am Bild.
+   */
+  const [dialogOffen, setDialogOffen] = useState(false);
+  const vonSelbst = useRef(false);
   const [printOpen, setPrintOpen] = useState(false);
   const [paper, setPaper] = useState<{ format: SchematicPaperFormat; orientation: SchematicOrientation }>({
     format: 'A3',
@@ -229,6 +242,19 @@ export default function SchemaView({ className = '' }: { className?: string }) {
     return () => observer.disconnect();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  /*
+   * Ist noch nichts da, wird gefragt statt verwiesen.
+   *
+   * Bis 1.53.0 stand hier ein Satz, der auf den Reiter „Anlage" zeigte. Das
+   * Programm wusste, was ihm fehlt, und schickte den Anwender weg. Jetzt geht
+   * der Bogen auf — einmal, und nur solange kein Schema da ist.
+   */
+  useEffect(() => {
+    if (components.length > 0 || vonSelbst.current) return;
+    vonSelbst.current = true;
+    setDialogOffen(true);
+  }, [components.length]);
 
   useEffect(() => {
     if (fittedRef.current || !components.length) return;
@@ -535,6 +561,22 @@ export default function SchemaView({ className = '' }: { className?: string }) {
               {uebersicht.bauteile.filter((b) => b.kind !== 'node').length} von {uebersicht.vollstaendig} Bauteilen
             </span>
           )}
+          {/*
+            Der Weg zurück zu den Angaben.
+
+            Er steht hier und nicht als selbsttätiger Dialog: Wer das Bild
+            ansieht, will es ansehen. Wer etwas ändern will, findet den Knopf
+            an dem Bild, das er ändern will — und muss nicht wissen, dass die
+            Felder in einem Reiter namens „Anlage“ liegen.
+          */}
+          <button
+            className="chip ml-1 whitespace-nowrap bg-white/[0.05] text-slate-300 hover:bg-white/[0.1]"
+            data-pruef="angaben-aendern"
+            title="Die sieben Angaben zur Anlage — dieselben wie im Reiter „Anlage“"
+            onClick={() => setDialogOffen(true)}
+          >
+            Angaben ändern
+          </button>
         </div>
       )}
 
@@ -556,13 +598,24 @@ export default function SchemaView({ className = '' }: { className?: string }) {
           <div className="panel pointer-events-auto max-w-[26rem] px-4 py-3 text-center">
             <p className="text-[12px] text-slate-300">Noch kein Anlagenschema</p>
             <p className="mt-1 text-[11px] leading-relaxed text-slate-500">
-              Im Reiter „Anlage“ das Gerät wählen und auf „Schema erzeugen“ klicken. Das Schema entsteht aus der
-              Auslegung — Erzeuger, Speicher, Sicherheitsarmaturen und Heizkreise stehen dann mit ihren Kennwerten
-              darin.
+              Das Schema entsteht aus sieben Angaben zu dem, was im Technikraum steht — Erzeuger, Speicher,
+              Sicherheitsarmaturen und Heizkreise stehen danach mit ihren Kennwerten darin.
+            </p>
+            <button
+              className="chip mt-2 bg-accent/12 text-accent hover:bg-accent/20"
+              data-pruef="leer-angaben"
+              onClick={() => setDialogOffen(true)}
+            >
+              Angaben machen
+            </button>
+            <p className="mt-1.5 text-[10px] leading-relaxed text-slate-600">
+              Dieselben Felder stehen im Reiter „Anlage“.
             </p>
           </div>
         </div>
       )}
+
+      {dialogOffen && <AnlagenDialog onClose={() => setDialogOffen(false)} />}
 
       {/* Legende der Leitungsarten */}
       {showLegend && components.length > 0 && (

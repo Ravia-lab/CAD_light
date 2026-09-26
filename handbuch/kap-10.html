@@ -4,19 +4,19 @@
 
 <p class="wo">Im Programm: Reiter <b>Anlage</b>. Das Blatt hat zwei Betriebsarten. Im einfachen Modus endet es nach der Geräteauswahl mit einer Zusammenfassung in ganzen Sätzen; im Modus <b>Fachplaner</b> stehen alle Abschnitte mit ihren Zwischenwerten da. Dieses Kapitel beschreibt den Fachplaner-Modus.</p>
 
-<h3 id="k10-0">10.0 Die sechs Fragen: was wird gebaut?</h3>
+<h3 id="k10-0">10.0 Die sieben Fragen: was wird gebaut?</h3>
 
-<p class="lead">Am Anfang des Anlagenblatts stehen sechs Angaben. Aus ihnen entstehen die Speicher und die Heizkreise — und damit das Schema, das Rohrnetz und die Stückliste.</p>
+<p class="lead">Am Anfang des Anlagenblatts stehen sieben Angaben. Aus ihnen entstehen die Speicher und die Heizkreise — und damit das Schema, das Rohrnetz und die Stückliste.</p>
 
-<p class="wo">Im Programm: Reiter <b>Anlage</b> → Abschnitt <b>Anlagenschema</b> → <b>Was wird gebaut?</b></p>
+<p class="wo">Im Programm: Reiter <b>Anlage</b> → Abschnitt <b>Anlagenschema</b> → <b>Was wird gebaut?</b> — oder, seit 1.54.0, im <b>Anlagendialog</b>, der über der leeren Schema-Ansicht aufgeht. Beide zeigen dieselben Felder; siehe <a href="#k10-0-4">Abschnitt 10.0.4</a>.</p>
 
 <table class="tab">
-<caption>Die sechs Angaben</caption>
+<caption>Die sieben Angaben</caption>
 <thead><tr><th>#</th><th>Frage</th><th>Was daran hängt</th></tr></thead>
 <tbody>
 <tr><td>1</td><td>Bauart des Wärmeerzeugers</td><td>Ob der Kältekreis mit ins Haus geht oder nur Heizungswasser. Beim Monoblock bleibt er draußen, beim Splitgerät nicht.</td></tr>
 <tr><td>2</td><td>Kältemittel</td><td>Bei brennbaren Kältemitteln (R290, R32, R454C) und einer Bauart mit Kältekreis im Haus gilt drinnen der Schutzbereich nach DIN EN 378. Das Programm sagt es, statt die Wahl zu sperren.</td></tr>
-<tr><td>3</td><td>Heizstab als Zusatzheizer</td><td>Ohne ihn muss die Wärmepumpe die Heizlast bei Norm-Außentemperatur allein decken.</td></tr>
+<tr><td>3</td><td>Inneneinheit</td><td>Vier Fälle: <b>keine Inneneinheit</b> (im Haus steht nur die Verteilung), <b>Hydraulikeinheit ohne Heizstab</b>, <b>Hydraulikeinheit mit Heizstab im Vorlauf</b> und <b>Heizstab im Speicher</b>. Daran hängt zweierlei: ob ein Gehäuse ins Schema kommt und wo der elektrische Zuheizer sitzt. Siehe <a href="#k10-0-4">Abschnitt 10.0.4</a>.</td></tr>
 <tr><td>4</td><td>Trinkwasserspeicher</td><td>Inhalt in Litern, oder „keiner“. Daraus entsteht der Speicher samt Umschaltventil im Schema.</td></tr>
 <tr><td>5</td><td>Heizkreise</td><td>Ein oder zwei Kreise, je Kreis gemischt oder ungemischt. <b>Gemischt</b> heißt: eigener Mischer, eigene Umwälzpumpe, eigene Vorlauftemperatur — der Fall Fußbodenheizung neben Heizkörpern.</td></tr>
 <tr><td>6</td><td>Pufferspeicher</td><td>Inhalt in Litern, oder „keiner“; dazu die Bauart — parallel (hydraulisch getrennt) oder in Reihe im Rücklauf. Der Unterschied ist nicht kosmetisch, siehe <a href="#k10-10">Abschnitt 10.10</a>.</td></tr>
@@ -25,11 +25,11 @@
 
 <h4 id="k10-0-1">10.0.1 Alles in einem Feld, nicht nacheinander</h4>
 
-<p>Die sechs Angaben stehen untereinander auf einem Blatt und nicht als sechs Schritte hintereinander. Das ist Absicht:</p>
+<p>Die sieben Angaben stehen untereinander auf einem Blatt und nicht als sieben Schritte hintereinander. Das ist Absicht:</p>
 
 <ul>
 <li>Sie <b>hängen voneinander ab</b>. Ohne Puffer gibt es keine Puffergröße, ohne Trinkwasserspeicher kein Volumen. In einem Ablauf sieht man beim vierten Schritt den zweiten nicht mehr.</li>
-<li>Beim <b>zweiten Gebäude</b> ändert man zwei Felder und nicht sechs Schritte.</li>
+<li>Beim <b>zweiten Gebäude</b> ändert man zwei Felder und nicht sieben Schritte.</li>
 <li>Ein Feld mit allem darin lässt sich <b>ausdrucken und jemandem hinlegen</b>. Ein Ablauf nicht.</li>
 </ul>
 
@@ -48,11 +48,32 @@
 
 <h4 id="k10-0-3">10.0.3 Was beim Ändern erhalten bleibt</h4>
 
-<p>Haben Sie einen Heizkreis benannt, ihm Räume zugeordnet und eigene Temperaturen eingetragen, behält er das alles, wenn Sie anschließend eine andere der sechs Angaben ändern. Nur seine <em>Art</em> folgt der Antwort. Ohne diese Regel wäre jede Änderung an einem der sechs Felder ein Rücksetzen der halben Anlage.</p>
+<p>Haben Sie einen Heizkreis benannt, ihm Räume zugeordnet und eigene Temperaturen eingetragen, behält er das alles, wenn Sie anschließend eine andere der sieben Angaben ändern. Nur seine <em>Art</em> folgt der Antwort. Ohne diese Regel wäre jede Änderung an einem der sieben Felder ein Rücksetzen der halben Anlage.</p>
 
 <p>Die Antworten werden <b>mit dem Projekt gespeichert</b>. Eine ältere Projektdatei ohne sie wird gelesen, indem das Feld aus den vorhandenen Speichern und Kreisen gefüllt wird — im Blatt steht dann nie etwas anderes, als in der Anlage steckt.</p>
 
-<div class="warnung"><b>Was hier nicht entschieden wird</b><p>Gerätewahl, Puffergröße, Sicherheitsarmaturen und Pumpenauslegung rechnet das Programm wie bisher aus der Heizlast. Die sechs Fragen beschreiben nur die <b>Konstellation</b>: welche Bauteile es gibt und wie sie zusammenhängen.</p></div>
+<div class="warnung"><b>Was hier nicht entschieden wird</b><p>Gerätewahl, Puffergröße, Sicherheitsarmaturen und Pumpenauslegung rechnet das Programm wie bisher aus der Heizlast. Die sieben Fragen beschreiben nur die <b>Konstellation</b>: welche Bauteile es gibt und wie sie zusammenhängen.</p></div>
+
+<h4 id="k10-0-4">10.0.4 Die Inneneinheit und der Heizstab</h4>
+
+<p>Bis 1.53.0 stand an dritter Stelle ein Kästchen „Heizstab als Zusatzheizer“, und ob überhaupt eine Inneneinheit im Haus steht, war gar nicht erfragt — das Schema zeichnete sie immer. Beides zusammen war unglücklich: Der Stab steckt am Markt fast immer <em>in</em> der Inneneinheit, und „keine Inneneinheit, aber Heizstab im Gerät“ war eintragbar, ohne dass sich daraus ein Bild ergibt.</p>
+
+<p>Seit 1.54.0 ist es <b>eine</b> Frage mit vier Antworten. Die vier sind nicht gewählt, sondern abgezählt: Die Legende des BWP-Leitfadens Hydraulik führt <b>zwei</b> Einbauorte des elektrischen Zuheizers — <em>Elektro-Zusatzheizung Wärmepumpe</em> im Vorlauf und <em>Elektro-Zusatzheizung Speicher</em> im Behälter —, dazu kommen die beiden Fälle ohne Stab.</p>
+
+<table class="tab">
+<caption>Was die vier Antworten im Schema bewirken</caption>
+<thead><tr><th>Antwort</th><th>Im Bild</th></tr></thead>
+<tbody>
+<tr><td>keine Inneneinheit</td><td>Kein Gehäuse. Pumpe, Umschaltventil und Sicherheitsgruppe stehen einzeln; der Vorlauf geht unmittelbar aus dem Außengerät weiter. Am Markt die Ausnahme — deshalb steht ein Hinweis dazu unter dem Bild.</td></tr>
+<tr><td>Hydraulikeinheit ohne Heizstab</td><td>Das Gehäuse, aber kein Heizstab — auch dann nicht, wenn das gewählte Gerät einen mitbringt. Dann sagt ein Hinweis, welche Leistung damit nicht freigegeben ist.</td></tr>
+<tr><td>Hydraulikeinheit mit Heizstab im Vorlauf</td><td>Der Regelfall. Der Stab sitzt nach dem Gerät und <b>vor</b> dem Warmwasser-Umschaltventil — damit bedient er Heizung und Warmwasser.</td></tr>
+<tr><td>Heizstab im Speicher</td><td>Der Stab hängt am Behälter: Tauchheizkörper im Puffer, sonst Flanschheizung im Trinkwasserspeicher. Er bekommt <b>keine Leitung</b> — ein Stab im Behälter ist kein Glied in der Strecke, und ein Rohr dorthin gäbe es nicht.</td></tr>
+</tbody>
+</table>
+
+<div class="merke"><b>Merke</b><p>Der Puffer hat Vorrang vor dem Trinkwasserspeicher: Der Tauchheizkörper im Puffer trägt Heizung <em>und</em> — über die Speicherladung — Warmwasser, die Flanschheizung im Trinkwasserspeicher nur das Warmwasser. Ist weder das eine noch das andere ausgelegt, wird der Stab in den Vorlauf gezeichnet, und ein Hinweis sagt es.</p></div>
+
+<p><b>Ältere Projektdateien.</b> Eine Datei aus 1.51.0 bis 1.53.0 trägt noch das alte Kästchen. Beim Öffnen wird daraus der Regelfall ihrer Zeit: mit Haken die Hydraulikeinheit mit Heizstab im Vorlauf, ohne Haken die Hydraulikeinheit ohne. „Keine Inneneinheit“ entsteht dabei <b>nie</b> — sie war damals nicht eintragbar, und sie zu unterstellen hieße, eine Aussage zu erfinden, die niemand gemacht hat.</p>
 
 <h3 id="k10-1">10.1 Die acht Schritte</h3>
 

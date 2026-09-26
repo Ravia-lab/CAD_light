@@ -21,12 +21,10 @@ import { useCallback, useMemo, useRef, useState } from 'react';
 import type {
   AnlagenAntworten,
   BivalenzBetrieb,
-  HeizkreisArt,
   HeatPumpModel,
   HeatSourceKind,
   PipeMaterial,
   PumpForm,
-  Refrigerant,
   SecondGenerator,
   Vorhaben,
   ZweitErzeugerArt,
@@ -45,7 +43,8 @@ import type { GebaeudeNetzErgebnis } from '../lib/gebaeudeNetz';
 import { HEAT_PUMP_SERIES, REFRIGERANTS, minimumRoomVolume } from '../lib/deviceCatalog';
 import { buildSchematic, designPlant, type CircuitDesign } from '../lib/plantDesign';
 import { pruefeSchema, type SchemaBefund } from '../lib/schemaPruefung';
-import { abweichungen, antwortenAusAnlage, kaeltemittelImHaus } from '../lib/anlagenFragen';
+import { abweichungen, antwortenDes } from '../lib/anlagenFragen';
+import AnlagenFragen from './AnlagenFragen';
 import { PRESET_VERDICT_LABELS, balanceNetwork } from '../lib/hydraulicBalance';
 import { buildCsvTemplate, importDevices, mergeIntoCatalog, type DeviceImportReport } from '../lib/deviceImport';
 import { buildMaterialSchedule, materialScheduleCsv } from '../lib/materialSchedule';
@@ -253,22 +252,15 @@ export default function AnlagenPanel() {
    * nicht, was gerade auf dem Blatt steht.
    */
   /*
-   * Die sechs Antworten.
+   * Die sieben Antworten.
    *
    * Stehen sie schon im Projekt, gelten sie. Fehlen sie — ältere Projektdatei
    * oder frisches Projekt —, werden sie aus dem gelesen, was an Speichern und
    * Kreisen da ist. So steht im Feld nie etwas anderes als in der Anlage.
    */
   const antworten = useMemo(
-    () =>
-      plant.antworten ??
-      antwortenAusAnlage(
-        plant.storages,
-        plant.circuits,
-        design.selected?.model.form,
-        design.selected?.model.refrigerant,
-      ),
-    [plant.antworten, plant.storages, plant.circuits, design.selected],
+    () => antwortenDes(plant, design.selected?.model.form, design.selected?.model.refrigerant),
+    [plant, design.selected],
   );
   const setzeAnlagenAntworten = useBimStore((s) => s.setzeAnlagenAntworten);
   const setzeAntwort = useCallback(
@@ -1348,193 +1340,40 @@ export default function AnlagenPanel() {
           </span>
         </div>
         {/*
-          Die sechs Fragen, aus denen die Anlage entsteht.
+          Die sieben Fragen, aus denen die Anlage entsteht.
 
           Hier stand bis 1.51.0 die Liste der vorgeschlagenen Hydraulikschemata
           — „BWP-H-06 … 8 nicht passende zeigen". Gemeldet aus der Benutzung:
           irreführend. Zu Recht: Sie verlangte, eine Musterlösung
           *wiederzuerkennen*, bevor man sagen durfte, was man baut. Jetzt
-          umgekehrt — sechs Angaben zu dem, was auf der Baustelle steht, und
+          umgekehrt — sieben Angaben zu dem, was auf der Baustelle steht, und
           daraus entsteht die Anlage.
 
           **Alles in einem Feld, nicht nacheinander.** Die Angaben hängen
           voneinander ab, beim zweiten Gebäude ändert man zwei davon, und wer
           den vierten Schritt ausfüllt, soll den zweiten noch sehen.
         */}
-        <div className="mb-2 space-y-2">
-          <div>
-            <span className="label-xs">Was wird gebaut?</span>
-            <p className="mt-0.5 text-[9.5px] leading-relaxed text-slate-600">
-              Sechs Angaben. Sie werden mit dem Projekt gespeichert, und aus ihnen entstehen Speicher und
-              Heizkreise. Was Sie eintragen, gilt — weicht die Auslegung ab, steht es daneben.
-            </p>
-          </div>
+        {/*
+          Die sieben Fragen, aus denen die Anlage entsteht.
 
-          {/* 1 · Bauart */}
-          <label className="block">
-            <span className="label-xs">1 · Bauart des Wärmeerzeugers</span>
-            <select
-              className="field mt-1 w-full"
-              value={antworten.bauform}
-              onChange={(e) => setzeAntwort({ bauform: e.target.value as PumpForm })}
-            >
-              {(Object.keys(PUMP_FORM_LABELS) as PumpForm[]).map((f) => (
-                <option key={f} value={f} className="bg-graphite-850">
-                  {PUMP_FORM_LABELS[f]}
-                </option>
-              ))}
-            </select>
-            <p className="mt-0.5 text-[9.5px] leading-relaxed text-slate-600">
-              {kaeltemittelImHaus(antworten.bauform)
-                ? 'Bei dieser Bauart geht der Kältekreis mit ins Haus — bei brennbarem Kältemittel gilt drinnen der Schutzbereich nach DIN EN 378.'
-                : 'Ins Haus geht nur Heizungswasser; der Kältekreis bleibt draußen. Die Hydraulikstation steht trotzdem im Technikraum.'}
-            </p>
-          </label>
+          Hier stand bis 1.51.0 die Liste der vorgeschlagenen
+          Hydraulikschemata — „BWP-H-06 … 8 nicht passende zeigen". Gemeldet
+          aus der Benutzung: irreführend. Zu Recht: Sie verlangte, eine
+          Musterlösung *wiederzuerkennen*, bevor man sagen durfte, was man
+          baut. Jetzt umgekehrt — Angaben zu dem, was auf der Baustelle
+          steht, und daraus entsteht die Anlage.
 
-          {/* 2 · Kältemittel */}
-          <label className="block">
-            <span className="label-xs">2 · Kältemittel</span>
-            <select
-              className="field mt-1 w-full"
-              value={antworten.kaeltemittel}
-              onChange={(e) => setzeAntwort({ kaeltemittel: e.target.value as Refrigerant })}
-            >
-              {(['R290', 'R32', 'R454C', 'R410A', 'R744', 'R1234ze', 'andere'] as Refrigerant[]).map((k) => (
-                <option key={k} value={k} className="bg-graphite-850">
-                  {k}
-                </option>
-              ))}
-            </select>
-          </label>
-
-          {/* 3 · Heizstab */}
-          <label className="flex items-center gap-2">
-            <input
-              type="checkbox"
-              checked={antworten.heizstab}
-              onChange={(e) => setzeAntwort({ heizstab: e.target.checked })}
-            />
-            <span className="text-[11px] text-slate-300">3 · Heizstab als Zusatzheizer</span>
-          </label>
-
-          {/* 4 · Trinkwasserspeicher */}
-          <div>
-            <span className="label-xs">4 · Trinkwasserspeicher</span>
-            <div className="mt-1 flex items-center gap-2">
-              <select
-                className="field w-full"
-                value={antworten.trinkwasserLiter}
-                onChange={(e) => setzeAntwort({ trinkwasserLiter: Number(e.target.value) })}
-              >
-                <option value={0} className="bg-graphite-850">keiner</option>
-                {[120, 150, 180, 200, 250, 300, 400, 500].map((l) => (
-                  <option key={l} value={l} className="bg-graphite-850">
-                    {l} l
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-
-          {/* 5 · Heizkreise */}
-          <div>
-            <span className="label-xs">5 · Heizkreise</span>
-            <div className="mt-1 flex gap-1">
-              {([1, 2] as const).map((n) => (
-                <button
-                  key={n}
-                  className={`chip flex-1 ${
-                    antworten.kreise.length === n
-                      ? 'bg-accent/15 text-accent'
-                      : 'bg-white/[0.05] text-slate-300 hover:bg-white/[0.1]'
-                  }`}
-                  onClick={() =>
-                    setzeAntwort({
-                      kreise:
-                        n === 1
-                          ? [antworten.kreise[0] ?? 'ungemischt']
-                          : [antworten.kreise[0] ?? 'ungemischt', antworten.kreise[1] ?? 'gemischt'],
-                    })
-                  }
-                >
-                  {n === 1 ? 'ein Kreis' : 'zwei Kreise'}
-                </button>
-              ))}
-            </div>
-            <div className="mt-1 space-y-1">
-              {antworten.kreise.map((art, i) => (
-                <div key={i} className="flex items-center gap-1">
-                  <span className="w-14 shrink-0 text-[10px] text-slate-500">Kreis {i + 1}</span>
-                  {(['ungemischt', 'gemischt'] as HeizkreisArt[]).map((a) => (
-                    <button
-                      key={a}
-                      className={`chip flex-1 ${
-                        art === a ? 'bg-accent/15 text-accent' : 'bg-white/[0.05] text-slate-300 hover:bg-white/[0.1]'
-                      }`}
-                      onClick={() => {
-                        const kreise = [...antworten.kreise];
-                        kreise[i] = a;
-                        setzeAntwort({ kreise });
-                      }}
-                    >
-                      {a}
-                    </button>
-                  ))}
-                </div>
-              ))}
-            </div>
-            <p className="mt-0.5 text-[9.5px] leading-relaxed text-slate-600">
-              Gemischt heißt: eigener Mischer, eigene Umwälzpumpe, eigene Vorlauftemperatur — der Fall
-              Fußbodenheizung neben Heizkörpern.
-            </p>
-          </div>
-
-          {/* 6 · Pufferspeicher */}
-          <div>
-            <span className="label-xs">6 · Pufferspeicher</span>
-            <div className="mt-1 flex gap-1">
-              <select
-                className="field flex-1"
-                value={antworten.pufferLiter}
-                onChange={(e) => setzeAntwort({ pufferLiter: Number(e.target.value) })}
-              >
-                <option value={0} className="bg-graphite-850">keiner</option>
-                {[50, 80, 100, 120, 200, 300, 400, 500, 800].map((l) => (
-                  <option key={l} value={l} className="bg-graphite-850">
-                    {l} l
-                  </option>
-                ))}
-              </select>
-              {antworten.pufferLiter > 0 && (
-                <select
-                  className="field flex-1"
-                  value={antworten.pufferArt}
-                  onChange={(e) =>
-                    setzeAntwort({ pufferArt: e.target.value as 'buffer-parallel' | 'buffer-series' })
-                  }
-                >
-                  <option value="buffer-parallel" className="bg-graphite-850">parallel (hydraulisch getrennt)</option>
-                  <option value="buffer-series" className="bg-graphite-850">in Reihe im Rücklauf</option>
-                </select>
-              )}
-            </div>
-          </div>
-
-          {/* Was die Auslegung dazu sagt */}
-          {abweichungsliste.length > 0 && (
-            <div className="rounded-lg bg-amber-500/[0.07] px-2.5 py-2">
-              <span className="text-[10px] font-medium text-amber-200">Was die Auslegung dazu sagt</span>
-              {abweichungsliste.map((a, i) => (
-                <p key={i} className="mt-1 text-[9.5px] leading-relaxed text-amber-100/70">
-                  {a.text}
-                </p>
-              ))}
-              <p className="mt-1.5 text-[9px] leading-relaxed text-slate-500">
-                Es bleibt bei Ihren Angaben. Diese Sätze stehen hier, damit die Abweichung bekannt ist — nicht,
-                um sie zu ändern.
-              </p>
-            </div>
-          )}
+          **Die Felder selbst stehen in `AnlagenFragen`**, weil sie seit
+          1.54.0 auch im Anlagendialog am Schema erscheinen. Zwei Abschriften
+          derselben sieben Felder wären zwei Stellen, an denen ein achtes
+          nachzutragen ist — und eine, an der es vergessen wird.
+        */}
+        <div className="mb-2">
+          <AnlagenFragen
+            antworten={antworten}
+            setzeAntwort={setzeAntwort}
+            abweichungsliste={abweichungsliste}
+          />
         </div>
         <button
           className="chip w-full bg-accent/12 text-accent hover:bg-accent/20"
@@ -1552,7 +1391,7 @@ export default function AnlagenPanel() {
             /*
              * **Ohne Vorlagenkennung.** Bis 1.50.1 bekam das erzeugte Bild
              * die Kennung der Musterlösung, nach der es gebaut war. Seit die
-             * Anlage aus den sechs Antworten entsteht, gibt es keine Vorlage
+             * Anlage aus den sieben Antworten entsteht, gibt es keine Vorlage
              * mehr, die es zu nennen gäbe — sie zu behaupten, wäre eine
              * Herkunft, die nicht stimmt.
              */
@@ -1913,7 +1752,7 @@ function StorageRow({
  *
  * Dieselben Zahlen wie oben, nur als Text und ohne die Zwischenschritte. Wer
  * eine Anlage nicht selbst rechnet, sondern einbaut, braucht genau diese
- * sechs Angaben — und zwar so, dass er sie am Telefon vorlesen kann.
+ * sieben Angaben — und zwar so, dass er sie am Telefon vorlesen kann.
  */
 /**
  * Ein Satz zur Herkunft der Heizlast.

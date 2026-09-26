@@ -4995,7 +4995,7 @@ export interface CascadeDefinition {
 }
 
 /**
- * Die sechs Fragen, aus denen die Anlage entsteht.
+ * Die sieben Fragen, aus denen die Anlage entsteht.
  * ---------------------------------------------------------------------------
  * **Warum es sie gibt.** Bis 1.50.1 stand im Anlagenblatt eine Liste
  * vorgeschlagener Hydraulikschemata: „BWP-H-06 — Wärmepumpe, mehrere
@@ -5006,13 +5006,13 @@ export interface CascadeDefinition {
  * er baut. Er weiß aber nicht, wie die Lösung heißt; er weiß, was auf der
  * Baustelle steht.
  *
- * Deshalb die umgekehrte Richtung: sechs Angaben zu dem, was er kennt, und
+ * Deshalb die umgekehrte Richtung: sieben Angaben zu dem, was er kennt, und
  * daraus entsteht die Anlage. Der Katalog ist aus dem Blatt verschwunden.
  *
- * **Alle sechs auf einmal, nicht nacheinander.** Ein Ablauf mit sechs
+ * **Alle sieben auf einmal, nicht nacheinander.** Ein Ablauf mit sieben
  * Schritten sieht ordentlich aus und ist im Betrieb schlechter: Die Angaben
  * hängen voneinander ab (ohne Puffer keine Puffergröße, ohne Trinkwasser kein
- * Volumen), beim zweiten Gebäude ändert man zwei Felder und nicht sechs
+ * Volumen), beim zweiten Gebäude ändert man zwei Felder und nicht sieben
  * Schritte, und wer den vierten Schritt ausfüllt, sieht den zweiten nicht
  * mehr. Ein Feld mit allem darin ist außerdem das, was man ausdrucken und
  * jemandem hinlegen kann.
@@ -5035,8 +5035,37 @@ export interface AnlagenAntworten {
    * im Haus gebraucht wird.
    */
   kaeltemittel: Refrigerant;
-  /** 3 · Gibt es einen Heizstab als Zusatzheizer? */
-  heizstab: boolean;
+  /**
+   * 3 · Die Inneneinheit — und wo der Heizstab sitzt.
+   *
+   * **Warum die beiden Fragen eine sind.** Der Heizstab steckt am Markt fast
+   * immer *in* der Inneneinheit: Viessmann führt ihn als
+   * Heizwasser-Durchlauferhitzer mit 8 kW, Daikin als Reserveheizung mit 6
+   * oder 9 kW, Panasonic als Backup-Heizer mit 3 oder 6 kW. Ihn getrennt zu
+   * erfragen hieße, zwei Felder zu füllen, die einander bedingen — und beim
+   * Widerspruch („keine Inneneinheit, aber Heizstab im Gerät") hätte das
+   * Programm keine Antwort.
+   *
+   * **Die vier Fälle sind belegt, nicht ausgedacht.** Die Legende des
+   * BWP-Leitfadens Hydraulik unterscheidet genau zwei Einbauorte — die
+   * *Elektro-Zusatzheizung Wärmepumpe* im Vorlauf unmittelbar nach dem Gerät
+   * und vor der Umwälzpumpe, und die *Elektro-Zusatzheizung Speicher* direkt
+   * im Trinkwasser- oder Pufferspeicher. Dazu kommen die beiden Fälle ohne
+   * Stab. Mehr Fälle gibt der Leitfaden nicht her, und weniger wären eine
+   * Zusammenlegung, die im Bild nicht mehr aufzulösen ist.
+   */
+  inneneinheit: Inneneinheit;
+  /**
+   * Was bis 1.53.0 an dieser Stelle stand.
+   *
+   * Nur zum Lesen älterer Projektdateien. `antwortenDes` macht daraus eine
+   * `inneneinheit`; geschrieben wird das Feld nicht mehr. Es steht hier und
+   * nicht als Kommentar, weil eine Projektdatei von 1.51.0 sonst beim Öffnen
+   * einen Heizstab verliert, den ihr Verfasser eingetragen hat.
+   *
+   * @deprecated seit 1.54.0 — `inneneinheit`
+   */
+  heizstab?: boolean;
   /** 4 · Trinkwasserspeicher — Inhalt [l]. `0` heißt: keiner. */
   trinkwasserLiter: number;
   /**
@@ -5053,6 +5082,36 @@ export interface AnlagenAntworten {
   pufferArt: 'buffer-parallel' | 'buffer-series';
 }
 
+/**
+ * Die Inneneinheit und der Einbauort des Heizstabs.
+ *
+ * `keine` — es steht nichts im Haus als die Verteilung. Am Markt die
+ * Ausnahme: Über Viessmann, Vaillant, Bosch, Buderus, Wolf, Brötje und LG
+ * liefert jeder Hersteller zum Monoblock außen eine Hydraulikstation oder
+ * einen Turm. Ein Monoblock ohne Innenteil ist deshalb zu benennen, nicht
+ * stillschweigend anzunehmen.
+ *
+ * `ohne-heizstab` — Hydraulikeinheit mit Pumpe, Umschaltventil,
+ * Sicherheitsgruppe und Regelung, aber ohne elektrischen Zuheizer. Dann
+ * trägt die Wärmepumpe den Bivalenzpunkt allein.
+ *
+ * `mit-heizstab` — der Regelfall des monoenergetischen Betriebs. Der Stab
+ * sitzt im Vorlauf nach dem Verflüssiger und **vor** dem
+ * Warmwasser-Umschaltventil, damit er beide Betriebsarten bedient.
+ *
+ * `heizstab-speicher` — der Stab sitzt als Flanschheizung im
+ * Trinkwasserspeicher oder als Tauchheizkörper im Puffer. Der zweite der
+ * beiden Einbauorte, die der BWP-Leitfaden in seiner Legende führt.
+ */
+export type Inneneinheit = 'keine' | 'ohne-heizstab' | 'mit-heizstab' | 'heizstab-speicher';
+
+export const INNENEINHEIT_LABELS: Record<Inneneinheit, string> = {
+  keine: 'keine Inneneinheit — nur Verteilung im Haus',
+  'ohne-heizstab': 'Hydraulikeinheit ohne Heizstab',
+  'mit-heizstab': 'Hydraulikeinheit mit Heizstab im Vorlauf',
+  'heizstab-speicher': 'Heizstab im Speicher, nicht im Gerät',
+};
+
 export type HeizkreisArt = 'ungemischt' | 'gemischt';
 
 export const HEIZKREIS_ART_LABELS: Record<HeizkreisArt, string> = {
@@ -5064,14 +5123,14 @@ export const HEIZKREIS_ART_LABELS: Record<HeizkreisArt, string> = {
  * Womit das Feld aufgeht, solange nichts beantwortet ist.
  *
  * Die häufigste Anlage im Wohnungsbau: Monoblock-Wärmepumpe mit R290
- * draußen, Heizstab als Zusatzheizer, 200-Liter-Trinkwasserspeicher, ein
- * ungemischter Heizkreis, kein Puffer. Ausdrücklich eine **Vorbelegung** und
+ * draußen, Hydraulikeinheit mit Heizstab im Haus, 200-Liter-Trinkwasser-
+ * speicher, ein ungemischter Heizkreis, kein Puffer. Ausdrücklich eine **Vorbelegung** und
  * keine Empfehlung — jedes Feld ist zu prüfen.
  */
 export const ANTWORTEN_VORGABE: AnlagenAntworten = {
   bauform: 'monoblock-outdoor',
   kaeltemittel: 'R290',
-  heizstab: true,
+  inneneinheit: 'mit-heizstab',
   trinkwasserLiter: 200,
   kreise: ['ungemischt'],
   pufferLiter: 0,
