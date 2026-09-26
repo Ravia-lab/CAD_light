@@ -63,6 +63,23 @@ export function pruefeHandbuchstand(check: CheckFn): void {
   check('Handbuchstand · die Projektwurzel ist auffindbar', basis !== undefined, true);
   if (!basis) return;
 
+  /*
+   * **Während das Handbuch gebaut wird, prüft dieser Block nicht.**
+   *
+   * `handbuch/bauen.py` ruft den Prüflauf auf, bevor es das Blatt schreibt —
+   * es holt sich von dort die Zahl fürs Deckblatt und bricht ab, wenn der
+   * Lauf rot ist. Dieser Block prüft aber genau das Blatt, das erst danach
+   * entsteht. Ohne diese Ausnahme wäre die Prüfung eine Schlinge: Das
+   * Handbuch ließe sich nie mehr bauen, weil es noch nicht gebaut ist.
+   *
+   * Die Absicherung geht dadurch nicht verloren. Der Freigabelauf ruft den
+   * Prüflauf **ohne** diese Umgebungsvariable, und dort gilt der Block.
+   */
+  if (process.env.HANDBUCH_BAU === '1') {
+    check('Handbuchstand · während des Handbuchbaus ausgesetzt', true, true);
+    return;
+  }
+
   const quellen = join(basis, 'handbuch');
   const erzeugt = join(basis, 'server', 'app', 'handbuch.html');
 

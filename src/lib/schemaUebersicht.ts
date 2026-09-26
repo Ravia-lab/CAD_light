@@ -170,6 +170,7 @@ const BEHALTEN: ReadonlySet<SchematicKind> = new Set<SchematicKind>([
   'electric-heater',
   'solar',
   'buffer',
+  'buffer-series',
   'separator',
   'cylinder',
   'freshwater',
@@ -266,6 +267,7 @@ function zoneVon(kind: SchematicKind, imRuecklauf: boolean): UebersichtZone {
     case 'expansion-vessel':
       return 'erzeugung';
     case 'buffer':
+    case 'buffer-series':
     case 'separator':
     case 'cylinder':
     case 'freshwater':
@@ -529,7 +531,7 @@ export function uebersichtsschema(
   const speicher = erste('cylinder') ?? erste('freshwater');
   const verbrueh = erste('mixing-valve-dhw');
   const zirk = erste('circulation-pump');
-  const puffer = erste('buffer') ?? erste('separator');
+  const puffer = erste('buffer') ?? erste('buffer-series') ?? erste('separator');
   /**
    * Trennpuffer oder Reihenpuffer?
    *
@@ -612,7 +614,15 @@ export function uebersichtsschema(
     for (let schritt = 0; schritt < 20 && hier; schritt += 1) {
       const rein = eingang(hier.id, 'heating-flow');
       const vorher: SchematicComponent | undefined = rein ? components.find((c) => c.id === rein.from) : undefined;
-      if (!vorher || vorher.kind === 'node' || vorher.kind === 'buffer' || vorher.kind === 'separator') break;
+      if (
+        !vorher ||
+        vorher.kind === 'node' ||
+        vorher.kind === 'buffer' ||
+        vorher.kind === 'buffer-series' ||
+        vorher.kind === 'separator'
+      ) {
+        break;
+      }
       if (vorher.kind === 'manifold') z.verteiler = vorher;
       if (vorher.kind === 'valve-3way') z.mischer = vorher;
       if (vorher.kind === 'pump') z.pumpe = vorher;

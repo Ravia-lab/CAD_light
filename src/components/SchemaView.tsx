@@ -28,9 +28,11 @@ import { designPlant } from '../lib/plantDesign';
 import AnlagenDialog from './AnlagenDialog';
 import { UEBERSICHT_MASSE, zeichneUebersicht } from '../lib/uebersichtZeichnen';
 import {
+  BLATT,
   buildComponentTable,
   buildSchematicSvg,
   componentTableCsv,
+  leitungsfarbeAufBlatt,
   printSchematic,
   type SchematicOrientation,
   type SchematicPaperFormat,
@@ -80,8 +82,21 @@ const INSERTABLE: SchematicKind[] = [
   'node',
 ];
 
-const LINE = '#94A3B8';
-const PAPER = '#0E1116';
+/*
+ * **Helles Blatt, auch am Bildschirm.**
+ *
+ * Bis 1.54.0 zeichnete diese Ansicht hell auf dunkel und `schematicPrint`
+ * dunkel auf hell. Das waren zwei Bilder derselben Anlage, die nicht gleich
+ * aussahen — und wer am Bildschirm prüft, prüfte damit nicht das Blatt, das
+ * gebaut wird. Die Werte stehen jetzt in `BLATT` und gelten für beide.
+ *
+ * Die Bedienoberfläche drumherum bleibt dunkel. Das Blatt ist ein Blatt, der
+ * Arbeitstisch ist der Arbeitstisch.
+ */
+const LINE = BLATT.tinte;
+const PAPER = BLATT.papier;
+/** Ausgewähltes Bauteil: kräftiger als die Tinte, nicht heller. */
+const LINE_SELECTED = '#0B4A6F';
 
 export default function SchemaView({ className = '' }: { className?: string }) {
   const plant = useBimStore((s) => s.doc.plant);
@@ -283,7 +298,7 @@ export default function SchemaView({ className = '' }: { className?: string }) {
       zeichneUebersicht(ctx, uebersicht, {
         papier: PAPER,
         strich: LINE,
-        rahmen: '#64748B',
+        rahmen: BLATT.leise,
       });
       ctx.restore();
       return;
@@ -320,7 +335,7 @@ export default function SchemaView({ className = '' }: { className?: string }) {
         ctx.restore();
       }
       drawSymbol(ctx, c.kind, x, y, SIZE, {
-        color: c.id === selected ? '#E2E8F0' : LINE,
+        color: c.id === selected ? LINE_SELECTED : LINE,
         background: PAPER,
         label: c.label,
         spec: c.spec ?? null,
@@ -845,7 +860,10 @@ function drawLink(
   if (!verlauf) return;
 
   ctx.save();
-  ctx.strokeStyle = PIPE_SERVICE_COLORS[link.service];
+  ctx.strokeStyle = leitungsfarbeAufBlatt(link.service);
+  // Die Pfeilspitze wird gefüllt, nicht gestrichelt — ohne diese Zeile
+  // erbte sie die Füllfarbe des Aufrufers und war auf hellem Blatt weiß.
+  ctx.fillStyle = leitungsfarbeAufBlatt(link.service);
   ctx.lineWidth = 1.6;
   ctx.lineJoin = 'round';
   ctx.lineCap = 'round';
@@ -873,7 +891,7 @@ function drawLink(
     const w = ctx.measureText(link.label).width;
     ctx.fillStyle = PAPER;
     ctx.fillRect(at.x - w / 2 - 2, at.y - 15, w + 4, 11);
-    ctx.fillStyle = PIPE_SERVICE_COLORS[link.service];
+    ctx.fillStyle = leitungsfarbeAufBlatt(link.service);
     ctx.fillText(link.label, at.x, at.y - 5);
   }
   ctx.restore();

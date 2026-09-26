@@ -160,6 +160,34 @@ console.log('\n▸ Unter dem Bild steht, nach welcher Musterlösung gebaut ist')
   expect('Der Hinweissatz steht weiterhin darunter', hinweis > 0, true);
 }
 
+console.log('\n▸ Helles Blatt — am Schirm wie im Druck');
+{
+  /*
+   * **Warum das am laufenden Programm geprüft wird.** Bis 1.54.0 zeichnete
+   * die Ansicht hell auf dunkel und `schematicPrint` dunkel auf hell: zwei
+   * Bilder derselben Anlage, die nicht gleich aussahen. Wer am Bildschirm
+   * prüft, prüfte damit nicht das Blatt, das gebaut wird.
+   *
+   * Geprüft wird die **Leinwand selbst**, nicht eine Klasse im HTML: Die
+   * Farbe entsteht in `ctx.fillStyle`, und ein Prüfblock kann sie nicht
+   * sehen. Gelesen wird ein Bildpunkt links oben in der Zeichenfläche —
+   * dort liegt Blatt und kein Symbol.
+   */
+  const punkt = await p.evaluate(() => {
+    const c = document.querySelector('canvas');
+    if (!c) return null;
+    const ctx = c.getContext('2d');
+    const d = ctx.getImageData(12, 12, 1, 1).data;
+    return { r: d[0], g: d[1], b: d[2] };
+  });
+  expect('Es gibt eine Zeichenfläche', punkt !== null, true);
+  // Helligkeit nach der üblichen Gewichtung. Papierweiß liegt bei 255,
+  // der frühere Grund `#0E1116` bei rund 17. Die Schwelle 200 trennt die
+  // beiden Fälle mit Abstand und lässt einen leicht getönten Grund zu.
+  const helligkeit = punkt ? 0.299 * punkt.r + 0.587 * punkt.g + 0.114 * punkt.b : 0;
+  expect('Das Blatt ist hell', helligkeit > 200, true);
+}
+
 await p.screenshot({ path: './screenshots/uebersichtsschema.png' });
 
 console.log(`\n${failures === 0 ? '✓' : '✗'} ${failures === 0 ? 'Übersichtsschema in Ordnung' : `${failures} Abweichung(en)`}`);

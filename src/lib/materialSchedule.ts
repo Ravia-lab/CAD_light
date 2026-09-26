@@ -1050,6 +1050,7 @@ const DEVICE_KINDS: ReadonlySet<SchematicKind> = new Set<SchematicKind>([
   'hydraulic-station',
   'cylinder',
   'buffer',
+  'buffer-series',
   'separator',
   'freshwater',
   'boiler',

@@ -148,6 +148,7 @@ import { pruefeRaumnamen } from './pruefungen/raumnamen';
 import { pruefeProjektmappe } from './pruefungen/projektmappe';
 import { pruefeUiModus } from './pruefungen/uimodus';
 import { pruefeHandbuchstand } from './pruefungen/handbuchstand';
+import { pruefeNormsymbole } from './pruefungen/normsymbole';
 import { pruefeSchichtgrenze } from './pruefungen/schichtgrenze';
 import { pruefeBeschriftungslage } from './pruefungen/beschriftungslage';
 import { pruefeSchemabeschriftung } from './pruefungen/schemabeschriftung';
@@ -3956,6 +3957,9 @@ console.log('\n▸ UI-Modus — wie viel von diesem Programm jemand zu sehen bek
 pruefeUiModus(check);
 
 console.log('\n▸ Schichtgrenze — steht der Rechenkern für sich allein?');
+console.log('\n▸ Normsymbole — steht im Bild, was das Zeichen verspricht?');
+pruefeNormsymbole(check);
+
 console.log('\n▸ Handbuchstand — beschreibt das ausgelieferte Handbuch diesen Stand?');
 pruefeHandbuchstand(check);
 pruefeSchichtgrenze(check);

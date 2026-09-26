@@ -450,7 +450,7 @@ export function pruefeSchema(eingabe: SchemaPruefEingabe): SchemaBefund[] {
   if (reihenSpeicher.length > 0) {
     const reihenBauteile = komponenten.filter(
       (c) =>
-        c.kind === 'buffer' &&
+        (c.kind === 'buffer-series' || c.kind === 'buffer') &&
         reihenSpeicher.some(
           (s) => c.storageId === s.id || c.label === s.label || (c.spec ?? '').includes('Reihenpuffer'),
         ),
@@ -953,7 +953,15 @@ export function pruefeSchema(eingabe: SchemaPruefEingabe): SchemaBefund[] {
   // gezeichneten Übersicht, während das Programm die Regel samt Quelle längst
   // führte. Was nur im Katalogtext steht, prüft niemand; deshalb hier.
   {
-    const puffer = alle('buffer');
+    /*
+     * **Beide Pufferarten zählen.** Seit 1.55.0 trägt der Reihenpuffer sein
+     * eigenes Zeichen (`buffer-series`), weil sein Bild nur zwei Stutzen
+     * hat. Für die Regel „die Trinkwasserladung läuft nicht über den Puffer"
+     * ist die Bauart gleichgültig — an einem Puffer vorbei heißt an jedem
+     * Puffer vorbei. Stünde hier nur `buffer`, ginge die Regel an einer
+     * Anlage mit Reihenpuffer stillschweigend ins Leere.
+     */
+    const puffer = [...alle('buffer'), ...alle('buffer-series')];
     const speicher = alle('cylinder');
     const umschalter = alle('valve-diverter');
 

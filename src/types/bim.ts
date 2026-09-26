@@ -4717,6 +4717,20 @@ export type SchematicKind =
   | 'heatpump-indoor'
   | 'cylinder'
   | 'buffer'
+  /**
+   * Reihenpuffer — der Puffer, der im **Rücklauf** liegt.
+   *
+   * Bis 1.54.0 trug er dasselbe Zeichen wie der Parallelpuffer, und das
+   * Zeichen hat vier Anschlüsse. Angeschlossen waren aber nur zwei; die
+   * beiden anderen Stutzen standen als Leitungsstummel im Bild und endeten
+   * im Nichts. In einem Fließbild ist das keine Unschönheit, sondern eine
+   * falsche Aussage: Ein gezeichneter Stutzen behauptet einen Anschluss.
+   *
+   * Er ist deshalb ein eigenes Zeichen. Der Unterschied ist auch fachlich
+   * einer: Der Parallelpuffer **trennt** Erzeuger- und Verteilseite
+   * hydraulisch, der Reihenpuffer liefert nur Wasserinhalt.
+   */
+  | 'buffer-series'
   | 'separator'
   | 'freshwater'
   | 'pump'

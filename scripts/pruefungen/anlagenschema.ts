@@ -684,7 +684,10 @@ export function pruefeAnlagenschema(check: CheckFn): void {
       'Fall (a): genau diese Bauteilarten',
       artenA,
       [
-        'air-separator', 'backflow-preventer', 'balancing-valve', 'buffer', 'dirt-separator',
+        // `buffer-series` und nicht `buffer`: Der Reihenpuffer trägt seit
+        // 1.55.0 sein eigenes Zeichen, weil er zwei Anschlüsse hat und nicht
+        // vier. Hier ist er einer — er liegt im Rücklauf.
+        'air-separator', 'backflow-preventer', 'balancing-valve', 'buffer-series', 'dirt-separator',
         'electric-heater', 'expansion-vessel', 'filling-valve', 'heat-meter',
         'heatpump-outdoor', 'hydraulic-station', 'node', 'overflow-valve', 'pressure-gauge',
         'pump', 'radiator', 'safety-valve', 'shutoff', 'valve-2way',
@@ -702,7 +705,7 @@ export function pruefeAnlagenschema(check: CheckFn): void {
     const rlv = a.components.find((c) => c.label === 'Rücklaufverschraubung');
     const abRl = a.links.find((l) => l.from === rlv?.id && l.fromPort === 'out');
     check('Fall (a): der Rücklauf geht direkt in den Reihenpuffer',
-      map2(a).get(abRl?.to ?? '')?.kind ?? 'fehlt', 'buffer');
+      map2(a).get(abRl?.to ?? '')?.kind ?? 'fehlt', 'buffer-series');
 
     // Sicherheitsrelevantes bleibt in jedem Fall stehen.
     check('Fall (a): das Sicherheitsventil steht', artOf(a, 'safety-valve').length, 1);

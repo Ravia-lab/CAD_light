@@ -223,6 +223,42 @@ const arrowHead = (ctx: Ctx, x: number, y: number, angle: number, len: number): 
   line(ctx, x, y, x + Math.cos(angle - 2.6) * len, y + Math.sin(angle - 2.6) * len);
 };
 
+/**
+ * Das **M** im Antriebskasten — Stellmotor.
+ *
+ * Aus Strichen gezeichnet und nicht als Text: `fillText` hängt an der
+ * Schriftart der Zeichenfläche, und die ist am Bildschirm eine andere als im
+ * Druck und im SVG-Export. Ein Buchstabe, der in drei Ausgaben verschieden
+ * breit ist, sprengt den Kasten, in dem er steht.
+ */
+const letterM = (ctx: Ctx, cx: number, cy: number, h: number): void => {
+  const b = h * 0.42;
+  ctx.beginPath();
+  ctx.moveTo(cx - b, cy + h / 2);
+  ctx.lineTo(cx - b, cy - h / 2);
+  ctx.lineTo(cx, cy + h * 0.12);
+  ctx.lineTo(cx + b, cy - h / 2);
+  ctx.lineTo(cx + b, cy + h / 2);
+  ctx.stroke();
+};
+
+/**
+ * Kapselform für das Membran-Ausdehnungsgefäß — stehendes Gefäß mit
+ * gewölbten Böden, also ein Rechteck mit halbrunden Enden.
+ */
+const capsule = (ctx: Ctx, cx: number, cy: number, halfW: number, halfH: number): void => {
+  const r = Math.min(halfW, halfH * 0.6);
+  ctx.moveTo(cx - halfW, cy - halfH + r);
+  ctx.quadraticCurveTo(cx - halfW, cy - halfH, cx - halfW + r, cy - halfH);
+  ctx.lineTo(cx + halfW - r, cy - halfH);
+  ctx.quadraticCurveTo(cx + halfW, cy - halfH, cx + halfW, cy - halfH + r);
+  ctx.lineTo(cx + halfW, cy + halfH - r);
+  ctx.quadraticCurveTo(cx + halfW, cy + halfH, cx + halfW - r, cy + halfH);
+  ctx.lineTo(cx - halfW + r, cy + halfH);
+  ctx.quadraticCurveTo(cx - halfW, cy + halfH, cx - halfW, cy + halfH - r);
+  ctx.closePath();
+};
+
 // ---------------------------------------------------------------------------
 // Legende
 // ---------------------------------------------------------------------------
@@ -264,6 +300,12 @@ export const SCHEMATIC_LEGEND: Record<SchematicKind, SymbolLegendEntry> = {
     name: 'Pufferspeicher',
     description:
       'Vergrößert den Wasserinhalt der Anlage, damit die Wärmepumpe längere Laufzeiten hat und beim Abtauen Wärme zur Verfügung steht.',
+  },
+  'buffer-series': {
+    kind: 'buffer-series',
+    name: 'Reihenpuffer',
+    description:
+      'Liegt im Rücklauf und liefert nur Wasserinhalt — er trennt nicht. Deshalb hat er im Bild zwei Anschlüsse und nicht vier: Rücklauf der Anlage hinein, Rücklauf zum Erzeuger heraus.',
   },
   separator: {
     kind: 'separator',
@@ -784,6 +826,60 @@ const SYMBOLS: Record<SchematicKind, SymbolDefinition> = {
       ctx.restore();
     },
   },
+  'buffer-series': {
+    width: 0.9,
+    height: 1.4,
+    knockout: 'box',
+    /*
+     * **Zwei Anschlüsse, beide im Rücklauf.**
+     *
+     * Bis 1.54.0 trug der Reihenpuffer das Zeichen des Parallelpuffers — vier
+     * Stutzen, von denen die Auslegung zwei anschloss. Die beiden anderen
+     * standen als Leitungsstummel im Bild und endeten im Nichts. Das ist in
+     * einem Fließbild keine Unschönheit, sondern eine falsche Aussage: Ein
+     * gezeichneter Stutzen behauptet einen Anschluss.
+     *
+     * **Warum nicht drei.** Die BWP-Musterschemata zeichnen den Reihenpuffer
+     * mit drei Anschlüssen. Was der dritte verbindet, ließ sich aus den
+     * vorliegenden Unterlagen nicht eindeutig feststellen, und ein Stutzen,
+     * dessen Gegenstelle unbekannt ist, wäre wieder ein Rohr ins Nirgendwo.
+     * Hier stehen deshalb die zwei, die die Auslegung wirklich anschließt.
+     * Der dritte kommt dazu, sobald belegt ist, woran er hängt.
+     */
+    ports: [
+      port('sys-return', 'Rücklauf der Anlage', 'right', 0.45, -0.32),
+      port('gen-return', 'Rücklauf zum Erzeuger', 'left', -0.45, 0.32),
+    ],
+    draw: (ctx) => {
+      ctx.beginPath();
+      ctx.moveTo(-0.3, -0.48);
+      ctx.quadraticCurveTo(0, -0.68, 0.3, -0.48);
+      ctx.lineTo(0.3, 0.48);
+      ctx.quadraticCurveTo(0, 0.68, -0.3, 0.48);
+      ctx.closePath();
+      line(ctx, 0.3, -0.32, 0.45, -0.32);
+      line(ctx, -0.45, 0.32, -0.3, 0.32);
+      ctx.stroke();
+      // Waagerechte Striche = Temperaturschichtung, wie beim Parallelpuffer.
+      ctx.save();
+      ctx.setLineDash([0.06, 0.05]);
+      ctx.beginPath();
+      for (let i = -1; i <= 1; i++) line(ctx, -0.22, i * 0.2, 0.22, i * 0.2);
+      ctx.stroke();
+      ctx.restore();
+      /*
+       * Der schräge Strich von Stutzen zu Stutzen sagt, was den Reihenpuffer
+       * ausmacht: Es geht **hindurch**. Beim Parallelpuffer steht an dieser
+       * Stelle nichts, weil dort zwei getrennte Kreise anliegen.
+       */
+      ctx.save();
+      ctx.setLineDash([0.05, 0.05]);
+      ctx.beginPath();
+      line(ctx, 0.24, -0.32, -0.24, 0.32);
+      ctx.stroke();
+      ctx.restore();
+    },
+  },
   separator: {
     width: 0.8,
     height: 1.4,
@@ -866,14 +962,23 @@ const SYMBOLS: Record<SchematicKind, SymbolDefinition> = {
       line(ctx, -0.5, 0, -0.32, 0);
       line(ctx, 0.32, 0, 0.5, 0);
       ctx.stroke();
-      // Das Dreieck zeigt in Förderrichtung.
+      /*
+       * **Das Dreieck ist ausgefüllt und zeigt in Förderrichtung.**
+       *
+       * Bis 1.54.0 stand es hier als Umriss. Gemeldet aus der Benutzung —
+       * „eine Pumpe hat ein Dreieck drin" —, und das ist keine Geschmacks-
+       * frage: Der Umriss ist in derselben Formensprache das Zeichen für ein
+       * *Rückschlagorgan* (Kegel gegen den Sitz, siehe `check-valve`). Zwei
+       * Bauteile mit derselben Innenform sind in einem Fließbild ein Fehler,
+       * auch wenn der Kreis drumherum sie unterscheidet.
+       */
       ctx.beginPath();
       poly(ctx, [
         [-0.15, -0.19],
         [-0.15, 0.19],
         [0.23, 0],
       ]);
-      ctx.stroke();
+      ctx.fill();
     },
   },
   'circulation-pump': {
@@ -896,7 +1001,7 @@ const SYMBOLS: Record<SchematicKind, SymbolDefinition> = {
         [-0.14, 0.27],
         [0.21, 0.1],
       ]);
-      ctx.stroke();
+      ctx.fill();
       // Der Kreisbogen darüber: das Wasser läuft im Ring, es wird nicht
       // gefördert, sondern in Bewegung gehalten.
       ctx.beginPath();
@@ -940,26 +1045,42 @@ const SYMBOLS: Record<SchematicKind, SymbolDefinition> = {
       port('cold', 'Beimischung Rücklauf', 'bottom', 0, 0.55),
     ],
     draw: (ctx) => {
+      /*
+       * **Drei Dreiecke, Spitzen im Mittelpunkt — und alle drei hell.**
+       *
+       * Der Mischer regelt stufenlos; es gibt bei ihm keinen gesperrten Weg,
+       * den man schwärzen könnte. Genau daran unterscheidet er sich im Bild
+       * vom Umschaltventil daneben, und die Legende der Wolf-Hydraulikschemen
+       * führt beide als **zwei getrennte Einträge**: „Dreiwegemischer mit
+       * elektrischem Antrieb" und „3-Wegeumschaltventil".
+       *
+       * Bis 1.54.0 war der dritte Weg hier gefüllt — mit der Begründung, das
+       * sei der geregelte Zweig. Das war eine eigene Lesart gegen den
+       * Fachgebrauch: Die geschwärzte Fläche heißt **gesperrt**. Ein Bild,
+       * das ein Zeichen umdeutet und die Umdeutung in die Legende schreibt,
+       * verlangt vom Leser, die Legende zu lesen, bevor er das Bild versteht.
+       */
       ctx.beginPath();
       bowTie(ctx, 0, 0, 0.28, 0.22);
-      line(ctx, -0.5, 0, -0.28, 0);
-      line(ctx, 0.28, 0, 0.5, 0);
-      line(ctx, 0, 0.28, 0, 0.55);
-      line(ctx, 0, 0, 0, -0.3);
-      ctx.stroke();
-      // Der dritte Weg wird gefüllt gezeichnet: das ist der Zweig, den der
-      // Stellantrieb regelt. Wer den Mischer verkehrt einbaut, erkennt es
-      // im Schema an genau diesem Dreieck.
-      ctx.beginPath();
       poly(ctx, [
         [-0.22, 0.28],
         [0.22, 0.28],
         [0, 0],
       ]);
-      ctx.fill();
-      ctx.beginPath();
-      circle(ctx, 0, -0.42, 0.13);
+      line(ctx, -0.5, 0, -0.28, 0);
+      line(ctx, 0.28, 0, 0.5, 0);
+      line(ctx, 0, 0.28, 0, 0.55);
+      line(ctx, 0, 0, 0, -0.3);
       ctx.stroke();
+      /*
+       * Der Antrieb ist ein **Stellmotor**: Rechteck mit M. Bis 1.54.0 stand
+       * hier ein kleiner Kreis, der in derselben Formensprache für einen
+       * Fühler steht.
+       */
+      ctx.beginPath();
+      box(ctx, 0, -0.42, 0.3, 0.22);
+      ctx.stroke();
+      letterM(ctx, 0, -0.42, 0.13);
     },
   },
   'valve-diverter': {
@@ -972,6 +1093,20 @@ const SYMBOLS: Record<SchematicKind, SymbolDefinition> = {
       port('dhw', 'Abgang Warmwasser', 'bottom', 0, 0.55),
     ],
     draw: (ctx) => {
+      /*
+       * **Drei Dreiecke — und der gesperrte Weg ist ausgefüllt.**
+       *
+       * Das Umschaltventil kennt nur zwei Stellungen. Gezeichnet ist die
+       * Ruhestellung: Heizung offen (waagerecht), Warmwasser gesperrt (der
+       * Abgang nach unten, geschwärzt). Daran ist der Betriebszustand
+       * ablesbar — und daran unterscheidet sich dieses Zeichen vom Mischer,
+       * bei dem kein Dreieck gefüllt ist.
+       *
+       * **Das ist seit 1.55.0 die umgekehrte Bedeutung.** Bis dahin hieß die
+       * schwarze Fläche in diesem Programm „der angesteuerte Weg" — eine
+       * eigene Lesart, die in der Legende stand und im Fachgebrauch das
+       * Gegenteil bedeutet.
+       */
       ctx.beginPath();
       bowTie(ctx, 0, 0, 0.28, 0.22);
       line(ctx, -0.5, 0, -0.28, 0);
@@ -1126,14 +1261,24 @@ const SYMBOLS: Record<SchematicKind, SymbolDefinition> = {
     knockout: 'circle',
     ports: [port('in', 'Ausdehnungsleitung', 'bottom', 0, 0.6)],
     draw: (ctx) => {
+      /*
+       * **Kapsel, nicht Kreis.** Ein Membran-Ausdehnungsgefäß ist ein
+       * stehendes Gefäß mit gewölbten Böden; der Kreis ist in derselben
+       * Formensprache für Messgeräte und Pumpen belegt. Bis 1.54.0 stand hier
+       * ein Kreis, und auf einem Blatt mit Manometer und Thermometer daneben
+       * war das Gefäß nur noch an der Membranlinie zu erkennen.
+       */
       ctx.beginPath();
-      circle(ctx, 0, -0.06, 0.34);
+      capsule(ctx, 0, -0.08, 0.28, 0.36);
+      ctx.stroke();
+      ctx.beginPath();
       line(ctx, 0, 0.28, 0, 0.6);
       ctx.stroke();
       // Die waagerechte Linie ist die Membran: darunter Wasser, darüber
-      // Stickstoff mit dem Vordruck p0.
+      // Stickstoff mit dem Vordruck p₀. Sie liegt über der Mitte, weil der
+      // Gasraum im Auslegungszustand der größere ist.
       ctx.beginPath();
-      line(ctx, -0.34, -0.06, 0.34, -0.06);
+      line(ctx, -0.28, -0.14, 0.28, -0.14);
       ctx.stroke();
     },
   },
@@ -1641,6 +1786,7 @@ export const SYMBOL_PORTS: Record<SchematicKind, SymbolPorts> = {
   'hydraulic-station': SYMBOLS['hydraulic-station'].ports,
   cylinder: SYMBOLS.cylinder.ports,
   buffer: SYMBOLS.buffer.ports,
+  'buffer-series': SYMBOLS['buffer-series'].ports,
   separator: SYMBOLS.separator.ports,
   freshwater: SYMBOLS.freshwater.ports,
   pump: SYMBOLS.pump.ports,
@@ -1891,6 +2037,7 @@ export const drawHeatPumpIndoorSymbol = renderer('heatpump-indoor');
 export const drawHydraulicStationSymbol = renderer('hydraulic-station');
 export const drawCylinderSymbol = renderer('cylinder');
 export const drawBufferSymbol = renderer('buffer');
+export const drawBufferSeriesSymbol = renderer('buffer-series');
 export const drawSeparatorSymbol = renderer('separator');
 export const drawFreshWaterSymbol = renderer('freshwater');
 export const drawPumpSymbol = renderer('pump');
@@ -1932,6 +2079,7 @@ export const SYMBOL_RENDERERS: Record<SchematicKind, SymbolRenderer> = {
   'hydraulic-station': drawHydraulicStationSymbol,
   cylinder: drawCylinderSymbol,
   buffer: drawBufferSymbol,
+  'buffer-series': drawBufferSeriesSymbol,
   separator: drawSeparatorSymbol,
   freshwater: drawFreshWaterSymbol,
   pump: drawPumpSymbol,

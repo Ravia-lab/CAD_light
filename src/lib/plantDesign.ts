@@ -1731,8 +1731,17 @@ export function buildSchematic(result: PlantDesignResult): {
   let pufferBauteil: SchematicComponent | undefined;
 
   if (puffer) {
+    /*
+     * **Der Reihenpuffer bekommt sein eigenes Zeichen.**
+     *
+     * Bis 1.54.0 trugen beide Bauarten `buffer` — ein Symbol mit vier
+     * Stutzen. Angeschlossen wurden beim Reihenpuffer zwei; die beiden
+     * anderen standen als Leitungsstummel im Bild und endeten im Nichts.
+     * Die Schemaprüfung sagt seit je, der Reihenpuffer habe „genau zwei
+     * Anschlüsse" — das Bild behauptete vier.
+     */
     pufferBauteil = put(
-      'buffer',
+      reihe ? 'buffer-series' : 'buffer',
       puffer.label,
       COL.buffer,
       reihe ? ROW.ret : ROW.flow + 2,

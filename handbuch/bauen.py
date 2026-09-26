@@ -12,6 +12,7 @@ auseinander — derselbe Fehlertyp, den dieses Projekt schon dreimal hatte.
 import html
 import json
 import pathlib
+import os
 import re
 import subprocess
 import sys
@@ -65,9 +66,14 @@ def pruefungen() -> str:
     fallen, ist an der ersten Zeile unglaubwürdig — deshalb bricht der Bau
     hier ab, statt eine alte Zahl weiterzureichen.
     """
+    # HANDBUCH_BAU=1 setzt den Prüfblock „Handbuchstand" aus. Er prüft das
+    # Blatt, das dieser Lauf erst schreiben wird — ohne die Ausnahme ließe
+    # sich das Handbuch nie mehr bauen, weil es noch nicht gebaut ist. Im
+    # Freigabelauf läuft der Prüflauf ohne die Variable, und dort gilt er.
     lauf = subprocess.run(
         ['npm', 'run', '--silent', 'verify'],
         cwd=HIER.parent, capture_output=True, text=True,
+        env={**os.environ, 'HANDBUCH_BAU': '1'},
     )
     treffer = re.search(r'ALLE TESTS BESTANDEN — (\d+)/\1', lauf.stdout)
     if not treffer:

@@ -92,7 +92,7 @@ const textWidth = (text: string, fontSize: number): number => text.length * font
  * gegen Schwarz; der Farbton bleibt erhalten, die Leitungsart bleibt an der
  * Farbe erkennbar, der Strich wird aber deckend.
  */
-const darkenForPrint = (hex: string, amount: number): string => {
+export const darkenForPrint = (hex: string, amount: number): string => {
   const m = /^#([0-9a-f]{6})$/i.exec(hex);
   if (!m) return hex;
   const v = Number.parseInt(m[1], 16);
@@ -507,10 +507,31 @@ const LEGEND_GAP = 4;
 const LEGEND_ROW = 9;
 const LEGEND_LINE_ROW = 5;
 
+/**
+ * Die Farben des Blattes — eine Stelle für Bildschirm und Druck.
+ *
+ * **Warum sie exportiert werden.** Bis 1.54.0 zeichnete der Bildschirm das
+ * Anlagenschema hell auf dunkel und der Druck dunkel auf hell. Das waren zwei
+ * Bilder derselben Anlage, die nicht gleich aussahen — und wer am Bildschirm
+ * prüft, prüft dann nicht das Blatt, das gebaut wird. Seit 1.55.0 nimmt die
+ * Ansicht dieselben Werte; abweichen darf nur, was die Bedienung braucht
+ * (Auswahlrahmen, Fangpunkte).
+ */
+export const BLATT = {
+  /** Papierweiß. Nicht reines Weiß: das flimmert am Schirm. */
+  papier: '#FFFFFF',
+  /** Tinte der Zeichnung. */
+  tinte: '#0F172A',
+  /** Rahmen, Schriftfeld, Hilfslinien. */
+  rahmen: '#334155',
+  /** Beschriftung zweiter Ordnung. */
+  leise: '#64748B',
+} as const;
+
 /** Strichfarbe der Zeichnung. Ein Fließbild ist eine Strichzeichnung. */
-const INK = '#0F172A';
-const RULE = '#334155';
-const FAINT = '#64748B';
+const INK = BLATT.tinte;
+const RULE = BLATT.rahmen;
+const FAINT = BLATT.leise;
 
 /** Strichstärken [mm]. */
 const SYMBOL_LINE = 0.25;
@@ -995,11 +1016,22 @@ function legendBlock(
 // Leitungen
 // ---------------------------------------------------------------------------
 
+/**
+ * Leitungsfarbe auf hellem Blatt.
+ *
+ * Die Palette in `PIPE_SERVICE_COLORS` ist für dunklen Untergrund gemacht;
+ * auf Weiß verschwindet ein dünner Strich in `#FBBF24` beinahe. Gemischt wird
+ * linear gegen Schwarz — der Farbton bleibt, der Strich wird deckend.
+ */
+export function leitungsfarbeAufBlatt(service: PipeService): string {
+  return darkenForPrint(PIPE_SERVICE_COLORS[service], 0.3);
+}
+
 /** Strichfarbe einer Leitung — schwarz im Schwarzweißdruck. */
 function pipeColour(service: PipeService, options: SchematicPrintOptions): string {
   if (!options.colour) return INK;
   const base = PIPE_SERVICE_COLORS[service];
-  return options.darkenColours === false ? base : darkenForPrint(base, 0.3);
+  return options.darkenColours === false ? base : leitungsfarbeAufBlatt(service);
 }
 
 /** Ein Stück gerade aus dem Stutzen heraus, damit die Ecke nicht am Symbol klebt. */

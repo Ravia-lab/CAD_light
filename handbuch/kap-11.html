@@ -196,17 +196,41 @@ Anlage</span> und nennt, welches Merkmal.</p>
 
 <p>Grundlage ist die übliche Darstellung in Fließbildern nach DIN EN ISO 14617 (Graphische Symbole für Schemata) und für die wärmetechnische Anlage nach DIN 2481. Die Normen sind kostenpflichtig, ihre Symbolformen aber seit Jahrzehnten in jedem Fachbuch, in jeder Herstellerplanungsunterlage und auf jedem Schemablatt abgebildet und insofern Allgemeingut.</p>
 
-<p>Nachgezeichnet ist deshalb der <b>Typus</b>: Kreis mit Dreieck für die Pumpe, Dreieckpaar für die Armatur, gefüllter Zweig für den angesteuerten Weg, Feder für die federbelastete Sicherheitsarmatur, Kreis mit waagerechter Trennlinie für das Membranausdehnungsgefäß, Rechteck mit Schlange für den Wärmeübertrager, stehendes Gefäß mit Wendel für den Speicher.</p>
+<p>Nachgezeichnet ist deshalb der <b>Typus</b>: Kreis mit <b>ausgefülltem</b> Dreieck für die Pumpe, Dreieckpaar für die Armatur, <b>drei Dreiecke</b> für die Dreiwegearmatur, Feder für die federbelastete Sicherheitsarmatur, Kapsel mit waagerechter Trennlinie für das Membranausdehnungsgefäß, Rechteck mit Schlange für den Wärmeübertrager, stehendes Gefäß mit Wendel für den Speicher.</p>
+
+<h4 id="k11-3-1">11.3.1 Was sich mit 1.55.0 geändert hat</h4>
+
+<p>Vier Zeichen waren falsch oder mehrdeutig. Gemeldet hat sie kein Prüflauf, sondern ein Fachmann am Bild — drei Sätze, drei Fehler:</p>
+
+<table class="tab">
+<caption>Korrigierte Zeichen</caption>
+<thead><tr><th>Zeichen</th><th>Bis 1.54.0</th><th>Seit 1.55.0</th></tr></thead>
+<tbody>
+<tr><td>Umwälzpumpe</td><td>Kreis mit Dreieck als <em>Umriss</em></td><td>Das Dreieck ist <b>ausgefüllt</b>. Der Umriss ist in derselben Formensprache das Zeichen für das Rückschlagorgan — zwei Bauteile mit derselben Innenform sind in einem Fließbild ein Fehler.</td></tr>
+<tr><td>3-Wegeumschaltventil</td><td>gefüllter Zweig = <em>angesteuerter</em> Weg</td><td>Der gefüllte Zweig ist der <b>gesperrte</b> Weg, wie im Fachgebrauch. Daran ist die Stellung ablesbar.</td></tr>
+<tr><td>Dreiwegemischer</td><td>dasselbe Zeichen wie das Umschaltventil, Antrieb als Kreis</td><td>Drei Dreiecke, aber <b>keines gefüllt</b> — der Mischer regelt stufenlos und hat keinen gesperrten Weg. Antrieb als Stellmotor (Rechteck mit M). Die Legende der Wolf-Hydraulikschemen führt beide als getrennte Einträge.</td></tr>
+<tr><td>Membran-Ausdehnungsgefäß</td><td>Kreis mit Trennlinie</td><td><b>Kapsel</b> mit Membranlinie. Der Kreis ist für Messgeräte und Pumpen belegt; auf einem Blatt mit Manometer und Thermometer daneben war das Gefäß nur noch an der Trennlinie zu erkennen.</td></tr>
+<tr><td>Reihenpuffer</td><td>Zeichen des Parallelpuffers, vier Stutzen</td><td><b>Eigenes Zeichen mit zwei Anschlüssen</b>, beide im Rücklauf. Angeschlossen waren immer nur zwei; die anderen beiden standen als Leitungsstummel im Bild und endeten im Nichts.</td></tr>
+</tbody>
+</table>
+
+<div class="merke"><b>Merke</b><p>Die Prüfung dazu zeichnet mit: Ein Aufzeichner nimmt die Zeichenbefehle entgegen und zählt, wie viele Dreiecke ein Zeichen führt, welches davon gefüllt ist und wohin seine Spitze zeigt. Damit lässt sich eine Formensprache maschinell festhalten — vorher konnte sie nur jemand bemerken, der das Bild ansieht.</p></div>
+
+<h4 id="k11-3-2">11.3.2 Helles Blatt, auch am Bildschirm</h4>
+
+<p>Bis 1.54.0 zeichnete die Ansicht hell auf dunkel und der Druck dunkel auf hell. Das waren <b>zwei Bilder derselben Anlage, die nicht gleich aussahen</b> — und wer am Bildschirm prüft, prüfte damit nicht das Blatt, nach dem gebaut wird. Seit 1.55.0 nimmt die Ansicht dieselben Farbwerte wie der Druck: Papierweiß, dunkle Tinte, und die Leitungsfarben gegen Schwarz abgedunkelt, damit ein dünner Strich auf Weiß nicht verschwindet.</p>
+
+<p>Die Bedienoberfläche drumherum bleibt dunkel. Das Blatt ist ein Blatt, der Arbeitstisch ist der Arbeitstisch.</p>
 
 <div class="warnung"><b>Achtung</b><p>Maße, Strichstärkenverhältnis und Rasterteilung der Norm sind <b>nicht</b> übernommen, weil sie nicht frei verfügbar sind. Die Symbole sind stilisiert und auf Lesbarkeit gezeichnet. Ein normgerechtes Schemablatt im Sinne einer Prüfvorlage entsteht daraus nicht — ein verständliches Anlagenschema schon.</p></div>
 
-<p>Eine Abweichung ist bewusst und deshalb ausgeschrieben: der <b>gefüllte dritte Zweig</b> an Dreiwege-, Umschalt- und Trinkwassermischventil bezeichnet hier den <em>angesteuerten</em> Weg. In vielen Fließbildern steht die geschwärzte Fläche umgekehrt für den <em>gesperrten</em> Weg. Weil die Aussage aus dem Bild allein nicht hervorgeht, steht sie in der Legende — wer das Schema für eine Prüfung braucht, legt die Legende bei.</p>
+<p>Die bis 1.54.0 ausgeschriebene Abweichung — geschwärzte Fläche = <em>angesteuerter</em> Weg — ist <b>entfallen</b>. Sie bedeutet jetzt, was sie im Fachgebrauch bedeutet: <b>gesperrt</b>. Ein Bild, das ein Zeichen umdeutet und die Umdeutung in die Legende schreibt, verlangt vom Leser, die Legende zu lesen, bevor er das Bild versteht.</p>
 
-<p>Ein Fließbild ist eine Strichzeichnung. Gezeichnet wird nur in der Strichfarbe. Gefüllt wird zweierlei: die wenigen Flächen, die <em>als Vollfläche</em> Bedeutung tragen — der gefüllte Zweig am Dreiwegeventil, der Knotenpunkt — und die Freistellfläche unter Kreissymbolen, damit eine durchlaufende Leitung nicht durch das Manometer hindurchscheint.</p>
+<p>Ein Fließbild ist eine Strichzeichnung. Gezeichnet wird nur in der Strichfarbe. Gefüllt wird zweierlei: die wenigen Flächen, die <em>als Vollfläche</em> Bedeutung tragen — das Pumpendreieck, der gesperrte Zweig am Umschaltventil, der Knotenpunkt — und die Freistellfläche unter Kreissymbolen, damit eine durchlaufende Leitung nicht durch das Manometer hindurchscheint.</p>
 
-<p>Die folgende Tafel zeigt alle 37 Bauteilarten mit ihrem Legendentext. Sie ist aus dem Programm selbst gerendert, damit Handbuch und Bildschirm nicht auseinanderlaufen. Jeder Text beantwortet dieselbe Frage: warum sitzt das Teil an dieser Stelle, und was passiert, wenn es fehlt oder falsch eingebaut ist.</p>
+<p>Die folgende Tafel zeigt alle 38 Bauteilarten mit ihrem Legendentext. Sie ist aus dem Programm selbst gerendert, damit Handbuch und Bildschirm nicht auseinanderlaufen. Jeder Text beantwortet dieselbe Frage: warum sitzt das Teil an dieser Stelle, und was passiert, wenn es fehlt oder falsch eingebaut ist.</p>
 
-<p>Die Legende des Programms führt einen 38. Eintrag, der in der Tafel nicht steht: den <b>Knoten</b>. Er ist kein Bauteil, sondern der Abzweig oder Verbindungspunkt zweier Leitungen — die Stelle, an der sich das Wasser teilt oder wieder zusammenkommt. Er bekommt deshalb auch keine Beschriftung im Schema.</p>
+<p>Die Legende des Programms führt einen 39. Eintrag, der in der Tafel nicht steht: den <b>Knoten</b>. Er ist kein Bauteil, sondern der Abzweig oder Verbindungspunkt zweier Leitungen — die Stelle, an der sich das Wasser teilt oder wieder zusammenkommt. Er bekommt deshalb auch keine Beschriftung im Schema.</p>
 
 <!-- SYMBOLTAFEL:schema -->
 
