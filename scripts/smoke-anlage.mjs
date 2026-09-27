@@ -385,6 +385,76 @@ console.log('\n▸ Erzeuger-Assistent');
   }
 }
 
+console.log('\n▸ Gegenprobe zur Heizlast');
+{
+  /*
+   * Der Überschlag aus der Gebäudehülle prüft sich an nichts — ein zu
+   * günstiger U-Wert bleibt plausibel, weil das Ergebnis eine Rechnung ist.
+   * Die Gegenprobe stellt eine gemessene Zahl daneben. Geprüft wird hier der
+   * ganze Weg: eingeben, rechnen, anzeigen, melden, übergeben.
+   *
+   * Von Hand nachgerechnet: 2500 l Heizöl ohne Warmwasser sind nach dem
+   * BWP-Praxisratgeber 2500 / 250 = 10,00 kW.
+   */
+  await aside.getByRole('button', { name: 'Anlage', exact: true }).click();
+  await p.waitForTimeout(400);
+  await p.getByText('Gegenprobe', { exact: false }).first().click();
+  await p.waitForTimeout(400);
+  const offen = await aside.innerText();
+  expect('Die Gegenprobe klappt auf', /Warmwasser steckt im Verbrauch/.test(offen), true);
+  expect('Ohne Angabe sagt sie es', /Noch keine Gegenprobe/.test(offen), true);
+
+  const lauf = await p.evaluate(() => {
+    const S = () => window.__ravia.getState();
+    S().updateMeta({ verbrauch: { brennstoff: 'oel', menge: 2500, mitWarmwasser: false } });
+    const ex = window.RaViaCAD.getExport();
+    return {
+      gegenprobe: ex.totals.heatLoadCrosscheck,
+      ueberschlag: ex.totals.heatLoadCrosscheck?.ueberschlag,
+      codes: window.RaViaCAD.validate().issues.map((i) => i.code),
+    };
+  });
+  await p.waitForTimeout(500);
+
+  expect('Die Gegenprobe steht im Export', !!lauf.gegenprobe, true);
+  expect('Eine Zeile daraus', lauf.gegenprobe?.zeilen.length, 1);
+  expect('2500 l Öl ohne Warmwasser sind 10,00 kW', lauf.gegenprobe?.zeilen[0]?.probe.wert, 10);
+  expect('Der Rechenweg steht dabei', /÷ 250/.test(lauf.gegenprobe?.zeilen[0]?.probe.rechenweg ?? ''), true);
+
+  const text = await aside.innerText();
+  expect('Und im Blatt steht sie auch', /10,00 kW|10.00 kW/.test(text), true);
+  expect('Mit der Abweichung gegenüber dem Überschlag', /% gegenüber/.test(text), true);
+
+  /*
+   * Das Demo-Haus ist klein; 10 kW liegen deutlich über seinem Überschlag.
+   * Geprüft wird deshalb nicht ein bestimmtes Urteil, sondern dass die
+   * Abweichung überhaupt gerechnet und — wenn sie groß ist — auch gemeldet
+   * wird. Welche der beiden Zahlen näher an der Wahrheit liegt, entscheidet
+   * dieses Programm nicht.
+   */
+  const abw = lauf.gegenprobe?.zeilen[0]?.abweichung ?? 0;
+  console.log(`  · Überschlag ${lauf.ueberschlag} kW, Gegenprobe 10 kW, Abweichung ${abw} %`);
+  expect('Die Abweichung ist gerechnet', typeof abw === 'number' && abw !== 0, true);
+  if (Math.abs(abw) > 15) {
+    expect('Und die Prüfung meldet sie', lauf.codes.includes('plant.load-crosscheck'), true);
+  }
+
+  /*
+   * Die zweite Gegenprobe braucht nur das Baualter — die Fläche steht im
+   * Modell. Das ist der Punkt: Der Ratgeber lässt den Anwender die
+   * Wohnfläche nachschlagen, hier ist sie schon da.
+   */
+  const zwei = await p.evaluate(() => {
+    window.__ravia.getState().updateMeta({ baualter: 'efh-f' });
+    const g = window.RaViaCAD.getExport().totals.heatLoadCrosscheck;
+    return { zeilen: g?.zeilen.length, weg: g?.zeilen[1]?.probe.rechenweg ?? '' };
+  });
+  expect('Jetzt zwei Gegenproben', zwei.zeilen, 2);
+  expect('Die zweite rechnet mit der Fläche aus dem Modell', /m² × 237/.test(zwei.weg), true);
+
+  await aside.screenshot({ path: './screenshots/anlage-gegenprobe.png' });
+}
+
 console.log('\nERRORS:', errs.length ? errs.join('\n') : 'keine');
 if (errs.length) failures += errs.length;
 console.log(`\n${failures === 0 ? '✓ RAUCHTEST BESTANDEN' : `✗ ${failures} FEHLER`}\n`);

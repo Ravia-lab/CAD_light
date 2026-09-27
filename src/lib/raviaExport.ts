@@ -126,6 +126,8 @@ import {
   sourceDemand,
 } from './heatPump';
 import { kaeltemittel } from './kaeltemittel';
+import { heizlastAusBaualter, heizlastAusVerbrauch, verbrauchsabgleich } from './verbrauchsabgleich';
+import { estimateHeatLoad } from './heatLoadEstimate';
 
 export const GENERATOR = ERZEUGER;
 
@@ -208,7 +210,7 @@ export function buildRaviaExport(doc: BimDocument): RaviaExport {
     // 2.3.0: Hüllflächenbilanz je Raum und für das Gebäude (`envelope`).
     // 2.4.0: `envelope.withoutUValue` — wie viele Flächen ohne brauchbaren
     //        U-Wert in die Bilanz gingen. Reiner Zuwachs.
-    version: '2.6.0',
+    version: '2.7.0',
     generator: GENERATOR,
     exportedAt: new Date().toISOString(),
     units: {
@@ -1804,6 +1806,12 @@ function buildTotals(
    */
   const bridgeEnvelope = envelopeArea(doc);
 
+  const schaetzung = estimateHeatLoad(doc);
+  const gegenprobe = verbrauchsabgleich(schaetzung.total, [
+    heizlastAusVerbrauch(doc.meta.verbrauch),
+    heizlastAusBaualter(doc.meta.baualter, schaetzung.heatedArea, doc.meta.verbrauch?.mitWarmwasser ?? true),
+  ]);
+
   return {
     thermalBridges: bridgeTotals(doc, rooms, bridgeEnvelope),
     setback: setbackTotals(doc, rooms, bridgeEnvelope),
@@ -1823,6 +1831,19 @@ function buildTotals(
     compactness: netVolume > 0 ? Math.round((bridgeEnvelope / netVolume) * 1000) / 1000 : 0,
     installedHeatingPower,
     fixtureCount: countByCategory(allFixtures),
+    /*
+     * **Die Gegenprobe zur Heizlast.** Sie steht hier und nicht bei den
+     * Räumen, weil sie eine Aussage über das ganze Gebäude ist — und sie
+     * steht überhaupt im Export, damit die Gegenstelle sie nicht selbst
+     * nachbauen muss. Wer die Vollbenutzungsstunden aus dem Teiler 250
+     * zurückrechnen müsste, käme irgendwann auf eine andere Zahl als wir,
+     * und dann gäbe es zwei Gegenproben, die sich widersprechen.
+     *
+     * Der Block fehlt, solange niemand einen Verbrauch oder ein Baualter
+     * eingetragen hat — ein leerer Block wäre eine Behauptung über eine
+     * Gegenprobe, die es nicht gibt.
+     */
+    ...(gegenprobe.zeilen.length ? { heatLoadCrosscheck: gegenprobe } : {}),
   };
 }
 

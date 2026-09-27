@@ -53,6 +53,15 @@ import { buildRaviaExport } from '../lib/raviaExport';
 import { buildPipeNetwork } from '../lib/pipeNetwork';
 import { VORHABEN_VORBELEGUNG } from '../lib/plantDefaults';
 import { systemtemperaturVon, type Temperaturherkunft } from '../lib/systemtemperatur';
+import {
+  BAUALTERSKLASSEN,
+  BRENNSTOFF_EINHEIT,
+  BRENNSTOFF_LABELS,
+  heizlastAusBaualter,
+  heizlastAusVerbrauch,
+  verbrauchsabgleich,
+  type Brennstoff,
+} from '../lib/verbrauchsabgleich';
 import Erklaerung from './Erklaerung';
 
 const fmt = (v: number | undefined, d = 1): string =>
@@ -133,6 +142,8 @@ export default function AnlagenPanel() {
   const setSchematic = useBimStore((s) => s.setSchematic);
   const legeRohrnetzAus = useBimStore((s) => s.legeRohrnetzAus);
   const setzeErzeugerNachVorschlag = useBimStore((s) => s.setzeErzeugerNachVorschlag);
+  const updateMeta = useBimStore((s) => s.updateMeta);
+  const [gegenprobeOffen, setGegenprobeOffen] = useState(false);
   /*
    * Der Vorschlag wird bei jeder Modelländerung neu bestimmt — er ist
    * billig (eine Schleife über die Räume) und verschwindet von selbst,
@@ -180,6 +191,22 @@ export default function AnlagenPanel() {
    * entstanden, den `systemtemperatur.ts` behebt — eine Stelle, eine Zahl.
    */
   const systemtemp = useMemo(() => systemtemperaturVon(doc), [doc]);
+
+  /*
+   * **Die Gegenprobe zur Heizlast.** Bezugsgröße ist der Überschlag aus der
+   * Hülle — nicht die eingetragene Zahl und nicht die raumweise Summe: Wer
+   * eine Heizlast von Hand einträgt oder von RaVia bekommt, hat sie nicht
+   * überschlagen, und dann vergliche die Gegenprobe sich mit sich selbst.
+   * Gegengeprüft wird genau das, was dieses Programm selbst behauptet.
+   */
+  const abgleich = useMemo(() => {
+    const ueberschlag = design.estimate?.total ?? 0;
+    if (!(ueberschlag > 0)) return undefined;
+    return verbrauchsabgleich(ueberschlag, [
+      heizlastAusVerbrauch(doc.meta.verbrauch),
+      heizlastAusBaualter(doc.meta.baualter, design.estimate?.heatedArea ?? 0, doc.meta.verbrauch?.mitWarmwasser ?? true),
+    ]);
+  }, [design.estimate, doc.meta.verbrauch, doc.meta.baualter]);
 
   /**
    * Weicht die Rechnung von der Eintragung ab?
@@ -462,6 +489,205 @@ export default function AnlagenPanel() {
           <Readout label="Zuschlag Warmwasser" value={`+ ${fmt(design.dhwSurcharge, 2)} kW`} />
           <Readout label="Sperrzeitfaktor" value={`× ${fmt(design.blocking, 2)}`} />
           <Readout label="Das Gerät muss können" value={`${fmt(design.requiredCapacity, 2)} kW`} accent />
+        </div>
+
+        {/* ---------------------------------------------------------- */}
+        {/* Gegenprobe — die zweite Zahl                                 */}
+        {/* ---------------------------------------------------------- */}
+        {/*
+          **Warum das hier steht und nicht im Projektkopf.** Gefragt wird, wo
+          man hinsieht — dieselbe Regel wie in 1.54.0 bei den Anlagenfragen.
+          Der Verbrauch ist keine Stammdatenpflege, sondern die Gegenprobe zu
+          der Zahl, die drei Zeilen darüber steht; wer sie dort einträgt, sieht
+          sofort, was sie bedeutet.
+
+          Der Überschlag aus der Hülle prüft sich an nichts: Ein zu günstiger
+          U-Wert bleibt plausibel, weil das Ergebnis eine Rechnung ist. Der
+          Verbrauch dagegen ist gemessen worden.
+        */}
+        <div className="mt-2 border-t border-white/[0.06] pt-2">
+          <button
+            className="flex w-full items-baseline justify-between text-left"
+            onClick={() => setGegenprobeOffen((v) => !v)}
+          >
+            <span className="label-xs inline-flex items-center gap-1">
+              Gegenprobe
+              {abgleich && abgleich.zeilen.length > 0 && (
+                <span
+                  className={`rounded-full px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide ${
+                    abgleich.urteil === 'deckt-sich'
+                      ? 'bg-emerald-400/15 text-emerald-300'
+                      : abgleich.urteil === 'nachsehen'
+                        ? 'bg-amber-400/15 text-amber-300'
+                        : 'bg-rose-400/15 text-rose-300'
+                  }`}
+                >
+                  {abgleich.urteil === 'deckt-sich'
+                    ? 'deckt sich'
+                    : abgleich.urteil === 'nachsehen'
+                      ? 'nachsehen'
+                      : 'passt nicht'}
+                </span>
+              )}
+            </span>
+            <span className="text-[10px] text-slate-500">{gegenprobeOffen ? 'zuklappen' : 'aufklappen'}</span>
+          </button>
+
+          {gegenprobeOffen && (
+            <div className="mt-2 space-y-2">
+              <p className="text-[10px] leading-relaxed text-slate-500">
+                Der Überschlag oben kommt aus der Gebäudehülle — Flächen, U-Werte, Luftwechsel. Er prüft
+                sich an nichts. Zwei Wege zu derselben Zahl sind mehr wert als einer: Wo sie auseinanderlaufen,
+                stimmt etwas nicht.
+              </p>
+
+              <div>
+                <span className="label-xs mb-1 block">Brennstoff</span>
+                <select
+                  className="field w-full"
+                  value={doc.meta.verbrauch?.brennstoff ?? 'oel'}
+                  onChange={(e) =>
+                    updateMeta({
+                      verbrauch: {
+                        mitWarmwasser: true,
+                        menge: 0,
+                        ...doc.meta.verbrauch,
+                        brennstoff: e.target.value as Brennstoff,
+                      },
+                    })
+                  }
+                >
+                  {(Object.keys(BRENNSTOFF_LABELS) as Brennstoff[]).map((b) => (
+                    <option key={b} value={b} className="bg-graphite-850">
+                      {BRENNSTOFF_LABELS[b]}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <Row label={`Jahresverbrauch (${BRENNSTOFF_EINHEIT[doc.meta.verbrauch?.brennstoff ?? 'oel']})`}>
+                <input
+                  className="field w-24 font-mono"
+                  type="number"
+                  min={0}
+                  step={10}
+                  value={doc.meta.verbrauch?.menge ?? ''}
+                  onChange={(e) =>
+                    updateMeta({
+                      verbrauch: {
+                        brennstoff: 'oel',
+                        mitWarmwasser: true,
+                        ...doc.meta.verbrauch,
+                        menge: e.target.value === '' ? 0 : Number(e.target.value),
+                      },
+                    })
+                  }
+                />
+              </Row>
+              <label className="flex items-center gap-2 text-[11px] text-slate-400">
+                <input
+                  type="checkbox"
+                  className="h-3.5 w-3.5 accent-accent"
+                  checked={doc.meta.verbrauch?.mitWarmwasser ?? true}
+                  onChange={(e) =>
+                    updateMeta({
+                      verbrauch: {
+                        brennstoff: 'oel',
+                        menge: 0,
+                        ...doc.meta.verbrauch,
+                        mitWarmwasser: e.target.checked,
+                      },
+                    })
+                  }
+                />
+                Warmwasser steckt im Verbrauch
+              </label>
+              <p className="text-[9.5px] leading-relaxed text-slate-600">
+                Beim Kombigerät der Normalfall. Angehakt rechnet das Programm mit 3000 Vollbenutzungsstunden
+                statt 2500 — die Heizlast fällt dadurch kleiner aus, und das ist richtig: Ein Teil des
+                Verbrauchs war kein Heizen.
+              </p>
+
+              {/*
+                Beschriftung *über* dem Feld, nicht daneben: Die Klassennamen
+                sind lang, und in einer Zeile drängt das Auswahlfeld die
+                Beschriftung auf null Breite. Der Inspektor ist 300 Pixel
+                breit — dieselbe Lehre wie bei den drei Spalten weiter oben.
+              */}
+              <div>
+                <span className="label-xs mb-1 block">Baualter</span>
+                <select
+                  className="field w-full"
+                  value={doc.meta.baualter ?? ''}
+                  onChange={(e) => updateMeta({ baualter: e.target.value || undefined })}
+                >
+                  <option value="" className="bg-graphite-850">
+                    — nicht angegeben —
+                  </option>
+                  {BAUALTERSKLASSEN.map((k) => (
+                    <option key={k.id} value={k.id} className="bg-graphite-850">
+                      {k.label} · {String(k.spezifisch).replace('.', ',')} kWh/(m²·a)
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <p className="text-[9.5px] leading-relaxed text-slate-600">
+                Die beheizte Fläche muss dafür niemand nachschlagen — sie steht im Modell.
+              </p>
+
+              {abgleich && abgleich.zeilen.length > 0 ? (
+                <div className="space-y-2">
+                  {abgleich.zeilen.map((z) => (
+                    <div
+                      key={z.probe.id}
+                      className={`rounded-lg px-2.5 py-2 ${
+                        z.urteil === 'deckt-sich'
+                          ? 'bg-emerald-400/[0.07]'
+                          : z.urteil === 'nachsehen'
+                            ? 'bg-amber-400/[0.07]'
+                            : 'bg-rose-400/[0.08]'
+                      }`}
+                    >
+                      <div className="flex items-baseline justify-between gap-2">
+                        <span className="text-[11px] font-medium text-slate-200">
+                          {fmt(z.probe.wert, 2)} kW
+                        </span>
+                        <span
+                          className={`text-[10px] tabular-nums ${
+                            z.urteil === 'deckt-sich'
+                              ? 'text-emerald-300'
+                              : z.urteil === 'nachsehen'
+                                ? 'text-amber-300'
+                                : 'text-rose-300'
+                          }`}
+                        >
+                          {z.abweichung > 0 ? '+' : ''}
+                          {fmt(z.abweichung, 1)} % gegenüber {fmt(abgleich.ueberschlag, 2)} kW
+                        </span>
+                      </div>
+                      <div className="mt-0.5 text-[9.5px] text-slate-500">{z.probe.bezeichnung}</div>
+                      <div className="mt-1 font-mono text-[9.5px] leading-relaxed text-slate-500">
+                        {z.probe.rechenweg}
+                      </div>
+                      {z.urteil !== 'deckt-sich' && (
+                        <p className="mt-1.5 text-[10px] leading-relaxed text-slate-400">
+                          {z.deutung.replace(/\*\*/g, '')}
+                        </p>
+                      )}
+                    </div>
+                  ))}
+                  <p className="text-[9.5px] leading-relaxed text-slate-600">
+                    Keine Heizlastberechnung, sondern eine Einstiegsrechnung nach dem BWP-Praxisratgeber
+                    „Modernisieren mit Wärmepumpe". Sie beschreibt das Gebäude im Zustand des
+                    Verbrauchsjahres — nach neuen Fenstern gilt sie nicht mehr.
+                  </p>
+                </div>
+              ) : (
+                <p className="text-[10px] leading-relaxed text-slate-500">
+                  Noch keine Gegenprobe: Es fehlt ein Jahresverbrauch oder eine Baualtersklasse.
+                </p>
+              )}
+            </div>
+          )}
         </div>
 
         {/*
@@ -1663,6 +1889,22 @@ function Fold({
  * Gekürzt wird die Beschriftung, und zwar mit Auslassungspunkten und einem
  * Tooltip, damit der volle Wortlaut erreichbar bleibt.
  */
+/**
+ * Beschriftung links, Eingabefeld rechts — dieselbe Zeilenform wie im
+ * Wärmepumpenblatt. Der Inspektor ist 300 Pixel breit; was hier steht, muss
+ * in eine Zeile passen.
+ */
+function Row({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="flex items-center justify-between gap-2 py-0.5">
+      <span className="min-w-0 flex-1 truncate text-[10px] text-slate-500" title={label}>
+        {label}
+      </span>
+      <div className="shrink-0">{children}</div>
+    </div>
+  );
+}
+
 function Readout({ label, value, accent, term }: { label: string; value: string; accent?: boolean; term?: string }) {
   return (
     <div className="flex items-baseline justify-between gap-2 py-0.5">

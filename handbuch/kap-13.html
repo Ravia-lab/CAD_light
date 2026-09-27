@@ -385,6 +385,86 @@ pauschal ohne Nachweis: 0,10 × 109,44 = 10,94 W/K</p>
 
 <div class="baustelle"><b>Auf der Baustelle heißt das</b><p>250 W/m² ist keine Heizlast, sondern ein vergessener U-Wert. Wenn die Kennzahl in der obersten Zeile landet, suchen Sie nicht nach einem größeren Gerät — suchen Sie das Bauteil, an dem 1,4 steht, wo 0,14 hingehört.</p></div>
 
+<h4 id="k13-4-7">13.4.7 Die Gegenprobe — die zweite Zahl</h4>
+
+<p class="wo">Im Programm: Reiter <b>Anlage</b> → Abschnitt <b>Heizlast</b> → <b>Gegenprobe</b>.</p>
+
+<p>Der Überschlag oben hat eine Eigenschaft, die man ihm nicht ansieht: <b>Er prüft sich an nichts.</b> Ein zu günstig angesetzter U-Wert, eine vergessene Wärmebrücke, ein beheizter Raum, der im Modell als unbeheizt geführt ist — das Ergebnis bleibt plausibel. Es sieht aus wie eine Rechnung, weil es eine ist, und niemand merkt, dass die Eingangsgrößen nicht stimmen. Die Plausibilitätsprobe im Abschnitt davor fängt nur die groben Ausreißer.</p>
+
+<p>Der Verbrauch weiß es besser: Er ist <b>gemessen</b> worden, nicht angenommen. Deshalb stellt das Programm seit 1.60.0 eine zweite Zahl daneben — und wo die beiden auseinanderlaufen, sagt es das.</p>
+
+<div class="merke"><b>Merke</b><p>Zwei Wege zu derselben Größe sind mehr wert als einer. Nicht, weil der zweite genauer wäre — er ist gröber —, sondern weil sie sich gegenseitig widerlegen können. Eine einzelne Zahl kann das nicht.</p></div>
+
+<h5>Die Einstiegsrechnung</h5>
+
+<p>Grundlage ist der BWP-Praxisratgeber „Modernisieren mit Wärmepumpe", Schritt 2:</p>
+
+<div class="formel">
+  <p class="worte">In Worten: Der Jahresverbrauch in Litern Heizöl oder Kubikmetern Erdgas, geteilt durch 250, ergibt die Heizleistung in Kilowatt. Steckt die Trinkwassererwärmung mit im abgelesenen Verbrauch, lautet der Teiler 300.</p>
+  <p class="math">P = V / 250        bzw.        P = V / 300</p>
+  <dl class="zeichen">
+    <dt>P</dt><dd>Heizleistung (Heizlast) [kW]</dd>
+    <dt>V</dt><dd>Jahresverbrauch [l Heizöl] oder [m³ Erdgas]</dd>
+  </dl>
+</div>
+
+<p>Der zweite Teiler heißt nach seiner Herkunft <b>Schweizer Formel</b>. Er macht die Heizlast kleiner, und das ist richtig: Ein Teil des Verbrauchs war kein Heizen. Beim Kombigerät ist das der Normalfall.</p>
+
+<h5>Warum das Programm mit Stunden rechnet und nicht mit Teilern</h5>
+
+<p>Der Leitfaden nennt für <b>Liter</b> Heizöl und <b>Kubikmeter</b> Erdgas denselben Teiler. Das geht nur auf, wenn beide mit rund 10 kWh je Einheit angesetzt sind — und daraus folgt, was hinter dem Teiler steckt:</p>
+
+<div class="formel">
+  <p class="math">V / 250 = (V · 10 kWh) / 2500 h</p>
+</div>
+
+<p><b>2500 Vollbenutzungsstunden</b> also, und mit Warmwasser 3000. Das Programm rechnet mit diesen Stunden statt mit dem Teiler, und zwar aus einem praktischen Grund: Damit lässt sich auch eine Gasrechnung verarbeiten, die in <b>Kilowattstunden</b> ausgestellt ist — und das sind die meisten. Dafür braucht es dann gar keinen Heizwert.</p>
+
+<div class="warnung"><b>Achtung</b><p>Für <b>Flüssiggas, Pellets und Scheitholz</b> steht im Programm nichts. Der Leitfaden nennt für sie keinen Teiler, und ein Heizwert aus zweiter Hand wäre eine Zahl, die dieses Programm nicht belegen kann. Wer sie hat, rechnet seinen Verbrauch selbst in Kilowattstunden um und trägt die ein.</p></div>
+
+<h5>Die zweite Gegenprobe: Baualter mal Fläche</h5>
+
+<p>Derselbe Ratgeber gibt Richtwerte für den spezifischen Endenergieverbrauch nach Baualtersklasse. Multipliziert mit der beheizten Fläche ergibt das einen Jahresverbrauch — und über dieselben Vollbenutzungsstunden wieder eine Heizlast.</p>
+
+<p><b>Die Fläche muss dabei niemand nachschlagen.</b> Der Ratgeber lässt den Anwender die Gesamtwohnfläche heraussuchen; hier steht sie schon im Modell. Es ist nur eine Angabe nötig: das Baualter.</p>
+
+<table class="tab">
+<caption>Spezifischer Endenergieverbrauch nach Baualtersklasse (grober Richtwert)</caption>
+<thead><tr><th>Baualter</th><th>kWh/(m²·a)</th></tr></thead>
+<tbody>
+<tr><td>bis 1948</td><td>249</td></tr>
+<tr><td>1949 bis 1957</td><td>268</td></tr>
+<tr><td>1958 bis 1968</td><td>266</td></tr>
+<tr><td>1969 bis 1978</td><td>237</td></tr>
+<tr><td>ab WSchV 1977</td><td>200</td></tr>
+<tr><td>ab WSchV 1982</td><td>159</td></tr>
+<tr><td>ab WSchV 1995</td><td>109</td></tr>
+<tr><td>ab EnEV 2002/2007</td><td>95,5</td></tr>
+</tbody>
+</table>
+
+<p>Die Reihe fällt <b>nicht durchgehend</b>: 1919–1948 liegt mit 249 unter 1949–1957 mit 268. Das ist kein Übertragungsfehler — die Nachkriegsjahre haben schlechter gebaut als die Zeit davor.</p>
+
+<p class="quelle">Quelle: BWP-Praxisratgeber „Modernisieren mit Wärmepumpe", S. 18. Beispielwerte für Einfamilienhäuser nach IWU (Institut Wohnen und Umwelt), Deutsche Wohngebäudetypologie 2015. WSchV = Wärmeschutzverordnung, EnEV = Energieeinsparverordnung.</p>
+
+<h5>Was das Programm aus der Abweichung macht</h5>
+
+<table class="tab">
+<caption>Die Schwellen der Gegenprobe</caption>
+<thead><tr><th>Abweichung</th><th>Urteil</th><th>Was dann passiert</th></tr></thead>
+<tbody>
+<tr><td>bis 15 %</td><td>deckt sich</td><td>nichts — die beiden Wege kommen auf dasselbe</td></tr>
+<tr><td>15 bis 30 %</td><td>nachsehen</td><td>Hinweis im Blatt und in der Modellprüfung</td></tr>
+<tr><td>über 30 %</td><td>passt nicht</td><td>Warnung in der Modellprüfung</td></tr>
+</tbody>
+</table>
+
+<div class="warnung"><b>Achtung</b><p>Diese beiden Schwellen stehen <b>in keiner Quelle</b>. Der Ratgeber nennt seine eigene Rechnung eine „Einstiegsrechnung" und seine Richtwerte „grob", aber keine Grenze, ab der eine Abweichung erklärungsbedürftig wird. Die 15 % und die 30 % sind eine Setzung dieses Programms.</p></div>
+
+<p>Bei einer Abweichung nennt das Programm auch die üblichen Gründe, und zwar nach Richtung getrennt. Liegt die Gegenprobe <b>höher</b>: zu günstig angesetzte U-Werte, ein zu kleiner Wärmebrückenzuschlag, beheizte Flächen, die im Modell als unbeheizt geführt sind — oder die Trinkwassererwärmung steckt im Verbrauch, ohne dass es angehakt ist. Liegt sie <b>niedriger</b>, heißt das nicht zwingend, dass der Überschlag zu hoch ist: Ein Verbrauch entsteht über ein Jahr mit der Witterung, die war, und dem Heizverhalten, das war.</p>
+
+<div class="merke"><b>Merke</b><p>Die Gegenprobe ist <b>keine Heizlastberechnung</b>. Der Ratgeber sagt es selbst: „Zur Angebotserstellung genügt zunächst eine grobe Analyse … Eine gründliche Heizlastermittlung sollte später unbedingt Bestandteil des Angebotes sein." Und sie beschreibt das Gebäude <b>im Zustand des Verbrauchsjahres</b> — nach neuen Fenstern oder einer gedämmten Obergeschossdecke gilt sie nicht mehr.</p></div>
+
 <h3 id="k13-5">13.5 Volumenstrom, Spreizung und Massenstrom</h3>
 
 <p>Wenn Sie aus diesem ganzen Kapitel nur eine Formel behalten, dann diese. Sie steht hinter jeder Rohrdimension, jeder Pumpe, jedem Voreinstellwert und jedem Wärmemengenzähler.</p>

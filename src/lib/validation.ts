@@ -27,6 +27,8 @@ import { documentBridgeHeatLoss, envelopeArea } from './thermalBridges';
 import { buildPipeNetwork } from './pipeNetwork';
 import { acousticReport, protectionIssues, protectionStatus, sourceDemand, waterProtectionVerdict } from './heatPump';
 import { dichtheitspflicht } from './kaeltemittel';
+import { estimateHeatLoad } from './heatLoadEstimate';
+import { heizlastAusBaualter, heizlastAusVerbrauch, verbrauchsabgleich } from './verbrauchsabgleich';
 import { daecherVon, raeumeOhneGeschossDarueber } from './dachlandschaft';
 
 /** Objekte, die Wärme in den Raum geben — nur sie brauchen eine Leistung. */
@@ -60,6 +62,8 @@ export const REMEDIES: Record<string, string> = {
   'plant.estimated-load':
     'Die Norm-Heizlast aus RaVia im Reiter „Anlage" oben eintragen. Alle Folgegrößen rechnen sich sofort neu.',
   'plant.spread': 'Im Reiter „Anlage" unter „Verteilung" den Rücklauf unter den Vorlauf setzen — üblich sind 5 bis 8 K Abstand.',
+  'plant.load-crosscheck':
+    'Im Reiter „Anlage" unter „Gegenprobe" steht der Rechenweg beider Zahlen. Nachzusehen sind zuerst die U-Werte und der Wärmebrückenzuschlag, dann ob alle beheizten Räume auch als beheizt geführt sind — und ob im abgelesenen Verbrauch die Trinkwassererwärmung steckt.',
   'plant.dhw-temperature': 'Speichertemperatur im Reiter „Anlage" senken und stattdessen eine wöchentliche Aufheizung vorsehen.',
   'plant.static-height':
     'Ansprechdruck des Sicherheitsventils auf 3,0 bar erhöhen oder das Ausdehnungsgefäß weiter oben anordnen.',
@@ -1132,6 +1136,37 @@ export function validateModel(doc: BimDocument): ValidationReport {
             );
           }
         }
+        /*
+         * --- Die Gegenprobe zur Heizlast ---------------------------------
+         *
+         * Der Überschlag aus der Gebäudehülle prüft sich an nichts: Ein zu
+         * günstiger U-Wert, eine vergessene Wärmebrücke, ein Raum, der
+         * fälschlich als unbeheizt geführt ist — das Ergebnis bleibt
+         * plausibel, weil es eine Rechnung ist. Wo eine gemessene Zahl
+         * daneben steht und deutlich abweicht, gehört das auf den Schirm.
+         *
+         * Gemeldet wird **nur bei deutlicher Abweichung**. Eine Meldung bei
+         * jeder kleinen Differenz wäre die sicherste Art, dass niemand mehr
+         * hinsieht; zwei so grobe Verfahren sind sich ohnehin nie ganz einig.
+         */
+        {
+          const schaetzung = estimateHeatLoad(doc);
+          const proben = verbrauchsabgleich(schaetzung.total, [
+            heizlastAusVerbrauch(doc.meta.verbrauch),
+            heizlastAusBaualter(doc.meta.baualter, schaetzung.heatedArea, doc.meta.verbrauch?.mitWarmwasser ?? true),
+          ]);
+          for (const z of proben.zeilen) {
+            if (z.urteil === 'deckt-sich') continue;
+            add(
+              z.urteil === 'passt-nicht' ? 'warning' : 'info',
+              'plant.load-crosscheck',
+              `Die Heizlast ${z.probe.bezeichnung} liegt bei ${z.probe.wert.toFixed(2)} kW — ` +
+                `${z.abweichung > 0 ? '+' : ''}${z.abweichung.toFixed(1)} % gegenüber dem Überschlag aus der ` +
+                `Gebäudehülle (${proben.ueberschlag.toFixed(2)} kW). ${z.probe.rechenweg}`,
+            );
+          }
+        }
+
         if (plant.heatLoadOverride === undefined) {
           add(
             'info',

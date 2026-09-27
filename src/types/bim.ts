@@ -2787,6 +2787,25 @@ export const VORHABEN_LABELS: Record<Vorhaben, string> = {
   bestand: 'Bestand, unsaniert',
 };
 
+/** Woraus der Jahresverbrauch abgelesen wurde. */
+export type Brennstoff = 'oel' | 'erdgas' | 'kwh';
+
+/**
+ * Der Jahresverbrauch der bestehenden Heizung.
+ *
+ * Die Rechenregeln dazu stehen in `src/lib/verbrauchsabgleich.ts`; hier steht
+ * nur, was gespeichert wird. `menge` trägt die Einheit des Brennstoffs:
+ * Liter bei Heizöl, Kubikmeter bei Erdgas, Kilowattstunden bei `kwh`.
+ */
+export interface Verbrauchsangabe {
+  brennstoff: Brennstoff;
+  menge: number;
+  /** Steckt die Trinkwassererwärmung mit im abgelesenen Verbrauch? */
+  mitWarmwasser: boolean;
+  /** Verbrauchsjahr — reine Notiz, geht in keine Rechnung ein. */
+  jahr?: number;
+}
+
 export interface ProjectMeta {
   name: string;
   address?: string;
@@ -2871,6 +2890,23 @@ export interface ProjectMeta {
    * stehen, dass es das getan hat. Ohne diese Spur erklärt niemand mehr, warum
    * eine Solltemperatur plötzlich 24 °C ist, die niemand hier eingetragen hat.
    */
+  /**
+   * Der gemessene Jahresverbrauch der bestehenden Heizung — die Grundlage der
+   * Gegenprobe zur Heizlast.
+   *
+   * Sie steht hier und nicht bei der Anlage, weil sie das **Gebäude**
+   * beschreibt und nicht die geplante Technik: Sie gilt weiter, wenn die
+   * Anlage neu ausgelegt wird, und sie gehört zur Aufnahme vor Ort.
+   */
+  verbrauch?: Verbrauchsangabe;
+  /**
+   * Baualtersklasse nach der IWU-Wohngebäudetypologie — Kennung aus
+   * `BAUALTERSKLASSEN` in `src/lib/verbrauchsabgleich.ts`.
+   *
+   * Zusammen mit der beheizten Fläche, die das Modell ohnehin kennt, ergibt
+   * sie eine zweite Gegenprobe, für die niemand etwas nachschlagen muss.
+   */
+  baualter?: string;
   lastHostPatch?: HostPatchTrace;
 }
 
@@ -3547,6 +3583,45 @@ export interface ExportBuildingTotals {
   setback?: SetbackTotals;
   /** Lüftungsanlage und Luftbilanz des Gebäudes. */
   ventilation: VentilationTotals;
+  /**
+   * Die Gegenprobe zur Heizlast — seit 2.7.0.
+   *
+   * `ueberschlag` ist die Heizlast aus der Gebäudehülle, wie dieses Programm
+   * sie rechnet; jede Zeile darunter ist ein **unabhängiger zweiter Weg** zu
+   * derselben Größe, aus dem gemessenen Jahresverbrauch oder aus Baualter mal
+   * beheizter Fläche. Der Rechenweg steht bei jeder Zeile im Klartext, damit
+   * die Zahl nachvollziehbar bleibt, ohne dass die Gegenstelle die
+   * Vollbenutzungsstunden zurückrechnen muss.
+   *
+   * Grundlage: BWP-Praxisratgeber „Modernisieren mit Wärmepumpe", Schritt 2.
+   * **Keine Heizlastberechnung** — eine Einstiegsrechnung, und sie beschreibt
+   * das Gebäude im Zustand des Verbrauchsjahres.
+   *
+   * Der Block fehlt, solange niemand einen Verbrauch oder ein Baualter
+   * eingetragen hat.
+   */
+  heatLoadCrosscheck?: {
+    /** Heizlast aus der Gebäudehülle [kW]. */
+    ueberschlag: number;
+    zeilen: {
+      probe: {
+        id: string;
+        bezeichnung: string;
+        /** Heizlast auf diesem Weg [kW]. */
+        wert: number;
+        /** Zugrunde liegende Endenergie [kWh/a]. */
+        endenergie: number;
+        /** Angesetzte Vollbenutzungsstunden [h/a]. */
+        stunden: number;
+        rechenweg: string;
+      };
+      /** Abweichung gegenüber dem Überschlag [%], positiv = höher. */
+      abweichung: number;
+      urteil: string;
+      deutung: string;
+    }[];
+    urteil?: string;
+  };
 }
 
 export interface VentilationTotals {
@@ -4007,6 +4082,13 @@ export interface RaviaExport {
    * stehen weiterhin unverändert; eine Gegenstelle, die 2.0.0 oder 2.1.0
    * liest, rechnet ohne Änderung weiter.
    *
+   * **2.7.0** ergänzt die Gegenprobe zur Heizlast: `project.verbrauch` und
+   * `project.baualter` als Eingangsgrößen und `totals.heatLoadCrosscheck` als
+   * Ergebnis — die Heizlast aus dem gemessenen Jahresverbrauch und aus
+   * Baualter mal Fläche, jeweils mit Rechenweg, neben dem Überschlag aus der
+   * Gebäudehülle. Reiner Zuwachs. Der Block fehlt, solange niemand einen
+   * Verbrauch eingetragen hat.
+   *
    * **2.6.0** ergänzt am Außengerät `refrigerantClass` (Sicherheitsgruppe
    * nach ISO 817) und `hermetisch`, und an jeder Schutzbereichsverletzung die
    * Höhe `hoehe` sowie zwei weitere `kind`-Werte: `building-opening` für ein
@@ -4033,7 +4115,7 @@ export interface RaviaExport {
    * nichts; wer prüfen will, ob Boden, Decke und Dach angekommen sind, hat
    * jetzt eine Zahl statt einer Liste (Punkt 13).
    */
-  version: '2.6.0';
+  version: '2.7.0';
   generator: string;
   exportedAt: string;
   /** Einheiten explizit im Dokument — keine Konvention, die verloren gehen kann. */
