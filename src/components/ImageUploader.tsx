@@ -17,6 +17,7 @@ import type { FloorplanImage } from '../types/bim';
 import { pixelsPerMeter } from '../types/bim';
 import { getVisionProvider, VisionError, type VisionProgress } from '../services/aiVisionService';
 import { useBimStore } from '../store/useBimStore';
+import ScanUebernahme from './ScanUebernahme';
 
 /** Zielbreite eines frisch importierten Plans im Modellraum [m]. */
 const INITIAL_WIDTH_M = 12;
@@ -170,6 +171,14 @@ export default function ImageUploader() {
             {aiState.message}
           </div>
         )}
+        {/*
+          Die zweite Art, ein Gebäude hereinzubekommen: als **Aufnahme**.
+          Sie steht hier und nicht in einem eigenen Reiter, weil dies das
+          Blatt ist, auf dem man landet, wenn man „Grundriss laden" wählt —
+          gemeint ist dasselbe, nur kommt das eine vom Scanner und das
+          andere vom Drucker.
+        */}
+        <ScanUebernahme />
       </div>
     );
   }

@@ -69,6 +69,7 @@ import { pruefeRaumkennungen } from './pruefungen/raumkennung';
 import { pruefeSchutzbereich } from './pruefungen/schutzbereich';
 import { pruefeVerbrauchsabgleich } from './pruefungen/verbrauchsabgleich';
 import { pruefeBaugrube } from './pruefungen/baugrube';
+import { pruefeScandatei } from './pruefungen/scandatei';
 import { pruefeWissensbasis } from './pruefungen/wissensbasis';
 import { pruefeGeschossdecken } from './pruefungen/geschossdecken';
 import { pruefeTreppenlogik } from './pruefungen/treppenlogik';
@@ -3890,6 +3891,7 @@ pruefeRaumkennungen(check);
 pruefeSchutzbereich(check);
 pruefeVerbrauchsabgleich(check);
 pruefeBaugrube(check);
+pruefeScandatei(check);
 
 console.log('\n▸ Wissensbasis — Wortnormalisierung, Rangfusion, Korpus');
 pruefeWissensbasis(check);

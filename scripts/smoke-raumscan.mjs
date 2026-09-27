@@ -255,6 +255,76 @@ pruefe('3D-Fläche vorhanden', Boolean(dreiD && dreiD.w > 400), true);
 
 await p.screenshot({ path: 'scripts/referenz/raumscan-3d.png' });
 
+// ---------------------------------------------------------------------------
+// Der Scan als Datei — und der Weg zurück zu RaVia
+// ---------------------------------------------------------------------------
+/*
+ * Seit 1.63.0 kommt der Gebäudescan aus RaVia Scan (iPhone, LiDAR) auch als
+ * **Datei** herein, nicht nur über die Einbettung. Geprüft wird der Weg, den
+ * ein Anwender geht: Reiter „Referenz", Knopf „Beispielscan laden".
+ *
+ * Und weil der Scan nur der Anfang ist, geht die Probe weiter bis dorthin, wo
+ * die Aufnahme hinsoll: **zurück zu RaVia**. Der Rückweg (`applyPatch`)
+ * schreibt die gerechnete Norm-Heizlast in den Raum — dieselbe Schnittstelle,
+ * die RaVia in der Einbettung benutzt. Danach steht im Modell nicht mehr der
+ * eigene Überschlag, sondern die gerechnete Zahl.
+ */
+console.log('\n▸ Der Scan als Datei, und die Heizlast zurück');
+{
+  // Die Rückfrage „ersetzt das aktuelle Modell" wird oben schon bejaht.
+  await p.locator('button:has-text("2D")').first().click();
+  await p.waitForTimeout(600);
+  await p.locator('aside').getByRole('button', { name: 'Referenz', exact: true }).click();
+  await p.waitForTimeout(500);
+  await p.locator('[data-pruef="scan-beispiel"]').click();
+  await p.waitForTimeout(3000);
+
+  const nachScan = await p.evaluate(() => {
+    const S = window.__ravia.getState();
+    const d = S.doc;
+    return {
+      waende: Object.keys(d.walls).length,
+      oeffnungen: Object.keys(d.openings).length,
+      raeume: Object.keys(d.rooms).length,
+      heizkoerper: Object.values(d.fixtures).filter((f) => f.type === 'radiator').length,
+      meldung: S.statusMessage,
+    };
+  });
+  console.log('    ' + nachScan.meldung.slice(0, 120));
+  pruefe('Der Beispielscan bringt Wände mit', nachScan.waende > 20, true);
+  pruefe('… und Öffnungen', nachScan.oeffnungen > 10, true);
+  pruefe('… und Räume, von der Raumerkennung geschlossen', nachScan.raeume > 0, true);
+  pruefe('… und die gemessenen Heizkörper', nachScan.heizkoerper, 4);
+  pruefe('Die Meldung nennt die Herkunft', /RaVia Scan/.test(nachScan.meldung), true);
+  /*
+   * Was die App geschätzt hat, steht in der Meldung — die Aufnahme sagt
+   * selbst, was an ihr gemessen und was angenommen ist.
+   */
+  pruefe('… und die Nordgenauigkeit aus dem Kompass', /Nordrichtung ±/.test(nachScan.meldung), true);
+
+  // --- Der Rückweg: RaVia schreibt die Norm-Heizlast ------------------------
+  const rueck = await p.evaluate(() => {
+    const S = window.__ravia.getState();
+    const raum = Object.values(S.doc.rooms)[0];
+    const bericht = S.applyHostPatch({
+      source: 'RaVia (Rauchtest)',
+      rooms: [{ id: raum.id, heatLoad: { total: 1240, transmission: 840, ventilation: 300, reheat: 100 } }],
+      totalHeatLoad: 8400,
+    });
+    const nachher = window.__ravia.getState().doc.rooms[raum.id];
+    return {
+      urteile: bericht.entries.map((e) => e.verdict),
+      last: nachher.normHeatLoad?.total ?? null,
+      quelle: nachher.normHeatLoad?.source ?? null,
+      gesamt: window.__ravia.getState().doc.plant?.heatLoadOverride ?? null,
+    };
+  });
+  pruefe('Die Norm-Heizlast wird übernommen', rueck.urteile.includes('übernommen'), true);
+  pruefe('… und steht mit ihrem Wert im Raum [W]', rueck.last, 1240);
+  pruefe('… mit dem Absender, der sie geschrieben hat', /RaVia/.test(String(rueck.quelle)), true);
+  pruefe('… und die Gebäudeheizlast ersetzt den Überschlag [W]', rueck.gesamt, 8400);
+}
+
 // --- Fehlerfreiheit --------------------------------------------------------
 pruefe('Keine Fehler in der Konsole', errs.length, 0);
 if (errs.length) errs.slice(0, 5).forEach((e) => console.log('     ' + e));

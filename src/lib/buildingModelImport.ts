@@ -1,11 +1,21 @@
 /**
  * Import des „RaVia Building Model" (Format `ravia.building`, Schema 1.x).
  * ---------------------------------------------------------------------------
- * Das Gegenstück zur App **RaVia Scan**: Das iPhone scannt mit RoomPlan, die
- * Transformation Engine der App rechnet den Scan auf dem Gerät in dieses
- * Format um, RaVia prüft es und reicht es über die Einbettung
- * (`loadBuilding`, Embed-API 1.3.0) hierher durch. Kein Datei-Export, kein
- * Datei-Import, und CAD Light bekommt **nie** RoomPlan-Rohdaten zu sehen.
+ * Das Gegenstück zur App **RaVia Scan**: Das iPhone scannt mit **LiDAR**
+ * (RoomPlan), die Transformation Engine der App rechnet den Scan auf dem
+ * Gerät in dieses Format um, RaVia prüft es und reicht es über die
+ * Einbettung (`loadBuilding`, Embed-API 1.3.0) hierher durch. CAD Light
+ * bekommt **nie** RoomPlan-Rohdaten zu sehen.
+ *
+ * **Seit 1.63.0 kommt derselbe Scan auch als Datei.** Der Weg über die
+ * Einbettung bleibt der Regelfall — er ist der, bei dem RaVia den Scan
+ * geprüft hat. Aber er setzt voraus, dass RaVia daneben läuft, und das ist
+ * beim Vorführen, beim Prüfen eines Scans und beim Arbeiten am Schreibtisch
+ * gerade nicht so. Eine `.json` mit `format: "ravia.building"` wird deshalb
+ * beim Öffnen erkannt (`istGebaeudescan`) und durch denselben Import
+ * geschickt; ein Beispielscan liegt der Anwendung bei. Gelesen wird in
+ * beiden Fällen **dieselbe** Datei mit demselben Code — es gibt keinen
+ * zweiten Weg, der anders rechnen könnte.
  *
  * Anders als `raumplanImport.ts` wird hier nichts mehr erkannt oder
  * geradegerückt — das hat die App getan, und das Modell sagt, wie:
@@ -42,6 +52,24 @@ import {
 } from './raumplanImport';
 
 export const BUILDING_FORMAT = 'ravia.building';
+
+/**
+ * Ist diese Datei ein Gebäudescan?
+ *
+ * Gesucht wird im **ganzen** Text und nicht nur im Anfang — aus demselben
+ * Grund wie bei `istRaumplanDatei`: Die Felder stehen alphabetisch, und
+ * `format` kommt nach `emitters`, deren Fotoverweise und Maße bei einem
+ * ganzen Haus einige Kilobytes füllen. Ein `indexOf` über die Zeichenkette
+ * kostet dabei nichts.
+ *
+ * Geprüft wird das Formatkennzeichen und nicht die Dateiendung: Eine `.json`
+ * ist zunächst nur eine Datei. Ob das Schema mitgelesen werden kann, sagt
+ * danach `importBuildingModel` — mit einer Meldung, die die Fassung nennt.
+ */
+export function istGebaeudescan(text: string): boolean {
+  if (!text.trimStart().startsWith('{')) return false;
+  return /"format"\s*:\s*"ravia\.building"/.test(text);
+}
 
 /** Dachvorschlag aus dem Scan, in den Begriffen von `RoofDefinition`. */
 export interface DachVorschlag {

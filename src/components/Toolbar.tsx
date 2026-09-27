@@ -39,6 +39,7 @@ import { createPortal } from 'react-dom';
 import { buildRaviaExport, downloadJson, exportFilename } from '../lib/raviaExport';
 import { buildIfc, downloadIfc, ifcFilename } from '../lib/ifcExport';
 import { istRaumplanDatei } from '../lib/raumplanImport';
+import { istGebaeudescan } from '../lib/buildingModelImport';
 import LevelBar from './LevelBar';
 import PlanPrintDialog from './PlanPrintDialog';
 import RohrnetzDialog from './RohrnetzDialog';
@@ -446,6 +447,7 @@ export function TopBar({ onProjekte }: { onProjekte: () => void }) {
   const loadProject = useBimStore((s) => s.loadProject);
   const loadIfc = useBimStore((s) => s.loadIfc);
   const loadRaumscan = useBimStore((s) => s.loadRaumscan);
+  const loadBuilding = useBimStore((s) => s.loadBuilding);
   const fileRef = useRef<HTMLInputElement>(null);
   const [printOpen, setPrintOpen] = useState(false);
   /** Der Rohrnetzbericht — eigenes Fenster, weil er mehrere Blätter hat. */
@@ -557,6 +559,34 @@ export function TopBar({ onProjekte }: { onProjekte: () => void }) {
       return;
     }
 
+    /*
+     * **Der Gebäudescan aus RaVia Scan — seit 1.63.0 auch als Datei.**
+     *
+     * Er kommt im Regelfall über die Einbettung (`loadBuilding`); dann hat
+     * RaVia ihn geprüft. Wer ihn am Schreibtisch ansehen, vorführen oder
+     * einem Kollegen schicken will, hat aber nur die Datei — und die wurde
+     * bis 1.62.0 an den Projektleser weitergereicht und mit „Datei konnte
+     * nicht gelesen werden" abgewiesen, obwohl das Programm genau dieses
+     * Format liest.
+     *
+     * Gelesen wird derselbe Import wie über die Einbettung.
+     */
+    if (istGebaeudescan(text)) {
+      if (
+        Object.keys(doc.walls).length > 0 &&
+        !confirm(
+          'Der Gebäudescan ersetzt das aktuelle Modell. Fortfahren?\n\n' +
+            'Rückgängig (Strg+Z) holt den jetzigen Stand zurück.',
+        )
+      ) {
+        setStatus('Scan-Übernahme abgebrochen');
+        return;
+      }
+      const result = loadBuilding(JSON.parse(text));
+      setStatus(result.message);
+      return;
+    }
+
     if (text.trimStart().startsWith('ISO-10303-21')) {
       if (
         Object.keys(doc.walls).length > 0 &&
@@ -577,7 +607,7 @@ export function TopBar({ onProjekte }: { onProjekte: () => void }) {
       const result = loadProject(JSON.parse(text));
       setStatus(result.message);
     } catch {
-      setStatus('Datei konnte nicht gelesen werden — weder RaVia-JSON, IFC noch Raumscan.');
+      setStatus('Datei konnte nicht gelesen werden — weder RaVia-JSON, IFC, Raumscan noch Gebäudescan.');
     }
   };
 

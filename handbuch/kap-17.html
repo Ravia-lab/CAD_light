@@ -639,7 +639,7 @@
 <tr><td>IFC</td><td>Dasselbe Modell als IFC4-Text.</td></tr>
 <tr><td>Prüfung</td><td>Der Prüfbericht — dieselbe Prüfung wie im Reiter <b>Prüfung</b>.</td></tr>
 <tr><td>Projekt laden / IFC laden</td><td>Ein Modell von außen einsetzen.</td></tr>
-<tr><td>Gebäudescan übernehmen</td><td>Ein Gebäudemodell der App <b>RaVia Scan</b> direkt einsetzen — ohne Datei. Wahlweise als Ersatz oder als zusätzliches Geschoss neben dem vorhandenen Modell. Siehe <a href="#k17-4-6">Abschnitt 17.4.6</a>.</td></tr>
+<tr><td>Gebäudescan übernehmen</td><td>Ein Gebäudemodell der App <b>RaVia Scan</b> direkt einsetzen. Wahlweise als Ersatz oder als zusätzliches Geschoss neben dem vorhandenen Modell. Seit 1.63.0 geht derselbe Scan auch als Datei. Siehe <a href="#k17-4-6">Abschnitt 17.4.6</a>.</td></tr>
 <tr><td>Verworfene Räume melden</td><td>Die Gegenstelle sagt zurück, welche Räume sie beim Übernehmen <em>nicht</em> gerechnet hat. CAD Light setzt daraufhin einen Hinweis an den gezeichneten Raum. Siehe <a href="#k17-7">Abschnitt 17.7</a>.</td></tr>
 <tr><td>Zurückschreiben</td><td>Fachdaten ins Modell schreiben — siehe <a href="#k17-5">Abschnitt 17.5</a>.</td></tr>
 <tr><td>Selbstauskunft</td><td>Welche Felder schreibbar sind, in welcher Einheit und in welchen Grenzen. Damit muss die Gegenstelle nicht ausprobieren, was geht, und kann ihre eigene Eingabemaske daraus bauen.</td></tr>
@@ -680,7 +680,20 @@
 
 <h4 id="k17-4-6">17.4.6 Der Gebäudescan aus RaVia Scan</h4>
 
-<p>Das iPhone scannt die Wohnung, die App <b>RaVia Scan</b> rechnet den Scan noch auf dem Gerät in ein Gebäudemodell um, RaVia prüft es und reicht es über die Einbettung hierher durch. Es gibt dabei keinen Dateiexport und keinen Dateiimport — und CAD Light bekommt die Rohdaten des Scanners <b>nie</b> zu sehen.</p>
+<p>Das iPhone scannt die Wohnung mit <b>LiDAR</b>, die App <b>RaVia Scan</b> rechnet den Scan noch auf dem Gerät in ein Gebäudemodell um, RaVia prüft es und reicht es über die Einbettung hierher durch. CAD Light bekommt die Rohdaten des Scanners <b>nie</b> zu sehen.</p>
+
+<p><b>Seit Fassung 1.63.0 kommt derselbe Scan auch als Datei.</b> Der Weg über die Einbettung bleibt der Regelfall — er ist der, bei dem RaVia den Scan geprüft hat. Er setzt aber voraus, dass RaVia daneben läuft, und beim Vorführen, beim Nachsehen eines Scans, den ein Monteur geschickt hat, und beim Arbeiten am Schreibtisch ist das nicht so. Eine <code>.json</code> mit <code>format: "ravia.building"</code> wird deshalb beim Öffnen erkannt und durch <b>denselben</b> Import geschickt.</p>
+
+<table class="tab">
+<caption>Die beiden Wege — und was sie unterscheidet</caption>
+<thead><tr><th>Weg</th><th>Wie</th><th>Wann</th></tr></thead>
+<tbody>
+<tr><td><b>Einbettung</b></td><td>RaVia ruft <code>loadBuilding</code> auf</td><td>Der Regelfall. RaVia hat den Scan vorher geprüft.</td></tr>
+<tr><td><b>Datei</b></td><td>Öffnen-Knopf in der Kopfzeile, oder Reiter <b>Referenz</b> → <span class="zeichen">Scan-Datei öffnen</span></td><td>Am Schreibtisch, beim Vorführen, beim Nachsehen. Ohne RaVia daneben.</td></tr>
+</tbody>
+</table>
+
+<p>Im Reiter <b>Referenz</b> steht daneben der Knopf <span class="zeichen">Beispielscan laden</span>. Er öffnet eine echte Testaufnahme, die der Anwendung beiliegt: eine Wohnung mit 39 Wänden, 17 Öffnungen und vier gemessenen Heizkörpern, aufgenommen mit einem iPhone, samt Aufnahmezeitpunkt, Kompassgenauigkeit und der Liste dessen, was die App geschätzt hat. Wer wissen will, wie ein Scan aussieht, bevor der erste eigene kommt, sieht hier nach. In der Einzeldatei-Fassung liegt die Beispieldatei nicht bei; der Knopf sagt das dann.</p>
 
 <p>Anders als beim Einlesen eines Raumplans wird hier nichts mehr erkannt oder geradegerückt. Das hat die App getan, und das Modell sagt auch, wie:</p>
 
