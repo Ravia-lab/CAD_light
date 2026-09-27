@@ -110,7 +110,7 @@ await p.addInitScript(() => {
   expect('IFC ist STEP', shapes.ifcHead, 'ISO-10303-21');
   expect('Prüfbericht rechenfähig', shapes.ready, true);
   expect('Rohdokument erreichbar', shapes.docWalls > 0, true);
-  expect('Exportfassung 2.4.0', shapes.version, '2.4.0');
+  expect('Exportfassung 2.5.0', shapes.version, '2.5.0');
   expect('Hüllflächenbilanz im Export', shapes.envelopeH > 0, true);
   expect('… je Raum', shapes.raeumeMitBilanz, shapes.rooms);
   expect('… mit Boden, Decke und Wand', ['ceiling', 'floor', 'wall'].every((k) => shapes.envelopeKinds.includes(k)), true);
@@ -400,6 +400,79 @@ console.log('\n▸ Laden über die Schnittstelle');
   expect('Nach dem Leeren keine', loaded.empty, 0);
   expect('Laden gemeldet', loaded.ok, true);
   expect('Räume wieder da', loaded.after, loaded.before);
+}
+
+console.log('\n▸ Die Raumkennung überlebt das Öffnen (Rückweg mit alter Kennung)');
+{
+  /*
+   * Der Fall aus dem Protokoll vom 27.09.2026: RaVia rechnet die Heizlast
+   * unter der Kennung, die im Export stand. Beim nächsten Öffnen werden die
+   * Räume aus den Wänden neu erkannt, und die Kennung kann sich dabei
+   * ändern — der Raum ist derselbe, er heißt nur anders. Bis 1.57.0 lief die
+   * Rückschreibung dann ins Leere, mit der Meldung „Kein Raum mit der
+   * Kennung …" für einen Raum, der sichtbar dasteht.
+   *
+   * Nachgestellt wird das, indem die Kennung in der Datei auf einen Wert
+   * gesetzt wird, den die Raumerkennung nie vergibt. Was danach passiert,
+   * ist genau der gemeldete Vorgang.
+   */
+  const lauf = await p.evaluate(async () => {
+    const cad = document.getElementById('cad').contentWindow;
+    const ex = JSON.parse(JSON.stringify(cad.RaViaCAD.getExport()));
+    const zielName = ex.rooms[0].name;
+    const alteKennung = 'room-uralt-4711';
+    ex.rooms[0].id = alteKennung;
+
+    cad.__ravia.getState().clearAll();
+    cad.RaViaCAD.loadProject(ex);
+
+    // Erste Rückschreibung — unter der Kennung, die RaVia noch führt.
+    const erste = cad.RaViaCAD.applyPatch({
+      source: 'Rauchtest',
+      rooms: [{ id: alteKennung, setpointTemperature: 23 }],
+    });
+    const raum1 = cad.RaViaCAD.getExport().rooms.find((r) => r.name === zielName);
+
+    // Und noch einmal durch Speichern und Öffnen: Die frühere Kennung muss
+    // in der Datei stehen (`formerIds`, seit 2.5.0), sonst ist sie nach dem
+    // zweiten Öffnen weg und derselbe Fehler kommt wieder.
+    const zweiteDatei = JSON.parse(JSON.stringify(cad.RaViaCAD.getExport()));
+    const traegt = (zweiteDatei.rooms.find((r) => r.name === zielName)?.formerIds ?? []).includes(alteKennung);
+    cad.__ravia.getState().clearAll();
+    cad.RaViaCAD.loadProject(zweiteDatei);
+    const zweite = cad.RaViaCAD.applyPatch({
+      source: 'Rauchtest',
+      rooms: [{ id: alteKennung, setpointTemperature: 24 }],
+    });
+    const raum2 = cad.RaViaCAD.getExport().rooms.find((r) => r.name === zielName);
+
+    // Eine Kennung aus einem fremden Modell muss weiterhin abgelehnt werden —
+    // und die Ablehnung muss sagen, was hier bekannt ist.
+    const fremd = cad.RaViaCAD.applyPatch({
+      source: 'Rauchtest',
+      rooms: [{ id: 'room-lvl-xy-9', setpointTemperature: 21 }],
+    });
+
+    return {
+      raeume: cad.RaViaCAD.getSummary().rooms,
+      ersteUebernommen: erste.applied,
+      temperatur1: raum1?.setpointTemperature,
+      traegtFrueher: traegt,
+      zweiteUebernommen: zweite.applied,
+      temperatur2: raum2?.setpointTemperature,
+      fremdAbgelehnt: fremd.rejected,
+      fremdGrund: fremd.entries.find((e) => e.path.startsWith('rooms.room-lvl-xy-9'))?.reason ?? '',
+    };
+  });
+
+  expect('Nach dem Öffnen sind Räume da', lauf.raeume > 0, true);
+  expect('Die alte Kennung wird angenommen', lauf.ersteUebernommen > 0, true);
+  expect('Der Wert steht am richtigen Raum [°C]', lauf.temperatur1, 23);
+  expect('Die frühere Kennung steht in der Datei', lauf.traegtFrueher, true);
+  expect('Auch nach dem zweiten Öffnen angenommen', lauf.zweiteUebernommen > 0, true);
+  expect('Und wieder am richtigen Raum [°C]', lauf.temperatur2, 24);
+  expect('Eine fremde Kennung wird abgelehnt', lauf.fremdAbgelehnt > 0, true);
+  expect('Die Ablehnung sagt, was hier bekannt ist', lauf.fremdGrund.includes('Räume'), true);
 }
 
 console.log('\n▸ Gebäudescan aus RaVia Scan über die Nachrichtenbrücke (loadBuilding)');

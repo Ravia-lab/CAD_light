@@ -1,5 +1,5 @@
 af47e248dd81fdbe9395552e937adc8f7f623cea4196fe0cacb12751359eeca3  ./app/apple-touch-icon.png
-5a31267d620ac604c02a0c6f81d8fc949101b56b486bf8cdb0e61482e2affc3c  ./app/assets/index-CZNsIg-C.js
+f5bd60ff6b7b3e49cf40876ff10dd7221566da63a8289c5aa3b16da9a7bc9541  ./app/assets/index-BD7pv47n.js
 de1e4bc9e347a3e25cf09bddb0be94a7129f9a601d071ddca80a0823ec96079f  ./app/assets/index-DGv9FJFm.css
 be0276550393a72b94d673505567dceba801511d5e1ca5a87793190dc5d5a6ca  ./app/assets/inter-latin-300-normal-BVlfKGgI.woff2
 635cf706b3a3528c1617ce8edaa4e767489c1c61320a97b4aa649495ee49ac2a  ./app/assets/inter-latin-300-normal-i8F0SvXL.woff
@@ -18,11 +18,11 @@ a270dd0bf13d91053b8999b7c120ffadb59680cfd63fe1a6b388a13bf2809fe1  ./app/assets/j
 51a2dab734880652f2bf6023b912f763b97d7f337765452c9da5a55d4ee950b0  ./app/assets/pdf-C9f1iiyp.js
 1baa1844c89c80a5b2797c916e75ab29254be46d8e9cb53cb6364d7aad84be36  ./app/assets/pdf.worker.min-yatZIOMy.mjs
 e9e880845c7fc4067d3a1bde1652a979dc5d70441b8872f6439d198390d73962  ./app/assets/three-DXFdqfpg.js
-e449b8daf515fe5810b35e26824e3e12daab7ac08a2b65467493fdeb4e4356e9  ./app/assets/Viewer3D-LOK8j8W-.js
+e4fd7f7a33a2682f0478e0b2340af8982a6e2b0a3097d4df2ce7da3439351624  ./app/assets/Viewer3D-CvSdi45d.js
 9e5eed022397d9d8f4b426604149e579072e3f387d6314d36257baee13f6ed71  ./app/einbettung-beispiel.html
 4a0f23addf43f02ce45f84b008346e78a4ce19bd197247e522d9d35513ef3a51  ./app/einbettung-beispiel.js
-0aa0092dc8919f037ae325d5dbe7fa4c29bfd54343b868db75fb03f4a43d41e0  ./app/handbuch.html
-83ef425db751acaaab5dc4b9f9daf8cad91bcfad6e8c6c990d42006ebfa90ab3  ./app/index.html
+813f9dbb85cc0afb4771c0b45a823962d97047f5182e1e60f3e687dbf34ef841  ./app/handbuch.html
+821a9f3f4ceb4fcb90379319a2280662930fae400e0698ec93572c31485ced65  ./app/index.html
 f22327f9c318f39f6ac332f210e104640c734b6bf29dfaf3fa01c83baf5534ed  ./app/kachel-192.png
 71d62c3e81da5367194489148716ce797980c7e999c0c4318c845072ea80f922  ./app/kachel-512.png
 63210b04dc071b305b713b802efa05461492e7f85ca8735535958206f960cc73  ./app/manifest.webmanifest
@@ -39,4 +39,4 @@ b788c71c7d768dbeba50cdf7523bae986dc461928c9b5b1460208ed3c9340ab0  ./bin/pruefen.
 430a93195ab1daeb3f9ce356877ad9cec370091794d626e3d1332e509ded4a50  ./nginx/ravia-cad-light.conf
 eed35583a4fa2db239d77d37525751ae2d7ecd20bbf958635663c4d3d068ca73  ./nginx/ravia-cad.conf
 fd2207e25941e686aa775dfc0bd1d50095fc5ff5ac8de2a7d2abed495c47c459  ./SERVER-EINRICHTUNG.html
-c592559bd6fb0ef3692e0c530029f49c226178cbc1217c031399afdf43bd6d3f  ./VERSION
+5ef67a8b6e553afc48411e18d4c5b195fdbdbb06126a8b08aa56cecf3daf3d09  ./VERSION

@@ -64,6 +64,8 @@ import { pruefeSprache } from './pruefungen/sprache';
 import { pruefeDachlandschaft } from './pruefungen/dachlandschaft';
 import { pruefeRohrausleger, pruefeErzeugerSpeicherVerbraucher } from './pruefungen/rohrausleger';
 import { pruefeRohrnetzrechner } from './pruefungen/rohrnetzrechner';
+import { pruefeRohrnetzblaetter } from './pruefungen/rohrnetzblaetter';
+import { pruefeRaumkennungen } from './pruefungen/raumkennung';
 import { pruefeWissensbasis } from './pruefungen/wissensbasis';
 import { pruefeGeschossdecken } from './pruefungen/geschossdecken';
 import { pruefeTreppenlogik } from './pruefungen/treppenlogik';
@@ -725,7 +727,7 @@ console.log('\n▸ Export für die Heizlastberechnung');
   };
 
   const ex = buildRaviaExport(doc as never);
-  check('Schema-Version', ex.version, '2.4.0');
+  check('Schema-Version', ex.version, '2.5.0');
   check('Einheiten dokumentiert', ex.units.uValue, 'W/(m2K)');
 
   const room = ex.rooms.find((r) => r.polygon.some((p) => p.x < 4))!;
@@ -3873,6 +3875,8 @@ pruefeErzeugerSpeicherVerbraucher(check);
 
 console.log('\n▸ Rohrnetzrechner — kv, Voreinstellung, Teilstrecken, Blätter');
 pruefeRohrnetzrechner(check);
+pruefeRohrnetzblaetter(check);
+pruefeRaumkennungen(check);
 
 console.log('\n▸ Wissensbasis — Wortnormalisierung, Rangfusion, Korpus');
 pruefeWissensbasis(check);

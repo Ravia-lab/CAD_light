@@ -113,6 +113,13 @@ const RAUM_PFLICHT = [
 ] as const;
 
 const RAUM_WAHLFREI = [
+  /*
+   * Seit 2.5.0: die Kennungen, unter denen dieser Raum früher übergeben
+   * worden ist. Wahlfrei, weil der Normalfall ist, dass ein Raum immer so
+   * hieß — das Feld steht nur, wenn sich die Kennung beim Öffnen einer
+   * Projektdatei tatsächlich geändert hat.
+   */
+  'formerIds',
   'roof',
   /*
    * Die drei hier standen bis 1.28.0 in keiner Liste — dieser Block hat sie
@@ -384,7 +391,7 @@ export function pruefeExportvertrag(check: CheckFn): void {
 
   // === 1 — Kennung und Version ============================================
   check('Schemakennung', ex.schema, 'ravia.bim.light');
-  check('Fassung', ex.version, '2.4.0');
+  check('Fassung', ex.version, '2.5.0');
   check('Der Erzeuger steht im Dokument', ex.generator.length > 0, true);
   check('Und der Zeitpunkt', /^\d{4}-\d{2}-\d{2}T/.test(ex.exportedAt), true);
 
@@ -494,7 +501,7 @@ export function pruefeExportvertrag(check: CheckFn): void {
   const zurueck = JSON.parse(JSON.stringify(ex)) as RaviaExport;
   check('Die Wurzel übersteht die Datei', fehlende(zurueck, WURZEL_PFLICHT), '');
   check('… und bringt nichts Neues mit', unbekannte(zurueck, WURZEL_PFLICHT, WURZEL_WAHLFREI), '');
-  check('Die Fassung steht auch danach da', zurueck.version, '2.4.0');
+  check('Die Fassung steht auch danach da', zurueck.version, '2.5.0');
 
   // === 7 — Eine Hüllfläche, nicht zwei ====================================
   //

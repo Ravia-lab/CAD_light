@@ -490,11 +490,31 @@ export function TopBar({ onProjekte }: { onProjekte: () => void }) {
      * liest „3 Geschosse · 6 Räume", weiß auf einen Blick, ob sein Haus
      * vollständig herüberging; wer „1 Geschoss" liest, weiß es auch.
      */
-    const mitRaeumen = new Set(data.rooms.map((r) => r.level)).size;
+    const jeGeschoss = new Map<string, number>();
+    for (const r of data.rooms) jeGeschoss.set(r.level, (jeGeschoss.get(r.level) ?? 0) + 1);
+    /*
+     * **Und sie nennt sie einzeln.** „3 Geschosse · 6 Räume" beantwortet die
+     * Frage nur halb: Es sagt nicht, *welche* drei. Ein Haus mit Keller, Erd-
+     * und Obergeschoss, bei dem im Obergeschoss ein Wandzug offen steht,
+     * liefert „2 Geschosse" — und zwei ist eine Zahl, die man für richtig
+     * hält, wenn man nicht nachzählt. „KG 3 · EG 6" nicht.
+     */
+    const aufzaehlung = [...jeGeschoss].map(([name, n]) => `${name} ${n}`).join(' · ');
+    const umfang =
+      jeGeschoss.size === 0
+        ? 'kein Geschoss mit geschlossenen Räumen'
+        : `${aufzaehlung} · ${data.rooms.length} Räume · ${data.totals.netFloorArea.toFixed(2)} m² · ${data.totals.installedHeatingPower} W installiert`;
+    /*
+     * Der Umfang steht **auch dann** da, wenn die Prüfung Fehler meldet. Bis
+     * 1.57.0 verdrängte die Fehlermeldung ihn — also genau in dem Fall, in dem
+     * er gebraucht wird: Ein offener Wandzug ist ein Fehler *und* der Grund,
+     * warum ein Geschoss in der Datei fehlt. Wer nur „3 Fehler" liest, sucht
+     * an der falschen Stelle.
+     */
     setStatus(
       v.errors > 0
-        ? `Export erzeugt — aber ${v.errors} Fehler im Modell, siehe Prüfung`
-        : `Export: ${mitRaeumen} ${mitRaeumen === 1 ? 'Geschoss' : 'Geschosse'} · ${data.rooms.length} Räume · ${data.totals.netFloorArea.toFixed(2)} m² · ${data.totals.installedHeatingPower} W installiert`,
+        ? `Export: ${umfang} — dazu ${v.errors} ${v.errors === 1 ? 'Fehler' : 'Fehler'} im Modell, siehe Prüfung`
+        : `Export: ${umfang}`,
     );
   };
 

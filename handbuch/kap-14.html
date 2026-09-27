@@ -295,9 +295,9 @@
 <caption>Die Blätter des Rohrnetzberichts</caption>
 <thead><tr><th>Nr.</th><th>Blatt</th><th>Wofür</th></tr></thead>
 <tbody>
-<tr><td>1</td><td>Grundriss mit Rohrnetz</td><td>wo liegt was</td></tr>
-<tr><td>2</td><td>Anlagendaten und Nachweis</td><td>die sieben Pflichtangaben, jede mit Antwort oder offener Lücke</td></tr>
-<tr><td>3 …</td><td>Teilstrecken</td><td>die Rechnung, Zeile für Zeile nachvollziehbar</td></tr>
+<tr><td>1 …</td><td><b>Grundriss mit Rohrnetz — je Geschoss eines</b></td><td>wo liegt was; seit 1.58.0 ein Blatt für jedes Geschoss mit Wänden, von unten nach oben</td></tr>
+<tr><td>…</td><td>Anlagendaten und Nachweis</td><td>die sieben Pflichtangaben, jede mit Antwort oder offener Lücke</td></tr>
+<tr><td>…</td><td>Teilstrecken</td><td>die Rechnung, Zeile für Zeile nachvollziehbar</td></tr>
 <tr><td>…</td><td>Fließwege</td><td>Strangübersicht mit Kennzeichnung des Schlechtpunkts</td></tr>
 <tr><td>…</td><td><b>Erzeugerkreis und Pumpe</b></td><td>neu in 1.14.0 — woraus die Förderhöhe besteht</td></tr>
 <tr><td>…</td><td>Einstellwerte je Heizfläche</td><td>das Blatt, das mit an die Anlage geht</td></tr>
@@ -307,13 +307,17 @@
 
 <p>Die Tabellenblätter stehen <b>quer</b>. Das ist kein Geschmack: die Teilstreckentabelle führt sechzehn Spalten, und hochkant passt sie nicht. Der Blattfuß trägt auf jedem Blatt „Blatt <em>i</em>/<em>n</em> · RaVia CAD Light · Berechnung nach anerkannten Regeln der Technik, kein Ersatz für die Prüfung durch den Fachplaner", der Blattkopf Projektname, „Rohrnetzberechnung" und das Erstelldatum.</p>
 
-<h4 id="k14-4-3">14.4.3 Blatt 1 — Grundriss mit Rohrnetz</h4>
+<h4 id="k14-4-3">14.4.3 Die Grundrissblätter — eines je Geschoss</h4>
 
-<p>Dieses Blatt wird von derselben Funktion gebaut wie der normale Plandruck. Zwei Zeichenwege für denselben Grundriss wären genau der Fehler, den dieses Projekt schon zweimal gemacht hat: die zweite Kopie driftet, und niemand merkt es, bis ein Ausdruck anders aussieht als der Bildschirm.</p>
+<p>Bis 1.57.0 stand hier genau ein Blatt, und zwar das des <b>aktiven</b> Geschosses. In einem einstöckigen Haus fällt das nicht auf; in einem Haus mit Keller ist es der Bericht über eine Anlage, von der man zwei Drittel nicht sieht — und der Schlechtpunkt, um den es auf dem Blatt geht, liegt regelmäßig in dem Geschoss, das fehlt. Gemeldet wurde es am 27.09.2026 mit dem Satz „das zeigt nur 1 Etage".</p>
+
+<p>Seit 1.58.0 bekommt <b>jedes Geschoss, in dem eine Wand steht</b>, sein eigenes Blatt, von unten nach oben, und der Geschossname steht im Schriftfeld. Der Steigstrang verbindet die Geschosse; wer nur ein Blatt hat, sieht sein oberes Ende und weiß nicht, wo es herkommt. Der <b>Maßstab gilt für alle Blätter gemeinsam</b> — zwei Grundrisse desselben Hauses in verschiedenen Maßstäben nebeneinander sind der sicherste Weg, zwei Räume zu verwechseln. Die Kopfzeile des Fensters nennt die gezeichneten Geschosse, damit man vor dem Drucken sieht, was kommt.</p>
+
+<p>Diese Blätter werden von derselben Funktion gebaut wie der normale Plandruck. Zwei Zeichenwege für denselben Grundriss wären genau der Fehler, den dieses Projekt schon zweimal gemacht hat: die zweite Kopie driftet, und niemand merkt es, bis ein Ausdruck anders aussieht als der Bildschirm.</p>
 
 <p>Fest eingestellt sind hier: Raumstempel <b>an</b>, TGA-Symbole <b>an</b>, Legende <b>an</b>, Maßketten <b>aus</b>, Beschriftungen <b>aus</b>, Innenmaße <b>aus</b>, Öffnungsmaße <b>aus</b>. Der Grundriss soll das Rohrnetz zeigen, nicht das Aufmaß. Die Ausrichtung ist hochkant, während die Tabellenblätter quer stehen — der Druckdialog bekommt deshalb das größere der beiden Maße, und das kleinere Blatt wird darin zentriert. Ein zu großes Blattformat schneidet nichts ab.</p>
 
-<p>Passt der Grundriss nicht, meldet das Fenster: „Der Grundriss passt im Maßstab 1:50 nicht auf A4. Ab 1:65 passt er."</p>
+<p>Passt ein Geschoss nicht, nennt die Meldung es beim Namen: „Die Grundrisse KG, EG passen bei 1:50 nicht auf A4." Vorgeschlagen wird der kleinste Nenner, bei dem <b>alle</b> passen — nicht der, der für das letzte gezeichnete Blatt reicht.</p>
 
 <h4 id="k14-4-4">14.4.4 Blatt 2 — Anlagendaten und Nachweis</h4>
 
@@ -511,8 +515,8 @@
 <thead><tr><th>Einstellung</th><th>Auswahl</th><th>Vorgabe</th><th>Wirkung</th></tr></thead>
 <tbody>
 <tr><td>Format</td><td>A4 · A3</td><td>A4</td><td>Blattgröße aller Blätter</td></tr>
-<tr><td>Grundriss mitdrucken</td><td>ja / nein</td><td>ja</td><td>schaltet Blatt 1 ab, wenn nur die Rechnung gebraucht wird</td></tr>
-<tr><td>Maßstab des Grundrisses</td><td>1:50 · 1:100 · 1:200</td><td>1:50</td><td>nur für Blatt 1</td></tr>
+<tr><td>Grundriss mitdrucken</td><td>ja / nein</td><td>ja</td><td>schaltet die Grundrissblätter ab, wenn nur die Rechnung gebraucht wird</td></tr>
+<tr><td>Maßstab des Grundrisses</td><td>1:50 · 1:100 · 1:200</td><td>1:50</td><td>gilt für alle Grundrissblätter gemeinsam</td></tr>
 <tr><td>Auslegungsdruck am Thermostatventil</td><td>in kPa</td><td>10 kPa</td><td>Der Druck, den das Ventil im Auslegungspunkt vernichten soll. Er wirkt auf jede Voreinstellung, jede Autorität und auf die Förderhöhe. Der Bericht rechnet bei jeder Änderung sofort neu.</td></tr>
 </tbody>
 </table>

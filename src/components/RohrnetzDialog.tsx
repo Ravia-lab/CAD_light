@@ -77,6 +77,9 @@ export default function RohrnetzDialog({ onClose }: { onClose: () => void }) {
             <div className="text-[13px] font-semibold text-slate-100">Rohrnetzberechnung</div>
             <div className="text-[10.5px] text-slate-500">
               {bericht.teilstrecken.length} Teilstrecken · {bericht.heizflaechen.length} Heizflächen ·{' '}
+              {druck.planGeschosse.length > 1
+                ? `${druck.planGeschosse.length} Grundrisse (${druck.planGeschosse.join(', ')}) · `
+                : ''}
               {druck.sheets.length} Blätter
             </div>
           </div>
@@ -221,8 +224,16 @@ export default function RohrnetzDialog({ onClose }: { onClose: () => void }) {
 
                 {!druck.planFits && grundriss && (
                   <div className="rounded-lg bg-orange-500/10 px-2.5 py-2">
+                    {/*
+                      Welches Geschoss nicht passt, steht dabei. Bei einem Haus
+                      mit Keller, Erd- und Obergeschoss ist „der Grundriss passt
+                      nicht" die Auskunft, die man nicht gebrauchen kann: Man
+                      sieht drei Blätter und weiß nicht, welches gemeint ist.
+                    */}
                     <p className="text-[10.5px] leading-relaxed text-orange-300">
-                      Der Grundriss passt bei 1:{planScale} nicht auf {format}.
+                      {druck.planZuGross.length === 1
+                        ? `Der Grundriss ${druck.planZuGross[0]} passt bei 1:${planScale} nicht auf ${format}.`
+                        : `Die Grundrisse ${druck.planZuGross.join(', ')} passen bei 1:${planScale} nicht auf ${format}.`}
                     </p>
                     <button
                       className="chip mt-1.5 w-full bg-orange-400/15 text-orange-200"

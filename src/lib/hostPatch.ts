@@ -48,6 +48,7 @@ import type {
   ConstructionCategory,
   Fixture,
   FixtureParams,
+  Level,
   ProjectMeta,
   RadiatorConnection,
   Room,
@@ -276,6 +277,75 @@ export const PROTECTED_FIELDS: Record<string, string> = {
  * zurück kommt ein neues. Geändert wird nur, was sich wirklich ändert — die
  * Räume, die kein Eintrag betrifft, bleiben dieselben Objekte.
  */
+/**
+ * Raumsuche über frühere Kennungen.
+ *
+ * Gebaut wird der Index **einmal je Schreibvorgang** und nicht je Eintrag:
+ * Ein Rückweg mit fünfzehn Räumen liefe sonst fünfzehnmal über alle Räume des
+ * Dokuments. Eine laufende Kennung überschreibt hier nichts — sie wird vorher
+ * abgefragt.
+ */
+function raumIndex(rooms: Record<string, Room>): Map<string, Room> {
+  const index = new Map<string, Room>();
+  for (const raum of Object.values(rooms)) {
+    if (raum.raviaRoomId && !index.has(raum.raviaRoomId)) index.set(raum.raviaRoomId, raum);
+    for (const alt of raum.altKennungen ?? []) if (!index.has(alt)) index.set(alt, raum);
+  }
+  return index;
+}
+
+/**
+ * Die Auskunft, die einer abgelehnten Raumkennung folgt.
+ *
+ * **Warum das hier so ausführlich ist.** „Kein Raum mit der Kennung X" ist
+ * wahr und nutzlos: Der Mensch auf der anderen Seite sieht seine Räume und
+ * sieht hier Räume, und die Meldung sagt ihm nicht, welche der beiden Listen
+ * unvollständig ist. Genau das war am 27.09.2026 die Lage — im Protokoll
+ * standen zwölf Ablehnungen für Räume eines Geschosses, und die Frage, ob
+ * CAD Light das Geschoss verloren hat oder RaVia die übrigen, ließ sich aus
+ * der Meldung nicht beantworten.
+ *
+ * Deshalb steht jetzt dabei, **was hier bekannt ist**: wie viele Geschosse,
+ * wie viele Räume je Geschoss — und ob das Geschoss, auf das die abgelehnte
+ * Kennung zeigt, hier überhaupt existiert. Damit beantwortet die Meldung die
+ * Frage, statt sie aufzuwerfen.
+ */
+function raumAuskunft(rooms: Record<string, Room>, levels: Record<string, Level>, id: string): string {
+  const alle = Object.values(rooms);
+  const geschosse = Object.values(levels).sort((a, b) => a.order - b.order || a.elevation - b.elevation);
+  const jeGeschoss = geschosse
+    .map((l) => `${l.name} ${alle.filter((r) => r.levelId === l.id).length}`)
+    .join(', ');
+
+  // Die Kennung trägt ihr Geschoss: `room-<levelId>-<n>`. Das längste
+  // passende Geschoss gewinnt, sonst schluckt `eg` die Kennung `room-eg-og-1`.
+  let geschossDerKennung: string | undefined;
+  if (id.startsWith('room-')) {
+    const rest = id.slice('room-'.length);
+    for (const l of geschosse) {
+      if (!rest.startsWith(`${l.id}-`)) continue;
+      if (!geschossDerKennung || l.id.length > geschossDerKennung.length) geschossDerKennung = l.id;
+    }
+  }
+  const treffer = geschossDerKennung ? levels[geschossDerKennung] : undefined;
+
+  const bestand =
+    alle.length === 0
+      ? 'Hier ist noch kein Raum gezeichnet.'
+      : `Hier sind ${alle.length} Räume in ${geschosse.length} ${geschosse.length === 1 ? 'Geschoss' : 'Geschossen'} bekannt (${jeGeschoss}).`;
+
+  if (treffer) {
+    return (
+      `${bestand} Das Geschoss „${treffer.name}" gibt es, den Raum mit dieser Nummer nicht — er ist seit ` +
+      'der Übergabe neu erkannt worden. Ein neuer Export bringt beide Seiten wieder zusammen.'
+    );
+  }
+  return (
+    `${bestand} Zu dieser Kennung gehört hier kein Geschoss; sie stammt vermutlich aus einem anderen ` +
+    'Modell. Die Kennungen stehen im Export; Räume werden hier nicht angelegt, sondern gezeichnet.'
+  );
+}
+
 export function applyHostPatch(doc: BimDocument, patch: HostPatch, now: string): HostPatchResult {
   const entries: PatchEntry[] = [];
 
@@ -492,20 +562,36 @@ export function applyHostPatch(doc: BimDocument, patch: HostPatch, now: string):
     }
   }
 
-  // --- Räume ---------------------------------------------------------------
+  /*
+   * --- Räume ---------------------------------------------------------------
+   *
+   * **Der Nebeneingang für frühere Kennungen.** Beim Öffnen einer
+   * Projektdatei werden die Räume neu erkannt, und ihre Kennung kann sich
+   * dabei ändern (siehe `Room.altKennungen`). Die Gegenstelle hat aber die
+   * Kennung aus dem Export, unter der sie gerechnet hat. Gesucht wird deshalb
+   * in drei Stufen: die laufende Kennung, dann die Kennung in RaVia
+   * (`raviaRoomId`), dann eine frühere.
+   *
+   * Die Reihenfolge ist bedeutsam. Eine **laufende** Kennung gewinnt immer
+   * gegen eine frühere: Wenn ein anderer Raum inzwischen unter „room-eg-0"
+   * geführt wird, ist das der Raum, den dieser Name heute bezeichnet — und
+   * nicht der, der ihn einmal getragen hat.
+   */
+  const raumUeberKennung = raumIndex(rooms);
   for (const eintrag of patch.rooms ?? []) {
     const id = typeof eintrag?.id === 'string' ? eintrag.id : '';
     if (id === '') {
       entries.push(rejected('rooms', 'Raum', 'Der Eintrag nennt keine Raum-Kennung.'));
       continue;
     }
-    const bestand = rooms[id];
+    const gefunden = rooms[id] ?? raumUeberKennung.get(id);
+    const bestand = gefunden ? rooms[gefunden.id] : undefined;
     if (!bestand) {
       entries.push(
         rejected(
           `rooms.${id}`,
           'Raum',
-          `Kein Raum mit der Kennung „${id}". Die Kennungen stehen im Export; Räume werden hier nicht angelegt, sondern gezeichnet.`,
+          `Kein Raum mit der Kennung „${id}". ${raumAuskunft(rooms, doc.levels, id)}`,
         ),
       );
       continue;
@@ -571,7 +657,11 @@ export function applyHostPatch(doc: BimDocument, patch: HostPatch, now: string):
     }
 
     if (touched) {
-      rooms = { ...rooms, [id]: next };
+      // Abgelegt wird unter der **laufenden** Kennung des Raums, nicht unter
+      // der, unter der die Gegenstelle ihn angesprochen hat. Sonst stünde der
+      // Raum nach dem Rückweg zweimal im Dokument: einmal gezeichnet und
+      // einmal unter seinem alten Namen.
+      rooms = { ...rooms, [bestand.id]: next };
       changed = true;
     }
   }

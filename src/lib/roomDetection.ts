@@ -1375,6 +1375,20 @@ export function detectRooms(input: DetectRoomsInput): Room[] {
       // falsch — eine verschobene Innenwand macht die Heizlast des Nachbarraums
       // nicht ungültig, sie macht sie fraglich.
       normHeatLoad: inherited?.normHeatLoad,
+      /*
+       * **Die Kennungen überleben das Neuerkennen — beide.**
+       *
+       * `raviaRoomId` ist der Raum, den der Monteur in RaVia gewählt hat;
+       * `altKennungen` sind die Kennungen, unter denen dieser Raum schon
+       * einmal übergeben worden ist. Bis 1.57.0 standen sie nicht in dieser
+       * Liste und fielen damit bei jeder verschobenen Wand weg — still, denn
+       * am Bildschirm ändert sich nichts. Auffallen konnte es erst drüben:
+       * Die Gegenstelle schreibt unter einer Kennung zurück, die es hier
+       * nicht mehr gibt, und bekommt eine Ablehnung für einen Raum, der
+       * sichtbar dasteht.
+       */
+      raviaRoomId: inherited?.raviaRoomId,
+      altKennungen: inherited?.altKennungen,
       roof: roofMetrics,
     });
     probesByRoom.set(rooms[rooms.length - 1].id, probes);

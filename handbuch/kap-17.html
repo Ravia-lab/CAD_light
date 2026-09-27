@@ -2,7 +2,7 @@
 <h2 id="k17">17 · Schnittstellen: Export, IFC, Einbettung in RaVia</h2>
 <p class="lead">Alles, was dieses Programm tut, läuft auf eine Datei zu: die Übergabe an die Heizlastberechnung. Dieses Kapitel sagt, was in dieser Datei steht, welche anderen Wege es daneben gibt — IFC4 hin und zurück, Einbettung in RaVia, der Rückweg von dort — und was der Betrieb davon merkt.</p>
 
-<h3 id="k17-1">17.1 Der Export <code>ravia.bim.light</code> 2.4.0</h3>
+<h3 id="k17-1">17.1 Der Export <code>ravia.bim.light</code> 2.5.0</h3>
 
 <p class="wo">Im Programm: Werkzeugleiste oben rechts → blauer Knopf <b>RaVia JSON</b>. Der Knopf trägt den Hinweis „Gebäudedaten als RaVia-BIM-JSON exportieren (DIN EN 12831) — dient zugleich als Projektdatei".</p>
 
@@ -343,7 +343,17 @@
 <li><code>envelope.withoutUValue</code> — <b>wie viele Flächen ohne brauchbaren U-Wert</b> in die Bilanz eingegangen sind. Steht dort etwas anderes als 0, ist die Bilanz unvollständig, und man sieht es. Siehe <a href="#k17-1-8">Abschnitt 17.1.8</a>.</li>
 </ul>
 
-<div class="merke"><b>Merke</b><p>Alle vier Schritte sind <b>additiv</b>. Eine Gegenstelle, die gegen 2.0.0 gebaut hat, liest eine 2.4.0-Datei ohne Änderung und rechnet dasselbe wie vorher. Sie bekommt nur weniger Auskunft.</p></div>
+<p><b>2.5.0</b> brachte gegenüber 2.4.0 ein Feld am Raum:</p>
+
+<ul>
+<li><code>formerIds</code> — die <b>Kennungen, unter denen derselbe Raum früher übergeben</b> worden ist. Das Feld steht nur, wenn es etwas zu sagen hat: Der Normalfall ist, dass ein Raum immer so hieß.</li>
+</ul>
+
+<p>Der Anlass war eine Ablehnung, die niemand erklären konnte. RaVia schrieb eine gerechnete Heizlast unter <code>room-lvl-kg-1</code> zurück, und CAD Light antwortete „Kein Raum mit der Kennung …" — für einen Raum, der unverändert auf dem Bildschirm stand. Die Ursache liegt in einer Eigenschaft, die dieses Programm bewusst behält: <b>Räume werden nicht gespeichert, sie werden erkannt.</b> Aus den Wänden entsteht bei jedem Öffnen einer Projektdatei ein frischer Satz Räume, und die Kennung entsteht dabei aus der Erkennungsreihenfolge. Die gespeicherten Angaben — Name, Nutzung, Solltemperatur, Heizlast — finden über die Geometrie zurück; die Kennung hat keine Geometrie, an der sie sich festhalten könnte.</p>
+
+<p>Für den Bildschirm ist das gleichgültig, für die Gegenstelle nicht. Deshalb merkt sich der Raum jetzt die Kennung, unter der er schon einmal übergeben worden ist, gibt sie im Export mit, und <code>applyPatch</code> nimmt beide entgegen — die laufende und die frühere. Die <b>laufende gewinnt</b>: Wenn ein anderer Raum heute unter <code>room-eg-0</code> geführt wird, ist das der Raum, den dieser Name jetzt bezeichnet.</p>
+
+<div class="merke"><b>Merke</b><p>Alle fünf Schritte sind <b>additiv</b>. Eine Gegenstelle, die gegen 2.0.0 gebaut hat, liest eine 2.5.0-Datei ohne Änderung und rechnet dasselbe wie vorher. Sie bekommt nur weniger Auskunft.</p></div>
 
 <h4 id="k17-1-7">17.1.7 Der Wächter über dem Format</h4>
 

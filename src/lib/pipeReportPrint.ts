@@ -322,10 +322,14 @@ export interface RohrnetzDruckErgebnis {
   sheet: { w: number; h: number };
   /** Maße des Grundrissblatts, falls es abweicht. */
   planSheet?: { w: number; h: number };
-  /** Passt der Grundriss im gewählten Maßstab aufs Blatt? */
+  /** Passt **jeder** Grundriss im gewählten Maßstab aufs Blatt? */
   planFits: boolean;
-  /** Kleinster Maßstabsnenner, bei dem er passen würde. */
+  /** Kleinster Maßstabsnenner, bei dem alle passen würden. */
   planSuggestedScale: number;
+  /** Namen der Geschosse, die im gewählten Maßstab nicht passen. */
+  planZuGross: string[];
+  /** Die gezeichneten Geschosse, von unten nach oben. */
+  planGeschosse: string[];
   notes: string[];
 }
 
@@ -338,6 +342,23 @@ export interface RohrnetzDruckErgebnis {
  * zweimal gemacht hat: die zweite Kopie driftet, und niemand merkt es, bis
  * ein Ausdruck anders aussieht als der Bildschirm.
  */
+/**
+ * Die Geschosse, für die ein Grundriss gezeichnet wird — von unten nach oben.
+ *
+ * Maßgeblich ist, ob dort eine Wand steht: Ein angelegtes, aber leeres
+ * Geschoss ergäbe ein weißes Blatt mit Schriftkopf, und das liest sich wie
+ * ein verlorengegangener Plan. Steht nirgends eine Wand, bleibt es beim
+ * aktiven Geschoss — dann ist das leere Blatt die richtige Auskunft, weil es
+ * sonst gar keine gäbe.
+ */
+function geschosseMitWaenden(doc: BimDocument, aktiv: string) {
+  const alle = Object.values(doc.levels).sort((a, b) => a.order - b.order || a.elevation - b.elevation);
+  const mitWand = alle.filter((l) => Object.values(doc.walls).some((w) => w.levelId === l.id));
+  if (mitWand.length) return mitWand;
+  const dieses = doc.levels[aktiv];
+  return dieses ? [dieses] : alle.slice(0, 1);
+}
+
 export function buildPipeReportSheets(
   doc: BimDocument,
   bericht: RohrnetzBericht,
@@ -348,42 +369,91 @@ export function buildPipeReportSheets(
   const notes: string[] = [];
   const sheets: string[] = [];
 
-  // --- Blatt 1: Grundriss mit Rohrnetz -------------------------------------
+  /*
+   * --- Blatt 1 ff.: Grundriss mit Rohrnetz, **je Geschoss** -----------------
+   *
+   * Bis 1.57.0 stand hier genau ein Blatt, und zwar das des *aktiven*
+   * Geschosses (`bericht.levelId`). In einem einstöckigen Haus fällt das
+   * nicht auf; in einem Haus mit Keller ist es der Bericht über eine Anlage,
+   * von der man zwei Drittel nicht sieht — und der Schlechtpunkt liegt
+   * regelmäßig in dem Geschoss, das fehlt. Gemeldet am 27.09.2026: „das
+   * zeigt nur 1 Etage".
+   *
+   * Gezeichnet wird jedes Geschoss, in dem eine Wand steht, von unten nach
+   * oben. Der Steigstrang verbindet sie; wer nur ein Blatt hat, sieht sein
+   * oberes Ende und weiß nicht, wo es herkommt.
+   *
+   * Der Maßstab gilt für **alle** Blätter gemeinsam — dieselbe Regel wie in
+   * der Projektmappe (`grundrissBlaetter`). Zwei Grundrisse desselben Hauses
+   * in verschiedenen Maßstäben nebeneinander sind der sicherste Weg, zwei
+   * Räume zu verwechseln.
+   */
   let planFits = true;
   let planSuggestedScale = optionen.planScale ?? 50;
   let planSheet: { w: number; h: number } | undefined;
+  const planZuGross: string[] = [];
+  const planGeschosse: string[] = [];
   if (optionen.grundriss !== false) {
-    const plan = buildPlanSvg(doc, {
-      scale: optionen.planScale ?? 50,
-      format,
-      orientation: optionen.planOrientation ?? 'portrait',
-      levelId: bericht.levelId,
-      showRoomLabels: true,
-      showDimensions: false,
-      showFixtures: true,
-      showAnnotations: false,
-      showInteriorDimensions: false,
-      showLegend: true,
-      showOpeningDimensions: false,
-      title: `${bericht.titel} — Rohrnetz`,
-    });
-    sheets.push(plan.svg);
-    planFits = plan.fits;
-    planSuggestedScale = plan.suggestedScale;
-    planSheet = plan.sheet;
-    if (!plan.fits) {
+    const wunsch = optionen.planScale ?? 50;
+    const geschosse = geschosseMitWaenden(doc, bericht.levelId);
+    for (const level of geschosse) {
+      const plan = buildPlanSvg(doc, {
+        scale: wunsch,
+        format,
+        orientation: optionen.planOrientation ?? 'portrait',
+        levelId: level.id,
+        showRoomLabels: true,
+        showDimensions: false,
+        showFixtures: true,
+        showAnnotations: false,
+        showInteriorDimensions: false,
+        showLegend: true,
+        showOpeningDimensions: false,
+        // Der Geschossname gehört auf das Blatt: Ein Stapel Grundrisse ohne
+        // ihn ist ein Stapel Grundrisse, und auf dem Bau liegt er lose.
+        title:
+          geschosse.length > 1
+            ? `${bericht.titel} — Rohrnetz ${level.name}`
+            : `${bericht.titel} — Rohrnetz`,
+      });
+      sheets.push(plan.svg);
+      planGeschosse.push(level.name);
+      planSheet = plan.sheet;
+      if (!plan.fits) {
+        planFits = false;
+        planZuGross.push(level.name);
+      }
+      // Der größte nötige Nenner gewinnt — sonst passt das Blatt, für das er
+      // gerechnet wurde, und das daneben nicht.
+      planSuggestedScale = Math.max(planSuggestedScale, plan.suggestedScale);
+    }
+    if (planZuGross.length) {
       notes.push(
-        `Der Grundriss passt im Maßstab 1:${optionen.planScale ?? 50} nicht auf ${format}. ` +
-          `Ab 1:${plan.suggestedScale} passt er.`,
+        `${planZuGross.length === 1 ? 'Der Grundriss' : 'Die Grundrisse'} ` +
+          `${planZuGross.join(', ')} ${planZuGross.length === 1 ? 'passt' : 'passen'} im Maßstab ` +
+          `1:${wunsch} nicht auf ${format}. Ab 1:${planSuggestedScale} ${planZuGross.length === 1 ? 'passt er' : 'passen sie'}.`,
       );
     }
   }
 
-  // 5 feste Blätter (Grundriss, Deckblatt, Strangübersicht, Erzeugerkreis,
-  // Quellen) plus die umbrochenen Tabellen. Seit 1.14.0 ist der Erzeugerkreis
-  // dabei — die Zahl im Blattfuß muss mitwachsen, sonst steht auf dem letzten
-  // Blatt „Blatt 7/6".
-  const gesamtVorschau = 6 + Math.ceil(bericht.teilstrecken.length / 55) + Math.ceil(bericht.heizflaechen.length / 55);
+  /*
+   * Die Blattzahl im Fuß — **gerechnet, nicht geschätzt.**
+   *
+   * Sie muss vor dem ersten Blatt feststehen, weil jedes Blatt sie trägt.
+   * Bis 1.57.0 stand hier eine feste 6 und ein Nenner von 55 Zeilen; das
+   * ergab bei einem Bericht mit sieben Blättern „Blatt 1/8". Jetzt stehen
+   * dieselben Größen darin, mit denen die Blätter danach tatsächlich
+   * umbrochen werden: die gezeichneten Grundrisse (`sheets.length` ist an
+   * dieser Stelle genau ihre Zahl), vier feste Blätter — Deckblatt,
+   * Strangübersicht, Erzeugerkreis, Quellen — und die beiden Tabellen, die
+   * auch leer je ein Blatt bekommen.
+   */
+  const proBlatt = Math.max(10, Math.floor((m.feld.h - 26) / ZEILE));
+  const gesamtVorschau =
+    sheets.length +
+    4 +
+    Math.max(1, Math.ceil(bericht.teilstrecken.length / proBlatt)) +
+    Math.max(1, Math.ceil(bericht.heizflaechen.length / proBlatt));
   const kopf = `${bericht.titel} · Rohrnetzberechnung · ${bericht.erstellt}`;
   const fuss = (i: number) =>
     `Blatt ${i}/${gesamtVorschau} · RaVia CAD Light · Berechnung nach anerkannten Regeln der Technik, ` +
@@ -393,7 +463,6 @@ export function buildPipeReportSheets(
   sheets.push(blatt(m, deckblatt(m, bericht), kopf, fuss(sheets.length + 1)));
 
   // --- Teilstreckenblätter --------------------------------------------------
-  const proBlatt = Math.max(10, Math.floor((m.feld.h - 26) / ZEILE));
   for (let i = 0; i < bericht.teilstrecken.length; i += proBlatt) {
     const teil = bericht.teilstrecken.slice(i, i + proBlatt);
     sheets.push(
@@ -430,7 +499,7 @@ export function buildPipeReportSheets(
   // --- Quellen und Hinweise -------------------------------------------------
   sheets.push(blatt(m, quellenBlatt(m, bericht), kopf, fuss(sheets.length + 1)));
 
-  return { sheets, sheet: m.sheet, planSheet, planFits, planSuggestedScale, notes };
+  return { sheets, sheet: m.sheet, planSheet, planFits, planSuggestedScale, planZuGross, planGeschosse, notes };
 }
 
 // ---------------------------------------------------------------------------

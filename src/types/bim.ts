@@ -376,6 +376,25 @@ export interface Room {
    * ein zweiter Scan denselben Raum, ohne über Namen zu raten.
    */
   raviaRoomId?: string;
+  /**
+   * Kennungen, unter denen dieser Raum früher schon einmal übergeben worden
+   * ist — und unter denen die Gegenstelle ihn deshalb noch führt.
+   *
+   * **Wozu.** Beim Öffnen einer Projektdatei werden die Räume aus den Wänden
+   * neu erkannt. Die Kennung fällt dabei aus der Erkennungsreihenfolge und
+   * kann sich ändern; die gespeicherten Angaben finden über die Geometrie
+   * zurück (siehe `raumZuordnung.ts`), die Kennung nicht. RaVia hat
+   * inzwischen eine Heizlast gerechnet und schreibt sie unter der Kennung
+   * zurück, die im Export stand — und trifft ins Leere: „Kein Raum mit der
+   * Kennung room-lvl-kg-1". Gemeldet am 27.09.2026 aus dem Protokoll.
+   *
+   * Hier steht deshalb die Kennung aus der Datei, wenn sie von der neu
+   * vergebenen abweicht. Der Rückweg löst darüber auf. Umbenannt wird
+   * nichts: Die Raumkennung hängt an Dutzenden Verweisen im Dokument, und
+   * eine Umbenennung, die einen davon vergisst, ist stiller als das Problem,
+   * das sie löst.
+   */
+  altKennungen?: string[];
   name: string;
   usage: RoomUsage;
   levelId: LevelId;
@@ -3130,6 +3149,24 @@ export interface ExportFixture {
 export interface ExportRoom {
   id: string;
   /**
+   * Kennungen, unter denen dieser Raum in einem früheren Export stand.
+   *
+   * **Warum es das Feld gibt.** Die Kennung eines Raums entsteht bei der
+   * Raumerkennung aus den Wänden. Beim Öffnen einer Projektdatei werden die
+   * Räume neu erkannt, und die Kennung kann sich dabei ändern — der Raum ist
+   * derselbe, er heißt nur anders. Die Gegenstelle hat aber die alte
+   * Kennung: unter ihr hat sie gerechnet, unter ihr schreibt sie zurück.
+   *
+   * Hier steht deshalb, unter welchen Kennungen derselbe Raum früher schon
+   * übergeben worden ist. Wer die Kennungen als Schlüssel führt, kann seine
+   * eigenen darüber nachziehen; wer das Feld nicht liest, merkt nichts davon.
+   * `applyPatch` nimmt auf der Rückseite beide entgegen — aktuelle und
+   * frühere —, und die aktuelle gewinnt.
+   *
+   * Leer oder weggelassen heißt: Dieser Raum hieß immer so.
+   */
+  formerIds?: string[];
+  /**
    * Prüfsumme über die heizlastrelevanten Größen dieses Raums.
    *
    * Sie beantwortet der Gegenstelle eine einzige Frage: *Ist die Heizlast,
@@ -3906,6 +3943,14 @@ export interface RaviaExport {
    * stehen weiterhin unverändert; eine Gegenstelle, die 2.0.0 oder 2.1.0
    * liest, rechnet ohne Änderung weiter.
    *
+   * **2.5.0** ergänzt `formerIds` an jedem Raum: die Kennungen, unter denen
+   * derselbe Raum früher übergeben worden ist. Reiner Zuwachs. Der Anlass war
+   * eine Ablehnung, die niemand erklären konnte — RaVia schrieb eine
+   * gerechnete Heizlast unter „room-lvl-kg-1" zurück, und CAD Light kannte
+   * den Raum nicht mehr unter diesem Namen, obwohl er unverändert dastand
+   * (27.09.2026). Wer das Feld nicht liest, bleibt bei 2.4.0-Verhalten; wer
+   * es liest, kann seine Schlüssel nachziehen.
+   *
    * **2.4.0** ergänzt die Bilanz um `withoutUValue`: wie viele Flächen ohne
    * brauchbaren U-Wert eingegangen sind. Reiner Zuwachs — wer das Feld nicht
    * liest, merkt nichts davon; wer es liest, erkennt eine unvollständige
@@ -3917,7 +3962,7 @@ export interface RaviaExport {
    * nichts; wer prüfen will, ob Boden, Decke und Dach angekommen sind, hat
    * jetzt eine Zahl statt einer Liste (Punkt 13).
    */
-  version: '2.4.0';
+  version: '2.5.0';
   generator: string;
   exportedAt: string;
   /** Einheiten explizit im Dokument — keine Konvention, die verloren gehen kann. */

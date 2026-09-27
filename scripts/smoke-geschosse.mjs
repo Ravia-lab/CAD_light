@@ -182,6 +182,50 @@ console.log('\n▸ Steigleitung: Wärmepumpe und Speicher im KG, Heizkörper dar
   await p.locator('main canvas').first().screenshot({ path: './screenshots/geschosse-steigleitung.png' });
 }
 
+console.log('\n▸ Der Rohrnetzbericht zeigt alle Geschosse');
+{
+  /*
+   * Gemeldet am 27.09.2026: „das liegt bei der Rohrnetzberechnung, das zeigt
+   * nur 1 Etage". Bis 1.57.0 zeichnete der Bericht genau einen Grundriss,
+   * und zwar den des aktiven Geschosses — in einem Haus mit Keller also den
+   * Bericht über eine Anlage, von der man zwei Drittel nicht sieht.
+   *
+   * Geprüft wird am fertigen Dialog: Die Kopfzeile nennt die gezeichneten
+   * Geschosse, und die ersten drei Blätter sind drei verschiedene
+   * Zeichnungen, jede mit ihrem Geschossnamen im Schriftfeld.
+   */
+  await p.getByTitle(/Rohrnetzberechnung/).first().click();
+  await p.waitForTimeout(2000);
+  const kopf = await p.evaluate(() => {
+    const el = Array.from(document.querySelectorAll('.panel .text-\\[10\\.5px\\]'))
+      .find((x) => /Teilstrecken/.test(x.textContent ?? ''));
+    return el?.textContent ?? '';
+  });
+  console.log(`  · ${kopf}`);
+  expect('Die Kopfzeile nennt drei Grundrisse', /3 Grundrisse \(KG, EG, OG\)/.test(kopf), true);
+
+  const blattText = async () =>
+    await p.evaluate(() => {
+      const svg = document.querySelector('.panel .flex-1 svg');
+      return svg ? Array.from(svg.querySelectorAll('text')).map((t) => t.textContent).join(' | ') : '';
+    });
+  const namen = [];
+  for (let i = 0; i < 3; i++) {
+    namen.push(await blattText());
+    if (i < 2) {
+      await p.getByText('weiter ▶').click();
+      await p.waitForTimeout(700);
+    }
+  }
+  expect('Blatt 1 ist der Keller', /Rohrnetz KG/.test(namen[0]), true);
+  expect('Blatt 2 ist das Erdgeschoss', /Rohrnetz EG/.test(namen[1]), true);
+  expect('Blatt 3 ist das Obergeschoss', /Rohrnetz OG/.test(namen[2]), true);
+  expect('Drei verschiedene Zeichnungen', new Set(namen).size, 3);
+
+  await p.locator('.panel button[title="Schließen"]').first().click();
+  await p.waitForTimeout(400);
+}
+
 /*
  * ▸ Die Treppe steigen — und dabei das Geschoss wechseln.
  *

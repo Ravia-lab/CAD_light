@@ -6171,8 +6171,34 @@ export const useBimStore = create<BimState>()((set, get) => {
       savedRooms.forEach((saved, i) => {
         const match = treffer[i];
         if (!match) return;
+        /*
+         * **Die Kennung aus der Datei bleibt am Raum hängen.**
+         *
+         * Die Räume werden beim Öffnen neu erkannt; ihre Kennung fällt dabei
+         * aus der Erkennungsreihenfolge und kann von der gespeicherten
+         * abweichen. Die *Angaben* finden über die Geometrie zurück — die
+         * Kennung nicht. RaVia hat aber genau sie: sie stand im Export, unter
+         * ihr rechnet RaVia die Heizlast, und unter ihr schreibt RaVia sie
+         * zurück. Bis 1.57.0 lief das ins Leere, mit der Meldung „Kein Raum
+         * mit der Kennung room-lvl-kg-1" für einen Raum, der auf dem
+         * Bildschirm steht. Gemeldet am 27.09.2026.
+         *
+         * Umbenannt wird deshalb **nicht** — die Raumkennung hängt an
+         * Heizkörpern, Dachzuordnungen, Schächten, Speichern und Heizkreisen,
+         * und eine Umbenennung, die einen dieser Verweise vergisst, ist
+         * stiller als der Fehler, den sie behebt. Stattdessen merkt sich der
+         * Raum die alte Kennung, und der Rückweg löst darüber auf.
+         */
+        const frueher = [
+          ...(Array.isArray(saved.formerIds) ? (saved.formerIds as unknown[]) : []),
+          saved.id,
+        ].filter((x): x is string => typeof x === 'string' && x !== '' && x !== match.id);
+        const altKennungen = frueher.length
+          ? [...new Set([...(match.altKennungen ?? []), ...frueher])]
+          : match.altKennungen;
         fresh.rooms[match.id] = {
           ...match,
+          altKennungen,
           name: (saved.name as string) ?? match.name,
           usage: (saved.usage as Room['usage']) ?? match.usage,
           setpointTemperature: (saved.setpointTemperature as number) ?? match.setpointTemperature,

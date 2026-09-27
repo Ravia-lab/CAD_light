@@ -207,7 +207,7 @@ export function buildRaviaExport(doc: BimDocument): RaviaExport {
     // 2.3.0: Hüllflächenbilanz je Raum und für das Gebäude (`envelope`).
     // 2.4.0: `envelope.withoutUValue` — wie viele Flächen ohne brauchbaren
     //        U-Wert in die Bilanz gingen. Reiner Zuwachs.
-    version: '2.4.0',
+    version: '2.5.0',
     generator: GENERATOR,
     exportedAt: new Date().toISOString(),
     units: {
@@ -1571,6 +1571,9 @@ function buildRoom(
 
   return {
     id: room.id,
+    // Frühere Kennungen nur, wenn es welche gibt: ein leeres Feld an jedem
+    // Raum wäre Rauschen in einer Datei, die ohnehin groß genug ist.
+    ...(room.altKennungen?.length ? { formerIds: [...room.altKennungen] } : {}),
     // Steht hier nur, damit der Typ vollständig ist; gebildet wird sie eine
     // Ebene höher über den fertigen Raum. Siehe `raumPruefsumme`.
     checksum: '',
