@@ -122,6 +122,7 @@ import { sammleVerlegekurven, verlegelinien, type Verlegelinie } from '../lib/fu
 import { kompassRose } from '../lib/kompass';
 import { DEFAULT_SLAB, levelBaseHeights } from '../lib/levelGeometry';
 import { bodenloecher, groundSlab, holeFitsOutline, levelSlabs, topSlab, type SlabPlan } from '../lib/slabGeometry';
+import { ARBEITSRAUM, baugrube, type Baugrube } from '../lib/baugrube';
 import { treppenmasse } from '../lib/treppenlogik';
 import { brauchtSchutzbereich } from '../lib/kaeltemittel';
 import { useBimStore } from '../store/useBimStore';
@@ -1341,6 +1342,27 @@ function buildGeometry(input: BuildInput): BuiltGeometry {
  * eine negative Höhe und ist damit von oben nicht zu sehen, von der Seite aber
  * schon — das ist bei einer Erdsonde die interessantere Ansicht.
  */
+/**
+ * Die vier Schnittebenen der Baugrube.
+ *
+ * Sie werden an den Werkstoff der Geländeflächen gehängt und dort mit
+ * `clipIntersection = true` ausgewertet: Ein Punkt verschwindet nur, wenn
+ * **alle vier** ihn wegschneiden — und das ist genau der Bereich *innerhalb*
+ * des Rechtecks. Mit der Voreinstellung `false` wäre es umgekehrt: dann
+ * bliebe nur die Grube stehen und der Rest des Grundstücks verschwände.
+ *
+ * Die Abbildung ist die des übrigen Modells: Modell-x auf x, Modell-y auf
+ * **−z**. Deshalb tauschen die beiden y-Ebenen ihr Vorzeichen.
+ */
+function grubenEbenen(g: Baugrube): THREE.Plane[] {
+  return [
+    new THREE.Plane(new THREE.Vector3(-1, 0, 0), g.minX),
+    new THREE.Plane(new THREE.Vector3(1, 0, 0), -g.maxX),
+    new THREE.Plane(new THREE.Vector3(0, 0, 1), g.minY),
+    new THREE.Plane(new THREE.Vector3(0, 0, -1), -g.maxY),
+  ];
+}
+
 function buildSite(
   site: SitePlan | undefined,
   /**
@@ -1359,11 +1381,18 @@ function buildSite(
    * nicht unterkellerte Regelfall und keine Annahme.
    */
   gelaende: number,
+  /**
+   * Die geöffnete Baugrube — oder `undefined`, wenn der Boden geschlossen
+   * bleibt. Siehe `lib/baugrube.ts`: Sie ist offen, sobald im Bild nur noch
+   * Geschosse unter Gelände stehen.
+   */
+  grube: Baugrube | undefined,
 ): THREE.Group | null {
   if (!site) return null;
   const elements = Object.values(site.elements ?? {});
   const pumps = Object.values(site.pumps ?? {});
   if (!elements.length && !pumps.length) return null;
+  const schnitt = grube ? grubenEbenen(grube) : null;
 
   const group = new THREE.Group();
   // Die ganze Außenanlage hängt an der Geländeoberkante. Die Höhen der
@@ -1381,9 +1410,34 @@ function buildSite(
      * um Aufmerksamkeit ringt. Es liegt tiefer als jede gepflasterte
      * Fläche, damit Zufahrt und Terrasse darauf sichtbar bleiben.
      */
-    lawn: new THREE.MeshStandardMaterial({ color: 0x4a6b3d, roughness: 1, metalness: 0 }),
+    lawn: new THREE.MeshStandardMaterial({
+      color: 0x4a6b3d,
+      roughness: 1,
+      metalness: 0,
+      // Aushub: Wo die Baugrube steht, ist kein Rasen mehr.
+      ...(schnitt ? { clippingPlanes: schnitt, clipIntersection: true } : {}),
+    }),
+    /**
+     * Das angeschnittene Erdreich — die Böschung der Baugrube.
+     *
+     * `BackSide`, und das ist der ganze Trick: Gezeichnet werden nur die
+     * **Innenflächen** des Erdkörpers. Die Wand zwischen Kamera und Grube
+     * fällt damit weg, man schaut hinein; die gegenüberliegende bleibt
+     * stehen und gibt der Grube einen Hintergrund. Ein Quader mit
+     * `FrontSide` wäre ein brauner Klotz vor dem Keller.
+     */
+    erdreich: new THREE.MeshStandardMaterial({
+      color: 0x8a7254,
+      roughness: 1,
+      metalness: 0,
+      side: THREE.BackSide,
+    }),
     neighbour: new THREE.MeshStandardMaterial({ color: 0x7c8598, roughness: 0.95 }),
-    paved: new THREE.MeshStandardMaterial({ color: 0x5b6472, roughness: 1 }),
+    paved: new THREE.MeshStandardMaterial({
+      color: 0x5b6472,
+      roughness: 1,
+      ...(schnitt ? { clippingPlanes: schnitt, clipIntersection: true } : {}),
+    }),
     collector: new THREE.MeshStandardMaterial({
       color: 0x2dd4bf,
       roughness: 0.9,
@@ -1431,6 +1485,35 @@ function buildSite(
     mesh.rotation.x = -Math.PI / 2;
     mesh.position.y = height;
   };
+
+  /*
+   * Der Aushub.
+   *
+   * Der Rasen bekommt sein Loch über die Schnittebenen; damit wäre das
+   * Grundstück aber ein Blatt Papier mit einem Loch darin. Der Erdkörper
+   * gibt dem Loch eine Tiefe: vier angeschnittene Wände und die
+   * Grubensohle, von der Geländeoberkante bis unter die Bodenplatte.
+   *
+   * Er hängt in derselben Gruppe und damit an der Geländeoberkante — seine
+   * Oberkante liegt deshalb auf y = 0, nicht auf `grube.gelaende`.
+   */
+  if (grube) {
+    const tiefe = grube.gelaende - grube.sohle;
+    if (tiefe > 0.01) {
+      const koerper = new THREE.Mesh(
+        new THREE.BoxGeometry(grube.maxX - grube.minX, tiefe, grube.maxY - grube.minY),
+        mat.erdreich,
+      );
+      koerper.position.set(
+        (grube.minX + grube.maxX) / 2,
+        -tiefe / 2,
+        -(grube.minY + grube.maxY) / 2,
+      );
+      koerper.receiveShadow = true;
+      koerper.userData = { art: 'baugrube' };
+      group.add(koerper);
+    }
+  }
 
   for (const element of elements) {
     const pts = element.points;
@@ -2047,6 +2130,23 @@ export default function Viewer3D({ className = '' }: { className?: string }) {
   const geschossHoehen = useMemo(() => levelBaseHeights(Object.values(doc.levels)), [doc.levels]);
 
   /**
+   * Die Baugrube — offen, sobald im Bild nur noch Geschosse unter Gelände
+   * stehen. Entschieden wird das im Kern (`lib/baugrube.ts`), damit der
+   * Prüfblock dieselbe Regel sieht wie die Zeichnung.
+   */
+  const grube = useMemo(
+    () =>
+      baugrube({
+        levels: Object.values(doc.levels).filter((l) => imBild(l.id)),
+        walls,
+        nodes: doc.nodes,
+        base: geschossHoehen,
+        gelaende: doc.meta.terrainElevation,
+      }),
+    [doc.levels, walls, doc.nodes, geschossHoehen, doc.meta.terrainElevation, imBild],
+  );
+
+  /**
    * Die Griffe des ausgewählten Bauteils — als Beschreibung, nicht als Netz.
    *
    * Sie entstehen aus `griffeFuer` und damit aus derselben Quelle, die auch
@@ -2114,6 +2214,13 @@ export default function Viewer3D({ className = '' }: { className?: string }) {
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    /*
+     * Örtliche Schnittebenen — gebraucht für die **Baugrube** (siehe
+     * `lib/baugrube.ts`). Nur mit diesem Schalter beachtet three.js die
+     * `clippingPlanes` an einem einzelnen Werkstoff; ohne ihn bleibt der
+     * Rasen geschlossen und niemand sieht, woran es liegt.
+     */
+    renderer.localClippingEnabled = true;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
     renderer.toneMappingExposure = 1.05;
     renderer.outputColorSpace = THREE.SRGBColorSpace;
@@ -2482,7 +2589,7 @@ export default function Viewer3D({ className = '' }: { className?: string }) {
     // Das Gelände hängt in derselben Gruppe wie das Gebäude und wird beim
     // nächsten Neuaufbau mit ihr freigegeben.
     if (showSite) {
-      const siteGroup = buildSite(site, doc.meta.terrainElevation ?? 0);
+      const siteGroup = buildSite(site, doc.meta.terrainElevation ?? 0, grube);
       if (siteGroup) {
         content.add(siteGroup);
         // Die Einpassung soll das Grundstück mitnehmen — sonst steht die
@@ -2558,7 +2665,7 @@ export default function Viewer3D({ className = '' }: { className?: string }) {
     };
 
     setNeuaufbau((n) => n + 1);
-  }, [walls, openings, rooms, verticals, solids, durchbrueche, pipes, fussbodenkurven, roofOpenings, doc.nodes, doc.levels, doc.activeLevelId, site, showSite, doc.meta.terrainElevation]);
+  }, [walls, openings, rooms, verticals, solids, durchbrueche, pipes, fussbodenkurven, roofOpenings, doc.nodes, doc.levels, doc.activeLevelId, site, showSite, doc.meta.terrainElevation, grube]);
 
   // Boden und Raster auf die Geländeoberkante legen — siehe `schattenRef`.
   useEffect(() => {
@@ -2566,6 +2673,27 @@ export default function Viewer3D({ className = '' }: { className?: string }) {
     if (schattenRef.current) schattenRef.current.position.y = gok - 0.002;
     if (rasterRef.current) rasterRef.current.position.y = gok - 0.004;
   }, [doc.meta.terrainElevation]);
+
+  /*
+   * Schattenfänger und Raster stellen denselben Boden dar wie das Grundstück
+   * — sie werden deshalb genauso ausgehoben.
+   *
+   * Ohne das läge über der offenen Grube weiter ein Schleier: Der
+   * Schattenfänger ist eine 400 m große Ebene auf Geländehöhe, und der
+   * Schatten, den die Kellerwände darauf werfen, schwebte als graues Tuch
+   * über dem Keller, durch den man gerade hindurchsehen will. Das Raster
+   * wiederum zöge seine Linien quer durch den Kellerfußboden.
+   */
+  useEffect(() => {
+    const ebenen = grube ? grubenEbenen(grube) : [];
+    for (const ziel of [schattenRef.current, rasterRef.current]) {
+      const stoff = ziel?.material as THREE.Material | undefined;
+      if (!stoff) continue;
+      stoff.clippingPlanes = ebenen;
+      stoff.clipIntersection = true;
+      stoff.needsUpdate = true;
+    }
+  }, [grube]);
 
   /*
    * Die anfassbaren Objekte — eigener Aufbau, eigener Takt.
@@ -2650,7 +2778,24 @@ export default function Viewer3D({ className = '' }: { className?: string }) {
     controls.update();
 
     orthoFrustumRef.current = radius * 1.5;
-    ortho.position.copy(center).addScaledVector(new THREE.Vector3(1, 1, 1).normalize(), radius * 6);
+    /*
+     * **Einpassen dreht die Ansicht nicht.**
+     *
+     * Hier stand bis 1.60.0 fest die isometrische Richtung (1, 1, 1). Wer in
+     * der Draufsicht auf „Einpassen" tippte, stand danach wieder in der
+     * Isometrie — der Knopf soll den Ausschnitt setzen und nicht den
+     * Blickwinkel. Aufgefallen beim Messen der Baugrube, wo die Draufsicht
+     * die eindeutige Ansicht ist.
+     *
+     * Das 0,001 in z ist dasselbe wie im Kameramodus „Top": Eine Kamera, die
+     * senkrecht nach unten schaut, hat keine eindeutige Oben-Richtung; der
+     * winzige Versatz gibt ihr eine.
+     */
+    const orthoRichtung =
+      cameraMode === 'top'
+        ? new THREE.Vector3(0, 1, 0.001).normalize()
+        : new THREE.Vector3(1, 1, 1).normalize();
+    ortho.position.copy(center).addScaledVector(orthoRichtung, radius * 6);
     ortho.lookAt(center);
     resizeRef.current();
   };
@@ -4551,6 +4696,27 @@ export default function Viewer3D({ className = '' }: { className?: string }) {
         >
           Gelände
         </button>
+        {/*
+          Die Baugrube sagt selbst, dass sie offen ist.
+
+          Sie öffnet sich ohne Zutun, sobald im Bild nur noch Geschosse unter
+          Gelände stehen — und was von allein geschieht, muss erklärt werden,
+          sonst hält es jemand für einen Fehler im Grundstück. Kein Schalter:
+          Wer das Gelände ganz weghaben will, nimmt den Knopf daneben.
+        */}
+        {grube && (
+          <span
+            className="chip cursor-default text-amber-300/80"
+            title={
+              'Baugrube offen: Im Bild stehen nur Geschosse unter der Geländeoberkante. ' +
+              `Das Erdreich ist um das Bauwerk herum ausgehoben — mit ${ARBEITSRAUM.toString().replace('.', ',')} m ` +
+              'Arbeitsraum, wie an einer Grube, in der gearbeitet wird. Sobald wieder ein Geschoss ' +
+              'über Gelände eingeblendet ist, schließt sich der Boden.'
+            }
+          >
+            Baugrube
+          </span>
+        )}
         <div className="divider-v" />
         <button
           className="chip text-slate-400 hover:text-slate-200"

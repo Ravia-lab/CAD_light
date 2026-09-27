@@ -68,6 +68,7 @@ import { pruefeRohrnetzblaetter } from './pruefungen/rohrnetzblaetter';
 import { pruefeRaumkennungen } from './pruefungen/raumkennung';
 import { pruefeSchutzbereich } from './pruefungen/schutzbereich';
 import { pruefeVerbrauchsabgleich } from './pruefungen/verbrauchsabgleich';
+import { pruefeBaugrube } from './pruefungen/baugrube';
 import { pruefeWissensbasis } from './pruefungen/wissensbasis';
 import { pruefeGeschossdecken } from './pruefungen/geschossdecken';
 import { pruefeTreppenlogik } from './pruefungen/treppenlogik';
@@ -3888,6 +3889,7 @@ pruefeRohrnetzblaetter(check);
 pruefeRaumkennungen(check);
 pruefeSchutzbereich(check);
 pruefeVerbrauchsabgleich(check);
+pruefeBaugrube(check);
 
 console.log('\n▸ Wissensbasis — Wortnormalisierung, Rangfusion, Korpus');
 pruefeWissensbasis(check);

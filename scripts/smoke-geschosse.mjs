@@ -16,6 +16,7 @@
  */
 
 import { chromium } from 'playwright';
+import { PNG } from 'pngjs';
 
 const BASIS = process.env.RAVIA_PROBE ?? 'http://localhost:4177/';
 const b = await chromium.launch({
@@ -344,6 +345,147 @@ console.log('\n▸ Die Treppe steigen');
     return S.doc.levels[S.doc.activeLevelId]?.name ?? '';
   });
   expect('Nach dem Begehen arbeitet man oben weiter', danach, treppe.obenName);
+}
+
+console.log('\n▸ Die Baugrube — in den Keller sehen, ohne das Grundstück zu verlieren');
+{
+  /*
+   * Gemeldet am 27.09.2026: „im 3d modus wenn ich andere stockwerke
+   * ausblende will ich auch die raumgeometrie sehen die unterhalb des
+   * grundstückes ist, ich sehe nur die umrisse."
+   *
+   * Das Grundstück ist eine gedeckte Fläche auf der Geländeoberkante. Wer
+   * die Geschosse über dem Keller ausblendet, schaut seither auf den Rasen;
+   * vom Keller ragt nur der Teil der Wände heraus, der über Gelände steht.
+   *
+   * Der Test misst genau das — am Pixel, nicht am Zustand. Zwei Aussagen
+   * zusammen, weil jede allein zu billig zu erfüllen wäre:
+   *
+   *  1. **In der Mitte ist kein Rasen mehr.** Dort steht der Keller.
+   *  2. **Am Rand ist weiter Rasen.** Das Grundstück ist nicht verschwunden
+   *     — es ist ausgehoben. Ein Test ohne diese zweite Aussage ginge auch
+   *     grün, wenn das Gelände einfach abgeschaltet würde.
+   */
+  await p.getByRole('button', { name: '3D', exact: true }).first().click();
+  await p.waitForTimeout(900);
+
+  const lage = await p.evaluate(() => {
+    const S = () => window.__ravia.getState();
+    /*
+     * Ein Grundstück um das Haus — ohne Grundstücksfläche gäbe es nichts,
+     * was den Keller verdecken könnte, und der Test prüfte nichts.
+     *
+     * Es folgt dem Haus mit 3 m Abstand und ist deshalb nicht viel größer
+     * als dieses: Die Ansicht wird auf **Haus und Grundstück zusammen**
+     * eingepasst, und bei einem großen Grundstück wäre das Haus danach ein
+     * Fleck in der Mitte — die Messung in der Bildmitte träfe dann Rasen
+     * statt Keller und sagte nichts mehr aus.
+     */
+    const xs = Object.values(S().doc.nodes).map((n) => n.x);
+    const ys = Object.values(S().doc.nodes).map((n) => n.y);
+    const rand = 3;
+    const x0 = Math.min(...xs) - rand;
+    const x1 = Math.max(...xs) + rand;
+    const y0 = Math.min(...ys) - rand;
+    const y1 = Math.max(...ys) + rand;
+    S().addSiteElement('boundary', [
+      { x: x0, y: y0 }, { x: x1, y: y0 }, { x: x1, y: y1 }, { x: x0, y: y1 },
+    ]);
+    const geschosse = Object.values(S().doc.levels).sort((a, b) => a.order - b.order);
+    const kg = geschosse[0];
+    S().setActiveLevel(kg.id);
+    for (const l of geschosse) if (l.id !== kg.id) S().zeigeGeschoss(l.id, false);
+    return {
+      kg: kg.name,
+      kgHoehe: Math.round(kg.elevation * 1000) / 1000,
+      gelaende: S().doc.meta.terrainElevation ?? null,
+      sichtbar: geschosse.filter((l) => S().doc.levels[l.id].visible !== false).map((l) => l.name),
+    };
+  });
+  console.log(`  · sichtbar: ${lage.sichtbar.join(', ')} · Fußboden ${lage.kgHoehe} m · Gelände ${lage.gelaende} m`);
+  expect('Nur das Kellergeschoss steht im Bild', lage.sichtbar, [lage.kg]);
+  expect('Der Kellerfußboden liegt unter der Geländeoberkante', lage.kgHoehe < lage.gelaende, true);
+
+  /*
+   * Gemessen wird von **oben**. Nicht, weil die Draufsicht die
+   * interessantere Ansicht wäre — sie ist die eindeutige: Nach dem
+   * Einpassen steht das Haus in der Bildmitte, und was in der Mitte liegt,
+   * ist der Keller. In der Isometrie hinge dieselbe Messung daran, wie weit
+   * das Haus im Bild nach oben rutscht.
+   */
+  await p.getByRole('button', { name: 'Top', exact: true }).first().click();
+  await p.waitForTimeout(1200);
+  await p.getByRole('button', { name: 'Einpassen', exact: true }).first().click();
+  await p.waitForTimeout(1500);
+
+  /*
+   * **Der Aushub steht in der Szene.** `__raviaSzene` zählt die Eckpunkte je
+   * Bauteilart; ein Quader hat 24. Das ist die Gegenprobe zum Bild: Wäre
+   * die Mitte nur deshalb grünfrei, weil das Gelände fehlt, stünde hier
+   * eine Null.
+   */
+  const szene = await p.evaluate(() => window.__raviaSzene());
+  expect('Der Erdkörper der Baugrube steht im Modell', (szene.baugrube ?? 0) > 0, true);
+
+  /*
+   * **Was als Rasen zählt.** Die Grundstücksfläche (0x4A6B3D) ist das
+   * einzige grün getönte Element im Bild. Von oben gemessen liegt sie bei
+   * (17, 28, 35); der Hintergrund bei (11, 17, 32), der Kellerfußboden bei
+   * (18, 24, 40), eine Kellerwand bei (23, 30, 45). Die ganze Szene ist
+   * blaustichig — der Rasen ist die einzige Fläche, bei der Grün deutlich
+   * über Rot liegt **und** Blau nicht davonzieht. Genau das wird geprüft
+   * und nicht ein Farbwert, der sich mit jeder Lichtänderung verschiebt:
+   *
+   *     Rasen         28 − 17 = 11 ≥ 9   ·  35 − 28 =  7 ≤ 11   → Rasen
+   *     Hintergrund   17 − 11 =  6 < 9                          → nein
+   *     Kellerboden   24 − 18 =  6 < 9                          → nein
+   *     Kellerwand    30 − 23 =  7 < 9                          → nein
+   */
+  if (process.env.RAVIA_BILD) await p.screenshot({ path: process.env.RAVIA_BILD });
+  const box = await p.locator('main canvas').first().boundingBox();
+  const bild = PNG.sync.read(
+    await p.screenshot({
+      clip: {
+        x: Math.round(box.x),
+        y: Math.round(box.y),
+        width: Math.round(box.width),
+        height: Math.round(box.height),
+      },
+    }),
+  );
+  const rasen = (x, y) => {
+    const i = (bild.width * y + x) * 4;
+    const [r, g, bl] = [bild.data[i], bild.data[i + 1], bild.data[i + 2]];
+    return g - r >= 9 && bl - g <= 11;
+  };
+  const anteil = (x0, y0, x1, y1) => {
+    let treffer = 0;
+    let gesamt = 0;
+    for (let y = y0; y < y1; y += 2) {
+      for (let x = x0; x < x1; x += 2) {
+        gesamt++;
+        if (rasen(x, y)) treffer++;
+      }
+    }
+    return gesamt ? treffer / gesamt : 0;
+  };
+  const mx = Math.round(bild.width / 2);
+  const my = Math.round(bild.height / 2);
+  const dw = Math.round(bild.width / 12);
+  const dh = Math.round(bild.height / 12);
+  const mitte = anteil(mx - dw, my - dh, mx + dw, my + dh);
+  const ganz = anteil(0, 0, bild.width, bild.height);
+  console.log(`  · Rasenanteil: über dem Haus ${(mitte * 100).toFixed(1)} % · ganzes Bild ${(ganz * 100).toFixed(1)} %`);
+  /*
+   * Zwei Aussagen, und jede allein wäre zu billig: Über dem Haus **kein**
+   * Rasen (vorher lag dort der ganze Garten), im Bild insgesamt aber
+   * weiterhin welcher — sonst ginge der Test auch grün, wenn das Gelände
+   * einfach abgeschaltet würde.
+   */
+  expect('Über dem Keller liegt kein Rasen mehr', mitte < 0.02, true);
+  // Gemessen: 12,5 % des Bildes sind Rasen. Geprüft wird auf 5 % — die
+  // Aussage lautet „es ist noch Grundstück da", nicht „es ist genau so viel".
+  expect('Das Grundstück steht weiter im Bild', ganz > 0.05, true);
 }
 
 console.log('\n▸ Nichts in der Konsole');

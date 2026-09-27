@@ -100,6 +100,31 @@
 
 <p>Im <b>Begehen-Modus</b> gilt das Auge nicht — dort sind alle Geschosse da. Man läuft durch ein Haus und nicht durch ein Geschoss.</p>
 
+<h4 id="k5-3-5">5.3.5 Die Baugrube: in den Keller sehen</h4>
+
+<p class="wo">Im Programm: geschieht von selbst. Die 3D-Leiste zeigt dann <b>Baugrube</b> in Gelb.</p>
+
+<p>Das Grundstück ist im Modell eine <b>gedeckte Fläche auf der Geländeoberkante</b>. Bis Fassung 1.60.0 hatte das eine Folge, die erst auffällt, wenn man sie einmal gesehen hat: Wer Erd- und Obergeschoss wegnahm, um in den Keller zu schauen, sah den <b>Rasen</b>. Vom Keller ragte nur der Teil der Wände heraus, der über Gelände steht — bei einem halb eingegrabenen Keller ein knapper Meter, bei einem ganz eingegrabenen gar nichts. Gemeldet wurde es mit den Worten: „ich sehe nur die Umrisse".</p>
+
+<p>Die Antwort ist keine Sichtbarkeitsregel, sondern ein Bauvorgang. Ein Keller steht nicht unter dem gewachsenen Boden, er steht in einer <b>Baugrube</b>. Sobald im Bild nur noch Geschosse <i>unter</i> der Geländeoberkante stehen, hebt das Programm diese Grube aus: Das Erdreich wird um das Bauwerk herum entfernt, mit 0,5 m Arbeitsraum, und man sieht hinein. Sobald wieder ein Geschoss über Gelände eingeblendet ist, schließt sich der Boden.</p>
+
+<table class="tab">
+<caption>Wann die Baugrube offen ist</caption>
+<thead><tr><th>Im Bild</th><th>Boden</th></tr></thead>
+<tbody>
+<tr><td>KG, EG, OG</td><td>geschlossen — das gewohnte Haus auf dem Grundstück</td></tr>
+<tr><td>KG und EG</td><td>geschlossen: der Fußboden des Erdgeschosses liegt über Gelände</td></tr>
+<tr><td>nur KG</td><td><b>offen</b> — die Grube ist ausgehoben, der Keller ist zu sehen</td></tr>
+<tr><td>keine Geländeoberkante erfasst</td><td>geschlossen: was unter Gelände liegt, ist dann nicht bekannt</td></tr>
+</tbody>
+</table>
+
+<p><b>Warum ein Rechteck und nicht der Hausumriss.</b> Eine Baugrube wird ausgehoben, bevor das Haus steht; sie folgt nicht seinem Grundriss, sondern umschließt ihn. Die 0,5 m Arbeitsraum sind die lichte Breite, die die DIN 4124 an einer Grube fordert, in der gearbeitet wird. Beides zusammen ergibt die Form, die auch auf der Baustelle entsteht.</p>
+
+<div class="merke"><b>Merke</b><p>Die Baugrube ist eine <b>Darstellung</b> und keine Angabe über den Boden. Sie hat keine Böschungsneigung nach Norm, keinen Verbau und keine Aussage über die Standsicherheit. Wer den Aushub kubieren will, ist hier falsch.</p></div>
+
+<p>Der Schalter <b>Gelände</b> bleibt daneben, was er war: Er nimmt das Grundstück ganz aus dem Bild. Die Baugrube ersetzt ihn nicht — sie ist der Weg, der das Grundstück <i>behält</i>: Grenze, Wärmepumpe, Schutzbereich und Beläge stehen weiter im Bild, während man in den Keller schaut.</p>
+
 <h3 id="k5-4">5.4 Geschossdecken und Bodenplatte</h3>
 
 <p>Die Decke ist in diesem Programm ein <b>eigenes Bauteil</b> und nicht der Zwischenraum zwischen zwei Geschossen. Der Grund dafür ist ein Fehler, den man erst im Bild sieht: Solange nur die Höhenlagen gerechnet wurden, klaffte zwischen der Oberkante der Wände eines Geschosses und der Unterkante des nächsten die Deckenstärke als <b>Luft</b>. Das Haus stand in Scheiben übereinander.</p>
@@ -287,7 +312,8 @@
 <tr><td>Top</td><td>Senkrecht von oben, ebenfalls ohne Perspektive.</td></tr>
 <tr><td>Gelände</td><td>Blendet Grundstück und Außenanlagen aus. Bei einem großen Grundstück nimmt es sonst den größten Teil des Bildes ein.</td></tr>
 <tr><td>Begehen</td><td>Wechselt von der Umlaufkamera in die Ich-Perspektive. Siehe <a href="#k5-7-3">Abschnitt 5.7.3</a>.</td></tr>
-<tr><td>Einpassen</td><td>Setzt Kamera und Drehpunkt so, dass das Gebäude formatfüllend sitzt.</td></tr>
+<tr><td>Baugrube</td><td>Keine Schaltfläche, sondern eine Anzeige: Sie steht in Gelb, wenn nur noch Geschosse unter Gelände im Bild sind und das Erdreich um das Bauwerk deshalb ausgehoben ist. Siehe <a href="#k5-3-5">Abschnitt 5.3.5</a>.</td></tr>
+<tr><td>Einpassen</td><td>Setzt Kamera und Drehpunkt so, dass das Gebäude formatfüllend sitzt. Die <b>Blickrichtung ändert sich dabei nicht</b> — wer in der Draufsicht einpasst, bleibt in der Draufsicht (bis 1.60.0 sprang die Ansicht zurück in die Isometrie).</td></tr>
 </tbody>
 </table>
 
