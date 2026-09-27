@@ -123,6 +123,7 @@ import { kompassRose } from '../lib/kompass';
 import { DEFAULT_SLAB, levelBaseHeights } from '../lib/levelGeometry';
 import { bodenloecher, groundSlab, holeFitsOutline, levelSlabs, topSlab, type SlabPlan } from '../lib/slabGeometry';
 import { treppenmasse } from '../lib/treppenlogik';
+import { brauchtSchutzbereich } from '../lib/kaeltemittel';
 import { useBimStore } from '../store/useBimStore';
 
 // ---------------------------------------------------------------------------
@@ -1393,6 +1394,7 @@ function buildSite(
     trunk: new THREE.MeshStandardMaterial({ color: 0x6b4f3a, roughness: 1 }),
     crown: new THREE.MeshStandardMaterial({ color: 0x4ade80, roughness: 1, transparent: true, opacity: 0.75 }),
     hazard: new THREE.MeshStandardMaterial({ color: 0xf87171, roughness: 0.8 }),
+    ignition: new THREE.MeshStandardMaterial({ color: 0xef4444, roughness: 0.5, emissive: 0x7f1d1d }),
     bore: new THREE.MeshStandardMaterial({ color: 0x38bdf8, roughness: 0.5, metalness: 0.2 }),
     well: new THREE.MeshStandardMaterial({ color: 0x60a5fa, roughness: 0.5, metalness: 0.2 }),
     line: new THREE.MeshStandardMaterial({ color: 0xa78bfa, roughness: 0.6 }),
@@ -1510,6 +1512,23 @@ function buildSite(
         break;
       }
 
+      /*
+       * Die Zündquelle steht als kleiner Pfahl im Modell und liegt nicht flach
+       * auf dem Boden wie die Öffnung. Der Unterschied ist Absicht: Eine
+       * Steckdose an der Hauswand sitzt auf Höhe, und wer im Modell von oben
+       * darauf sieht, soll sie trotzdem finden.
+       */
+      case 'ignition': {
+        const hoehe = 0.35;
+        const mesh = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, hoehe, 10), mat.ignition);
+        mesh.position.set(pts[0].x, hoehe / 2, -pts[0].y);
+        group.add(mesh);
+        const kopf = new THREE.Mesh(new THREE.SphereGeometry(0.1, 10, 8), mat.ignition);
+        kopf.position.set(pts[0].x, hoehe + 0.08, -pts[0].y);
+        group.add(kopf);
+        break;
+      }
+
       case 'borehole':
       case 'well-supply':
       case 'well-injection': {
@@ -1579,7 +1598,10 @@ function buildSite(
 
     // Schutzbereich brennbarer Kältemittel als stehender Zylinder. Er ist
     // kein Kreis am Boden: Propan sinkt, aber der Bereich gilt räumlich.
-    if (pump.protectionRadius > 0 && (pump.refrigerant === 'R290' || pump.refrigerant === 'R32')) {
+    // Maßgeblich ist die Sicherheitsklasse, nicht der Name: Bis 1.58.0 stand
+    // hier eine Abfrage auf „R290 oder R32", und R454B, R454C, R452B, R1234yf
+    // und R1234ze sind ebenso A2L — um sie stand im Modell kein Bereich.
+    if (pump.protectionRadius > 0 && brauchtSchutzbereich(pump.refrigerant) === true) {
       const r = pump.protectionRadius;
       const guard = new THREE.Mesh(new THREE.CylinderGeometry(r, r, Math.max(0.6, pump.height), 28, 1, true), mat.guard);
       guard.position.set(pump.position.x, Math.max(0.6, pump.height) / 2, -pump.position.y);

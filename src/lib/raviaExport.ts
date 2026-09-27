@@ -125,6 +125,7 @@ import {
   protectionIssues,
   sourceDemand,
 } from './heatPump';
+import { kaeltemittel } from './kaeltemittel';
 
 export const GENERATOR = ERZEUGER;
 
@@ -207,7 +208,7 @@ export function buildRaviaExport(doc: BimDocument): RaviaExport {
     // 2.3.0: Hüllflächenbilanz je Raum und für das Gebäude (`envelope`).
     // 2.4.0: `envelope.withoutUValue` — wie viele Flächen ohne brauchbaren
     //        U-Wert in die Bilanz gingen. Reiner Zuwachs.
-    version: '2.5.0',
+    version: '2.6.0',
     generator: GENERATOR,
     exportedAt: new Date().toISOString(),
     units: {
@@ -1727,6 +1728,12 @@ function buildHeatPumpExport(doc: BimDocument): ExportHeatPump {
             verdict: p.verdict,
           })),
         },
+        // Die Sicherheitsgruppe geht mit: Sie entscheidet über den
+        // Schutzbereich, und eine Gegenstelle, die sie aus dem Namen ableiten
+        // müsste, bräuchte dafür eine eigene Tabelle — also eine zweite, die
+        // von dieser abweichen kann.
+        refrigerantClass: kaeltemittel(pump.refrigerant)?.klasse ?? 'unbekannt',
+        hermetisch: pump.hermetisch === true,
         protectionIssues: protectionIssues(doc, pump),
         ...(demand ? { source_demand: demand } : {}),
       };

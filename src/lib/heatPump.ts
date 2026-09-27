@@ -43,6 +43,9 @@ import type {
   SoilKind,
   Vec2,
 } from '../types/bim';
+import { OPENING_LABELS } from '../types/bim';
+import { KAELTEMITTEL, brauchtSchutzbereich, kaeltemittel } from './kaeltemittel';
+import { getWallGeometry, openingCenter } from './wallGeometry';
 
 // ---------------------------------------------------------------------------
 // Schall
@@ -298,32 +301,116 @@ export function acousticReport(doc: BimDocument, pump: HeatPump): AcousticReport
 // Schutzbereich bei brennbarem Kältemittel
 // ---------------------------------------------------------------------------
 
-/** Kältemittel, die einen Schutzbereich brauchen (Sicherheitsgruppe A3/A2L). */
-export const FLAMMABLE = new Set(['R290', 'R32']);
+/**
+ * Kältemittel, die einen Schutzbereich brauchen.
+ *
+ * **Steht nur noch hier, damit Bestehendes weiterläuft.** Bis 1.58.0 war
+ * dieses Set *die* Entscheidung, und es enthielt zwei Namen: R290 und R32.
+ * Die Sicherheitsgruppe A2L umfasst heute auch R454B, R454C, R452B, R1234yf
+ * und R1234ze — die standen nicht darin, und im Modell ließen sie sich
+ * überhaupt nicht eintragen. Wer sie als „andere" führte, bekam **keinen
+ * Schutzbereich und keine Meldung**: Das Programm schwieg, und Schweigen
+ * sieht aus wie ein „in Ordnung".
+ *
+ * Maßgeblich ist jetzt die Sicherheitsklasse aus `kaeltemittel.ts`.
+ */
+export const FLAMMABLE = new Set(
+  KAELTEMITTEL.filter((k) => k.klasse !== 'A1').map((k) => k.id),
+);
 
 export interface ProtectionIssue {
-  kind: 'opening' | 'boundary' | 'well';
+  /**
+   * Was da liegt. `opening` ist ein eingetragenes Geländeobjekt (Lichtschacht,
+   * Ablauf), `building-opening` ein **Fenster oder eine Tür des Gebäudes** —
+   * die stehen im Modell und wurden bis 1.58.0 nicht angesehen, obwohl der
+   * Leitfaden sie an erster Stelle nennt.
+   */
+  kind: 'opening' | 'building-opening' | 'boundary' | 'well' | 'ignition';
   label: string;
   distance: number;
   required: number;
+  /** Höhe der Unterkante über dem Gelände [m] — nur bei Gebäudeöffnungen. */
+  hoehe?: number;
+}
+
+/** Die Lage des Schutzbereichs, bevor irgendetwas darin geprüft wird. */
+export interface ProtectionStatus {
+  /** Ist ein Schutzbereich einzuhalten? `undefined` heißt: unbekannt. */
+  erforderlich: boolean | undefined;
+  /** Radius laut Gerät [m]. */
+  radius: number;
+  /** Klartext für die Meldung, wenn geprüft werden müsste und nicht kann. */
+  hinweis?: string;
 }
 
 /**
- * Prüft den Schutzbereich: keine Öffnung, kein Schacht, kein Ablauf darin —
- * und er darf nicht über die Grundstücksgrenze reichen.
+ * Ist um dieses Gerät ein Schutzbereich zu prüfen — und lässt er sich prüfen?
+ *
+ * Drei Ausgänge statt zweier, und das ist der Zweck: „unbekanntes
+ * Kältemittel" und „kein Radius eingetragen" sind keine Entwarnung. Bis
+ * 1.58.0 fielen beide Fälle stillschweigend unter „nichts zu tun".
+ */
+export function protectionStatus(pump: HeatPump): ProtectionStatus {
+  const erforderlich = brauchtSchutzbereich(pump.refrigerant);
+  if (erforderlich === undefined) {
+    return {
+      erforderlich: undefined,
+      radius: pump.protectionRadius,
+      hinweis:
+        `Zu „${pump.refrigerant}" ist hier keine Sicherheitsgruppe hinterlegt. Ob ein Schutzbereich ` +
+        'einzuhalten ist, steht im Datenblatt des Geräts — dieses Programm gibt dazu keine Entwarnung.',
+    };
+  }
+  if (!erforderlich) return { erforderlich: false, radius: pump.protectionRadius };
+  if (pump.protectionRadius <= 0) {
+    return {
+      erforderlich: true,
+      radius: 0,
+      hinweis:
+        `${pump.refrigerant} ist brennbar (${kaeltemittel(pump.refrigerant)?.klasse}), aber es ist kein ` +
+        'Schutzbereich eingetragen. Sein Maß ist eine Herstellerangabe und steht in keiner Normtabelle; ' +
+        'ohne sie lässt sich nicht prüfen, was darin liegt.',
+    };
+  }
+  return { erforderlich: true, radius: pump.protectionRadius };
+}
+
+/**
+ * Prüft den Schutzbereich: keine Öffnung, kein Schacht, kein Ablauf, keine
+ * Zündquelle darin — und er darf nicht über die Grundstücksgrenze reichen.
  *
  * Propan ist schwerer als Luft. Es sinkt und sammelt sich unten: im
  * Lichtschacht, im Kellerabgang, im Bodenablauf. Deshalb zählen gerade die
  * Öffnungen, die man beim Aufstellen am wenigsten im Blick hat.
  *
+ * **Was seit 1.59.0 dazugehört.** Der BWP-Leitfaden „Wärmepumpen mit
+ * brennbaren Kältemitteln" zählt auf, was nicht im Schutzbereich liegen darf,
+ * und beginnt mit „Gebäudeöffnungen, wie Fenster, Türen, Lichtschächte,
+ * Flachdachfenster, Öffnungen von lüftungstechnischen Anlagen". Bis 1.58.0
+ * sah diese Prüfung nur an, was **von Hand** als Geländeobjekt gesetzt worden
+ * war. Die Fenster und Türen des Gebäudes stehen im Modell — mit Position,
+ * Breite und Brüstungshöhe — und wurden nicht angesehen. Ein Küchenfenster
+ * einen halben Meter neben dem Außengerät fiel nicht auf.
+ *
+ * Das ist die Stelle, an der ein Zeichenprogramm mehr kann als eine
+ * Checkliste: Es hat die Fenster schon.
+ *
+ * **Die Brüstungshöhe steht in der Meldung, entscheidet aber nicht.** Propan
+ * sinkt, also sind die bodennahen Öffnungen die gefährlichen — eine Öffnung
+ * auszuschließen, weil sie hoch liegt, wäre trotzdem eine Zahl, die dieses
+ * Programm erfindet: Der Leitfaden nennt keine Höhe, ab der eine Öffnung
+ * nicht mehr zählt, und die Schutzbereiche selbst sind herstellerspezifisch.
+ * Gemeldet wird deshalb jede Öffnung im Radius, und die Höhe steht dabei,
+ * damit der Planer entscheiden kann.
+ *
  * Der Radius ist kein Normwert. Es gibt keine Tabelle „Füllmenge → Radius";
- * jeder Hersteller weist ihn für sein Gerät aus. 1,00 m waagerecht ist der
- * in der Praxis verbreitete Wert — er ersetzt nicht das Datenblatt.
+ * jeder Hersteller weist ihn für sein Gerät aus.
  */
 export function protectionIssues(doc: BimDocument, pump: HeatPump): ProtectionIssue[] {
-  if (!FLAMMABLE.has(pump.refrigerant) || pump.protectionRadius <= 0) return [];
+  const status = protectionStatus(pump);
+  if (status.erforderlich !== true || status.radius <= 0) return [];
   const issues: ProtectionIssue[] = [];
-  const radius = pump.protectionRadius;
+  const radius = status.radius;
 
   for (const element of Object.values(doc.site.elements)) {
     if (element.kind === 'hazard-opening' && element.points[0]) {
@@ -332,6 +419,17 @@ export function protectionIssues(doc: BimDocument, pump: HeatPump): ProtectionIs
         issues.push({
           kind: 'opening',
           label: element.label ?? 'Öffnung / Schacht / Ablauf',
+          distance: round2(Math.max(0, distance)),
+          required: radius,
+        });
+      }
+    }
+    if (element.kind === 'ignition' && element.points[0]) {
+      const distance = distanceOf(pump.position, element.points[0]);
+      if (distance < radius) {
+        issues.push({
+          kind: 'ignition',
+          label: element.label ?? 'Zündquelle',
           distance: round2(Math.max(0, distance)),
           required: radius,
         });
@@ -349,6 +447,31 @@ export function protectionIssues(doc: BimDocument, pump: HeatPump): ProtectionIs
       }
     }
   }
+
+  /*
+   * Die Öffnungen des Gebäudes. Gemessen wird waagerecht von der Gerätemitte
+   * zur Öffnungsmitte — dieselbe Messgröße wie bei den Geländeobjekten, und
+   * dieselbe, die in den Abbildungen des Leitfadens aufgetragen ist.
+   */
+  for (const opening of Object.values(doc.openings)) {
+    const wall = doc.walls[opening.wallId];
+    if (!wall) continue;
+    const g = getWallGeometry(wall, doc.nodes);
+    if (!g) continue;
+    const mitte = openingCenter(g, opening);
+    const abstand = distanceOf(pump.position, mitte);
+    if (abstand >= radius) continue;
+    const geschoss = doc.levels[wall.levelId];
+    const hoehe = (geschoss?.elevation ?? 0) + opening.sillHeight;
+    issues.push({
+      kind: 'building-opening',
+      label: `${OPENING_LABELS[opening.kind] ?? 'Öffnung'}${geschoss ? ` im ${geschoss.name}` : ''}`,
+      distance: round2(abstand),
+      required: radius,
+      hoehe: round2(hoehe),
+    });
+  }
+
   return issues;
 }
 

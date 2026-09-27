@@ -17,10 +17,11 @@
  */
 
 import { useMemo } from 'react';
-import type { AreaCategory, HeatSourceKind, MountingSituation, SoilKind } from '../types/bim';
+import type { AreaCategory, HeatSourceKind, IgnitionKind, MountingSituation, Refrigerant, SoilKind } from '../types/bim';
 import {
   AREA_CATEGORY_LABELS,
   HEAT_SOURCE_LABELS,
+  IGNITION_LABELS,
   MOUNTING_LABELS,
   SITE_ELEMENT_LABELS,
   SOIL_LABELS,
@@ -33,8 +34,8 @@ import {
   requiredCapacity,
   ROOM_ANGLE,
   sourceDemand,
-  waterProtectionVerdict,
-} from '../lib/heatPump';
+  waterProtectionVerdict, protectionStatus} from '../lib/heatPump';
+import { KAELTEMITTEL, KLASSENTEXT, dichtheitspflicht, kaeltemittel } from '../lib/kaeltemittel';
 import { anschlussVonGeraet, nennweiteAusText, NENNWEITE_GEWINDE } from '../lib/anschlussgroesse';
 import { findModel } from '../lib/deviceCatalog';
 import { useBimStore } from '../store/useBimStore';
@@ -67,6 +68,18 @@ export default function HeatPumpPanel() {
 
   const report = useMemo(() => (pump ? acousticReport(doc, pump) : undefined), [doc, pump]);
   const protection = useMemo(() => (pump ? protectionIssues(doc, pump) : []), [doc, pump]);
+  const schutz = useMemo(
+    () => (pump ? protectionStatus(pump) : { erforderlich: false as const, radius: 0 }),
+    [pump],
+  );
+  const kaeltemittelAngabe = useMemo(() => (pump ? kaeltemittel(pump.refrigerant) : undefined), [pump]);
+  const dicht = useMemo(
+    () =>
+      pump
+        ? dichtheitspflicht(pump.refrigerant, pump.refrigerantMass, pump.hermetisch)
+        : { pflichtig: false, vorlaeufig: false, begruendung: '' },
+    [pump],
+  );
   const demand = useMemo(() => (pump ? sourceDemand(doc, pump) : undefined), [doc, pump]);
   const water = useMemo(
     () => (pump ? waterProtectionVerdict(site.waterProtection, pump.source) : undefined),
@@ -463,19 +476,68 @@ export default function HeatPumpPanel() {
               <Erklaerung term="schutzbereich" />
             </div>
             <Row label="Kältemittel">
+              {/*
+                Die Liste kommt aus dem Katalog und nicht aus fünf Namen im
+                Quelltext. Bis 1.58.0 standen hier R290, R32, R410A, R744 und
+                „andere" — R454B, R454C, R452B, R1234yf und R1234ze fehlten,
+                obwohl alle fünf A2L sind, also brennbar. Wer eines davon
+                verbaut hatte, musste „andere" wählen, und „andere" galt als
+                unbrennbar: kein Schutzbereich, keine Meldung.
+              */}
               <select
                 className="field"
                 value={pump.refrigerant}
-                onChange={(e) => updateHeatPump(pump.id, { refrigerant: e.target.value as 'R290' })}
+                onChange={(e) => updateHeatPump(pump.id, { refrigerant: e.target.value as Refrigerant })}
               >
-                {['R290', 'R32', 'R410A', 'R744', 'andere'].map((r) => (
-                  <option key={r} value={r} className="bg-graphite-850">
-                    {r}
-                    {r === 'R290' ? ' (Propan, brennbar)' : r === 'R32' ? ' (schwer entflammbar)' : ''}
+                {KAELTEMITTEL.map((k) => (
+                  <option key={k.id} value={k.id} className="bg-graphite-850">
+                    {k.id} · {k.klasse} ({KLASSENTEXT[k.klasse]}) · GWP {fmt(k.gwp, k.gwp < 1 ? 2 : 0)}
                   </option>
                 ))}
+                <option value="andere" className="bg-graphite-850">
+                  andere — Sicherheitsgruppe unbekannt
+                </option>
               </select>
             </Row>
+            {kaeltemittelAngabe ? (
+              <p className="text-[9.5px] leading-relaxed text-slate-500">
+                Sicherheitsgruppe {kaeltemittelAngabe.klasse} ({KLASSENTEXT[kaeltemittelAngabe.klasse]}),
+                GWP {fmt(kaeltemittelAngabe.gwp, kaeltemittelAngabe.gwp < 1 ? 2 : 0)}
+                {kaeltemittelAngabe.maxOberflaeche !== undefined
+                  ? ` · im Schutzbereich keine Oberfläche über ${kaeltemittelAngabe.maxOberflaeche} °C`
+                  : ''}
+                {kaeltemittelAngabe.selbstentzuendung !== undefined
+                  ? ` · Selbstentzündung ab ${kaeltemittelAngabe.selbstentzuendung} °C`
+                  : ''}
+                .
+              </p>
+            ) : (
+              <p className="rounded-lg bg-amber-400/[0.07] px-2.5 py-2 text-[10px] leading-relaxed text-amber-200">
+                Zu diesem Kältemittel ist hier nichts hinterlegt. Ob ein Schutzbereich einzuhalten
+                ist, steht im Datenblatt des Geräts — dieses Programm gibt darüber keine Auskunft
+                und schon gar keine Entwarnung.
+              </p>
+            )}
+            <Row label="Kältekreis">
+              <select
+                className="field"
+                value={pump.hermetisch ? 'ja' : 'nein'}
+                onChange={(e) => updateHeatPump(pump.id, { hermetisch: e.target.value === 'ja' })}
+              >
+                <option value="nein" className="bg-graphite-850">nicht hermetisch geschlossen</option>
+                <option value="ja" className="bg-graphite-850">hermetisch geschlossen</option>
+              </select>
+            </Row>
+            {dicht.schwelle !== undefined && (
+              <p
+                className={`text-[9.5px] leading-relaxed ${dicht.pflichtig ? 'text-amber-200' : 'text-slate-500'}`}
+              >
+                {dicht.begruendung}
+                {dicht.vorlaeufig
+                  ? ' Für HFO/HFKW-Gemische stand die Berechnungsmethodik bei Erscheinen des Leitfadens noch nicht fest; die Schwelle kann niedriger ausfallen.'
+                  : ''}
+              </p>
+            )}
             <Num
               label="Schutzbereich, Radius"
               unit="m"
@@ -496,18 +558,31 @@ export default function HeatPumpPanel() {
                 {protection.map((issue, i) => (
                   <div key={i} className="mt-1 text-[10px] leading-relaxed text-slate-300">
                     {issue.label} liegt {fmt(issue.distance, 2)} m entfernt — nötig sind{' '}
-                    {fmt(issue.required, 2)} m.
+                    {fmt(issue.required, 2)} m
+                    {issue.hoehe !== undefined ? `, Unterkante ${fmt(issue.hoehe, 2)} m über ±0,00` : ''}.
                   </div>
                 ))}
                 <p className="mt-1.5 text-[9.5px] leading-relaxed text-slate-500">
                   Propan ist schwerer als Luft. Es sinkt und sammelt sich unten — im Lichtschacht,
                   im Kellerabgang, im Bodenablauf. Gerät verschieben oder die Öffnung dicht
-                  ausführen.
+                  ausführen. Geht das nicht, kann eine dauerhafte, dichte Barriere den Bereich
+                  verändern; er weitet sich dann in die anderen Richtungen aus.
                 </p>
               </div>
-            ) : (
+            ) : schutz.erforderlich === undefined ? (
+              <p className="text-[9.5px] leading-relaxed text-amber-200/80">{schutz.hinweis}</p>
+            ) : schutz.erforderlich && schutz.radius <= 0 ? (
+              <p className="text-[9.5px] leading-relaxed text-amber-200/80">{schutz.hinweis}</p>
+            ) : schutz.erforderlich ? (
               <p className="text-[9.5px] leading-relaxed text-emerald-400/70">
-                Keine Öffnung und keine Grenze im Schutzbereich.
+                Keine Öffnung, keine Zündquelle und keine Grenze im Schutzbereich — auch keine
+                Fenster oder Türen des Gebäudes.
+              </p>
+            ) : (
+              <p className="text-[9.5px] leading-relaxed text-slate-500">
+                {pump.refrigerant} ist der Sicherheitsgruppe A1 zugeordnet; ein Schutzbereich wegen
+                Brennbarkeit ist dafür nicht vorgesehen. Die funktionsnotwendigen Abstände und die
+                Serviceabstände gelten unabhängig davon.
               </p>
             )}
           </div>
@@ -625,6 +700,7 @@ export default function HeatPumpPanel() {
             [
               'immission-point',
               'hazard-opening',
+              'ignition',
               'neighbour-building',
               'tree',
               'borehole',
@@ -725,6 +801,28 @@ function SiteElementEditor({ id }: { id: string }) {
           step={0.1}
           onChange={(v) => update(id, { radius: v })}
         />
+      )}
+      {element.kind === 'ignition' && (
+        <Row label="Art">
+          {/*
+            Die Auswahl ist die Aufzählung des Leitfadens und keine freie
+            Liste: offene Flammen, elektrische Anlagen, Steckdosen, Lampen,
+            Lichtschalter, elektrische Hausanschlüsse, Gegenstände mit hohen
+            Oberflächentemperaturen. Wer sie liest, erkennt, dass auch eine
+            Außensteckdose dazugehört — und genau die übersieht man.
+          */}
+          <select
+            className="field"
+            value={element.ignition ?? 'socket'}
+            onChange={(e) => update(id, { ignition: e.target.value as IgnitionKind })}
+          >
+            {(Object.keys(IGNITION_LABELS) as IgnitionKind[]).map((k) => (
+              <option key={k} value={k} className="bg-graphite-850">
+                {IGNITION_LABELS[k]}
+              </option>
+            ))}
+          </select>
+        </Row>
       )}
       {element.kind === 'collector' && (
         <Num

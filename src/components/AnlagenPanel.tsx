@@ -704,11 +704,24 @@ export default function AnlagenPanel() {
               <Readout label="Mindestvolumenstrom" value={`${fmt(selected.model.minVolumeFlow, 2)} m³/h`} term="ueberstroemventil" />
               <Readout label="Mindestwasserinhalt" value={`${selected.model.minSystemVolume} l`} />
             </div>
-            {refrigerant?.flammable && selected.model.form !== 'monoblock-outdoor' && (
+            {refrigerant?.flammable === true && selected.model.form !== 'monoblock-outdoor' && (
               <p className="rounded-lg bg-amber-400/[0.07] px-2.5 py-2 text-[10px] leading-relaxed text-amber-200">
                 {selected.model.refrigerant} ist brennbar ({refrigerant.group}) und liegt bei dieser Bauform im Gebäude.
-                Nach DIN EN 378-1 muss der Aufstellraum mindestens{' '}
-                {fmt(minimumRoomVolume(selected.model.refrigerant, selected.model.refrigerantMass), 0)} m³ haben.
+                {(() => {
+                  // Ohne praktischen Grenzwert wird keine Mindestgröße
+                  // genannt. Eine geschätzte Mindestgröße des Aufstellraums
+                  // ist schlimmer als keine: Sie sieht aus wie ein Nachweis.
+                  const v = minimumRoomVolume(selected.model.refrigerant, selected.model.refrigerantMass);
+                  return v === undefined
+                    ? ' Die Mindestgröße des Aufstellraums nach DIN EN 378-1 lässt sich hier nicht angeben — zu diesem Kältemittel ist kein praktischer Grenzwert hinterlegt. Er steht im Datenblatt.'
+                    : ` Nach DIN EN 378-1 muss der Aufstellraum mindestens ${fmt(v, 0)} m³ haben.`;
+                })()}
+              </p>
+            )}
+            {refrigerant?.flammable === undefined && selected.model.form !== 'monoblock-outdoor' && (
+              <p className="rounded-lg bg-amber-400/[0.07] px-2.5 py-2 text-[10px] leading-relaxed text-amber-200">
+                Zu „{selected.model.refrigerant}" ist hier keine Sicherheitsgruppe hinterlegt. Ob das Kältemittel
+                brennbar ist und welche Mindestgröße der Aufstellraum braucht, steht im Datenblatt des Geräts.
               </p>
             )}
             {selected.model.provenance === 'generisch' && (

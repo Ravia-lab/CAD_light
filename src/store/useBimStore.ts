@@ -259,6 +259,7 @@ const SITE_DEFAULTS: Partial<Record<SiteElementKind, Partial<SiteElement>>> = {
   'well-supply': { depth: 15, label: 'Förderbrunnen' },
   'well-injection': { depth: 15, label: 'Schluckbrunnen' },
   'hazard-opening': { radius: 0.4, label: 'Lichtschacht' },
+  ignition: { ignition: 'socket', label: 'Steckdose' },
   tree: { radius: 3, label: 'Baum' },
   'neighbour-building': { height: 7, label: 'Nachbargebäude' },
   'immission-point': { label: 'Immissionsort' },

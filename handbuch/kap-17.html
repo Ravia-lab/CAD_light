@@ -2,7 +2,7 @@
 <h2 id="k17">17 · Schnittstellen: Export, IFC, Einbettung in RaVia</h2>
 <p class="lead">Alles, was dieses Programm tut, läuft auf eine Datei zu: die Übergabe an die Heizlastberechnung. Dieses Kapitel sagt, was in dieser Datei steht, welche anderen Wege es daneben gibt — IFC4 hin und zurück, Einbettung in RaVia, der Rückweg von dort — und was der Betrieb davon merkt.</p>
 
-<h3 id="k17-1">17.1 Der Export <code>ravia.bim.light</code> 2.5.0</h3>
+<h3 id="k17-1">17.1 Der Export <code>ravia.bim.light</code> 2.6.0</h3>
 
 <p class="wo">Im Programm: Werkzeugleiste oben rechts → blauer Knopf <b>RaVia JSON</b>. Der Knopf trägt den Hinweis „Gebäudedaten als RaVia-BIM-JSON exportieren (DIN EN 12831) — dient zugleich als Projektdatei".</p>
 
@@ -353,7 +353,15 @@
 
 <p>Für den Bildschirm ist das gleichgültig, für die Gegenstelle nicht. Deshalb merkt sich der Raum jetzt die Kennung, unter der er schon einmal übergeben worden ist, gibt sie im Export mit, und <code>applyPatch</code> nimmt beide entgegen — die laufende und die frühere. Die <b>laufende gewinnt</b>: Wenn ein anderer Raum heute unter <code>room-eg-0</code> geführt wird, ist das der Raum, den dieser Name jetzt bezeichnet.</p>
 
-<div class="merke"><b>Merke</b><p>Alle fünf Schritte sind <b>additiv</b>. Eine Gegenstelle, die gegen 2.0.0 gebaut hat, liest eine 2.5.0-Datei ohne Änderung und rechnet dasselbe wie vorher. Sie bekommt nur weniger Auskunft.</p></div>
+<p><b>2.6.0</b> brachte gegenüber 2.5.0 drei Ergänzungen am Außengerät:</p>
+
+<ul>
+<li><code>refrigerantClass</code> — die <b>Sicherheitsgruppe</b> des Kältemittels nach ISO 817 (<code>A1</code>, <code>A2L</code>, <code>A3</code> oder <code>unbekannt</code>). Aus ihr folgt, ob ein Schutzbereich einzuhalten ist. Sie mitzugeben erspart der Gegenstelle eine eigene Tabelle — also eine zweite, die von dieser abweichen kann.</li>
+<li><code>hermetisch</code> — ob der Kältekreis hermetisch geschlossen ist. Davon hängt die Schwelle der Dichtheitsprüfung ab; bei hermetisch geschlossenem Kreis verdoppelt sie sich.</li>
+<li>An jeder Schutzbereichsverletzung zwei neue <code>kind</code>-Werte, <code>building-opening</code> (Fenster oder Tür des Gebäudes) und <code>ignition</code> (Zündquelle), sowie <code>hoehe</code> — die Unterkante der Öffnung über ±0,00.</li>
+</ul>
+
+<div class="merke"><b>Merke</b><p>Alle sechs Schritte sind <b>additiv</b>. Eine Gegenstelle, die gegen 2.0.0 gebaut hat, liest eine 2.6.0-Datei ohne Änderung und rechnet dasselbe wie vorher. Sie bekommt nur weniger Auskunft. Wer die neuen <code>kind</code>-Werte nicht kennt, behandelt sie wie bisher jede Verletzung.</p></div>
 
 <h4 id="k17-1-7">17.1.7 Der Wächter über dem Format</h4>
 

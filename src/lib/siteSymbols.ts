@@ -22,6 +22,7 @@ export const SITE_COLORS = {
   neighbour: '#64748B',
   immission: '#FB7185',
   hazard: '#F97316',
+  ignition: '#EF4444',
   tree: '#4ADE80',
   source: '#22D3EE',
   utility: '#A78BFA',
@@ -182,6 +183,30 @@ export function drawSiteElement(
       ctx.arc(sx(points[0].x), sy(points[0].y), 3, 0, Math.PI * 2);
       ctx.fillStyle = SITE_COLORS.tree;
       ctx.fill();
+      break;
+    }
+    /*
+     * **Die Zündquelle — ein Blitz im Kreis.**
+     *
+     * Bewusst ein anderes Zeichen als die Öffnung: Die Öffnung ist der Weg,
+     * den das Gas nimmt, die Zündquelle ist das, was am Ende passiert. Beide
+     * liegen im Schutzbereich, und wer sie im Plan verwechselt, sucht am
+     * falschen Ende.
+     */
+    case 'ignition': {
+      const r = Math.max(5, 0.3 * zoom);
+      const cx = sx(points[0].x);
+      const cy = sy(points[0].y);
+      ctx.strokeStyle = SITE_COLORS.ignition;
+      ctx.beginPath();
+      ctx.arc(cx, cy, r, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(cx + r * 0.25, cy - r * 0.6);
+      ctx.lineTo(cx - r * 0.25, cy + r * 0.05);
+      ctx.lineTo(cx + r * 0.1, cy + r * 0.05);
+      ctx.lineTo(cx - r * 0.25, cy + r * 0.65);
+      ctx.stroke();
       break;
     }
     case 'hazard-opening': {

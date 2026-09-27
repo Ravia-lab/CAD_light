@@ -2540,9 +2540,57 @@ der Rechnung, sondern erst an der Verdichterlaufzeit.</p></div>
 
 <p>Propan (R290) ist brennbar und <b>schwerer als Luft</b>. Tritt es aus, sinkt es und sammelt sich unten: im Lichtschacht, im Kellerabgang, im Bodenablauf. Deshalb zählen gerade die Öffnungen, die man beim Aufstellen am wenigsten im Blick hat. Um das Gerät liegt ein Schutzbereich, in dem keine solche Öffnung liegen darf — und der nicht auf das Nachbargrundstück reichen darf.</p>
 
-<p>Das Programm prüft das geometrisch für die Kältemittel der Sicherheitsgruppen A3 und A2L, also R290 und R32.</p>
+<p>Das Programm prüft das geometrisch für alle Kältemittel der Sicherheitsgruppen A3 und A2L. <b>Maßgeblich ist die Sicherheitsklasse, nicht der Name.</b> Bis 1.58.0 hing die Entscheidung an einer Liste mit zwei Einträgen — R290 und R32 —, und das Modell ließ nur fünf Kältemittel überhaupt zu. R454B, R454C, R452B, R1234yf und R1234ze sind ebenfalls A2L; wer eines davon verbaut hatte, musste „andere" eintragen, und „andere" galt als unbrennbar. Das Ergebnis war kein falscher Wert, sondern <b>Schweigen</b>: kein Schutzbereich, keine Prüfung, keine Meldung — und Schweigen sieht aus wie ein „in Ordnung". Seit 1.59.0 stehen alle elf Kältemittel der Tabelle 2 des BWP-Leitfadens zur Auswahl, dazu R744, jedes mit Sicherheitsgruppe, Treibhauspotenzial und — wo der Leitfaden sie nennt — Selbstentzündungs- und maximal zulässiger Oberflächentemperatur.</p>
 
-<div class="warnung"><b>Achtung</b><p>Der Radius ist <b>kein Normwert</b>. Es gibt keine Tabelle „Füllmenge → Radius"; jeder Hersteller weist ihn für sein Gerät aus. 1,00 m waagerecht ist der in der Praxis verbreitete Wert und die Vorbelegung des Programms — er ersetzt nicht das Datenblatt.</p></div>
+<div class="merke"><b>Merke</b><p>„Unbekannt" ist keine Entwarnung. Wer „andere" wählt, bekommt jetzt eine Meldung statt Stillschweigen: Ob ein Schutzbereich einzuhalten ist, steht dann im Datenblatt des Geräts, und das Programm sagt genau das — es behauptet nicht, es sei nichts zu tun.</p></div>
+
+<p><b>Was im Schutzbereich nicht liegen darf</b>, zählt der BWP-Leitfaden auf, und das Programm prüft es Stück für Stück:</p>
+
+<table class="tab">
+<caption>Was der Schutzbereich ausschließt — und woher das Programm es weiß</caption>
+<thead><tr><th>Was</th><th>Woher</th></tr></thead>
+<tbody>
+<tr><td><b>Fenster, Türen, Lichtschächte, Flachdachfenster</b> des Gebäudes</td><td>aus dem gezeichneten Grundriss — seit 1.59.0</td></tr>
+<tr><td>Öffnung, Schacht, Ablauf im Gelände</td><td>Geländeobjekt „Öffnung / Schacht / Ablauf"</td></tr>
+<tr><td>Zündquellen: offene Flamme, Steckdose, Leuchte, Lichtschalter, Hausanschluss, heiße Oberfläche</td><td>Geländeobjekt „Zündquelle" — seit 1.59.0</td></tr>
+<tr><td>Grundstücksgrenze, Nachbargrundstück</td><td>Geländeobjekt „Grundstücksgrenze"</td></tr>
+</tbody>
+</table>
+
+<p>Die <b>Gebäudeöffnungen</b> sind dabei die eigentliche Neuerung, und zwar aus einem einfachen Grund: Sie stehen ohnehin im Modell. Bis 1.58.0 sah die Prüfung nur an, was jemand <i>von Hand</i> als Geländeobjekt gesetzt hatte — ein Küchenfenster einen halben Meter neben dem Außengerät fiel nicht auf, obwohl das Programm es mit Position, Breite und Brüstungshöhe kennt. Das ist die Stelle, an der ein Zeichenprogramm mehr kann als eine Checkliste.</p>
+
+<p>Die Meldung nennt dabei das Geschoss und die <b>Unterkante über ±0,00</b> — „Fenster im KG liegt mit 1,20 m im Schutzbereich (1,50 m), Unterkante −1,20 m". Sie entscheidet aber nicht: Der Leitfaden nennt keine Höhe, ab der eine Öffnung nicht mehr zählt, und dieses Programm erfindet keine. Gemeldet wird jede Öffnung im Radius; welche davon kritisch ist, entscheidet der Planer — bodennahe zuerst, weil Propan sinkt.</p>
+
+<div class="warnung"><b>Achtung</b><p>Der Radius ist <b>kein Normwert</b>. Es gibt keine Tabelle „Füllmenge → Radius"; jeder Hersteller weist ihn für sein Gerät aus. 1,00 m waagerecht ist der in der Praxis verbreitete Wert und die Vorbelegung des Programms — er ersetzt nicht das Datenblatt. Ist bei einem brennbaren Kältemittel gar kein Radius eingetragen, meldet das Programm auch das: Ohne ihn lässt sich nicht prüfen, was darin liegt.</p></div>
+
+<p><b>Wenn sich die Öffnung nicht vermeiden lässt</b>, erlaubt der Leitfaden, den Bereich um den Aufstellort durch dauerhafte und dichte Barrieren zu verändern — Mauern oder Trennwände. Er verschiebt den Bereich damit, er beseitigt ihn nicht: Die Ausweitung in die anderen Richtungen ist proportional zu berücksichtigen, und herstellerspezifische Angaben zur Eck- und Nischenaufstellung gelten weiter. Für die <b>wandhängende Montage</b> gilt dasselbe wie für die bodennahe Aufstellung; bei <b>Dachaufstellung</b> kommt hinzu, dass Dachentlüfter und Dachentwässerung nicht im Bereich liegen dürfen.</p>
+
+<h4 id="k13-16-6b">13.16.6b Dichtheitsprüfung — die Brennbarkeit ist nicht das Kriterium</h4>
+
+<p>Das ist die Verwechslung, die nahe liegt: <b>R290 ist das brennbarste der Reihe und unterliegt der Dichtheitsprüfung gar nicht</b>, weil es kein fluoriertes Treibhausgas ist. Maßgeblich ist nicht die Sicherheitsgruppe, sondern ob das Kältemittel unter die F-Gase-Verordnung fällt — und dann seine Füllmenge.</p>
+
+<p>Nach Artikel 5 der Verordnung (EU) Nr. 2024/573 ist ab 5 t CO₂-Äquivalent (nicht hermetisch geschlossener Kältekreis) beziehungsweise 10 t (hermetisch geschlossen) mindestens jährlich auf Dichtheit zu prüfen. Der BWP-Leitfaden rechnet das in Füllmengen um; das Programm führt diese Tabelle und meldet, sobald die eingetragene Füllmenge sie erreicht.</p>
+
+<table class="tab">
+<caption>Füllmenge, ab der mindestens jährlich zu prüfen ist (nicht hermetisch geschlossener Kältekreis; hermetisch: das Doppelte)</caption>
+<thead><tr><th>Kältemittel</th><th>Gruppe</th><th>GWP</th><th>Schwelle</th></tr></thead>
+<tbody>
+<tr><td>R290</td><td>A3</td><td>0,02</td><td>kein F-Gas — keine Prüfpflicht</td></tr>
+<tr><td>R744 (CO₂)</td><td>A1</td><td>1</td><td>kein F-Gas — keine Prüfpflicht</td></tr>
+<tr><td>R1234yf, R1234ze</td><td>A2L</td><td>7 bzw. 4</td><td>1,00 kg</td></tr>
+<tr><td>R404A</td><td>A1</td><td>—</td><td>1,27 kg</td></tr>
+<tr><td>R410A</td><td>A1</td><td>2088</td><td>2,39 kg</td></tr>
+<tr><td>R407C</td><td>A1</td><td>1774</td><td>2,82 kg</td></tr>
+<tr><td>R134a</td><td>A1</td><td>1430</td><td>3,50 kg</td></tr>
+<tr><td>R452B</td><td>A2L</td><td>698</td><td>7,16 kg (Vorbehalt)</td></tr>
+<tr><td>R32</td><td>A2L</td><td>675</td><td>7,41 kg</td></tr>
+<tr><td>R513A</td><td>A1</td><td>631</td><td>7,90 kg</td></tr>
+<tr><td>R454B</td><td>A2L</td><td>466</td><td>10,73 kg (Vorbehalt)</td></tr>
+<tr><td>R454C</td><td>A2L</td><td>148</td><td>33,78 kg (Vorbehalt)</td></tr>
+</tbody>
+</table>
+
+<p class="quelle">Quelle: BWP-Leitfaden „Wärmepumpen mit brennbaren Kältemitteln", Tabellen 2, 4 und 5. Die GWP-Werte der F-Gase stammen dort aus dem 4. IPCC-Sachstandsbericht (2007), weil die F-Gase-Verordnung mit diesen Werten rechnet; R290 fällt nicht darunter und ist mit dem Wert des 6. Berichts (2021) geführt — das ist die Auflösung des vielzitierten Widerspruchs „GWP 3 oder 0,02". Der Vorbehalt bei den HFO/HFKW-Gemischen steht so im Leitfaden: Die Berechnungsmethodik stand bei Veröffentlichung noch nicht fest, die Schwellen können auf 1 kg beziehungsweise 2 kg sinken.</p>
 
 <p>Bei <b>Innenaufstellung</b> kommt eine zweite Bedingung dazu: Der Aufstellraum muss groß genug sein, damit die gesamte Füllmenge im Störfall unter dem praktischen Grenzwert bleibt.</p>
 
@@ -2560,7 +2608,7 @@ der Rechnung, sondern erst an der Verdichterlaufzeit.</p></div>
 <caption>Praktische Grenzwerte und was daraus folgt</caption>
 <thead><tr><th>Kältemittel</th><th>Gruppe</th><th>GWP<br>(Treibhauspotenzial)</th><th>c_prakt</th><th>V_min bei 1,5 kg</th></tr></thead>
 <tbody>
-<tr><td>R290 (Propan)</td><td>A3</td><td>3</td><td>0,008 kg/m³</td><td>187,5 m³</td></tr>
+<tr><td>R290 (Propan)</td><td>A3</td><td>0,02</td><td>0,008 kg/m³</td><td>187,5 m³</td></tr>
 <tr><td>R32</td><td>A2L</td><td>675</td><td>0,061 kg/m³</td><td>24,6 m³</td></tr>
 <tr><td>R454C</td><td>A2L</td><td>148</td><td>0,058 kg/m³</td><td>25,9 m³</td></tr>
 <tr><td>R410A</td><td>A1</td><td>2088</td><td>0,44 kg/m³</td><td>3,4 m³</td></tr>

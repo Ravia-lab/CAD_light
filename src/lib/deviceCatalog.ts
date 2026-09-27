@@ -40,6 +40,7 @@ import type {
   UnitContents,
 } from '../types/bim';
 import { typklassenHydraulik } from './erzeugerHydraulik';
+import { kaeltemittel } from './kaeltemittel';
 
 // ---------------------------------------------------------------------------
 // Kältemittel
@@ -53,57 +54,57 @@ import { typklassenHydraulik } from './erzeugerHydraulik';
  * V_min = Füllmenge / praktischer Grenzwert. Für Außenaufstellung ohne
  * Bedeutung, für jedes Innengerät entscheidend.
  */
-export const REFRIGERANTS: Record<Refrigerant, RefrigerantProperties> = {
-  R290: {
-    group: 'A3',
-    gwp: 3,
-    flammable: true,
-    practicalLimit: 0.008,
-    note: 'Propan. Brennbar, dichter als Luft — sammelt sich in Schächten und Kellerabgängen.',
-  },
-  R32: {
-    group: 'A2L',
-    gwp: 675,
-    flammable: true,
-    practicalLimit: 0.061,
-    note: 'Schwer entflammbar. Bei Split-Geräten liegt Kältemittel im Aufstellraum des Innengeräts.',
-  },
-  R410A: {
-    group: 'A1',
-    gwp: 2088,
-    flammable: false,
-    practicalLimit: 0.44,
-    note: 'Nicht brennbar, hoher GWP. Neuanlagen werden durch die F-Gas-Verordnung verdrängt.',
-  },
-  R454C: {
-    group: 'A2L',
-    gwp: 148,
-    flammable: true,
-    practicalLimit: 0.058,
-    note: 'Gemisch mit niedrigem GWP, Verhalten wie R32 in der Aufstellung.',
-  },
-  R744: {
-    group: 'A1',
-    gwp: 1,
-    flammable: false,
-    practicalLimit: 0.1,
-    note: 'CO₂. Nicht brennbar, aber erstickend — Grenzwert kommt aus der Atemluft, nicht aus dem Brandschutz.',
-  },
-  R1234ze: {
-    group: 'A2L',
-    gwp: 7,
-    flammable: true,
-    practicalLimit: 0.061,
-    note: 'Vor allem in Großanlagen und Hochtemperatur-Wärmepumpen.',
-  },
-  andere: {
-    group: 'A1',
-    gwp: 0,
-    flammable: false,
-    practicalLimit: 0.1,
-    note: 'Unbekanntes Kältemittel — Eigenschaften aus dem Datenblatt eintragen.',
-  },
-};
+export const REFRIGERANTS: Record<Refrigerant, RefrigerantProperties> = aufbauen({
+  R290:    { practicalLimit: 0.008, note: 'Propan. Brennbar, dichter als Luft — sammelt sich in Schächten und Kellerabgängen.' },
+  R1234ze: { practicalLimit: 0.061, note: 'Vor allem in Großanlagen und Hochtemperatur-Wärmepumpen.' },
+  R1234yf: { note: 'Niedriges Treibhauspotenzial, A2L. Ein praktischer Grenzwert nach DIN EN 378-1 ist hier nicht hinterlegt.' },
+  R454C:   { practicalLimit: 0.058, note: 'Gemisch mit niedrigem GWP, Verhalten wie R32 in der Aufstellung.' },
+  R454B:   { note: 'Gemisch, A2L. Häufig als R410A-Ersatz. Ein praktischer Grenzwert nach DIN EN 378-1 ist hier nicht hinterlegt.' },
+  R513A:   { note: 'Gemisch, A1. Ein praktischer Grenzwert nach DIN EN 378-1 ist hier nicht hinterlegt.' },
+  R32:     { practicalLimit: 0.061, note: 'Schwer entflammbar. Bei Split-Geräten liegt Kältemittel im Aufstellraum des Innengeräts.' },
+  R452B:   { note: 'Gemisch, A2L. Ein praktischer Grenzwert nach DIN EN 378-1 ist hier nicht hinterlegt.' },
+  R134a:   { note: 'A1, hohes Treibhauspotenzial. Ein praktischer Grenzwert nach DIN EN 378-1 ist hier nicht hinterlegt.' },
+  R407C:   { note: 'Gemisch, A1, hohes Treibhauspotenzial. Ein praktischer Grenzwert nach DIN EN 378-1 ist hier nicht hinterlegt.' },
+  R410A:   { practicalLimit: 0.44, note: 'Nicht brennbar, hoher GWP. Neuanlagen werden durch die F-Gas-Verordnung verdrängt.' },
+  R744:    { practicalLimit: 0.1, note: 'CO₂. Nicht brennbar, aber erstickend — Grenzwert kommt aus der Atemluft, nicht aus dem Brandschutz.' },
+});
+
+/**
+ * Sicherheitsgruppe und GWP kommen aus `kaeltemittel.ts`, hier steht nur, was
+ * dort nicht hingehört: der praktische Grenzwert nach DIN EN 378-1 Anhang C
+ * und der Satz für den Menschen am Bildschirm.
+ *
+ * **Warum zusammengesetzt und nicht abgeschrieben.** Bis 1.58.0 standen die
+ * Sicherheitsgruppe und das Treibhauspotenzial an zwei Stellen — und beide
+ * Listen waren verschieden lang. Zwei Listen über dieselbe Sache laufen
+ * auseinander; welche von beiden dann gilt, entscheidet der Zufall des
+ * Aufrufwegs. Jetzt gibt es eine Quelle und hier nur die Ergänzung.
+ *
+ * `andere` entsteht nicht aus dem Katalog, sondern ist ausdrücklich das
+ * Nichtwissen: Gruppe „unbekannt", Brennbarkeit `undefined`, kein Grenzwert.
+ */
+function aufbauen(
+  zusatz: Record<Exclude<Refrigerant, 'andere'>, { practicalLimit?: number; note: string }>,
+): Record<Refrigerant, RefrigerantProperties> {
+  const raus = {} as Record<Refrigerant, RefrigerantProperties>;
+  for (const [id, z] of Object.entries(zusatz) as [Exclude<Refrigerant, 'andere'>, { practicalLimit?: number; note: string }][]) {
+    const k = kaeltemittel(id);
+    if (!k) throw new Error(`Kältemittel ${id} fehlt im Katalog kaeltemittel.ts`);
+    raus[id] = {
+      group: k.klasse,
+      gwp: k.gwp,
+      flammable: k.klasse !== 'A1',
+      ...(z.practicalLimit !== undefined ? { practicalLimit: z.practicalLimit } : {}),
+      note: z.note,
+    };
+  }
+  raus.andere = {
+    group: 'unbekannt',
+    flammable: undefined,
+    note: 'Kältemittel nicht aus der Liste — Sicherheitsgruppe, Treibhauspotenzial und praktischer Grenzwert stehen im Datenblatt des Geräts. Bis dahin nimmt dieses Programm nichts an: Es meldet, dass die Angabe fehlt, statt Entwarnung zu geben.',
+  };
+  return raus;
+}
 
 /**
  * Mindestgröße des Aufstellraums nach DIN EN 378-1 [m³].
@@ -111,9 +112,9 @@ export const REFRIGERANTS: Record<Refrigerant, RefrigerantProperties> = {
  * V_min = m / c_prakt. Ergibt bei 1,5 kg R290 rund 190 m³ — der Grund, warum
  * R290 praktisch nie im Keller steht, sondern draußen.
  */
-export function minimumRoomVolume(refrigerant: Refrigerant, mass: number): number {
+export function minimumRoomVolume(refrigerant: Refrigerant, mass: number): number | undefined {
   const limit = REFRIGERANTS[refrigerant].practicalLimit;
-  return limit > 0 ? mass / limit : 0;
+  return limit !== undefined && limit > 0 ? mass / limit : undefined;
 }
 
 // ---------------------------------------------------------------------------

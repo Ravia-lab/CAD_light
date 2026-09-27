@@ -25,7 +25,8 @@ import { BRUESTUNGS_HOEHE, diagnoseClosure, gebaeudeUmriss, gradeSplit } from '.
 import { BAUTEIL_BEZEICHNUNG, VORGABE_U, istErfasst, uWertOeffnung, uWertWand } from './uwert';
 import { documentBridgeHeatLoss, envelopeArea } from './thermalBridges';
 import { buildPipeNetwork } from './pipeNetwork';
-import { acousticReport, protectionIssues, sourceDemand, waterProtectionVerdict } from './heatPump';
+import { acousticReport, protectionIssues, protectionStatus, sourceDemand, waterProtectionVerdict } from './heatPump';
+import { dichtheitspflicht } from './kaeltemittel';
 import { daecherVon, raeumeOhneGeschossDarueber } from './dachlandschaft';
 
 /** Objekte, die Wärme in den Raum geben — nur sie brauchen eine Leistung. */
@@ -175,7 +176,17 @@ export const REMEDIES: Record<string, string> = {
   'heatpump.noise-tight':
     'Behörden erwarten meist 6 dB Abstand zum Richtwert, weil später weitere Geräte dazukommen. Ein bis zwei Meter mehr Abstand reichen dafür meist.',
   'heatpump.protection-zone':
-    'Wärmepumpe verschieben oder die Öffnung dicht ausführen. Propan sinkt zu Boden — Lichtschacht, Kellerabgang und Bodenablauf sind die kritischen Stellen.',
+    'Wärmepumpe verschieben oder die Öffnung dicht ausführen. Propan sinkt zu Boden — Lichtschacht, Kellerabgang und Bodenablauf sind die kritischen Stellen. Lässt sich die Öffnung nicht vermeiden, kann eine dauerhafte, dichte Barriere (Mauer, Trennwand) den Bereich verändern; der Leitfaden verlangt dann, die Ausweitung in die anderen Richtungen zu berücksichtigen.',
+  'heatpump.protection-zone-building':
+    'Das ist ein Fenster oder eine Tür des Gebäudes, kein eingetragenes Geländeobjekt. Entweder die Wärmepumpe woanders aufstellen oder — wenn der Aufstellort feststeht — mit dem Hersteller klären, ob eine dichte Barriere zulässig ist. Die Brüstungshöhe steht in der Meldung: bodennahe Öffnungen sind die kritischen, weil Propan sinkt.',
+  'heatpump.protection-zone-ignition':
+    'Im Schutzbereich darf während des Betriebs weder dauerhaft noch kurzfristig eine Zündquelle sein — offene Flamme, Steckdose, Leuchte, Lichtschalter, Hausanschluss oder eine Oberfläche über der zulässigen Temperatur. Entweder das Gerät verschieben oder die Zündquelle versetzen.',
+  'heatpump.refrigerant-unknown':
+    'Kältemittel aus der Liste wählen oder die Sicherheitsgruppe aus dem Datenblatt des Geräts übernehmen. Solange sie fehlt, kann dieses Programm den Schutzbereich weder prüfen noch ausschließen.',
+  'heatpump.protection-radius-missing':
+    'Den Schutzbereich aus der Planungsunterlage des Herstellers eintragen. Er steht in keiner Normtabelle — es gibt keine Beziehung „Füllmenge → Radius", und jeder Hersteller weist ihn für sein Gerät gesondert aus.',
+  'heatpump.leak-check':
+    'Kein Mangel an der Planung, sondern eine Betreiberpflicht: Die Dichtheitsprüfung gehört mit Intervall in die Übergabeunterlagen und ins Anlagenbuch. Sie darf nur von zertifiziertem Personal durchgeführt werden.',
   'heatpump.night-mode':
     'Den Schallleistungspegel des Nachtbetriebs aus dem Datenblatt eintragen — sonst wird mit dem lauten Wert gerechnet.',
   'heatpump.stand-height':
@@ -954,11 +965,63 @@ export function validateModel(doc: BimDocument): ValidationReport {
         }
       }
 
+      /*
+       * --- Schutzbereich ---------------------------------------------------
+       *
+       * Zuerst die Frage, **ob** überhaupt geprüft werden kann. Bis 1.58.0
+       * fiel „unbekanntes Kältemittel" und „kein Radius eingetragen"
+       * stillschweigend unter „nichts zu tun": Das Programm meldete nichts,
+       * und wer nichts liest, hält es für in Ordnung. Beides ist aber keine
+       * Entwarnung, sondern eine offene Frage — und die gehört auf den
+       * Schirm.
+       */
+      const schutz = protectionStatus(pump);
+      if (schutz.erforderlich === undefined) {
+        add('warning', 'heatpump.refrigerant-unknown', `${pump.label}: ${schutz.hinweis}`, {
+          kind: 'heatpump',
+          id: pump.id,
+        });
+      } else if (schutz.erforderlich && schutz.radius <= 0) {
+        add('warning', 'heatpump.protection-radius-missing', `${pump.label}: ${schutz.hinweis}`, {
+          kind: 'heatpump',
+          id: pump.id,
+        });
+      }
+
       for (const issue of protectionIssues(doc, pump)) {
+        const code =
+          issue.kind === 'building-opening'
+            ? 'heatpump.protection-zone-building'
+            : issue.kind === 'ignition'
+              ? 'heatpump.protection-zone-ignition'
+              : 'heatpump.protection-zone';
+        const hoehe = issue.hoehe === undefined ? '' : `, Unterkante ${issue.hoehe.toFixed(2)} m über ±0,00`;
         add(
           'error',
-          'heatpump.protection-zone',
-          `${pump.label}: ${issue.label} liegt mit ${issue.distance.toFixed(2)} m im Schutzbereich (${issue.required.toFixed(2)} m) des brennbaren Kältemittels.`,
+          code,
+          `${pump.label}: ${issue.label} liegt mit ${issue.distance.toFixed(2)} m im Schutzbereich (${issue.required.toFixed(2)} m) des brennbaren Kältemittels${hoehe}.`,
+          { kind: 'heatpump', id: pump.id },
+        );
+      }
+
+      /*
+       * --- Dichtheitsprüfung nach F-Gase-Verordnung ------------------------
+       *
+       * Kein Planungsmangel, sondern eine Pflicht, die mit der Anlage
+       * übergeben wird — und eine, die man beim Zeichnen nicht im Kopf hat.
+       * Maßgeblich ist **nicht die Brennbarkeit**: R290 ist das brennbarste
+       * der Reihe und unterliegt der Prüfpflicht gar nicht, weil es kein
+       * fluoriertes Treibhausgas ist. Maßgeblich ist die Füllmenge.
+       */
+      const dicht = dichtheitspflicht(pump.refrigerant, pump.refrigerantMass, pump.hermetisch);
+      if (dicht.pflichtig) {
+        const vorbehalt = dicht.vorlaeufig
+          ? ' Für HFO/HFKW-Gemische stand die Berechnungsmethodik bei Erscheinen des Leitfadens noch nicht fest; die Schwelle kann niedriger ausfallen.'
+          : '';
+        add(
+          'info',
+          'heatpump.leak-check',
+          `${pump.label}: ${pump.refrigerantMass.toFixed(2)} kg ${pump.refrigerant} — ${dicht.begruendung}${vorbehalt}`,
           { kind: 'heatpump', id: pump.id },
         );
       }

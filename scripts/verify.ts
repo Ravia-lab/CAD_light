@@ -66,6 +66,7 @@ import { pruefeRohrausleger, pruefeErzeugerSpeicherVerbraucher } from './pruefun
 import { pruefeRohrnetzrechner } from './pruefungen/rohrnetzrechner';
 import { pruefeRohrnetzblaetter } from './pruefungen/rohrnetzblaetter';
 import { pruefeRaumkennungen } from './pruefungen/raumkennung';
+import { pruefeSchutzbereich } from './pruefungen/schutzbereich';
 import { pruefeWissensbasis } from './pruefungen/wissensbasis';
 import { pruefeGeschossdecken } from './pruefungen/geschossdecken';
 import { pruefeTreppenlogik } from './pruefungen/treppenlogik';
@@ -727,7 +728,7 @@ console.log('\n▸ Export für die Heizlastberechnung');
   };
 
   const ex = buildRaviaExport(doc as never);
-  check('Schema-Version', ex.version, '2.5.0');
+  check('Schema-Version', ex.version, '2.6.0');
   check('Einheiten dokumentiert', ex.units.uValue, 'W/(m2K)');
 
   const room = ex.rooms.find((r) => r.polygon.some((p) => p.x < 4))!;
@@ -3326,8 +3327,15 @@ console.log('\n▸ Gerätekatalog');
   check('Verdoppelte Größe kostet 3 dB', (twelve?.soundPowerOutdoor ?? 0) - (six?.soundPowerOutdoor ?? 0), 3.0, 0.05);
 
   // Aufstellraum nach DIN EN 378-1: 1,5 kg R290 / 0,008 kg/m³ = 187,5 m³.
-  check('Mindestraum für 1,5 kg R290', minimumRoomVolume('R290', 1.5), 187.5, 0.01);
-  check('R32 braucht viel weniger Raum', minimumRoomVolume('R32', 1.5), 24.59, 0.01);
+  check('Mindestraum für 1,5 kg R290', minimumRoomVolume('R290', 1.5) ?? -1, 187.5, 0.01);
+  check('R32 braucht viel weniger Raum', minimumRoomVolume('R32', 1.5) ?? -1, 24.59, 0.01);
+  /*
+   * **Und für ein Kältemittel ohne hinterlegten Grenzwert kommt keine Zahl.**
+   * Bis 1.58.0 kam dort eine 0 heraus — „der Aufstellraum muss mindestens
+   * 0 m³ haben" ist keine Auskunft, sondern eine Entwarnung ohne Grundlage.
+   */
+  check('Ohne praktischen Grenzwert keine Mindestgröße', minimumRoomVolume('andere', 1.5) ?? 'keine Zahl', 'keine Zahl');
+  check('Auch für R454B, das keinen hinterlegten Grenzwert hat', minimumRoomVolume('R454B', 1.5) ?? 'keine Zahl', 'keine Zahl');
 
   // Geräteauswahl: 8 kW Bedarf bei −12 °C und 35 °C Vorlauf.
   const matches = matchModels(8, { designTemperature: -12, flowTemperature: 35, source: 'air' });
@@ -3877,6 +3885,7 @@ console.log('\n▸ Rohrnetzrechner — kv, Voreinstellung, Teilstrecken, Blätte
 pruefeRohrnetzrechner(check);
 pruefeRohrnetzblaetter(check);
 pruefeRaumkennungen(check);
+pruefeSchutzbereich(check);
 
 console.log('\n▸ Wissensbasis — Wortnormalisierung, Rangfusion, Korpus');
 pruefeWissensbasis(check);

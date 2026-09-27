@@ -1002,8 +1002,12 @@ function generatorFacts(design: PlantDesignResult, model: HeatPumpModel, capacit
   // wie „kein Äquivalent", und die Prüfschwellen der F-Gas-Verordnung hängen
   // genau an dieser Zahl. Unterhalb einer Tonne steht deshalb die Kilogramm-
   // Angabe; sie ist dieselbe Größe, nur nicht weggerundet.
-  const kgCo2 = model.refrigerantMass * refrigerant.gwp;
-  const co2Text = kgCo2 >= 1000 ? `${de(kgCo2 / 1000, 2)} t` : `${de(kgCo2, 1)} kg`;
+  // Ohne hinterlegtes GWP wird nichts gerechnet: Eine 0 läse sich wie „kein
+  // Treibhauspotenzial", und das ist die falsche Auskunft für ein Kältemittel,
+  // über das niemand etwas weiß.
+  const kgCo2 = refrigerant.gwp === undefined ? undefined : model.refrigerantMass * refrigerant.gwp;
+  const co2Text =
+    kgCo2 === undefined ? 'nicht bestimmbar' : kgCo2 >= 1000 ? `${de(kgCo2 / 1000, 2)} t` : `${de(kgCo2, 1)} kg`;
   const outdoor = model.outdoor;
   const indoor = model.indoor;
 
@@ -1084,18 +1088,27 @@ function generatorFacts(design: PlantDesignResult, model: HeatPumpModel, capacit
       label: 'Kältemittel',
       value: `${model.refrigerant}, ${de(model.refrigerantMass, 2)} kg`,
       note:
-        `Sicherheitsgruppe ${refrigerant.group}, GWP ${de(refrigerant.gwp, 0)}, entspricht ` +
-        `${co2Text} CO₂-Äquivalent. ${refrigerant.note}`,
+        `Sicherheitsgruppe ${refrigerant.group}, GWP ${refrigerant.gwp === undefined ? 'nicht hinterlegt' : de(refrigerant.gwp, 2)}, ` +
+        `CO₂-Äquivalent ${co2Text}. ${refrigerant.note}`,
     },
-    refrigerant.flammable
+    refrigerant.flammable === true
       ? {
           label: 'Brennbarkeit',
-          value: 'brennbares Kältemittel',
+          value: `brennbares Kältemittel (${refrigerant.group})`,
           note:
             'Aufstellung, Schutzbereich und Prüfpflichten nach DIN EN 378 und der F-Gas-Verordnung sind ' +
             'gesondert nachzuweisen. Der Schutzbereich ist eine Herstellerangabe, keine Normzahl.',
         }
-      : undefined,
+      : refrigerant.flammable === undefined
+        ? {
+            label: 'Brennbarkeit',
+            value: 'nicht bekannt',
+            note:
+              'Zu diesem Kältemittel ist hier keine Sicherheitsgruppe hinterlegt. Ob ein Schutzbereich ' +
+              'einzuhalten ist, steht im Datenblatt des Geräts — dieses Blatt gibt darüber keine Auskunft, ' +
+              'und schon gar keine Entwarnung.',
+          }
+        : undefined,
     {
       label: 'Schallleistung außen',
       value:

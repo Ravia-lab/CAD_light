@@ -2282,9 +2282,25 @@ export interface HeatPump {
   nightModeGuaranteed: boolean;
   /** Tonhaltigkeitszuschlag K_T [dB] — 0, wenn der Hersteller nichts ausweist. */
   toneSurcharge: number;
-  /** Kältemittel und Füllmenge. */
-  refrigerant: 'R290' | 'R32' | 'R410A' | 'R744' | 'andere';
+  /**
+   * Kältemittel und Füllmenge.
+   *
+   * Seit 1.59.0 dieselbe Liste wie im Gerätekatalog (`Refrigerant`). Bis
+   * dahin führte die Wärmepumpe eine eigene, kürzere — und in ihr fehlten
+   * genau die A2L-Kältemittel, für die ein Schutzbereich gilt.
+   */
+  refrigerant: Refrigerant;
   refrigerantMass: number;
+  /**
+   * Hermetisch geschlossener Kältekreis?
+   *
+   * Entscheidet über die Schwelle der Dichtheitsprüfung: Bei hermetisch
+   * geschlossenem Kreis verdoppelt sich die zulässige Füllmenge
+   * (Artikel 5 F-Gase-VO 2024/573). Ohne Angabe wird **nicht** hermetisch
+   * angenommen — das ist die strengere Annahme und damit die richtige, wenn
+   * niemand hingesehen hat.
+   */
+  hermetisch?: boolean;
   /**
    * Radius des Schutzbereichs um das Gerät [m] (nur brennbare Kältemittel).
    * Herstellerangabe — es gibt dafür keine Normtabelle.
@@ -2369,6 +2385,15 @@ export type SiteElementKind =
   | 'neighbour-building'
   | 'immission-point'
   | 'hazard-opening'
+  /**
+   * Zündquelle im Sinne des BWP-Leitfadens „Wärmepumpen mit brennbaren
+   * Kältemitteln": offene Flamme, elektrische Anlage, Steckdose, Leuchte,
+   * Lichtschalter, Hausanschluss, Gegenstand mit hoher Oberflächentemperatur.
+   * Im Schutzbereich dürfen sie weder dauerhaft noch kurzfristig vorhanden
+   * sein — und anders als ein Lichtschacht fällt eine Steckdose an der
+   * Hauswand beim Aufstellen niemandem auf.
+   */
+  | 'ignition'
   | 'tree'
   | 'borehole'
   | 'collector'
@@ -2383,6 +2408,7 @@ export const SITE_ELEMENT_LABELS: Record<SiteElementKind, string> = {
   'neighbour-building': 'Nachbargebäude',
   'immission-point': 'Immissionsort',
   'hazard-opening': 'Öffnung / Schacht / Ablauf',
+  ignition: 'Zündquelle',
   tree: 'Baum',
   borehole: 'Erdwärmesonde',
   collector: 'Flächenkollektor',
@@ -2417,9 +2443,24 @@ export interface SiteElement {
   pipeSpacing?: number;
   /** Bei Immissionsorten: gilt hier ein anderer Gebietstyp? */
   areaCategory?: AreaCategory;
+  /** Art der Zündquelle, wenn `ignition`. */
+  ignition?: IgnitionKind;
   /** Freitext — was der Planer sich notiert hat. */
   note?: string;
 }
+
+/** Die Zündquellen, die der BWP-Leitfaden einzeln aufzählt. */
+export type IgnitionKind = 'flame' | 'socket' | 'lamp' | 'switch' | 'service-entry' | 'hot-surface' | 'other';
+
+export const IGNITION_LABELS: Record<IgnitionKind, string> = {
+  flame: 'offene Flamme',
+  socket: 'Steckdose',
+  lamp: 'Leuchte',
+  switch: 'Lichtschalter',
+  'service-entry': 'elektrischer Hausanschluss',
+  'hot-surface': 'heiße Oberfläche',
+  other: 'sonstige Zündquelle',
+};
 
 /** Das Grundstück und alles, was darauf steht. */
 export interface SitePlan {
@@ -3810,6 +3851,15 @@ export interface ExportHeatPump {
     flowTemperature: number;
     refrigerant: string;
     refrigerantMass: number;
+    /**
+     * Sicherheitsgruppe nach ISO 817 — `A1`, `A2L`, `A3` oder `unbekannt`.
+     * Seit 2.6.0. Aus ihr folgt, ob ein Schutzbereich einzuhalten ist; sie
+     * hier mitzugeben erspart der Gegenstelle eine eigene Tabelle, die
+     * auseinanderlaufen könnte.
+     */
+    refrigerantClass: string;
+    /** Hermetisch geschlossener Kältekreis? Seit 2.6.0. */
+    hermetisch: boolean;
     gridRegime: string;
     blockedHours: number;
     /** Sperrzeitfaktor 24/(24−t) — 1, wenn nicht gesperrt wird. */
@@ -3834,8 +3884,22 @@ export interface ExportHeatPump {
         verdict: string;
       }[];
     };
-    /** Verletzungen des Schutzbereichs bei brennbarem Kältemittel. */
-    protectionIssues: { kind: string; label: string; distance: number; required: number }[];
+    /**
+     * Verletzungen des Schutzbereichs bei brennbarem Kältemittel.
+     *
+     * `kind` unterscheidet seit 2.6.0 fünf Fälle: `opening` (eingetragenes
+     * Geländeobjekt), `building-opening` (**Fenster oder Tür des Gebäudes**),
+     * `boundary`, `well` und `ignition` (Zündquelle). `hoehe` steht nur bei
+     * Gebäudeöffnungen und nennt die Unterkante über ±0,00 — Propan sinkt,
+     * also ist die bodennahe Öffnung die gefährliche.
+     */
+    protectionIssues: {
+      kind: string;
+      label: string;
+      distance: number;
+      required: number;
+      hoehe?: number;
+    }[];
     /** Bedarf und Bestand der erdgekoppelten Wärmequelle. */
     source_demand?: {
       extraction: number;
@@ -3943,6 +4007,13 @@ export interface RaviaExport {
    * stehen weiterhin unverändert; eine Gegenstelle, die 2.0.0 oder 2.1.0
    * liest, rechnet ohne Änderung weiter.
    *
+   * **2.6.0** ergänzt am Außengerät `refrigerantClass` (Sicherheitsgruppe
+   * nach ISO 817) und `hermetisch`, und an jeder Schutzbereichsverletzung die
+   * Höhe `hoehe` sowie zwei weitere `kind`-Werte: `building-opening` für ein
+   * Fenster oder eine Tür des Gebäudes und `ignition` für eine Zündquelle.
+   * Reiner Zuwachs; wer die neuen `kind`-Werte nicht kennt, behandelt sie wie
+   * bisher jede Verletzung.
+   *
    * **2.5.0** ergänzt `formerIds` an jedem Raum: die Kennungen, unter denen
    * derselbe Raum früher übergeben worden ist. Reiner Zuwachs. Der Anlass war
    * eine Ablehnung, die niemand erklären konnte — RaVia schrieb eine
@@ -3962,7 +4033,7 @@ export interface RaviaExport {
    * nichts; wer prüfen will, ob Boden, Decke und Dach angekommen sind, hat
    * jetzt eine Zahl statt einer Liste (Punkt 13).
    */
-  version: '2.5.0';
+  version: '2.6.0';
   generator: string;
   exportedAt: string;
   /** Einheiten explizit im Dokument — keine Konvention, die verloren gehen kann. */
@@ -4355,7 +4426,34 @@ export interface UnitContents {
 }
 
 /** Kältemittel mit den Eigenschaften, die für die Aufstellung zählen. */
-export type Refrigerant = 'R290' | 'R32' | 'R410A' | 'R454C' | 'R744' | 'R1234ze' | 'andere';
+/**
+ * Die Kältemittel, die dieses Programm kennt.
+ *
+ * Die Liste folgt Tabelle 2 des BWP-Leitfadens „Wärmepumpen mit brennbaren
+ * Kältemitteln" (elf Einträge), dazu R744. Sie stand bis 1.58.0 an zwei
+ * Stellen verschieden — hier sechs Einträge, an der Wärmepumpe fünf — und in
+ * beiden fehlten dieselben vier A2L-Kältemittel, die heute verbaut werden:
+ * R454B, R452B, R1234yf und (an der Wärmepumpe) R454C und R1234ze. Wer eines
+ * davon eintrug, musste „andere" wählen, und „andere" galt als unbrennbar.
+ * Eine Liste, in der die brennbaren fehlen, ist gefährlicher als gar keine.
+ *
+ * `andere` bleibt — es gibt Geräte mit Kältemitteln, die hier nicht stehen.
+ * Nur heißt „andere" jetzt **unbekannt** und nicht mehr **unbrennbar**.
+ */
+export type Refrigerant =
+  | 'R290'
+  | 'R1234ze'
+  | 'R1234yf'
+  | 'R454C'
+  | 'R454B'
+  | 'R513A'
+  | 'R32'
+  | 'R452B'
+  | 'R134a'
+  | 'R407C'
+  | 'R410A'
+  | 'R744'
+  | 'andere';
 
 /**
  * Sicherheitsgruppe nach DIN EN 378-1 Tabelle E.1 und GWP nach der
@@ -4365,11 +4463,27 @@ export type Refrigerant = 'R290' | 'R32' | 'R410A' | 'R454C' | 'R744' | 'R1234ze
  * Schutzbereichs steht in keiner Norm und bleibt Herstellerangabe.
  */
 export interface RefrigerantProperties {
-  group: 'A1' | 'A2L' | 'A3' | 'B1' | 'A1/A2L';
-  gwp: number;
-  flammable: boolean;
-  /** Praktischer Grenzwert nach DIN EN 378-1 Anhang C [kg/m³]. */
-  practicalLimit: number;
+  /** Sicherheitsgruppe nach ISO 817; `unbekannt`, wenn nichts hinterlegt ist. */
+  group: 'A1' | 'A2L' | 'A3' | 'B1' | 'A1/A2L' | 'unbekannt';
+  gwp?: number;
+  /**
+   * Brennbar? **`undefined` heißt „nicht bekannt" und nicht „nein".**
+   *
+   * Bis 1.58.0 stand hier für `andere` ein hartes `false`, und damit galt
+   * jedes Kältemittel, das die Liste nicht kannte, als unbrennbar: kein
+   * Schutzbereich, keine Mindestraumgröße, keine Meldung. Der Unterschied
+   * zwischen „nein" und „weiß ich nicht" ist genau der zwischen einer
+   * Entwarnung und einer Frage.
+   */
+  flammable: boolean | undefined;
+  /**
+   * Praktischer Grenzwert nach DIN EN 378-1 Anhang C [kg/m³].
+   *
+   * Fehlt, wo dieses Projekt keinen belegten Wert hat. Er wird dann nicht
+   * geschätzt — aus ihm folgt die Mindestgröße des Aufstellraums, und eine
+   * geschätzte Mindestgröße ist schlimmer als keine.
+   */
+  practicalLimit?: number;
   note: string;
 }
 

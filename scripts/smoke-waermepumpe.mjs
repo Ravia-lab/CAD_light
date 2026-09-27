@@ -451,6 +451,90 @@ console.log('\n▸ Mausbewegung allein ändert nichts');
   expect('Und legen keinen Historieneintrag an', nachher.historie, vorher);
 }
 
+console.log('\n▸ Das Fenster des Hauses liegt im Schutzbereich');
+{
+  /*
+   * Bis 1.58.0 sah die Schutzbereichsprüfung nur an, was **von Hand** als
+   * Geländeobjekt gesetzt worden war. Der BWP-Leitfaden beginnt seine
+   * Aufzählung dessen, was nicht darin liegen darf, aber mit
+   * „Gebäudeöffnungen, wie Fenster, Türen, Lichtschächte" — und die stehen
+   * im Modell. Ein Küchenfenster einen halben Meter neben dem Außengerät
+   * fiel nicht auf.
+   *
+   * Aufgebaut wird der einfachste Fall, den man von Hand nachrechnen kann:
+   * eine Südwand von (0|0) nach (6|0), darin ein Fenster in 3,00 m Abstand
+   * vom Startknoten, also bei (3,00|0,00). Das Gerät steht bei
+   * (3,00|−1,20), also 1,20 m davor. Der Schutzbereich beträgt 1,50 m.
+   */
+  const lauf = await p.evaluate(() => {
+    const S = () => window.__ravia.getState();
+    S().clearAll();
+    const wand = S().addWall({ x: 0, y: 0 }, { x: 6, y: 0 }, { type: 'exterior', thickness: 0.365 });
+    S().addOpening({ wallId: wand.id, kind: 'window', distance: 3, width: 1.2, height: 1.35, sillHeight: 0.9 });
+    const wp = S().addHeatPump({ x: 3, y: -1.2 });
+    S().updateHeatPump(wp.id, { refrigerant: 'R290', protectionRadius: 1.5 });
+    const mitR290 = window.RaViaCAD.getExport().heatPump.pumps[0].protectionIssues;
+
+    // Dasselbe Gerät mit R454B — bis 1.58.0 gar nicht eintragbar und als
+    // „andere" stillschweigend unbrennbar.
+    S().updateHeatPump(wp.id, { refrigerant: 'R454B' });
+    const mitR454B = window.RaViaCAD.getExport().heatPump.pumps[0];
+
+    // Und mit R410A: A1, kein Schutzbereich wegen Brennbarkeit.
+    S().updateHeatPump(wp.id, { refrigerant: 'R410A' });
+    const mitR410A = window.RaViaCAD.getExport().heatPump.pumps[0].protectionIssues;
+
+    // Unbekanntes Kältemittel: keine Entwarnung, sondern eine Meldung.
+    S().updateHeatPump(wp.id, { refrigerant: 'andere' });
+    const codesUnbekannt = window.RaViaCAD.validate().issues.map((i) => i.code);
+
+    S().updateHeatPump(wp.id, { refrigerant: 'R290' });
+    const codes = window.RaViaCAD.validate().issues.map((i) => i.code);
+    return {
+      fenster: mitR290.filter((x) => x.kind === 'building-opening'),
+      r454bKlasse: mitR454B.refrigerantClass,
+      r454bFenster: mitR454B.protectionIssues.filter((x) => x.kind === 'building-opening').length,
+      r410a: mitR410A.length,
+      codesUnbekannt,
+      codes,
+    };
+  });
+
+  expect('Das Fenster wird gefunden', lauf.fenster.length, 1);
+  expect('Mit 1,20 m Abstand', lauf.fenster[0]?.distance, 1.2);
+  expect('Und seiner Brüstungshöhe [m]', lauf.fenster[0]?.hoehe, 0.9);
+  expect('Als Gebäudeöffnung erkannt', lauf.fenster[0]?.kind, 'building-opening');
+  expect('Mit eigenem Prüfcode', lauf.codes.includes('heatpump.protection-zone-building'), true);
+
+  expect('R454B ist A2L', lauf.r454bKlasse, 'A2L');
+  expect('… und findet dasselbe Fenster', lauf.r454bFenster, 1);
+  expect('R410A (A1) hat keinen Schutzbereich', lauf.r410a, 0);
+  expect(
+    'Ein unbekanntes Kältemittel wird gemeldet statt geduldet',
+    lauf.codesUnbekannt.includes('heatpump.refrigerant-unknown'),
+    true,
+  );
+}
+
+console.log('\n▸ Zündquelle im Schutzbereich');
+{
+  const lauf = await p.evaluate(() => {
+    const S = () => window.__ravia.getState();
+    const wp = Object.values(S().doc.site.pumps)[0];
+    // Außensteckdose 0,80 m neben dem Gerät.
+    S().addSiteElement('ignition', [{ x: wp.position.x + 0.8, y: wp.position.y }]);
+    const p0 = window.RaViaCAD.getExport().heatPump.pumps[0].protectionIssues;
+    return {
+      zuend: p0.filter((x) => x.kind === 'ignition'),
+      codes: window.RaViaCAD.validate().issues.map((i) => i.code),
+    };
+  });
+  expect('Die Zündquelle liegt im Bereich', lauf.zuend.length, 1);
+  expect('Mit 0,80 m Abstand', lauf.zuend[0]?.distance, 0.8);
+  expect('Und eigenem Prüfcode', lauf.codes.includes('heatpump.protection-zone-ignition'), true);
+  await p.screenshot({ path: './screenshots/wp-6-zuendquelle.png' });
+}
+
 console.log('\nERRORS:', errs.length ? errs.join('\n') : 'keine');
 if (errs.length) failures += errs.length;
 console.log(`\n${failures === 0 ? '✓ RAUCHTEST BESTANDEN' : `✗ ${failures} FEHLER`}\n`);
