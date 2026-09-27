@@ -71,9 +71,16 @@ export default function LevelBar() {
 
           Beides in einem Knopf ginge nicht: Der Grundriss zeigt immer *ein*
           Geschoss, das Modell bisher immer *alle* — genau darin lagen
-          Erdgeschoss, Obergeschoss und Keller auseinander. Das aktive
-          Geschoss trägt kein Auge: Es ist immer zu sehen, weil man nicht
-          bearbeitet, was man nicht sieht.
+          Erdgeschoss, Obergeschoss und Keller auseinander.
+
+          **Seit 1.56.0 trägt auch das aktive Geschoss ein Auge.** „Man
+          bearbeitet nicht, was man nicht sieht" galt für den Grundriss und
+          wurde auf das Modell mitgenommen; dort ist es die falsche
+          Bedingung. Wer von oben in den Keller sehen will, muss Erd- und
+          Dachgeschoss wegnehmen — und ob das geht, darf nicht davon
+          abhängen, in welchem Geschoss er gerade zeichnet. Am Grundriss
+          ändert das Auge weiterhin nichts; die untere Schranke ist das
+          letzte sichtbare Geschoss.
         */}
         {ordered.map((level) => {
           const gezeigt = level.visible !== false;
@@ -89,20 +96,18 @@ export default function LevelBar() {
               >
                 {level.name}
               </button>
-              {!aktiv && (
-                <button
-                  onClick={() => zeigeGeschoss(level.id, !gezeigt)}
-                  title={
-                    gezeigt
-                      ? `${level.name} im Modell ausblenden — am Grundriss ändert sich nichts`
-                      : `${level.name} im Modell zeigen`
-                  }
-                  className={`px-1 ${gezeigt ? 'text-slate-600 hover:text-slate-400' : 'text-slate-800 hover:text-slate-500'}`}
-                  style={{ minHeight: 28 }}
-                >
-                  <AugeIcon offen={gezeigt} />
-                </button>
-              )}
+              <button
+                onClick={() => zeigeGeschoss(level.id, !gezeigt)}
+                title={
+                  gezeigt
+                    ? `${level.name} im Modell ausblenden — am Grundriss ändert sich nichts`
+                    : `${level.name} im Modell zeigen`
+                }
+                className={`px-1 ${gezeigt ? 'text-slate-500 hover:text-slate-300' : 'text-slate-700 hover:text-slate-400'}`}
+                style={{ minHeight: 28 }}
+              >
+                <AugeIcon offen={gezeigt} />
+              </button>
             </div>
           );
         })}

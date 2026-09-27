@@ -254,15 +254,46 @@ const versteckt = await p.evaluate((g) => {
 pruef(`„${geschosse.ogName}" lässt sich ausblenden`, versteckt.sichtbar, false);
 console.log('    Meldung:', versteckt.status);
 
-const aktivesGeschoss = await p.evaluate((g) => {
+/*
+ * **Auch das aktive Geschoss lässt sich im Modell ausblenden** — seit
+ * 1.56.0. Gemeldet als „ich möchte, dass ich DG und EG auch ausblenden kann
+ * im 3D, so kann ich dann den Keller sehen". Wer von oben in den Keller
+ * schaut, muss die Geschosse darüber wegnehmen, und ob das geht, darf nicht
+ * davon abhängen, in welchem er gerade zeichnet.
+ *
+ * Hier steht das Obergeschoss schon auf unsichtbar; das Erdgeschoss ist
+ * aktiv und das **letzte sichtbare**. Genau das ist die verbliebene
+ * Schranke, und sie greift: Ein leeres Modell sieht aus wie ein kaputtes.
+ */
+const letztesSichtbar = await p.evaluate((g) => {
   const s = () => window.__ravia.getState();
   const vor = s().doc.levels[g.eg].visible ?? null;
   s().zeigeGeschoss(g.eg, false);
   return { vor, nach: s().doc.levels[g.eg].visible ?? null, status: s().statusMessage };
 }, geschosse);
-pruef('Das aktive Geschoss lässt sich nicht ausblenden', aktivesGeschoss.nach, aktivesGeschoss.vor);
-pruef('… und es steht eine Meldung dazu', /aktive Geschoss/.test(aktivesGeschoss.status), true);
+pruef('Das letzte sichtbare Geschoss bleibt im Modell', letztesSichtbar.nach, letztesSichtbar.vor);
+pruef('… und es steht eine Meldung dazu', /letzte sichtbare/.test(letztesSichtbar.status), true);
+console.log('    Meldung:', letztesSichtbar.status);
+
+/*
+ * **Die Gegenprobe**: Sobald das Obergeschoss wieder sichtbar ist, lässt
+ * sich das aktive Erdgeschoss wegnehmen — und nur das beantwortet Manuels
+ * Frage. Ohne sie hieße die Regel weiterhin „das aktive bleibt immer".
+ */
+const aktivesGeschoss = await p.evaluate((g) => {
+  const s = () => window.__ravia.getState();
+  s().zeigeGeschoss(g.og, true);
+  s().zeigeGeschoss(g.eg, false);
+  return {
+    eg: s().doc.levels[g.eg].visible ?? null,
+    aktiv: s().doc.activeLevelId === g.eg,
+    status: s().statusMessage,
+  };
+}, geschosse);
+pruef('Das aktive Geschoss lässt sich im Modell ausblenden', aktivesGeschoss.eg, false);
+pruef('… und bleibt trotzdem das bearbeitete', aktivesGeschoss.aktiv, true);
 console.log('    Meldung:', aktivesGeschoss.status);
+await p.evaluate((g) => window.__ravia.getState().zeigeGeschoss(g.eg, true), geschosse);
 
 /*
  * ▸ 5 — Die Außenwände aus dem Geschoss darunter übernehmen.

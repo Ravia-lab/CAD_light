@@ -369,3 +369,127 @@ export function tuerInReichweite(
 
   return beste ? { opening: beste.opening, abstand: beste.abstand } : null;
 }
+
+// ===========================================================================
+// Treppensteigen — die Höhe unter den Füßen
+// ===========================================================================
+
+/**
+ * Eine Treppe, so wie der Begehmodus sie braucht.
+ *
+ * Nicht das Bauteil selbst: Was hier steht, ist bereits ausgerechnet — die
+ * Lauflinie in Modellkoordinaten, ihre Länge, und die beiden Fußbodenhöhen,
+ * die sie verbindet. Damit bleibt diese Einheit frei von Geschossstapeln und
+ * Symbolgeometrie, und die Regel darunter ist reine Rechnung.
+ */
+export interface Treppenlauf {
+  id: string;
+  /** Lauflinie in Modellkoordinaten, vom Antritt zum Austritt. */
+  linie: readonly Vec2[];
+  /** Gesamtlänge der Lauflinie [m]. */
+  laenge: number;
+  /** Halbe Laufbreite [m] — wie weit seitlich man noch auf der Treppe steht. */
+  halbbreite: number;
+  /** Fußbodenhöhe am Antritt [m] über dem Bezugspunkt. */
+  unten: number;
+  /** Fußbodenhöhe am Austritt [m]. */
+  oben: number;
+  untenLevelId: LevelId;
+  obenLevelId: LevelId;
+}
+
+/** Wo man steht: Fußbodenhöhe und das Geschoss, zu dem man gehört. */
+export interface Tritt {
+  /** Höhe der Standfläche [m] über dem Bezugspunkt. */
+  hoehe: number;
+  levelId: LevelId;
+  /** Die Treppe, auf der man steht — oder `undefined` auf ebenem Boden. */
+  treppeId?: string;
+}
+
+/**
+ * Der Fußpunkt auf einem Streckenzug: Abstand quer und Weglänge längs.
+ *
+ * Gebraucht wird beides: der Querabstand entscheidet, **ob** man auf der
+ * Treppe steht, die Weglänge **wie hoch**. Bei einer gewendelten Treppe ist
+ * die Lauflinie mehrteilig; gesucht wird das nächstgelegene Stück.
+ */
+function fusspunkt(p: Vec2, linie: readonly Vec2[]): { quer: number; laengs: number } {
+  let besterQuer = Infinity;
+  let besterLaengs = 0;
+  let gelaufen = 0;
+  for (let i = 1; i < linie.length; i += 1) {
+    const a = linie[i - 1]!;
+    const b = linie[i]!;
+    const dx = b.x - a.x;
+    const dy = b.y - a.y;
+    const laenge = Math.hypot(dx, dy);
+    if (laenge < 1e-9) continue;
+    // Projektion auf die Strecke, auf [0, 1] begrenzt: außerhalb zählt das
+    // Ende, sonst läge der Fußpunkt auf der Verlängerung der Treppe.
+    const t = Math.max(0, Math.min(1, ((p.x - a.x) * dx + (p.y - a.y) * dy) / (laenge * laenge)));
+    const fx = a.x + dx * t;
+    const fy = a.y + dy * t;
+    const quer = Math.hypot(p.x - fx, p.y - fy);
+    if (quer < besterQuer) {
+      besterQuer = quer;
+      besterLaengs = gelaufen + laenge * t;
+    }
+    gelaufen += laenge;
+  }
+  return { quer: besterQuer, laengs: besterLaengs };
+}
+
+/**
+ * Wie hoch man an dieser Stelle steht — und zu welchem Geschoss man gehört.
+ * ---------------------------------------------------------------------------
+ * **Der Anlass.** Im Begehmodus stand die Augenhöhe fest auf dem Fußboden des
+ * aktiven Geschosses. Man lief damit durch die Treppe hindurch wie durch
+ * Luft, und das Obergeschoss war nur über die Geschossauswahl zu erreichen —
+ * gemeldet als „bei Treppen wäre es noch schön, wenn man effektiv die Treppe
+ * steigen kann und dadurch das Geschoss wechselt."
+ *
+ * **Die Regel.** Steht man im Streifen einer Lauflinie, ist der Boden unter
+ * den Füßen die Treppe: Die Stufenvorderkante steigt gleichmäßig über die
+ * Lauflinie, also ist die Höhe der Bruchteil des zurückgelegten Wegs an der
+ * Geschosshöhe. Steht man daneben, ist der Boden der Fußboden — und der
+ * kommt vom Aufrufer, der weiß, welches Geschoss er zeigt.
+ *
+ * **Zum Geschoss gehört man nach der Höhe**, nicht nach der Stelle: oben,
+ * sobald man die Fußbodenhöhe des oberen Geschosses erreicht hat. Auf halber
+ * Treppe gehört man nach unten — dort stehen die Wände, an denen man sich
+ * stößt, und die des Obergeschosses beginnen erst über der Decke.
+ *
+ * Kommen mehrere Treppen in Frage — zwei Läufe nebeneinander im
+ * Treppenhaus —, gilt die, deren Lauflinie am nächsten liegt.
+ */
+export function tritt(
+  p: Vec2,
+  treppen: readonly Treppenlauf[],
+  boden: { hoehe: number; levelId: LevelId },
+): Tritt {
+  let beste: { lauf: Treppenlauf; quer: number; anteil: number } | undefined;
+  for (const lauf of treppen) {
+    if (lauf.laenge < 1e-9 || lauf.linie.length < 2) continue;
+    const { quer, laengs } = fusspunkt(p, lauf.linie);
+    if (quer > lauf.halbbreite) continue;
+    if (beste && quer >= beste.quer) continue;
+    beste = { lauf, quer, anteil: Math.max(0, Math.min(1, laengs / lauf.laenge)) };
+  }
+  if (!beste) return boden;
+
+  const { lauf, anteil } = beste;
+  const hoehe = lauf.unten + (lauf.oben - lauf.unten) * anteil;
+  /*
+   * Die Millimeterschranke ist keine Zierde: Am Austritt ist der Anteil
+   * rechnerisch 1, in Fließkomma aber 0,999… Ohne sie bliebe man beim
+   * letzten Schritt im unteren Geschoss stehen, und zwar genau dort, wo die
+   * Decke wieder zu ist.
+   */
+  const obenAngekommen = hoehe >= lauf.oben - 0.001;
+  return {
+    hoehe,
+    levelId: obenAngekommen ? lauf.obenLevelId : lauf.untenLevelId,
+    treppeId: lauf.id,
+  };
+}

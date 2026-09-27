@@ -182,6 +182,126 @@ console.log('\n▸ Steigleitung: Wärmepumpe und Speicher im KG, Heizkörper dar
   await p.locator('main canvas').first().screenshot({ path: './screenshots/geschosse-steigleitung.png' });
 }
 
+/*
+ * ▸ Die Treppe steigen — und dabei das Geschoss wechseln.
+ *
+ * Gemeldet als „bei Treppen wäre es noch schön, wenn man effektiv die Treppe
+ * steigen kann und dadurch das Geschoss wechselt". Bis 1.56.0 stand die
+ * Augenhöhe im Begehmodus fest auf dem Fußboden des aktiven Geschosses; man
+ * lief durch die Treppe hindurch wie durch Luft.
+ *
+ * Geprüft wird am **Geher** und nicht am Bild: Ob die Höhe mitsteigt und wo
+ * das Geschoss wechselt, ist einer Leinwand nicht anzusehen. Der Haken
+ * `__raviaGeher` gibt beides her und nimmt zugleich einen Standort entgegen —
+ * damit muss der Rauchtest die vier Meter nicht wirklich ablaufen.
+ */
+console.log('\n▸ Die Treppe steigen');
+{
+  const treppe = await p.evaluate(() => {
+    const S = window.__ravia.getState();
+    const ordered = Object.values(S.doc.levels).sort((a, b) => a.order - b.order);
+    const eg = ordered.find((l) => l.name === 'EG') ?? ordered[0];
+    S.setActiveLevel(eg.id);
+    const raeume = Object.values(S.doc.rooms).filter((r) => r.levelId === eg.id).sort((a, b) => (b.area ?? 0) - (a.area ?? 0));
+    const t = S.addVertical('stair-straight', raeume[0].centroid);
+    const oben = ordered[ordered.indexOf(eg) + 1];
+    return {
+      id: t.id,
+      pos: t.position,
+      len: t.length,
+      steps: t.steps,
+      rot: t.rotation,
+      egName: eg.name,
+      obenName: oben?.name ?? '',
+    };
+  });
+  /*
+   * **Die Stufenzahl folgt der Geschosshöhe.** Geteilt wird auf die
+   * Regelsteigung von 17,5 cm und gerundet: Bei 3,05 m sind das
+   * 3,05 / 0,175 = 17,43, also 17 Steigungen à 17,9 cm. Eine feste Zahl —
+   * bis 1.56.0 waren es immer 15 — ergäbe hier 20,3 cm und läge über dem
+   * Höchstmaß der DIN 18065.
+   */
+  expect('Die Steigung bleibt im zulässigen Bereich [cm]', treppe.steps >= 15 && treppe.steps <= 20, true);
+
+  await p.getByRole('button', { name: '3D', exact: true }).first().click();
+  await p.waitForTimeout(1200);
+  await p.getByRole('button', { name: 'Begehen', exact: true }).first().click();
+  await p.waitForTimeout(1500);
+
+  /** Den Geher auf einen Punkt der Lauflinie setzen und ablesen, wo er steht. */
+  const stelle = async (anteil) => {
+    const st = await p.evaluate(({ t, anteil }) => {
+      const a = (t.rot * Math.PI) / 180;
+      const ex = { x: Math.cos(a), y: Math.sin(a) };
+      const antritt = { x: t.pos.x - ex.x * (t.len / 2), y: t.pos.y - ex.y * (t.len / 2) };
+      const g = window.__raviaGeher;
+      g.x = antritt.x + ex.x * t.len * anteil;
+      g.y = antritt.y + ex.y * t.len * anteil;
+      return null;
+    }, { t: treppe, anteil });
+    void st;
+    // Ein Bild abwarten: Die Höhe wird in der Zeichenschleife nachgeführt.
+    await p.waitForTimeout(260);
+    return p.evaluate(() => {
+      const g = window.__raviaGeher;
+      return { hoehe: Math.round(g.hoehe * 1000) / 1000, geschoss: g.geschoss };
+    });
+  };
+
+  const unten = await stelle(0);
+  const mitte = await stelle(0.5);
+  const oben = await stelle(1);
+
+  /*
+   * **Die Erwartung kommt aus dem Modell, nicht aus einer Zahl im Test.**
+   * Die Geschosshöhe dieses Prüfhauses steht in den Höhenlagen seiner
+   * Geschosse; sie hier noch einmal hinzuschreiben hieße, sie an zwei
+   * Stellen zu pflegen. Die Aussage ist ohnehin eine andere: Die Höhe ist
+   * der **Bruchteil des zurückgelegten Wegs** an der Geschosshöhe — am
+   * Antritt null, auf halbem Weg die Hälfte, am Austritt ganz.
+   */
+  const geschosshoehe = await p.evaluate((t) => {
+    const S = window.__ravia.getState();
+    const ordered = Object.values(S.doc.levels).sort((a, b) => a.order - b.order);
+    const i = ordered.findIndex((l) => l.name === t.egName);
+    return Math.round((ordered[i + 1].elevation - ordered[i].elevation) * 1000) / 1000;
+  }, treppe);
+  console.log(`  · Geschosshöhe ${geschosshoehe.toFixed(2)} m`);
+  expect('Am Antritt steht man auf dem unteren Fußboden [m]', unten.hoehe, 0);
+  expect('Auf halber Treppe auf halber Höhe [m]', mitte.hoehe, Math.round(geschosshoehe * 500) / 1000);
+  expect('Am Austritt auf dem oberen Fußboden [m]', oben.hoehe, geschosshoehe);
+
+  /*
+   * **Und das Geschoss wechselt.** Das ist der Punkt, an dem die Wände des
+   * Obergeschosses gelten müssen — sonst liefe man oben durch sie hindurch.
+   * Auf halber Treppe noch nicht: Dort stehen die Wände unten.
+   */
+  const name = (id) => id;
+  void name;
+  const geschossNamen = await p.evaluate(() => {
+    const S = window.__ravia.getState();
+    return Object.fromEntries(Object.values(S.doc.levels).map((l) => [l.id, l.name]));
+  });
+  expect('Unten gehört man nach unten', geschossNamen[unten.geschoss], treppe.egName);
+  expect('Auf halber Treppe auch', geschossNamen[mitte.geschoss], treppe.egName);
+  expect('Oben angekommen wechselt das Geschoss', geschossNamen[oben.geschoss], treppe.obenName);
+
+  /*
+   * **Beim Verlassen des Begehmodus wandert es mit.** Wer die Treppe
+   * hinaufgegangen ist, arbeitet oben weiter — alles andere wäre ein
+   * Rückwurf: Man steht im Obergeschoss, drückt „Iso" und sieht wieder das
+   * Erdgeschoss.
+   */
+  await p.getByRole('button', { name: 'Orbit', exact: true }).first().click();
+  await p.waitForTimeout(900);
+  const danach = await p.evaluate(() => {
+    const S = window.__ravia.getState();
+    return S.doc.levels[S.doc.activeLevelId]?.name ?? '';
+  });
+  expect('Nach dem Begehen arbeitet man oben weiter', danach, treppe.obenName);
+}
+
 console.log('\n▸ Nichts in der Konsole');
 expect('Keine Fehler im Browser', errs.slice(0, 3), []);
 

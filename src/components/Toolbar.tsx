@@ -483,10 +483,18 @@ export function TopBar({ onProjekte }: { onProjekte: () => void }) {
     const data = buildRaviaExport(doc);
     downloadJson(data, exportFilename(doc.meta.name));
     const v = data.validation;
+    /*
+     * **Die Meldung nennt die Geschosse.** Gemeldet wurde „Übergabe an RaVia
+     * sind nur 1 Etage" — die Datei trägt alle, aber nur Geschosse mit
+     * geschlossenen Räumen haben darin etwas zu sagen. Wer nach dem Export
+     * liest „3 Geschosse · 6 Räume", weiß auf einen Blick, ob sein Haus
+     * vollständig herüberging; wer „1 Geschoss" liest, weiß es auch.
+     */
+    const mitRaeumen = new Set(data.rooms.map((r) => r.level)).size;
     setStatus(
       v.errors > 0
         ? `Export erzeugt — aber ${v.errors} Fehler im Modell, siehe Prüfung`
-        : `Export: ${data.rooms.length} Räume · ${data.totals.netFloorArea.toFixed(2)} m² · ${data.totals.installedHeatingPower} W installiert`,
+        : `Export: ${mitRaeumen} ${mitRaeumen === 1 ? 'Geschoss' : 'Geschosse'} · ${data.rooms.length} Räume · ${data.totals.netFloorArea.toFixed(2)} m² · ${data.totals.installedHeatingPower} W installiert`,
     );
   };
 
@@ -859,7 +867,7 @@ export function TopBar({ onProjekte }: { onProjekte: () => void }) {
         <button
           onClick={() => setPrintOpen(true)}
           className="tool-btn h-8 w-8"
-          title="Grundriss maßstäblich drucken (1:50, 1:100 …) — A4/A3, komplettes Geschoss"
+          title="Grundriss maßstäblich drucken (1:50, 1:100 …) — A4/A3, ein Geschoss oder der ganze Satz"
         >
           <Icon>{icons.print}</Icon>
         </button>

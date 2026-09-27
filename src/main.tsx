@@ -61,7 +61,20 @@ declare global {
      * aber prüfbar sein. Ohne ihn ließe sich „hält die Wand?" im echten
      * Browser nur am Bild beurteilen, und ein Bild beweist nichts.
      */
-    __raviaGeher?: { x: number; y: number; gier: number; nick: number };
+    __raviaGeher?: {
+      x: number;
+      y: number;
+      gier: number;
+      nick: number;
+      /**
+       * Höhe des Bodens unter den Füßen [m] — auf der Treppe steigt sie mit.
+       * Ohne sie wäre „geht die Treppe wirklich hinauf?" nur am Bild zu
+       * beurteilen, und ein Bild beweist nichts.
+       */
+      hoehe: number;
+      /** Kennung des Geschosses, auf dem er **steht** — nicht des bearbeiteten. */
+      geschoss: string;
+    };
     /**
      * Was in der 3D-Ansicht unter einem Bildschirmpunkt liegt — derselbe
      * Strahl, den auch der Klick benutzt. Ebenfalls nur für Prüfläufe: Ohne

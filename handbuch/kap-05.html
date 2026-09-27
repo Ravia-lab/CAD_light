@@ -88,6 +88,18 @@
 
 <div class="baustelle"><b>Auf der Baustelle heißt das</b><p>Nach dem Übernehmen setzen Sie die Treppe im neuen Geschoss <b>nicht</b> neu. Sie öffnen stattdessen die vorhandene Treppe im Geschoss darunter und stellen bei „Reicht bis“ das Zielgeschoss ein. Dann durchstößt sie jede Decke dazwischen und zieht in jedem betroffenen Raum die Fläche ab — genau einmal.</p></div>
 
+<h4 id="k5-3-4">5.3.4 Ein Geschoss im Modell ausblenden</h4>
+
+<p class="wo">Im Programm: das <b>Auge</b> neben jedem Geschossnamen in der Geschossleiste.</p>
+
+<p>Der Grundriss zeigt immer ein Geschoss, das Modell alle — genau darin lagen Erdgeschoss, Obergeschoss und Keller auseinander. Das Auge nimmt ein Geschoss aus dem <b>Modell</b>; am Grundriss ändert es nichts.</p>
+
+<p><b>Seit Fassung 1.56.0 trägt auch das aktive Geschoss ein Auge.</b> Vorher nicht — „man bearbeitet nicht, was man nicht sieht". Für den Grundriss stimmt das; für das Modell ist es die falsche Bedingung, und der Fall, an dem es auffiel, ist alltäglich: Wer von oben in den Keller sehen will, muss Erd- und Dachgeschoss wegnehmen. Ob das geht, darf nicht davon abhängen, in welchem Geschoss er gerade zeichnet.</p>
+
+<p>Was bleibt, ist die untere Schranke: Das <b>letzte sichtbare</b> Geschoss lässt sich nicht auch noch wegnehmen. Ein leeres Modell sieht aus wie ein kaputtes, und niemand fände den Weg zurück.</p>
+
+<p>Im <b>Begehen-Modus</b> gilt das Auge nicht — dort sind alle Geschosse da. Man läuft durch ein Haus und nicht durch ein Geschoss.</p>
+
 <h3 id="k5-4">5.4 Geschossdecken und Bodenplatte</h3>
 
 <p>Die Decke ist in diesem Programm ein <b>eigenes Bauteil</b> und nicht der Zwischenraum zwischen zwei Geschossen. Der Grund dafür ist ein Fehler, den man erst im Bild sieht: Solange nur die Höhenlagen gerechnet wurden, klaffte zwischen der Oberkante der Wände eines Geschosses und der Unterkante des nächsten die Deckenstärke als <b>Luft</b>. Das Haus stand in Scheiben übereinander.</p>
@@ -299,6 +311,18 @@
 <p>Steckt man dennoch fest — zwischen zwei Wänden, die 50 cm auseinanderstehen —, bleibt die Bewegung stehen, statt sich freizurechnen. Das ist die ehrlichere Antwort: an dieser Stelle passt niemand durch, und genau das soll man merken.</p>
 
 <p>Die Kamera trägt eine kleine Leuchte mit sich. Ohne sie wäre ein innenliegendes Bad ein schwarzes Rechteck, denn die Szene hat nur Himmelslicht und keine Deckenleuchten.</p>
+
+<h4 id="k5-7-3a">5.7.3a Die Treppe steigen</h4>
+
+<p>Gehen Sie im Begehen-Modus auf eine Treppe zu, steigt die Augenhöhe mit ihr. Am Austritt sind Sie im Geschoss darüber — mit dessen Wänden, dessen Türen und dessen Decke. Rückwärts geht es genauso hinunter.</p>
+
+<p><b>Woher die Höhe kommt.</b> Die Stufenvorderkante steigt gleichmäßig über die Lauflinie; wo Sie stehen, ist die Höhe also der Bruchteil des zurückgelegten Wegs an der Geschosshöhe. Bei einer gewendelten Treppe folgt das dem Knick — die Lauflinie ist die Strecke, die Sie wirklich gehen, und nicht die Tiefe des Bauteils.</p>
+
+<p><b>Zum Geschoss gehören Sie nach der Höhe</b>, nicht nach der Stelle: oben, sobald Sie die Fußbodenhöhe des oberen Geschosses erreicht haben. Auf halber Treppe gehören Sie nach unten — dort stehen die Wände, an denen Sie sich stoßen, und die des Obergeschosses beginnen erst über der Decke. Unten links im Bild steht, in welchem Geschoss Sie gerade stehen.</p>
+
+<p><b>Beim Verlassen wandert das Geschoss mit.</b> Wer die Treppe hinaufgegangen ist, arbeitet oben weiter. Alles andere wäre ein Rückwurf: Man steht im Obergeschoss, drückt „Iso" und sieht wieder das Erdgeschoss.</p>
+
+<p>Im Begehen-Modus sind außerdem <b>alle Geschosse sichtbar</b>, auch die ausgeblendeten. Man läuft durch ein Haus und nicht durch ein Geschoss; wer oben ein ausgeblendetes Obergeschoss vorfände, stünde im Freien.</p>
 
 <h4 id="k5-7-3b">5.7.3b Türen öffnen und schließen</h4>
 

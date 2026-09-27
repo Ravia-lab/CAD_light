@@ -38,6 +38,7 @@ import type {
 import { emptyPlant, emptySite } from '../../src/lib/plantDefaults';
 import { detectRooms } from '../../src/lib/roomDetection';
 import { buildPlanSvg } from '../../src/lib/planPrint';
+import { buildReferenceDocument } from '../reference';
 import { openingLabel, openingSymbol } from '../../src/lib/openingSymbols';
 import { getWallGeometry, indexWallsByNode, planWallPieces } from '../../src/lib/wallGeometry';
 
@@ -551,4 +552,96 @@ export function pruefeDruckplan(check: CheckFn): void {
     check('Die Stufenlinien stehen auf dem Blatt', stufen, 15);
     check('Der Antritt ist gekennzeichnet', svg.includes('<circle'), true);
   }
+}
+
+// ===========================================================================
+// Der Grundrisssatz — jedes Geschoss ein Blatt
+// ===========================================================================
+
+/**
+ * **„Du druckst nur 1 Etage, das ist bei mehr Etagen aber Quatsch."**
+ *
+ * Der Plandruck gab genau ein Geschoss aus, das im Dialog gewählte. Ein
+ * Grundrisssatz ist aber kein Blatt, sondern ein Satz: Wer ihn einzeln
+ * druckt, hält am Ende drei Blätter aus drei Druckvorgängen in der Hand,
+ * womöglich in drei Maßstäben, und ohne zu wissen, ob eines fehlt.
+ *
+ * Geprüft wird beides — dass jedes Geschoss **sein eigenes** Blatt bekommt
+ * (und nicht dreimal dasselbe), und dass die Blätter mit Seitenumbrüchen
+ * aneinanderhängen.
+ */
+export function pruefeGrundrisssatz(check: CheckFn): void {
+  const doc = buildReferenceDocument();
+  const geschosse = Object.values(doc.levels).sort((a, b) => a.order - b.order);
+  check('Grundrisssatz · das Prüfhaus hat drei Geschosse', geschosse.length, 3);
+
+  const vorgabe = {
+    scale: 100,
+    format: 'A4' as const,
+    orientation: 'landscape' as const,
+    showRoomLabels: true,
+    showDimensions: false,
+    showFixtures: false,
+    showAnnotations: false,
+    showInteriorDimensions: false,
+    showLegend: false,
+    showOpeningDimensions: false,
+  };
+  const blaetter = geschosse.map((l) => buildPlanSvg(doc, { ...vorgabe, levelId: l.id }));
+
+  // =========================================================================
+  // 1 · Jedes Blatt zeigt sein Geschoss
+  // =========================================================================
+  {
+    /*
+     * Der Geschossname steht im Schriftfeld jedes Blattes. Stünde auf allen
+     * dreien derselbe, wäre dreimal dasselbe Geschoss gedruckt — genau der
+     * Fehler, den niemand am Papierstapel bemerkt, solange die Grundrisse
+     * einander ähneln.
+     */
+    for (const [i, l] of geschosse.entries()) {
+      check(`Grundrisssatz · Blatt ${i + 1} nennt „${l.name}"`, blaetter[i]!.svg.includes(l.name), true);
+    }
+    /*
+     * **Und die Blätter sind verschieden.** Das Prüfhaus hat in jedem
+     * Geschoss andere Räume; drei gleiche Zeichnungen hieße, dass der
+     * Geschossfilter nicht greift.
+     */
+    const verschieden = new Set(blaetter.map((b) => b.svg)).size;
+    check('Grundrisssatz · drei verschiedene Blätter', verschieden, 3);
+  }
+
+  // =========================================================================
+  // 2 · Der Satz hängt mit Seitenumbrüchen zusammen
+  // =========================================================================
+  {
+    /*
+     * `printPlan` gibt das fertige Dokument nicht zurück — es öffnet ein
+     * Fenster. Geprüft wird deshalb die Vorschrift, nach der es gebaut
+     * wird: Jedes Blatt außer dem letzten bricht die Seite um.
+     *
+     * Zwei Blätter, zwei `<div class="blatt">`, davon eines als `letztes`.
+     * Bräche auch das letzte um, würfe der Drucker eine leere Seite
+     * hinterher — die klassische Zugabe am Ende jedes Satzes.
+     */
+    const dok = druckdokument(['<svg id="a"/>', '<svg id="b"/>', '<svg id="c"/>']);
+    check('Grundrisssatz · drei Blätter im Dokument', (dok.match(/class="blatt/g) ?? []).length, 3);
+    check('Grundrisssatz · genau eines ist das letzte', (dok.match(/class="blatt letztes"/g) ?? []).length, 1);
+    check('Grundrisssatz · und es steht am Ende', dok.indexOf('letztes') > dok.indexOf('id="b"'), true);
+    check('Grundrisssatz · ein einzelnes Blatt bricht nicht um', (druckdokument(['<svg/>']).match(/class="blatt letztes"/g) ?? []).length, 1);
+  }
+}
+
+/**
+ * Die Blattfolge, so wie `printPlan` sie baut.
+ *
+ * Nachgebildet statt aufgerufen: `printPlan` öffnet ein Fenster und gibt nur
+ * zurück, ob das geklappt hat. Die Vorschrift selbst ist eine Zeichenkette,
+ * und die lässt sich prüfen — solange sie hier und dort dieselbe ist. Das
+ * hält die Prüfung „Grundrisssatz · drei Blätter im Dokument" fest.
+ */
+function druckdokument(blaetter: readonly string[]): string {
+  return blaetter
+    .map((b, i) => `<div class="blatt${i === blaetter.length - 1 ? ' letztes' : ''}">${b}</div>`)
+    .join('');
 }

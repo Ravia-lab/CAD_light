@@ -3316,9 +3316,30 @@ export const useBimStore = create<BimState>()((set, get) => {
     zeigeGeschoss: (id, sichtbar) => {
       const level = get().doc.levels[id];
       if (!level) return;
-      if (!sichtbar && id === get().doc.activeLevelId) {
-        set({ statusMessage: `${level.name} ist das aktive Geschoss und bleibt sichtbar` });
-        return;
+      /*
+       * **Auch das aktive Geschoss lässt sich im Modell ausblenden.**
+       *
+       * Bis 1.56.0 nicht: „man bearbeitet nicht, was man nicht sieht". Für
+       * den *Grundriss* stimmt das — dort zeigt die Ansicht ohnehin genau
+       * ein Geschoss. Für das **Modell** stimmt es nicht, und der Fall, an
+       * dem es auffiel, ist alltäglich: Wer von oben in den Keller sehen
+       * will, muss Erd- und Dachgeschoss wegnehmen. Steht er dabei im
+       * Keller, ist das Erdgeschoss nicht aktiv und geht weg — steht er im
+       * Erdgeschoss, ging es nicht. Dass das Ausblenden davon abhängt, wo
+       * man gerade arbeitet, ist für eine Ansicht die falsche Bedingung.
+       *
+       * Was bleibt, ist die **untere** Schranke: Das letzte sichtbare
+       * Geschoss lässt sich nicht auch noch wegnehmen. Ein leeres Modell
+       * sieht aus wie ein kaputtes, und niemand fände den Weg zurück.
+       */
+      if (!sichtbar) {
+        const sichtbareAndere = Object.values(get().doc.levels).filter(
+          (l) => l.id !== id && l.visible !== false,
+        ).length;
+        if (sichtbareAndere === 0) {
+          set({ statusMessage: `${level.name} ist das letzte sichtbare Geschoss und bleibt im Modell` });
+          return;
+        }
       }
       mutate(
         (doc) => {

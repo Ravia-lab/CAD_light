@@ -99,6 +99,7 @@ import {
 } from '../lib/wallGeometry';
 import {
   AUGENHOEHE,
+  KOERPER_RADIUS,
   TEMPO_GEHEN,
   TEMPO_SCHNELL,
   TUER_OFFEN_WINKEL,
@@ -108,8 +109,10 @@ import {
   gehe,
   hindernisse,
   schritt,
+  tritt,
   tuerInReichweite,
   type Hindernis,
+  type Treppenlauf,
 } from '../lib/begehen';
 import { pointInPolygon } from '../lib/geometry';
 import { deuteTreffer, szeneZuModell } from '../lib/raumtreffer';
@@ -1654,7 +1657,15 @@ export default function Viewer3D({ className = '' }: { className?: string }) {
   /** Womit gerade gerendert wird — im Begehmodus hält OrbitControls nicht mehr die Wahrheit. */
   const aktiveKameraRef = useRef<THREE.Camera | null>(null);
   /** Wo der Betrachter steht (Modellkoordinaten) und wohin er schaut [rad]. */
-  const geherRef = useRef({ x: 0, y: 0, gier: 0, nick: 0 });
+  /*
+   * Der Geher. `hoehe` und `geschoss` sind seit 1.56.0 dabei: Seit man die
+   * Treppe steigen kann, ist die Standhöhe keine Konstante mehr, und zu
+   * welchem Geschoss man gehört, entscheidet, an welchen Wänden man sich
+   * stößt. Beides liegt im selben Ref, weil beides sechzigmal in der
+   * Sekunde nachgeführt wird — und beides hängt am Diagnosehaken, weil es
+   * am Bild nicht zu messen ist.
+   */
+  const geherRef = useRef({ x: 0, y: 0, gier: 0, nick: 0, hoehe: 0, geschoss: '' });
   /**
    * Die Türblätter in der Szene — je Flügel eines, mit seiner Drehgruppe.
    *
@@ -1690,7 +1701,35 @@ export default function Viewer3D({ className = '' }: { className?: string }) {
   const eingabeRef = useRef({ tastVor: 0, tastSeit: 0, stickVor: 0, stickSeit: 0, schnell: false });
   const uhrRef = useRef<THREE.Clock | null>(null);
   const hindRef = useRef<Hindernis[]>([]);
-  /** Augenhöhe über dem Szenennullpunkt [m] — Geschosshöhe plus 1,65 m. */
+  /** Alle Hindernisse, je Geschoss — der Vorrat für den Geschosswechsel. */
+  const hindJeGeschossRef = useRef<Map<string, Hindernis[]>>(new Map());
+  /** Die Treppen, auf denen man steigen kann. */
+  const treppenRef = useRef<Treppenlauf[]>([]);
+  /**
+   * Geschosshöhen und -namen als Ref.
+   *
+   * Die Bildschleife hängt bewusst nur an Ansichtsart und Kameramodus — ein
+   * Neuaufbau je Dokumentänderung wäre ein Neuaufbau je Tastendruck. Was sie
+   * an Modelldaten braucht, muss deshalb über einen Ref kommen; über die
+   * Closure wäre es das Dokument von vor der letzten Änderung, und die
+   * Treppe führte auf eine Höhe, die es nicht mehr gibt.
+   */
+  const geschossRef = useRef<{ hoehen: Map<string, number>; namen: Map<string, string> }>({
+    hoehen: new Map(),
+    namen: new Map(),
+  });
+  /**
+   * Das Geschoss, auf dem man **steht** — nicht das bearbeitete.
+   *
+   * Beide auseinanderzuhalten ist der Kern des Treppensteigens: Das aktive
+   * Geschoss des Dokuments zu ändern hieße, die ganze Szene neu zu bauen,
+   * und das mitten im Gang. Hier läuft nur die Standhöhe mit; übernommen
+   * wird das Geschoss beim **Verlassen** des Begehmodus.
+   */
+  const standGeschossRef = useRef<string>('');
+  /** Für die Anzeige: der Name des Geschosses, auf dem man gerade steht. */
+  const [standGeschoss, setStandGeschoss] = useState<string>('');
+  /** Augenhöhe über dem Szenennullpunkt [m] — Standhöhe plus 1,65 m. */
   const augenRef = useRef(AUGENHOEHE);
   /** Nur für die Anzeige: steht der Zeiger gerade unter Fangschloss? */
   const [zeigerGefangen, setZeigerGefangen] = useState(false);
@@ -1769,6 +1808,7 @@ export default function Viewer3D({ className = '' }: { className?: string }) {
    * Ansichten.
    */
   const toggleLayer = useBimStore((s) => s.toggleLayer);
+  const setActiveLevel = useBimStore((s) => s.setActiveLevel);
   const showSite = doc.layers[EBENE_GELAENDE]?.visible !== false;
 
   /*
@@ -1786,10 +1826,22 @@ export default function Viewer3D({ className = '' }: { className?: string }) {
   const sichtbareGeschosse = useMemo(() => {
     const ids = new Set<string>();
     for (const l of Object.values(doc.levels)) {
-      if (l.visible !== false || l.id === doc.activeLevelId) ids.add(l.id);
+      /*
+       * **Im Begehmodus sind alle Geschosse da.** Man läuft durch ein Haus
+       * und nicht durch ein Geschoss: Wer die Treppe hinaufgeht und oben ein
+       * ausgeblendetes Obergeschoss vorfände, stünde im Freien. Das
+       * Ausblenden bleibt für die Ansicht — dort ist es ein Arbeitsmittel.
+       *
+       * **Und das aktive Geschoss ist keine Ausnahme mehr.** Bis 1.56.0
+       * stand hier „oder es ist das aktive" — wer von oben in den Keller
+       * sehen wollte, bekam das Erdgeschoss nicht weg, solange er darin
+       * arbeitete. Die untere Schranke führt jetzt der Zustand: Das letzte
+       * sichtbare Geschoss lässt sich nicht ausblenden.
+       */
+      if (cameraMode === 'walk' || l.visible !== false) ids.add(l.id);
     }
     return ids;
-  }, [doc.levels, doc.activeLevelId]);
+  }, [doc.levels, doc.activeLevelId, cameraMode]);
   const imBild = useCallback((levelId: string) => sichtbareGeschosse.has(levelId), [sichtbareGeschosse]);
 
   const walls = useMemo(
@@ -1812,10 +1864,66 @@ export default function Viewer3D({ className = '' }: { className?: string }) {
    * `baueHindernisse` neu, wenn eine Tür ihren Zustand wechselt. Das ist
    * genau einmal je Tastendruck.
    */
-  const gehHindernisse = useMemo(
-    () => hindernisse(doc, doc.activeLevelId, new Set<string>()),
-    [doc, doc.activeLevelId],
-  );
+  /*
+   * **Je Geschoss eine Menge, nicht nur für das aktive.**
+   *
+   * Seit man die Treppe steigen kann, wechselt das Geschoss mitten im Gang.
+   * Dafür müssen die Wände beider Geschosse bereitliegen: Wer oben ankommt
+   * und dort noch die Hindernisse des Erdgeschosses mitführte, liefe durch
+   * die Wände des Obergeschosses. Neu zu bauen ist dabei nichts — es sind
+   * dieselben Wände, nur nach Geschoss sortiert.
+   */
+  const gehHindernisse = useMemo(() => {
+    const je = new Map<string, Hindernis[]>();
+    for (const level of Object.values(doc.levels)) {
+      je.set(level.id, hindernisse(doc, level.id, new Set<string>()));
+    }
+    return je;
+  }, [doc]);
+
+  /**
+   * Die Treppen, wie der Begehmodus sie braucht — Lauflinie, Länge und die
+   * beiden Fußbodenhöhen, die sie verbindet.
+   *
+   * Ein Schacht ist keine Treppe: Er führt Leitungen, und wer in ihm stünde,
+   * stünde in einem Rohr.
+   */
+  const gehTreppen = useMemo<Treppenlauf[]>(() => {
+    const basen = levelBaseHeights(Object.values(doc.levels));
+    const sortiert = [...basen.entries()].sort((a, b) => a[1] - b[1]);
+    const laeufe: Treppenlauf[] = [];
+    for (const v of Object.values(doc.verticals ?? {})) {
+      if (v.kind === 'shaft') continue;
+      const unten = basen.get(v.levelId);
+      if (unten === undefined) continue;
+      /*
+       * Das Zielgeschoss: die ausdrückliche Angabe, sonst das nächsthöhere.
+       * Ohne eines darüber verbindet die Treppe nichts — dann ist sie im
+       * Begehmodus ein Möbelstück und keine Verbindung.
+       */
+      const zielBasis = v.toLevelId !== undefined ? basen.get(v.toLevelId) : undefined;
+      const naechstes = sortiert.find(([, b]) => b > unten + 1e-6);
+      const obenId = v.toLevelId !== undefined && zielBasis !== undefined ? v.toLevelId : naechstes?.[0];
+      const oben = zielBasis ?? naechstes?.[1];
+      if (obenId === undefined || oben === undefined) continue;
+      const linie = stairPath(v);
+      const laenge = stairRunLength(v);
+      if (laenge < 1e-6) continue;
+      laeufe.push({
+        id: v.id,
+        linie,
+        laenge,
+        // Die halbe Laufbreite plus den Körperradius: Wer mit der Schulter
+        // über der Wange steht, steht noch auf der Stufe.
+        halbbreite: v.width / 2 + KOERPER_RADIUS,
+        unten,
+        oben,
+        untenLevelId: v.levelId,
+        obenLevelId: obenId,
+      });
+    }
+    return laeufe;
+  }, [doc.levels, doc.verticals]);
 
   const openings = useMemo(
     () => Object.values(doc.openings).filter((o) => imBild(doc.walls[o.wallId]?.levelId ?? '')),
@@ -3903,8 +4011,21 @@ export default function Viewer3D({ className = '' }: { className?: string }) {
    * Ereignisse und Kamerazuweisungen.
    */
   useEffect(() => {
-    hindRef.current = gehHindernisse;
-  }, [gehHindernisse]);
+    hindJeGeschossRef.current = gehHindernisse;
+    if (!standGeschossRef.current) standGeschossRef.current = doc.activeLevelId;
+    hindRef.current = gehHindernisse.get(standGeschossRef.current) ?? [];
+  }, [gehHindernisse, doc.activeLevelId]);
+
+  useEffect(() => {
+    treppenRef.current = gehTreppen;
+  }, [gehTreppen]);
+
+  useEffect(() => {
+    geschossRef.current = {
+      hoehen: geschossHoehen,
+      namen: new Map(Object.values(doc.levels).map((l) => [l.id, l.name])),
+    };
+  }, [geschossHoehen, doc.levels]);
 
   /**
    * Die Hindernisse neu bilden — nach jedem Wechsel eines Türzustands.
@@ -3917,12 +4038,22 @@ export default function Viewer3D({ className = '' }: { className?: string }) {
   const baueHindernisse = useCallback(() => {
     const offen = new Set<string>();
     for (const [id, stand] of tuerStandRef.current) if (stand > 0.5) offen.add(id);
-    hindRef.current = hindernisse(doc, doc.activeLevelId, offen);
+    const je = new Map<string, Hindernis[]>();
+    for (const level of Object.values(doc.levels)) je.set(level.id, hindernisse(doc, level.id, offen));
+    hindJeGeschossRef.current = je;
+    hindRef.current = je.get(standGeschossRef.current || doc.activeLevelId) ?? [];
   }, [doc]);
 
   useEffect(() => {
+    /*
+     * Beim Betreten des Begehmodus steht man auf dem Geschoss, das man
+     * bearbeitet hat. Von da an führt die Treppe die Höhe; siehe die
+     * Schleife weiter unten.
+     */
+    standGeschossRef.current = doc.activeLevelId;
+    setStandGeschoss(doc.levels[doc.activeLevelId]?.name ?? '');
     augenRef.current = (geschossHoehen.get(doc.activeLevelId) ?? 0) + AUGENHOEHE;
-  }, [geschossHoehen, doc.activeLevelId]);
+  }, [geschossHoehen, doc.activeLevelId, doc.levels]);
 
   /*
    * Diagnosehaken für die Rauchtests (siehe `main.tsx`): wie weit jedes
@@ -3935,6 +4066,7 @@ export default function Viewer3D({ className = '' }: { className?: string }) {
       window.__raviaTueren = undefined;
     };
   }, []);
+
 
   /** Die Blätter auf ihren jeweiligen Stand drehen. */
   const tuerenZeichnen = useCallback(() => {
@@ -3971,6 +4103,24 @@ export default function Viewer3D({ className = '' }: { className?: string }) {
     tuerenZeichnen();
     baueHindernisse();
   }, [cameraMode, neuaufbau, tuerenZeichnen, baueHindernisse]);
+
+  /**
+   * **Wer die Treppe hinaufgegangen ist, arbeitet oben weiter.**
+   *
+   * Im Begehmodus läuft das Standgeschoss nur intern mit — das aktive zu
+   * ändern hieße, die Szene mitten im Gang neu zu bauen. Beim Verlassen ist
+   * der Gang vorbei, und dann soll der Plan das Geschoss zeigen, in dem man
+   * zuletzt stand. Alles andere wäre ein Rückwurf: Man steht im
+   * Obergeschoss, drückt „Iso" und sieht wieder das Erdgeschoss.
+   */
+  const vorigerModus = useRef(cameraMode);
+  useEffect(() => {
+    const war = vorigerModus.current;
+    vorigerModus.current = cameraMode;
+    if (war !== 'walk' || cameraMode === 'walk') return;
+    const stand = standGeschossRef.current;
+    if (stand && stand !== doc.activeLevelId && doc.levels[stand]) setActiveLevel(stand);
+  }, [cameraMode, doc.activeLevelId, doc.levels, setActiveLevel]);
 
   /**
    * Die Tür vor einem auf- oder zumachen.
@@ -4206,6 +4356,35 @@ export default function Viewer3D({ className = '' }: { className?: string }) {
           if (schwelleGekreuzt) baueHindernisse();
           tuerenZeichnen();
 
+          /*
+           * --- Die Höhe unter den Füßen ---------------------------------
+           *
+           * Steht man auf einer Treppe, ist der Boden die Treppe; sonst der
+           * Fußboden des Geschosses, auf dem man steht. `tritt` rechnet das
+           * und sagt zugleich, zu welchem Geschoss man gehört.
+           *
+           * **Wechselt das Geschoss, wechseln die Wände.** Das ist der
+           * eigentliche Grund, warum der Vorrat je Geschoss bereitliegt:
+           * Wer oben ankommt und die Hindernisse des Erdgeschosses
+           * mitführte, liefe durch die Wände des Obergeschosses. Geändert
+           * wird dabei **nicht** das aktive Geschoss des Dokuments — das
+           * würde die Szene mitten im Gang neu bauen. Es wandert beim
+           * Verlassen des Begehmodus mit.
+           */
+          const stehtAuf = standGeschossRef.current;
+          const wo = tritt({ x: g.x, y: g.y }, treppenRef.current, {
+            hoehe: geschossRef.current.hoehen.get(stehtAuf) ?? 0,
+            levelId: stehtAuf,
+          });
+          if (wo.levelId !== stehtAuf) {
+            standGeschossRef.current = wo.levelId;
+            hindRef.current = hindJeGeschossRef.current.get(wo.levelId) ?? hindRef.current;
+            setStandGeschoss(geschossRef.current.namen.get(wo.levelId) ?? '');
+          }
+          augenRef.current = wo.hoehe + AUGENHOEHE;
+          g.hoehe = wo.hoehe;
+          g.geschoss = wo.levelId;
+
           // Modell → Szene: x bleibt, Modell-y wird −z, die Höhe ist y.
           kamera.position.set(g.x, augenRef.current, -g.y);
           const b = blickrichtung(g.gier, g.nick);
@@ -4395,8 +4574,17 @@ export default function Viewer3D({ className = '' }: { className?: string }) {
                   : 'W A S D gehen · ziehen dreht den Blick · E öffnet die Tür'}
               </div>
               <div className="mt-0.5 text-[10px] text-slate-500">
-                Augenhöhe 1,65 m · Umschalt geht schneller · Türen sind offen, Fenster nicht
+                Augenhöhe 1,65 m · Umschalt geht schneller · Treppen tragen ins nächste Geschoss
               </div>
+              {/*
+                Auf welchem Geschoss man steht — im Begehmodus die einzige
+                Auskunft darüber. Die Geschossauswahl oben zeigt weiterhin
+                das *bearbeitete* Geschoss; welches das ist, wird beim
+                Verlassen nachgezogen.
+              */}
+              {standGeschoss && (
+                <div className="mt-0.5 text-[10px] text-accent">Sie stehen im {standGeschoss}</div>
+              )}
             </div>
           )}
 

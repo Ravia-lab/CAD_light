@@ -1158,20 +1158,47 @@ const escapeXml = (v: string): string =>
  * Öffnet ein Druckfenster mit dem SVG. Das Blattformat wird über `@page`
  * gesetzt, damit der Browser nicht skaliert — nur so bleibt der Maßstab exakt.
  */
-export function printPlan(svg: string, options: PlanPrintOptions): boolean {
+/**
+ * Den Plan drucken — **ein Blatt je Geschoss**.
+ * ---------------------------------------------------------------------------
+ * **Der Anlass.** Der Druck gab genau ein Geschoss aus, das im Dialog
+ * gewählte. Gemeldet als „du druckst nur 1 Etage, das ist bei mehr Etagen
+ * aber Quatsch — es muss alles an Grundriss gedruckt werden, das ist bei mehr
+ * Etagen extrem wichtig."
+ *
+ * Und es stimmt: Ein Grundrisssatz ist kein Blatt, sondern ein Satz. Wer ihn
+ * einzeln druckt, hält am Ende drei Blätter in der Hand, die in drei
+ * getrennten Druckvorgängen entstanden sind — womöglich in drei Maßstäben,
+ * und mit der Frage, ob eines fehlt.
+ *
+ * `svg` nimmt deshalb auch eine **Liste**. Jedes Blatt bekommt seinen
+ * Seitenumbruch; das letzte keinen, sonst wirft der Drucker eine leere Seite
+ * hinterher.
+ */
+export function printPlan(svg: string | readonly string[], options: PlanPrintOptions): boolean {
   const paper = PAPER[options.format];
   const size = options.orientation === 'landscape' ? `${paper.h}mm ${paper.w}mm` : `${paper.w}mm ${paper.h}mm`;
-  const titel = `Grundriss M 1:${options.scale}`;
+  const blaetter = typeof svg === 'string' ? [svg] : [...svg];
+  const titel =
+    blaetter.length > 1
+      ? `Grundrisse M 1:${options.scale} — ${blaetter.length} Blätter`
+      : `Grundriss M 1:${options.scale}`;
 
   // Kein eingebettetes Skript im Dokument: der Druck wird vom Öffner
   // ausgelöst. Siehe `druckFenster.ts` — mit einer Inhaltsrichtlinie
   // `script-src 'self'` würde ein Skript hier verworfen, und der Druckdialog
   // ginge stillschweigend nicht auf.
+  const inhalt = blaetter
+    .map((b, i) => `<div class="blatt${i === blaetter.length - 1 ? ' letztes' : ''}">${b}</div>`)
+    .join('');
   return druckeDokument(
     `<!doctype html><html lang="de"><head><meta charset="utf-8">` +
       `<style>@page{size:${size};margin:0}html,body{margin:0;padding:0;background:#fff}` +
-      `svg{display:block}@media screen{body{padding:16px;background:#334155}svg{box-shadow:0 8px 40px rgba(0,0,0,.4);margin:0 auto}}</style>` +
-      `</head><body>${svg}</body></html>`,
+      `svg{display:block}.blatt{break-after:page;page-break-after:always}` +
+      `.blatt.letztes{break-after:auto;page-break-after:auto}` +
+      `@media screen{body{padding:16px;background:#334155}svg{box-shadow:0 8px 40px rgba(0,0,0,.4);margin:0 auto}` +
+      `.blatt+.blatt{margin-top:16px}}</style>` +
+      `</head><body>${inhalt}</body></html>`,
     titel,
   );
 }

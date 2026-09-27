@@ -22,7 +22,13 @@ export default function PlanPrintDialog({ onClose }: { onClose: () => void }) {
   const [scale, setScale] = useState(50);
   const [format, setFormat] = useState<PaperFormat>('A4');
   const [orientation, setOrientation] = useState<PaperOrientation>('landscape');
-  const [levelId, setLevelId] = useState(doc.activeLevelId);
+  /*
+   * `ALLE` steht für den ganzen Satz. Eine eigene Kennung statt eines
+   * zweiten Schalters: Die Frage „welches Geschoss?" hat jetzt eben eine
+   * Antwort mehr, und die gehört in dieselbe Liste.
+   */
+  const ALLE = '@alle';
+  const [levelId, setLevelId] = useState<string>(doc.activeLevelId);
   const [showRoomLabels, setShowRoomLabels] = useState(true);
   const [showDimensions, setShowDimensions] = useState(true);
   const [showFixtures, setShowFixtures] = useState(true);
@@ -47,12 +53,19 @@ export default function PlanPrintDialog({ onClose }: { onClose: () => void }) {
   const ebenenSatz = useBimStore((s) => s.ebenenSatz);
   const [satzId, setSatzId] = useState<GewerkesatzId | null>(null);
 
+  const levels = Object.values(doc.levels).sort((a, b) => b.order - a.order);
+  const alleGeschosse = levelId === ALLE;
+  /** Die Geschosse, die gedruckt werden — eines oder alle, von unten nach oben. */
+  const zuDrucken = alleGeschosse ? [...levels].reverse() : levels.filter((l) => l.id === levelId);
+  /** Für die Vorschau: das oberste der zu druckenden Blätter. */
+  const vorschauLevel = alleGeschosse ? levels[0]?.id ?? doc.activeLevelId : levelId;
+
   const options = {
     raumstempelKurz: satzId !== null && satzId !== 'grundriss',
     scale,
     format,
     orientation,
-    levelId,
+    levelId: vorschauLevel,
     showRoomLabels,
     showDimensions,
     showFixtures,
@@ -83,8 +96,6 @@ export default function PlanPrintDialog({ onClose }: { onClose: () => void }) {
     ],
   );
 
-  const levels = Object.values(doc.levels).sort((a, b) => b.order - a.order);
-
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-graphite-950/70 p-6 backdrop-blur-sm">
       <div className="panel flex max-h-full w-[880px] max-w-full flex-col overflow-hidden">
@@ -108,12 +119,23 @@ export default function PlanPrintDialog({ onClose }: { onClose: () => void }) {
             <div>
               <span className="label-xs mb-1.5 block">Geschoss</span>
               <select className="field" value={levelId} onChange={(e) => setLevelId(e.target.value)}>
+                {levels.length > 1 && (
+                  <option value={ALLE} className="bg-graphite-850">
+                    Alle Geschosse ({levels.length} Blätter)
+                  </option>
+                )}
                 {levels.map((l) => (
                   <option key={l.id} value={l.id} className="bg-graphite-850">
                     {l.name}
                   </option>
                 ))}
               </select>
+              {alleGeschosse && (
+                <p className="mt-1 text-[9.5px] leading-relaxed text-slate-500">
+                  Ein Blatt je Geschoss, von unten nach oben, alle im selben Maßstab. Die
+                  Vorschau zeigt {doc.levels[vorschauLevel]?.name ?? 'das oberste Geschoss'}.
+                </p>
+              )}
             </div>
 
             <div>
@@ -238,16 +260,38 @@ export default function PlanPrintDialog({ onClose }: { onClose: () => void }) {
             <button
               className="w-full rounded-lg bg-accent/15 px-3 py-2 text-[11px] font-medium text-accent shadow-glow transition-colors hover:bg-accent/25"
               onClick={() => {
-                const ok = printPlan(result.svg, options);
+                /*
+                 * **Der ganze Satz in einem Maßstab.** Gebaut wird jedes
+                 * Blatt einzeln; der Maßstab ist für alle derselbe, den der
+                 * Anwender gewählt hat. Passt ein Geschoss darin nicht, sagt
+                 * es die Meldung — umgestellt wird nichts hinter seinem
+                 * Rücken, sonst hielte er einen Satz in der Hand, dessen
+                 * Maßstab er nicht kennt.
+                 */
+                const blaetter = zuDrucken.map((l) => ({
+                  level: l,
+                  plan: buildPlanSvg(doc, { ...options, levelId: l.id }),
+                }));
+                const zuKlein = blaetter.filter((b) => !b.plan.fits);
+                const ok = printPlan(
+                  blaetter.map((b) => b.plan.svg),
+                  options,
+                );
                 setStatus(
-                  ok
-                    ? `Plan 1:${scale} an den Druckdialog übergeben`
-                    : 'Druckfenster wurde blockiert — Pop-ups für diese Seite erlauben',
+                  !ok
+                    ? 'Druckfenster wurde blockiert — Pop-ups für diese Seite erlauben'
+                    : zuKlein.length
+                      ? `${blaetter.length} Blatt 1:${scale} übergeben — ${zuKlein
+                          .map((b) => b.level.name)
+                          .join(', ')} passt bei diesem Maßstab nicht aufs Blatt`
+                      : blaetter.length > 1
+                        ? `${blaetter.length} Grundrisse 1:${scale} an den Druckdialog übergeben`
+                        : `Plan 1:${scale} an den Druckdialog übergeben`,
                 );
                 if (ok) onClose();
               }}
             >
-              Drucken / als PDF sichern
+              {alleGeschosse ? `Alle ${zuDrucken.length} Blätter drucken` : 'Drucken / als PDF sichern'}
             </button>
 
             <p className="text-[9.5px] leading-relaxed text-slate-600">

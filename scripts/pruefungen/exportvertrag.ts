@@ -30,6 +30,7 @@ import type { BimDocument, BimNode, Level, RaviaExport, Wall } from '../../src/t
 import { emptyPlant, emptySite } from '../../src/lib/plantDefaults';
 import { detectRooms } from '../../src/lib/roomDetection';
 import { buildRaviaExport } from '../../src/lib/raviaExport';
+import { buildReferenceDocument } from '../reference';
 
 // ---------------------------------------------------------------------------
 // Die Listen — von Hand geführt
@@ -515,4 +516,149 @@ export function pruefeExportvertrag(check: CheckFn): void {
     ex.totals.thermalBridges.envelopeArea >= ex.totals.exteriorWallArea + 2 * ex.totals.netFloorArea,
     true,
   );
+}
+
+// ===========================================================================
+// Die Übergabe trägt das ganze Haus
+// ===========================================================================
+
+/**
+ * **„Übergabe an RaVia sind im Moment nur 1 Etage, das zerstört den
+ * kompletten Rechner."**
+ *
+ * Ein Heizlastrechner, der ein Dreigeschosshaus als ein Geschoss bekommt,
+ * rechnet nicht ungenau, sondern falsch: Ihm fehlen zwei Drittel der
+ * Hüllfläche, und die Decke über dem einen Geschoss grenzt plötzlich an
+ * Außenluft statt an einen beheizten Raum.
+ *
+ * Nachgemessen wurde die Übergabe daraufhin, und sie trägt alle Geschosse.
+ * Diese Prüfung hält das fest, damit die Frage nicht ein zweites Mal
+ * aufkommt — und damit ein Geschossfilter, der sich irgendwann in einen
+ * Ausgabeweg schleicht, hier auffällt und nicht beim Rechnen.
+ *
+ * Geprüft wird nicht „es gibt ein Feld `levels`", sondern dass in jedem
+ * Sammelbecken des Exports **jedes** Geschoss vorkommt.
+ */
+export function pruefeUebergabeUeberAlleGeschosse(check: CheckFn): void {
+  const doc = buildReferenceDocument();
+  const geschosse = Object.values(doc.levels).sort((a, b) => a.order - b.order);
+  const namen = geschosse.map((l) => l.name);
+  check('Übergabe · das Prüfhaus hat drei Geschosse', namen.join(', '), 'KG, EG, OG');
+
+  const e = buildRaviaExport(doc);
+
+  // =========================================================================
+  // 1 · Geschosse und Räume
+  // =========================================================================
+  {
+    check('Übergabe · alle drei Geschosse stehen im Export', e.levels.map((l) => l.name).join(', '), 'KG, EG, OG');
+    /*
+     * **Und Räume aus jedem davon.** Das Prüfhaus hat zwei je Geschoss; ein
+     * Filter auf das aktive Geschoss ließe zwei übrig statt sechs.
+     */
+    const jeGeschoss = new Map<string, number>();
+    for (const r of e.rooms) jeGeschoss.set(r.level, (jeGeschoss.get(r.level) ?? 0) + 1);
+    check('Übergabe · sechs Räume', e.rooms.length, 6);
+    for (const name of namen) {
+      check(`Übergabe · Räume aus ${name}`, jeGeschoss.get(name) ?? 0, 2);
+    }
+  }
+
+  // =========================================================================
+  // 2 · Die Hüllflächenbilanz wächst mit
+  // =========================================================================
+  {
+    /*
+     * Die eigentliche Probe: Die Bilanz über alle Räume muss größer sein
+     * als die über ein Geschoss allein. Wäre der Export geschossbeschränkt,
+     * stimmten beide überein — und genau das wäre der Schaden beim Rechnen,
+     * weil die Zahl für sich genommen plausibel aussieht.
+     */
+    const nurEG: BimDocument = {
+      ...doc,
+      rooms: Object.fromEntries(Object.entries(doc.rooms).filter(([, r]) => r.levelId === 'eg')),
+    };
+    const eEG = buildRaviaExport(nurEG);
+    check('Übergabe · das Erdgeschoss allein hat zwei Räume', eEG.rooms.length, 2);
+    const flaeche = (x: RaviaExport) =>
+      x.rooms.reduce((s, r) => s + r.surfaces.reduce((t, f) => t + f.netArea, 0), 0);
+    check('Übergabe · das ganze Haus hat mehr Hüllfläche als ein Geschoss', flaeche(e) > flaeche(eEG), true);
+    /*
+     * Und zwar **deutlich** mehr: Drei Geschosse tragen mehr als das
+     * Doppelte eines einzelnen. Die Schranke ist bewusst grob — geprüft
+     * wird die Größenordnung, nicht ein Zahlenwert, der sich mit jedem
+     * Bauteil des Prüfhauses ändern würde.
+     */
+    check('Übergabe · und zwar mehr als das Doppelte', flaeche(e) > 2 * flaeche(eEG), true);
+  }
+
+  // =========================================================================
+  // 3 · Ein Geschoss ohne geschlossenen Raum fällt auf
+  // =========================================================================
+  {
+    /*
+     * **Die eigentliche Falle.** Die Übergabe nimmt alle Geschosse, aber
+     * übergeben kann sie nur, was da ist: Ein Geschoss, dessen Wandzug
+     * irgendwo offen ist, liefert keinen geschlossenen Raum und fehlt auf
+     * der anderen Seite vollständig. Am Bildschirm sieht man die Wände
+     * stehen und merkt nichts.
+     *
+     * Nachgestellt, indem die Räume des Obergeschosses entfernt werden —
+     * seine Wände bleiben. Der Prüfbericht muss das benennen, und zwar als
+     * **Fehler**: Ein Heizlastrechner, der zwei Drittel der Hüllfläche
+     * nicht sieht, rechnet nicht ungenau, sondern falsch.
+     */
+    const ogOhneRaeume: BimDocument = {
+      ...doc,
+      rooms: Object.fromEntries(Object.entries(doc.rooms).filter(([, r]) => r.levelId !== 'og')),
+    };
+    const bericht = buildRaviaExport(ogOhneRaeume).validation;
+    const befund = bericht.issues.filter((i) => i.code === 'topology.level-without-rooms');
+    check('Übergabe · ein Geschoss ohne Raum wird benannt', befund.length, 1);
+    check('Übergabe · und zwar als Fehler', befund[0]?.severity ?? 'keiner', 'error');
+    check('Übergabe · die Meldung nennt das Geschoss', /OG/.test(befund[0]?.message ?? ''), true);
+    check('Übergabe · und sagt, was das bedeutet', /Heizlast/.test(befund[0]?.message ?? ''), true);
+    check('Übergabe · mit einem Weg heraus', (befund[0]?.remedy ?? '').length > 20, true);
+
+    /*
+     * **Gegenprobe.** Ohne diese Probe hieße die Regel „es gibt immer einen
+     * solchen Befund". Das vollständige Prüfhaus darf ihn nicht bekommen.
+     */
+    check(
+      'Übergabe · das vollständige Haus bekommt ihn nicht',
+      e.validation.issues.some((i) => i.code === 'topology.level-without-rooms'),
+      false,
+    );
+    /*
+     * Und ein Geschoss **ohne Wände** auch nicht: Ein angelegtes, noch
+     * leeres Geschoss ist kein Fehler, sondern ein unbeschriebenes Blatt.
+     */
+    const leeresOG: BimDocument = {
+      ...ogOhneRaeume,
+      walls: Object.fromEntries(Object.entries(doc.walls).filter(([, w]) => w.levelId !== 'og')),
+    };
+    check(
+      'Übergabe · ein leeres Geschoss ist kein Fehler',
+      buildRaviaExport(leeresOG).validation.issues.some((i) => i.code === 'topology.level-without-rooms'),
+      false,
+    );
+  }
+
+  // =========================================================================
+  // 4 · Was über Geschosse hinweg zusammenhängt
+  // =========================================================================
+  {
+    /*
+     * Eine Treppe verbindet zwei Geschosse, ein Schacht mehrere. Beide sind
+     * im Export nur brauchbar, wenn auch das Geschoss darüber mitkommt —
+     * sonst führt die Treppe ins Leere.
+     */
+    check('Übergabe · die Bauteile über Geschosse hinweg sind dabei', e.verticals.length > 0, true);
+    const mitZiel = e.verticals.filter((v) => v.toLevel !== undefined);
+    check(
+      'Übergabe · und ihr Zielgeschoss ist eines der übergebenen',
+      mitZiel.every((v) => namen.includes(v.toLevel!)),
+      true,
+    );
+  }
 }

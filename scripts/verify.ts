@@ -43,7 +43,7 @@ import {
   waterProtectionVerdict,
 } from '../src/lib/heatPump';
 import { buildReferenceDocument, buildReferenceReport } from './reference';
-import { pruefeDruckplan } from './pruefungen/druckplan';
+import { pruefeDruckplan, pruefeGrundrisssatz } from './pruefungen/druckplan';
 import { pruefeAnlagenschema } from './pruefungen/anlagenschema';
 import { pruefeUebersichtsschema } from './pruefungen/uebersichtsschema';
 import { pruefeAnlagenfragen } from './pruefungen/anlagenfragen';
@@ -131,7 +131,7 @@ import { pruefeBaugrund, pruefeLueftungskonvention, pruefeRueckweg } from './pru
 import { pruefeAuslegungsuebergabe } from './pruefungen/auslegungsuebergabe';
 import { pruefeUWertQuelle } from './pruefungen/uwertquelle';
 import { pruefePruefsumme } from './pruefungen/pruefsumme';
-import { pruefeExportvertrag } from './pruefungen/exportvertrag';
+import { pruefeExportvertrag, pruefeUebergabeUeberAlleGeschosse } from './pruefungen/exportvertrag';
 import { pruefeFassung } from './pruefungen/fassung';
 import { pruefeDachgeschoss } from './pruefungen/dachgeschoss';
 import { pruefeSpiegeln } from './pruefungen/spiegeln';
@@ -160,7 +160,7 @@ import { pruefeHeizkoerperplatz } from './pruefungen/heizkoerperplatz';
 import { pruefeSkizze } from './pruefungen/skizze';
 import { pruefeNotizen } from './pruefungen/notizen';
 import { pruefeBeschriftungsflaeche, pruefeEckpunkte } from './pruefungen/eckpunkte';
-import { pruefeBegehen } from './pruefungen/begehen';
+import { pruefeBegehen, pruefeTreppensteigen } from './pruefungen/begehen';
 import { pruefeRaumtreffer, pruefeFlachGekippteFlaechen } from './pruefungen/raumtreffer';
 import { pruefeErzeugerhydraulik } from './pruefungen/erzeugerhydraulik';
 import { pruefeRaumscan } from './pruefungen/raumscan';
@@ -3774,6 +3774,9 @@ pruefePruefsumme(check);
 console.log('\n▸ Exportvertrag — das Format, gegen das die Gegenstelle baut');
 pruefeExportvertrag(check);
 
+console.log('\n▸ Die Übergabe trägt das ganze Haus');
+pruefeUebergabeUeberAlleGeschosse(check);
+
 console.log('\n▸ Fassung — eine Nummer, ein Ort');
 pruefeFassung(check);
 
@@ -3818,6 +3821,9 @@ pruefeRaumnamen(check);
 
 console.log('\n▸ Druckplan — Ecken, Symbolik, Maße');
 pruefeDruckplan(check);
+
+console.log('\n▸ Grundrisssatz — jedes Geschoss ein Blatt');
+pruefeGrundrisssatz(check);
 
 console.log('\n▸ Anlagenschema — Topologie, Stutzen, Stoffe');
 pruefeAnlagenschema(check);
@@ -3906,6 +3912,9 @@ pruefeBeschriftungsflaeche(check);
 
 console.log('\n▸ Begehen — komme ich durch die Tür, hält die Wand?');
 pruefeBegehen(check);
+
+console.log('\n▸ Treppensteigen im Begehmodus');
+pruefeTreppensteigen(check);
 
 console.log('\n▸ Raumtreffer — was ein Punkt im Raum im Modell bedeutet');
 pruefeRaumtreffer(check);

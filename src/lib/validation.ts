@@ -53,6 +53,8 @@ const SERVICE_CATEGORY: Record<string, 'heating' | 'sanitary' | 'ventilation'> =
  * gehalten, damit die Meldung kurz bleiben kann.
  */
 export const REMEDIES: Record<string, string> = {
+  'topology.level-without-rooms':
+    'Auf dieses Geschoss wechseln und den Wandzug schließen — die Prüfung zeigt die offenen Wandenden. Ohne geschlossenen Umriss entsteht dort kein Raum, und ohne Raum gibt es nichts zu übergeben.',
   'plant.no-generator': 'Im Reiter „Anlage" ein Gerät aus der Vorschlagsliste wählen — sie ist nach Eignung sortiert.',
   'plant.estimated-load':
     'Die Norm-Heizlast aus RaVia im Reiter „Anlage" oben eintragen. Alle Folgegrößen rechnen sich sofort neu.',
@@ -238,6 +240,36 @@ export function validateModel(doc: BimDocument): ValidationReport {
 
   if (walls.length > 0 && rooms.length === 0) {
     add('error', 'topology.no-rooms', 'Es sind Wände vorhanden, aber kein einziger geschlossener Raum.');
+  }
+
+  /*
+   * --- Ein Geschoss mit Wänden, aber ohne Raum ----------------------------
+   *
+   * **Der Anlass.** Gemeldet wurde „Übergabe an RaVia sind im Moment nur
+   * 1 Etage, das zerstört den kompletten Rechner". Die Übergabe selbst nimmt
+   * alle Geschosse — nachgemessen und festgeschrieben. Was sie *nicht* kann,
+   * ist Räume übergeben, die es nicht gibt: Ein Geschoss, dessen Wandzug
+   * irgendwo offen ist, liefert keinen geschlossenen Raum, geht damit ohne
+   * Räume in die Datei und fehlt auf der anderen Seite vollständig.
+   *
+   * Am Bildschirm fällt das kaum auf — der Grundriss zeigt die Wände, und
+   * die stehen ja. Auffallen muss es **hier**: Ein Heizlastrechner, der ein
+   * Dreigeschosshaus als ein Geschoss bekommt, rechnet nicht ungenau,
+   * sondern falsch. Ihm fehlen zwei Drittel der Hüllfläche, und die Decke
+   * über dem einen Geschoss grenzt plötzlich an Außenluft.
+   */
+  if (rooms.length > 0) {
+    for (const level of Object.values(doc.levels).sort((a, b) => a.order - b.order)) {
+      const wandZahl = walls.filter((w) => w.levelId === level.id).length;
+      if (wandZahl === 0) continue;
+      if (rooms.some((r) => r.levelId === level.id)) continue;
+      add(
+        'error',
+        'topology.level-without-rooms',
+        `${level.name} trägt ${wandZahl} Wände, aber keinen geschlossenen Raum — ` +
+          'dieses Geschoss geht ohne Räume in die Übergabe und fehlt in jeder Heizlastrechnung.',
+      );
+    }
   }
 
   // Die zweite Topologie-Prüfung, und die wichtigere: eine Fläche, die kein

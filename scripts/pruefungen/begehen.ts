@@ -15,6 +15,7 @@
 
 import type { CheckFn } from './typ';
 import type { BimDocument, Vec2 } from '../../src/types/bim';
+import { tritt, type Treppenlauf } from '../../src/lib/begehen';
 import {
   AUGENHOEHE,
   KOERPER_RADIUS,
@@ -312,5 +313,184 @@ export function pruefeBegehen(check: CheckFn): void {
     // Zargen von je 2,5 cm ergibt 0,835 lichte Weite — der Durchmesser von
     // 56 cm liegt deutlich darunter.
     check('Er passt durch eine 0,885er-Tür', KOERPER_RADIUS * 2 < 0.835, true);
+  }
+}
+
+// ===========================================================================
+// Treppensteigen
+// ===========================================================================
+
+/**
+ * **„Bei Treppen wäre es noch schön, wenn man effektiv die Treppe steigen
+ * kann und dadurch das Geschoss wechselt."**
+ *
+ * Bis 1.56.0 stand die Augenhöhe im Begehmodus fest auf dem Fußboden des
+ * aktiven Geschosses. Man lief durch die Treppe hindurch wie durch Luft, und
+ * ins Obergeschoss kam man nur über die Geschossauswahl — also gerade nicht
+ * begehend.
+ *
+ * Geprüft wird an einer geraden Treppe mit bekannten Maßen, jede Zahl von
+ * Hand gerechnet.
+ */
+export function pruefeTreppensteigen(check: CheckFn): void {
+  /*
+   * Eine gerade Treppe: Lauflinie von (5 | 3) nach (9 | 3), also **4,00 m**
+   * lang, 1,00 m breit. Sie verbindet den Fußboden bei 0,00 m mit dem bei
+   * 3,00 m — dieselbe Geschosshöhe wie im Prüfhaus.
+   */
+  const treppe: Treppenlauf = {
+    id: 't1',
+    linie: [
+      { x: 5, y: 3 },
+      { x: 9, y: 3 },
+    ],
+    laenge: 4,
+    halbbreite: 0.5,
+    unten: 0,
+    oben: 3,
+    untenLevelId: 'eg',
+    obenLevelId: 'og',
+  };
+  const boden = { hoehe: 0, levelId: 'eg' };
+
+  // =========================================================================
+  // 1 · Die Höhe folgt dem zurückgelegten Weg
+  // =========================================================================
+  {
+    /*
+     *   Am Antritt (5 | 3):   0/4 · 3,00 = 0,00 m
+     *   Nach einem Meter:     1/4 · 3,00 = 0,75 m
+     *   In der Mitte (7 | 3): 2/4 · 3,00 = 1,50 m
+     *   Am Austritt (9 | 3):  4/4 · 3,00 = 3,00 m
+     */
+    check('Treppensteigen · am Antritt steht man unten', tritt({ x: 5, y: 3 }, [treppe], boden).hoehe, 0, 1e-12);
+    check('Treppensteigen · nach einem Meter [m]', tritt({ x: 6, y: 3 }, [treppe], boden).hoehe, 0.75, 1e-12);
+    check('Treppensteigen · in der Mitte [m]', tritt({ x: 7, y: 3 }, [treppe], boden).hoehe, 1.5, 1e-12);
+    check('Treppensteigen · am Austritt [m]', tritt({ x: 9, y: 3 }, [treppe], boden).hoehe, 3, 1e-12);
+
+    /*
+     * **Auch seitlich versetzt**, solange man auf dem Lauf steht: 40 cm neben
+     * der Lauflinie bei einer Halbbreite von 50 cm. Die Höhe hängt am Weg
+     * längs, nicht am Abstand quer.
+     */
+    check('Treppensteigen · seitlich auf dem Lauf zählt derselbe Weg', tritt({ x: 7, y: 3.4 }, [treppe], boden).hoehe, 1.5, 1e-12);
+  }
+
+  // =========================================================================
+  // 2 · Neben der Treppe ist der Boden der Fußboden
+  // =========================================================================
+  {
+    /*
+     * 60 cm neben der Lauflinie — mehr als die Halbbreite. Dort steht man
+     * auf dem Fußboden, den der Aufrufer nennt, und **nicht** auf einer
+     * unsichtbaren Rampe daneben.
+     */
+    const daneben = tritt({ x: 7, y: 3.6 }, [treppe], boden);
+    check('Treppensteigen · neben dem Lauf gilt der Fußboden', daneben.hoehe, 0, 1e-12);
+    check('Treppensteigen · und man steht auf keiner Treppe', daneben.treppeId ?? 'keine', 'keine');
+
+    /*
+     * **Vor dem Antritt ebenso.** Der Fußpunkt wird auf die Strecke
+     * begrenzt; ohne diese Begrenzung läge er auf der Verlängerung, und man
+     * stiege schon zwei Meter vor der Treppe an.
+     */
+    check('Treppensteigen · zwei Meter vor dem Antritt', tritt({ x: 3, y: 3 }, [treppe], boden).hoehe, 0, 1e-12);
+    check('Treppensteigen · und dort auch ohne Treppe', tritt({ x: 3, y: 3 }, [treppe], boden).treppeId ?? 'keine', 'keine');
+  }
+
+  // =========================================================================
+  // 3 · Das Geschoss folgt der Höhe
+  // =========================================================================
+  {
+    check('Treppensteigen · unten gehört man nach unten', tritt({ x: 5.5, y: 3 }, [treppe], boden).levelId, 'eg');
+    check('Treppensteigen · auf halber Treppe auch', tritt({ x: 7, y: 3 }, [treppe], boden).levelId, 'eg');
+    /*
+     * **Oben angekommen wechselt es.** Das ist der Punkt, an dem der
+     * Begehmodus die Hindernisse des Obergeschosses nehmen muss — sonst
+     * liefe man oben durch dessen Wände.
+     */
+    check('Treppensteigen · am Austritt gehört man nach oben', tritt({ x: 9, y: 3 }, [treppe], boden).levelId, 'og');
+    /*
+     * Und eine Stufe darunter noch nicht: Bei 8,80 m sind es
+     * 3,80/4 · 3,00 = 2,85 m, also 15 cm unter dem oberen Fußboden.
+     */
+    const knappDrunter = tritt({ x: 8.8, y: 3 }, [treppe], boden);
+    check('Treppensteigen · eine Stufe darunter noch nicht [m]', knappDrunter.hoehe, 2.85, 1e-12);
+    check('Treppensteigen · und damit noch unten', knappDrunter.levelId, 'eg');
+  }
+
+  // =========================================================================
+  // 4 · Zwei Läufe nebeneinander — der nähere gilt
+  // =========================================================================
+  {
+    /*
+     * Im Treppenhaus stehen zwei Läufe nebeneinander: der obige und ein
+     * zweiter, um 1,20 m versetzt, der **abwärts** führt (von 3,00 auf
+     * 0,00 m). Bei (7 | 4,2) steht man auf dem zweiten.
+     *
+     *   Lauf 2 bei x = 7: 2/4 des Wegs → 3,00 + (0,00 − 3,00) · 0,5 = 1,50 m
+     *
+     * Die Höhe ist zufällig dieselbe; die Unterscheidung führt die Kennung.
+     */
+    const zweiter: Treppenlauf = {
+      ...treppe,
+      id: 't2',
+      linie: [
+        { x: 5, y: 4.2 },
+        { x: 9, y: 4.2 },
+      ],
+      unten: 3,
+      oben: 0,
+      untenLevelId: 'og',
+      obenLevelId: 'eg',
+    };
+    check('Treppensteigen · der nähere Lauf gilt', tritt({ x: 7, y: 4.2 }, [treppe, zweiter], boden).treppeId ?? 'keiner', 't2');
+    check('Treppensteigen · und der andere für sich', tritt({ x: 7, y: 3 }, [treppe, zweiter], boden).treppeId ?? 'keiner', 't1');
+    check('Treppensteigen · dazwischen gilt der Fußboden', tritt({ x: 7, y: 3.6 }, [treppe, zweiter], boden).treppeId ?? 'keiner', 'keiner');
+  }
+
+  // =========================================================================
+  // 5 · Die gewendelte Treppe folgt ihrem Knick
+  // =========================================================================
+  {
+    /*
+     * Ein Lauf, der nach 3,00 m um 90° abbiegt und noch 2,00 m weiterläuft —
+     * zusammen 5,00 m. Am Knick sind 3/5 des Wegs zurückgelegt:
+     *
+     *   3/5 · 3,00 m = 1,80 m
+     *
+     * Und am Ende des zweiten Schenkels die volle Höhe. Ein Loch, das nur
+     * dem ersten Schenkel folgte, ließe einen hier ins Leere treten.
+     */
+    const gewendelt: Treppenlauf = {
+      id: 'l',
+      linie: [
+        { x: 5, y: 3 },
+        { x: 8, y: 3 },
+        { x: 8, y: 5 },
+      ],
+      laenge: 5,
+      halbbreite: 0.5,
+      unten: 0,
+      oben: 3,
+      untenLevelId: 'eg',
+      obenLevelId: 'og',
+    };
+    check('Treppensteigen · am Knick [m]', tritt({ x: 8, y: 3 }, [gewendelt], boden).hoehe, 1.8, 1e-12);
+    check('Treppensteigen · im zweiten Schenkel [m]', tritt({ x: 8, y: 4 }, [gewendelt], boden).hoehe, 2.4, 1e-12);
+    check('Treppensteigen · am Austritt [m]', tritt({ x: 8, y: 5 }, [gewendelt], boden).hoehe, 3, 1e-12);
+    check('Treppensteigen · und dort oben', tritt({ x: 8, y: 5 }, [gewendelt], boden).levelId, 'og');
+  }
+
+  // =========================================================================
+  // 6 · Ohne Treppe bleibt alles, wie es war
+  // =========================================================================
+  {
+    const ebene = tritt({ x: 7, y: 3 }, [], { hoehe: 2.75, levelId: 'og' });
+    check('Treppensteigen · ohne Treppe gilt der Fußboden [m]', ebene.hoehe, 2.75, 1e-12);
+    check('Treppensteigen · und sein Geschoss', ebene.levelId, 'og');
+    // Eine Treppe ohne Länge ist keine — sie darf nicht durch Null teilen.
+    const entartet: Treppenlauf = { ...treppe, laenge: 0, linie: [{ x: 5, y: 3 }, { x: 5, y: 3 }] };
+    check('Treppensteigen · eine Treppe ohne Länge wird übergangen', tritt({ x: 5, y: 3 }, [entartet], boden).treppeId ?? 'keine', 'keine');
   }
 }
