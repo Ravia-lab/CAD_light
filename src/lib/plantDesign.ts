@@ -248,6 +248,28 @@ export interface PlantDesignResult {
   /** Umwälzpumpe. */
   pump?: PumpDesign;
   /**
+   * **Wer fördert den Erzeugerkreis?**
+   *
+   * Gemeldet am 27.09.2026 am Bild: „Hydraulikstationen haben Pumpen meist
+   * eingebaut, ergo muss das nicht — und du hast 2 Pumpen drin." Das Schema
+   * zeichnete die externe Umwälzpumpe, ohne danach zu fragen.
+   *
+   *  · `geraet` — belegt: Der Gerätedatensatz führt sie (`contains.pump`),
+   *    oder das Gerät veröffentlicht eine **Restförderhöhe** statt eines
+   *    Druckverlusts. Beides gibt es nur mit eingebauter Pumpe.
+   *  · `inneneinheit` — abgeleitet: Am Gerät steht nichts, aber im Haus steht
+   *    eine Hydraulikeinheit. Die bringt sie am Markt mit — belegt für sechs
+   *    Hersteller —, und die Ausnahme (Vaillant VWZ MEH) ist am Datensatz
+   *    einzutragen. Weil es eine Ableitung ist, sagt es der Hinweis.
+   *  · `extern` — sie wird bauseits gesetzt und gezeichnet. Auch dann, wenn
+   *    ein Gerät zwar fördert, seine Restförderhöhe aber nicht reicht.
+   *
+   * Die Entscheidung steht **hier** und nicht im Zeichenpfad: Sie gehört zur
+   * Auslegung, das Bild folgt ihr — und der Anwender liest sie im
+   * Anlagenblatt und nicht nur in einer Statuszeile.
+   */
+  pumpenherkunft: 'geraet' | 'inneneinheit' | 'extern';
+  /**
    * Der Erzeugerkreis: Gerät und Armaturen, die vor dem Rohrnetz liegen.
    *
    * Sie stand bis 1.13.2 als feste Zahl `20 000 Pa` in der Pumpenauslegung —
@@ -1092,6 +1114,66 @@ export function designPlant(doc: BimDocument, options: PlantDesignOptions = {}):
     : undefined;
   for (const n of pumpDesign?.notes ?? []) notes.push(n);
 
+  /*
+   * --- Wer fördert den Erzeugerkreis? --------------------------------------
+   *
+   * Siehe `pumpenherkunft` im Ergebnisvertrag. Zwei Dinge werden hier
+   * entschieden, und beide stehen danach im Anlagenblatt: ob eine externe
+   * Pumpe **gebraucht** wird, und woher man das weiß.
+   */
+  const geraetePumpe =
+    selected?.model.contains?.pump === true || selected?.model.hydraulics?.angabe === 'restfoerderhoehe';
+  const einheitImHaus =
+    selected?.model.contains?.pump !== false &&
+    hatInneneinheit(antworten.inneneinheit) &&
+    selected?.model.form !== 'split';
+  const foerdertSelbst = geraetePumpe || einheitImHaus;
+  /*
+   * **Und sie muss reichen.** `sufficient` ist der Vergleich der
+   * Restförderhöhe mit der erforderlichen Förderhöhe des ungünstigsten
+   * Strangs. Steht keine Restförderhöhe im Datensatz — der abgeleitete Fall
+   * —, ist `sufficient` unbekannt; dann gilt die eingebaute Pumpe als
+   * ausreichend und der Hinweis sagt, dass es am Datenblatt zu prüfen ist.
+   * Eine Pumpe zusätzlich zu zeichnen, weil eine Zahl fehlt, wäre die
+   * schlechtere Vermutung.
+   */
+  const pumpenherkunft: PlantDesignResult['pumpenherkunft'] =
+    foerdertSelbst && pumpDesign?.sufficient !== false
+      ? geraetePumpe
+        ? 'geraet'
+        : 'inneneinheit'
+      : 'extern';
+  if (pumpDesign) {
+    const erf = `${pumpDesign.head.toFixed(1).replace('.', ',')} m bei ${pumpDesign.flow.toFixed(2).replace('.', ',')} m³/h`;
+    if (pumpenherkunft === 'geraet') {
+      notes.push({
+        severity: 'info',
+        text:
+          'Das Gerät hat eine eingebaute Umwälzpumpe; das Schema zeichnet deshalb keine externe. ' +
+          `Geprüft wird keine Pumpenauslegung, sondern die Restförderhöhe: verlangt sind ${erf}.`,
+      });
+    } else if (pumpenherkunft === 'inneneinheit') {
+      notes.push({
+        severity: 'info',
+        text:
+          'Die Umwälzpumpe sitzt in der Inneneinheit — das Schema zeichnet keine externe daneben. ' +
+          'Das ist aus der Hydraulikeinheit abgeleitet und nicht am Gerät belegt: Pumpe, ' +
+          'Umschaltventil und Sicherheitsgruppe gehören bei sechs geprüften Herstellern zum Inhalt ' +
+          'einer solchen Einheit. Die Ausnahme gibt es — die Vaillant VWZ MEH hat keine —, sie ist ' +
+          `dann am Gerätedatensatz einzutragen. Verlangt sind ${erf}; am Datenblatt gegenzulesen.`,
+      });
+    } else if (foerdertSelbst) {
+      notes.push({
+        severity: 'warn',
+        text:
+          `Die eingebaute Umwälzpumpe reicht nicht: Der ungünstigste Strang verlangt ${erf}, mehr als ` +
+          'die Restförderhöhe des Geräts hergibt. Das Schema zeichnet deshalb eine zusätzliche Pumpe — ' +
+          'zu prüfen ist zuerst, ob sich das Rohrnetz entschärfen lässt. Zwei Pumpen in einem Kreis ' +
+          'arbeiten gegeneinander, wenn ihre Kennlinien nicht zueinander passen.',
+      });
+    }
+  }
+
   // 8 — Sicherheitsausrüstung.
   const totalVolume =
     volume.total + (bufferStorage && bufferStorage.suggested ? bufferStorage.volume : 0);
@@ -1165,6 +1247,7 @@ export function designPlant(doc: BimDocument, options: PlantDesignOptions = {}):
     dhwStorage,
     generator: erzeuger,
     pump: pumpDesign,
+    pumpenherkunft,
     safety,
     notes: dedupe(notes),
   };
@@ -1718,8 +1801,38 @@ export function buildSchematic(result: PlantDesignResult): {
    * Pumpe und ist die Anlage nicht hydraulisch getrennt, wäre sie die zweite
    * Pumpe in einem einzigen Kreis — siehe unten.
    */
+  /*
+   * **Fördert das Gerät selbst?**
+   *
+   * Gemeldet am 27.09.2026 am Bild: „Hydraulikstationen haben Pumpen meist
+   * eingebaut, ergo muss das nicht — und du hast 2 Pumpen drin."
+   *
+   * Das Bild zeichnete die externe Pumpe, ohne danach zu fragen. Die Antwort
+   * lag längst im Modell: Ein Gerät mit eingebauter Umwälzpumpe
+   * veröffentlicht keinen Druckverlust, sondern eine **Restförderhöhe**
+   * (`hydraulics.angabe`), und `erzeugerBilanz` rechnet damit auch so. Genau
+   * daran — und **nicht an der Bauform** — hängt die Entscheidung: Die
+   * Vaillant VWZ MEH ist eine Hydraulikstation *ohne* Umwälzpumpe, die
+   * Prüfliste des Katalogs hält das ausdrücklich fest.
+   *
+   * **Die eingebaute Pumpe muss aber auch reichen.** `sufficient` sagt es:
+   * Es ist der Vergleich der Restförderhöhe mit der erforderlichen
+   * Förderhöhe des ungünstigsten Strangs. Reicht sie nicht, steht die externe
+   * Pumpe wieder im Bild — dann ist sie keine zweite, sondern die einzige,
+   * die den Strang versorgt, und der Hinweis sagt warum.
+   */
+  /*
+   * **Wer fördert — das entscheidet die Auslegung, nicht das Bild.**
+   *
+   * `pumpenherkunft` steht im Ergebnis und ist dort begründet. Hier wird sie
+   * nur noch befolgt: Eine eingebaute Pumpe wird nicht ein zweites Mal
+   * gezeichnet. Der Hinweis dazu steht ebenfalls in der Auslegung — der
+   * Anwender liest ihn im Anlagenblatt und nicht in einer Statuszeile.
+   */
+  const eingebauteReicht = (result.pumpenherkunft ?? 'extern') !== 'extern';
+
   let umwaelz: SchematicComponent | undefined;
-  if (result.pump && !zweitePumpe) {
+  if (result.pump && !zweitePumpe && !eingebauteReicht) {
     umwaelz = put(
       'pump',
       'Umwälzpumpe',

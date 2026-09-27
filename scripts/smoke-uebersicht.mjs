@@ -89,7 +89,15 @@ console.log('\n▸ Weniger Bauteile als in der Ausführung');
   const zahl = await p.locator('text=/\\d+ von \\d+ Bauteilen/').first().innerText();
   const [gezeigt, voll] = zahl.match(/(\d+) von (\d+)/).slice(1).map(Number);
   expect('Die Übersicht zeigt weniger', gezeigt < voll, true);
-  expect('Die Übersicht bleibt unter sechzehn Bauteilen', gezeigt <= 15, true);
+  /*
+   * Die Obergrenze des BWP-Leitfadens gilt den **Hauptkomponenten**: acht bis
+   * fünfzehn. Dazu kommen seit 1.62.0 die beiden Absperrungen des
+   * Erzeugerzweigs, die keine Hauptkomponenten sind (siehe `NEBENBEI` in
+   * `schemaUebersicht`) — im Bild stehen damit höchstens siebzehn Symbole.
+   * Die Zeile in der Oberfläche zählt Symbole und nicht Hauptkomponenten;
+   * das ist richtig so, denn sie sagt, was man sieht.
+   */
+  expect('Die Übersicht bleibt unter achtzehn Symbolen', gezeigt <= 17, true);
   expect('Die Übersicht zeigt mehr als nichts', gezeigt >= 6, true);
 }
 

@@ -212,6 +212,8 @@ function baueAuslegung(anpassung: Partial<PlantDesignResult> = {}): PlantDesignR
   return {
     heatLoadSource: 'norm',
     heatLoadProvenance: 'raumweise',
+    // Ohne Gerät fördert nichts von selbst: Die Pumpe wird bauseits gesetzt.
+    pumpenherkunft: 'extern',
     heatLoad: 6,
     normCoverage: {
       heatedRooms: 4,

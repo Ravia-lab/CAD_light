@@ -270,6 +270,8 @@ type Merkmalsfelder = Pick<
 const LEERES_ERGEBNIS: PlantDesignResult = {
   heatLoadSource: 'überschlag',
   heatLoadProvenance: 'überschlag',
+  // Ohne Gerät fördert nichts von selbst: Die Pumpe wird bauseits gesetzt.
+  pumpenherkunft: 'extern',
   heatLoad: 0,
   normCoverage: {
     heatedRooms: 0,

@@ -182,6 +182,15 @@ const BEHALTEN: ReadonlySet<SchematicKind> = new Set<SchematicKind>([
   'valve-3way',
   'valve-diverter',
   'mixing-valve-dhw',
+  /*
+   * Der Schlamm- und Magnetitabscheider ist bei einer Wärmepumpe **tragend**
+   * und keine Armatur, die man weglässt: Der Verflüssiger ist ein gelöteter
+   * Plattenwärmetauscher, und der Schlamm aus Stahlheizkörpern und Stahlrohr
+   * ist überwiegend Magnetit. Fehlt er, ist das ein Planungsfehler — die
+   * Schemaprüfung meldet ihn deshalb als eigene Regel.
+   */
+  'dirt-separator',
+  'strainer',
 ]);
 
 /**
@@ -300,16 +309,29 @@ const SP = {
   erzeuger: 0,
   station: 4,
   zweiterzeuger: 8,
-  sicherheit: 12,
-  umschalt: 16,
-  puffer: 21,
-  balken: 26,
-  mischer: 30,
-  kreispumpe: 34,
-  verbraucher: 39,
-  speicher: 19,
-  verbruehschutz: 26,
-  zapf: 32,
+  /**
+   * Absperrung und Abscheider — im Vorlauf die eine, im Rücklauf die andere.
+   *
+   * Sie stehen seit 1.62.0 im Bild. Der BWP-Leitfaden Hydraulik führt in
+   * **jedem** seiner Schemata „die Kombination Umwälzpumpe +
+   * Rückschlagklappe und beidseitige Absperrventile", und der
+   * Magnetitabscheider im Rücklauf ist bei einer Wärmepumpe kein Beiwerk:
+   * Der Verflüssiger ist ein gelöteter Plattenwärmetauscher mit Spaltweiten
+   * im Zehntelmillimeterbereich. Gemeldet am 27.09.2026: „Filter wie
+   * Schmutzfänger und Magnetabscheider sowie Absperrventile sollten hier
+   * eingezeichnet sein."
+   */
+  armatur: 12,
+  sicherheit: 16,
+  umschalt: 20,
+  puffer: 25,
+  balken: 30,
+  mischer: 34,
+  kreispumpe: 38,
+  verbraucher: 43,
+  speicher: 23,
+  verbruehschutz: 30,
+  zapf: 36,
 } as const;
 
 const ZE = {
@@ -447,6 +469,59 @@ export function uebersichtsschema(
   const anBauteil = (id: string) => links.filter((l) => l.from === id || l.to === id);
   const eingang = (id: string, service: PipeService) => links.find((l) => l.to === id && l.service === service);
 
+  /**
+   * Ein Verbraucherzweig, rückwärts gelesen.
+   *
+   * Vom Verbraucher aus gegen die Fließrichtung, bis ein Knoten, ein Speicher
+   * oder der Erzeuger kommt. Gesucht werden die drei Bauteile, die den Zweig
+   * beschreiben: Verteiler, Mischer, Kreispumpe. Alles dazwischen —
+   * Absperrung, Rückschlagklappe, Thermostatventil — fällt heraus.
+   *
+   * Die Obergrenze von zwanzig Schritten ist eine Schleifenbremse, keine
+   * fachliche Grenze: Ein Zweig hat im vollständigen Schema höchstens sechs
+   * Bauteile, und ein Bild ohne Knoten darf nicht zum Hänger führen.
+   *
+   * **Warum das eine eigene Funktion ist.** Der Durchlauf wird zweimal
+   * gebraucht: einmal für die Zweige selbst, weiter unten, und einmal
+   * **vorher**, um die Erzeugerpumpe zu finden. Das ging bis 1.61.0 über
+   * eine Nachbarschaftsregel („eine Kreispumpe hängt an einem Mischer oder
+   * einem Verteilbalken"), und die ist falsch, sobald ein ungemischter Kreis
+   * seine Pumpe am Vorlaufbalken hat: Dann galt sie als Erzeugerpumpe und
+   * stand zweimal im Bild. Aufgefallen ist es erst, als die Erzeugerpumpe bei
+   * einem Gerät mit eingebauter Pumpe wegfiel und die Suche sich das nächste
+   * Beste griff.
+   */
+  const zweigTeile = (verbraucher: SchematicComponent): Zweig => {
+    const z: Zweig = {
+      verbraucher,
+      kw: kilowatt(verbraucher.spec),
+      temperaturen: temperaturen(verbraucher.spec),
+    };
+    let hier: SchematicComponent | undefined = verbraucher;
+    for (let schritt = 0; schritt < 20 && hier; schritt += 1) {
+      const rein = eingang(hier.id, 'heating-flow');
+      const vorher: SchematicComponent | undefined = rein ? components.find((c) => c.id === rein.from) : undefined;
+      if (
+        !vorher ||
+        vorher.kind === 'node' ||
+        vorher.kind === 'buffer' ||
+        vorher.kind === 'buffer-series' ||
+        vorher.kind === 'separator'
+      ) {
+        break;
+      }
+      if (vorher.kind === 'manifold') z.verteiler = vorher;
+      if (vorher.kind === 'valve-3way') z.mischer = vorher;
+      if (vorher.kind === 'pump') z.pumpe = vorher;
+      z.temperaturen ??= temperaturen(vorher.spec);
+      hier = vorher;
+    }
+    return z;
+  };
+
+  /** Die Verbraucher des Bildes — Heizkörper und Flächenheizung. */
+  const verbraucher = components.filter((c) => c.kind === 'radiator' || c.kind === 'floor-loop');
+
   // =========================================================================
   // 1 · Erzeugung
   // =========================================================================
@@ -490,6 +565,64 @@ export function uebersichtsschema(
   }
 
   /*
+   * --- Der Erzeuger lässt sich absperren -----------------------------------
+   *
+   * Zwei Absperrungen, eine im Vorlauf und eine im Rücklauf. Sie sind das,
+   * was den Erzeuger tauschbar macht, ohne die Anlage zu entleeren — und sie
+   * stehen in jedem Schema des BWP-Leitfadens.
+   *
+   * Es sind die **beiden** Absperrungen des Erzeugerzweigs und nicht alle
+   * Absperrungen der Anlage: Was in einer Baugruppe steckt — Pumpengruppe,
+   * Mischergruppe, Hydraulikstation —, wird nicht in seine Einzelteile
+   * zerlegt, sondern bleibt der Kasten, als der es gekauft wird. Deshalb
+   * werden hier genau zwei gezeigt und die übrigen weiter weggelassen.
+   */
+  const absperrungen = alle('shutoff');
+  const absperrVor = absperrungen.find((c) => /vorlauf/i.test(c.label));
+  const absperrRueck = absperrungen.find((c) => /rücklauf|ruecklauf/i.test(c.label));
+  if (absperrVor && vorlaufAus) {
+    const bA = setze('u-absperr-vor', 'shutoff', SP.armatur, ZE.vor, [absperrVor], undefined, undefined, 'Absperrung');
+    bA.zone = 'erzeugung';
+    leite(vorlaufAus.b, vorlaufAus.port, bA, 'in', 'heating-flow');
+    vorlaufAus = { b: bA, port: 'out' };
+  }
+  if (absperrRueck && ruecklaufEin) {
+    const bA = setze('u-absperr-rueck', 'shutoff', SP.zweiterzeuger, ZE.rueck, [absperrRueck], undefined, undefined, 'Absperrung');
+    bA.zone = 'erzeugung';
+    leite(bA, 'out', ruecklaufEin.b, ruecklaufEin.port, 'heating-return');
+    ruecklaufEin = { b: bA, port: 'in' };
+  }
+
+  /*
+   * --- Schmutzfänger und Magnetitabscheider im Rücklauf --------------------
+   *
+   * Bei einer Wärmepumpe ist er kein Beiwerk, sondern das Bauteil, das den
+   * Verflüssiger rettet: ein gelöteter Plattenwärmetauscher mit Spaltweiten
+   * im Zehntelmillimeterbereich, davor ein Kreis mit Stahlheizkörpern und
+   * Stahlrohr, deren Schlamm überwiegend Magnetit ist — ferromagnetisch,
+   * feinkörnig und für einen rein gravimetrischen Abscheider zu leicht.
+   * Deshalb steht er im Prinzipbild, obwohl Bosch Schmutzfänger dort
+   * ausdrücklich weglässt: Das Weglassen gilt der Armatur, nicht dem
+   * Bauteil, ohne das die Anlage Schaden nimmt.
+   */
+  const abscheider = erste('dirt-separator') ?? erste('strainer');
+  if (abscheider && ruecklaufEin) {
+    const bAb = setze(
+      'u-abscheider',
+      abscheider.kind,
+      SP.armatur,
+      ZE.rueck,
+      [abscheider],
+      undefined,
+      undefined,
+      'Magnetitabscheider',
+    );
+    bAb.zone = 'erzeugung';
+    leite(bAb, 'out', ruecklaufEin.b, ruecklaufEin.port, 'heating-return');
+    ruecklaufEin = { b: bAb, port: 'in' };
+  }
+
+  /*
    * --- Die Pumpe des Erzeugerkreises — im Vorlauf --------------------------
    *
    * Bis 1.55.1 stand sie im Rücklauf, und dieses Bild suchte sie dort: über
@@ -504,17 +637,15 @@ export function uebersichtsschema(
    * im Strang sitzt — vor der Sicherheitsgruppe und **vor** dem
    * Umschaltventil, sonst fördert sie im Warmwasserbetrieb nicht.
    */
-  const nachId = new Map(components.map((c) => [c.id, c]));
-  const kreispumpen = new Set<string>();
-  for (const c of components) {
-    if (c.kind !== 'pump') continue;
-    // Eine Kreispumpe hängt an einem Mischer oder an einem Verteilbalken —
-    // die Erzeugerpumpe hängt am Erzeugerstrang.
-    const nachbarn = anBauteil(c.id).map((l) => (l.from === c.id ? l.to : l.from));
-    if (nachbarn.some((id) => nachId.get(id)?.kind === 'valve-3way' || nachId.get(id)?.kind === 'manifold')) {
-      kreispumpen.add(c.id);
-    }
-  }
+  /*
+   * Gesucht wird sie daran, was sie **nicht** ist: keine Pumpe, die zu einem
+   * Verbraucherzweig gehört. Welche das sind, sagt derselbe Rückwärtsgang,
+   * der die Zweige beschreibt — und nicht mehr die Nachbarschaft zu Mischer
+   * oder Verteiler (siehe `zweigTeile`).
+   */
+  const kreispumpen = new Set(
+    verbraucher.map((v) => zweigTeile(v).pumpe?.id).filter((id): id is string => Boolean(id)),
+  );
   const erzeugerpumpe = alle('pump').find((p) => !kreispumpen.has(p.id));
   if (erzeugerpumpe && vorlaufAus) {
     const bP = setze(
@@ -645,41 +776,7 @@ export function uebersichtsschema(
   // =========================================================================
   // 3 · Übergabe — die Verbraucherzweige, gleichartige zusammengefasst
   // =========================================================================
-  const zweige: Zweig[] = [];
-  for (const v of components) {
-    if (v.kind !== 'radiator' && v.kind !== 'floor-loop') continue;
-    const z: Zweig = { verbraucher: v, kw: kilowatt(v.spec), temperaturen: temperaturen(v.spec) };
-    /*
-     * Rückwärts durch den Zweig, bis ein Knoten, ein Speicher oder der
-     * Erzeuger kommt. Gesucht werden die drei Bauteile, die den Zweig
-     * beschreiben: Verteiler, Mischer, Kreispumpe. Alles dazwischen —
-     * Absperrung, Rückschlagklappe, Thermostatventil — fällt heraus.
-     *
-     * Die Obergrenze von zwanzig Schritten ist eine Schleifenbremse, keine
-     * fachliche Grenze: Ein Zweig hat im vollständigen Schema höchstens sechs
-     * Bauteile, und ein Bild ohne Knoten darf nicht zum Hänger führen.
-     */
-    let hier: SchematicComponent | undefined = v;
-    for (let schritt = 0; schritt < 20 && hier; schritt += 1) {
-      const rein = eingang(hier.id, 'heating-flow');
-      const vorher: SchematicComponent | undefined = rein ? components.find((c) => c.id === rein.from) : undefined;
-      if (
-        !vorher ||
-        vorher.kind === 'node' ||
-        vorher.kind === 'buffer' ||
-        vorher.kind === 'buffer-series' ||
-        vorher.kind === 'separator'
-      ) {
-        break;
-      }
-      if (vorher.kind === 'manifold') z.verteiler = vorher;
-      if (vorher.kind === 'valve-3way') z.mischer = vorher;
-      if (vorher.kind === 'pump') z.pumpe = vorher;
-      z.temperaturen ??= temperaturen(vorher.spec);
-      hier = vorher;
-    }
-    zweige.push(z);
-  }
+  const zweige: Zweig[] = verbraucher.map(zweigTeile);
 
   /**
    * Zwei Zweige sind gleichartig, wenn sie **dieselbe Anlage** beschreiben:
@@ -726,6 +823,9 @@ export function uebersichtsschema(
     ? { b: balkenRueck, port: 'east' }
     : undefined;
 
+  /** Was je Zweig in einen Kasten gehört — ausgewertet nach der Schleife. */
+  const rahmenJeZweig: { i: number; teile: string[]; gemischt: boolean }[] = [];
+
   buendel.forEach((gruppe, i) => {
     const z = gruppe[0];
     const y = ZE.ersterZweig - i * ZE.zweigAbstand;
@@ -769,14 +869,12 @@ export function uebersichtsschema(
      * Heizkreisgruppe. Wo beide stehen, bekommen sie den Rahmen — genau so,
      * wie die geprüften Herstellerunterlagen die Solar- und die
      * Hydraulikstation zusammenfassen.
+     *
+     * Gesammelt wird hier nur; **welcher** Rahmen daraus wird, entscheidet
+     * sich nach der Schleife: Hängen mehrere Zweige am selben Verteiler,
+     * werden sie zusammen gebaut und bekommen einen gemeinsamen.
      */
-    if (rahmen.length === 2) {
-      /*
-       * **Mischergruppe**, nicht „Heizkreisgruppe": Was Mischer und Pumpe in
-       * einem Gehäuse zusammenfasst, heißt im Handel und auf der Baustelle so.
-       */
-      gruppen.push({ id: `u-g-kreis-${i}`, name: 'Mischergruppe', bauteile: rahmen });
-    }
+    if (rahmen.length) rahmenJeZweig.push({ i, teile: rahmen, gemischt: Boolean(z.mischer) });
 
     /*
      * Der Verteiler fällt weg, wenn der Verbraucher ohnehin die
@@ -840,6 +938,48 @@ export function uebersichtsschema(
     }
   });
 
+  /*
+   * --- Ein Kasten oder mehrere? --------------------------------------------
+   *
+   * Gemeldet am 27.09.2026: „oft werden Pumpengruppen, also Pumpe extern für
+   * ungemischt und Mischerpumpe, in einem Teil zusammengebaut … wenn es als
+   * Pumpengruppe im Heizkreisverteiler liegt, ist das in einem Kasten."
+   *
+   * Genau danach wird hier entschieden, und die Frage ist nicht, ob die
+   * Kreise gemischt sind, sondern **ob sie am selben Verteiler hängen**:
+   *
+   *  · Mehrere Zweige mit eigener Pumpe an einem Verteilbalken — das ist der
+   *    **Heizkreisverteiler**: ein Kasten, in dem die Pumpengruppen
+   *    nebeneinander stecken. So wird er gekauft und so hängt er an der Wand.
+   *  · Ein einzelner gemischter Zweig — die **Mischergruppe**: Mischer und
+   *    Pumpe in einem Gehäuse, der Handelsname dafür.
+   *  · Ein einzelner ungemischter Zweig mit eigener Pumpe — die
+   *    **Pumpengruppe**: dasselbe ohne Mischer, mit Absperrungen und
+   *    Rückschlagklappe darin. Sie bekam bis 1.61.0 keinen Rahmen und stand
+   *    als nackte Pumpe im Bild.
+   *
+   * Der Kasten ist dabei mehr als eine Klammer: Er ist die Aussage, dass die
+   * Absperrungen und die Rückschlagklappe **darin** sitzen und nicht einzeln
+   * zu bestellen sind. Deshalb werden sie im Bild auch nicht einzeln
+   * gezeichnet.
+   */
+  if (mitBalken && rahmenJeZweig.length > 1) {
+    gruppen.push({
+      id: 'u-g-verteiler',
+      name: 'Heizkreisverteiler',
+      bauteile: rahmenJeZweig.flatMap((r) => r.teile),
+    });
+  } else {
+    for (const r of rahmenJeZweig) {
+      if (r.teile.length < 2 && !r.gemischt && r.teile.length === 0) continue;
+      gruppen.push({
+        id: `u-g-kreis-${r.i}`,
+        name: r.gemischt ? 'Mischergruppe' : 'Pumpengruppe',
+        bauteile: r.teile,
+      });
+    }
+  }
+
   // =========================================================================
   // 4 · Der Rücklauf zurück zum Erzeuger
   // =========================================================================
@@ -885,7 +1025,19 @@ export function uebersichtsschema(
    * Wärme erzeugt, speichert oder abgibt, wird nie entfernt.
    */
   const OPFERFOLGE: readonly string[] = ['u-zirk', 'u-verbrueh'];
-  const zaehlbar = () => bauteile.filter((b) => b.kind !== 'node').length;
+  /**
+   * Was gegen die Obergrenze zählt: **Hauptbauteile**.
+   *
+   * Der BWP-Leitfaden nennt „acht bis fünfzehn Hauptkomponenten". Eine
+   * Absperrung ist keine Hauptkomponente — sie ist das Zubehör des Bauteils,
+   * an dem sie sitzt, und sie steht im Bild, damit der Erzeugerzweig
+   * vollständig ist. Zählte sie mit, drängte sie einen Speicher oder eine
+   * Pumpe aus dem Bild, und die Notbremse würde eine Aussage opfern, um eine
+   * Armatur zu behalten. Knotenpunkte zählen aus demselben Grund nicht mit:
+   * Ein Verteilpunkt ist eine Ecke der Leitung.
+   */
+  const NEBENBEI: ReadonlySet<SchematicKind> = new Set<SchematicKind>(['shutoff']);
+  const zaehlbar = () => bauteile.filter((b) => b.kind !== 'node' && !NEBENBEI.has(b.kind)).length;
   for (const id of OPFERFOLGE) {
     if (zaehlbar() <= UEBERSICHT_HOECHSTZAHL) break;
     entferne(bauteile, leitungen, genutzt, id);

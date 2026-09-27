@@ -221,11 +221,33 @@ console.log('\n▸ Die vier Hydraulikregeln am laufenden Bild');
   expect('Die Fläche rechnet mit 35/28 °C', JSON.stringify(gemischt.kreis), '["floor",35,28]');
 
   // --- Ein ungemischter Kreis mit 200 l Trinkwasser -----------------------
+  /*
+   * **Ausdrücklich ohne Inneneinheit**, seit 1.62.0. Gemeldet am Bild:
+   * „Hydraulikstationen haben Pumpen meist eingebaut, ergo muss das nicht —
+   * und du hast 2 Pumpen drin." Steht eine Hydraulikeinheit im Haus, sitzt
+   * die Umwälzpumpe darin und wird nicht ein zweites Mal gezeichnet. Hier
+   * geht es um die **Lage** der extern gesetzten Pumpe; ob überhaupt eine
+   * gesetzt wird, steht im Abschnitt darunter.
+   */
   await oeffne();
   await dlg.getByRole('button', { name: 'ungemischt', exact: true }).click();
   await p.waitForTimeout(400);
   await dlg.locator('[data-pruef="frage-trinkwasser"]').selectOption('200');
   await p.waitForTimeout(300);
+  await dlg.locator('[data-pruef="frage-inneneinheit"]').selectOption('keine');
+  await p.waitForTimeout(300);
+  /*
+   * **Ein Gerät ohne eingebaute Pumpe**, ausdrücklich gewählt — so, wie man
+   * es im Anlagenblatt in der Geräteliste anklickt.
+   *
+   * Die Typklasse „Monoblock" führt heizungsseitig einen Druckverlust und
+   * keine Restförderhöhe; sie hat also keine eigene Pumpe. Ohne diese Wahl
+   * nimmt die Auswahl das bestbewertete Gerät, und das ist am
+   * Referenzhaus ein Hydrosplit **mit** Pumpe — dann gäbe es hier nichts,
+   * dessen Lage im Strang sich prüfen ließe.
+   */
+  await p.evaluate(() => window.__ravia.getState().updatePlant({ generatorModelId: 'mono-r290-8' }));
+  await p.waitForTimeout(400);
   await erzeuge();
 
   const ungemischt = await p.evaluate(() => {
@@ -254,6 +276,45 @@ console.log('\n▸ Die vier Hydraulikregeln am laufenden Bild');
   // Vier Stutzen hat der Speicher, und im vollständigen Bild trägt jeder
   // eine Leitung — sonst stünde dort ein Stück Rohr ohne Anschluss.
   expect('Jeder Stutzen des Speichers trägt eine Leitung', ungemischt.stutzen, 'cold,dhw,flow,return');
+
+  // --- Dieselbe Anlage, aber mit Hydraulikeinheit im Haus -----------------
+  /*
+   * Der Fall aus der Meldung: Im Bild stand eine Hydraulikstation **und**
+   * eine externe Pumpe. Eine davon ist zu viel — am Markt bringt die
+   * Hydraulikeinheit Pumpe, Umschaltventil und Sicherheitsgruppe mit.
+   *
+   * Geprüft wird durch **Umschalten**: dieselbe Anlage, nur eine andere
+   * Antwort. Damit steht im Test nicht nur das Ergebnis, sondern auch, woran
+   * es hängt.
+   */
+  await oeffne();
+  await dlg.locator('[data-pruef="frage-inneneinheit"]').selectOption('mit-heizstab');
+  await p.waitForTimeout(400);
+  await erzeuge();
+
+  const mitEinheit = await p.evaluate(() => {
+    const c = Object.values(window.__ravia.getState().doc.plant.schematic.components);
+    return {
+      pumpen: c.filter((x) => x.kind === 'pump').length,
+      stationen: c.filter((x) => x.kind === 'hydraulic-station').length,
+    };
+  });
+  expect('Mit Inneneinheit steht eine Hydraulikstation im Bild', mitEinheit.stationen, 1);
+  expect('… und keine externe Pumpe daneben', mitEinheit.pumpen, 0);
+
+  /*
+   * **Und der Anwender erfährt, warum.** Ein Bauteil, das verschwindet, ohne
+   * dass jemand es erklärt, ist ein Fehler — auch dann, wenn das Verschwinden
+   * richtig ist. Der Satz steht im Anlagenblatt unter „Was die Auslegung dazu
+   * sagt", also dort, wo die übrigen Begründungen stehen, und nicht in einer
+   * Statuszeile, die nach dem nächsten Klick weg ist.
+   */
+  await p.getByRole('button', { name: '2D', exact: true }).first().click();
+  await p.waitForTimeout(600);
+  await p.locator('aside').getByRole('button', { name: 'Anlage', exact: true }).click();
+  await p.waitForTimeout(800);
+  const satz = await p.locator('aside').getByText(/Umwälzpumpe sitzt in der Inneneinheit/).count();
+  expect('Das Anlagenblatt sagt, wo die Pumpe sitzt', satz > 0, true);
 }
 
 console.log('\nERRORS:', errs.length ? errs.join(' | ') : 'keine');

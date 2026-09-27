@@ -31,7 +31,7 @@
 <ul>
 <li><b>Acht bis fünfzehn Hauptbauteile</b>, nicht mehr. Der Verbandsleitfaden nennt genau diese Spanne; darüber wird aus einem Prinzipbild eine Ausführungszeichnung.</li>
 <li><b>Armaturen und Messstellen fehlen.</b> Bosch zeichnet Sicherheitsventil, Ausdehnungsgefäß, Absperrarmaturen und Schmutzfänger ausdrücklich nicht und nennt sie nur in den Planungshinweisen.</li>
-<li><b>Baugruppen bleiben Baugruppen.</b> Was ab Werk in einem Gehäuse sitzt, wird als Kästchen gezeichnet und nicht in Einzelteile zerlegt.</li>
+<li><b>Baugruppen bleiben Baugruppen.</b> Was ab Werk in einem Gehäuse sitzt, wird als Kästchen gezeichnet und nicht in Einzelteile zerlegt — siehe <a href="#k11-0-3b">Abschnitt 11.0.3b</a>.</li>
 <li><b>Es gibt eine Leserichtung.</b> Erzeuger, dann Speicher, dann Heizkreise.</li>
 <li><b>Unter dem Bild steht, dass es unvollständig ist.</b> Wortgleich bei allen dreien.</li>
 </ul>
@@ -42,18 +42,47 @@
 <caption>Was bleibt und was herausfällt</caption>
 <thead><tr><th>Bleibt</th><th>Fällt heraus</th></tr></thead>
 <tbody>
-<tr><td>Wärmeerzeuger, Hydraulikstation, Heizstab, Kessel</td><td rowspan="6">Absperrungen · Rückschlagklappen · Thermostatventile · Rücklaufverschraubungen · Strangregulierventile · Luft- und Schlammabscheider · Schmutzfänger · Füll- und Entleerarmatur · Systemtrenner · Wärmemengenzähler · Manometer · Thermometer · Fühler</td></tr>
+<tr><td>Wärmeerzeuger, Hydraulikstation, Heizstab, Kessel</td><td rowspan="7">Rückschlagklappen · Thermostatventile · Rücklaufverschraubungen · Strangregulierventile · Luftabscheider · Füll- und Entleerarmatur · Systemtrenner · Wärmemengenzähler · Manometer · Thermometer · Fühler · alle übrigen Absperrungen</td></tr>
 <tr><td>Pufferspeicher, hydraulische Weiche</td></tr>
 <tr><td>Trinkwasserspeicher, Frischwasserstation, Verbrühschutz, Zirkulationspumpe</td></tr>
 <tr><td>Umwälzpumpen</td></tr>
 <tr><td>Ventile, die einen <b>Weg</b> entscheiden: Mischer, Umschaltventil</td></tr>
 <tr><td>Verteiler, Heizkörper, Fußbodenheizung</td></tr>
+<tr><td><b>Schlamm- und Magnetitabscheider</b>, <b>die beiden Absperrungen des Erzeugers</b> (seit 1.62.0)</td></tr>
 </tbody>
 </table>
 
 <p>Die Regel dahinter ist einfach: Ein Ventil, das nur <em>absperrt</em> oder <em>einstellt</em>, entscheidet keinen Weg und gehört nicht in ein Bild, das Wege zeigt. Eine Messstelle zeigt an und entscheidet nichts.</p>
 
+<div class="warnung"><b>Zwei Ausnahmen von dieser Regel — seit Fassung 1.62.0</b>
+<p>Gemeldet am Bild: <i>„Filter wie Schmutzfänger und Magnetabscheider sowie Absperrventile sollten hier eingezeichnet sein."</i> Beide Ausnahmen haben denselben Grund — es geht nicht um die Armatur, sondern um das Bauteil, ohne das die Anlage Schaden nimmt oder nicht instandzuhalten ist.</p>
+<p><b>Der Schlamm- und Magnetitabscheider</b> im Rücklauf ist bei einer Wärmepumpe kein Beiwerk. Der Verflüssiger ist ein gelöteter Plattenwärmetauscher mit Spaltweiten im Zehntelmillimeterbereich; der Schlamm aus Stahlheizkörpern und Stahlrohr ist überwiegend Magnetit und für einen rein gravimetrischen Abscheider zu leicht. Die Schemaprüfung dieses Programms meldet sein Fehlen als eigene Regel (siehe <a href="#k12-3">Abschnitt 12.3</a>) — ein Prinzipbild, das ihn verschweigt, widerspräche der eigenen Prüfung.</p>
+<p><b>Die beiden Absperrungen des Erzeugers</b>, im Vorlauf und im Rücklauf: Sie sind das, was den Erzeuger tauschbar macht, ohne die Anlage zu entleeren. Der BWP-Leitfaden führt in jedem seiner Schemata „die Kombination Umwälzpumpe + Rückschlagklappe und beidseitige Absperrventile". Gezeigt werden genau diese zwei — nicht alle Absperrungen der Anlage: Was in einer <b>Baugruppe</b> steckt (Pumpengruppe, Mischergruppe, Hydraulikstation), wird nicht in Einzelteile zerlegt, sondern bleibt der Kasten, als der es gekauft wird.</p>
+<p>Gegen die Obergrenze von fünfzehn Hauptkomponenten zählen die beiden Absperrungen <em>nicht</em>. Zählten sie mit, drängten sie einen Speicher oder eine Pumpe aus dem Bild — die Notbremse opferte dann eine Aussage, um eine Armatur zu behalten.</p></div>
+
 <div class="warnung"><b>Eine Abweichung, mit Absicht</b><p><b>Sicherheitsventil und Ausdehnungsgefäß bleiben im Bild</b>, obwohl Bosch sie weglässt. Wolf und Viessmann zeichnen sie; beides ist üblich. Den Ausschlag gibt, dass es die einzigen weggelassenen Bauteile wären, die über die <em>Sicherheit</em> der Anlage entscheiden, und dass das Programm sie ohnehin nach DIN EN 12828 auslegt (siehe <a href="#k13-13">Abschnitt 13.13</a>). Sie stehen als <b>eine Sicherheitsgruppe am Erzeuger</b>, nicht als drei über das Blatt verteilte Einzelteile.</p></div>
+
+<h4 id="k11-0-2b">11.0.2b Wer fördert — und warum manchmal keine Pumpe im Bild steht</h4>
+
+<p class="wo">Im Programm: der Satz dazu steht im Anlagenblatt unter „Was die Auslegung dazu sagt".</p>
+
+<p>Gemeldet am Bild: <i>„Hydraulikstationen haben Pumpen meist eingebaut, ergo muss das nicht — und du hast 2 Pumpen drin."</i> Das Schema zeichnete die externe Umwälzpumpe, ohne zu fragen, ob das Gerät selbst fördert. Im Bild standen damit zwei Aussagen nebeneinander — eine Hydraulikstation <em>und</em> eine externe Pumpe —, und eine davon ist falsch.</p>
+
+<p>Seit Fassung 1.62.0 entscheidet das die <b>Auslegung</b> und nicht der Zeichner, in drei Fällen:</p>
+
+<table class="tab">
+<caption>Woher die Umwälzpumpe des Erzeugerkreises kommt</caption>
+<thead><tr><th>Fall</th><th>Woran man es erkennt</th><th>Im Bild</th></tr></thead>
+<tbody>
+<tr><td><b>Im Gerät</b> — belegt</td><td>Der Gerätedatensatz führt sie, oder das Gerät veröffentlicht eine <b>Restförderhöhe</b> statt eines heizungsseitigen Druckverlusts. Eine Restförderhöhe gibt es nur mit eingebauter Pumpe.</td><td>keine externe Pumpe</td></tr>
+<tr><td><b>In der Inneneinheit</b> — abgeleitet</td><td>Am Gerät steht nichts, im Haus steht aber eine Hydraulikeinheit. Pumpe, Umschaltventil und Sicherheitsgruppe gehören bei sechs geprüften Herstellern zu ihrem Inhalt.</td><td>keine externe Pumpe, dafür ein Hinweis</td></tr>
+<tr><td><b>Bauseits</b></td><td>Kein Innenteil, oder der Datensatz sagt ausdrücklich „keine Pumpe". Ebenso, wenn die eingebaute Pumpe die erforderliche Förderhöhe <em>nicht</em> schafft.</td><td>die externe Pumpe</td></tr>
+</tbody>
+</table>
+
+<div class="warnung"><b>Die Ausnahme, die es wirklich gibt</b><p>Die Vaillant <span class="zeichen">VWZ MEH</span> ist eine Hydraulikstation <b>ohne</b> Umwälzpumpe — die sitzt dort in der Außeneinheit. Deshalb ist der zweite Fall ausdrücklich als <em>Ableitung</em> gekennzeichnet und nicht als Geräteangabe. Wer ein solches Gerät hat, trägt es am Gerätedatensatz ein; dann zeichnet das Programm die externe Pumpe wieder.</p></div>
+
+<p>Im zweiten und dritten Fall steht die <b>erforderliche Förderhöhe</b> im Hinweis — die Zahl, die am Datenblatt der Einheit gegenzulesen ist. Ein Bauteil, das verschwindet, ohne dass jemand es erklärt, wäre ein Fehler, auch wenn das Verschwinden richtig ist.</p>
 
 <h4 id="k11-0-3">11.0.3 Gleichartige Kreise werden zusammengefasst</h4>
 
@@ -63,10 +92,30 @@
 
 <div class="beispiel">
 <b>Am Referenzhaus nachgezählt</b>
-<p>Das vollständige Schema führt 32 Bauteile. In der Übersicht bleiben davon 15: Wärmepumpe, Hydraulikstation, Heizstab, Sicherheitsventil, Ausdehnungsgefäß, Umschaltventil, Trinkwasserspeicher, Verbrühschutz, Pufferspeicher, Mischer, Umwälzpumpe, Fußbodenheizung (2 Kreise), Umwälzpumpe, Heizkörper (2 Stück), externe Pumpe.</p>
-<p>Bei der kleinen Anlage — Wärmepumpe, ein Heizkörper, kein Warmwasser — sind es acht.</p>
-<p class="ergebnis">= 15 von 32 beim vollen Haus, 8 bei der kleinen Anlage</p>
+<p>In der Übersicht bleiben 15 Hauptbauteile: Wärmepumpe, Hydraulikstation, Heizstab, Magnetitabscheider, Sicherheitsventil, Ausdehnungsgefäß, Umschaltventil, Trinkwasserspeicher, Verbrühschutz, Pufferspeicher, Mischer, Umwälzpumpe, Fußbodenheizung (2 Kreise), Umwälzpumpe, Heizkörper (2 Stück). Dazu die beiden Absperrungen des Erzeugers, die nicht mitzählen: 17 Symbole.</p>
+<p><b>Keine externe Pumpe.</b> Das Haus hat eine Hydraulikstation, und die fördert selbst — siehe <a href="#k11-0-2b">Abschnitt 11.0.2b</a>.</p>
+<p>Bei der kleinen Anlage — Wärmepumpe, ein Heizkörper, kein Warmwasser — sind es acht Hauptbauteile und zehn Symbole.</p>
+<p class="ergebnis">= 15 Hauptbauteile (17 Symbole) beim vollen Haus, 8 (10) bei der kleinen Anlage</p>
 </div>
+
+<h4 id="k11-0-3b">11.0.3b Die Kästen: Sicherheitsgruppe, Heizkreisverteiler, Pumpengruppe</h4>
+
+<p>Ein gestrichelter Rahmen im Bild heißt: <b>Das ist ein Teil.</b> So wird es gekauft, so hängt es an der Wand, und so steht es auf der Rechnung — nicht als Aufzählung von Einzelteilen.</p>
+
+<table class="tab">
+<caption>Welcher Rahmen wann entsteht</caption>
+<thead><tr><th>Rahmen</th><th>Wann</th><th>Was darin steckt</th></tr></thead>
+<tbody>
+<tr><td><b>Sicherheitsgruppe</b></td><td>immer, wenn Sicherheitsventil oder Ausdehnungsgefäß ausgelegt sind</td><td>Sicherheitsventil und Membran-Ausdehnungsgefäß am Erzeuger</td></tr>
+<tr><td><b>Heizkreisverteiler</b></td><td>mehrere Zweige mit eigener Pumpe an <em>einem</em> Verteilbalken</td><td>Mischer und Umwälzpumpen aller dieser Zweige</td></tr>
+<tr><td><b>Mischergruppe</b></td><td>ein einzelner gemischter Zweig</td><td>Dreiwegemischer und Umwälzpumpe</td></tr>
+<tr><td><b>Pumpengruppe</b></td><td>ein einzelner ungemischter Zweig mit eigener Pumpe</td><td>Umwälzpumpe, Absperrungen, Rückschlagklappe</td></tr>
+</tbody>
+</table>
+
+<p>Der <b>Heizkreisverteiler</b> ist seit Fassung 1.62.0 im Bild. Gemeldet wurde es so: <i>„oft werden Pumpengruppen, also Pumpe extern für ungemischt und Mischerpumpe, in einem Teil zusammengebaut … wenn es als Pumpengruppe im Heizkreisverteiler liegt, ist das in einem Kasten."</i> Vorher bekam nur der gemischte Zweig einen Rahmen, und die Pumpe des ungemischten stand nackt daneben — als wäre sie ein Einzelteil, das jemand gesondert bestellt.</p>
+
+<div class="merke"><b>Merke</b><p>Der Kasten ist zugleich die Aussage, dass <b>Absperrungen und Rückschlagklappe darin sitzen</b>. Deshalb werden sie im Prinzipbild nicht zusätzlich gezeichnet: Sie sind Teil des Produkts und nicht Teil der Planung. Einzeln stehen nur die beiden Absperrungen des Erzeugers im Bild, weil dort kein Kasten ist, der sie enthielte.</p></div>
 
 <h4 id="k11-0-4">11.0.4 Der Satz unter dem Bild</h4>
 

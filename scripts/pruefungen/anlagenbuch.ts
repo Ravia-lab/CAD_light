@@ -197,6 +197,8 @@ function leereAuslegung(): PlantDesignResult {
     // Heizlast stammt. Diese hier stammt aus dem Überschlag und kennt keinen
     // Raum mit gerechneter Last — das ist der Zustand, den dieses Heft prüft.
     heatLoadProvenance: 'überschlag',
+    // Ohne Gerät fördert nichts von selbst: Die Pumpe wird bauseits gesetzt.
+    pumpenherkunft: 'extern',
     normCoverage: {
       heatedRooms: 0,
       withNorm: 0,

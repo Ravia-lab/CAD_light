@@ -109,7 +109,17 @@ export function pruefeUebersichtsschema(check: CheckFn): void {
      * Hauptkomponenten. Fünfzehn ist damit die belegte Obergrenze dessen, was
      * in der Branche noch als Prinzipschema gilt.
      */
-    check('Übersicht · höchstens fünfzehn Bauteile', bauteile(u).length <= UEBERSICHT_HOECHSTZAHL, true);
+    /*
+     * Gezählt werden **Hauptbauteile**. Die beiden Absperrungen des
+     * Erzeugerzweigs stehen seit 1.62.0 im Bild und zählen nicht mit: Eine
+     * Absperrung ist keine Hauptkomponente, sondern das Zubehör des Bauteils,
+     * an dem sie sitzt. Zählte sie mit, drängte sie einen Speicher oder eine
+     * Pumpe aus dem Bild — die Notbremse opferte dann eine Aussage, um eine
+     * Armatur zu behalten.
+     */
+    const haupt = bauteile(u).filter((b) => b.kind !== 'shutoff');
+    check('Übersicht · höchstens fünfzehn Bauteile', haupt.length <= UEBERSICHT_HOECHSTZAHL, true);
+    check('Übersicht · und höchstens zwei Absperrungen', anzahlVon(u, 'shutoff') <= 2, true);
 
     /*
      * Und die Gegenprobe: Kein **tragendes** Bauteil darf herausgefallen sein.
@@ -155,14 +165,27 @@ export function pruefeUebersichtsschema(check: CheckFn): void {
     /*
      * Und was **nicht** darin stehen darf: die Armaturen und Messstellen.
      * Sie sind der ganze Grund für dieses Bild.
+     *
+     * **Zwei Ausnahmen, seit 1.62.0** — gemeldet am 27.09.2026: „Filter wie
+     * Schmutzfänger und Magnetabscheider sowie Absperrventile sollten hier
+     * eingezeichnet sein."
+     *
+     *  · Der **Schlamm- und Magnetitabscheider** im Rücklauf ist bei einer
+     *    Wärmepumpe keine Armatur, die man weglässt, sondern das Bauteil, das
+     *    den Verflüssiger rettet — einen gelöteten Plattenwärmetauscher mit
+     *    Spaltweiten im Zehntelmillimeterbereich. Die Schemaprüfung dieses
+     *    Programms meldet sein Fehlen als eigene Regel; ein Bild, das ihn
+     *    verschweigt, widerspräche der eigenen Prüfung.
+     *  · Die **beiden Absperrungen** des Erzeugerzweigs: Der BWP-Leitfaden
+     *    führt in jedem Schema „Umwälzpumpe + Rückschlagklappe und
+     *    beidseitige Absperrventile". Gezeigt werden genau die zwei, die den
+     *    Erzeuger tauschbar machen — nicht alle Absperrungen der Anlage.
      */
     for (const kind of [
-      'shutoff',
       'check-valve',
       'balancing-valve',
       'valve-2way',
       'strainer',
-      'dirt-separator',
       'air-separator',
       'pressure-gauge',
       'thermometer',
@@ -173,6 +196,15 @@ export function pruefeUebersichtsschema(check: CheckFn): void {
     ] as SchematicKind[]) {
       check(`Übersicht · Referenzhaus zeigt ${kind} nicht`, hat(u, kind), false);
     }
+    check('Übersicht · der Magnetitabscheider steht im Bild', hat(u, 'dirt-separator'), true);
+    check('Übersicht · die Absperrungen des Erzeugers stehen im Bild', anzahlVon(u, 'shutoff'), 2);
+    /*
+     * Und sie stehen an der richtigen Stelle: eine im Vorlauf, eine im
+     * Rücklauf. Zwei Absperrungen im selben Strang wären keine Absperrung
+     * des Erzeugers, sondern eine doppelte Absperrung einer Leitung.
+     */
+    const absperrY = bauteile(u).filter((b) => b.kind === 'shutoff').map((b) => b.y);
+    check('Übersicht · eine im Vorlauf, eine im Rücklauf', new Set(absperrY).size, 2);
 
     /*
      * Beide Fußbodenheizkreise des Referenzhauses (EG und OG) hängen gleich:
@@ -196,18 +228,38 @@ export function pruefeUebersichtsschema(check: CheckFn): void {
   // =========================================================================
   {
     /*
-     * Zwei Rahmen gehören ins Referenzhaus: die Sicherheitsgruppe aus
-     * Sicherheitsventil und Ausdehnungsgefäß, und die Heizkreisgruppe aus
-     * Mischer und Kreispumpe am Flächenkreis. Der Heizkörperzweig hat keinen
-     * Mischer und bekommt deshalb keinen Rahmen — eine Kreispumpe allein ist
-     * keine Heizkreisgruppe.
+     * Zwei Rahmen gehören ins Referenzhaus: die **Sicherheitsgruppe** aus
+     * Sicherheitsventil und Ausdehnungsgefäß, und der **Heizkreisverteiler**.
+     *
+     * Letzterer ist neu in 1.62.0. Gemeldet am 27.09.2026: „oft werden
+     * Pumpengruppen, also Pumpe extern für ungemischt und Mischerpumpe, in
+     * einem Teil zusammengebaut … wenn es als Pumpengruppe im
+     * Heizkreisverteiler liegt, ist das in einem Kasten." Das Referenzhaus
+     * hat genau diesen Fall: zwei Zweige — Fußbodenheizung gemischt,
+     * Heizkörper ungemischt — an **einem** Verteilbalken. Sie stecken in
+     * einem Kasten und werden so gekauft; bis 1.61.0 bekam der gemischte
+     * Zweig einen eigenen Rahmen „Mischergruppe" und die Pumpe des
+     * ungemischten stand nackt daneben.
      */
     const namen = u.gruppen.map((g) => g.name).sort();
     check('Übersicht · zwei Baugruppen', u.gruppen.length, 2);
-    check('Übersicht · Baugruppen benannt', namen.join('|'), 'Mischergruppe|Sicherheitsgruppe');
+    check('Übersicht · Baugruppen benannt', namen.join('|'), 'Heizkreisverteiler|Sicherheitsgruppe');
 
     const sicherheit = u.gruppen.find((g) => g.name === 'Sicherheitsgruppe');
     check('Übersicht · die Sicherheitsgruppe fasst zwei Bauteile', sicherheit?.bauteile.length ?? 0, 2);
+
+    /*
+     * Der Verteiler fasst **drei**: den Mischer des Flächenkreises und die
+     * Umwälzpumpen beider Zweige. Damit steht im Bild, was auf der Baustelle
+     * ein Teil ist — und nicht drei Einzelteile, die jemand einzeln bestellt.
+     */
+    const verteiler = u.gruppen.find((g) => g.name === 'Heizkreisverteiler');
+    check('Übersicht · der Heizkreisverteiler fasst drei Bauteile', verteiler?.bauteile.length ?? 0, 3);
+    const inVerteiler = (verteiler?.bauteile ?? [])
+      .map((id) => u.bauteile.find((b) => b.id === id)?.kind ?? '?')
+      .sort()
+      .join(', ');
+    check('Übersicht · und zwar Mischer und beide Pumpen', inVerteiler, 'pump, pump, valve-3way');
 
     // Ein Rahmen um ein einziges Bauteil ist kein Rahmen — er darf nicht
     // vorkommen, sonst zeichnet das Bild Kästchen ohne Aussage.
@@ -343,12 +395,23 @@ export function pruefeUebersichtsschema(check: CheckFn): void {
      * fordert hier einen Reihenpuffer für den Mindestwasserinhalt; Warmwasser
      * gibt es nicht, also auch kein Umschaltventil, keinen Speicher und
      * keinen Verbrühschutz. Es bleiben: Wärmepumpe, Hydraulikstation,
-     * Heizstab, Sicherheitsventil, Ausdehnungsgefäß, Puffer, Heizkörper,
-     * Anlagenpumpe — acht Bauteile. Genau die untere Grenze der Spanne, die
+     * Heizstab, Sicherheitsventil, Ausdehnungsgefäß, Puffer, Heizkörper und
+     * der Magnetitabscheider — acht Bauteile, dazu die beiden Absperrungen
+     * des Erzeugerzweigs, die nicht als Hauptkomponente zählen: zehn Symbole.
+     *
+     * **Die Rechnung gegenüber 1.61.0**: −1 (die externe Pumpe entfällt, die
+     * Hydraulikeinheit hat sie), +1 Abscheider, +2 Absperrungen. Acht
+     * Hauptbauteile bleiben acht — genau die untere Grenze der Spanne, die
      * der BWP-Leitfaden für ein Prinzipschema nennt.
      */
     const a = uebersichtsschema(...schemaVon(wpMitEinemHeizkoerper(basis)));
-    check('Übersicht · kleine Anlage kommt mit acht Bauteilen aus', bauteile(a).length, 8);
+    check('Übersicht · kleine Anlage kommt mit zehn Symbolen aus', bauteile(a).length, 10);
+    check(
+      'Übersicht · davon acht Hauptbauteile',
+      bauteile(a).filter((b) => b.kind !== 'shutoff').length,
+      8,
+    );
+    check('Übersicht · keine externe Pumpe neben der Hydraulikstation', hat(a, 'pump'), false);
     check('Übersicht · kleine Anlage ohne Umschaltventil', hat(a, 'valve-diverter'), false);
     check('Übersicht · kleine Anlage ohne Trinkwasserspeicher', hat(a, 'cylinder'), false);
     check('Übersicht · kleine Anlage ohne Mischer', hat(a, 'valve-3way'), false);
@@ -373,11 +436,14 @@ export function pruefeUebersichtsschema(check: CheckFn): void {
 
     /*
      * Fall (b): dieselbe Anlage mit Trennpuffer. Er trennt Erzeuger- und
-     * Anlagenseite, und dadurch bekommt der Heizkreis eine eigene Pumpe — ein
-     * Bauteil mehr als in Fall (a), also neun.
+     * Anlagenseite, und dadurch bekommt der Heizkreis eine **eigene** Pumpe —
+     * ein Symbol mehr als in Fall (a), also elf. Die Erzeugerpumpe steckt
+     * weiterhin in der Hydraulikeinheit; gezeichnet wird die, die bauseits
+     * gesetzt wird.
      */
     const b = uebersichtsschema(...schemaVon(wpMitEinemHeizkoerper(basis, { [TRENNPUFFER.id]: TRENNPUFFER })));
-    check('Übersicht · mit Trennpuffer neun Bauteile', bauteile(b).length, 9);
+    check('Übersicht · mit Trennpuffer elf Symbole', bauteile(b).length, 11);
+    check('Übersicht · und die Kreispumpe dazu', anzahlVon(b, 'pump'), 1);
     check('Übersicht · der Trennpuffer steht im Bild', hat(b, 'buffer'), true);
   }
 

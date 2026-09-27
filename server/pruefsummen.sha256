@@ -1,6 +1,6 @@
 af47e248dd81fdbe9395552e937adc8f7f623cea4196fe0cacb12751359eeca3  ./app/apple-touch-icon.png
 e3c8b0ceedbca9d8ecf67ce4f8c35980da5bcf6a85d41fa1bb63c96638fb4fea  ./app/assets/index-B2Ov00T9.css
-f8b59ea59169cc87263f8702c50e228cf5eb070b3a8e949ffac822efae361b70  ./app/assets/index-CfYZpyA6.js
+16c0c953b90926303729a306569e8349de5965e30cfb553e08d1c7f4442a5d75  ./app/assets/index-BWSB5T59.js
 be0276550393a72b94d673505567dceba801511d5e1ca5a87793190dc5d5a6ca  ./app/assets/inter-latin-300-normal-BVlfKGgI.woff2
 635cf706b3a3528c1617ce8edaa4e767489c1c61320a97b4aa649495ee49ac2a  ./app/assets/inter-latin-300-normal-i8F0SvXL.woff
 8909904ab6c872eb994093482a88a28eca2cd95912d7b6fecd72103b0dc07edc  ./app/assets/inter-latin-400-normal-C38fXH4l.woff2
@@ -18,11 +18,11 @@ a270dd0bf13d91053b8999b7c120ffadb59680cfd63fe1a6b388a13bf2809fe1  ./app/assets/j
 51a2dab734880652f2bf6023b912f763b97d7f337765452c9da5a55d4ee950b0  ./app/assets/pdf-C9f1iiyp.js
 1baa1844c89c80a5b2797c916e75ab29254be46d8e9cb53cb6364d7aad84be36  ./app/assets/pdf.worker.min-yatZIOMy.mjs
 27d7cca5c083299d3138d95d18c813e7773c907a2b2570f4248dc81052713015  ./app/assets/three-DdLIY24w.js
-2ad80dc2558963a6f278e0330a6036fd45f06c3b6b1e1ec329b93c92f46c37e9  ./app/assets/Viewer3D-DhIGcLYU.js
+4373e03b728e3515e0e67019db82e8d7c2afb3abf07d91814cae28f46ee45f65  ./app/assets/Viewer3D-CrBwAMOS.js
 9e5eed022397d9d8f4b426604149e579072e3f387d6314d36257baee13f6ed71  ./app/einbettung-beispiel.html
 4a0f23addf43f02ce45f84b008346e78a4ce19bd197247e522d9d35513ef3a51  ./app/einbettung-beispiel.js
-0db9a496f917cbc0fad37507dd116bd25fc0e34738beaf5a3a160b8596583373  ./app/handbuch.html
-35d488b67f3dc4e0ab3db9d422da228f9ded8343f54c5d5257fd469a5ff7a4b0  ./app/index.html
+dc97879d2cd8f7e845b3979b9eb503c3b2377a203f81cc8e975e6b9d3fd99aaf  ./app/handbuch.html
+e95ea93e98f38e3752155cf2fba9a68ad0aab0121ee8b3b46a410039fea061c1  ./app/index.html
 f22327f9c318f39f6ac332f210e104640c734b6bf29dfaf3fa01c83baf5534ed  ./app/kachel-192.png
 71d62c3e81da5367194489148716ce797980c7e999c0c4318c845072ea80f922  ./app/kachel-512.png
 63210b04dc071b305b713b802efa05461492e7f85ca8735535958206f960cc73  ./app/manifest.webmanifest
@@ -39,4 +39,4 @@ b788c71c7d768dbeba50cdf7523bae986dc461928c9b5b1460208ed3c9340ab0  ./bin/pruefen.
 430a93195ab1daeb3f9ce356877ad9cec370091794d626e3d1332e509ded4a50  ./nginx/ravia-cad-light.conf
 eed35583a4fa2db239d77d37525751ae2d7ecd20bbf958635663c4d3d068ca73  ./nginx/ravia-cad.conf
 fd2207e25941e686aa775dfc0bd1d50095fc5ff5ac8de2a7d2abed495c47c459  ./SERVER-EINRICHTUNG.html
-b37685c6d7646baf7933322dcbdadf302fa6d575cf2be7c6c3a2402424453113  ./VERSION
+bc43ef34a131fd2f99047a8aca491f24fa0a36010dcb90166e73c49f58a1928d  ./VERSION

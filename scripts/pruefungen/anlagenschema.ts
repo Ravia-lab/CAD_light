@@ -696,9 +696,14 @@ export function pruefeAnlagenschema(check: CheckFn): void {
      * der Geräteauswahl, Mikroblasen- und Schlammabscheider sowie Füllarmatur,
      * Systemtrenner, Wärmemengenzähler und Überströmventil aus der
      * Sicherheitsauslegung, die Sicherheitsgruppe aus derselben, der Puffer aus
-     * der Pufferrechnung, die Umwälzpumpe aus der Pumpenauslegung, Heizkörper
-     * mit Thermostatventil und Rücklaufverschraubung aus der Übergabe, Knoten
-     * als Systemgrenzen.
+     * der Pufferrechnung, Heizkörper mit Thermostatventil und
+     * Rücklaufverschraubung aus der Übergabe, Knoten als Systemgrenzen.
+     *
+     * **Ohne `pump`, seit 1.62.0.** Im Haus steht eine Hydraulikeinheit, und
+     * die bringt die Umwälzpumpe mit — eine externe daneben wäre die zweite
+     * Pumpe in einem Kreis. Gemeldet am Bild: „Hydraulikstationen haben
+     * Pumpen meist eingebaut, ergo muss das nicht — und du hast 2 Pumpen
+     * drin." Der Fall mit externer Pumpe steht in Abschnitt 16b.
      */
     const artenA = [...new Set(a.components.map((c) => c.kind))].sort().join(', ');
     check(
@@ -711,7 +716,7 @@ export function pruefeAnlagenschema(check: CheckFn): void {
         'air-separator', 'backflow-preventer', 'balancing-valve', 'buffer-series', 'dirt-separator',
         'electric-heater', 'expansion-vessel', 'filling-valve', 'heat-meter',
         'heatpump-outdoor', 'hydraulic-station', 'node', 'overflow-valve', 'pressure-gauge',
-        'pump', 'radiator', 'safety-valve', 'shutoff', 'valve-2way',
+        'radiator', 'safety-valve', 'shutoff', 'valve-2way',
       ].join(', '),
     );
 
@@ -1003,8 +1008,20 @@ export function pruefeHydraulikregeln(check: CheckFn): void {
      * Ein ungemischter Kreis, 200 l Trinkwasser, kein Puffer. Dann ist die
      * Erzeugerpumpe die einzige der Anlage, und es gibt ein Umschaltventil,
      * gegen das sich ihre Lage im Strang messen lässt.
+     *
+     * **Ausdrücklich ohne Inneneinheit**, seit 1.62.0. Steht eine
+     * Hydraulikeinheit im Haus, sitzt die Umwälzpumpe darin und wird nicht
+     * ein zweites Mal gezeichnet — dann hätte dieser Block keine Pumpe mehr,
+     * deren Lage er prüfen könnte. Geprüft wird hier die **Lage** der extern
+     * gesetzten Pumpe; ob sie überhaupt gesetzt wird, prüft Abschnitt 1b.
      */
-    const bild = bildZu({ ...ANTWORTEN_VORGABE, kreise: ['ungemischt'], trinkwasserLiter: 200, pufferLiter: 0 });
+    const bild = bildZu({
+      ...ANTWORTEN_VORGABE,
+      inneneinheit: 'keine',
+      kreise: ['ungemischt'],
+      trinkwasserLiter: 200,
+      pufferLiter: 0,
+    });
     const pumpen = bild.components.filter((c) => c.kind === 'pump');
     check('Hydraulik · ungemischt ohne Puffer: genau eine Pumpe', pumpen.length, 1);
 
@@ -1064,6 +1081,72 @@ export function pruefeHydraulikregeln(check: CheckFn): void {
   }
 
   // =========================================================================
+  // 1b · Wer fördert — und wie viele Pumpen deshalb im Bild stehen
+  // =========================================================================
+  {
+    /*
+     * Gemeldet am 27.09.2026 am Bild: „Hydraulikstationen haben Pumpen meist
+     * eingebaut, ergo muss das nicht — und du hast 2 Pumpen drin."
+     *
+     * Das Bild zeichnete die externe Umwälzpumpe, ohne zu fragen, ob das
+     * Gerät selbst fördert. Beide Aussagen standen darin nebeneinander: eine
+     * Hydraulikstation *und* eine externe Pumpe. Eine davon ist falsch.
+     *
+     * Geprüft werden die drei Fälle, die es gibt, alle mit derselben Anlage
+     * und nur einer anderen Antwort zur Inneneinheit:
+     */
+    const ohne = bildZu({ ...ANTWORTEN_VORGABE, inneneinheit: 'keine', kreise: ['ungemischt'], trinkwasserLiter: 200, pufferLiter: 0 });
+    const mit = bildZu({ ...ANTWORTEN_VORGABE, inneneinheit: 'mit-heizstab', kreise: ['ungemischt'], trinkwasserLiter: 200, pufferLiter: 0 });
+    const ohneStab = bildZu({ ...ANTWORTEN_VORGABE, inneneinheit: 'ohne-heizstab', kreise: ['ungemischt'], trinkwasserLiter: 200, pufferLiter: 0 });
+    const pumpen = (b: { components: { kind: string }[] }) => b.components.filter((c) => c.kind === 'pump').length;
+    const stationen = (b: { components: { kind: string }[] }) => b.components.filter((c) => c.kind === 'hydraulic-station').length;
+
+    /*
+     * (1) Keine Inneneinheit: Die Pumpe wird bauseits gesetzt und steht im
+     *     Bild. Das ist der Fall, für den es die externe Pumpe gibt.
+     */
+    check('Pumpe · ohne Inneneinheit: eine externe Pumpe', pumpen(ohne), 1);
+    check('Pumpe · … und keine Hydraulikstation', stationen(ohne), 0);
+
+    /*
+     * (2) Hydraulikeinheit mit Heizstab — die Vorbelegung und der Regelfall
+     *     am Markt: Die Pumpe sitzt darin. Im Bild steht die Station, und
+     *     **keine** Pumpe daneben.
+     */
+    check('Pumpe · mit Inneneinheit: eine Hydraulikstation', stationen(mit), 1);
+    check('Pumpe · … und keine externe Pumpe daneben', pumpen(mit), 0);
+
+    /*
+     * (3) Dasselbe ohne Heizstab: Am Heizstab hängt die Pumpenfrage nicht.
+     *     Die Prüfung steht hier, weil beide Angaben in *einer* Antwort
+     *     stecken und sich sonst unbemerkt aneinander koppeln könnten.
+     */
+    check('Pumpe · Inneneinheit ohne Heizstab: ebenfalls keine externe', pumpen(ohneStab), 0);
+    check('Pumpe · … und trotzdem eine Station', stationen(ohneStab), 1);
+
+    /*
+     * **Und es wird gesagt, warum.** Ein Bauteil, das verschwindet, ohne dass
+     * jemand es erklärt, ist ein Fehler — auch dann, wenn das Verschwinden
+     * richtig ist. Der Hinweis nennt außerdem die erforderliche Förderhöhe,
+     * damit sie am Datenblatt der Einheit gegengelesen werden kann.
+     */
+    const planMit = designPlant(
+      anlage({ ...ANTWORTEN_VORGABE, inneneinheit: 'mit-heizstab', kreise: ['ungemischt'], trinkwasserLiter: 200, pufferLiter: 0 }),
+      {},
+    );
+    check('Pumpe · die Auslegung nennt die Herkunft', planMit.pumpenherkunft, 'inneneinheit');
+    const hinweis = planMit.notes.find((n) => /Umwälzpumpe sitzt in der Inneneinheit/.test(n.text));
+    check('Pumpe · das Bild sagt, wo die Pumpe sitzt', Boolean(hinweis), true);
+    check('Pumpe · und nennt die erforderliche Förderhöhe', /m³\/h/.test(hinweis?.text ?? ''), true);
+    /*
+     * Der Hinweis sagt auch, dass es eine **Ableitung** ist und keine
+     * Geräteangabe — die Ausnahme gibt es (Vaillant VWZ MEH hat keine
+     * Umwälzpumpe), und wer sie hat, muss sie eintragen können.
+     */
+    check('Pumpe · und nennt die Ausnahme beim Namen', /VWZ MEH/.test(hinweis?.text ?? ''), true);
+  }
+
+  // =========================================================================
   // 2 · Keine zweite Pumpe im selben Strang
   // =========================================================================
   {
@@ -1090,9 +1173,14 @@ export function pruefeHydraulikregeln(check: CheckFn): void {
      * sind es zwei Stränge: Die Erzeugerseite fördert für sich, der Kreis für
      * sich. Dann sind zwei Pumpen richtig — und ohne diese Probe hieße die
      * Regel oben „es gibt nie zwei", was der Anlagentechnik widerspricht.
+     *
+     * Gerechnet ohne Inneneinheit, seit 1.62.0: Sonst steckte die zweite
+     * Pumpe im Gehäuse, und der Zähler sähe wieder nur eine — richtig
+     * gezeichnet, aber als Beleg für diese Aussage untauglich.
      */
     const getrennt = bildZu({
       ...ANTWORTEN_VORGABE,
+      inneneinheit: 'keine',
       kreise: ['gemischt'],
       trinkwasserLiter: 0,
       pufferLiter: 200,
@@ -1102,6 +1190,32 @@ export function pruefeHydraulikregeln(check: CheckFn): void {
       'Hydraulik · mit Trennpuffer sind zwei richtig',
       getrennt.components.filter((c) => c.kind === 'pump').length,
       2,
+    );
+
+    /*
+     * Und dieselbe Anlage **mit** Inneneinheit: Es bleiben zwei Pumpen, aber
+     * nur eine davon wird gezeichnet — die andere steht im Gehäuse. Das ist
+     * der Unterschied zwischen „die Anlage hat eine Pumpe" und „im Bild steht
+     * ein Pumpensymbol", und er gehört festgehalten, damit niemand die
+     * Erzeugerpumpe später als vergessen nachträgt.
+     */
+    const getrenntMit = bildZu({
+      ...ANTWORTEN_VORGABE,
+      inneneinheit: 'mit-heizstab',
+      kreise: ['gemischt'],
+      trinkwasserLiter: 0,
+      pufferLiter: 200,
+      pufferArt: 'buffer-parallel',
+    });
+    check(
+      'Hydraulik · mit Inneneinheit steht nur die Kreispumpe im Bild',
+      getrenntMit.components.filter((c) => c.kind === 'pump').length,
+      1,
+    );
+    check(
+      'Hydraulik · … und die Station daneben',
+      getrenntMit.components.filter((c) => c.kind === 'hydraulic-station').length,
+      1,
     );
   }
 
