@@ -659,4 +659,72 @@ export function pruefeMassenauszug(check: CheckFn): void {
     check('Ohne Werkstoff bleibt die Nennweite stehen',
       freieZeile?.spec.startsWith('DN 12') ?? false, true);
   }
+
+  // =========================================================================
+  // Die Flächenheizung aus dem Grundriss — ohne Auslegung
+  // =========================================================================
+  /*
+   * **Der Fehler, gegen den das steht.** Wer im Grundriss auf einen Raum tippt
+   * und ihn belegen lässt, hat eine vollständige Verlegung: Bahnen, Kehren,
+   * Anbindeleitungen, alles aus dem Raumpolygon gerechnet und im Plan zu
+   * sehen. Im Massenauszug stand dafür bis 1.65.0 „Bauart nach Objektangabe,
+   * nicht ausgelegt" mit dem Vermerk, dass Rohrlänge, Verlegeabstand und
+   * Randdämmstreifen fehlen — für eine Bestellung wertlos, obwohl das
+   * Programm jede Zahl kannte.
+   *
+   * Geprüft wird an einem Raum, dessen Maße von Hand feststehen.
+   */
+  {
+    const raum = {
+      id: 'rf', levelId: 'lvl', name: 'Wohnen', usage: 'living',
+      // 5,00 × 4,00 m lichtes Maß → 20,00 m², Umfang 18,00 m
+      innerPolygon: [{ x: 0, y: 0 }, { x: 5, y: 0 }, { x: 5, y: 4 }, { x: 0, y: 4 }],
+      centroid: { x: 2.5, y: 2 }, area: 20, perimeter: 18, isHeated: true, setpoint: 20,
+    };
+    const fbh = {
+      id: 'fx', type: 'underfloor', levelId: 'lvl', roomId: 'rf',
+      position: { x: 2.5, y: 2 }, rotation: 0, length: 0.4, depth: 0.4, elevation: 0,
+      layerId: 'layer-tga', label: 'FBH Wohnen',
+      params: { roomCoverage: true, loopSpacing: 0.15, loopCount: 2, powerW: 1400, flowTemperature: 35, returnTemperature: 28 },
+    };
+    const haus = {
+      schemaVersion: 1, activeLevelId: 'lvl',
+      levels: { lvl: { id: 'lvl', name: 'EG', order: 0, elevation: 0, height: 2.5 } },
+      nodes: {}, walls: {}, openings: {}, rooms: { rf: raum },
+      fixtures: { fx: fbh }, pipes: {},
+      diagnostics: { openEnds: [], gaps: [], nearMisses: [] }, meta: {},
+    } as never;
+
+    const auszug = buildMaterialSchedule(haus);
+    const rohr = auszug.items.find((i) => i.name === 'Fußbodenheizrohr');
+    check('FBH aus dem Grundriss · das Rohr steht im Auszug', rohr !== undefined, true);
+    /*
+     * Bei 0,15 m Verlegeabstand liegen je Quadratmeter 1/0,15 = 6,67 m Rohr.
+     * Belegbar sind nach Randabstand rund 16 m², also rund 110 m — geprüft
+     * wird die Größenordnung, denn die genaue Zahl folgt aus der Kurve und ist
+     * im Block „Fußbodenheizung" Punkt für Punkt nachgerechnet.
+     */
+    check('FBH aus dem Grundriss · Rohrlänge über 80 m', (rohr?.quantity ?? 0) > 80, true);
+    check('FBH aus dem Grundriss · und unter 200 m', (rohr?.quantity ?? 0) < 200, true);
+    check('FBH aus dem Grundriss · in Metern', rohr?.unit ?? '', 'm');
+    // Die Herkunft muss sagen, woher die Zahl kommt — sonst ist sie nicht prüfbar.
+    check('FBH aus dem Grundriss · Herkunft nennt die Verlegekurven',
+      (rohr?.origin ?? '').includes('Verlegekurven'), true);
+    // Und die Bemerkung sagt weiterhin, was fehlt: die Dimension.
+    check('FBH aus dem Grundriss · die Dimension fehlt und steht dabei',
+      (rohr?.spec ?? '').includes('nicht ausgelegt'), true);
+
+    const kreise = auszug.items.find((i) => i.name === 'Heizkreis am Verteiler');
+    check('FBH aus dem Grundriss · zwei Kreise am Verteiler', kreise?.quantity ?? 0, 2);
+    const platte = auszug.items.find((i) => i.name === 'Systemplatte oder Tackerbahn');
+    check('FBH aus dem Grundriss · Systemplatte nach belegbarer Fläche',
+      (platte?.quantity ?? 0) > 12 && (platte?.quantity ?? 0) < 20, true);
+    const rand = auszug.items.find((i) => i.name === 'Randdämmstreifen');
+    check('FBH aus dem Grundriss · Randdämmstreifen 18,00 m', rand?.quantity ?? 0, 18, 0.05);
+
+    // Die alte Ersatzzeile darf nicht mehr erscheinen — sonst stünde der
+    // Kreis zweimal, einmal mit Länge und einmal ohne.
+    check('FBH aus dem Grundriss · keine Zeile „nicht ausgelegt" als Stückzahl',
+      auszug.items.filter((i) => i.unit === 'Stk' && /FBH-Heizkreis/.test(i.name)).length, 0);
+  }
 }

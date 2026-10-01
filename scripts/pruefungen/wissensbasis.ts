@@ -98,11 +98,16 @@ import { KORPUS_STAND, WISSEN_KORPUS, korpusUmfang } from '../../src/lib/wissenK
 // ---------------------------------------------------------------------------
 
 /**
- * Die vier Sammlungen. Sie stehen im Typ `KorpusId` und im Dateikopf von
- * wissenKorpus.ts; hier noch einmal als Datum, damit ein fünfter Wert
+ * Die fünf Sammlungen. Sie stehen im Typ `KorpusId` und im Dateikopf von
+ * wissenKorpus.ts; hier noch einmal als Datum, damit ein sechster Wert
  * auffällt, statt sich still einzureihen.
+ *
+ * `betrieb` kam mit 1.65.0 dazu: Inbetriebnahme, Optimierung, Wartung und die
+ * drei Fehlerbäume aus dem BDH/BWP-Infoblatt Nr. 62. Diese Zeile hat beim
+ * Ergänzen genau ihren Zweck erfüllt — der Prüflauf fiel, bis die fünfte
+ * Sammlung hier eingetragen war.
  */
-const ERLAUBTE_KORPORA: readonly KorpusId[] = ['normen', 'tabellen', 'hydraulik', 'projekt'];
+const ERLAUBTE_KORPORA: readonly KorpusId[] = ['normen', 'tabellen', 'hydraulik', 'projekt', 'betrieb'];
 
 /** Die drei Belastbarkeitsstufen — mehr darf es nicht geben, weniger auch nicht. */
 const ERLAUBTE_BELASTBARKEIT: readonly Belastbarkeit[] = ['primaer', 'sekundaer', 'annahme'];
@@ -126,6 +131,8 @@ const ERLAUBTE_THEMEN: readonly string[] = [
   'abgleich-verfahren',
   'ausdehnungsgefaess',
   'dokumentation',
+  'fehlersuche',
+  'inbetriebnahme',
   'druckgefaelle',
   'druckverlust',
   'einzelwiderstand',
@@ -133,6 +140,7 @@ const ERLAUBTE_THEMEN: readonly string[] = [
   'geschwindigkeit',
   'heizkoerper',
   'mischer',
+  'optimierung',
   'programmannahme',
   'puffer',
   'pumpe',
@@ -507,7 +515,7 @@ export function pruefeWissensbasis(check: CheckFn): void {
   check('`umfang` zählt den ganzen Prüfkorpus', probe.umfang(), 12);
   check('… und je Sammlung getrennt', probe.umfang('normen'), 4);
   check('… auch für die Hydraulik', probe.umfang('hydraulik'), 4);
-  check('`korpora` nennt alle vier Sammlungen des echten Korpus', echt.korpora().length, 4);
+  check('`korpora` nennt alle fünf Sammlungen des echten Korpus', echt.korpora().length, 5);
   check('… und keine, die es nicht gibt', echt.korpora().every((k) => ERLAUBTE_KORPORA.includes(k)), true);
   check('`eintrag` findet über den Schlüssel', probe.eintrag('pb-h-puffer')?.titel ?? '', 'Puffer');
   check('… korpusübergreifend', probe.eintrag('pb-t-kupfer')?.korpus ?? '', 'tabellen');

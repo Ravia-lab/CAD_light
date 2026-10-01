@@ -980,15 +980,50 @@ function anbinden(
   if (!manifold) return { supplyLines: [], supplyLength: 0 };
   const supplyLines: FloorSupplyLine[] = [];
   let supplyLength = 0;
+
+  /*
+   * **Eine Anbindeleitung je Kreis, nicht je Kurvenstück.**
+   *
+   * Zerfällt ein Kreis — eine Form, die sich nicht in einem Zug legen lässt —,
+   * stehen für ihn mehrere Kurvenstücke im Ergebnis. Gezählt wurde bis 1.65.0
+   * je Stück eine Anbindeleitung, und damit vervielfachte sich die
+   * Anbindelänge: Im Demo-Bad standen 74,6 m Anbindung neben 65,0 m Rohr in
+   * der Fläche, bei **einem** Kreis. Die Zahl widersprach sich selbst — ein
+   * Kreis hat genau einen Anschluss am Verteiler, und mehr Abgänge als Kreise
+   * gibt es nicht.
+   *
+   * Dass ein zerfallener Kreis in Wirklichkeit noch Rohr zwischen seinen
+   * Stücken braucht, bleibt gesagt: `complete` ist dann `false`, und `notes`
+   * nennt den Grund. Eine zu lange Anbindeleitung ist dafür keine Antwort.
+   *
+   * Angebunden wird das Stück, das dem Verteiler am nächsten liegt — dort
+   * fängt der Kreis an.
+   */
+  const jeKreis = new Map<number, FloorLoopCurve[]>();
   for (const curve of curves) {
-    const pts = curve.points;
-    if (pts.length < 2) continue;
-    if (distance(manifold, pts[pts.length - 1]) < distance(manifold, pts[0])) pts.reverse();
-    const weg = distance(manifold, pts[0]);
-    const laenge = 2 * weg;
+    const liste = jeKreis.get(curve.loop);
+    if (liste) liste.push(curve);
+    else jeKreis.set(curve.loop, [curve]);
+  }
+
+  for (const [loop, stuecke] of [...jeKreis.entries()].sort((a, b) => a[0] - b[0])) {
+    /** Je Stück der nähere der beiden Enden — und der Abstand dorthin. */
+    const bewertet = stuecke
+      .filter((c) => c.points.length >= 2)
+      .map((c) => {
+        const vorn = distance(manifold, c.points[0]);
+        const hinten = distance(manifold, c.points[c.points.length - 1]);
+        return { curve: c, abstand: Math.min(vorn, hinten), drehen: hinten < vorn };
+      })
+      .sort((a, b) => a.abstand - b.abstand);
+    const erstes = bewertet[0];
+    if (!erstes) continue;
+    // Der Kreis läuft vom Verteiler weg: Das angebundene Ende kommt nach vorn.
+    if (erstes.drehen) erstes.curve.points.reverse();
+    const laenge = 2 * erstes.abstand;
     supplyLines.push({
-      loop: curve.loop,
-      points: [{ ...manifold }, { ...pts[0] }],
+      loop,
+      points: [{ ...manifold }, { ...erstes.curve.points[0] }],
       length: round(laenge, 2),
     });
     supplyLength += laenge;

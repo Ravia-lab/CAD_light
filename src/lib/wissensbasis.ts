@@ -38,13 +38,25 @@ export type KorpusId =
   /** Hydraulikschemata und ihre Regeln. */
   | 'hydraulik'
   /** Entscheidungen und Annahmen dieses Programms. */
-  | 'projekt';
+  | 'projekt'
+  /**
+   * Inbetriebnahme, Optimierung, Wartung, Fehlersuche.
+   *
+   * **Warum das ein eigener Korpus ist.** Alles andere hier beschreibt, wie
+   * geplant und gerechnet wird. Dieser Korpus beschreibt, was **danach**
+   * kommt — und das ist nicht dieselbe Art Wissen: Der Monteur sucht dort
+   * nicht nach einer Formel, sondern nach einem Symptom („Spreizung zu
+   * hoch"), und will von dort zur Ursache geführt werden. Quelle ist das
+   * BDH/BWP-Infoblatt Nr. 62 und der BWP-Praxisratgeber.
+   */
+  | 'betrieb';
 
 export const KORPUS_LABELS: Record<KorpusId, string> = {
   normen: 'Normen und Recht',
   tabellen: 'Tabellenwerte',
   hydraulik: 'Hydraulikschemata',
   projekt: 'Programmentscheidungen',
+  betrieb: 'Inbetriebnahme und Betrieb',
 };
 
 /**

@@ -20,6 +20,7 @@
  */
 
 import type { Huellflaechenbilanz } from '../lib/huellflaechenbilanz';
+import type { NetzExport } from '../lib/netzExport';
 
 // ===========================================================================
 // Identifikatoren & Primitiven
@@ -2147,6 +2148,21 @@ export interface PipeSegment {
    */
   bends?: number;
   /**
+   * Knoten am Anfang und am Ende des Abschnitts — Nummern des Netzgraphen.
+   *
+   * **Warum sie am Abschnitt stehen müssen.** Ohne sie ist eine Wegliste eine
+   * Liste von Wegen und kein Netz: Zwei Fließwege, die über dieselbe
+   * Hauptleitung laufen, enthalten beide einen Abschnitt mit derselben
+   * Leitungskennung und derselben Länge — dass es **dasselbe Rohr** ist, lässt
+   * sich daran nicht erkennen. Mit dem Knotenpaar schon, und damit auch, wo
+   * sich das Netz verzweigt und was hinter der Verzweigung hängt.
+   *
+   * Die Nummern gelten innerhalb **einer** Netzauswertung; sie sind keine
+   * Kennungen am Dokument und überleben keine Änderung am Plan.
+   */
+  fromNode?: number;
+  toNode?: number;
+  /**
    * Armaturen auf diesem Abschnitt, nach Bauart.
    *
    * Sie stammen aus `doc.pipeAccessories` und ersetzen den pauschalen
@@ -4114,6 +4130,19 @@ export interface RaviaExport {
    * stehen weiterhin unverändert; eine Gegenstelle, die 2.0.0 oder 2.1.0
    * liest, rechnet ohne Änderung weiter.
    *
+   * **2.9.0** ergänzt `pipeGraph`: das Rohrnetz als **Netz** statt als Liste
+   * von Fließwegen — Knoten, Abschnitte mit Knotenpaar und Vorgänger,
+   * Innendurchmesser, Durchfluss, Druckverlust, Verbraucher je Abschnitt —
+   * und die **Flächenheizkreise** mit Kreislänge, versorgter Fläche,
+   * Verlegeabstand, Vorlauf und Spreizung, Volumenstrom, Verteiler samt
+   * Abgang und Raumzuordnung. Dazu `pipeNetwork.gemischtBeheizt`: Räume mit
+   * Heizkörper **und** Flächenheizung.
+   *
+   * Reiner Zuwachs; `hydraulics` und `emitters` bleiben unverändert. Der
+   * Anlass ist die Entscheidung der RaVia-Seite vom 01.10.2026, den eigenen
+   * Rohrnetzrechner entfallen zu lassen — ab dieser Fassung ist diese Datei
+   * die einzige Quelle des Rohrnetzes, und sie muss es vollständig tragen.
+   *
    * **2.8.0** ergänzt `project.annahmen`: die Angaben, die das Programm
    * angenommen hat, weil nichts vorlag — jede mit Wert, Begründung und
    * Zeitpunkt. Reiner Zuwachs; der Block fehlt, wenn nichts angenommen wurde.
@@ -4159,7 +4188,7 @@ export interface RaviaExport {
    * nichts; wer prüfen will, ob Boden, Decke und Dach angekommen sind, hat
    * jetzt eine Zahl statt einer Liste (Punkt 13).
    */
-  version: '2.8.0';
+  version: '2.9.0';
   generator: string;
   exportedAt: string;
   /** Einheiten explizit im Dokument — keine Konvention, die verloren gehen kann. */
@@ -4250,6 +4279,35 @@ export interface RaviaExport {
    * Fehlt, solange kein Rohrnetz gezeichnet ist.
    */
   hydraulics?: ExportHydraulics;
+  /**
+   * **Das Rohrnetz als Netz** — mit Knoten, Abschnitten und ihrer Reihenfolge,
+   * dazu die Flächenheizkreise. Seit 2.9.0.
+   *
+   * **Warum der Block nötig wurde.** Die RaVia-Seite hat am 01.10.2026
+   * entschieden, ihren eigenen Rohrnetzrechner entfallen zu lassen: Das
+   * Rohrnetz kommt künftig ausschließlich von hier. Damit genügt die
+   * Verbrauchersicht in `hydraulics` nicht mehr. Für den hydraulischen
+   * Abgleich braucht die Gegenstelle je Abschnitt Innendurchmesser,
+   * Durchfluss, Länge, angeschlossenen Verbraucher, Druckverlust — und
+   * ausdrücklich die **Topologie**: welcher Abschnitt auf welchen folgt, wo
+   * sich das Netz verzweigt, welcher Kreis an welchem Verteilerabgang hängt.
+   *
+   * Eine flache Liste von Fließwegen kann das nicht leisten: Dasselbe Rohr
+   * erscheint in jedem Weg, der darüber läuft, und dass es dasselbe ist, steht
+   * nirgends. Jeder Abschnitt trägt deshalb eine Kennung aus seinem
+   * Knotenpaar; zwei Wege über dieselbe Leitung nennen dieselbe Kennung.
+   *
+   * **Verhältnis zu `pipeNetwork`.** Der ältere Block bleibt unverändert: Er
+   * führt je Verbraucher den Weg zu seiner Quelle, und wer gegen ihn gebaut
+   * hat, liest weiter. `pipeGraph` ist dieselbe Wirklichkeit als Netz — jeder
+   * Abschnitt einmal, mit Vorgänger und Verzweigung. Seit 1.65.0 tragen auch
+   * die Abschnitte in `pipeNetwork` ihr Knotenpaar; damit lassen sich beide
+   * Sichten aufeinander abbilden.
+   *
+   * Reiner Zuwachs: `hydraulics` bleibt unverändert. Der Block fehlt, solange
+   * kein Rohrnetz gezeichnet und keine Flächenheizung gelegt ist.
+   */
+  pipeGraph?: NetzExport;
   rooms: ExportRoom[];
   totals: ExportBuildingTotals;
   /**
@@ -5508,6 +5566,21 @@ export interface PlantDefinition {
     /** Frostschutzanteil im Heizkreis [Vol-%]. */
     glycolFraction: number;
     glycolKind: 'ethylen' | 'propylen';
+    /**
+     * Heizgrenztemperatur [°C] — ab welcher Außentemperatur die Heizung aus
+     * bleibt.
+     *
+     * **Warum sie hier stehen muss.** Das BDH/BWP-Infoblatt Nr. 62 nennt sie
+     * als eine der wenigen Einstellgrößen, die der Monteur bei der
+     * Inbetriebnahme von Hand setzt, mit einem Bereich von 12 bis 18 °C je
+     * nach Dämmstandard: Ein gut gedämmtes Haus kommt mit 12 °C aus, ein
+     * unsaniertes braucht 18 °C. Steht sie zu hoch, läuft die Wärmepumpe im
+     * Frühjahr in kurzen Takten; steht sie zu tief, wird es morgens kalt.
+     *
+     * Optional, weil sie eine Einstellung am Gerät ist und keine Eigenschaft
+     * des Gebäudes — fehlt sie, behauptet das Programm nichts.
+     */
+    heatingLimit?: number;
   };
   /** Randbedingungen für die Sicherheitstechnik. */
   safety: {

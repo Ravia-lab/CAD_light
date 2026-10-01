@@ -3648,6 +3648,89 @@ export const WISSEN_KORPUS: WissensEintrag[] = [
     belastbarkeit: 'annahme',
     themen: ['programmannahme', 'ueberstroemventil'],
   },
+
+  // =========================================================================
+  // KORPUS 5 — INBETRIEBNAHME UND BETRIEB
+  //
+  // Die fehlende dritte Hälfte: Das Programm plant und rechnet, und was
+  // danach kommt, stand bisher nirgends. Quelle ist das Infoblatt Nr. 62
+  // „Inspektion, Wartung und Optimierung von Wärmepumpenanlagen" (BDH/BWP,
+  // März 2019) und der BWP-Praxisratgeber Modernisieren.
+  //
+  // Die Fehlerbäume sind das Eigentliche daran. Sie gehen vom **Symptom** aus
+  // — von dem, was der Monteur sieht —, nicht von der Ursache. Eine Tabelle
+  // mehr hätte niemandem geholfen.
+  // =========================================================================
+  {
+    id: 'betrieb-heizkurve-einstellen',
+    korpus: 'betrieb',
+    titel: 'Heizkurve einstellen — von unten herankommen',
+    text: 'Die Heizkurve wird bei vollständig geöffneten Raumtemperaturreglern eingestellt, ausgehend von einer niedrig eingestellten Kurve. Die Voreinstellung soll mindestens 3 K (Flächenheizungen) bis 5 K (Radiatoren) unter der Auslegungstemperatur liegen; danach wird in kleinen Schritten angehoben, bis die Räume ihre Solltemperatur halten. Die anfängliche Unterversorgung ist dabei erwünscht und nicht ein Fehler: Sie wird vom Nutzer bemerkt und gemeldet, eine Überwärmung dagegen nicht — die kostet nur Arbeitszahl, und zwar dauerhaft. Voraussetzung für die ganze Optimierung ist der hydraulische Abgleich; ohne ihn verteilt jede Absenkung die Wärme nur anders falsch.',
+    schlagworte: ['Heizkurve', 'Optimierung', 'Inbetriebnahme', 'Unterversorgung', 'Raumtemperaturregler'],
+    quelle: 'Infoblatt Nr. 62 „Inspektion, Wartung und Optimierung von Wärmepumpenanlagen", BDH/BWP, März 2019',
+    belastbarkeit: 'sekundaer',
+    themen: ['inbetriebnahme', 'optimierung'],
+  },
+  {
+    id: 'betrieb-heizgrenze',
+    korpus: 'betrieb',
+    titel: 'Heizgrenztemperatur — 12 bis 18 °C je nach Dämmstandard',
+    text: 'Die Heizgrenztemperatur ist die Außentemperatur, ab der die Heizung ausbleibt. Sie liegt je nach Dämmstandard zwischen 12 und 18 °C: Ein gut gedämmtes Gebäude kommt mit 12 °C aus, ein unsanierter Bestand braucht 18 °C. Zu hoch eingestellt läuft die Wärmepumpe im Frühjahr und Herbst in kurzen Takten, zu tief eingestellt wird es morgens im Übergang kalt. Eine Nachtabsenkung ist bei nassverlegten Fußbodenheizungen nicht sinnvoll — die Masse des Estrichs braucht länger zum Wiederaufheizen, als die Absenkung einspart.',
+    schlagworte: ['Heizgrenze', 'Heizgrenztemperatur', 'Nachtabsenkung', 'Takten', 'Dämmstandard'],
+    quelle: 'Infoblatt Nr. 62, BDH/BWP, März 2019',
+    belastbarkeit: 'sekundaer',
+    themen: ['inbetriebnahme', 'optimierung'],
+  },
+  {
+    id: 'betrieb-fehlerbaum-heizkreis',
+    korpus: 'betrieb',
+    titel: 'Fehlerbaum Heizkreis — vom Symptom zur Ursache',
+    text: 'Ungleichmäßige Erwärmung der Räume: zuerst den hydraulischen Abgleich prüfen, dann die Voreinstellung der Thermostatventile, dann die Heizkurve. Spreizung zu hoch bei richtiger Vorlauftemperatur: Volumenstrom zu klein — Pumpenstufe, verschmutzter Filter, geschlossene Absperrung, Luft im Kreis. Spreizung zu klein: Volumenstrom zu groß, meist ein Überströmventil, das zu weit offen ist, oder eine zu hohe Pumpenstufe. Druckabfall über Tage: Leckage oder Luftabscheidung aus dem Füllwasser; über Stunden dagegen meist nur Abkühlung der Anlage. Vorlauftemperatur erreicht den Sollwert nicht: Verdichterleistung, Volumenstrom oder Wärmequelle prüfen — in dieser Reihenfolge.',
+    schlagworte: ['Fehlerbaum', 'Heizkreis', 'Spreizung', 'Druckabfall', 'ungleichmäßig', 'Störung'],
+    quelle: 'Infoblatt Nr. 62, BDH/BWP, März 2019, Fehlerbaum Heizkreis',
+    belastbarkeit: 'sekundaer',
+    themen: ['fehlersuche'],
+  },
+  {
+    id: 'betrieb-fehlerbaum-solekreis',
+    korpus: 'betrieb',
+    titel: 'Fehlerbaum Solekreis — vom Symptom zur Ursache',
+    text: 'Soleaustrittstemperatur zu niedrig: Die Quelle ist zu klein ausgelegt oder die Entzugsleistung zu hoch — beides zeigt sich über die Heizperiode hinweg, nicht an einem Tag. Spreizung im Solekreis zu hoch: Volumenstrom zu klein, also Pumpenstufe, Filter, Absperrungen und Luft prüfen. Druckabfall im Solekreis: Leckage oder Nachlösen von Luft; der Solekreis ist dabei der kritischere von beiden, weil ein Leck Frostschutzmittel in den Boden bringt. Vereisung am Verdampfer: Volumenstrom oder Soletemperatur zu niedrig. Zu niedriger Glykolanteil zeigt sich als Gefrierpunkt über der Betriebstemperatur — messen, nicht schätzen.',
+    schlagworte: ['Fehlerbaum', 'Solekreis', 'Vereisung', 'Glykol', 'Entzugsleistung', 'Störung'],
+    quelle: 'Infoblatt Nr. 62, BDH/BWP, März 2019, Fehlerbaum Solekreis',
+    belastbarkeit: 'sekundaer',
+    themen: ['fehlersuche'],
+  },
+  {
+    id: 'betrieb-fehlerbaum-warmwasser',
+    korpus: 'betrieb',
+    titel: 'Fehlerbaum Warmwassererwärmung — vom Symptom zur Ursache',
+    text: 'Spreizung im Warmwasser-Ladekreis über 10 K ist ein Fehlerindiz: Die Wärmeübertragerfläche des Speichers ist zu klein — der BWP-Leitfaden Hydraulik verlangt mindestens 0,25 m² je kW — oder die Ladepumpe fördert zu wenig. Speichertemperatur wird nicht erreicht: Ladezeit, Umschaltventil, Ladepumpe und Übertragerfläche prüfen. Warmwasser wird zu langsam warm: Ladeleistung oder Speichergröße. Zapftemperatur schwankt: Verbrühschutz oder Zirkulation prüfen. Eine Spreizung über 10 K im Ladekreis meldet das Programm in der Modellprüfung, weil sie aus der Auslegung ablesbar ist, bevor die Anlage läuft.',
+    schlagworte: ['Fehlerbaum', 'Warmwasser', 'Ladekreis', 'Spreizung', 'Übertragerfläche', 'Störung'],
+    quelle: 'Infoblatt Nr. 62, BDH/BWP, März 2019, Fehlerbaum Warmwassererwärmung; BWP-Leitfaden Hydraulik, August 2023',
+    belastbarkeit: 'sekundaer',
+    themen: ['fehlersuche'],
+  },
+  {
+    id: 'betrieb-wartung',
+    korpus: 'betrieb',
+    titel: 'Wartung — was je Bauart zu prüfen ist',
+    text: 'Bei jeder Bauart: Anlagendruck, Sicherheitsventil, Ausdehnungsgefäß, Filter und Schmutzfänger, Dichtheit der Verschraubungen, Betriebs- und Störmeldungen, Zählerstände. Luft/Wasser zusätzlich: Verdampferlamellen reinigen, Kondensatablauf frei und frostfrei, Lüfterlager, Aufstellung auf Verschmutzung und Verwehung prüfen. Sole/Wasser zusätzlich: Soledruck, Gefrierpunkt des Gemisches messen, Soleverteiler und Absperrungen, Dichtheit gegen Erdreich. Wasser/Wasser zusätzlich: Brunnenwasserqualität, Schluckbrunnen auf Verockerung, Filter vor dem Verdampfer. Zum Abschluss in allen Fällen die elektrische Prüfung nach VDE 0701-0702.',
+    schlagworte: ['Wartung', 'Inspektion', 'Kondensatablauf', 'VDE 0701-0702', 'Verockerung', 'Gefrierpunkt'],
+    quelle: 'Infoblatt Nr. 62, BDH/BWP, März 2019, Wartungslisten',
+    belastbarkeit: 'sekundaer',
+    themen: ['inbetriebnahme'],
+  },
+  {
+    id: 'betrieb-vdi4645-ablauf',
+    korpus: 'betrieb',
+    titel: 'VDI 4645 — der Ablauf von der Voruntersuchung bis zur Detailplanung',
+    text: 'Die VDI 4645 beschreibt die Schritte einer Wärmepumpenplanung von der Voruntersuchung über die Grobauslegung bis zur Detailplanung; der dena/Fraunhofer-ISE/BWP-Praxisleitfaden für Mehrfamilienhäuser verweist für den Ablauf ausdrücklich auf sie. Für die Absenkung der Heizkreistemperatur im Bestand nennt derselbe Leitfaden die Kette: raumweise Heizlastberechnung durchführen, Anpassung der Heizflächen prüfen, Heizkurve absenken, hydraulischen Abgleich durchführen — und davor die Bestandsdaten wohnungsweise erheben, weil bauliche Änderungen in Plänen nicht verlässlich notiert sind. Genau diese Kette bilden CAD Light und RaVia zusammen ab: die Aufnahme und die Heizflächenprüfung hier, die Norm-Heizlast dort.',
+    schlagworte: ['VDI 4645', 'Ablauf', 'Voruntersuchung', 'Detailplanung', 'Mehrfamilienhaus', 'Bestandsdaten'],
+    quelle: 'Praxisleitfaden „Wärmepumpen in Mehrfamilienhäusern", dena/Fraunhofer ISE/BWP/GdW, 03/2024, mit Verweis auf VDI 4645',
+    belastbarkeit: 'sekundaer',
+    themen: ['inbetriebnahme'],
+  },
 ];
 
 /** Recherchestand der drei Berichte, aus denen dieser Korpus stammt. */

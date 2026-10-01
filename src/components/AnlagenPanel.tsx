@@ -1003,7 +1003,30 @@ export default function AnlagenPanel() {
         <div className="grid grid-cols-2 gap-2">
           <Num label="Vorlauf" unit="°C" term="spreizung" value={plant.design.flowTemperature} onChange={(v) => updatePlant({ design: { flowTemperature: v } })} />
           <Num label="Rücklauf" unit="°C" value={plant.design.returnTemperature} onChange={(v) => updatePlant({ design: { returnTemperature: v } })} />
+          {/*
+            * Die Heizgrenztemperatur — die Außentemperatur, ab der die Heizung
+            * aus bleibt. Sie wird bei der Inbetriebnahme von Hand gesetzt und
+            * stand bisher nirgends im Programm, obwohl das BDH/BWP-Infoblatt
+            * Nr. 62 sie als eine der wenigen Einstellgrößen nennt, die der
+            * Monteur wirklich entscheidet: 12 °C bei gutem Dämmstandard,
+            * 18 °C im unsanierten Bestand.
+            *
+            * Leer heißt „nicht erfasst" und nicht 0 °C — eine 0 wäre eine
+            * Aussage, und zwar eine falsche. Die Modellprüfung sagt, dass sie
+            * fehlt.
+            */}
+          <Num
+            label="Heizgrenze"
+            unit="°C"
+            step={0.5}
+            value={plant.design.heatingLimit ?? 15}
+            onChange={(v) => updatePlant({ design: { heatingLimit: v } })}
+          />
         </div>
+        <p className="mt-1 text-[9.5px] leading-relaxed text-slate-500">
+          Heizgrenze: 12 bis 18 °C je nach Dämmstandard (BDH/BWP-Infoblatt Nr. 62). Zu hoch
+          eingestellt taktet die Wärmepumpe im Frühjahr, zu tief wird es morgens im Übergang kalt.
+        </p>
 
         {/*
           * Die maßgebliche Systemtemperatur — dieselbe Zahl, mit der

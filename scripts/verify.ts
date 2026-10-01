@@ -71,6 +71,8 @@ import { pruefeVerbrauchsabgleich } from './pruefungen/verbrauchsabgleich';
 import { pruefeBaugrube } from './pruefungen/baugrube';
 import { pruefeScandatei } from './pruefungen/scandatei';
 import { pruefeDoppelwaende } from './pruefungen/doppelwaende';
+import { pruefePrimaerkreis, pruefeAnlagenhinweise, pruefeInbetriebnahme } from './pruefungen/primaerkreis';
+import { pruefeNetzexport } from './pruefungen/netzexport';
 import { pruefeAufnahme } from './pruefungen/aufnahme';
 import { pruefeWissensbasis } from './pruefungen/wissensbasis';
 import { pruefeGeschossdecken } from './pruefungen/geschossdecken';
@@ -733,7 +735,7 @@ console.log('\n▸ Export für die Heizlastberechnung');
   };
 
   const ex = buildRaviaExport(doc as never);
-  check('Schema-Version', ex.version, '2.8.0');
+  check('Schema-Version', ex.version, '2.9.0');
   check('Einheiten dokumentiert', ex.units.uValue, 'W/(m2K)');
 
   const room = ex.rooms.find((r) => r.polygon.some((p) => p.x < 4))!;
@@ -3896,6 +3898,10 @@ pruefeBaugrube(check);
 pruefeScandatei(check);
 pruefeAufnahme(check);
 pruefeDoppelwaende(check);
+pruefePrimaerkreis(check);
+pruefeAnlagenhinweise(check);
+pruefeInbetriebnahme(check);
+pruefeNetzexport(check);
 
 console.log('\n▸ Wissensbasis — Wortnormalisierung, Rangfusion, Korpus');
 pruefeWissensbasis(check);

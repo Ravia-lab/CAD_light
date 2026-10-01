@@ -115,6 +115,7 @@ import {
 } from './thermalBridges';
 import { buildPipeNetwork } from './pipeNetwork';
 import { buildEmitters, buildHydraulics } from './auslegungExport';
+import { baueNetzExport } from './netzExport';
 import { balanceNetwork } from './hydraulicBalance';
 import { designPlant } from './plantDesign';
 import {
@@ -182,10 +183,15 @@ export function buildRaviaExport(doc: BimDocument): RaviaExport {
    * Erzeuger wäre eine Behauptung.
    */
   const erzeuger = designPlant(doc, {}).generator;
-  const hydraulik =
+  /*
+   * Der Abgleich wird **einmal** gerechnet und zweimal benutzt: für
+   * `hydraulics` (Verbrauchersicht) und für `pipeGraph` (Netzsicht). Zwei
+   * Läufe würden zwei Zahlensätze ergeben, die sich unterscheiden dürfen und
+   * es irgendwann täten.
+   */
+  const abgleich =
     netz.paths.length > 0
-      ? buildHydraulics(
-          balanceNetwork({
+      ? balanceNetwork({
             network: netz,
             fixtures: doc.fixtures,
             ...(auslegung
@@ -196,25 +202,26 @@ export function buildRaviaExport(doc: BimDocument): RaviaExport {
                   maxGradient: auslegung.maxGradient,
                 }
               : {}),
-            // Derselbe Verbraucherwiderstand wie im Anlagenblatt — sonst
-            // stünde im Export ein anderer ungünstigster Strang als auf dem
-            // Bildschirm, und beide wären „richtig".
-            terminalLoss: 10000,
-          }),
-          erzeuger,
-        )
+          // Derselbe Verbraucherwiderstand wie im Anlagenblatt — sonst
+          // stünde im Export ein anderer ungünstigster Strang als auf dem
+          // Bildschirm, und beide wären „richtig".
+          terminalLoss: 10000,
+        })
       : undefined;
+  const hydraulik = abgleich ? buildHydraulics(abgleich, erzeuger) : undefined;
+  const graph = baueNetzExport(doc, netz, abgleich);
 
   return {
     schema: 'ravia.bim.light',
     // 2.3.0: Hüllflächenbilanz je Raum und für das Gebäude (`envelope`).
     // 2.4.0: `envelope.withoutUValue` — wie viele Flächen ohne brauchbaren
     //        U-Wert in die Bilanz gingen. Reiner Zuwachs.
+    // 2.9.0: `pipeGraph` — Knoten, Abschnitte, Topologie, Flächenheizkreise.
     // 2.8.0: `project.annahmen` — was angenommen wurde, weil nichts vorlag.
     //        Reiner Zuwachs; ändert keinen Wert, sondern sagt, welcher nicht
     //        gemessen ist. Die vollständige Fassungsgeschichte steht an
     //        `RaviaExport` in `src/types/bim.ts`.
-    version: '2.8.0',
+    version: '2.9.0',
     generator: GENERATOR,
     exportedAt: new Date().toISOString(),
     units: {
@@ -259,6 +266,12 @@ export function buildRaviaExport(doc: BimDocument): RaviaExport {
     pipeNetwork: netz,
     emitters: buildEmitters(doc),
     ...(hydraulik ? { hydraulics: hydraulik } : {}),
+    /*
+     * Das Rohrnetz als Netz — seit 2.9.0, auf ausdrückliche Anforderung der
+     * RaVia-Seite. Der Block entsteht nur, wenn es etwas zu übergeben gibt:
+     * ein leeres Netz wäre dieselbe Aussage in mehr Zeichen.
+     */
+    ...(graph.segments.length || graph.floorCircuits.length ? { pipeGraph: graph } : {}),
     ...(Object.keys(doc.site?.pumps ?? {}).length || Object.keys(doc.site?.elements ?? {}).length
       ? { heatPump: buildHeatPumpExport(doc) }
       : {}),

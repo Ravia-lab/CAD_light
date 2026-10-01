@@ -26,6 +26,7 @@ import { BAUTEIL_BEZEICHNUNG, VORGABE_U, istErfasst, uWertOeffnung, uWertWand } 
 import { documentBridgeHeatLoss, envelopeArea } from './thermalBridges';
 import { buildPipeNetwork } from './pipeNetwork';
 import { acousticReport, protectionIssues, protectionStatus, sourceDemand, waterProtectionVerdict } from './heatPump';
+import { anlagenHinweise } from './anlagenhinweise';
 import { dichtheitspflicht } from './kaeltemittel';
 import { estimateHeatLoad } from './heatLoadEstimate';
 import { heizlastAusBaualter, heizlastAusVerbrauch, verbrauchsabgleich } from './verbrauchsabgleich';
@@ -62,6 +63,12 @@ export const REMEDIES: Record<string, string> = {
   'plant.estimated-load':
     'Die Norm-Heizlast aus RaVia im Reiter „Anlage" oben eintragen. Alle Folgegrößen rechnen sich sofort neu.',
   'plant.spread': 'Im Reiter „Anlage" unter „Verteilung" den Rücklauf unter den Vorlauf setzen — üblich sind 5 bis 8 K Abstand.',
+  'plant.flow-55':
+    'Im Bestand zuerst die Heizflächen prüfen: Wo die Heizlast je Raum vorliegt, zeigt das Raumbuch, welcher Heizkörper für 55 °C zu klein ist — oft sind es zwei oder drei im ganzen Haus. Erst danach die Auslegungstemperatur im Reiter „Anlage" senken.',
+  'plant.dhw-spread':
+    'Im Reiter „Anlage" den Rücklauf des Trinkwasser-Ladekreises näher an den Vorlauf setzen. Bleibt die Spreizung im Betrieb groß, ist die Wärmeübertragerfläche des Speichers zu klein (Leitfaden: mindestens 0,25 m² je kW) oder die Ladepumpe fördert zu wenig.',
+  'plant.heating-limit':
+    'Im Reiter „Anlage" unter „Verteilung" die Heizgrenze eintragen: 12 °C bei gutem Dämmstandard, 15 °C im Mittel, 18 °C im unsanierten Bestand.',
   'plant.load-crosscheck':
     'Im Reiter „Anlage" unter „Gegenprobe" steht der Rechenweg beider Zahlen. Nachzusehen sind zuerst die U-Werte und der Wärmebrückenzuschlag, dann ob alle beheizten Räume auch als beheizt geführt sind — und ob im abgelesenen Verbrauch die Trinkwassererwärmung steckt.',
   'plant.dhw-temperature': 'Speichertemperatur im Reiter „Anlage" senken und stattdessen eine wöchentliche Aufheizung vorsehen.',
@@ -1180,6 +1187,26 @@ export function validateModel(doc: BimDocument): ValidationReport {
             'plant.spread',
             `Vorlauf ${plant.design.flowTemperature} °C und Rücklauf ${plant.design.returnTemperature} °C ergeben keine Spreizung. Ohne Temperaturdifferenz ist der Volumenstrom rechnerisch unendlich.`,
           );
+        }
+        /*
+         * Drei Befunde aus Schwellen der BWP- und BDH-Unterlagen: die
+         * 55-°C-Schranke, die Spreizung im Trinkwasser-Ladekreis und die
+         * Heizgrenztemperatur. Gerechnet werden sie in
+         * `src/lib/anlagenhinweise.ts` — dort stehen sie als Zahlen und sind
+         * dort einzeln geprüft, statt in dieser Schleife zu verschwinden.
+         */
+        for (const h of anlagenHinweise({
+          vorlauf: plant.design.flowTemperature,
+          heizgrenze: plant.design.heatingLimit,
+          vorhaben: doc.meta.vorhaben,
+          kreise: Object.values(plant.circuits).map((k) => ({
+            label: k.label,
+            istTrinkwasser: k.kind === 'dhw',
+            flowTemperature: k.flowTemperature,
+            returnTemperature: k.returnTemperature,
+          })),
+        })) {
+          add(h.severity, h.code, h.message);
         }
         if (plant.design.dhwTemperature > 60 && plant.dhw.units <= 2) {
           add(

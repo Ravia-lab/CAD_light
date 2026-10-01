@@ -2,7 +2,7 @@
 <h2 id="k17">17 · Schnittstellen: Export, IFC, Einbettung in RaVia</h2>
 <p class="lead">Alles, was dieses Programm tut, läuft auf eine Datei zu: die Übergabe an die Heizlastberechnung. Dieses Kapitel sagt, was in dieser Datei steht, welche anderen Wege es daneben gibt — IFC4 hin und zurück, Einbettung in RaVia, der Rückweg von dort — und was der Betrieb davon merkt.</p>
 
-<h3 id="k17-1">17.1 Der Export <code>ravia.bim.light</code> 2.8.0</h3>
+<h3 id="k17-1">17.1 Der Export <code>ravia.bim.light</code> 2.9.0</h3>
 
 <p class="wo">Im Programm: Werkzeugleiste oben rechts → blauer Knopf <b>RaVia JSON</b>. Der Knopf trägt den Hinweis „Gebäudedaten als RaVia-BIM-JSON exportieren (DIN EN 12831) — dient zugleich als Projektdatei".</p>
 
@@ -380,7 +380,24 @@
 
 <p>Der Anlass ist die Aufnahme Zimmer für Zimmer (<a href="#k2-7">Abschnitt 2.7</a>): Dort darf auf jede Frage „weiß ich nicht" die Antwort sein, und das Programm rechnet mit einem Anhaltswert weiter. Für die Gegenstelle ist das ein Unterschied, den sie sonst nicht sehen könnte — ein angenommenes Badmaß sieht im Modell genau aus wie ein nachgemessenes.</p>
 
-<div class="merke"><b>Merke</b><p>Alle acht Schritte sind <b>additiv</b>. Eine Gegenstelle, die gegen 2.0.0 gebaut hat, liest eine 2.8.0-Datei ohne Änderung und rechnet dasselbe wie vorher. Sie bekommt nur weniger Auskunft. Wer die neuen <code>kind</code>-Werte nicht kennt, behandelt sie wie bisher jede Verletzung.</p></div>
+<p><b>2.9.0</b> brachte gegenüber 2.8.0 <code>pipeGraph</code> — <b>das Rohrnetz als Netz</b> und die <b>Flächenheizkreise</b>:</p>
+
+<ul>
+<li><code>pipeGraph.nodes</code> — die Knoten des Netzes, jeder mit seiner Art: <code>source</code>, <code>branch</code>, <code>consumer</code>, <code>passage</code>, und der Zahl seiner Abgänge.</li>
+<li><code>pipeGraph.segments</code> — jeder Abschnitt <b>genau einmal</b>, mit <code>fromNode</code>, <code>toNode</code>, <code>parentId</code> (der Abschnitt davor in Fließrichtung), <code>length</code>, <code>innerDiameter</code>, <code>nominalDiameter</code>, <code>material</code>, <code>insulation</code>, <code>flow</code>, <code>velocity</code>, <code>lossPa</code>, <code>consumers</code> (wer dahinter hängt), <code>source</code> und <code>riser</code>.</li>
+<li><code>pipeGraph.floorCircuits</code> — je Flächenheizkreis <code>loopLength</code>, <code>fieldLength</code>, <code>supplyLength</code>, <code>servedArea</code>, <code>roomArea</code>, <code>spacing</code>, <code>flowTemperature</code>, <code>spread</code>, <code>flow</code>, <code>loops</code>, <code>manifoldId</code>, <code>manifoldPort</code>, <code>roomId</code>, <code>complete</code>.</li>
+<li><code>pipeGraph.mixedHeating</code> — Räume mit Heizkörper <b>und</b> Flächenheizung, mit der Zahl beider.</li>
+</ul>
+
+<p><b>Warum das nötig wurde.</b> Die RaVia-Seite hat am 01.10.2026 entschieden, ihren eigenen Rohrnetzrechner entfallen zu lassen: Das Rohrnetz kommt künftig ausschließlich aus dieser Datei. Damit genügt die Verbrauchersicht nicht mehr. <code>hydraulics</code> nennt je Verbraucher Strom, Leistung und Druckverlust, und <code>pipeNetwork</code> führt je Verbraucher den Weg zu seiner Quelle — dasselbe Rohr erscheint also in jedem Weg, der darüber läuft, ohne dass erkennbar ist, dass es dasselbe ist. Ein Netz lässt sich daraus nicht zusammensetzen.</p>
+
+<p><b>Wie die Topologie zustande kommt.</b> Jeder Abschnitt trägt sein <b>Knotenpaar</b>. Zwei Wege über dieselbe Leitung nennen dasselbe Paar — damit ist der Abschnitt identifizierbar, die Reihenfolge ist die Fließrichtung, und eine Verzweigung ist ein Knoten mit mehr als einem Abgang. Dieselben Knoten stehen seit 1.65.0 auch an den Abschnitten in <code>pipeNetwork</code>, damit beide Sichten aufeinander abbildbar sind.</p>
+
+<div class="merke"><b>Merke</b><p>Zwei Zahlen am Abschnitt verlangen Aufmerksamkeit. <b>Der Durchfluss ist die Summe dahinter:</b> Im Fließweg eines Verbrauchers steht sein eigener Strom — so rechnet der Abgleich, und so steht es auf dem VdZ-Formular. Physikalisch führt die Hauptleitung die Summe aller Verbraucher dahinter, und genau diese Summe steht in <code>flow</code>, die Liste <code>consumers</code> daneben macht sie prüfbar. <b>Der Druckverlust steht nur, wo er eindeutig ist:</b> Er hängt am Fließweg; ein Abschnitt mit drei Verbrauchern hat in drei Strängen drei Werte. Bei genau einem Verbraucher dahinter steht <code>lossPa</code>, sonst fehlt es — eine von drei Zahlen als „die“ Zahl auszugeben wäre schlimmer als keine. Die Stranggesamtwerte stehen unverändert in <code>hydraulics</code>.</p></div>
+
+<p>Reiner Zuwachs: <code>hydraulics</code>, <code>emitters</code> und <code>pipeNetwork</code> bleiben unverändert. Der Block fehlt, solange kein Rohrnetz gezeichnet und keine Flächenheizung gelegt ist. Siehe <a href="#k9-4-0">Abschnitt 9.4.0</a>.</p>
+
+<div class="merke"><b>Merke</b><p>Alle neun Schritte sind <b>additiv</b>. Eine Gegenstelle, die gegen 2.0.0 gebaut hat, liest eine 2.9.0-Datei ohne Änderung und rechnet dasselbe wie vorher. Sie bekommt nur weniger Auskunft. Wer die neuen <code>kind</code>-Werte nicht kennt, behandelt sie wie bisher jede Verletzung.</p></div>
 
 <h4 id="k17-1-7">17.1.7 Der Wächter über dem Format</h4>
 

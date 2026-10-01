@@ -48,7 +48,7 @@ const RAUCHTESTS = [
   'ui', 'feat', 'export', 'griffe', 'ebenen', 'scan', 'ux', 'handwerker',
   'tablet', 'wp', 'raum', 'anlage', 'rohrnetz', 'schema', 'uebersicht', 'fragen', 'anlagendialog', 'entfernen', 'spiegeln',
   'tueren', 'mappe', 'leisten', 'sprache', 'loeschen', 'ring', 'bestand',
-  'geschosse', 'embed', 'round2', 'druck', 'fbh3d', 'bild', 'aufnahme',
+  'geschosse', 'embed', 'round2', 'druck', 'fbh3d', 'bild', 'aufnahme', 'fbh',
 ];
 
 const farbe = { rot: '\u001b[31m', gruen: '\u001b[32m', grau: '\u001b[90m', aus: '\u001b[0m' };

@@ -130,4 +130,38 @@ export function pruefeHandbuchstand(check: CheckFn): void {
      */
     check(`Handbuchstand · keine Sprungmarke fehlt im Paket${fehlend.length ? ` (${fehlend.slice(0, 5).join(', ')})` : ''}`, fehlend.length, 0);
   }
+
+  // --- 3 · Jede Fassung steht genau einmal, und nur in 18.6 ------------------
+  /*
+   * **Warum das hier steht.** Die Patchliste wird aus der Fassungsgeschichte
+   * erzeugt (`scripts/patchliste.mjs`). Beim ersten Lauf kam sie auf eine
+   * Fassung zu viel: Eine Zeile der Fassungsgeschichte war in die
+   * **Glossartabelle** von Abschnitt 18.1 geraten — 1.29.1 stand dort hinter
+   * „Zirkulation" als Begriff mit der Erklärung „nur Fehlerkorrekturen".
+   * Im ausgelieferten Handbuch war das zu lesen, und niemandem aufgefallen.
+   *
+   * Geprüft wird deshalb am **Quelltext** des Kapitels: Eine Tabellenzeile,
+   * deren erste Zelle wie eine Fassungsnummer aussieht, gehört in die
+   * Fassungsgeschichte und sonst nirgendwohin — und keine Fassung darf
+   * zweimal vorkommen, sonst zählt die Patchliste falsch.
+   */
+  {
+    const quelle = readFileSync(join(quellen, 'kap-18.html'), 'utf8');
+    const marke = quelle.indexOf('id="k18-6"');
+    check('Handbuchstand · Abschnitt 18.6 ist auffindbar', marke > 0, true);
+
+    const zeilen = [...quelle.matchAll(/<tr><td>(\d+\.\d+\.\d+)<\/td>/g)];
+    check('Handbuchstand · es gibt Fassungszeilen', zeilen.length > 50, true);
+
+    const davor = zeilen.filter((m) => (m.index ?? 0) < marke).map((m) => m[1]);
+    check(`Handbuchstand · keine Fassungszeile vor 18.6${davor.length ? ` (${davor.join(', ')})` : ''}`, davor.length, 0);
+
+    const gesehen = new Set<string>();
+    const doppelt = new Set<string>();
+    for (const m of zeilen) {
+      if (gesehen.has(m[1])) doppelt.add(m[1]);
+      gesehen.add(m[1]);
+    }
+    check(`Handbuchstand · keine Fassung zweimal${doppelt.size ? ` (${[...doppelt].join(', ')})` : ''}`, doppelt.size, 0);
+  }
 }

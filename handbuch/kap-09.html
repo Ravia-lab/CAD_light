@@ -98,6 +98,41 @@
 
 <div class="merke"><b>Merke</b><p>Der Ausleger ersetzt <b>nur</b> die von ihm selbst erzeugten Leitungen und Armaturen des aktiven Geschosses. Von Hand gezogene Leitungen bleiben stehen. Wer eine Trasse selbst gelegt hat, hat sich etwas dabei gedacht — das darf ein Knopf nicht wegwischen.</p></div>
 
+<h4 id="k9-4-0">9.4.0 Die Fußbodenheizung wird mit ausgelegt</h4>
+
+<p>Im <b>Neubaumodus</b> legt der Ausleger nicht nur die Verteilleitungen, sondern
+<b>auch die Fußbodenheizung selbst</b>. Er belegt dabei jeden <b>beheizten Raum,
+in dem noch keine Heizfläche steht</b>, mit Heizkreisen — mit Verlegeabstand,
+Kreiszahl, Verlegekurve, Rohrlänge und Anbindung an den Verteiler.</p>
+
+<p><b>Warum nur im Neubaumodus.</b> Dieser Modus bedeutet Verlegung im
+Fußbodenaufbau; „Sanierung“ bedeutet Sockelleistenkanal mit Heizkörpern. Eine
+Fußbodenheizung dort zu erfinden wäre eine falsche Aussage über das Gebäude.</p>
+
+<p><b>Was übergangen wird — und warum.</b> Ein Raum, in dem schon ein Heizkörper
+hängt, bekommt keine Fußbodenheizung dazu. Zwei Heizflächen mit verschiedenen
+Systemtemperaturen im selben Raum sind eine Entscheidung, die jemand treffen
+muss; stillschweigend fällt sie nicht. Ebenso übergangen werden unbeheizte
+Räume, Räume ohne geschlossenen Umriss und solche, in denen nach Randabstand
+und Einbauten keine belegbare Fläche übrig bleibt. Die Statuszeile nennt, wie
+viele Räume belegt wurden und wie viel Fläche das war.</p>
+
+<p><b>Der Heizkreisverteiler wird gesetzt, wenn keiner da ist.</b> Eine
+Fußbodenheizung hängt immer an einem Verteiler — ohne ihn bricht die
+Trassierung mit genau dieser Meldung ab. Gesetzt wird er in den <b>Flur</b>:
+Von dort gehen die Türen ab, also sind alle Räume kurz erreichbar, und jeder
+Meter weiter kostet zwei Meter Anbindeleitung. Gibt es keinen Flur, kommt der
+Technikraum; gibt es auch den nicht, der Raum, dessen Mitte dem Schwerpunkt des
+Geschosses am nächsten liegt. Verschieben lässt sich das Symbol jederzeit.</p>
+
+<p><b>Es wird über alle Geschosse ausgelegt</b>, nicht nur über das sichtbare —
+wie bei den Steigleitungen (<a href="#k9-10">Abschnitt 9.10</a>). Jeder Kreis
+liegt dabei auf dem Geschoss seines Raums.</p>
+
+<div class="merke"><b>Merke</b><p>Erst mit den Kreisen stehen auch die <b>Rohrlängen</b> da: Rohr in der Fläche, Rohr in den Anbindeleitungen, Kreiszahl je Verlegeabstand, belegte Fläche und der Randdämmstreifen aus dem Raumumfang. Sie gehen in den Massenauszug (<a href="#k14-6">Abschnitt 14.6</a>) und in die Übergabe an RaVia (<a href="#k17-1">Abschnitt 17.1</a>). Vor 1.65.0 musste die Fußbodenheizung Raum für Raum von Hand belegt werden; wer das nicht wusste, bekam ein Rohrnetz für die Heizkörper und sonst nichts.</p></div>
+
+<div class="baustelle"><b>Auf der Baustelle heißt das</b><p>Beim Neubau genügt: Grundriss zeichnen, Räume benennen, beheizt/unbeheizt setzen — dann <b>Für Neubau auslegen</b>. Danach stehen Kreise, Verteiler, Trassen und die Bestellmengen da. Wo Sie einen Heizkörper wollen, setzen Sie ihn <b>vorher</b>; dann bleibt dieser Raum von der Flächenheizung frei.</p></div>
+
 <h4 id="k9-4-1">9.4.1 Neubau gegen Sanierung</h4>
 
 <p>Die Wahl steht am Anfang und bestimmt alles Weitere: Trassenführung, Verlegehöhe, zulässige Rohrdurchmesser, Dämmpflicht und die Bauteile, die in den Massenauszug gehen. Es sind <b>nicht zwei Einstellungen desselben Problems, sondern zwei verschiedene Probleme.</b></p>

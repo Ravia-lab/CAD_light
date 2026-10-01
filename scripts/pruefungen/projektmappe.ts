@@ -94,6 +94,7 @@ const KAPITELFOLGE: readonly MappeKapitelId[] = [
   'pumpe',
   'massenauszug',
   'anlagenbuch',
+  'inbetriebnahme',
   'quellen',
   'nachweis',
 ];
@@ -147,7 +148,7 @@ export function pruefeProjektmappe(check: CheckFn): void {
   check('Blattbereich: zwei getrennte Läufe', blattBereich([1, 2, 5, 6, 9]), '1–2, 5–6, 9');
 
   // --- Kapitelgerüst -------------------------------------------------------
-  check('Die Mappe hat elf Kapitel', mappe.kapitel.length, 11);
+  check('Die Mappe hat zwölf Kapitel', mappe.kapitel.length, KAPITELFOLGE.length);
   check(
     'Kapitel stehen in der festgelegten Reihenfolge',
     mappe.kapitel.map((k) => k.id).join(','),
@@ -338,9 +339,9 @@ export function pruefeProjektmappe(check: CheckFn): void {
   check('Das Deckblatt grenzt die Ausführungsplanung aus', deckblatt.includes('Ausführungsplanung'), true);
 
   // --- Nachweiskatalog -----------------------------------------------------
-  const nachweis = blattHtml(mappe.html, mappe.kapitel[10].blaetter[0]);
+  const nachweis = blattHtml(mappe.html, mappe.kapitel[11].blaetter[0]);
   const nachweisText = nurText(nachweis);
-  check('Der Nachweiskatalog steht auf dem letzten Blatt', mappe.kapitel[10].blaetter[0], mappe.blaetter.length);
+  check('Der Nachweiskatalog steht auf dem letzten Blatt', mappe.kapitel[11].blaetter[0], mappe.blaetter.length);
   check(
     'Er führt alle sieben Pflichtangaben',
     bericht.nachweis.every((n) => nachweisText.includes(n.forderung)),
@@ -397,7 +398,7 @@ export function pruefeProjektmappe(check: CheckFn): void {
   // Das Kapitel bleibt stehen und nennt den Grund. Eine weggelassene Nummer
   // sähe aus wie ein verlorenes Blatt.
   const ohneSchema = buildProjektMappe(roh, { datum: '01.01.2026' });
-  check('Auch ohne Schema entstehen elf Kapitel', ohneSchema.kapitel.length, 11);
+  check('Auch ohne Schema entstehen zwölf Kapitel', ohneSchema.kapitel.length, KAPITELFOLGE.length);
   check(
     'Das Schemakapitel meldet die Lücke',
     ohneSchema.kapitel.find((k) => k.id === 'schema')?.inhalt ?? true,
@@ -440,7 +441,7 @@ export function pruefeProjektmappe(check: CheckFn): void {
     },
     { datum: '01.01.2026' },
   );
-  check('Auch aus einem leeren Modell entstehen elf Kapitel', leer.kapitel.length, 11);
+  check('Auch aus einem leeren Modell entstehen zwölf Kapitel', leer.kapitel.length, KAPITELFOLGE.length);
   check('Das leere Modell ergibt trotzdem Blätter', leer.blaetter.length > 0, true);
   check('Die Blattnummern bleiben lückenlos', leer.blaetter.every((b, i) => b.nr === i + 1), true);
   check(
@@ -484,7 +485,7 @@ export function pruefeProjektmappe(check: CheckFn): void {
     bericht,
     omit: ['anlagenbuch', 'massenauszug'],
   });
-  check('Weggelassene Kapitel fehlen in der Übersicht', ohneBuch.kapitel.length, 9);
+  check('Weggelassene Kapitel fehlen in der Übersicht', ohneBuch.kapitel.length, KAPITELFOLGE.length - 2);
   check(
     'Die Kapitelnummern bleiben nach dem Weglassen lückenlos',
     ohneBuch.kapitel.every((k, i) => k.nummer === i + 1),

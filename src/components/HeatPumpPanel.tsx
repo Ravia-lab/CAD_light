@@ -37,6 +37,7 @@ import {
   waterProtectionVerdict, protectionStatus} from '../lib/heatPump';
 import { KAELTEMITTEL, KLASSENTEXT, dichtheitspflicht, kaeltemittel } from '../lib/kaeltemittel';
 import { anschlussVonGeraet, nennweiteAusText, NENNWEITE_GEWINDE } from '../lib/anschlussgroesse';
+import { primaerauslegung } from '../lib/primaerkreis';
 import { findModel } from '../lib/deviceCatalog';
 import { useBimStore } from '../store/useBimStore';
 import Erklaerung from './Erklaerung';
@@ -81,6 +82,17 @@ export default function HeatPumpPanel() {
     [pump],
   );
   const demand = useMemo(() => (pump ? sourceDemand(doc, pump) : undefined), [doc, pump]);
+  /*
+   * Die Primärseite wird nach der Kälteleistung ausgelegt, nicht nach der
+   * Heizleistung — und für die drei Spreizungen, die der Leitfaden nennt.
+   */
+  const primaer = useMemo(
+    () => [3, 4, 5].map((spreizung) => ({
+      spreizung,
+      auslegung: primaerauslegung(pump?.heatingCapacity ?? 0, pump?.cop ?? 0, spreizung),
+    })),
+    [pump?.heatingCapacity, pump?.cop],
+  );
   const water = useMemo(
     () => (pump ? waterProtectionVerdict(site.waterProtection, pump.source) : undefined),
     [site.waterProtection, pump],
@@ -633,6 +645,42 @@ export default function HeatPumpPanel() {
                   {demand.flowRate !== undefined && (
                     <Readout label="Fördermenge nötig" value={`${fmt(demand.flowRate, 2)} m³/h`} accent />
                   )}
+
+                  {/*
+                      Der einzustellende Volumenstrom der Primärseite — die
+                      Zahl, die am Sole-Verteiler eingestellt wird. Sie fehlte
+                      im Programm vollständig: Die Entzugsleistung darüber ist
+                      dieselbe Größe wie die Kälteleistung aus Gleichung (2)
+                      des BWP-Leitfadens, aber aus ihr wurde nie ein Strom
+                      gebildet.
+
+                      Gezeigt werden die drei Spreizungen, die der Leitfaden
+                      für die Primärseite bei maximaler Kälteleistung nennt,
+                      jede mit dem Tabellenwert daneben. Keine davon ist
+                      vorausgewählt — welche gilt, sagt das Datenblatt des
+                      Geräts, nicht dieses Programm.
+                  */}
+                  <div className="mt-2 border-t border-white/[0.07] pt-2">
+                    <div className="label-xs mb-1">Primärkreis einstellen</div>
+                    {primaer.map((p) => (
+                      <Readout
+                        key={p.spreizung}
+                        label={`${p.spreizung} K Spreizung`}
+                        value={`${fmt(p.auslegung.volumenstromLh, 0)} l/h`}
+                        accent={p.spreizung === 4}
+                      />
+                    ))}
+                    <p className="mt-1 text-[9.5px] leading-relaxed text-slate-500">
+                      Gerechnet mit Wasser bei 0 °C aus der Kälteleistung
+                      {' '}{fmt(primaer[1].auslegung.kaelteleistungKw, 2)} kW
+                      (Q̇<sub>c</sub> = Q̇<sub>H</sub> · (1 − 1/COP), Gleichung 2 des
+                      BWP-Leitfadens Hydraulik). Bezogen sind das
+                      {' '}{fmt(primaer[1].auslegung.bezogenLhKw, 0)} l/h je kW; Tabelle 1 des
+                      Leitfadens nennt {primaer[1].auslegung.tabelleLhKw} l/h je kW.
+                      <b className="text-slate-400"> Mit Frostschutz fließt mehr</b> — um den
+                      Faktor, den das Anlagenblatt unter Sicherheitstechnik ausweist.
+                    </p>
+                  </div>
                   <p
                     className={`mt-1.5 text-[9.5px] leading-relaxed ${
                       demand.sufficient ? 'text-emerald-400/70' : 'text-amber-300/80'

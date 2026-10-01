@@ -120,7 +120,7 @@ import { zieheHeizflaechenNach } from '../lib/heizflaechenAbgleich';
 import { rohrlaenge } from '../lib/rohrlaenge';
 import { istHeizflaeche } from '../lib/heizflaechenLeistung';
 import { hinweiseZuRaeumen, leseVerworfene, type RaumverlustHinweis } from '../lib/verworfeneRaeume';
-import { hatAusgangspunkt, schlageErzeugerVor } from '../lib/erzeugerplatz';
+import { hatAusgangspunkt, schlageErzeugerVor, schlageVerteilerVor } from '../lib/erzeugerplatz';
 import { heizkoerperplatz, PLATZ_TEXT } from '../lib/heizkoerperplatz';
 import {
   DEFAULT_EDGE_CLEARANCE,
@@ -1930,6 +1930,15 @@ function belegeRaum(get: () => BimState, roomId: string): FloorLoopBatchResult |
   });
 
   const erstellt = get().addFixture('underfloor', room.centroid, {
+    /*
+     * **Das Geschoss kommt vom Raum, nicht vom Bildschirm.** `addFixture`
+     * setzt sonst das aktive Geschoss — solange dieser Weg nur über die
+     * TGA-Palette lief, war das dasselbe. Seit die Trassenauslegung das
+     * **ganze Gebäude** belegt, ist es das nicht mehr: Die Kreise des
+     * Obergeschosses lägen im Erdgeschoss, und im Plan sähe man es nicht.
+     * Dieselbe Falle wie bei den Raumangaben in 1.42.0.
+     */
+    levelId: room.levelId,
     roomId: room.id,
     // Das Objekt steht für die ganze Raumfläche; als Griff für die Auswahl
     // reicht ein kleines Feld in der Raummitte. Die Ausdehnung steckt im
@@ -4168,9 +4177,60 @@ export const useBimStore = create<BimState>()((set, get) => {
       }),
 
     legeRohrnetzAus: (mode, anordnung) => {
-      const s = get();
       let anzahlDurchbrueche = 0;
       let ohneRegelmass = 0;
+      /*
+       * --- Die Flächenheizung wird mit ausgelegt --------------------------
+       *
+       * **Was vorher fehlte.** Diese Aktion hat Trassen zu dem gelegt, was
+       * dastand — und für einen Neubau mit Fußbodenheizung stand nichts da.
+       * Die Kreise mussten vorher Raum für Raum über die TGA-Palette belegt
+       * werden; wer das nicht wusste, bekam ein Rohrnetz für die Heizkörper
+       * und sonst nichts. Damit fehlten auch die Rohrlängen, die Kreiszahl,
+       * der Randdämmstreifen und die Verteilerabgänge — also alles, was eine
+       * Flächenheizung ausmacht.
+       *
+       * **Nur im Neubaumodus.** Dieser Modus *bedeutet* Verlegung im
+       * Fußbodenaufbau; „Sanierung" bedeutet Sockelleistenkanal mit
+       * Heizkörpern, und dort wäre eine erfundene Fußbodenheizung eine
+       * falsche Aussage über das Gebäude.
+       *
+       * **Übergangen wird, was schon eine Heizfläche hat.** Zwei Heizflächen
+       * mit verschiedenen Systemtemperaturen in einem Raum sind eine
+       * Entscheidung, die niemandem stillschweigend untergeschoben wird
+       * (siehe `layAllFloorLoops`).
+       */
+      let fbhRaeume = 0;
+      let fbhFlaeche = 0;
+      let fbhVerteiler = 0;
+      if (mode === 'neubau') {
+        const geschosse = Object.values(get().doc.levels).sort((a, b) => a.order - b.order);
+        for (const geschoss of geschosse) {
+          const bericht = get().layAllFloorLoops(geschoss.id);
+          fbhRaeume += bericht.laid.length;
+          fbhFlaeche += bericht.laid.reduce((sum, r) => sum + r.area, 0);
+          /*
+           * Ohne Verteiler hängt eine Fußbodenheizung an nichts — die
+           * Trassierung bricht dann mit genau dieser Meldung ab. Statt den
+           * Anwender in eine Fehlermeldung laufen zu lassen, wird der
+           * Verteiler dort gesetzt, wo er hingehört (siehe
+           * `schlageVerteilerVor`); verschieben lässt er sich danach.
+           */
+          if (bericht.laid.length > 0 && !bericht.manifold) {
+            const vorschlag = schlageVerteilerVor(get().doc, geschoss.id);
+            if (vorschlag) {
+              const gesetzt = get().addFixture('manifold', vorschlag.position, {
+                levelId: vorschlag.levelId,
+                roomId: vorschlag.roomId,
+                label: `HKV ${geschoss.name}`,
+              });
+              if (gesetzt) fbhVerteiler += 1;
+            }
+          }
+        }
+      }
+
+      const s = get();
       /*
        * Ausgelegt wird das **Gebäude**, nicht nur das sichtbare Geschoss.
        *
@@ -4264,6 +4324,14 @@ export const useBimStore = create<BimState>()((set, get) => {
             `${anzahlDurchbrueche} ${anzahlDurchbrueche === 1 ? 'Durchbruch' : 'Durchbrüche'}` +
             (ergebnis.geschosse.length > 1
               ? ` · ${ergebnis.geschosse.length} Geschosse, ${ergebnis.straenge.length} Steigleitung(en)`
+              : '') +
+            // Was die Flächenheizung beigetragen hat, steht vorne in der
+            // Meldung — es ist das Auffälligste am Ergebnis.
+            (fbhRaeume > 0
+              ? ` · Fußbodenheizung in ${fbhRaeume} ${fbhRaeume === 1 ? 'Raum' : 'Räumen'} (${fbhFlaeche.toFixed(1).replace('.', ',')} m²)`
+              : '') +
+            (fbhVerteiler > 0
+              ? ` · ${fbhVerteiler} ${fbhVerteiler === 1 ? 'Verteiler' : 'Verteiler'} gesetzt`
               : ''),
       });
       return ergebnis;

@@ -108,6 +108,133 @@ export function sammleVerlegekurven(doc: BimDocument, levelId: LevelId): Verlege
 }
 
 /**
+ * Was eine raumfüllende Fußbodenheizung an Material verlangt.
+ *
+ * **Warum es diese Bilanz gibt.** Die Verlegekurven wurden gerechnet, um sie
+ * zu *zeichnen* — im Plan und im Modell. Ihre Längen gingen dabei nirgends
+ * hin: Der Massenauszug kannte nur zwei Wege zu einer Rohrlänge, die
+ * vollständige Auslegung im Anlagenblatt und die von Hand gepflegten Felder
+ * „Kreiszahl × Kreislänge". Wer die Fußbodenheizung im Grundriss gelegt hatte
+ * — der kürzeste und häufigste Weg —, bekam im Massenauszug die Zeile
+ * „Bauart nach Objektangabe, nicht ausgelegt" mit dem Vermerk, dass Rohrlänge
+ * und Randdämmstreifen fehlen. Für eine Bestellung ist das wertlos.
+ *
+ * Gerechnet wird hier **nichts Neues**: Dieselbe Kurve, dieselbe Funktion,
+ * dieselben Zahlen wie im Bild. Nur zusammengezählt.
+ */
+export interface Verlegebilanz {
+  roomId: string;
+  raum: string;
+  levelId: LevelId;
+  /** Verlegeabstand [m]. */
+  abstand: number;
+  /** Zahl der Kreise. */
+  kreise: number;
+  /** Rohr in der Fläche [m] — nur die geraden Bahnen. */
+  feldLaenge: number;
+  /** Rohr insgesamt in der Fläche [m], einschließlich der Kehren. */
+  flaechenLaenge: number;
+  /** Rohr in den Anbindeleitungen zum Verteiler [m]; 0 ohne Verteiler. */
+  anbindung: number;
+  /** Rohr zusammen [m] = Fläche + Anbindung. */
+  gesamtLaenge: number;
+  /** Belegte Fläche [m²] — nach Randabstand und Einbauten. */
+  belegteFlaeche: number;
+  /** Lichte Grundfläche des Raums [m²]. */
+  raumFlaeche: number;
+  /** Umfang des Raums [m] — das Maß für den Randdämmstreifen. */
+  umfang: number;
+  /** Hing die Verlegung an einem Verteiler? */
+  amVerteiler: boolean;
+  /** Ließ sich jeder Kreis als ein Zug legen? */
+  vollstaendig: boolean;
+}
+
+/** Umfang eines geschlossenen Polygonzugs [m]. */
+function umfangVon(punkte: readonly Vec2[]): number {
+  let u = 0;
+  for (let i = 0; i < punkte.length; i++) {
+    const a = punkte[i];
+    const b = punkte[(i + 1) % punkte.length];
+    u += Math.hypot(b.x - a.x, b.y - a.y);
+  }
+  return u;
+}
+
+/**
+ * Die Bilanz je Raum — für ein Geschoss oder, ohne Angabe, für das ganze Haus.
+ *
+ * Über alle Geschosse zu rechnen ist der Regelfall: Bestellt wird für das
+ * Gebäude, nicht für die Etage, die gerade auf dem Bildschirm steht. Genau
+ * dieser Unterschied war in der Auslegung der Grund dafür, dass die
+ * Steigleitung fehlte (1.43.0).
+ */
+export function verlegebilanz(doc: BimDocument, levelId?: LevelId): Verlegebilanz[] {
+  const geschosse = levelId ? [levelId] : Object.keys(doc.levels);
+  const raus: Verlegebilanz[] = [];
+  for (const g of geschosse) {
+    for (const k of sammleVerlegekurven(doc, g)) {
+      const room = k.fixture.roomId ? doc.rooms[k.fixture.roomId] : undefined;
+      if (!room) continue;
+      raus.push({
+        roomId: room.id,
+        raum: room.name,
+        levelId: g,
+        abstand: k.layout.spacing,
+        kreise: k.layout.loops,
+        feldLaenge: k.layout.fieldLength,
+        flaechenLaenge: k.layout.totalLength,
+        anbindung: k.layout.supplyLength,
+        gesamtLaenge: k.layout.totalLength + k.layout.supplyLength,
+        belegteFlaeche: k.layout.layableArea,
+        raumFlaeche: k.layout.grossArea,
+        umfang: umfangVon(room.innerPolygon),
+        amVerteiler: k.layout.manifoldConnected,
+        vollstaendig: k.layout.complete,
+      });
+    }
+  }
+  return raus;
+}
+
+/** Summen über eine Bilanz — was in eine Bestellung geht. */
+export interface Verlegesumme {
+  raeume: number;
+  kreise: number;
+  /** Rohr zusammen [m], einschließlich Anbindeleitungen. */
+  rohr: number;
+  /** Rohr nur in der Fläche [m]. */
+  rohrFlaeche: number;
+  /** Rohr nur in den Anbindungen [m]. */
+  rohrAnbindung: number;
+  belegteFlaeche: number;
+  /** Randdämmstreifen [m] — Summe der Raumumfänge. */
+  randstreifen: number;
+  /** Kreise je Verlegeabstand [m] — getrennt, weil getrennt bestellt wird. */
+  kreiseJeAbstand: Map<number, number>;
+  /** Räume ohne Verteileranbindung — dort fehlt die Anbindelänge. */
+  ohneVerteiler: string[];
+}
+
+export function verlegesumme(bilanz: readonly Verlegebilanz[]): Verlegesumme {
+  const kreiseJeAbstand = new Map<number, number>();
+  for (const b of bilanz) {
+    kreiseJeAbstand.set(b.abstand, (kreiseJeAbstand.get(b.abstand) ?? 0) + b.kreise);
+  }
+  return {
+    raeume: bilanz.length,
+    kreise: bilanz.reduce((s, b) => s + b.kreise, 0),
+    rohr: bilanz.reduce((s, b) => s + b.gesamtLaenge, 0),
+    rohrFlaeche: bilanz.reduce((s, b) => s + b.flaechenLaenge, 0),
+    rohrAnbindung: bilanz.reduce((s, b) => s + b.anbindung, 0),
+    belegteFlaeche: bilanz.reduce((s, b) => s + b.belegteFlaeche, 0),
+    randstreifen: bilanz.reduce((s, b) => s + b.umfang, 0),
+    kreiseJeAbstand,
+    ohneVerteiler: bilanz.filter((b) => !b.amVerteiler).map((b) => b.raum),
+  };
+}
+
+/**
  * Die Verlegekurven als reine Linienzüge — für das Modell.
  *
  * Anbindeleitungen sind dabei, denn im Modell sind sie zu sehen: Sie laufen

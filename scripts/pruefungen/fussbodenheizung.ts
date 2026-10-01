@@ -479,7 +479,21 @@ export function pruefeFussbodenheizung(check: CheckFn): void {
   // Verteiler links vom Raum (der Raum liegt bei x = 0 … 6).
   const verteilerLinks: Vec2 = { x: -1, y: 2 };
   const mitVerteiler = planFloorLoops(raum, { spacing: a, loops: 1, pattern: 'maeander', manifold: verteilerLinks });
-  check('Mit Verteiler entsteht je Kreis eine Anbindeleitung', mitVerteiler.supplyLines.length, mitVerteiler.curves.length);
+  check('Mit Verteiler entsteht je Kreis eine Anbindeleitung', mitVerteiler.supplyLines.length, mitVerteiler.loops);
+  /*
+   * **Je Kreis eine, auch wenn der Kreis zerfällt.** Bis 1.65.0 wurde je
+   * Kurvenstück angebunden; im Demo-Bad standen damit 74,6 m Anbindung neben
+   * 65,0 m Rohr in der Fläche — bei einem einzigen Kreis. Ein Kreis hat genau
+   * einen Abgang am Verteiler, und mehr Abgänge als Kreise gibt es nicht.
+   */
+  check('… und niemals mehr Anbindungen als Kreise',
+    mitVerteiler.supplyLines.length <= mitVerteiler.loops, true);
+  check('… auch bei zerfallener Form',
+    mitVerteiler.curves.length >= mitVerteiler.supplyLines.length, true);
+  // Jede Anbindung gehört zu einem anderen Kreis — zwei für denselben wären
+  // zwei Abgänge für einen Kreis.
+  check('… jede Anbindung zu einem anderen Kreis',
+    new Set(mitVerteiler.supplyLines.map((l) => l.loop)).size, mitVerteiler.supplyLines.length);
   check('… und sie zählt zur Kreislänge', mitVerteiler.circuitLength, mitVerteiler.totalLength + mitVerteiler.supplyLength, 0.01);
   check('… die Kreislänge liegt über der Rohrlänge im Raum', mitVerteiler.circuitLength > mitVerteiler.totalLength, true);
   // Vor- und Rücklauf gehen denselben Weg: die Länge ist der doppelte Abstand.

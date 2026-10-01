@@ -60,6 +60,7 @@ import { plantOf } from './plantDefaults';
 import { GENERATOR, buildRaviaExport } from './raviaExport';
 import { BELASTBARKEIT_LABELS, KORPUS_LABELS, type KorpusId, type WissensEintrag } from './wissensbasis';
 import { druckeDokument } from './druckFenster';
+import { inbetriebnahmeblatt, type Quellenart } from './inbetriebnahme';
 
 // ---------------------------------------------------------------------------
 // Öffentliche Typen
@@ -78,6 +79,7 @@ export type MappeKapitelId =
   | 'pumpe'
   | 'massenauszug'
   | 'anlagenbuch'
+  | 'inbetriebnahme'
   | 'quellen'
   | 'nachweis';
 
@@ -382,6 +384,9 @@ function innerHtml(dokument: string, tag: string): string {
 /** Eine Überschrift im Kapitel. */
 const h2 = (text: string): string => `<h2>${escapeHtml(text)}</h2>`;
 const h3 = (text: string): string => `<h3>${escapeHtml(text)}</h3>`;
+/** Eine Aufzählung — die Reihenfolge trägt Bedeutung, deshalb numeriert. */
+const liste = (zeilen: readonly string[]): string =>
+  zeilen.length ? `<ol class="schritte">${zeilen.map((z) => `<li>${escapeHtml(z)}</li>`).join('')}</ol>` : '';
 const p = (text: string): string => `<p>${escapeHtml(text)}</p>`;
 
 interface Spalte {
@@ -538,12 +543,23 @@ export function buildProjektMappe(doc: BimDocument, optionen: ProjektMappeOption
     buchStil = anlagenbuchBlaetter(doc, bericht, format, projektName, anlagenName, bearbeiter, optionen.datum, entwuerfe, kopf);
   }
 
-  // --- Kapitel 10: Quellenverzeichnis --------------------------------------
+  // --- Kapitel 10: Inbetriebnahme und Optimierung ---------------------------
+  if (!omit.has('inbetriebnahme')) {
+    entwuerfe.push({
+      kapitel: 'inbetriebnahme',
+      titel: 'Inbetriebnahme, Optimierung, Wartung',
+      art: 'text',
+      inhalt: inbetriebnahmeBlatt(doc),
+    });
+    kopf('inbetriebnahme', 'Inbetriebnahme, Optimierung und Wartung', true);
+  }
+
+  // --- Kapitel 11: Quellenverzeichnis --------------------------------------
   if (!omit.has('quellen')) {
     quellenBlaetter(bericht, blattmass, entwuerfe, kopf);
   }
 
-  // --- Kapitel 11: Nachweiskatalog -----------------------------------------
+  // --- Kapitel 12: Nachweiskatalog -----------------------------------------
   if (!omit.has('nachweis')) {
     entwuerfe.push({
       kapitel: 'nachweis',
@@ -1486,6 +1502,85 @@ function quellenBlaetter(
  * bewertet; sie kommen unverändert aus `nachweisPunkte` im Bericht. Eine
  * zweite Bewertung derselben Forderung wäre eine zweite Wahrheit.
  */
+/**
+ * Das Blatt für das, was **nach** der Planung kommt.
+ *
+ * **Warum es in die Mappe gehört.** Dieses Programm plant und rechnet; die
+ * Inbetriebnahme stand bisher nirgends. Das BDH/BWP-Infoblatt Nr. 62 hat dafür
+ * eine ungewöhnlich klare Vorschrift, und die Zahlen, aus denen die
+ * Einstellwerte folgen, kennt das Modell längst: Auslegungstemperatur,
+ * Übergabeart, Spreizung des Ladekreises, Bauart der Wärmequelle.
+ *
+ * Gerechnet statt abgeschrieben — aus „45/35 °C, Flächenheizung" wird
+ * „Einstieg bei 42 °C" und kein Merksatz. Die Wartungsliste zeigt nur die
+ * Zeilen, die zur Bauart gehören: Eine Liste, in der neben dem Verdampfer der
+ * Luftwärmepumpe auch der Schluckbrunnen steht, wird nicht gelesen.
+ */
+function inbetriebnahmeBlatt(doc: BimDocument): string {
+  const plant = plantOf(doc);
+  const kreise = Object.values(plant.circuits ?? {});
+  const flaeche = kreise.some((k) => k.kind === 'floor');
+  const radiator = kreise.some((k) => k.kind === 'radiator' || k.kind === 'wall' || k.kind === 'fancoil');
+  const fbhImPlan = Object.values(doc.fixtures).some((f) => f.type === 'underfloor');
+  const ladekreis = kreise.find((k) => k.kind === 'dhw');
+  // Die Wärmepumpe des Grundstücks — es gibt sie als Verzeichnis, weil eine
+  // Kaskade mehrere führt; für die Wartungsliste zählt die erste.
+  const pumpe = Object.values(doc.site?.pumps ?? {})[0];
+  const quelle: Quellenart =
+    pumpe?.source === 'groundwater' ? 'wasser' : pumpe?.source === 'air' || !pumpe ? 'luft' : 'sole';
+
+  const blatt = inbetriebnahmeblatt({
+    vorlauf: plant.design.flowTemperature,
+    ruecklauf: plant.design.returnTemperature,
+    uebergabe:
+      (flaeche || fbhImPlan) && radiator ? 'gemischt' : flaeche || fbhImPlan ? 'flaeche' : 'radiator',
+    // Eine raumfüllende Flächenheizung in diesem Programm liegt im Estrich —
+    // eine Trockenbauvariante kennt das Modell nicht.
+    nassverlegt: flaeche || fbhImPlan,
+    quelle,
+    ...(plant.design.heatingLimit !== undefined ? { heizgrenze: plant.design.heatingLimit } : {}),
+    ...(ladekreis ? { ladekreisSpreizung: ladekreis.flowTemperature - ladekreis.returnTemperature } : {}),
+    // Einstellwerte gerechnet heißt: Der Abgleich liegt vor.
+    abgeglichen: Object.keys(plant.circuits ?? {}).length > 0,
+  });
+
+  return (
+    h2('Inbetriebnahme, Optimierung und Wartung') +
+    p(
+      'Dieses Blatt beschreibt, was nach der Montage zu tun ist. Die Einstellwerte sind aus der ' +
+        'Auslegung dieses Projekts gerechnet und nicht abgeschrieben; Grundlage ist das Infoblatt ' +
+        'Nr. 62 „Inspektion, Wartung und Optimierung von Wärmepumpenanlagen" (BDH/BWP, März 2019). ' +
+        'Es ist eine Verbandsempfehlung und keine Verordnung — Fristen stehen im Vertrag und im ' +
+        'Datenblatt des Geräts.',
+    ) +
+    kasten(blatt.vorbedingungen[0]) +
+    h3('Vorbedingungen') +
+    liste(blatt.vorbedingungen.slice(1)) +
+    h3('Einstellwerte aus dieser Auslegung') +
+    tabelle(
+      [
+        { titel: 'Größe', breite: '42mm' },
+        { titel: 'Wert', breite: '34mm' },
+        { titel: 'Woraus das folgt' },
+        { titel: 'Quelle', breite: '46mm' },
+      ],
+      blatt.einstellwerte.map((e) => [
+        `<strong>${escapeHtml(e.was)}</strong>`,
+        `<strong>${escapeHtml(e.wert)}</strong>`,
+        escapeHtml(e.herleitung),
+        escapeHtml(e.quelle),
+      ]),
+    ) +
+    h3('Anfahren und Optimieren — in dieser Reihenfolge') +
+    liste(blatt.schritte) +
+    h3(`Wartung — ${quelle === 'luft' ? 'Luft/Wasser' : quelle === 'sole' ? 'Sole/Wasser' : 'Wasser/Wasser'}`) +
+    liste(blatt.wartung.map((z) => z.text)) +
+    (blatt.luecken.length
+      ? kasten(`Offen: ${blatt.luecken.join(' · ')}. Diese Angaben fehlen im Modell und gehören vor der Inbetriebnahme ergänzt.`)
+      : '')
+  );
+}
+
 function nachweisBlatt(bericht: RohrnetzBericht): string {
   const offen = bericht.nachweis.filter((n) => !n.erfuellt);
   const urteil = berichtsUrteil(bericht);

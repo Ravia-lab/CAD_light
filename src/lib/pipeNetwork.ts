@@ -608,6 +608,9 @@ export function buildPipeNetwork(doc: BimDocument): PipeNetworkReport {
         material: step.edge.material,
         outerDiameter: step.edge.outerDiameter,
         accessories: step.edge.accessories.length ? [...step.edge.accessories] : undefined,
+        // Das Knotenpaar macht aus Wegen ein Netz — siehe `PipeSegment`.
+        fromNode: step.from,
+        toNode: cursor,
       });
       kette.push({ from: step.from, to: cursor, riser: step.edge.runId.startsWith('riser-') });
       cursor = step.from;

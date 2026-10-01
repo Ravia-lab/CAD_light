@@ -81,6 +81,71 @@ export function hatAusgangspunkt(doc: BimDocument): boolean {
  * `levelId` ist das Geschoss, auf dem der Anwender gerade arbeitet; gesucht
  * wird trotzdem zuerst unten, weil dort der Heizraum liegt.
  */
+/**
+ * Wo der **Heizkreisverteiler** eines Geschosses hingehört.
+ *
+ * **Warum das eine eigene Frage ist.** Der Erzeuger steht unten, möglichst
+ * nahe am Hausanschluss — deshalb sucht `schlageErzeugerVor` von unten nach
+ * oben und nimmt den Technikraum. Der Verteiler steht dagegen **mittig im
+ * Geschoss, das er versorgt**: Jeder Meter, den er von einem Raum entfernt
+ * ist, kostet zwei Meter Anbindeleitung, bevor im Raum das erste Rohr liegt.
+ * Der Flur ist deshalb die erste Wahl, und zwar nicht aus Gewohnheit: Von ihm
+ * gehen die Türen ab, also sind von ihm aus alle Räume kurz erreichbar.
+ *
+ * Rangfolge: Flur → Technik- oder Hausanschlussraum → der Raum, dessen Mitte
+ * dem Schwerpunkt des Geschosses am nächsten liegt. Geraten wird die Lage
+ * **im** Raum nicht: Der Punkt ist ein sicherer innerer Punkt, und verschieben
+ * lässt sich das Symbol danach jederzeit.
+ */
+export function schlageVerteilerVor(doc: BimDocument, levelId: string): Erzeugervorschlag | undefined {
+  const raeume = Object.values(doc.rooms).filter((r) => r.levelId === levelId && brauchbar(r));
+  if (!raeume.length) return undefined;
+  const name = doc.levels[levelId]?.name ?? 'Geschoss';
+
+  const flur = raeume.filter((r) => r.usage === 'hallway').sort((a, b) => b.area - a.area)[0];
+  if (flur) {
+    return {
+      position: innererPunkt(flur.innerPolygon),
+      roomId: flur.id,
+      levelId,
+      ort: `${flur.name}, ${name}`,
+      grund: 'Flur — von dort gehen die Türen ab, also sind alle Räume kurz erreichbar. Jeder Meter weiter kostet zwei Meter Anbindeleitung.',
+    };
+  }
+
+  const technik = raeume.filter((r) => TECHNIK.has(r.usage)).sort((a, b) => b.area - a.area)[0];
+  if (technik) {
+    return {
+      position: innererPunkt(technik.innerPolygon),
+      roomId: technik.id,
+      levelId,
+      ort: `${technik.name}, ${name}`,
+      grund: 'Kein Flur auf diesem Geschoss — der Technikraum ist der nächstbeste Ort für einen Verteiler.',
+    };
+  }
+
+  // Der Raum, dessen Mitte dem Schwerpunkt des Geschosses am nächsten liegt.
+  const mitte = raeume.reduce(
+    (a, r) => ({ x: a.x + r.centroid.x * r.area, y: a.y + r.centroid.y * r.area, g: a.g + r.area }),
+    { x: 0, y: 0, g: 0 },
+  );
+  const schwerpunkt = { x: mitte.x / mitte.g, y: mitte.y / mitte.g };
+  const zentral = raeume
+    .slice()
+    .sort(
+      (a, b) =>
+        Math.hypot(a.centroid.x - schwerpunkt.x, a.centroid.y - schwerpunkt.y) -
+        Math.hypot(b.centroid.x - schwerpunkt.x, b.centroid.y - schwerpunkt.y),
+    )[0];
+  return {
+    position: innererPunkt(zentral.innerPolygon),
+    roomId: zentral.id,
+    levelId,
+    ort: `${zentral.name}, ${name}`,
+    grund: `Kein Flur und kein Technikraum — „${zentral.name}" liegt dem Schwerpunkt des Geschosses am nächsten und hält damit die Anbindeleitungen kurz.`,
+  };
+}
+
 export function schlageErzeugerVor(doc: BimDocument, levelId?: string): Erzeugervorschlag | undefined {
   const geschosse = Object.values(doc.levels).sort((a, b) => a.order - b.order);
   if (!geschosse.length) return undefined;

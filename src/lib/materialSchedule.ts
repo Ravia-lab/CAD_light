@@ -65,6 +65,7 @@ import { rohrlaenge, steiganteil } from './rohrlaenge';
 import { rohrbezeichnungLang } from './rohrbezeichnung';
 import { herkunftText, uWertOeffnung, uWertWand, type UWertAuskunft } from './uwert';
 import { findModel } from './deviceCatalog';
+import { verlegebilanz, verlegesumme } from './fussbodenkurven';
 import { plantOf } from './plantDefaults';
 import { buildSchematic, type CircuitDesign, type PlantDesignResult, type RoomLoopDesign } from './plantDesign';
 import { buildComponentTable, type ComponentTableRow } from './schematicPrint';
@@ -709,6 +710,45 @@ function floorSourceFromSheet(doc: BimDocument, circuit: HeatingCircuit): FloorS
 }
 
 /** Liefert `true`, wenn die Flächenheizung aus einer Auslegung stammt. */
+/**
+ * Die Flächenheizung aus den **gezeichneten Verlegekurven**.
+ *
+ * **Warum dieser Weg dazukommt.** Es gab zwei Wege zu einer Rohrlänge: die
+ * vollständige Auslegung (`floorSourceFromDesign`) und die von Hand
+ * gepflegten Felder „Kreiszahl × Kreislänge" im Anlagenblatt
+ * (`floorSourceFromSheet`). Der häufigste Weg fehlte: Wer im Grundriss auf
+ * einen Raum tippt und ihn belegen lässt, hat eine vollständige Verlegung —
+ * Bahnen, Kehren, Anbindeleitungen, alles aus dem Raumpolygon gerechnet —,
+ * und bekam im Massenauszug trotzdem „nicht ausgelegt, Rohrlänge fehlt".
+ *
+ * Die Zahlen kommen aus derselben Funktion, die die Kurven zeichnet. Es ist
+ * dieselbe Verlegung, die im Plan liegt, und keine zweite Rechnung.
+ *
+ * **Was weiterhin fehlt und auch dasteht:** die Rohrdimension. Sie folgt aus
+ * dem Druckverlust und damit aus der Auslegung; ein Verlegeabstand sagt
+ * nichts über 16 × 2 oder 17 × 2.
+ */
+function floorSourceFromCurves(doc: BimDocument): FloorSource | undefined {
+  const bilanz = verlegebilanz(doc);
+  if (!bilanz.length) return undefined;
+  const summe = verlegesumme(bilanz);
+  const geschosse = new Set(bilanz.map((b) => b.levelId)).size;
+
+  return {
+    label: 'Flächenheizung im Grundriss',
+    origin:
+      `Verlegekurven aus dem Grundriss — ${bilanz.length} ${bilanz.length === 1 ? 'Raum' : 'Räume'} ` +
+      `auf ${geschosse} ${geschosse === 1 ? 'Geschoss' : 'Geschossen'}, ` +
+      `${num(summe.rohrFlaeche, 1)} m in der Fläche + ${num(summe.rohrAnbindung, 1)} m Anbindung`,
+    pipe: [{ spec: 'Heizrohr, Dimension noch nicht ausgelegt', length: summe.rohr }],
+    loopsBySpacing: summe.kreiseJeAbstand,
+    loops: summe.kreise,
+    layableArea: summe.belegteFlaeche,
+    areaOrigin: 'belegbare Fläche aus den Verlegekurven — Randabstand und Einbauten sind abgezogen',
+    roomIds: bilanz.map((b) => b.roomId),
+  };
+}
+
 function collectFloorHeating(
   doc: BimDocument,
   plan: PlantDesignResult | undefined,
@@ -723,8 +763,21 @@ function collectFloorHeating(
       sources.push(floorSourceFromDesign(design));
     }
   } else {
+    /*
+     * **Die gezeichnete Verlegung hat Vorrang vor der getippten Zahl.**
+     * Sie ist Geometrie: Bahnen, Kehren und Anbindeleitungen aus dem
+     * Raumpolygon. „Kreiszahl × Kreislänge" im Anlagenblatt ist eine
+     * Schätzung, die jemand eingetragen hat.
+     */
+    const ausKurven = floorSourceFromCurves(doc);
+    const schonBelegt = new Set(ausKurven?.roomIds ?? []);
+    if (ausKurven) sources.push(ausKurven);
+
     for (const circuit of Object.values(plantOf(doc).circuits ?? {})) {
       if (circuit.kind !== 'floor') continue;
+      // Ein Kreis, dessen Räume im Grundriss schon belegt sind, stünde sonst
+      // zweimal in der Bestellung.
+      if ((circuit.roomIds ?? []).some((id) => schonBelegt.has(id))) continue;
       const source = floorSourceFromSheet(doc, circuit);
       if (source) {
         sources.push(source);
