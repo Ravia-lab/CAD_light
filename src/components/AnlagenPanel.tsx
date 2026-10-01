@@ -63,9 +63,11 @@ import {
   type Brennstoff,
 } from '../lib/verbrauchsabgleich';
 import Erklaerung from './Erklaerung';
+import { BIVALENZ_HINDERNIS_TEXT } from '../lib/bivalenz';
 import {
   ABGLEICHPFLICHT_AB,
   EINHEIT_LABELS,
+  einheitenVonRaeumen,
   einheitenstand,
   einheitsbilanzen,
   type EinheitArt,
@@ -1241,6 +1243,7 @@ export default function AnlagenPanel() {
                 />
               </div>
             )}
+            <BivalenzBlock design={design} />
             {(plant.secondGenerator.art === 'festbrennstoff' || plant.secondGenerator.art === 'pellet') && (
               <p className={`mt-2 rounded px-2.5 py-1.5 text-[10px] leading-relaxed ${SEVERITY_STYLE.warn}`}>
                 Festbrennstoff verlangt nach dem BWP-Leitfaden Hydraulik eine thermische Ablaufsicherung, eine
@@ -1374,6 +1377,15 @@ export default function AnlagenPanel() {
                 <span className="text-[11.5px] text-slate-200">{c.circuit.label}</span>
                 <span className="shrink-0 text-[10px] text-accent">{fmt(c.load, 2)} kW</span>
               </div>
+              {/*
+                Die Nutzungseinheit des Kreises — abgeleitet aus seinen Räumen
+                und deshalb nicht einstellbar. Sie steht nur da, wo überhaupt
+                Einheiten erfasst sind; im Einfamilienhaus gibt es nichts zu
+                unterscheiden. Mehr als eine ist ein Befund und keine Angabe:
+                Ein Kreis über zwei Wohnungen lässt sich nicht je Wohnung
+                regeln und nicht je Wohnung abrechnen.
+              */}
+              <KreisEinheit roomIds={c.circuit.roomIds} />
               <div className="mt-0.5 text-[10px] leading-relaxed text-slate-500">
                 {c.circuit.flowTemperature}/{c.circuit.returnTemperature} °C · {fmt(c.flow, 3)} m³/h ·{' '}
                 {c.pipe.dimension.label} ({c.pipe.reason}) · v = {fmt(c.pipe.velocity, 2)} m/s, R ={' '}
@@ -2173,6 +2185,94 @@ function KurzFassung({ design }: { design: ReturnType<typeof designPlant> }) {
 
 /** Text als Datei sichern — der immer gleiche Dreisatz aus Blob, Link, Klick. */
 /**
+ * **Die Deckungsanteile der bivalenten Anlage.**
+ *
+ * Die zwei Zahlen, um die es geht: Wie viel der Heizarbeit trägt die
+ * Wärmepumpe, wie viel der zweite Erzeuger. Sie entscheiden über
+ * Förderfähigkeit, Betriebskosten und darüber, ob die Anlage mit Recht eine
+ * Wärmepumpenanlage heißt — und sie fallen bei der alternativen Fahrweise
+ * regelmäßig anders aus, als man beim Blick auf die Stundenzahl erwartet.
+ *
+ * Gerechnet wird mit dem **eingetragenen** Bivalenzpunkt. Der Vorschlag aus
+ * der Gerätekennlinie steht nur daneben: Wo er liegt, ist eine
+ * Planungsentscheidung — wer ihn höher legt, kauft Betriebskosten gegen
+ * Investition.
+ */
+function BivalenzBlock({ design }: { design: ReturnType<typeof designPlant> }) {
+  const pz = (v: number) => `${(v * 100).toFixed(1).replace('.', ',')} %`;
+  if ('hindernis' in design.bivalenz) {
+    // Kein Grund, etwas zu sagen, wenn die Anlage monovalent ist — dieser
+    // Block erscheint ohnehin nur mit zweitem Erzeuger.
+    if (design.bivalenz.hindernis === 'kein-zweiterzeuger') return null;
+    return (
+      <p className={`mt-2 rounded px-2.5 py-1.5 text-[10px] leading-relaxed ${SEVERITY_STYLE.info}`}>
+        <b>Deckungsanteile:</b> {BIVALENZ_HINDERNIS_TEXT[design.bivalenz.hindernis]}
+      </p>
+    );
+  }
+  const e = design.bivalenz.ergebnis;
+  return (
+    <div className="mt-2 rounded-lg bg-white/[0.03] p-2">
+      <span className="label-xs">Deckungsanteile der Heizarbeit</span>
+      <div className="mt-1">
+        <Readout label="Wärmepumpe" value={pz(e.anteilWaermepumpe)} accent term="deckungsanteil" />
+        <Readout label="zweiter Erzeuger" value={pz(e.anteilZweiterzeuger)} />
+        <Readout label="Heizzeit unter dem Bivalenzpunkt" value={pz(e.zeitanteilUnterBivalenz)} />
+        {e.zeitanteilOhneWaermepumpe > 0 && (
+          <Readout label="davon Wärmepumpe aus" value={pz(e.zeitanteilOhneWaermepumpe)} />
+        )}
+        <Readout
+          label="zweiter Erzeuger muss tragen"
+          value={`${fmt(e.leistungZweiterzeuger, 2)} kW`}
+          accent={e.leistungFehlt > 0}
+        />
+      </div>
+      {e.leistungFehlt > 0 && (
+        <p className={`mt-1.5 rounded px-2 py-1.5 text-[10px] leading-relaxed ${SEVERITY_STYLE.warn}`}>
+          Es fehlen {fmt(e.leistungFehlt, 2)} kW: eingetragen sind {fmt(e.leistungVorhanden, 2)} kW.{' '}
+          {e.betrieb === 'bivalent-alternativ' || e.betrieb === 'bivalent-teilparallel'
+            ? 'Unter dem Abschaltpunkt trägt der zweite Erzeuger die ganze Norm-Heizlast und nicht nur die Spitze.'
+            : 'Die Fehlmenge wird nicht auf die Wärmepumpe umgerechnet.'}
+        </p>
+      )}
+      {design.bivalenzVorschlag !== undefined && (
+        <p className="mt-1.5 text-[10px] leading-relaxed text-slate-500">
+          Aus der Kennlinie des gewählten Geräts ergäbe sich ein Bivalenzpunkt von{' '}
+          <b>{grad(design.bivalenzVorschlag)} °C</b> — eingetragen sind {grad(e.bivalenzpunkt)} °C. Gerechnet
+          wird mit dem eingetragenen Wert; wo der Punkt liegt, ist eine Planungsentscheidung.
+        </p>
+      )}
+      <details className="mt-1.5">
+        <summary className="cursor-pointer text-[10px] text-slate-500 hover:text-slate-300">
+          Woraus das gerechnet ist
+        </summary>
+        <ul className="mt-1 space-y-1">
+          {e.annahmen.map((a) => (
+            <li key={a} className="text-[10px] leading-relaxed text-slate-500">
+              · {a}
+            </li>
+          ))}
+        </ul>
+      </details>
+    </div>
+  );
+}
+
+/** Die Nutzungseinheit eines Heizkreises, aus seinen Räumen gelesen. */
+function KreisEinheit({ roomIds }: { roomIds: readonly string[] }) {
+  const doc = useBimStore((s) => s.doc);
+  if (!Object.keys(doc.units ?? {}).length) return null;
+  const treffer = einheitenVonRaeumen(doc, roomIds);
+  if (treffer.length === 0) return null;
+  const namen = treffer.map((id) => doc.units?.[id]?.name ?? id).join(', ');
+  return (
+    <div className={`mt-0.5 text-[10px] ${treffer.length > 1 ? 'text-amber-300' : 'text-slate-400'}`}>
+      {treffer.length > 1 ? `über ${treffer.length} Einheiten: ${namen}` : namen}
+    </div>
+  );
+}
+
+/**
  * **Die Nutzungseinheiten des Gebäudes.**
  *
  * Warum dieser Block ausgerechnet hier steht, zwischen Zapftemperatur und
@@ -2195,6 +2295,19 @@ function EinheitenBlock() {
 
   const bilanzen = einheitsbilanzen(doc);
   const stand = einheitenstand(doc);
+  /*
+   * Welche Heizkreise eine Einheit versorgen — für den Fall „zentrale
+   * Versorgung, Heizkreise je Wohnung". Abgeleitet über die Räume; ein Kreis
+   * über zwei Einheiten erscheint bei beiden.
+   */
+  const kreiseJeEinheit = new Map<string, string[]>();
+  for (const kreis of Object.values(doc.plant?.circuits ?? {})) {
+    for (const unitId of einheitenVonRaeumen(doc, kreis.roomIds)) {
+      const liste = kreiseJeEinheit.get(unitId);
+      if (liste) liste.push(kreis.label);
+      else kreiseJeEinheit.set(unitId, [kreis.label]);
+    }
+  }
   const getippt = doc.plant?.dhw.units ?? 0;
   const weicht = stand.gesamt > 0 && getippt > 0 && getippt !== stand.selbstaendig;
 
@@ -2245,7 +2358,14 @@ function EinheitenBlock() {
                 </select>
                 <span
                   className={`w-[92px] shrink-0 text-right text-[10px] tabular-nums ${b.raeume ? 'text-slate-400' : 'text-amber-400'}`}
-                  title={b.maisonette ? `Über ${b.geschosse.length} Geschosse` : undefined}
+                  title={[
+                    b.maisonette ? `Über ${b.geschosse.length} Geschosse` : undefined,
+                    kreiseJeEinheit.get(b.einheit.id)?.length
+                      ? `Heizkreise: ${kreiseJeEinheit.get(b.einheit.id)?.join(', ')}`
+                      : undefined,
+                  ]
+                    .filter(Boolean)
+                    .join(' · ') || undefined}
                 >
                   {b.raeume
                     ? `${b.raeume} R · ${fmt(b.flaeche, 1)} m²${b.maisonette ? ' ⇅' : ''}`

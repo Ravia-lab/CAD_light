@@ -1046,6 +1046,37 @@ function generatorFacts(design: PlantDesignResult, model: HeatPumpModel, capacit
       value: pct(design.selected?.coverage, 0),
       note: design.selected ? `Bewertung: ${design.selected.verdict}. ${design.selected.reason}` : undefined,
     },
+    /*
+     * **Die Deckungsanteile gehören auf dieses Blatt.** Der „Deckungsgrad"
+     * darüber ist ein Leistungsverhältnis am Auslegungspunkt — er sagt, ob das
+     * Gerät groß genug ist. Die Anteile hier sind etwas anderes: Sie sagen, wie
+     * sich die **Heizarbeit eines Jahres** auf die beiden Erzeuger verteilt.
+     * Zwei Zahlen, die oft verwechselt werden; getrennt genannt, weil sie zu
+     * verschiedenen Fragen gehören.
+     *
+     * Ohne zweiten Erzeuger steht hier nichts — eine monovalente Anlage hat
+     * keine Anteile aufzuteilen.
+     */
+    'ergebnis' in design.bivalenz
+      ? {
+          label: 'Deckungsanteile der Heizarbeit',
+          value:
+            `Wärmepumpe ${pct(design.bivalenz.ergebnis.anteilWaermepumpe, 1)}, ` +
+            `zweiter Erzeuger ${pct(design.bivalenz.ergebnis.anteilZweiterzeuger, 1)}`,
+          note:
+            `Bivalenzpunkt ${de(design.bivalenz.ergebnis.bivalenzpunkt, 1)} °C` +
+            (design.bivalenz.ergebnis.abschaltpunkt === undefined
+              ? ''
+              : `, Abschaltpunkt ${de(design.bivalenz.ergebnis.abschaltpunkt, 1)} °C`) +
+            `; unter dem Bivalenzpunkt liegen ${pct(design.bivalenz.ergebnis.zeitanteilUnterBivalenz, 1)} der Heizzeit. ` +
+            `Gerechnet über eine lineare Jahresdauerlinie zwischen Norm-Außentemperatur und Heizgrenze — ` +
+            `ohne Klimadatenreihe, und mit der Leistung am Bivalenzpunkt als Dauerleistung der Wärmepumpe. ` +
+            `Der Anteil der Wärmepumpe ist damit eher die obere Schranke.` +
+            (design.bivalenz.ergebnis.leistungFehlt > 0
+              ? ` Der zweite Erzeuger ist zu klein: verlangt ${de(design.bivalenz.ergebnis.leistungZweiterzeuger, 2)} kW, vorhanden ${de(design.bivalenz.ergebnis.leistungVorhanden, 2)} kW.`
+              : ''),
+        }
+      : undefined,
     {
       label: 'Höchste Vorlauftemperatur',
       value: `${de(model.maxFlowTemperature, 0)} °C`,

@@ -118,7 +118,13 @@ import {
 import { buildPipeNetwork } from './pipeNetwork';
 import { buildEmitters, buildHydraulics } from './auslegungExport';
 import { baueNetzExport } from './netzExport';
-import { EINHEIT_LABELS, einheitenstand, einheitsbilanzen, ABGLEICHPFLICHT_AB } from './nutzungseinheiten';
+import {
+  ABGLEICHPFLICHT_AB,
+  EINHEIT_LABELS,
+  einheitenVonRaeumen,
+  einheitenstand,
+  einheitsbilanzen,
+} from './nutzungseinheiten';
 import { balanceNetwork } from './hydraulicBalance';
 import { designPlant } from './plantDesign';
 import {
@@ -149,6 +155,20 @@ function baueEinheiten(
   const bilanzen = einheitsbilanzen(doc);
   if (!bilanzen.length) return undefined;
   const stand = einheitenstand(doc);
+  /*
+   * Die Heizkreise je Einheit — dieselbe Zuordnung von der anderen Seite
+   * gelesen, damit eine Gegenstelle für „Heizkreise je Wohnung" nicht alle
+   * Kreise durchlaufen muss. Ein Kreis über zwei Einheiten steht bei beiden;
+   * dass das nichts Gutes ist, sagt die Modellprüfung.
+   */
+  const kreiseJeEinheit = new Map<string, string[]>();
+  for (const kreis of Object.values(doc.plant?.circuits ?? {})) {
+    for (const unitId of einheitenVonRaeumen(doc, kreis.roomIds)) {
+      const liste = kreiseJeEinheit.get(unitId);
+      if (liste) liste.push(kreis.id);
+      else kreiseJeEinheit.set(unitId, [kreis.id]);
+    }
+  }
   const art: Record<string, ExportOccupancyUnit['kind']> = {
     wohnung: 'dwelling',
     gewerbe: 'commercial',
@@ -163,6 +183,9 @@ function baueEinheiten(
       kindLabel: EINHEIT_LABELS[b.einheit.art],
       ...(b.einheit.lage ? { location: b.einheit.lage } : {}),
       roomIds: [...b.roomIds],
+      ...(kreiseJeEinheit.get(b.einheit.id)?.length
+        ? { circuitIds: kreiseJeEinheit.get(b.einheit.id) as string[] }
+        : {}),
       area: roundCm2(b.flaeche),
       heatedArea: roundCm2(b.beheizteFlaeche),
       roomCount: b.raeume,
@@ -270,6 +293,10 @@ export function buildRaviaExport(doc: BimDocument): RaviaExport {
     // 2.3.0: Hüllflächenbilanz je Raum und für das Gebäude (`envelope`).
     // 2.4.0: `envelope.withoutUValue` — wie viele Flächen ohne brauchbaren
     //        U-Wert in die Bilanz gingen. Reiner Zuwachs.
+    // 2.12.0: `plant.bivalence` — Deckungsanteile nach Bivalenzpunkt und
+    //         Jahresdauerlinie, mit allen Annahmen im Klartext.
+    // 2.11.0: Heizkreis ↔ Nutzungseinheit — `circuits[].occupancyUnitId`,
+    //         `circuits[].occupancyUnitIds`, `occupancyUnits[].circuitIds`.
     // 2.10.0: `occupancyUnits`/`occupancy` — Nutzungseinheiten und die Zahl,
     //         an die § 60c Abs. 1 GModG die Abgleichpflicht knüpft.
     // 2.9.0: `pipeGraph` — Knoten, Abschnitte, Topologie, Flächenheizkreise.
@@ -277,7 +304,7 @@ export function buildRaviaExport(doc: BimDocument): RaviaExport {
     //        Reiner Zuwachs; ändert keinen Wert, sondern sagt, welcher nicht
     //        gemessen ist. Die vollständige Fassungsgeschichte steht an
     //        `RaviaExport` in `src/types/bim.ts`.
-    version: '2.10.0',
+    version: '2.12.0',
     generator: GENERATOR,
     exportedAt: new Date().toISOString(),
     units: {
@@ -483,7 +510,53 @@ function buildPlantExport(doc: BimDocument): ExportPlant {
       suggested: s2.suggested,
     })),
     design: p.design,
-    circuits: design.circuits.map((c) => c.circuit),
+    /*
+     * Die Deckungsanteile — nur, wenn sie gerechnet werden konnten. Warum
+     * nicht, steht in der Modellprüfung und nicht als leerer Block hier.
+     */
+    ...('ergebnis' in design.bivalenz
+      ? {
+          bivalence: {
+            method: 'duration-curve-linear' as const,
+            operation: design.bivalenz.ergebnis.betrieb,
+            bivalencePoint: design.bivalenz.ergebnis.bivalenzpunkt,
+            ...(design.bivalenz.ergebnis.abschaltpunkt === undefined
+              ? {}
+              : { cutOffPoint: design.bivalenz.ergebnis.abschaltpunkt }),
+            heatPumpShare: design.bivalenz.ergebnis.anteilWaermepumpe,
+            secondGeneratorShare: design.bivalenz.ergebnis.anteilZweiterzeuger,
+            timeShareBelowBivalence: design.bivalenz.ergebnis.zeitanteilUnterBivalenz,
+            timeShareWithoutHeatPump: design.bivalenz.ergebnis.zeitanteilOhneWaermepumpe,
+            capacityAtBivalence: design.bivalenz.ergebnis.leistungAmBivalenzpunkt,
+            secondGeneratorRequired: design.bivalenz.ergebnis.leistungZweiterzeuger,
+            secondGeneratorInstalled: design.bivalenz.ergebnis.leistungVorhanden,
+            secondGeneratorShortfall: design.bivalenz.ergebnis.leistungFehlt,
+            curve: {
+              designHeatLoad: design.heatLoad,
+              designOutdoorTemperature: doc.meta.designOutdoorTemperature,
+              heatingLimit: p.design.heatingLimit as number,
+            },
+            assumptions: design.bivalenz.ergebnis.annahmen,
+          },
+        }
+      : {}),
+    /*
+     * Die Nutzungseinheit am Heizkreis — abgeleitet aus seinen Räumen.
+     *
+     * `occupancyUnitId` steht nur, wenn sie eindeutig ist. Läuft ein Kreis
+     * über mehrere Einheiten, stehen sie in `occupancyUnitIds`, und die
+     * Modellprüfung meldet es: Ein solcher Kreis lässt sich nicht je Wohnung
+     * regeln und nicht je Wohnung abrechnen. Eine der mehreren auszuwählen
+     * wäre geraten.
+     */
+    circuits: design.circuits.map((c) => {
+      const einheiten = einheitenVonRaeumen(doc, c.circuit.roomIds);
+      return {
+        ...c.circuit,
+        ...(einheiten.length === 1 ? { occupancyUnitId: einheiten[0] } : {}),
+        ...(einheiten.length > 1 ? { occupancyUnitIds: einheiten } : {}),
+      };
+    }),
     safety: design.safety,
     domesticHotWater: design.dhw,
     schematic: {

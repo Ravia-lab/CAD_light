@@ -4140,12 +4140,21 @@ export interface ExportPlant {
   }[];
   /** Auslegungstemperaturen und Werkstoff der Verteilung. */
   design: PlantDefinition['design'];
-  /** Heizkreise mit ihrer Auslegung. */
-  circuits: HeatingCircuit[];
+  /** Heizkreise mit ihrer Auslegung und der Nutzungseinheit, die sie versorgen. */
+  circuits: ExportHeatingCircuit[];
   /** Sicherheitsausrüstung nach DIN EN 12828. */
   safety?: SafetyDesign;
   /** Trinkwarmwasser. */
   domesticHotWater?: DomesticHotWaterDesign;
+  /**
+   * Deckungsanteile bei bivalenter Anlage — seit 2.12.0.
+   *
+   * Der Block fehlt bei monovalenter Anlage und überall, wo die Rechnung nicht
+   * geführt werden kann (fehlende Heizgrenztemperatur, Solarthermie als
+   * zweiter Erzeuger). Warum sie nicht geführt wird, steht dann in der
+   * Modellprüfung — ein leerer Block wäre eine Behauptung.
+   */
+  bivalence?: ExportBivalence;
   /** Anlagenschema als Bauteile und Verbindungen. */
   schematic: {
     components: SchematicComponent[];
@@ -4195,6 +4204,14 @@ export interface ExportOccupancyUnit {
   /** Lage im Haus, falls erfasst — reine Anzeige, keine Rechengröße. */
   location?: string;
   roomIds: RoomId[];
+  /**
+   * Heizkreise, die diese Einheit versorgen — seit 2.11.0.
+   *
+   * Dieselbe Zuordnung von der anderen Seite gelesen (Kreis → Räume →
+   * Einheit). Ein Kreis über zwei Einheiten steht bei **beiden**; dass das
+   * nichts Gutes ist, sagt die Modellprüfung und nicht diese Liste.
+   */
+  circuitIds?: string[];
   /** Lichte Fläche aller Räume der Einheit [m²]. */
   area: number;
   /** Davon die beheizten Räume [m²]. */
@@ -4243,6 +4260,29 @@ export interface ExportOccupancy {
 export interface RaviaExport {
   schema: 'ravia.bim.light';
   /**
+   * **2.12.0** ergänzt `plant.bivalence`: die **Deckungsanteile einer
+   * bivalenten Anlage** nach Bivalenzpunkt und Jahresdauerlinie — Anteil der
+   * Wärmepumpe, Anteil des zweiten Erzeugers, Zeitanteile, verlangte Leistung
+   * und Fehlbetrag, dazu die Eingangsgrößen der Kennlinie und **jede
+   * Annahme** im Klartext.
+   *
+   * Das Verfahren hat die RaVia-Seite am 01.10.2026 festgelegt, nachdem die
+   * Wahl zwischen Monatsbilanz und Dauerlinie offen war. Reiner Zuwachs; der
+   * Block fehlt bei monovalenter Anlage und dort, wo die Rechnung nicht
+   * geführt werden kann.
+   *
+   * **2.11.0** ergänzt die Verbindung zwischen Heizkreis und Nutzungseinheit:
+   * `plant.circuits[].occupancyUnitId` (nur wenn eindeutig),
+   * `plant.circuits[].occupancyUnitIds` (nur bei einem Kreis über mehrere
+   * Einheiten) und `occupancyUnits[].circuitIds`.
+   *
+   * Der Anlass ist die Festlegung der RaVia-Seite vom 01.10.2026 auf den Fall
+   * **zentrale Versorgung mit Heizkreisen je Wohnung**. Beides ist
+   * **abgeleitet** (Kreis → Räume → Einheit) und nicht gespeichert: Ein
+   * eigenes Feld am Kreis könnte der Zuordnung am Raum widersprechen, und dann
+   * gäbe es zwei Wahrheiten. Reiner Zuwachs; die Felder fehlen, wo keine
+   * Einheit erfasst ist.
+   *
    * **2.10.0** ergänzt `occupancyUnits` und `occupancy`: die
    * Nutzungseinheiten des Gebäudes — Wohnungen, Gewerbeeinheiten,
    * Gemeinschaftsflächen — mit Räumen, Flächen, Geschossen und der Summe der
@@ -4325,7 +4365,7 @@ export interface RaviaExport {
    * nichts; wer prüfen will, ob Boden, Decke und Dach angekommen sind, hat
    * jetzt eine Zahl statt einer Liste (Punkt 13).
    */
-  version: '2.10.0';
+  version: '2.12.0';
   generator: string;
   exportedAt: string;
   /** Einheiten explizit im Dokument — keine Konvention, die verloren gehen kann. */
@@ -5193,6 +5233,90 @@ export interface HeatingCircuit {
   loopPressure?: number;
   /** Volumenstrom des Kreises [m³/h]. */
   volumeFlow?: number;
+}
+
+/**
+ * Deckungsanteile einer bivalenten Anlage im Export — seit 2.12.0.
+ *
+ * Das Verfahren hat die RaVia-Seite am 01.10.2026 festgelegt: **Bivalenzpunkt
+ * und Jahresdauerlinie**, nicht Monatsbilanz; die Dauerlinie als
+ * Gradstundenlinie aus Norm-Außentemperatur und Heizgrenze, ohne zusätzliche
+ * Klimadatenreihe; der Bivalenzpunkt **eingegeben** und nicht aus der
+ * Leistungskurve gerechnet.
+ *
+ * `assumptions` ist Teil des Vertrags und nicht Beiwerk: Die Anteile sind
+ * Modellwerte, und wer sie in einen Nachweis übernimmt, muss sagen können,
+ * worauf sie beruhen.
+ */
+export interface ExportBivalence {
+  /** Das angewandte Verfahren — heute nur `duration-curve-linear`. */
+  method: 'duration-curve-linear';
+  /** Betriebsweise nach BDH-Infoblatt 57. */
+  operation: BivalenzBetrieb;
+  /** Eingetragener Bivalenzpunkt [°C]. */
+  bivalencePoint: number;
+  /** Abschaltpunkt der Wärmepumpe [°C] — nur bei alternativ und teilparallel. */
+  cutOffPoint?: number;
+  /** Deckungsanteil der Wärmepumpe an der Heizarbeit [0 … 1]. */
+  heatPumpShare: number;
+  /** Deckungsanteil des zweiten Erzeugers [0 … 1]. */
+  secondGeneratorShare: number;
+  /** Anteil der Heizzeit unter dem Bivalenzpunkt [0 … 1]. */
+  timeShareBelowBivalence: number;
+  /** Anteil der Heizzeit ohne Wärmepumpe [0 … 1]. */
+  timeShareWithoutHeatPump: number;
+  /** Gebäudelast am Bivalenzpunkt [kW] — die Leistung, die die Wärmepumpe dort trägt. */
+  capacityAtBivalence: number;
+  /** Leistung, die der zweite Erzeuger tragen muss [kW]. */
+  secondGeneratorRequired: number;
+  /** Eingetragene Leistung des zweiten Erzeugers [kW]. */
+  secondGeneratorInstalled: number;
+  /**
+   * Fehlbetrag [kW]; 0, wenn die eingetragene Leistung reicht.
+   *
+   * Eine Fehlmenge wird **nicht** auf die Wärmepumpe umgerechnet: Die Anteile
+   * oben beschreiben die Aufteilung der Last, nicht das, was die eingebauten
+   * Geräte davon schaffen.
+   */
+  secondGeneratorShortfall: number;
+  /** Eingangsgrößen der Kennlinie — damit die Rechnung nachvollziehbar ist. */
+  curve: {
+    /** Norm-Heizlast [kW]. */
+    designHeatLoad: number;
+    /** Norm-Außentemperatur [°C]. */
+    designOutdoorTemperature: number;
+    /** Heizgrenztemperatur [°C]. */
+    heatingLimit: number;
+  };
+  /** Jede Annahme, die in diese Zahlen eingegangen ist, im Klartext. */
+  assumptions: string[];
+}
+
+/**
+ * Ein Heizkreis im Export — derselbe Kreis wie im Modell, dazu die
+ * Nutzungseinheit, die er versorgt.
+ *
+ * Die Einheit ist **abgeleitet** und nicht gespeichert: Ein Kreis versorgt
+ * Räume, und die Räume tragen die Zuordnung. Ein eigenes Feld am Kreis wäre
+ * eine zweite Wahrheit, die der ersten widersprechen kann.
+ */
+export interface ExportHeatingCircuit extends HeatingCircuit {
+  /**
+   * Die Nutzungseinheit dieses Kreises — **nur, wenn sie eindeutig ist**.
+   *
+   * Fehlt das Feld, ist entweder keiner seiner Räume zugeordnet oder der Kreis
+   * läuft über mehrere Einheiten; im zweiten Fall stehen sie in
+   * `occupancyUnitIds`. Geraten wird nicht.
+   */
+  occupancyUnitId?: string;
+  /**
+   * Die Einheiten eines Kreises, der über mehr als eine läuft — **nur dann**.
+   *
+   * Das ist ein Befund und keine Auslegung: Ein Kreis über zwei Wohnungen
+   * lässt sich nicht je Wohnung regeln und nicht je Wohnung abrechnen. Die
+   * Modellprüfung meldet ihn (`units.circuit-across-units`).
+   */
+  occupancyUnitIds?: string[];
 }
 
 /**

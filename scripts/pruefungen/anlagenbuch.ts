@@ -229,6 +229,8 @@ function leereAuslegung(): PlantDesignResult {
     volume: { total: 0, parts: [] },
     buffer: { required: 0, reason: 'Ohne Erzeuger und ohne Kreise ist kein Puffer bestimmbar.' },
     generator: erzeugerBilanz({ flow: 0, dn: 25, umschaltung: false, waermezaehler: false, abscheiderVorhanden: false }),
+    // Monovalent — hier gibt es nichts aufzuteilen.
+    bivalenz: { hindernis: 'kein-zweiterzeuger' },
     notes: [],
   };
 }

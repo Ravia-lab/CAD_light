@@ -3026,4 +3026,73 @@ der Rechnung, sondern erst an der Verdichterlaufzeit.</p></div>
 <p>Unabhängig von der Kategorie gehören in die Füllleitung außerdem eine absperrbare Füll- und Entleerungsarmatur, die nach dem Füllen wieder zu trennen ist, und ein <b>Wasserzähler</b>: Nach VDI 2035 Blatt 1 ist die eingebrachte Füll- und Ergänzungswassermenge zu dokumentieren. Ein Zähler, der nach zwei Jahren 300 l anzeigt, ist der erste und billigste Hinweis auf ein undichtes System.</p>
 
 <p class="quelle">Quelle: Rechenweg und Zahlenwerte aus dem Quelltext des Programms. Dichte und Wärmekapazität der Reinstoffe sind Handbuchwerte; die Gefrierpunkte sind Richtwerte aus Herstellerdatenblättern von Fertiggemischen; der Viskositätsansatz und der daraus folgende Druckverlustfaktor sind ausdrücklich als Richtwerte geführt. Sicherungsarmaturen nach DIN EN 1717 und DIN 1988-100, Dokumentation des Füllwassers nach VDI 2035 Blatt 1.</p>
+
+<h3 id="k13-19">13.19 Deckungsanteile einer bivalenten Anlage</h3>
+
+<p>Wer eine Wärmepumpe mit einem zweiten Wärmeerzeuger baut, muss eine Zahl nennen können: <b>Wie viel der Heizarbeit trägt die Wärmepumpe?</b> An ihr hängen Förderfähigkeit, Betriebskosten und die Aussage, dass die Anlage mit Recht eine Wärmepumpenanlage heißt. Dieser Abschnitt sagt, wie das Programm sie bildet — und was dabei angenommen ist.</p>
+
+<p class="wo">Im Programm: Reiter <b>Anlage</b> → <b>Zweiter Wärmeerzeuger</b>. Der Block <b>Deckungsanteile der Heizarbeit</b> erscheint, sobald ein zweiter Erzeuger erfasst ist. Im Export unter <code>plant.bivalence</code>, in der Projektmappe im Kapitel Wärmeerzeuger.</p>
+
+<div class="merke"><b>Merke</b><p><b>Deckungsgrad und Deckungsanteil sind zwei verschiedene Dinge.</b> Der <em>Deckungsgrad</em> ist ein Leistungsverhältnis am Auslegungspunkt: Trägt das Gerät die Heizlast? Der <em>Deckungsanteil</em> ist ein Arbeitsverhältnis über das Jahr: Wie viele Kilowattstunden kommen von wem? Ein Gerät mit 68 % Deckungsgrad kann 90 % der Arbeit leisten — weil die kalten Stunden selten sind. Beide Zahlen stehen deshalb getrennt im Blatt.</p></div>
+
+<h4 id="k13-19-1">13.19.1 Das Verfahren: zwei Geraden</h4>
+
+<p>Gerechnet wird nach <b>Bivalenzpunkt und Jahresdauerlinie</b> — nicht nach einer Monatsbilanz. Das Modell besteht aus zwei Geraden:</p>
+
+<ol>
+<li>Die <b>Gebäudekennlinie</b>: Die Heizlast fällt linear von der Norm-Heizlast Q<sub>N</sub> bei der Norm-Außentemperatur θ<sub>norm</sub> auf <b>null</b> an der Heizgrenztemperatur θ<sub>HG</sub>. Oberhalb der Heizgrenze wird nicht geheizt — das ist ihre Bedeutung.</li>
+<li>Die <b>Jahresdauerlinie</b>, linear über die Heizzeit: am kältesten Punkt θ<sub>norm</sub>, am wärmsten θ<sub>HG</sub>.</li>
+</ol>
+
+<div class="formel">
+<p>θ(u) = θ<sub>norm</sub> + (θ<sub>HG</sub> − θ<sub>norm</sub>) · u &nbsp;&nbsp;&nbsp; Q(θ) = Q<sub>N</sub> · (θ<sub>HG</sub> − θ) / (θ<sub>HG</sub> − θ<sub>norm</sub>)</p>
+<p>daraus über der Zeit: &nbsp; Q(u) = Q<sub>N</sub> · (1 − u)</p>
+</div>
+
+<p>Setzt man beides zusammen, wird die Last über der Zeit <b>ein Dreieck</b>. Die ganze Heizarbeit ist seine Fläche, ½ · Q<sub>N</sub> · t. Jeder Deckungsanteil ist damit ein Flächenverhältnis in diesem Dreieck — und deshalb sind die Formeln so kurz:</p>
+
+<table class="tab">
+<caption>Die drei Betriebsweisen und ihr Anteil f₂ des zweiten Erzeugers</caption>
+<thead><tr><th>Fahrweise</th><th>Was unter dem Punkt passiert</th><th>Anteil des zweiten Erzeugers</th></tr></thead>
+<tbody>
+<tr><td><b>parallel</b></td><td>Die Wärmepumpe läuft weiter mit der Leistung, die sie am Bivalenzpunkt hatte; der zweite Erzeuger trägt die Spitze darüber.</td><td>f₂ = u<sub>biv</sub>²</td></tr>
+<tr><td><b>alternativ</b></td><td>Die Wärmepumpe schaltet ab; der zweite Erzeuger trägt <b>alles</b>.</td><td>f₂ = 2·u<sub>ab</sub> − u<sub>ab</sub>²</td></tr>
+<tr><td><b>teilparallel</b></td><td>Zwischen Bivalenz- und Abschaltpunkt beide, darunter nur der zweite.</td><td>f₂ = 2·u<sub>ab</sub> − u<sub>ab</sub>² + (u<sub>biv</sub> − u<sub>ab</sub>)²</td></tr>
+</tbody>
+</table>
+
+<p>Dabei ist u der <b>Anteil der Heizzeit, in dem es kälter ist</b> als der jeweilige Punkt: u = (θ − θ<sub>norm</sub>) / (θ<sub>HG</sub> − θ<sub>norm</sub>). <code>monoenergetisch</code> rechnet wie parallel — der Heizstab läuft neben der Wärmepumpe.</p>
+
+<p>Die drei Formeln gehen stetig ineinander über, und daran lassen sie sich prüfen: Mit u<sub>ab</sub> = u<sub>biv</sub> wird teilparallel zu alternativ, mit u<sub>ab</sub> = 0 wird es zu parallel.</p>
+
+<div class="beispiel"><b>Rechenbeispiel</b>
+<p>Q<sub>N</sub> = 10 kW bei θ<sub>norm</sub> = −10 °C, Heizgrenze 15 °C, Bivalenzpunkt −2 °C, Gaskessel <b>parallel</b>.</p>
+<p>u = (−2 + 10) / (15 + 10) = 8/25 = <b>0,32</b> → unter −2 °C liegen 32 % der Heizzeit.</p>
+<p>Last am Bivalenzpunkt: 10 · (15 + 2)/25 = <b>6,80 kW</b> — das trägt die Wärmepumpe weiter.</p>
+<p>Anteil des Kessels: 0,32² = <b>0,1024</b>, also <b>10,2 %</b> der Heizarbeit. Die Wärmepumpe trägt <b>89,8 %</b>.</p>
+<p>Der Kessel muss 10,00 − 6,80 = <b>3,20 kW</b> tragen — nur die Spitze.</p>
+<p><b>Derselbe Fall alternativ gefahren</b> (Abschaltpunkt −2 °C): f₂ = 2·0,32 − 0,32² = <b>0,5376</b>. Der zweite Erzeuger trägt <b>53,8 %</b> der Arbeit — in 32 % der Zeit, weil es die kältesten Stunden mit der größten Last sind. Und er muss die <b>ganze</b> Norm-Heizlast tragen, also 10,00 kW statt 3,20 kW. Diese beiden Zahlen überraschen bei der alternativen Fahrweise jeden, der sie zum ersten Mal rechnet.</p>
+</div>
+
+<h4 id="k13-19-2">13.19.2 Was angenommen ist — und was nicht gerechnet wird</h4>
+
+<p>Jede dieser Annahmen steht auch im Programm am Ergebnis und im Export unter <code>assumptions</code>. Ein Anteil ohne sie wäre eine Behauptung:</p>
+
+<ul>
+<li><b>Lineare Dauerlinie.</b> Die wirkliche ist S-förmig; die Gerade überschätzt die kalten Stunden leicht und damit den Anteil des zweiten Erzeugers.</li>
+<li><b>Konstante Leistung unter dem Bivalenzpunkt.</b> Tatsächlich fällt die Leistung einer Luft-Wasser-Wärmepumpe mit der Außentemperatur weiter ab. Der Anteil der Wärmepumpe ist damit eher die <b>obere Schranke</b>.</li>
+<li><b>Keine Klimadatenreihe.</b> Gerechnet wird mit Norm-Außentemperatur und Heizgrenze, nicht mit einem Testreferenzjahr. Das hält die Rechnung ohne Datenpflege lauffähig; genauer würde sie mit einer stündlichen Temperaturreihe.</li>
+<li><b>Dimensionslose Anteile, keine Kilowattstunden.</b> Absolute Arbeit ergibt sich erst mit dem Jahreswärmebedarf — den rechnet dieses Programm nicht. Eine Stundenzahl zu behaupten, um kWh ausgeben zu können, wäre der teurere Weg zur schöneren Zahl.</li>
+<li><b>Keine Umverteilung einer Fehlmenge.</b> Ist der zweite Erzeuger zu klein, steht das als Fehlbetrag da, und die Modellprüfung meldet es als <b>Fehler</b>. Die Anteile bleiben, was sie sind: die Aufteilung der Last, nicht das, was die eingebauten Geräte davon schaffen.</li>
+</ul>
+
+<p><b>Ohne Heizgrenztemperatur wird nicht gerechnet.</b> Sie ist eine Einstellung am Gerät und keine Eigenschaft des Gebäudes; geraten wird sie nicht. Ebenso wenig wird für <b>Solarthermie</b> gerechnet: Sie hat keinen Bivalenzpunkt im Sinne des BDH-Infoblatts 57, weil ihr Beitrag an der Einstrahlung hängt und nicht an der Außentemperatur. Ihn über eine Temperatur-Dauerlinie zu verteilen wäre eine Zahl ohne Grundlage.</p>
+
+<h4 id="k13-19-3">13.19.3 Der Bivalenzpunkt ist eine Entscheidung, keine Rechnung</h4>
+
+<p>Gerechnet wird mit dem <b>eingetragenen</b> Bivalenzpunkt. Wo er liegt, ist eine Planungsentscheidung: Wer ihn höher legt, kauft Betriebskosten gegen Investition.</p>
+
+<p>Ist ein Gerät gewählt, stellt das Programm daneben, welcher Punkt sich aus dessen <b>Leistungskurve</b> ergäbe — der Schnittpunkt von Gerätekennlinie und Gebäudekennlinie, also die Temperatur, unter der das Gerät die Last nicht mehr allein trägt. Das ist ein <b>Vorschlag</b> und geht nicht in den Export. Trägt das Gerät die ganze Norm-Heizlast, wird kein Punkt vorgeschlagen: Dann ist die Anlage monovalent fähig, und eine Zahl auszugeben hieße, einen zweiten Erzeuger zu behaupten, den niemand braucht.</p>
+
+<p class="quelle">Quelle: Betriebsweisen nach BDH-Infoblatt Nr. 57. Das Verfahren (Bivalenzpunkt und Jahresdauerlinie statt Monatsbilanz), die Gradstunden-Dauerlinie ohne zusätzliche Klimadatenreihe, der eingegebene Bivalenzpunkt und die erste Stufe mit paralleler Fahrweise sind Festlegungen der RaVia-Seite vom 01.10.2026. Herleitung und Zahlenwerte aus dem Quelltext (<code>src/lib/bivalenz.ts</code>), mit Handrechnungen belegt in <code>scripts/pruefungen/bivalenz.ts</code>.</p>
 </section>

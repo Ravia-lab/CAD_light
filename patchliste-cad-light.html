@@ -107,7 +107,7 @@
 
 <header>
   <h1>RaVia CAD Light · Patchliste</h1>
-  <p class="unter">Alle Fassungen von <b>0.4.0</b> bis <b>1.66.0</b> — vollständig, von der neuesten
+  <p class="unter">Alle Fassungen von <b>0.4.0</b> bis <b>1.67.0</b> — vollständig, von der neuesten
   zur ältesten. Der Text jeder Zeile stammt aus der Fassungsgeschichte des Handbuchs
   (Kapitel 18.6); Datum und Commit kommen aus der Versionsverwaltung. Diese Seite wird
   daraus <b>erzeugt</b> (<code>scripts/patchliste.mjs</code>) — hier ist nichts nachträglich
@@ -116,18 +116,18 @@
   <div class="karten">
     <div class="karte acc">
       <div class="ort">Fassungen</div>
-      <div class="zahl">86</div>
+      <div class="zahl">87</div>
       <div class="note">davon 10 reine Korrekturfassungen</div>
     </div>
     <div class="karte">
       <div class="ort">Zeitraum</div>
       <div class="zahl" style="font-size:19px">29.08.2026 – 01.10.2026</div>
-      <div class="note">Spanne der Fassungen mit Commit; die 46 ohne liegen davor</div>
+      <div class="note">Spanne der Fassungen mit Commit; die 47 ohne liegen davor</div>
     </div>
     <div class="karte gut">
       <div class="ort">Live · ravia-tech.de/Cad_light/</div>
-      <div class="zahl">1.66.0</div>
-      <div class="note">Commit <code>047df8c</code> · aufgespielt und abgenommen</div>
+      <div class="zahl">1.67.0</div>
+      <div class="note">noch nicht eingecheckt — diese Seite nach dem Commit neu erzeugen</div>
     </div>
   </div>
 
@@ -153,12 +153,21 @@
 </div>
 
 <section class="reihe" data-reihe="60">
-<h2>1.60 bis 1.69<span class="zusatz">Verbrauchsabgleich, Baugrube, Scan als Datei, Aufnahme ohne Zeichnen, Fußbodenheizung · 7 Fassungen</span></h2>
-<article class="fassung ist-live" data-v="1.66.0" data-korr="0" data-schnitt="0">
+<h2>1.60 bis 1.69<span class="zusatz">Verbrauchsabgleich, Baugrube, Scan als Datei, Aufnahme ohne Zeichnen, Fußbodenheizung · 8 Fassungen</span></h2>
+<article class="fassung ist-live" data-v="1.67.0" data-korr="0" data-schnitt="0">
+  <div class="kopfzeile">
+    <span class="nr">1.67.0</span>
+    <span class="stichwort">Die Zahl, nach der RaVia gefragt hat</span>
+    <span class="marke m-live">live</span>
+  </div>
+  <div class="herkunft"><span class="leer">vor der Versionsverwaltung</span></div>
+  <p class="was">Die RaVia-Seite hatte sich zum Verfahren für die <b>Deckungsanteile bivalenter Anlagen</b> entschieden — „Bivalenzpunkt + Jahresdauerlinie", ausdrücklich nicht Monatsbilanz —, und drei Festlegungen nachgeliefert: Gradstunden-Dauerlinie aus Norm-Außentemperatur und Heizgrenze ohne zusätzliche Klimadatenreihe, der Bivalenzpunkt <b>eingegeben</b> und nicht aus der Leistungskurve gerechnet, in der ersten Stufe die <b>parallele</b> Fahrweise. Genau so ist es gebaut — und weil die drei Fahrweisen dieselbe Konstruktion sind, rechnen alternativ und teilparallel mit. <b>Das Modell sind zwei Geraden:</b> die Gebäudekennlinie von der Norm-Heizlast auf null an der Heizgrenze, die Dauerlinie linear über die Heizzeit. Zusammengesetzt wird die Last über der Zeit ein Dreieck, und jeder Deckungsanteil ist ein Flächenverhältnis darin: parallel u², alternativ 2u − u², teilparallel beides hintereinander. Die Formeln gehen stetig ineinander über, und daran sind sie geprüft. <b>Was dabei auffällt und selten gesagt wird:</b> Bei alternativer Fahrweise trägt der zweite Erzeuger in 32 % der Heizzeit <b>53,8 %</b> der Heizarbeit — die kältesten Stunden haben die größte Last —, und er muss die <b>ganze</b> Norm-Heizlast tragen und nicht die Spitze. Ein 6-kW-Heizstab an einem 10-kW-Haus fehlt dort um 4 kW, und am Feld „Leistung" sieht man das nicht. Die Modellprüfung meldet den Fehlbetrag als <b>Fehler</b>, weil ein Haus, das am Auslegungspunkt nicht warm wird, kein Hinweis ist; umgerechnet wird nichts. <b>Jede Annahme steht am Ergebnis</b> — lineare Dauerlinie, konstante Wärmepumpenleistung unter dem Bivalenzpunkt, keine Klimadatenreihe, keine Kilowattstunden —, und ohne Heizgrenztemperatur wird gar nicht gerechnet: Sie ist eine Einstellung am Gerät, und geraten wird sie nicht. Für Solarthermie auch nicht, weil ihr Beitrag an der Einstrahlung hängt und nicht an der Temperatur. <b>Dazu die Verbindung Heizkreis ↔ Nutzungseinheit</b> für den Fall „zentrale Versorgung, Heizkreise je Wohnung": abgeleitet über die Räume und nicht am Kreis gespeichert, damit es keine zweite Wahrheit gibt; ein Kreis über zwei Wohnungen bekommt deshalb keine eindeutige Einheit, sondern einen Befund — er ist weder je Wohnung regelbar noch je Wohnung abrechenbar. <b>Berichtigt:</b> Die Meldung zum Sockelleistenkanal nennt jetzt den gebrauchten Außendurchmesser; sie endete bisher bei „passt nicht" und ließ die Frage offen, welcher Kanal dann. Beim Nachmessen stellte sich übrigens heraus, dass diese Meldung im Demohaus auch ohne Fußbodenheizung kommt — sie hängt am gemeinsamen Stamm und nicht, wie im Stand 1.66.0 vermutet, an der Verteilerzuleitung. Export <b>2.11.0</b> und <b>2.12.0</b>, beide reiner Zuwachs. Siehe <a href="#k13-19">Abschnitt 13.19</a>, <a href="#k10-7">10.7</a> und <a href="#k17-1">17.1</a>.</p>
+</article>
+<article class="fassung" data-v="1.66.0" data-korr="0" data-schnitt="0">
   <div class="kopfzeile">
     <span class="nr">1.66.0</span>
     <span class="stichwort">Ein leeres Blatt und die Zahl, an der das Gesetz hängt</span>
-    <span class="marke m-live">live</span>
+    
   </div>
   <div class="herkunft"><span class="datum">01.10.2026</span> <code>047df8c</code></div>
   <p class="was">Gemeldet aus der Benutzung: „ergänze eine seite wenn man was zeichnen will, die ist immer noch im hauptsystem, das muss so gehen, skizzirungsseite oder so". Das Skizzenblatt aus 1.64.0 war eine <b>Folie über dem Grundriss</b> — wer nur etwas aufzeichnen wollte, musste erst einen Plan dahinter haben und bekam jeden Maßstab des Modells mit. Jetzt gibt es die <b>Skizzenseite</b> als eigene Ansicht: ein leeres Blatt A4 quer mit 10-mm-Raster, vier Strichstärken, vier Stiftfarben, mehreren Blättern und einem Doppelklick zum Umbenennen. Zeichnen <b>mit dem Finger ist hier erlaubt</b> — auf dem Grundriss ist es das nicht, weil ein aufliegender Handballen dort Wände zöge; auf Papier gibt es nichts zu zerstören, und ein Blatt, auf dem man am Tablet nicht mit dem Finger zeichnen kann, ist wertlos. Auf dem Blatt entsteht <b>keine Wand</b>: nichts davon geht in Fläche, Heizlast, Massenauszug oder Übergabe ein. Die Blätter gehören zum Projekt und werden mit ihm gespeichert; jeder Zug wird beim Ablegen ausgedünnt, weil ein Strich über das halbe Blatt mehrere hundert Messpunkte liefert, von denen die meisten nichts aussagen. <b>Dazu die Nutzungseinheiten.</b> § 60c Abs. 1 GModG knüpft die Pflicht zum hydraulischen Abgleich an „sechs Wohnungen oder sonstige selbständige Nutzungseinheiten" — und diese Zahl stand in diesem Programm bis hierher an genau einer Stelle: als <b>getippte Angabe</b> im Anlagenblatt, von dort in Trinkwasserbedarf, Speichergröße und Gefäßauslegung. Niemand hat sie gegen das Modell gehalten. Jetzt zählt das Modell mit: Wohnung, Gewerbeeinheit und Gemeinschaftsfläche, zugeordnet <b>am Raum</b> und nicht am Geschoss — weil eine Maisonettewohnung über zwei Geschosse unter kein Geschoss passt. Eine <b>Gemeinschaftsfläche zählt nicht mit</b>: Fünf Wohnungen plus ein Treppenhaus sind sechs Einheiten und fünf selbständige, also keine Pflicht; fünf Wohnungen plus eine Praxis sind sechs selbständige, also Pflicht. Widersprechen sich die getippte und die gezählte Zahl, meldet die Modellprüfung das, und ein Knopf übernimmt die gezählte — das Programm entscheidet es <b>nicht von selbst</b>, denn welche der beiden stimmt, weiß nur, wer das Haus kennt. Geraten wird auch nichts: Ein Gebäude ohne Zuordnung hat keine erfassten Einheiten und nicht „eine Wohnung". In der Übergabe stehen sie als <code>occupancyUnits</code> samt Zusammenzählung und an jedem Raum (Export <b>2.10.0</b>, reiner Zuwachs). Dazu, auf Anforderung der RaVia-Seite vom selben Tag: die Einbettung meldet jetzt ein eigenes Ereignis <b>„Rohrnetz wurde neu gelegt"</b> (Schnittstellenfassung <b>1.7.0</b>). Bisher gab es nur „am Modell hat sich etwas getan", entprellt — ein hydraulischer Abgleich soll aber nicht auf jede Zwischenänderung neu rechnen, sondern erst auf einen abgeschlossenen Auslegungsstand. Das Ereignis kommt einmal je Auslegungslauf, sofort, mit Laufnummer, Verlegeart, Längen, Verbrauchern und dem schwersten Befund. Nebenbei fiel ein Fehler auf, der seit Langem schlief: Die <b>Dialoge</b> trugen <code>fixed inset-0</code>, hingen aber im Planbereich — und der spannt wegen seiner Weichzeichnung einen eigenen Bezugsrahmen auf. Sie richteten sich damit nicht am Fenster aus, sondern am Plan, dessen Höhe an der Kopfzeile hängt. Aufgefallen ist es daran, dass die fünfte Ansicht die Kopfzeile am Tablet quer um 34 px wachsen ließ und im Anlagendialog die sechste Frage unter die Faltkante rutschte — also der Mangel, gegen den dieser Dialog gebaut ist, ausgelöst von einer Änderung an anderer Stelle. Alle fünf Dialoge hängen jetzt am Körper des Dokuments; eine neue Prüfung hält die Regel fest. Siehe <a href="#k4-11">Abschnitt 4.11</a>, <a href="#k15-1-6">15.1.6</a> und <a href="#k17-1">17.1</a>.</p>
@@ -986,7 +995,7 @@ nicht mehr eindeutig belegen lässt, mit welcher Programmfassung sie kamen.</p>
   <br><br>
   <b>Zwei Lücken, die in den Daten liegen und nicht im Text.</b>
   Die Versionsverwaltung dieses Projekts beginnt erst bei <code>1.14.0</code> —
-  die 46 Fassungen ohne Datum liegen davor oder kamen gebündelt in einem
+  die 47 Fassungen ohne Datum liegen davor oder kamen gebündelt in einem
   Stand an. Namentlich die Fassungen <code>1.17.0</code> bis <code>1.27.0</code>:
   sie wurden zusammen eingecheckt (<code>630d70e</code>, „zwölf Fassungen in einem
   Stand"). Sie tragen deshalb kein eigenes Datum, und das steht an jeder einzelnen

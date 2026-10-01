@@ -111,6 +111,43 @@ export function einheitsbilanzen(doc: BimDocument): Einheitsbilanz[] {
   });
 }
 
+/**
+ * Die Nutzungseinheiten, die eine Menge von Räumen berührt — sortiert und ohne
+ * Wiederholung.
+ *
+ * **Warum das gerechnet und nicht gespeichert wird.** Ein Heizkreis versorgt
+ * Räume; welche Wohnung das ist, folgt daraus. Eine zweite Angabe am Kreis
+ * könnte der ersten widersprechen — ein Kreis, der laut Feld zu Wohnung 2
+ * gehört und laut seinen Räumen zu Wohnung 3. Dann hat man zwei Wahrheiten und
+ * keine Entscheidung. Also gibt es nur eine: die am Raum.
+ *
+ * Mehr als ein Eintrag ist kein Fehler dieser Funktion, sondern ein Befund:
+ * Ein Kreis über zwei Wohnungen lässt sich nicht je Wohnung regeln und nicht je
+ * Wohnung abrechnen. Gemeldet wird er in der Modellprüfung
+ * (`units.circuit-across-units`).
+ */
+export function einheitenVonRaeumen(doc: BimDocument, roomIds: readonly string[]): string[] {
+  const treffer = new Set<string>();
+  for (const id of roomIds) {
+    const unitId = doc.rooms[id]?.unitId;
+    if (unitId && doc.units?.[unitId]) treffer.add(unitId);
+  }
+  return [...treffer].sort();
+}
+
+/**
+ * Die Einheit eines Heizkreises, soweit sie eindeutig ist.
+ *
+ * `undefined` heißt entweder „keiner der Räume ist zugeordnet" **oder** „der
+ * Kreis läuft über mehrere Einheiten". Die beiden Fälle unterscheidet
+ * `einheitenVonRaeumen` — hier wird bewusst nicht geraten, welche der mehreren
+ * gemeint ist.
+ */
+export function einheitVonRaeumen(doc: BimDocument, roomIds: readonly string[]): string | undefined {
+  const treffer = einheitenVonRaeumen(doc, roomIds);
+  return treffer.length === 1 ? treffer[0] : undefined;
+}
+
 /** Räume, die keiner Einheit zugeordnet sind. */
 export function ohneEinheit(doc: BimDocument): Room[] {
   return Object.values(doc.rooms).filter((r) => !r.unitId);

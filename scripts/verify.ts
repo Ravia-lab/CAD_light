@@ -76,6 +76,7 @@ import { pruefeNetzexport } from './pruefungen/netzexport';
 import { pruefeSkizzenseite } from './pruefungen/skizzenseite';
 import { pruefeNutzungseinheiten } from './pruefungen/nutzungseinheiten';
 import { pruefeDialoge } from './pruefungen/dialoge';
+import { pruefeBivalenz } from './pruefungen/bivalenz';
 import { pruefeAufnahme } from './pruefungen/aufnahme';
 import { pruefeWissensbasis } from './pruefungen/wissensbasis';
 import { pruefeGeschossdecken } from './pruefungen/geschossdecken';
@@ -738,7 +739,7 @@ console.log('\n▸ Export für die Heizlastberechnung');
   };
 
   const ex = buildRaviaExport(doc as never);
-  check('Schema-Version', ex.version, '2.10.0');
+  check('Schema-Version', ex.version, '2.12.0');
   check('Einheiten dokumentiert', ex.units.uValue, 'W/(m2K)');
 
   const room = ex.rooms.find((r) => r.polygon.some((p) => p.x < 4))!;
@@ -3908,6 +3909,7 @@ pruefeNetzexport(check);
 pruefeSkizzenseite(check);
 pruefeNutzungseinheiten(check);
 pruefeDialoge(check);
+pruefeBivalenz(check);
 
 console.log('\n▸ Wissensbasis — Wortnormalisierung, Rangfusion, Korpus');
 pruefeWissensbasis(check);

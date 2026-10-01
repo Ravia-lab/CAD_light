@@ -141,7 +141,7 @@ export function pruefeHuellflaeche(check: CheckFn): void {
      * übernimmt, rechnet mit gut der Hälfte der Hüllfläche.
      */
     check('Anteil Boden/Decke/Dach/Giebel am Referenzhaus', ex.envelope.shareHorizontal, 0.465, 0.01);
-    check('Die Fassung sagt es', ex.version, '2.10.0');
+    check('Die Fassung sagt es', ex.version, '2.12.0');
   }
 
   // =========================================================================

@@ -378,6 +378,17 @@ export const GLOSSAR: Record<string, GlossaryEntry> = {
       'Das Überströmventil öffnet dann einen Kurzschluss zwischen Vor- und Rücklauf. Besser ' +
       'wäre, den Fall gar nicht entstehen zu lassen — etwa indem ein Kreis immer offen bleibt.',
   },
+  deckungsanteil: {
+    term: 'Deckungsanteil',
+    short: 'Welcher Erzeuger wie viel der Heizarbeit eines Jahres leistet.',
+    long:
+      'Bei zwei Wärmeerzeugern teilt sich die Heizarbeit auf. Der Deckungsanteil sagt, wie: ' +
+      'etwa 90 % Wärmepumpe und 10 % Kessel. Er ist nicht dasselbe wie der Deckungsgrad — der ' +
+      'vergleicht Leistungen am kältesten Tag, der Anteil vergleicht Kilowattstunden über das ' +
+      'Jahr. Der Unterschied ist groß, weil die kalten Tage selten sind: Ein Kessel, der die ' +
+      'halbe Leistung bringt, leistet oft nur ein Zehntel der Arbeit.',
+    typical: 'Wärmepumpe parallel 85–95 % · alternativ gefahren 45–70 %',
+  },
   systemtrenner: {
     term: 'Systemtrenner',
     short: 'Verhindert, dass Heizungswasser ins Trinkwasser zurückläuft.',

@@ -31,7 +31,8 @@ import { dichtheitspflicht } from './kaeltemittel';
 import { estimateHeatLoad } from './heatLoadEstimate';
 import { heizlastAusBaualter, heizlastAusVerbrauch, verbrauchsabgleich } from './verbrauchsabgleich';
 import { daecherVon, raeumeOhneGeschossDarueber } from './dachlandschaft';
-import { ABGLEICHPFLICHT_AB, einheitenstand } from './nutzungseinheiten';
+import { ABGLEICHPFLICHT_AB, einheitenVonRaeumen, einheitenstand } from './nutzungseinheiten';
+import { designPlant } from './plantDesign';
 
 /** Objekte, die Wärme in den Raum geben — nur sie brauchen eine Leistung. */
 const HEAT_EMITTERS = new Set(['radiator', 'radiator-tube', 'towel-radiator', 'convector', 'underfloor']);
@@ -65,6 +66,10 @@ export const REMEDIES: Record<string, string> = {
     'Im Reiter „Anlage" auf „Aus dem Modell zählen" klicken — oder die fehlende Einheit zuordnen. Eine von beiden Zahlen ist falsch, und welche, weiß nur, wer das Haus kennt.',
   'units.rooms-unassigned':
     'Im Reiter „Räume" die offenen Räume einer Einheit zuordnen — ganze Geschosse gehen in einem Schritt. Gemeinschaftsflächen wie Treppenhaus und Keller bekommen eine eigene Einheit der Art „Gemeinschaftsfläche".',
+  'plant.bivalence-shortfall':
+    'Im Reiter „Anlage" unter „Zweiter Wärmeerzeuger" die Leistung auf den verlangten Wert bringen — oder den Bivalenzpunkt tiefer legen, dann fällt die Spitze kleiner aus. Bei alternativer Fahrweise ist der verlangte Wert die ganze Norm-Heizlast; dort hilft nur ein Gerät, das sie trägt.',
+  'units.circuit-across-units':
+    'Entweder den Kreis teilen — je Einheit einen — oder die Raumzuordnung berichtigen, wenn ein Raum der falschen Einheit zugeschlagen ist. Welches von beiden, entscheidet die Anlage und nicht das Programm.',
   'units.balancing-required':
     'Kein Handgriff, sondern eine Rechtsfolge: Der hydraulische Abgleich ist durchzuführen und zu dokumentieren. Die Vorbemessung dazu steht im Reiter „Anlage", gerechnet wird er in RaVia.',
   'plant.estimated-load':
@@ -1154,6 +1159,26 @@ export function validateModel(doc: BimDocument): ValidationReport {
         );
       }
 
+      /*
+       * Ein Heizkreis über zwei Nutzungseinheiten.
+       *
+       * Das ist kein Schönheitsfehler: Ein solcher Kreis lässt sich nicht je
+       * Wohnung regeln (eine Vorlauftemperatur für zwei Mietverhältnisse) und
+       * nicht je Wohnung abrechnen (ein Wärmemengenzähler für zwei Parteien).
+       * Im Bestand kommt es vor — dann ist es eine Feststellung, die in den
+       * Bericht gehört, und keine, die das Programm stillschweigend glättet.
+       */
+      for (const kreis of Object.values(doc.plant?.circuits ?? {})) {
+        const treffer = einheitenVonRaeumen(doc, kreis.roomIds);
+        if (treffer.length < 2) continue;
+        const namen = treffer.map((id) => doc.units?.[id]?.name ?? id).join(', ');
+        add(
+          'warning',
+          'units.circuit-across-units',
+          `Heizkreis „${kreis.label}" versorgt Räume aus ${treffer.length} Nutzungseinheiten (${namen}) — er lässt sich damit weder je Einheit regeln noch je Einheit abrechnen.`,
+        );
+      }
+
       if (stand.abgleichpflicht) {
         add(
           'info',
@@ -1279,6 +1304,45 @@ export function validateModel(doc: BimDocument): ValidationReport {
             `Bei ${plant.safety.staticHeight.toFixed(1)} m statischer Höhe bleibt zwischen Vordruck und Enddruck kein Raum für das Ausdehnungsvolumen. Ansprechdruck erhöhen oder das Gefäß tiefer setzen.`,
           );
         }
+        /*
+         * --- Bivalente Anlage: reicht der zweite Erzeuger? -----------------
+         *
+         * Gerechnet wird das in `lib/bivalenz.ts`; hier steht nur der Befund.
+         * Und er ist ein **Fehler** und keine Warnung: Fehlt am Auslegungspunkt
+         * Leistung, wird das Haus im kältesten Fall nicht warm. Das ist kein
+         * Hinweis auf eine ungünstige Wahl, sondern eine Anlage, die ihre
+         * Aufgabe nicht erfüllt.
+         *
+         * Besonders häufig bei **alternativer** Fahrweise mit Heizstab: Dort
+         * trägt der zweite Erzeuger unter dem Abschaltpunkt die ganze
+         * Norm-Heizlast, nicht die Spitze — ein 6-kW-Heizstab an einem
+         * 10-kW-Haus fehlt dann um 4 kW, und niemand sieht es am Feld
+         * „Leistung".
+         */
+        if (plant.secondGenerator && plant.design.heatingLimit !== undefined) {
+          /*
+           * Gerechnet wird mit **derselben** Auslegung, die auch im Reiter
+           * „Anlage" steht — nicht mit einer eigenen Heizlast. Zwei Zahlen für
+           * denselben Fehlbetrag, die um ein halbes Kilowatt auseinanderliegen,
+           * wären schlimmer als eine ungenaue: Niemand wüsste, welcher zu
+           * glauben ist.
+           */
+          const b = designPlant(doc, {
+            heatLoad: plant.heatLoadOverride,
+            extraModels: plant.extraModels,
+          }).bivalenz;
+          if ('ergebnis' in b && b.ergebnis.leistungFehlt > 0) {
+            add(
+              'error',
+              'plant.bivalence-shortfall',
+              `Der zweite Wärmeerzeuger ist zu klein: Am Auslegungspunkt muss er ${b.ergebnis.leistungZweiterzeuger.toFixed(2)} kW tragen, eingetragen sind ${b.ergebnis.leistungVorhanden.toFixed(2)} kW — es fehlen ${b.ergebnis.leistungFehlt.toFixed(2)} kW.` +
+                (b.ergebnis.betrieb === 'bivalent-alternativ' || b.ergebnis.betrieb === 'bivalent-teilparallel'
+                  ? ' Bei dieser Fahrweise trägt er unter dem Abschaltpunkt die ganze Norm-Heizlast und nicht nur die Spitze.'
+                  : ''),
+            );
+          }
+        }
+
         if (plant.design.glycolFraction > 0 && plant.design.glycolFraction < 20) {
           add(
             'warning',

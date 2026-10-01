@@ -25,7 +25,9 @@ import type { BimDocument, Room } from '../../src/types/bim';
 import {
   ABGLEICHPFLICHT_AB,
   EINHEIT_LABELS,
+  einheitVonRaeumen,
   einheitenAbgleich,
+  einheitenVonRaeumen,
   einheitenstand,
   einheitsbilanzen,
   naechsterName,
@@ -265,7 +267,51 @@ export function pruefeNutzungseinheiten(check: CheckFn): void {
     naechsterName(nachLoeschen, 'wohnung'), 'Wohnung 5');
 
   // -------------------------------------------------------------------------
-  // 10 · Die Beschriftungen
+  // 10 · Der Heizkreis und seine Einheit — abgeleitet, nicht gespeichert
+  // -------------------------------------------------------------------------
+  /*
+   * Die Festlegung der RaVia-Seite vom 01.10.2026 lautet: zentrale Versorgung,
+   * **Heizkreise je Wohnung**. Dafür muss zu jedem Kreis die Wohnung
+   * feststehen — und zwar aus seinen Räumen. Ein eigenes Feld am Kreis wäre
+   * eine zweite Wahrheit, die der ersten widersprechen kann.
+   */
+  // Wohnung 1 hat r1 und r2 → ein Kreis über beide ist eindeutig.
+  check('Nutzungseinheiten · Kreis in einer Wohnung', einheitVonRaeumen(doc, ['r1', 'r2']) ?? '—', 'w1');
+  check('Nutzungseinheiten · und genau eine Einheit berührt',
+    einheitenVonRaeumen(doc, ['r1', 'r2']).length, 1);
+
+  // r1 (Wohnung 1) und r3 (Wohnung 2) → zwei Einheiten, also **nicht**
+  // eindeutig. Das ist die Gegenprobe, auf die es ankommt: Hier eine der
+  // beiden auszuwählen wäre geraten, und der Kreis wäre je Wohnung weder
+  // regelbar noch abrechenbar.
+  check('Nutzungseinheiten · Kreis über zwei Wohnungen ist nicht eindeutig',
+    einheitVonRaeumen(doc, ['r1', 'r3']) === undefined, true);
+  check('Nutzungseinheiten · und beide werden benannt',
+    einheitenVonRaeumen(doc, ['r1', 'r3']).join(', '), 'w1, w2');
+
+  // Die Maisonette: r3 im EG und r4 im OG gehören **derselben** Einheit.
+  // Ein Kreis über beide Geschosse ist damit eindeutig — genau deshalb hängt
+  // die Zuordnung am Raum und nicht am Geschoss.
+  check('Nutzungseinheiten · Kreis über zwei Geschosse derselben Wohnung',
+    einheitVonRaeumen(doc, ['r3', 'r4']) ?? '—', 'w2');
+
+  // r7 ist nicht zugeordnet → keine Einheit, und zwar leer und nicht geraten.
+  check('Nutzungseinheiten · Kreis in nicht zugeordneten Räumen',
+    einheitenVonRaeumen(doc, ['r7']).length, 0);
+  // Ein nicht zugeordneter Raum **neben** einem zugeordneten verdünnt die
+  // Aussage nicht: Die Einheit bleibt eindeutig.
+  check('Nutzungseinheiten · ein offener Raum dabei ändert nichts',
+    einheitVonRaeumen(doc, ['r1', 'r7']) ?? '—', 'w1');
+  // Eine Kennung, zu der es keine Einheit gibt, zählt nicht mit.
+  const verwaist = baueEinheitenhaus();
+  verwaist.units = { w1: { id: 'w1', name: 'Wohnung 1', art: 'wohnung' } };
+  check('Nutzungseinheiten · eine Kennung ohne Einheit zählt nicht',
+    einheitenVonRaeumen(verwaist, ['r1', 'r3']).join(', '), 'w1');
+  check('Nutzungseinheiten · ohne Räume keine Einheit',
+    einheitenVonRaeumen(doc, []).length, 0);
+
+  // -------------------------------------------------------------------------
+  // 11 · Die Beschriftungen
   // -------------------------------------------------------------------------
   check('Nutzungseinheiten · drei Arten', Object.keys(EINHEIT_LABELS).length, 3);
   check('Nutzungseinheiten · Wohnung heißt Wohnung', EINHEIT_LABELS.wohnung, 'Wohnung');

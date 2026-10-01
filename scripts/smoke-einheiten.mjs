@@ -143,7 +143,7 @@ expect('Die Zuordnung steht auch am Raum', mit.amRaum, 3);
  * zwei verschiedenen Wegen, aus `occupancyUnits` und aus `rooms`.
  */
 expect('Einheitsfläche = Summe ihrer Räume', mit.flaecheEins, mit.summeIhrerRaeume, 0.02);
-expect('Exportfassung 2.10.0', mit.fassung, '2.10.0');
+expect('Exportfassung 2.12.0', mit.fassung, '2.12.0');
 
 console.log('\n▸ Der Widerspruch zur getippten Zahl');
 /*
@@ -248,16 +248,68 @@ expect('Eine Einheit übrig', geloescht.einheiten, 1);
 expect('Keine Zuordnung zeigt ins Leere', geloescht.verwaist, 0);
 expect('Die Räume sind wieder frei', geloescht.ohne, 3);
 
+console.log('\n▸ Heizkreise je Wohnung');
+/*
+ * Der Fall, auf den sich die RaVia-Seite am 01.10.2026 festgelegt hat:
+ * zentrale Versorgung, **Heizkreise je Wohnung**. Die Zuordnung Kreis →
+ * Einheit ist abgeleitet (Kreis → Räume → Einheit) und steht nicht am Kreis;
+ * geprüft wird, dass sie im Export ankommt — und dass ein Kreis über zwei
+ * Wohnungen **nicht** stillschweigend einer davon zugeschlagen wird.
+ */
+const kreise = await p.evaluate(() => {
+  const s = window.__ravia.getState();
+  const d = s.doc;
+  const raeume = Object.values(d.rooms);
+  const einheiten = Object.keys(d.units);
+  // Erst jeden Raum einer eigenen Einheit zuordnen: drei Räume, zwei Einheiten.
+  s.ordneRaumEinheitZu(raeume[0].id, einheiten[0]);
+  s.ordneRaumEinheitZu(raeume[1].id, einheiten[0]);
+  const zweite = s.neueEinheit('wohnung');
+  window.__ravia.getState().ordneRaumEinheitZu(raeume[2].id, zweite);
+  // Ein Kreis je Wohnung, und ein dritter quer über beide.
+  window.__ravia.getState().setPlantCircuits([
+    { id: 'k-a', label: 'Wohnung A', kind: 'radiator', roomIds: [raeume[0].id, raeume[1].id],
+      flowTemperature: 55, returnTemperature: 45, material: 'verbund', mixed: false },
+    { id: 'k-b', label: 'Wohnung B', kind: 'radiator', roomIds: [raeume[2].id],
+      flowTemperature: 55, returnTemperature: 45, material: 'verbund', mixed: false },
+    { id: 'k-quer', label: 'Quer', kind: 'radiator', roomIds: [raeume[1].id, raeume[2].id],
+      flowTemperature: 55, returnTemperature: 45, material: 'verbund', mixed: false },
+  ]);
+  const ex = window.RaViaCAD.getExport();
+  const k = Object.fromEntries((ex.plant?.circuits ?? []).map((c) => [c.id, c]));
+  const befunde = ex.validation.issues.filter((i) => i.code === 'units.circuit-across-units');
+  return {
+    a: k['k-a']?.occupancyUnitId === einheiten[0],
+    b: k['k-b']?.occupancyUnitId === zweite,
+    // **Der Kern:** Der Kreis über beide Wohnungen hat **keine** eindeutige
+    // Einheit, sondern nennt beide.
+    querEindeutig: k['k-quer']?.occupancyUnitId,
+    querBeide: (k['k-quer']?.occupancyUnitIds ?? []).length,
+    befunde: befunde.length,
+    befundText: befunde[0]?.message ?? '',
+    // Und von der anderen Seite: je Einheit die Kreise.
+    kreiseErsteEinheit: (ex.occupancyUnits.find((u) => u.id === einheiten[0])?.circuitIds ?? []).sort(),
+  };
+});
+expect('Kreis A hängt an Wohnung 1', kreise.a, true);
+expect('Kreis B an der zweiten Wohnung', kreise.b, true);
+expect('Der Kreis über beide hat keine eindeutige Einheit', kreise.querEindeutig, undefined);
+expect('Er nennt stattdessen beide', kreise.querBeide, 2);
+expect('Und wird als Befund gemeldet', kreise.befunde, 1);
+expect('Die Meldung nennt beide Wohnungen', /2 Nutzungseinheiten/.test(kreise.befundText), true);
+expect('Je Einheit stehen ihre Kreise', kreise.kreiseErsteEinheit, ['k-a', 'k-quer']);
+
 console.log('\n▸ Die Zuordnung am Raum, über die Oberfläche');
 /*
  * Der Weg, den der Anwender geht: Raum auswählen, Einheit im Auswahlfeld
  * setzen. Die Store-Aktion ist oben geprüft — hier geht es darum, dass das
  * Feld überhaupt da ist und auf den richtigen Raum wirkt.
  */
-await p.evaluate(() => {
+const vorAuswahl = await p.evaluate(() => {
   const s = window.__ravia.getState();
   const r = Object.values(s.doc.rooms)[0];
   s.setSelection({ kind: 'room', id: r.id });
+  return { einheiten: Object.keys(s.doc.units ?? {}).length, namen: Object.values(s.doc.units ?? {}).map((e) => e.name) };
 });
 await p.waitForTimeout(500);
 const feld = p.locator('select').filter({ hasText: 'keine' }).first();
@@ -277,13 +329,15 @@ const ueberOberflaeche = await p.evaluate(() => {
     zugeordnet: Object.values(d.rooms).filter((r) => r.unitId === raum.unitId).length,
   };
 });
-expect('Eine Einheit dazu', ueberOberflaeche.einheiten, 2);
+expect('Eine Einheit dazu', ueberOberflaeche.einheiten, vorAuswahl.einheiten + 1);
 /*
- * „Wohnung 3" und nicht „Wohnung 1": Übrig ist nach dem Löschen oben
- * „Wohnung 2", und Nummern werden nicht wiederverwendet — zwei verschiedene
- * Wohnungen dürfen im Schriftverkehr nicht gleich heißen.
+ * Der Name wird **fortlaufend** vergeben und über gelöschte Nummern hinweg
+ * weitergezählt — zwei verschiedene Wohnungen dürfen im Schriftverkehr nicht
+ * gleich heißen. Geprüft wird deshalb die Regel und nicht die Zahl: ein
+ * Wohnungsname, den es noch nicht gab.
  */
-expect('Fortlaufend über die gelöschte hinweg', ueberOberflaeche.name, 'Wohnung 3');
+expect('Es ist eine Wohnung', /^Wohnung \d+$/.test(ueberOberflaeche.name ?? ''), true);
+expect('Mit einem Namen, den es noch nicht gab', vorAuswahl.namen.includes(ueberOberflaeche.name), false);
 expect('Und nur der gewählte Raum hängt daran', ueberOberflaeche.zugeordnet, 1);
 
 console.log('\n▸ Nichts in der Konsole');

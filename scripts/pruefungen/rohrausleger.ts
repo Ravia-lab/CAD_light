@@ -646,6 +646,16 @@ export function pruefeRohrausleger(check: CheckFn): void {
     const r = planPipeNetwork(gross, { mode: 'sanierung', levelId: 'eg' });
     check('Zu große Rohre sprengen den Kanal und werden gemeldet',
       r.notes.some((n) => n.severity === 'error' && n.text.includes('Sockelleistenkanal')), true);
+    /*
+     * **Und die Meldung sagt, welcher Kanal dann.** Sie endete bis 1.67.0 bei
+     * „passt nicht" und ließ die Frage offen, die als nächstes kommt. Jetzt
+     * steht der gebrauchte Außendurchmesser darin — ein Wert über der
+     * Schranke, denn sonst wäre nichts zu melden.
+     */
+    const kanalmeldung =
+      r.notes.find((n) => n.severity === 'error' && n.text.includes('Sockelleistenkanal'))?.text ?? '';
+    const gebraucht = Number(/gebraucht werden bis zu (\d+) mm/.exec(kanalmeldung)?.[1] ?? 0);
+    check('Die Meldung nennt den gebrauchten Außendurchmesser', gebraucht > SOCKELLEISTE_MAX_AUSSEN, true);
     check('Im Prüfhaus passt dagegen alles in den Kanal',
       sanierung.notes.some((n) => n.text.includes('überschreitet den Sockelleistenkanal')), false);
   }

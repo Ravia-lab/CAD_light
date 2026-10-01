@@ -2,7 +2,7 @@
 <h2 id="k17">17 · Schnittstellen: Export, IFC, Einbettung in RaVia</h2>
 <p class="lead">Alles, was dieses Programm tut, läuft auf eine Datei zu: die Übergabe an die Heizlastberechnung. Dieses Kapitel sagt, was in dieser Datei steht, welche anderen Wege es daneben gibt — IFC4 hin und zurück, Einbettung in RaVia, der Rückweg von dort — und was der Betrieb davon merkt.</p>
 
-<h3 id="k17-1">17.1 Der Export <code>ravia.bim.light</code> 2.10.0</h3>
+<h3 id="k17-1">17.1 Der Export <code>ravia.bim.light</code> 2.12.0</h3>
 
 <p class="wo">Im Programm: Werkzeugleiste oben rechts → blauer Knopf <b>RaVia JSON</b>. Der Knopf trägt den Hinweis „Gebäudedaten als RaVia-BIM-JSON exportieren (DIN EN 12831) — dient zugleich als Projektdatei".</p>
 
@@ -411,7 +411,24 @@
 
 <p>Reiner Zuwachs: Beide Blöcke fehlen, solange keine Einheit erfasst ist, und alles andere bleibt unverändert. Ein Einfamilienhaus hat keine Einheiten; „eine Einheit" wäre eine Behauptung, die niemand aufgestellt hat.</p>
 
-<div class="merke"><b>Merke</b><p>Alle zehn Schritte sind <b>additiv</b>. Eine Gegenstelle, die gegen 2.0.0 gebaut hat, liest eine 2.10.0-Datei ohne Änderung und rechnet dasselbe wie vorher. Sie bekommt nur weniger Auskunft. Wer die neuen <code>kind</code>-Werte nicht kennt, behandelt sie wie bisher jede Verletzung.</p></div>
+<p><b>2.11.0</b> verband Heizkreis und Nutzungseinheit: <code>plant.circuits[].occupancyUnitId</code> (nur wenn eindeutig), <code>plant.circuits[].occupancyUnitIds</code> (nur bei einem Kreis über mehrere Einheiten) und <code>occupancyUnits[].circuitIds</code>. Beides ist <b>abgeleitet</b> — Kreis → Räume → Einheit — und nicht gespeichert: Ein eigenes Feld am Kreis könnte der Zuordnung am Raum widersprechen, und dann gäbe es zwei Wahrheiten. Ein Kreis über zwei Wohnungen bekommt deshalb <b>keine</b> eindeutige Einheit; die Modellprüfung meldet ihn, weil er weder je Wohnung regelbar noch je Wohnung abrechenbar ist.</p>
+
+<p><b>2.12.0</b> brachte <code>plant.bivalence</code> — die <b>Deckungsanteile einer bivalenten Anlage</b>:</p>
+
+<ul>
+<li><code>method</code> (heute <code>duration-curve-linear</code>), <code>operation</code>, <code>bivalencePoint</code>, <code>cutOffPoint</code>.</li>
+<li><code>heatPumpShare</code> und <code>secondGeneratorShare</code> — die Aufteilung der Heizarbeit [0 … 1].</li>
+<li><code>timeShareBelowBivalence</code>, <code>timeShareWithoutHeatPump</code> — die Zeitanteile.</li>
+<li><code>capacityAtBivalence</code>, <code>secondGeneratorRequired</code>, <code>secondGeneratorInstalled</code>, <code>secondGeneratorShortfall</code>.</li>
+<li><code>curve</code> — Norm-Heizlast, Norm-Außentemperatur, Heizgrenze: die drei Eingangsgrößen, damit die Rechnung nachvollziehbar ist.</li>
+<li><code>assumptions</code> — <b>jede</b> Annahme im Klartext.</li>
+</ul>
+
+<div class="merke"><b>Merke</b><p><code>assumptions</code> ist Teil des Vertrags und nicht Beiwerk. Die Anteile sind Modellwerte: lineare Dauerlinie, konstante Wärmepumpenleistung unter dem Bivalenzpunkt, keine Klimadatenreihe. Wer sie in einen Nachweis übernimmt, muss sagen können, worauf sie beruhen — deshalb stehen sie in derselben Datei und nicht in einer Doku daneben. Und eine <b>Fehlmenge wird nicht umgerechnet</b>: <code>secondGeneratorShortfall</code> über 0 heißt, dass die Anlage am Auslegungspunkt nicht trägt, nicht dass die Wärmepumpe mehr leistet.</p></div>
+
+<p>Der Block fehlt bei monovalenter Anlage, ohne Heizgrenztemperatur und bei Solarthermie als zweitem Erzeuger — und zwar ganz. Warum, steht dann in der Modellprüfung. Siehe <a href="#k13-19">Abschnitt 13.19</a>.</p>
+
+<div class="merke"><b>Merke</b><p>Alle zwölf Schritte sind <b>additiv</b>. Eine Gegenstelle, die gegen 2.0.0 gebaut hat, liest eine 2.12.0-Datei ohne Änderung und rechnet dasselbe wie vorher. Sie bekommt nur weniger Auskunft. Wer die neuen <code>kind</code>-Werte nicht kennt, behandelt sie wie bisher jede Verletzung.</p></div>
 
 <h4 id="k17-1-7">17.1.7 Der Wächter über dem Format</h4>
 

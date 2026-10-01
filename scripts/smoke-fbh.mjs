@@ -164,7 +164,7 @@ const laengen = await p.evaluate(() => {
     k,
   };
 });
-expect('Exportfassung 2.10.0', laengen.version, '2.10.0');
+expect('Exportfassung 2.12.0', laengen.version, '2.12.0');
 expect('Ein Flächenheizkreis in der Übergabe', laengen.kreise, 1);
 expect('Rohr in der Fläche über 40 m', laengen.k.fieldLength > 40, true);
 /*

@@ -59,6 +59,13 @@ import {
 } from './heatLoadEstimate';
 import { blockingFactor } from './heatPump';
 import {
+  bivalenzanteile,
+  vorschlagBivalenzpunkt,
+  type BivalenzHindernis,
+  type Bivalenzergebnis,
+  type Gebaeudekennlinie,
+} from './bivalenz';
+import {
   DEFAULT_FLUID,
   PIPE_TABLES,
   designFloorHeating,
@@ -295,6 +302,29 @@ export interface PlantDesignResult {
    * `ANTWORTEN_VORGABE` zurück.
    */
   antworten?: AnlagenAntworten;
+  /**
+   * Deckungsanteile der bivalenten Anlage — oder der Grund, warum es keine
+   * gibt.
+   *
+   * Immer gesetzt, und zwar mit dem einen oder dem anderen: Eine Anlage ohne
+   * zweiten Erzeuger ist monovalent, und das ist eine Auskunft und keine
+   * Lücke. Siehe `lib/bivalenz.ts` — das Verfahren hat die RaVia-Seite am
+   * 01.10.2026 festgelegt (Bivalenzpunkt und Jahresdauerlinie, nicht
+   * Monatsbilanz).
+   */
+  bivalenz: { ergebnis: Bivalenzergebnis } | { hindernis: BivalenzHindernis };
+  /**
+   * Bivalenzpunkt, wie er sich aus der Gerätekennlinie ergäbe [°C] — ein
+   * **Vorschlag** und nichts weiter.
+   *
+   * Gerechnet wird mit dem eingetragenen Punkt. Die RaVia-Seite hat das am
+   * 01.10.2026 ausdrücklich so entschieden: „Eingegeben/vorgegeben, nicht
+   * automatisch aus der Leistungskurve errechnet. Der Planer gibt den Wert
+   * ein." Dieser Vorschlag steht deshalb nur auf dem Bildschirm daneben und
+   * geht **nicht** in den Export; er fehlt, wo das Gerät die Norm-Heizlast
+   * allein trägt oder keine Kennlinienpunkte vorliegen.
+   */
+  bivalenzVorschlag?: number;
   notes: PlanningNote[];
 }
 
@@ -1211,6 +1241,57 @@ export function designPlant(doc: BimDocument, options: PlantDesignOptions = {}):
     : undefined;
   for (const n of safety?.notes ?? []) notes.push(n);
 
+  /*
+   * --- Deckungsanteile bei bivalenter Anlage -------------------------------
+   *
+   * Die Kennlinie steht aus drei Zahlen, die alle schon da sind: Norm-Heizlast
+   * (gerade gerechnet), Norm-Außentemperatur (am Projekt) und
+   * Heizgrenztemperatur (im Anlagenblatt). Fehlt die Heizgrenze, wird nicht
+   * gerechnet — sie ist eine Einstellung am Gerät und keine Eigenschaft des
+   * Gebäudes, und geraten wird sie nicht.
+   */
+  const kennlinie: Gebaeudekennlinie = {
+    heizlast: heatLoad,
+    normAussen: doc.meta.designOutdoorTemperature,
+    heizgrenze: plant.design.heatingLimit ?? Number.NaN,
+  };
+  const bivalenz = bivalenzanteile(plant.secondGenerator, kennlinie);
+  /*
+   * Der Vorschlag kommt aus der Leistung im Auslegungspunkt — nur, wo ein
+   * Gerät gewählt ist. Er wird nicht gerechnet, um ihn zu benutzen, sondern um
+   * ihn neben den eingetragenen Punkt stellen zu können.
+   */
+  const bivalenzVorschlag =
+    plant.secondGenerator && selected
+      ? vorschlagBivalenzpunkt(kennlinie, selected.capacityAtDesign)
+      : undefined;
+  if ('ergebnis' in bivalenz) {
+    const e = bivalenz.ergebnis;
+    const pz = (v: number) => `${(v * 100).toFixed(1).replace('.', ',')} %`;
+    notes.push({
+      severity: 'info',
+      text:
+        `Deckungsanteile nach Bivalenzpunkt und Jahresdauerlinie: Wärmepumpe ${pz(e.anteilWaermepumpe)}, ` +
+        `zweiter Erzeuger ${pz(e.anteilZweiterzeuger)} der Heizarbeit. Bivalenzpunkt ${e.bivalenzpunkt.toFixed(1).replace('.', ',')} °C` +
+        (e.abschaltpunkt === undefined ? '' : `, Abschaltpunkt ${e.abschaltpunkt.toFixed(1).replace('.', ',')} °C`) +
+        `; unter dem Bivalenzpunkt liegen ${pz(e.zeitanteilUnterBivalenz)} der Heizzeit. ` +
+        `Lineare Dauerlinie zwischen ${kennlinie.normAussen.toFixed(1).replace('.', ',')} °C und ` +
+        `${kennlinie.heizgrenze.toFixed(1).replace('.', ',')} °C Heizgrenze — keine Klimadatenreihe.`,
+    });
+    if (e.leistungFehlt > 0) {
+      notes.push({
+        severity: 'warn',
+        text:
+          `Der zweite Erzeuger ist zu klein: verlangt werden ${e.leistungZweiterzeuger.toFixed(2).replace('.', ',')} kW, ` +
+          `eingetragen sind ${e.leistungVorhanden.toFixed(2).replace('.', ',')} kW — es fehlen ` +
+          `${e.leistungFehlt.toFixed(2).replace('.', ',')} kW. ` +
+          (e.betrieb === 'bivalent-alternativ' || e.betrieb === 'bivalent-teilparallel'
+            ? 'Bei dieser Fahrweise trägt er unter dem Abschaltpunkt die **ganze** Norm-Heizlast, nicht nur die Spitze.'
+            : 'Die Fehlmenge wird nicht auf die Wärmepumpe umgerechnet — sie bleibt eine Fehlmenge.'),
+      });
+    }
+  }
+
   return {
     /*
      * **Die Antworten wandern mit.** Das Schema wird an einer anderen Stelle
@@ -1249,6 +1330,8 @@ export function designPlant(doc: BimDocument, options: PlantDesignOptions = {}):
     pump: pumpDesign,
     pumpenherkunft,
     safety,
+    bivalenz,
+    ...(bivalenzVorschlag === undefined ? {} : { bivalenzVorschlag }),
     notes: dedupe(notes),
   };
 }

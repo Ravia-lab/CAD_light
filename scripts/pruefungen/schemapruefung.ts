@@ -244,6 +244,8 @@ function baueAuslegung(anpassung: Partial<PlantDesignResult> = {}): PlantDesignR
     volume: { total: 200, parts: [{ label: 'Anlage', volume: 200 }] },
     buffer: { required: 0, reason: 'Anlagenvolumen ohne Puffer ausreichend' },
     generator: erzeugerBilanz({ flow: 0, dn: 25, umschaltung: false, waermezaehler: false, abscheiderVorhanden: false }),
+    // Monovalent — hier gibt es nichts aufzuteilen.
+    bivalenz: { hindernis: 'kein-zweiterzeuger' },
     notes: [],
     ...anpassung,
   };

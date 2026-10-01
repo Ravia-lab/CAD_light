@@ -989,6 +989,16 @@ export function planPipeNetwork(doc: BimDocument, options: PipeLayoutOptions): P
   let laufendeNummer = 0;
   let routeLength = 0;
   let zuGross = 0;
+  /**
+   * Größter Außendurchmesser unter den Abschnitten, die nicht in den Kanal
+   * passen [mm].
+   *
+   * Ohne diese Zahl endet die Meldung bei „passt nicht" und lässt die Frage
+   * offen, die als nächstes kommt: **welcher Kanal dann?** Sie steht deshalb
+   * in der Meldung. Gerechnet wird nichts dazu — es ist der Wert, der die
+   * Grenze überschritten hat.
+   */
+  let zuGrossAussen = 0;
   /** Ringabschnitte, in denen Cu 22 die Richtwerte reißt — der schlimmste zählt. */
   let ringUeber: { anzahl: number; v: number; gradient: number; laenge: number } = { anzahl: 0, v: 0, gradient: 0, laenge: 0 };
 
@@ -1235,7 +1245,10 @@ export function planPipeNetwork(doc: BimDocument, options: PipeLayoutOptions): P
     if (
       options.mode === 'sanierung' && seg !== aussenSegment && ringRolle !== 'zuleitung' &&
       dim.dimension.outer > SOCKELLEISTE_MAX_AUSSEN
-    ) zuGross += 1;
+    ) {
+      zuGross += 1;
+      zuGrossAussen = Math.max(zuGrossAussen, dim.dimension.outer);
+    }
 
     /*
      * Die Lage entscheidet über die Dämmpflicht — und zwar schärfer, als man
@@ -1344,7 +1357,11 @@ export function planPipeNetwork(doc: BimDocument, options: PipeLayoutOptions): P
           }
         : {
             severity: 'error',
-            text: `${zuGross} Abschnitt${zuGross === 1 ? '' : 'e'} überschreitet den Sockelleistenkanal: er trägt Rohre bis ${SOCKELLEISTE_MAX_AUSSEN} mm Außendurchmesser (Kanal 40 × 105 mm). Für diese Abschnitte einen größeren Aufputzkanal oder eine andere Trasse wählen.`,
+            text:
+              `${zuGross} Abschnitt${zuGross === 1 ? '' : 'e'} überschreitet den Sockelleistenkanal: er trägt Rohre bis ` +
+              `${SOCKELLEISTE_MAX_AUSSEN} mm Außendurchmesser (Kanal 40 × 105 mm), gebraucht werden bis zu ` +
+              `${Math.round(zuGrossAussen)} mm. Für diese Abschnitte einen größeren Aufputzkanal wählen — oder die ` +
+              `Trasse im Boden führen.`,
           },
     );
   }

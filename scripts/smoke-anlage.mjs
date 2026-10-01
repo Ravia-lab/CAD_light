@@ -37,8 +37,11 @@ p.on('console', (m) => {
 });
 
 let failures = 0;
-const expect = (label, actual, expected) => {
-  const ok = JSON.stringify(actual) === JSON.stringify(expected);
+const expect = (label, actual, expected, tol = 0) => {
+  const ok =
+    typeof actual === 'number' && typeof expected === 'number' && tol > 0
+      ? Math.abs(actual - expected) <= tol
+      : JSON.stringify(actual) === JSON.stringify(expected);
   if (!ok) failures++;
   console.log(`  ${ok ? '✓' : '✗'} ${label}: ${JSON.stringify(actual)}${ok ? '' : ` (erwartet ${JSON.stringify(expected)})`}`);
 };
@@ -260,6 +263,118 @@ console.log('\n▸ Export');
     expect('Sicherheitstechnik im Export', plant.safety, true);
     expect('Trinkwasser im Export', plant.dhw, true);
   }
+}
+
+console.log('\n▸ Bivalente Anlage: Deckungsanteile');
+/*
+ * Das Verfahren hat die RaVia-Seite am 01.10.2026 festgelegt: Bivalenzpunkt
+ * und Jahresdauerlinie, Bivalenzpunkt **eingegeben**, zunächst **parallel**.
+ * Die Rechnung selbst steht mit Handwerten im Prüflauf
+ * (`pruefungen/bivalenz.ts`); hier geht es um den Weg: Kommt sie durch die
+ * Oberfläche, steht sie im Export, und meldet die Prüfung den zu kleinen
+ * zweiten Erzeuger?
+ */
+{
+  const biv = await p.evaluate(() => {
+    const s = window.__ravia.getState();
+    // Heizgrenze und Heizlast festschreiben, damit die Zahlen reproduzierbar
+    // sind: 10 kW bei −10 °C Norm-Außentemperatur, Heizgrenze 15 °C.
+    s.updateMeta({ designOutdoorTemperature: -10 });
+    s.updatePlant({ heatLoadOverride: 10, design: { heatingLimit: 15 } });
+    // Gaskessel, parallel, Bivalenzpunkt −2 °C, 15 kW — reichlich bemessen.
+    s.updatePlant({
+      secondGenerator: {
+        art: 'gas', leistung: 15, betrieb: 'bivalent-parallel',
+        bivalenzpunkt: -2, einbindung: 'ruecklauf-seriell', eigenePumpe: false,
+      },
+    });
+    const ex = window.RaViaCAD.getExport();
+    const b = ex.plant?.bivalence;
+    return {
+      verfahren: b?.method,
+      betrieb: b?.operation,
+      wp: b?.heatPumpShare,
+      zweit: b?.secondGeneratorShare,
+      zeit: b?.timeShareBelowBivalence,
+      verlangt: b?.secondGeneratorRequired,
+      fehlt: b?.secondGeneratorShortfall,
+      kennlinie: b?.curve,
+      annahmen: b?.assumptions?.length ?? 0,
+      befunde: ex.validation.issues.filter((i) => i.code === 'plant.bivalence-shortfall').length,
+    };
+  });
+  expect('Das Verfahren steht dabei', biv.verfahren, 'duration-curve-linear');
+  expect('Die Betriebsweise auch', biv.betrieb, 'bivalent-parallel');
+  /*
+   * Handwert: u = (−2 + 10)/25 = 0,32 → Anteil des zweiten Erzeugers 0,32² =
+   * 0,1024, Wärmepumpe 0,8976. Dieselbe Zahl wie im Prüflauf — der Weg durch
+   * Oberfläche und Export darf sie nicht verändern.
+   */
+  expect('Anteil der Wärmepumpe', biv.wp, 0.8976, 1e-9);
+  expect('Anteil des zweiten Erzeugers', biv.zweit, 0.1024, 1e-9);
+  expect('Zeitanteil unter dem Bivalenzpunkt', biv.zeit, 0.32, 1e-9);
+  // 10,00 − 6,80 = 3,20 kW Spitze.
+  expect('Verlangte Leistung', biv.verlangt, 3.2, 1e-9);
+  expect('15 kW reichen — kein Fehlbetrag', biv.fehlt, 0);
+  expect('Kein Befund in der Prüfung', biv.befunde, 0);
+  // Die Eingangsgrößen stehen dabei, damit die Rechnung nachvollziehbar ist.
+  expect('Die Kennlinie steht im Export', biv.kennlinie?.heatingLimit, 15);
+  expect('Mit Norm-Außentemperatur', biv.kennlinie?.designOutdoorTemperature, -10);
+  expect('Und Norm-Heizlast', biv.kennlinie?.designHeatLoad, 10);
+  // Und jede Annahme im Klartext — ohne sie ist der Anteil eine Behauptung.
+  expect('Die Annahmen stehen dabei', biv.annahmen >= 5, true);
+
+  /*
+   * **Die Gegenprobe, auf die es ankommt:** derselbe Heizstab mit 2 kW ist zu
+   * klein für die Spitze von 3,20 kW. Die Prüfung muss das als **Fehler**
+   * melden — ein Haus, das am Auslegungspunkt nicht warm wird, ist kein
+   * Hinweis, sondern ein Mangel. Und der Anteil darf sich dadurch **nicht**
+   * ändern: Die Fehlmenge wird nicht auf die Wärmepumpe umgerechnet.
+   */
+  const klein = await p.evaluate(() => {
+    const s = window.__ravia.getState();
+    s.updatePlant({ secondGenerator: { art: 'elektro-heizstab', leistung: 2, betrieb: 'monoenergetisch', bivalenzpunkt: -2, einbindung: 'vorlauf-parallel', eigenePumpe: false } });
+    const ex = window.RaViaCAD.getExport();
+    const treffer = ex.validation.issues.filter((i) => i.code === 'plant.bivalence-shortfall');
+    return {
+      fehlt: ex.plant?.bivalence?.secondGeneratorShortfall,
+      anteil: ex.plant?.bivalence?.secondGeneratorShare,
+      grad: treffer[0]?.severity,
+      text: treffer[0]?.message ?? '',
+      rat: Boolean(treffer[0]?.remedy),
+    };
+  });
+  expect('Der zu kleine Heizstab fehlt um 1,20 kW', klein.fehlt, 1.2, 1e-9);
+  expect('Der Anteil bleibt unverändert', klein.anteil, 0.1024, 1e-9);
+  expect('Und die Prüfung meldet einen Fehler', klein.grad, 'error');
+  expect('Die Meldung nennt den Fehlbetrag', /es fehlen 1,?\.?20 kW/.test(klein.text.replace(',', '.')), true);
+  expect('Mit einem Rat, was zu tun ist', klein.rat, true);
+
+  /*
+   * Und noch eine Gegenprobe: **alternativ** verlangt die ganze Norm-Heizlast
+   * und nicht die Spitze — derselbe 2-kW-Heizstab fehlt dann um 8 kW. Das ist
+   * der Satz, der bei dieser Fahrweise regelmäßig untergeht.
+   */
+  const alternativ = await p.evaluate(() => {
+    const s = window.__ravia.getState();
+    s.updatePlant({ secondGenerator: { art: 'elektro-heizstab', leistung: 2, betrieb: 'bivalent-alternativ', bivalenzpunkt: -2, abschaltpunkt: -2, einbindung: 'vorlauf-parallel', eigenePumpe: false } });
+    const ex = window.RaViaCAD.getExport();
+    return {
+      verlangt: ex.plant?.bivalence?.secondGeneratorRequired,
+      fehlt: ex.plant?.bivalence?.secondGeneratorShortfall,
+      zweit: ex.plant?.bivalence?.secondGeneratorShare,
+      ohneWp: ex.plant?.bivalence?.timeShareWithoutHeatPump,
+    };
+  });
+  expect('Alternativ verlangt die ganze Heizlast', alternativ.verlangt, 10);
+  expect('Es fehlen 8 kW', alternativ.fehlt, 8, 1e-9);
+  // 2·0,32 − 0,32² = 0,5376 — mehr als die Hälfte der Arbeit in 32 % der Zeit.
+  expect('Und der zweite Erzeuger trägt 53,76 %', alternativ.zweit, 0.5376, 1e-9);
+  expect('Die Wärmepumpe steht dabei 32 % der Heizzeit', alternativ.ohneWp, 0.32, 1e-9);
+
+  // Aufräumen: zurück auf monovalent, damit die folgenden Abschnitte den
+  // Zustand vorfinden, den sie erwarten.
+  await p.evaluate(() => window.__ravia.getState().updatePlant({ secondGenerator: undefined }));
 }
 
 console.log('\n▸ Rohrausleger');
