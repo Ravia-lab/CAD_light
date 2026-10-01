@@ -60,6 +60,36 @@
 
 <p>Dazu kommt eine Vorlagepflicht: die Bestätigung ist auf Verlangen dem Mieter unverzüglich vorzulegen; das gilt entsprechend bei Pacht oder sonstiger entgeltlicher Nutzungsüberlassung. Der Nachweis ist damit ein <b>Dokument für Dritte</b>, nicht nur eine interne Rechenunterlage. Das ist der Grund, warum dieses Programm so viel Aufwand in die Lesbarkeit und in die Herkunftsangaben der Blätter steckt.</p>
 
+<h4 id="k15-1-6">15.1.6 Die Zahl der Nutzungseinheiten — wer zählt, muss wissen, was zählt</h4>
+
+<p>Absatz 1 hängt an einer Zahl: <b>sechs</b> Wohnungen oder sonstige selbständige Nutzungseinheiten. An dieser Zahl entscheidet sich, ob eine gesetzliche Pflicht besteht oder nicht — und bis zur Fassung 1.65.0 stand sie in diesem Programm an genau einer Stelle: als <b>getippte Angabe</b> im Reiter „Anlage" unter „Trinkwarmwasser → Wohneinheiten". Dieselbe Zahl geht in den Trinkwasserbedarf, in die Speichergröße und in die Gefäßauslegung ein. Niemand hat sie gegen das Modell gehalten.</p>
+
+<div class="merke"><b>Merke</b><p>Eine getippte Zahl, die plausibel aussieht und falsch ist, ist einer der stillsten Fehler überhaupt. Sie steht im Nachweis, sie wird nicht gemeldet, und sie ist in drei Rechnungen eingegangen, bevor sie auffällt.</p></div>
+
+<p class="wo">Im Programm: Reiter <b>Anlage</b> → <b>Trinkwarmwasser</b> → Block <b>Nutzungseinheiten</b>. Die Zuordnung der Räume steht im Reiter <b>Eigenschaften</b>, wenn ein Raum gewählt ist: Auswahlfeld <b>Nutzungseinheit</b>.</p>
+
+<p>Seit 1.66.0 zählt das Modell mit. Eine Nutzungseinheit ist eine <b>Zuordnung am Raum</b> und keine Stufe zwischen Geschoss und Raum — und das aus einem Grund, der sich am ersten Mehrfamilienhaus zeigt: Eine <b>Maisonettewohnung</b> über zwei Geschosse passt nicht unter ein Geschoss. Eine Zuordnung am Raum greift über Geschosse hinweg; sie ist zugleich einfacher und richtiger.</p>
+
+<table class="tab">
+<caption>Die drei Arten und was sie für § 60c Abs. 1 bedeuten</caption>
+<thead><tr><th>Art</th><th>Beispiel</th><th>Zählt als selbständige Nutzungseinheit?</th></tr></thead>
+<tbody>
+<tr><td><b>Wohnung</b></td><td>„EG links", „Wohnung 3"</td><td>ja</td></tr>
+<tr><td><b>Gewerbeeinheit</b></td><td>Praxis, Laden, Büro im Erdgeschoss</td><td>ja — sie ist die „sonstige selbständige Nutzungseinheit" des Gesetzes</td></tr>
+<tr><td><b>Gemeinschaftsfläche</b></td><td>Treppenhaus, Waschküche, Technikraum</td><td><b>nein</b> — ein Treppenhaus wird nicht bewohnt</td></tr>
+</tbody>
+</table>
+
+<p>Daraus folgt der Fall, der von Hand regelmäßig falsch gezählt wird: <b>Fünf Wohnungen plus ein Treppenhaus sind sechs Einheiten, aber fünf selbständige</b> — keine Pflicht. Fünf Wohnungen plus eine Praxis sind dagegen sechs selbständige — Pflicht. Das Programm rechnet beide Fälle getrennt und nennt die Gemeinschaftsflächen eigens, damit die Zahl nachvollziehbar bleibt.</p>
+
+<p>Stimmen die getippte und die gezählte Zahl nicht überein, meldet die Modellprüfung das als Warnung („Das Anlagenblatt nennt … im Modell sind …"), und der Block „Nutzungseinheiten" bietet einen Knopf <b>„Aus dem Modell zählen"</b> an. Das Programm setzt die Zahl nicht von selbst um: <b>welche</b> der beiden richtig ist, weiß nur, wer das Haus kennt — es kann genauso gut die Zuordnung sein, die noch fehlt.</p>
+
+<div class="baustelle"><b>Auf der Baustelle heißt das</b><p>Im Einfamilienhaus legen Sie keine Einheit an. Es gibt nichts zu unterscheiden, und das Programm fragt auch nicht danach — eine Meldung „keine Nutzungseinheit erfasst" stünde dann in jedem Projekt und wäre wertlos. Im Mehrfamilienhaus legen Sie die Einheiten einmal an und ordnen die Räume zu; für den Regelfall „ein Geschoss, eine Wohnung" gibt es den Knopf <b>„Ganzes Geschoss zuordnen"</b>. Räume, die schon zu einer anderen Einheit gehören, bleiben dabei unberührt — die Maisonette von oben verlieren Sie also nicht.</p></div>
+
+<p>Was das Programm <b>nicht</b> tut: Es rät keine Einheit. Ein Gebäude ohne Zuordnung ist ein Gebäude ohne erfasste Einheiten — und nicht „eine Wohnung". Der Unterschied zwischen „nicht erfasst" und „eins" ist genau der, den ein Programm nicht verwischen darf, weil an der Zahl eine Rechtsfolge hängt.</p>
+
+<p>In der Übergabe an RaVia stehen die Einheiten seit der Exportfassung <b>2.10.0</b> als eigener Block (<code>occupancyUnits</code>) samt Zusammenzählung (<code>occupancy</code>), und die Zuordnung zusätzlich an jedem Raum (<code>rooms[].occupancyUnitId</code>). <code>occupancy.declared</code> ist dabei die getippte Zahl und <code>occupancy.independent</code> die gezählte — beide stehen nebeneinander, damit die Gegenstelle einen Widerspruch sieht, statt ihn zu erben. Siehe <a href="#k17-1">Abschnitt 17.1</a>.</p>
+
 <h3 id="k15-2">15.2 Die sieben Pflichtangaben — und was das Programm dazu liefert</h3>
 
 <p>Der Rohrnetzbericht führt die sieben Angaben einzeln auf und sagt bei jeder selbst, ob er sie liefern kann. Auf dem Blatt steht vor jeder ein Haken (liegt vor) oder ein Ring (offen), daneben die Antwort und ganz rechts die Herkunft. Hier stehen dieselben sieben Punkte, jeder mit dem, was das Programm tatsächlich beiträgt.</p>

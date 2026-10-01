@@ -37,6 +37,7 @@ import AufnahmeAssistent from './components/AufnahmeAssistent';
 import Skizzenblatt from './components/Skizzenblatt';
 import AnlagenPanel from './components/AnlagenPanel';
 import SchemaView from './components/SchemaView';
+import SkizzenSeite from './components/SkizzenSeite';
 import ToolRail, { TopBar } from './components/Toolbar';
 import ProjektDialog from './components/ProjektDialog';
 import { RaumnamenListe } from './components/RaumnameFeld';
@@ -301,6 +302,7 @@ export default function App() {
   const show2D = viewMode === '2d' || viewMode === 'split';
   const show3D = viewMode === '3d' || viewMode === 'split';
   const showSchema = viewMode === 'schema';
+  const showSkizze = viewMode === 'skizze';
 
   return (
     <div className="relative flex h-full w-full flex-col bg-graphite-900">
@@ -321,6 +323,12 @@ export default function App() {
             <div className="panel relative min-w-0 flex-1 overflow-hidden">
               <Editor2D />
               <ViewportBadge label="Grundriss 2D" />
+            </div>
+          )}
+
+          {showSkizze && (
+            <div className="panel relative min-w-0 flex-1 overflow-hidden">
+              <SkizzenSeite />
             </div>
           )}
 

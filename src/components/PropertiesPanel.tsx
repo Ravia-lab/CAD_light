@@ -55,6 +55,7 @@ import {
   durchbruchWirt,
 } from '../types/bim';
 import { useMemo, useRef } from 'react';
+import { EINHEIT_LABELS, type EinheitArt } from '../lib/nutzungseinheiten';
 import { kompassRose, nordabweichungAus } from '../lib/kompass';
 import { ACCESSORY_LABELS } from '../lib/pipeAccessorySymbols';
 import { beschriftungVeraltet, hoehenText, modellwert, planText } from '../lib/beschriftung3d';
@@ -694,6 +695,14 @@ function RoomProperties({ room }: { room: Room }) {
   const copyRoom = useBimStore((s) => s.copyRoom);
   const solidFromRoom = useBimStore((s) => s.solidFromRoom);
   const level = useBimStore((s) => s.doc.levels[room.levelId]);
+  const einheitenRoh = useBimStore((s) => s.doc.units);
+  const einheiten = useMemo(
+    () => Object.values(einheitenRoh ?? {}).sort((a, b) => a.name.localeCompare(b.name, 'de')),
+    [einheitenRoh],
+  );
+  const neueEinheit = useBimStore((s) => s.neueEinheit);
+  const ordneRaumEinheitZu = useBimStore((s) => s.ordneRaumEinheitZu);
+  const ordneGeschossEinheitZu = useBimStore((s) => s.ordneGeschossEinheitZu);
   const windowArea = room.boundaries.reduce((sum, b) => sum + b.openingArea, 0);
 
   return (
@@ -741,6 +750,58 @@ function RoomProperties({ room }: { room: Room }) {
           ))}
         </select>
       </Field>
+
+      {/*
+        **Die Nutzungseinheit — Wohnung, Gewerbe, Gemeinschaftsfläche.**
+
+        Sie hängt am Raum und nicht am Geschoss: Eine Maisonette passt unter
+        kein Geschoss, und ein Gewerbe im Erdgeschoss neben zwei Wohnungen
+        auch nicht. „— keine —" ist dabei eine gültige Antwort: Im
+        Einfamilienhaus gibt es nichts zu unterscheiden.
+
+        Die Zahl der Einheiten ist keine Beschriftung. An ihr hängt die
+        Pflicht zum hydraulischen Abgleich nach § 60c Abs. 1 GModG, und sie
+        geht in Trinkwasser-, Speicher- und Gefäßauslegung ein.
+      */}
+      <Field label="Nutzungseinheit">
+        <select
+          className="field"
+          value={room.unitId ?? ''}
+          onChange={(e) => {
+            const wert = e.target.value;
+            if (wert.startsWith('neu:')) {
+              const id = neueEinheit(wert.slice(4) as EinheitArt);
+              ordneRaumEinheitZu(room.id, id);
+              return;
+            }
+            ordneRaumEinheitZu(room.id, wert || undefined);
+          }}
+        >
+          <option value="" className="bg-graphite-850">
+            — keine —
+          </option>
+          {einheiten.map((e) => (
+            <option key={e.id} value={e.id} className="bg-graphite-850">
+              {e.name} · {EINHEIT_LABELS[e.art]}
+            </option>
+          ))}
+          {(Object.keys(EINHEIT_LABELS) as EinheitArt[]).map((art) => (
+            <option key={art} value={`neu:${art}`} className="bg-graphite-850">
+              + Neue {EINHEIT_LABELS[art]} …
+            </option>
+          ))}
+        </select>
+      </Field>
+
+      {room.unitId && (
+        <button
+          className="btn-ghost w-full text-[11px]"
+          title="Alle Räume dieses Geschosses, die noch keiner anderen Einheit gehören, derselben Einheit zuordnen"
+          onClick={() => ordneGeschossEinheitZu(room.levelId, room.unitId as string)}
+        >
+          Ganzes Geschoss „{einheiten.find((e) => e.id === room.unitId)?.name ?? ''}" zuordnen
+        </button>
+      )}
 
       <div className="grid grid-cols-2 gap-x-3 gap-y-1 rounded-lg bg-graphite-900/60 px-2.5 py-2">
         <Readout label="Fläche" value={`${room.area.toFixed(2)} m²`} accent />

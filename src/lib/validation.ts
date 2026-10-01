@@ -31,6 +31,7 @@ import { dichtheitspflicht } from './kaeltemittel';
 import { estimateHeatLoad } from './heatLoadEstimate';
 import { heizlastAusBaualter, heizlastAusVerbrauch, verbrauchsabgleich } from './verbrauchsabgleich';
 import { daecherVon, raeumeOhneGeschossDarueber } from './dachlandschaft';
+import { ABGLEICHPFLICHT_AB, einheitenstand } from './nutzungseinheiten';
 
 /** Objekte, die Wärme in den Raum geben — nur sie brauchen eine Leistung. */
 const HEAT_EMITTERS = new Set(['radiator', 'radiator-tube', 'towel-radiator', 'convector', 'underfloor']);
@@ -60,6 +61,12 @@ export const REMEDIES: Record<string, string> = {
   'topology.level-without-rooms':
     'Auf dieses Geschoss wechseln und den Wandzug schließen — die Prüfung zeigt die offenen Wandenden. Ohne geschlossenen Umriss entsteht dort kein Raum, und ohne Raum gibt es nichts zu übergeben.',
   'plant.no-generator': 'Im Reiter „Anlage" ein Gerät aus der Vorschlagsliste wählen — sie ist nach Eignung sortiert.',
+  'units.count-mismatch':
+    'Im Reiter „Anlage" auf „Aus dem Modell zählen" klicken — oder die fehlende Einheit zuordnen. Eine von beiden Zahlen ist falsch, und welche, weiß nur, wer das Haus kennt.',
+  'units.rooms-unassigned':
+    'Im Reiter „Räume" die offenen Räume einer Einheit zuordnen — ganze Geschosse gehen in einem Schritt. Gemeinschaftsflächen wie Treppenhaus und Keller bekommen eine eigene Einheit der Art „Gemeinschaftsfläche".',
+  'units.balancing-required':
+    'Kein Handgriff, sondern eine Rechtsfolge: Der hydraulische Abgleich ist durchzuführen und zu dokumentieren. Die Vorbemessung dazu steht im Reiter „Anlage", gerechnet wird er in RaVia.',
   'plant.estimated-load':
     'Die Norm-Heizlast aus RaVia im Reiter „Anlage" oben eintragen. Alle Folgegrößen rechnen sich sofort neu.',
   'plant.spread': 'Im Reiter „Anlage" unter „Verteilung" den Rücklauf unter den Vorlauf setzen — üblich sind 5 bis 8 K Abstand.',
@@ -1107,6 +1114,56 @@ export function validateModel(doc: BimDocument): ValidationReport {
   // --- Anlagentechnik -------------------------------------------------------
   //
   // Geprüft wird nur, was ohne Auslegungsrechnung erkennbar ist: fehlende
+  /*
+   * --- Nutzungseinheiten --------------------------------------------------
+   *
+   * Nur, wenn welche erfasst sind. Wer keine zuordnet, hat ein
+   * Einfamilienhaus oder noch nicht zugeordnet — beides ist kein Befund, und
+   * eine Meldung „keine Nutzungseinheit erfasst" stünde in jedem
+   * Einfamilienhaus und wäre damit wertlos.
+   */
+  {
+    const stand = einheitenstand(doc);
+    if (stand.gesamt > 0) {
+      const getippt = doc.plant?.dhw.units;
+      /*
+       * Zwei Zahlen für dieselbe Sache: die getippte im Anlagenblatt und die
+       * gezählte aus dem Modell. Beide gehen in Trinkwasser-, Speicher- und
+       * Gefäßauslegung ein, und sie widersprechen sich still — der eine
+       * Nachweis rechnet mit acht Wohnungen, der andere mit sechs, und beide
+       * sehen plausibel aus. Verglichen wird nur, wenn die getippte Zahl
+       * gesetzt ist: eine 0 heißt „nicht angegeben".
+       */
+      if (typeof getippt === 'number' && getippt > 0 && getippt !== stand.selbstaendig) {
+        add(
+          'warning',
+          'units.count-mismatch',
+          `Das Anlagenblatt nennt ${getippt} Wohneinheiten, im Modell sind ${stand.selbstaendig} selbständige Nutzungseinheiten zugeordnet (${stand.wohnungen} Wohnungen, ${stand.gewerbe} Gewerbe). Trinkwasserbedarf, Speicher und Gefäß rechnen mit der getippten Zahl.`,
+        );
+      }
+
+      // Räume ohne Zuordnung, aber nur die beheizten: Ein unbeheizter
+      // Kellerraum ohne Einheit ist der Normalfall und keine offene Angabe.
+      const offen = Object.values(doc.rooms).filter((r) => r.isHeated && !r.unitId);
+      if (offen.length > 0) {
+        add(
+          'info',
+          'units.rooms-unassigned',
+          `${offen.length} beheizte ${offen.length === 1 ? 'Raum ist' : 'Räume sind'} keiner Nutzungseinheit zugeordnet — ${offen.length === 1 ? 'seine' : 'ihre'} Fläche und Heizlast fehlt in der Bilanz der Einheiten.`,
+          { kind: 'room', id: offen[0].id },
+        );
+      }
+
+      if (stand.abgleichpflicht) {
+        add(
+          'info',
+          'units.balancing-required',
+          `${stand.selbstaendig} selbständige Nutzungseinheiten — ab ${ABGLEICHPFLICHT_AB} ist der hydraulische Abgleich nach § 60c Abs. 1 GModG Pflicht.`,
+        );
+      }
+    }
+  }
+
   // Angaben und Widersprüche im Anlagenblatt. Die eigentliche Auslegung mit
   // ihren Hinweisen steht im Reiter „Anlage" — sie hier zu wiederholen hieße,
   // dieselbe Rechnung zweimal zu führen und zweimal zu pflegen.

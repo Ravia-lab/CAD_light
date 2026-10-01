@@ -112,6 +112,14 @@ const DEFAULT_ROOF: RoofDefinition = DACH_VORGABE;
 import { anlageAusAntworten } from '../lib/anlagenFragen';
 import { doppelteWaende, gespiegelt } from '../lib/doppelwaende';
 import { erkenneSkizze } from '../lib/skizze';
+import {
+  duenneAus,
+  naechsterBlattname,
+  neueSeite,
+  strichZurueck,
+  type StiftfarbeId,
+  type Strich,
+} from '../lib/skizzenseite';
 import { getroffene } from '../lib/notizen';
 import { vorzugsrichtung, EPS, closestPointOnSegment, distance, distanceToSegment, pointInPolygon, roundMm } from '../lib/geometry';
 import { ACCESSORY_LABELS } from '../lib/pipeAccessorySymbols';
@@ -159,6 +167,13 @@ import { importIfc } from '../lib/ifcImport';
 import { ordneRaumnamenZu } from '../lib/raumnutzung';
 import { importRaumplan } from '../lib/raumplanImport';
 import { ordneRaeumeZu } from '../lib/raumZuordnung';
+import {
+  EINHEIT_LABELS,
+  einheitenstand,
+  naechsterName,
+  type EinheitArt,
+  type Nutzungseinheit,
+} from '../lib/nutzungseinheiten';
 import type { RaumHinweis, RaumplanImportErgebnis } from '../lib/raumplanImport';
 import { importBuildingModel } from '../lib/buildingModelImport';
 import { begradige } from '../lib/begradigen';
@@ -735,6 +750,60 @@ interface BimState {
   updateMeta: (patch: Partial<BimDocument['meta']>) => void;
   /** Die Ansicht auf den Inhalt einpassen — zählt den Einpassen-Zähler hoch. */
   passeEin: () => void;
+  // --- Skizzenseiten ------------------------------------------------------
+  /** Gerade bearbeitetes Blatt; ohne Angabe das erste. */
+  aktivesBlatt?: string;
+  waehleBlatt: (id: string) => void;
+  /** Ein neues leeres Blatt anlegen und zum aktiven machen. */
+  neuesBlatt: () => string;
+  /**
+   * Dafür sorgen, dass **ein** Blatt da ist — und nur dann eines anlegen.
+   *
+   * Die Oberfläche legt beim Aufschlagen der Seite ein Blatt an, damit niemand
+   * erst eines anlegen muss, bevor er zeichnen kann. Ein Aufruf beim Einhängen
+   * der Ansicht läuft aber zweimal (React ruft Effekte in der Entwicklung
+   * doppelt auf, und ein Wiedereinhängen gibt es auch im Betrieb) — und zwei
+   * leere Blätter beim Aufschlagen sind ein sichtbarer Fehler. Diese Aktion
+   * ist deshalb mehrfach aufrufbar, ohne mehrfach zu wirken.
+   */
+  sorgeFuerBlatt: () => string;
+  loescheBlatt: (id: string) => void;
+  benenneBlatt: (id: string, name: string) => void;
+  /** Einen fertigen Zug auf das Blatt legen — Punkte in Blattkoordinaten [mm]. */
+  zeichneAufBlatt: (id: string, punkte: Vec2[], farbe: StiftfarbeId, staerke: number) => void;
+  /** Den letzten Zug zurücknehmen. */
+  nimmBlattstrichZurueck: (id: string) => void;
+  /** Das Blatt leeren — die Seite bleibt. */
+  leereBlatt: (id: string) => void;
+  // --- Nutzungseinheiten --------------------------------------------------
+  /**
+   * Eine Nutzungseinheit anlegen — Wohnung, Gewerbeeinheit oder
+   * Gemeinschaftsfläche. Der Name wird fortlaufend vorgeschlagen.
+   */
+  neueEinheit: (art?: EinheitArt, name?: string) => string;
+  benenneEinheit: (id: string, name: string) => void;
+  setzeEinheitArt: (id: string, art: EinheitArt) => void;
+  /**
+   * Eine Einheit entfernen — und die Zuordnung an ihren Räumen mit ihr.
+   *
+   * Eine Kennung an einem Raum, zu der es keine Einheit mehr gibt, wäre der
+   * stillste denkbare Fehler: Der Raum sieht zugeordnet aus, zählt aber
+   * nirgends mit.
+   */
+  loescheEinheit: (id: string) => void;
+  /** Einen Raum einer Einheit zuordnen; `undefined` hebt die Zuordnung auf. */
+  ordneRaumEinheitZu: (roomId: string, einheitId?: string) => void;
+  /**
+   * Alle Räume eines Geschosses einer Einheit zuordnen.
+   *
+   * Der Regelfall im Mehrfamilienhaus: ein Geschoss, eine Wohnung. Räume, die
+   * schon einer **anderen** Einheit gehören, bleiben unberührt — wer eine
+   * Maisonette zugeordnet hat, verliert sie nicht beim Zuordnen des Geschosses
+   * darunter.
+   */
+  ordneGeschossEinheitZu: (levelId: string, einheitId: string) => number;
+  /** Die getippte Zahl der Wohneinheiten aus dem Modell nachziehen. */
+  uebernehmeEinheitenzahl: () => { gezaehlt: number; message: string };
   /** Die Aufnahme Zimmer für Zimmer öffnen oder schließen. */
   setzeAssistent: (offen: boolean) => void;
   /** Das Skizzen-Vollbild öffnen oder schließen; stellt den Finger-Zustand wieder her. */
@@ -796,7 +865,60 @@ interface BimState {
    * Das Rohrnetz auslegen — über alle Geschosse, mit Steigleitung zwischen
    * ihnen (siehe `src/lib/gebaeudeNetz.ts`).
    */
-  legeRohrnetzAus: (mode: PipeRoutingMode, anordnung?: 'baum' | 'ring') => GebaeudeNetzErgebnis;
+  /**
+   * Das Rohrnetz des **Gebäudes** auslegen — und auf Wunsch die
+   * Flächenheizung gleich mit.
+   *
+   * `flaechenheizung` steuert den zweiten Teil und steht ausdrücklich **nicht**
+   * an der Verlegeart: Eine Fußbodenheizung wird auch im Bestand gelegt — bei
+   * neuem Estrich, in Niedrigaufbauweise, im angebauten Bad —, und gemischte
+   * Systeme sind der Normalfall und nicht die Ausnahme. Die Verlegeart sagt,
+   * **wie die Verteilleitung läuft** (Fußbodenaufbau oder Sockelleistenkanal),
+   * nicht, welche Heizfläche im Raum liegt. Vorgabe ist `true`; belegt werden
+   * nur Räume **ohne** Heizfläche, womit gemischte Systeme von selbst
+   * entstehen.
+   */
+  legeRohrnetzAus: (
+    mode: PipeRoutingMode,
+    anordnung?: 'baum' | 'ring',
+    optionen?: { flaechenheizung?: boolean },
+  ) => GebaeudeNetzErgebnis;
+  /**
+   * **Der abgeschlossene Auslegungsstand** — gesetzt von `legeRohrnetzAus`,
+   * sonst von niemandem.
+   *
+   * Warum es das gibt: Die Einbettung meldet bisher jede Änderung am Modell
+   * (`onChange`, entprellt). Für den hydraulischen Abgleich ist das zu viel.
+   * Die RaVia-Seite hat es am 01.10.2026 so beschrieben: „Unser hydraulischer
+   * Abgleich soll nicht auf jede Zwischenänderung neu rechnen, sondern erst
+   * auf einen abgeschlossenen Auslegungsstand." Genau dieser Zeitpunkt ist
+   * hier festgehalten — eine gezogene Wand ändert ihn nicht, ein neu gelegtes
+   * Rohrnetz schon.
+   *
+   * `undefined` heißt: In dieser Sitzung wurde nicht ausgelegt. Das ist etwas
+   * anderes als „es gibt kein Rohrnetz" — ein geöffnetes Projekt bringt sein
+   * gezeichnetes Netz mit, ohne dass hier jemand ausgelegt hätte.
+   */
+  netzStand?: {
+    /** Fortlaufend, damit ein Hörer zwei gleiche Stände unterscheiden kann. */
+    lauf: number;
+    at: string;
+    mode: PipeRoutingMode;
+    anordnung: 'baum' | 'ring';
+    /** Mit Flächenheizung ausgelegt? */
+    flaechenheizung: boolean;
+    served: number;
+    routeLength: number;
+    pipeLength: number;
+    accessories: number;
+    durchbrueche: number;
+    geschosse: number;
+    straenge: number;
+    /** Räume, in denen dabei Flächenheizung gelegt wurde. */
+    flaechenraeume: number;
+    /** Schwerster Befund der Auslegung, falls einer vorliegt. */
+    fehler?: string;
+  };
   updatePipe: (id: string, patch: Partial<PipeRun>) => void;
   /**
    * Eine Armatur von Hand setzen — aus der Werkzeugkiste im Haus.
@@ -3933,6 +4055,221 @@ export const useBimStore = create<BimState>()((set, get) => {
 
     setzeAssistent: (offen) => set({ assistent: offen }),
 
+    // --- Nutzungseinheiten ------------------------------------------------
+    /*
+     * Die Einheit ist eine **Zuordnung am Raum** und keine Stufe zwischen
+     * Geschoss und Raum. Warum, steht in `lib/nutzungseinheiten.ts`: Eine
+     * Maisonette passt nicht unter ein Geschoss.
+     */
+    neueEinheit: (art = 'wohnung', name) => {
+      const id = uid('eh');
+      mutate(
+        (doc) => {
+          const einheit: Nutzungseinheit = {
+            id,
+            name: name?.trim() || naechsterName(doc, art),
+            art,
+          };
+          doc.units = { ...(doc.units ?? {}), [id]: einheit };
+        },
+        { skipRooms: true },
+      );
+      set({ statusMessage: `${EINHEIT_LABELS[art]} angelegt: ${get().doc.units?.[id]?.name ?? ''}` });
+      return id;
+    },
+
+    benenneEinheit: (id, name) =>
+      mutate(
+        (doc) => {
+          const einheit = doc.units?.[id];
+          if (!einheit) return;
+          const sauber = name.trim();
+          // Eine Wohnung ohne Namen steht im Nachweis als leere Zeile.
+          if (!sauber) return;
+          doc.units = { ...doc.units, [id]: { ...einheit, name: sauber } };
+        },
+        { skipRooms: true },
+      ),
+
+    setzeEinheitArt: (id, art) =>
+      mutate(
+        (doc) => {
+          const einheit = doc.units?.[id];
+          if (!einheit) return;
+          doc.units = { ...doc.units, [id]: { ...einheit, art } };
+        },
+        { skipRooms: true },
+      ),
+
+    loescheEinheit: (id) => {
+      mutate(
+        (doc) => {
+          if (!doc.units?.[id]) return;
+          const rest = { ...doc.units };
+          delete rest[id];
+          doc.units = rest;
+          for (const raum of Object.values(doc.rooms)) {
+            if (raum.unitId === id) doc.rooms[raum.id] = { ...raum, unitId: undefined };
+          }
+        },
+        { skipRooms: true },
+      );
+      set({ statusMessage: 'Nutzungseinheit entfernt' });
+    },
+
+    ordneRaumEinheitZu: (roomId, einheitId) =>
+      mutate(
+        (doc) => {
+          const raum = doc.rooms[roomId];
+          if (!raum) return;
+          // Eine Kennung, zu der es keine Einheit gibt, wird nicht gesetzt.
+          if (einheitId && !doc.units?.[einheitId]) return;
+          doc.rooms[roomId] = { ...raum, unitId: einheitId };
+        },
+        { skipRooms: true },
+      ),
+
+    ordneGeschossEinheitZu: (levelId, einheitId) => {
+      let gezaehlt = 0;
+      mutate(
+        (doc) => {
+          if (!doc.units?.[einheitId]) return;
+          for (const raum of Object.values(doc.rooms)) {
+            if (raum.levelId !== levelId) continue;
+            if (raum.unitId && raum.unitId !== einheitId) continue;
+            if (raum.unitId === einheitId) continue;
+            doc.rooms[raum.id] = { ...raum, unitId: einheitId };
+            gezaehlt++;
+          }
+        },
+        { skipRooms: true },
+      );
+      const name = get().doc.units?.[einheitId]?.name ?? 'Einheit';
+      set({
+        statusMessage: gezaehlt
+          ? `${gezaehlt} ${gezaehlt === 1 ? 'Raum' : 'Räume'} zu „${name}" zugeordnet`
+          : `Nichts zuzuordnen — alle Räume des Geschosses gehören schon zu einer Einheit`,
+      });
+      return gezaehlt;
+    },
+
+    uebernehmeEinheitenzahl: () => {
+      const stand = einheitenstand(get().doc);
+      if (!stand.gesamt) {
+        const message = 'Es ist keine Nutzungseinheit erfasst — es gibt nichts zu übernehmen.';
+        set({ statusMessage: message });
+        return { gezaehlt: 0, message };
+      }
+      /*
+       * Nur Wohnungen und Gewerbe zählen; sind ausschließlich
+       * Gemeinschaftsflächen erfasst, wäre die Zahl 0 — und 0 Wohneinheiten
+       * im Anlagenblatt hieße „kein Trinkwasserbedarf". Dann wird nichts
+       * übernommen und das gesagt.
+       */
+      if (stand.selbstaendig < 1) {
+        const message =
+          'Es ist keine Wohnung und keine Gewerbeeinheit erfasst — nur Gemeinschaftsflächen. Daraus folgt keine Zahl für das Anlagenblatt.';
+        set({ statusMessage: message });
+        return { gezaehlt: 0, message };
+      }
+      mutate(
+        (doc) => {
+          if (!doc.plant) return;
+          doc.plant = { ...doc.plant, dhw: { ...doc.plant.dhw, units: stand.selbstaendig } };
+        },
+        { skipRooms: true },
+      );
+      const message = `Wohneinheiten im Anlagenblatt auf ${stand.selbstaendig} gesetzt — aus dem Modell gezählt.`;
+      set({ statusMessage: message });
+      return { gezaehlt: stand.selbstaendig, message };
+    },
+
+    // --- Skizzenseiten ----------------------------------------------------
+    /*
+     * Ein Blatt ist **kein** Modellteil: Es trägt keine Geometrie, keine
+     * Länge in Metern und keinen Raum. Es gehört trotzdem ins Dokument, weil
+     * es zum Projekt gehört — eine Handskizze, die beim Speichern verloren
+     * geht, zeichnet niemand ein zweites Mal.
+     */
+    waehleBlatt: (id) => set({ aktivesBlatt: id }),
+
+    sorgeFuerBlatt: () => {
+      const da = Object.keys(get().doc.meta.skizzen ?? {});
+      if (da.length) {
+        if (!get().aktivesBlatt || !da.includes(get().aktivesBlatt as string)) set({ aktivesBlatt: da[0] });
+        return da[0];
+      }
+      return get().neuesBlatt();
+    },
+
+    neuesBlatt: () => {
+      const id = uid('sk');
+      mutate((doc) => {
+        const vorhanden = Object.values(doc.meta.skizzen ?? {});
+        doc.meta.skizzen = {
+          ...(doc.meta.skizzen ?? {}),
+          [id]: neueSeite(id, naechsterBlattname(vorhanden), new Date().toISOString()),
+        };
+      });
+      set({ aktivesBlatt: id, statusMessage: 'Neues Skizzenblatt angelegt' });
+      return id;
+    },
+
+    loescheBlatt: (id) => {
+      mutate((doc) => {
+        if (!doc.meta.skizzen?.[id]) return;
+        const rest = { ...doc.meta.skizzen };
+        delete rest[id];
+        doc.meta.skizzen = rest;
+      });
+      const uebrig = Object.keys(get().doc.meta.skizzen ?? {});
+      set({
+        aktivesBlatt: uebrig[0],
+        statusMessage: uebrig.length ? 'Blatt entfernt' : 'Letztes Blatt entfernt',
+      });
+    },
+
+    benenneBlatt: (id, name) =>
+      mutate((doc) => {
+        const seite = doc.meta.skizzen?.[id];
+        if (!seite) return;
+        const sauber = name.trim();
+        // Ein leerer Name wäre ein Blatt ohne Aufschrift — im Ausdruck nicht
+        // mehr zuzuordnen. Dann bleibt der alte stehen.
+        if (!sauber) return;
+        doc.meta.skizzen = { ...doc.meta.skizzen, [id]: { ...seite, name: sauber } };
+      }),
+
+    zeichneAufBlatt: (id, punkte, farbe, staerke) => {
+      // Ein Zug aus einem einzigen Punkt ist ein Tippen, kein Strich.
+      if (punkte.length < 2) return;
+      mutate((doc) => {
+        const seite = doc.meta.skizzen?.[id];
+        if (!seite) return;
+        /*
+         * Ausgedünnt wird beim Ablegen und nicht beim Zeichnen: Während des
+         * Zugs zählt die Darstellung, danach die Dateigröße. Ein Zug über das
+         * halbe Blatt liefert mehrere hundert Punkte.
+         */
+        const strich: Strich = { id: uid('st'), punkte: duenneAus(punkte), farbe, staerke };
+        doc.meta.skizzen = { ...doc.meta.skizzen, [id]: { ...seite, striche: [...seite.striche, strich] } };
+      });
+    },
+
+    nimmBlattstrichZurueck: (id) =>
+      mutate((doc) => {
+        const seite = doc.meta.skizzen?.[id];
+        if (!seite || !seite.striche.length) return;
+        doc.meta.skizzen = { ...doc.meta.skizzen, [id]: strichZurueck(seite) };
+      }),
+
+    leereBlatt: (id) =>
+      mutate((doc) => {
+        const seite = doc.meta.skizzen?.[id];
+        if (!seite || !seite.striche.length) return;
+        doc.meta.skizzen = { ...doc.meta.skizzen, [id]: { ...seite, striche: [] } };
+      }),
+
     /*
      * Das Vollbild schaltet zwei Dinge zugleich: das Werkzeug auf „Skizze"
      * und den Finger aufs Zeichnen. Beim Verlassen wird **beides**
@@ -4176,34 +4513,41 @@ export const useBimStore = create<BimState>()((set, get) => {
         doc.durchbrueche[id] = neu;
       }),
 
-    legeRohrnetzAus: (mode, anordnung) => {
+    legeRohrnetzAus: (mode, anordnung, optionen) => {
       let anzahlDurchbrueche = 0;
       let ohneRegelmass = 0;
       /*
        * --- Die Flächenheizung wird mit ausgelegt --------------------------
        *
        * **Was vorher fehlte.** Diese Aktion hat Trassen zu dem gelegt, was
-       * dastand — und für einen Neubau mit Fußbodenheizung stand nichts da.
+       * dastand — und für ein Projekt mit Fußbodenheizung stand nichts da.
        * Die Kreise mussten vorher Raum für Raum über die TGA-Palette belegt
        * werden; wer das nicht wusste, bekam ein Rohrnetz für die Heizkörper
        * und sonst nichts. Damit fehlten auch die Rohrlängen, die Kreiszahl,
        * der Randdämmstreifen und die Verteilerabgänge — also alles, was eine
        * Flächenheizung ausmacht.
        *
-       * **Nur im Neubaumodus.** Dieser Modus *bedeutet* Verlegung im
-       * Fußbodenaufbau; „Sanierung" bedeutet Sockelleistenkanal mit
-       * Heizkörpern, und dort wäre eine erfundene Fußbodenheizung eine
-       * falsche Aussage über das Gebäude.
+       * **Nicht an der Verlegeart festgemacht.** In 1.65.0 lief dieser Teil
+       * nur im Neubaumodus, mit der Begründung, „Sanierung" heiße
+       * Sockelleistenkanal mit Heizkörpern. Das ist falsch und wurde sofort
+       * gemeldet: Auch im Bestand wird eine Fußbodenheizung gelegt — bei
+       * neuem Estrich, in Niedrigaufbauweise, im angebauten Bad —, und
+       * **gemischte Systeme sind der Normalfall**. Die Verlegeart sagt, wie
+       * die Verteilleitung läuft, nicht, welche Heizfläche im Raum liegt.
+       * Steuern lässt es sich deshalb einzeln (`optionen.flaechenheizung`),
+       * und die Vorgabe ist: ja.
        *
        * **Übergangen wird, was schon eine Heizfläche hat.** Zwei Heizflächen
        * mit verschiedenen Systemtemperaturen in einem Raum sind eine
        * Entscheidung, die niemandem stillschweigend untergeschoben wird
-       * (siehe `layAllFloorLoops`).
+       * (siehe `layAllFloorLoops`). Genau daraus entsteht das gemischte
+       * System von selbst: Wo ein Heizkörper hängt, bleibt er; der Rest
+       * bekommt Fläche.
        */
       let fbhRaeume = 0;
       let fbhFlaeche = 0;
       let fbhVerteiler = 0;
-      if (mode === 'neubau') {
+      if (optionen?.flaechenheizung ?? true) {
         const geschosse = Object.values(get().doc.levels).sort((a, b) => a.order - b.order);
         for (const geschoss of geschosse) {
           const bericht = get().layAllFloorLoops(geschoss.id);
@@ -4316,6 +4660,28 @@ export const useBimStore = create<BimState>()((set, get) => {
             `dort ist von Hand ein Durchbruch zu setzen. Eine zu kleine Bohrung einzutragen wäre schlimmer als keine.`,
         });
       }
+      /*
+       * Der Auslegungsstand — für die Einbettung. Siehe `netzStand` oben und
+       * `onNetzGelegt` in `lib/embedApi.ts`.
+       */
+      set({
+        netzStand: {
+          lauf: (get().netzStand?.lauf ?? 0) + 1,
+          at: new Date().toISOString(),
+          mode,
+          anordnung: anordnung ?? 'baum',
+          flaechenheizung: optionen?.flaechenheizung !== false,
+          served: ergebnis.served,
+          routeLength: Math.round(ergebnis.routeLength * 100) / 100,
+          pipeLength: Math.round(ergebnis.pipeLength * 100) / 100,
+          accessories: ergebnis.accessories.length,
+          durchbrueche: anzahlDurchbrueche,
+          geschosse: ergebnis.geschosse.length,
+          straenge: ergebnis.straenge.length,
+          flaechenraeume: fbhRaeume,
+          ...(schwer ? { fehler: schwer.text } : {}),
+        },
+      });
       set({
         statusMessage: schwer
           ? schwer.text
@@ -6267,6 +6633,32 @@ export const useBimStore = create<BimState>()((set, get) => {
 
       const fresh = emptyDocument();
       fresh.meta = { ...fresh.meta, ...(raw.project as object), modifiedAt: new Date().toISOString() };
+      /*
+       * Nutzungseinheiten (Export 2.10.0). Die Räume werden beim Öffnen neu
+       * erkannt, die Einheiten nicht: Sie stehen als eigene Liste in der Datei
+       * und kommen von dort unverändert zurück.
+       */
+      const gespeicherteEinheiten = raw.occupancyUnits as
+        | { id?: unknown; name?: unknown; kind?: unknown; location?: unknown }[]
+        | undefined;
+      if (Array.isArray(gespeicherteEinheiten) && gespeicherteEinheiten.length) {
+        const art: Record<string, EinheitArt> = {
+          dwelling: 'wohnung',
+          commercial: 'gewerbe',
+          communal: 'gemeinschaft',
+        };
+        const einheiten: Record<string, Nutzungseinheit> = {};
+        gespeicherteEinheiten.forEach((e, i) => {
+          if (typeof e?.id !== 'string' || !e.id) return;
+          einheiten[e.id] = {
+            id: e.id,
+            name: typeof e.name === 'string' && e.name.trim() ? e.name : `Einheit ${i + 1}`,
+            art: art[String(e.kind)] ?? 'wohnung',
+            ...(typeof e.location === 'string' && e.location ? { lage: e.location } : {}),
+          };
+        });
+        if (Object.keys(einheiten).length) fresh.units = einheiten;
+      }
       const levels = raw.levels as Level[] | undefined;
       if (levels?.length) {
         // Ältere Dateien kennen `order` noch nicht — aus der Höhenlage ableiten.
@@ -6440,6 +6832,17 @@ export const useBimStore = create<BimState>()((set, get) => {
           // nach jedem Speichern erneut rechnen — und niemand würde merken,
           // dass die Auslegung wieder auf dem Überschlag steht.
           normHeatLoad: (saved.normHeatLoad as Room['normHeatLoad']) ?? match.normHeatLoad,
+          /*
+           * Die Nutzungseinheit ist eine Angabe am Raum und keine Geometrie —
+           * sie muss denselben Weg zurückfinden wie Name und Solltemperatur.
+           * Zugeordnet wird nur, was es in der Datei auch als Einheit gibt;
+           * eine Kennung ohne Einheit wäre ein Raum, der zugeordnet aussieht
+           * und nirgends mitzählt.
+           */
+          unitId:
+            typeof saved.occupancyUnitId === 'string' && fresh.units?.[saved.occupancyUnitId]
+              ? saved.occupancyUnitId
+              : undefined,
         };
       });
 

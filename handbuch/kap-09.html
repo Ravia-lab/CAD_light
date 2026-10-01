@@ -100,14 +100,25 @@
 
 <h4 id="k9-4-0">9.4.0 Die Fußbodenheizung wird mit ausgelegt</h4>
 
-<p>Im <b>Neubaumodus</b> legt der Ausleger nicht nur die Verteilleitungen, sondern
-<b>auch die Fußbodenheizung selbst</b>. Er belegt dabei jeden <b>beheizten Raum,
-in dem noch keine Heizfläche steht</b>, mit Heizkreisen — mit Verlegeabstand,
-Kreiszahl, Verlegekurve, Rohrlänge und Anbindung an den Verteiler.</p>
+<p>Der Ausleger legt nicht nur die Verteilleitungen, sondern <b>auch die
+Fußbodenheizung selbst</b>. Er belegt dabei jeden <b>beheizten Raum, in dem noch
+keine Heizfläche steht</b>, mit Heizkreisen — mit Verlegeabstand, Kreiszahl,
+Verlegekurve, Rohrlänge und Anbindung an den Verteiler. Steuern lässt sich das
+über das Kästchen <b>Fußbodenheizung mitlegen</b> im Reiter <b>Anlage</b>;
+vorgegeben ist <b>ja</b>.</p>
 
-<p><b>Warum nur im Neubaumodus.</b> Dieser Modus bedeutet Verlegung im
-Fußbodenaufbau; „Sanierung“ bedeutet Sockelleistenkanal mit Heizkörpern. Eine
-Fußbodenheizung dort zu erfinden wäre eine falsche Aussage über das Gebäude.</p>
+<p><b>In beiden Verlegearten.</b> Eine Fußbodenheizung wird auch im Bestand
+gelegt — bei neuem Estrich, in Niedrigaufbauweise, im angebauten Bad. Die
+Verlegeart sagt, wie die <b>Verteilleitung</b> läuft (Fußbodenaufbau oder
+Sockelleistenkanal), nicht, welche Heizfläche im Raum liegt. Beides zu
+vermischen wäre falsch: In 1.65.0 lief dieser Teil nur im Neubaumodus, und das
+war von Anfang an zu eng gedacht.</p>
+
+<p><b>Gemischte Systeme entstehen von selbst</b> — und sie sind der Normalfall,
+nicht die Ausnahme. Wo ein Heizkörper hängt, bleibt er; alle übrigen beheizten
+Räume bekommen Fläche. Ein Haus mit Heizkörpern im Altbauteil und Fußbodenheizung
+im Anbau ist damit in einem Durchgang ausgelegt, und die Übergabe an RaVia nennt
+die Temperaturen beider Kreisarten getrennt.</p>
 
 <p><b>Was übergangen wird — und warum.</b> Ein Raum, in dem schon ein Heizkörper
 hängt, bekommt keine Fußbodenheizung dazu. Zwei Heizflächen mit verschiedenen
@@ -131,7 +142,7 @@ liegt dabei auf dem Geschoss seines Raums.</p>
 
 <div class="merke"><b>Merke</b><p>Erst mit den Kreisen stehen auch die <b>Rohrlängen</b> da: Rohr in der Fläche, Rohr in den Anbindeleitungen, Kreiszahl je Verlegeabstand, belegte Fläche und der Randdämmstreifen aus dem Raumumfang. Sie gehen in den Massenauszug (<a href="#k14-6">Abschnitt 14.6</a>) und in die Übergabe an RaVia (<a href="#k17-1">Abschnitt 17.1</a>). Vor 1.65.0 musste die Fußbodenheizung Raum für Raum von Hand belegt werden; wer das nicht wusste, bekam ein Rohrnetz für die Heizkörper und sonst nichts.</p></div>
 
-<div class="baustelle"><b>Auf der Baustelle heißt das</b><p>Beim Neubau genügt: Grundriss zeichnen, Räume benennen, beheizt/unbeheizt setzen — dann <b>Für Neubau auslegen</b>. Danach stehen Kreise, Verteiler, Trassen und die Bestellmengen da. Wo Sie einen Heizkörper wollen, setzen Sie ihn <b>vorher</b>; dann bleibt dieser Raum von der Flächenheizung frei.</p></div>
+<div class="baustelle"><b>Auf der Baustelle heißt das</b><p>Grundriss zeichnen, Räume benennen, beheizt/unbeheizt setzen — dann auslegen. Danach stehen Kreise, Verteiler, Trassen und die Bestellmengen da. <b>Wo Sie einen Heizkörper wollen, setzen Sie ihn vorher</b>; dann bleibt dieser Raum von der Flächenheizung frei. Genau so bauen Sie ein gemischtes System: erst die Heizkörper setzen, dann auslegen. Und wenn gar keine Fußbodenheizung hineinsoll, nehmen Sie den Haken weg.</p></div>
 
 <h4 id="k9-4-1">9.4.1 Neubau gegen Sanierung</h4>
 

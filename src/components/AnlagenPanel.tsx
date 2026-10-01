@@ -63,6 +63,13 @@ import {
   type Brennstoff,
 } from '../lib/verbrauchsabgleich';
 import Erklaerung from './Erklaerung';
+import {
+  ABGLEICHPFLICHT_AB,
+  EINHEIT_LABELS,
+  einheitenstand,
+  einheitsbilanzen,
+  type EinheitArt,
+} from '../lib/nutzungseinheiten';
 
 const fmt = (v: number | undefined, d = 1): string =>
   v === undefined || !Number.isFinite(v) ? '—' : v.toLocaleString('de-DE', { minimumFractionDigits: d, maximumFractionDigits: d });
@@ -141,6 +148,12 @@ export default function AnlagenPanel() {
   const setPlantCircuits = useBimStore((s) => s.setPlantCircuits);
   const setSchematic = useBimStore((s) => s.setSchematic);
   const legeRohrnetzAus = useBimStore((s) => s.legeRohrnetzAus);
+  /*
+   * Ob die Flächenheizung mitgelegt wird. Vorgabe ja — wer sie nicht will,
+   * nimmt den Haken weg; die Einstellung gehört zur Sitzung und nicht ins
+   * Dokument, denn sie ist eine Absicht und keine Eigenschaft des Gebäudes.
+   */
+  const [mitFlaeche, setMitFlaeche] = useState(true);
   const setzeErzeugerNachVorschlag = useBimStore((s) => s.setzeErzeugerNachVorschlag);
   const updateMeta = useBimStore((s) => s.updateMeta);
   const [gegenprobeOffen, setGegenprobeOffen] = useState(false);
@@ -1462,6 +1475,7 @@ export default function AnlagenPanel() {
             </button>
           ))}
         </div>
+        <EinheitenBlock />
         {design.dhw && (
           <div className="mt-2 space-y-1.5">
             <div>
@@ -1738,25 +1752,46 @@ export default function AnlagenPanel() {
           <button
             className="chip flex-1 bg-white/[0.04] hover:bg-white/[0.08]"
             title="Leitungen auf der Rohdecke im Fußbodenaufbau — der Weg darf quer durch den Raum laufen"
-            onClick={() => setRohrbericht(legeRohrnetzAus('neubau'))}
+            onClick={() => setRohrbericht(legeRohrnetzAus('neubau', undefined, { flaechenheizung: mitFlaeche }))}
           >
             Neubau
           </button>
           <button
             className="chip flex-1 bg-white/[0.04] hover:bg-white/[0.08]"
             title="Leitungen sichtbar an der Wand im Sockelleistenkanal — die Trasse folgt den Wänden"
-            onClick={() => setRohrbericht(legeRohrnetzAus('sanierung'))}
+            onClick={() => setRohrbericht(legeRohrnetzAus('sanierung', undefined, { flaechenheizung: mitFlaeche }))}
           >
             Sanierung
           </button>
           <button
             className="chip flex-1 bg-white/[0.04] hover:bg-white/[0.08]"
             title="Ringleitung im Sockelleistenkanal an den Außenwänden, Heizkörper mit kurzen Anbindungen — Zuleitung mindestens 1&quot;, Ring mindestens Cu 18, Anbindung mindestens Cu 15"
-            onClick={() => setRohrbericht(legeRohrnetzAus('sanierung', 'ring'))}
+            onClick={() => setRohrbericht(legeRohrnetzAus('sanierung', 'ring', { flaechenheizung: mitFlaeche }))}
           >
             Ring
           </button>
         </div>
+        {/*
+          * Die Flächenheizung hängt **nicht** an der Verlegeart.
+          *
+          * In 1.65.0 lief sie nur im Neubaumodus — falsch, und sofort
+          * gemeldet: Auch im Bestand wird eine Fußbodenheizung gelegt, und
+          * gemischte Systeme sind der Normalfall. Die Verlegeart sagt, wie
+          * die Verteilleitung läuft, nicht, welche Heizfläche im Raum liegt.
+          */}
+        <label className="mt-2 flex cursor-pointer items-start gap-2 text-[11px] leading-snug text-slate-400">
+          <input
+            type="checkbox"
+            className="mt-0.5"
+            checked={mitFlaeche}
+            onChange={(e) => setMitFlaeche(e.target.checked)}
+          />
+          <span>
+            <b className="text-slate-300">Fußbodenheizung mitlegen</b> — in jeden beheizten Raum
+            <b> ohne</b> Heizfläche, über alle Geschosse. Räume mit Heizkörper bleiben, wie sie sind;
+            so entsteht das gemischte System.
+          </span>
+        </label>
         <p className="mt-1.5 text-[10px] leading-relaxed text-slate-500">
           Führt die Trasse vom Verteiler zu jedem Verbraucher, legt jeden Abschnitt nach seinem Volumenstrom aus,
           dämmt ihn nach Anlage 8 GEG und setzt die Armaturen. Von Hand gezogene Leitungen bleiben stehen.
@@ -2137,6 +2172,134 @@ function KurzFassung({ design }: { design: ReturnType<typeof designPlant> }) {
 }
 
 /** Text als Datei sichern — der immer gleiche Dreisatz aus Blob, Link, Klick. */
+/**
+ * **Die Nutzungseinheiten des Gebäudes.**
+ *
+ * Warum dieser Block ausgerechnet hier steht, zwischen Zapftemperatur und
+ * Speichergröße: Die Zahl der Wohneinheiten ist das Feld darüber. Sie geht in
+ * den Trinkwasserbedarf, in die Speichergröße und in die Gefäßauslegung, und
+ * § 60c Abs. 1 GModG knüpft an sie die Pflicht zum hydraulischen Abgleich.
+ * Bisher war sie eine getippte Zahl, die niemand gegen das Modell gehalten
+ * hat — und eine getippte Zahl, die plausibel aussieht und falsch ist, ist der
+ * stillste Fehler, den dieses Programm kennt.
+ *
+ * Hier stehen beide nebeneinander: die getippte und die gezählte.
+ */
+function EinheitenBlock() {
+  const doc = useBimStore((s) => s.doc);
+  const neueEinheit = useBimStore((s) => s.neueEinheit);
+  const benenneEinheit = useBimStore((s) => s.benenneEinheit);
+  const setzeEinheitArt = useBimStore((s) => s.setzeEinheitArt);
+  const loescheEinheit = useBimStore((s) => s.loescheEinheit);
+  const uebernehmeEinheitenzahl = useBimStore((s) => s.uebernehmeEinheitenzahl);
+
+  const bilanzen = einheitsbilanzen(doc);
+  const stand = einheitenstand(doc);
+  const getippt = doc.plant?.dhw.units ?? 0;
+  const weicht = stand.gesamt > 0 && getippt > 0 && getippt !== stand.selbstaendig;
+
+  return (
+    <div className="mt-2 rounded-lg bg-white/[0.03] p-2">
+      <div className="mb-1.5 flex items-center justify-between">
+        <span className="label-xs">Nutzungseinheiten</span>
+        <div className="flex gap-1">
+          {(Object.keys(EINHEIT_LABELS) as EinheitArt[]).map((art) => (
+            <button
+              key={art}
+              className="chip text-slate-500 hover:text-slate-200"
+              title={`${EINHEIT_LABELS[art]} anlegen`}
+              onClick={() => neueEinheit(art)}
+            >
+              + {EINHEIT_LABELS[art].slice(0, art === 'gemeinschaft' ? 12 : 8)}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {bilanzen.length === 0 ? (
+        <p className="text-[10px] leading-relaxed text-slate-500">
+          Keine erfasst. Im Einfamilienhaus ist das richtig — es gibt nichts zu unterscheiden. Im
+          Mehrfamilienhaus legen Sie hier die Einheiten an und ordnen die Räume im Reiter
+          „Eigenschaften" zu; ganze Geschosse gehen dort in einem Schritt.
+        </p>
+      ) : (
+        <>
+          <div className="space-y-1">
+            {bilanzen.map((b) => (
+              <div key={b.einheit.id} className="flex items-center gap-1">
+                <input
+                  className="field min-w-0 flex-1 text-[11px]"
+                  value={b.einheit.name}
+                  onChange={(e) => benenneEinheit(b.einheit.id, e.target.value)}
+                />
+                <select
+                  className="field w-[108px] shrink-0 text-[10px]"
+                  value={b.einheit.art}
+                  onChange={(e) => setzeEinheitArt(b.einheit.id, e.target.value as EinheitArt)}
+                >
+                  {(Object.keys(EINHEIT_LABELS) as EinheitArt[]).map((art) => (
+                    <option key={art} value={art} className="bg-graphite-850">
+                      {EINHEIT_LABELS[art]}
+                    </option>
+                  ))}
+                </select>
+                <span
+                  className={`w-[92px] shrink-0 text-right text-[10px] tabular-nums ${b.raeume ? 'text-slate-400' : 'text-amber-400'}`}
+                  title={b.maisonette ? `Über ${b.geschosse.length} Geschosse` : undefined}
+                >
+                  {b.raeume
+                    ? `${b.raeume} R · ${fmt(b.flaeche, 1)} m²${b.maisonette ? ' ⇅' : ''}`
+                    : 'kein Raum'}
+                </span>
+                <button
+                  className="chip shrink-0 text-slate-600 hover:text-rose-400"
+                  title="Einheit entfernen — die Zuordnung ihrer Räume geht mit"
+                  onClick={() => loescheEinheit(b.einheit.id)}
+                >
+                  ✕
+                </button>
+              </div>
+            ))}
+          </div>
+
+          <div className="mt-1.5 border-t border-white/[0.06] pt-1.5">
+            <Readout
+              label="selbständige Einheiten"
+              value={`${stand.selbstaendig}`}
+              accent={weicht}
+            />
+            {stand.gemeinschaft > 0 && (
+              <Readout
+                label="Gemeinschaftsflächen"
+                value={`${stand.gemeinschaft} — zählen nicht mit`}
+              />
+            )}
+            {stand.raeumeOhne > 0 && (
+              <Readout label="Räume ohne Zuordnung" value={`${stand.raeumeOhne}`} />
+            )}
+            <p className="mt-1 text-[10px] leading-relaxed text-slate-500">
+              {stand.abgleichpflicht
+                ? `${stand.selbstaendig} selbständige Nutzungseinheiten — der hydraulische Abgleich ist nach § 60c Abs. 1 GModG Pflicht.`
+                : `Ab ${ABGLEICHPFLICHT_AB} selbständigen Nutzungseinheiten ist der hydraulische Abgleich nach § 60c Abs. 1 GModG Pflicht.`}
+            </p>
+            {weicht && (
+              <div className="mt-1.5 rounded-lg bg-amber-500/10 p-2">
+                <p className="text-[10px] leading-relaxed text-amber-300">
+                  Oben stehen {getippt} Wohneinheiten, gezählt sind {stand.selbstaendig}. Mit der
+                  getippten Zahl rechnen Trinkwasserbedarf, Speicher und Gefäß.
+                </p>
+                <button className="btn-ghost mt-1 w-full text-[11px]" onClick={() => uebernehmeEinheitenzahl()}>
+                  Aus dem Modell zählen: {stand.selbstaendig} übernehmen
+                </button>
+              </div>
+            )}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
 function downloadText(text: string, filename: string, type = 'text/plain;charset=utf-8'): void {
   const url = URL.createObjectURL(new Blob([text], { type }));
   const a = document.createElement('a');

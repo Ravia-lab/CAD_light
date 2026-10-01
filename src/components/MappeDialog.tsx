@@ -21,6 +21,7 @@
  */
 
 import { useMemo, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { buildPipeReport, berichtsUrteil } from '../lib/pipeReport';
 import { buildProjektMappe, printProjektMappe, type MappeFormat } from '../lib/projektMappe';
 import { useBimStore } from '../store/useBimStore';
@@ -76,7 +77,15 @@ export default function MappeDialog({ onClose }: { onClose: () => void }) {
     [doc, bericht, datum, format, planMassstab, anlagenName, bearbeiter],
   );
 
-  return (
+  /*
+   * Durch ein Portal in den Körper des Dokuments — aus demselben Grund wie
+   * beim Anlagendialog (siehe `AnlagenDialog.tsx`): `fixed inset-0` meint das
+   * ganze Fenster, gilt aber nur dann, wenn kein Vorfahr einen eigenen
+   * Bezugsrahmen aufspannt. Der Planbereich trägt `backdrop-blur` und tut
+   * genau das — ein Dialog darin richtet sich an ihm aus statt am Fenster,
+   * und seine Höhe hängt dann daran, wie hoch die Kopfzeile gerade ist.
+   */
+  return createPortal(
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-graphite-950/70 p-6 backdrop-blur-sm">
       <div className="panel flex max-h-full w-[1120px] max-w-full flex-col overflow-hidden">
         <div className="flex shrink-0 items-center justify-between border-b border-white/[0.06] px-4 py-3">
@@ -247,6 +256,7 @@ export default function MappeDialog({ onClose }: { onClose: () => void }) {
           </div>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }

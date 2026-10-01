@@ -70,13 +70,13 @@ await p.addInitScript(() => {
   // 1.1.0: der Rückweg ist dazugekommen, die lesenden Befehle sind
   // unverändert geblieben.
   // 1.3.0: `loadBuilding` (Gebäudemodell aus RaVia Scan) — reiner Zuwachs.
-  expect('Version gemeldet', api.version, '1.6.0');
+  expect('Version gemeldet', api.version, '1.7.0');
   expect(
     'Alle Methoden da',
     api.methods,
     [
       'applyPatch', 'getDocument', 'getExport', 'getIfc', 'getSummary', 'getWritableFields',
-      'loadBuilding', 'loadIfc', 'loadProject', 'onChange', 'reportDiscardedRooms', 'validate', 'version',
+      'loadBuilding', 'loadIfc', 'loadProject', 'onChange', 'onNetzGelegt', 'reportDiscardedRooms', 'validate', 'version',
     ],
   );
 
@@ -110,7 +110,7 @@ await p.addInitScript(() => {
   expect('IFC ist STEP', shapes.ifcHead, 'ISO-10303-21');
   expect('Prüfbericht rechenfähig', shapes.ready, true);
   expect('Rohdokument erreichbar', shapes.docWalls > 0, true);
-  expect('Exportfassung 2.9.0', shapes.version, '2.9.0');
+  expect('Exportfassung 2.10.0', shapes.version, '2.10.0');
   expect('Hüllflächenbilanz im Export', shapes.envelopeH > 0, true);
   expect('… je Raum', shapes.raeumeMitBilanz, shapes.rooms);
   expect('… mit Boden, Decke und Wand', ['ceiling', 'floor', 'wall'].every((k) => shapes.envelopeKinds.includes(k)), true);
@@ -131,6 +131,43 @@ await p.addInitScript(() => {
   });
   expect('Änderung gemeldet', changed.length, 1);
   expect('Mit neuem Namen', changed[0], 'Über die API umbenannt');
+
+  /*
+   * **Der abgeschlossene Auslegungsstand** — angefordert von der RaVia-Seite
+   * am 01.10.2026: „Unser hydraulischer Abgleich soll nicht auf jede
+   * Zwischenänderung neu rechnen, sondern erst auf einen abgeschlossenen
+   * Auslegungsstand."
+   *
+   * Geprüft wird beides: dass es beim Auslegen kommt — und dass es beim
+   * bloßen Ändern **nicht** kommt. Das Zweite ist der eigentliche Zweck.
+   */
+  const netz = await p.evaluate(async () => {
+    const staende = [];
+    const off = window.RaViaCAD.onNetzGelegt((x) => staende.push(x));
+    // Eine Änderung am Modell darf das Ereignis nicht auslösen.
+    window.__ravia.getState().updateMeta({ name: 'Nur umbenannt' });
+    await new Promise((r) => setTimeout(r, 400));
+    const nachAenderung = staende.length;
+    window.__ravia.getState().legeRohrnetzAus('sanierung');
+    await new Promise((r) => setTimeout(r, 400));
+    const nachAuslegen = staende.length;
+    window.__ravia.getState().legeRohrnetzAus('sanierung');
+    await new Promise((r) => setTimeout(r, 400));
+    off();
+    window.__ravia.getState().legeRohrnetzAus('sanierung');
+    await new Promise((r) => setTimeout(r, 400));
+    return { nachAenderung, nachAuslegen, gesamt: staende.length, erster: staende[0], letzter: staende[staende.length - 1] };
+  });
+  expect('Eine Änderung löst es nicht aus', netz.nachAenderung, 0);
+  expect('Das Auslegen schon', netz.nachAuslegen, 1);
+  expect('Zwei Läufe sind zwei Ereignisse', netz.gesamt, 2);
+  expect('Nach dem Abmelden nichts mehr', netz.gesamt, 2);
+  expect('Erster Lauf ist Nummer 1', netz.erster.lauf, 1);
+  expect('Der zweite Nummer 2', netz.letzter.lauf, 2);
+  expect('Mit Verlegeart', netz.erster.mode, 'sanierung');
+  expect('Rohrlänge dabei', netz.erster.pipeLength > 0, true);
+  expect('Verbraucher dabei', netz.erster.served > 0, true);
+  expect('Zeitpunkt dabei', /^\d{4}-\d{2}-\d{2}T/.test(netz.erster.at), true);
 }
 
 console.log('\n▸ Nachrichtenbrücke (postMessage aus dem umgebenden Fenster)');
@@ -159,7 +196,7 @@ console.log('\n▸ Nachrichtenbrücke (postMessage aus dem umgebenden Fenster)')
 
   const status = await p.locator('#status').innerText();
   expect('Verbindung steht', status, 'verbunden');
-  expect('Version angezeigt', await p.locator('#version').innerText(), '1.6.0');
+  expect('Version angezeigt', await p.locator('#version').innerText(), '1.7.0');
 
   const panel = await p.locator('#summary').innerText();
   expect('Kurzfassung angekommen', /Räume/.test(panel), true);
@@ -619,7 +656,7 @@ console.log('\n▸ Zweiter Aufruf mit warmem Zwischenspeicher');
   await p.goto(BASIS + 'einbettung-beispiel.html', { waitUntil: 'networkidle' });
   await p.locator('#status').filter({ hasText: 'verbunden' }).waitFor({ timeout: 20000 }).catch(() => {});
   expect('Auch mit warmem Zwischenspeicher verbunden', await p.locator('#status').innerText(), 'verbunden');
-  expect('… mit Version', await p.locator('#version').innerText(), '1.6.0');
+  expect('… mit Version', await p.locator('#version').innerText(), '1.7.0');
 }
 
 console.log('\nERRORS:', errs.length ? errs.join('\n') : 'keine');

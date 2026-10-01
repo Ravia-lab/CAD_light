@@ -84,11 +84,22 @@ console.log('\n▸ Bericht öffnen');
 }
 
 /** Inhalt des gerade angezeigten Blattes als Text. */
+/*
+ * **Gesucht wird im Dialog und nicht im Dokument.** Vorher stand hier
+ * `document.querySelector('.panel .flex-1 …')` — und traf den Dialog nur,
+ * weil er in der Baumreihenfolge vor dem Inspektor stand. Seit 1.66.0 hängen
+ * die Dialoge durch ein Portal am Körper des Dokuments (siehe
+ * `AnlagenDialog.tsx`), stehen also **danach**; dieselbe Suche traf damit den
+ * Inspektor, der ebenfalls eine Wissenssuche hat. Die Prüfung war grün, las
+ * aber das falsche Feld. Jetzt ist der Bezug benannt.
+ */
+const imDialog = (auswahl) => `[data-pruef="rohrnetzdialog"] ${auswahl}`;
+
 const blattText = async () =>
-  await p.evaluate(() => {
-    const svg = document.querySelector('.panel .flex-1 svg');
+  await p.evaluate((sel) => {
+    const svg = document.querySelector(sel);
     return svg ? Array.from(svg.querySelectorAll('text')).map((t) => t.textContent).join(' | ') : '';
-  });
+  }, imDialog('.panel .flex-1 svg'));
 
 const weiter = async (n = 1) => {
   for (let i = 0; i < n; i++) {
@@ -169,16 +180,17 @@ console.log('\n▸ Einstellwerte je Heizfläche');
 
 console.log('\n▸ Wissenssuche (Multi-Korpus)');
 {
-  await p.getByText('Wissen', { exact: true }).click();
+  await p.locator(imDialog('button')).getByText('Wissen', { exact: true }).click();
   await p.waitForTimeout(400);
-  const feld = p.locator('input.field').first();
+  const feld = p.locator(imDialog('input.field')).first();
   await feld.fill('Ventilautorität');
   await p.waitForTimeout(700);
   const treffer = await p.evaluate(
-    () => document.querySelectorAll('.panel .flex-1 .rounded-lg.bg-white\\/\\[0\\.04\\]').length,
+    (sel) => document.querySelectorAll(sel).length,
+    imDialog('.panel .flex-1 .rounded-lg.bg-white\\/\\[0\\.04\\]'),
   );
   expect('Die Suche liefert Treffer', treffer > 0, true);
-  const text = await p.evaluate(() => document.querySelector('.panel .flex-1').textContent ?? '');
+  const text = await p.evaluate((sel) => document.querySelector(sel)?.textContent ?? '', imDialog('.panel .flex-1'));
   expect('Der Treffer nennt die Schwelle 0,3', /0,3/.test(text), true);
   expect('Der Treffer nennt seine Quelle', /Quelle|Leitfaden|hydraulischer-abgleich|IKZ|Haustec|VdZ/.test(text), true);
   expect('Die Belastbarkeit ist ausgewiesen', /Primärquelle|Sekundärquelle|Annahme/.test(text), true);
@@ -188,7 +200,8 @@ console.log('\n▸ Wissenssuche (Multi-Korpus)');
   await feld.fill('THV');
   await p.waitForTimeout(700);
   const treffer2 = await p.evaluate(
-    () => document.querySelectorAll('.panel .flex-1 .rounded-lg.bg-white\\/\\[0\\.04\\]').length,
+    (sel) => document.querySelectorAll(sel).length,
+    imDialog('.panel .flex-1 .rounded-lg.bg-white\\/\\[0\\.04\\]'),
   );
   expect('Die Abkürzung THV findet etwas', treffer2 > 0, true);
 
@@ -196,7 +209,8 @@ console.log('\n▸ Wissenssuche (Multi-Korpus)');
   await feld.fill('Waermepumpe');
   await p.waitForTimeout(700);
   const treffer3 = await p.evaluate(
-    () => document.querySelectorAll('.panel .flex-1 .rounded-lg.bg-white\\/\\[0\\.04\\]').length,
+    (sel) => document.querySelectorAll(sel).length,
+    imDialog('.panel .flex-1 .rounded-lg.bg-white\\/\\[0\\.04\\]'),
   );
   expect('„Waermepumpe" findet dasselbe wie „Wärmepumpe"', treffer3 > 0, true);
 }

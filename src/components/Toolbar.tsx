@@ -442,6 +442,13 @@ const VIEW_MODES: { id: ViewMode; label: string }[] = [
   { id: 'split', label: 'Split' },
   { id: '3d', label: '3D' },
   { id: 'schema', label: 'Schema' },
+  /*
+   * Die Skizzenseite steht bei den Ansichten und nicht bei den Reitern:
+   * Zeichnen braucht Fläche, und die Reiterspalte ist 380 px breit. Sie ist
+   * in **jedem** Bedienmodus da — gerade der Handwerkermodus ist der, in dem
+   * von Hand skizziert wird.
+   */
+  { id: 'skizze', label: 'Skizze' },
 ];
 
 const WALL_TYPE_LABELS: Record<WallType, string> = {
@@ -825,11 +832,24 @@ export function TopBar({ onProjekte }: { onProjekte: () => void }) {
           ))}
         </select>
 
+        {/*
+          **Warum die Polsterung an der Fensterbreite hängt.** Mit der fünften
+          Ansicht („Skizze", 1.66.0) wurde diese Reihe bei 1180 px Fensterbreite
+          um 34 px zu breit und ist umgebrochen — die Kopfzeile wuchs von 148
+          auf 182 px, und dieselben 34 px fehlten dem Plan darunter. Schmaler
+          wird deshalb unter 1280 px die Polsterung dieser Knöpfe; ihre Höhe
+          bleibt, denn am Finger zählt die Höhe.
+
+          Am Touchgerät greift die Regel nicht: Dort setzt `index.css` für
+          `.chip` eine eigene Polsterung von 12 px, und das soll so bleiben.
+          Dass der Umbruch dort trotzdem nichts kaputt macht, liegt am Portal
+          des Anlagendialogs — siehe `AnlagenDialog.tsx`.
+        */}
         <div className="flex gap-0.5 rounded-lg bg-graphite-900/60 p-0.5">
           {VIEW_MODES.filter((mode) => zeigtAnsicht(uiMode, mode.id)).map((mode) => (
             <button
               key={mode.id}
-              className={`chip px-2.5 ${
+              className={`chip px-1.5 xl:px-2.5 ${
                 viewMode === mode.id ? 'bg-accent/15 text-accent' : 'text-slate-500 hover:text-slate-300'
               }`}
               onClick={() => setViewMode(mode.id)}

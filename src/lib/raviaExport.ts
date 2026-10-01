@@ -50,6 +50,8 @@ import type {
   PipeRun,
   PipeScheduleEntry,
   RaviaExport,
+  ExportOccupancy,
+  ExportOccupancyUnit,
   RoofDefinition,
   SetbackTotals,
   ThermalBridgeKind,
@@ -116,6 +118,7 @@ import {
 import { buildPipeNetwork } from './pipeNetwork';
 import { buildEmitters, buildHydraulics } from './auslegungExport';
 import { baueNetzExport } from './netzExport';
+import { EINHEIT_LABELS, einheitenstand, einheitsbilanzen, ABGLEICHPFLICHT_AB } from './nutzungseinheiten';
 import { balanceNetwork } from './hydraulicBalance';
 import { designPlant } from './plantDesign';
 import {
@@ -131,6 +134,56 @@ import { heizlastAusBaualter, heizlastAusVerbrauch, verbrauchsabgleich } from '.
 import { estimateHeatLoad } from './heatLoadEstimate';
 
 export const GENERATOR = ERZEUGER;
+
+/**
+ * Die Nutzungseinheiten für den Export — Einheiten, Summen und § 60c-Stand.
+ *
+ * `undefined`, solange keine Einheit erfasst ist. Ein leerer Block wäre die
+ * Behauptung, es seien keine da; das Fehlen des Blocks sagt, dass niemand
+ * welche erfasst hat. Der Unterschied entscheidet darüber, ob eine Gegenstelle
+ * nachfragt oder weiterrechnet.
+ */
+function baueEinheiten(
+  doc: BimDocument,
+): { occupancyUnits: ExportOccupancyUnit[]; occupancy: ExportOccupancy } | undefined {
+  const bilanzen = einheitsbilanzen(doc);
+  if (!bilanzen.length) return undefined;
+  const stand = einheitenstand(doc);
+  const art: Record<string, ExportOccupancyUnit['kind']> = {
+    wohnung: 'dwelling',
+    gewerbe: 'commercial',
+    gemeinschaft: 'communal',
+  };
+  const deklariert = doc.plant?.dhw?.units;
+  return {
+    occupancyUnits: bilanzen.map((b) => ({
+      id: b.einheit.id,
+      name: b.einheit.name,
+      kind: art[b.einheit.art],
+      kindLabel: EINHEIT_LABELS[b.einheit.art],
+      ...(b.einheit.lage ? { location: b.einheit.lage } : {}),
+      roomIds: [...b.roomIds],
+      area: roundCm2(b.flaeche),
+      heatedArea: roundCm2(b.beheizteFlaeche),
+      roomCount: b.raeume,
+      heatedRoomCount: b.beheizteRaeume,
+      levelIds: [...b.geschosse],
+      maisonette: b.maisonette,
+      heatLoad: Math.round(b.heizlastW),
+    })),
+    occupancy: {
+      total: stand.gesamt,
+      dwellings: stand.wohnungen,
+      commercial: stand.gewerbe,
+      communal: stand.gemeinschaft,
+      independent: stand.selbstaendig,
+      threshold: ABGLEICHPFLICHT_AB,
+      balancingRequired: stand.abgleichpflicht,
+      ...(typeof deklariert === 'number' ? { declared: deklariert } : {}),
+      roomsWithoutUnit: stand.raeumeOhne,
+    },
+  };
+}
 
 export function buildRaviaExport(doc: BimDocument): RaviaExport {
   /*
@@ -210,18 +263,21 @@ export function buildRaviaExport(doc: BimDocument): RaviaExport {
       : undefined;
   const hydraulik = abgleich ? buildHydraulics(abgleich, erzeuger) : undefined;
   const graph = baueNetzExport(doc, netz, abgleich);
+  const einheiten = baueEinheiten(doc);
 
   return {
     schema: 'ravia.bim.light',
     // 2.3.0: Hüllflächenbilanz je Raum und für das Gebäude (`envelope`).
     // 2.4.0: `envelope.withoutUValue` — wie viele Flächen ohne brauchbaren
     //        U-Wert in die Bilanz gingen. Reiner Zuwachs.
+    // 2.10.0: `occupancyUnits`/`occupancy` — Nutzungseinheiten und die Zahl,
+    //         an die § 60c Abs. 1 GModG die Abgleichpflicht knüpft.
     // 2.9.0: `pipeGraph` — Knoten, Abschnitte, Topologie, Flächenheizkreise.
     // 2.8.0: `project.annahmen` — was angenommen wurde, weil nichts vorlag.
     //        Reiner Zuwachs; ändert keinen Wert, sondern sagt, welcher nicht
     //        gemessen ist. Die vollständige Fassungsgeschichte steht an
     //        `RaviaExport` in `src/types/bim.ts`.
-    version: '2.9.0',
+    version: '2.10.0',
     generator: GENERATOR,
     exportedAt: new Date().toISOString(),
     units: {
@@ -257,6 +313,8 @@ export function buildRaviaExport(doc: BimDocument): RaviaExport {
     project: { ...doc.meta },
     ...(subsoil ? { subsoil } : {}),
     levels: Object.values(doc.levels).sort((a, b) => a.order - b.order),
+    // Nutzungseinheiten — seit 2.10.0, nur wenn welche erfasst sind.
+    ...(einheiten ?? {}),
     constructions: Object.values(doc.constructions ?? {}),
     verticals: buildVerticals(doc),
     solids: buildSolids(doc),
@@ -1603,6 +1661,7 @@ function buildRoom(
     netFloorArea: roundCm2(Math.max(0, room.area - (room.floorOpeningArea ?? 0))),
     floorOpeningArea: roundCm2(room.floorOpeningArea ?? 0),
     solidArea: roundCm2(room.solidArea ?? 0),
+    ...(room.unitId ? { occupancyUnitId: room.unitId } : {}),
     roof: metrics
       ? {
           pitch: roof?.pitch ?? 0,

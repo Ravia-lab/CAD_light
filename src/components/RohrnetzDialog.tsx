@@ -16,6 +16,7 @@
  */
 
 import { useMemo, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { buildPipeReport, berichtsUrteil, wissensbasis } from '../lib/pipeReport';
 import { buildPipeReportSheets, printPipeReport } from '../lib/pipeReportPrint';
 import type { PaperFormat } from '../lib/planPrint';
@@ -69,8 +70,19 @@ export default function RohrnetzDialog({ onClose }: { onClose: () => void }) {
     return b.korpora().map((k) => ({ id: k, n: b.umfang(k) }));
   }, []);
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-graphite-950/70 p-6 backdrop-blur-sm">
+  /*
+   * Durch ein Portal in den Körper des Dokuments — aus demselben Grund wie
+   * beim Anlagendialog (siehe `AnlagenDialog.tsx`): `fixed inset-0` meint das
+   * ganze Fenster, gilt aber nur dann, wenn kein Vorfahr einen eigenen
+   * Bezugsrahmen aufspannt. Der Planbereich trägt `backdrop-blur` und tut
+   * genau das — ein Dialog darin richtet sich an ihm aus statt am Fenster,
+   * und seine Höhe hängt dann daran, wie hoch die Kopfzeile gerade ist.
+   */
+  return createPortal(
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-graphite-950/70 p-6 backdrop-blur-sm"
+      data-pruef="rohrnetzdialog"
+    >
       <div className="panel flex max-h-full w-[1080px] max-w-full flex-col overflow-hidden">
         <div className="flex shrink-0 items-center justify-between border-b border-white/[0.06] px-4 py-3">
           <div>
@@ -368,7 +380,8 @@ export default function RohrnetzDialog({ onClose }: { onClose: () => void }) {
           </div>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
 

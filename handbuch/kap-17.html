@@ -2,7 +2,7 @@
 <h2 id="k17">17 · Schnittstellen: Export, IFC, Einbettung in RaVia</h2>
 <p class="lead">Alles, was dieses Programm tut, läuft auf eine Datei zu: die Übergabe an die Heizlastberechnung. Dieses Kapitel sagt, was in dieser Datei steht, welche anderen Wege es daneben gibt — IFC4 hin und zurück, Einbettung in RaVia, der Rückweg von dort — und was der Betrieb davon merkt.</p>
 
-<h3 id="k17-1">17.1 Der Export <code>ravia.bim.light</code> 2.9.0</h3>
+<h3 id="k17-1">17.1 Der Export <code>ravia.bim.light</code> 2.10.0</h3>
 
 <p class="wo">Im Programm: Werkzeugleiste oben rechts → blauer Knopf <b>RaVia JSON</b>. Der Knopf trägt den Hinweis „Gebäudedaten als RaVia-BIM-JSON exportieren (DIN EN 12831) — dient zugleich als Projektdatei".</p>
 
@@ -397,7 +397,21 @@
 
 <p>Reiner Zuwachs: <code>hydraulics</code>, <code>emitters</code> und <code>pipeNetwork</code> bleiben unverändert. Der Block fehlt, solange kein Rohrnetz gezeichnet und keine Flächenheizung gelegt ist. Siehe <a href="#k9-4-0">Abschnitt 9.4.0</a>.</p>
 
-<div class="merke"><b>Merke</b><p>Alle neun Schritte sind <b>additiv</b>. Eine Gegenstelle, die gegen 2.0.0 gebaut hat, liest eine 2.9.0-Datei ohne Änderung und rechnet dasselbe wie vorher. Sie bekommt nur weniger Auskunft. Wer die neuen <code>kind</code>-Werte nicht kennt, behandelt sie wie bisher jede Verletzung.</p></div>
+<p><b>2.10.0</b> brachte gegenüber 2.9.0 die <b>Nutzungseinheiten</b> — Wohnungen, Gewerbeeinheiten, Gemeinschaftsflächen:</p>
+
+<ul>
+<li><code>occupancyUnits</code> — je Einheit <code>id</code>, <code>name</code>, <code>kind</code> (<code>dwelling</code>, <code>commercial</code>, <code>communal</code>), <code>kindLabel</code> im Klartext, <code>roomIds</code>, <code>area</code>, <code>heatedArea</code>, <code>roomCount</code>, <code>heatedRoomCount</code>, <code>levelIds</code>, <code>maisonette</code> und <code>heatLoad</code>.</li>
+<li><code>occupancy</code> — die Zusammenzählung: <code>total</code>, <code>dwellings</code>, <code>commercial</code>, <code>communal</code>, <code>independent</code> (Wohnungen <b>und</b> Gewerbe), <code>threshold</code> (6), <code>balancingRequired</code>, <code>declared</code> (die getippte Zahl aus dem Anlagenblatt) und <code>roomsWithoutUnit</code>.</li>
+<li><code>rooms[].occupancyUnitId</code> — dieselbe Zuordnung am Raum. Fehlt das Feld, ist der Raum keiner Einheit zugeordnet.</li>
+</ul>
+
+<p><b>Warum das nötig wurde.</b> § 60c Abs. 1 GModG knüpft die Pflicht zum hydraulischen Abgleich an die Zahl der „Wohnungen oder sonstigen selbständigen Nutzungseinheiten". Diese Zahl stand bis 1.65.0 ausschließlich als <b>getippte Angabe</b> im Anlagenblatt — und ging von dort in Trinkwasserbedarf, Speichergröße und Gefäßauslegung ein. Das Modell hätte sie wissen können und wusste sie nicht. Siehe <a href="#k15-1-6">Abschnitt 15.1.6</a>.</p>
+
+<div class="merke"><b>Merke</b><p><code>occupancy.declared</code> und <code>occupancy.independent</code> stehen bewusst <b>nebeneinander</b> und werden nicht gegeneinander verrechnet. Welche der beiden richtig ist, weiß nur, wer das Haus kennt: Es kann die getippte Zahl falsch sein — oder die Zuordnung, die noch fehlt. Eine Datei, die das stillschweigend auflöst, nimmt der Gegenstelle die Möglichkeit, nachzufragen. <b>Eine Gemeinschaftsfläche zählt nicht mit:</b> Fünf Wohnungen plus ein Treppenhaus sind sechs Einheiten und fünf selbständige — keine Pflicht. Fünf Wohnungen plus eine Praxis sind sechs selbständige — Pflicht.</p></div>
+
+<p>Reiner Zuwachs: Beide Blöcke fehlen, solange keine Einheit erfasst ist, und alles andere bleibt unverändert. Ein Einfamilienhaus hat keine Einheiten; „eine Einheit" wäre eine Behauptung, die niemand aufgestellt hat.</p>
+
+<div class="merke"><b>Merke</b><p>Alle zehn Schritte sind <b>additiv</b>. Eine Gegenstelle, die gegen 2.0.0 gebaut hat, liest eine 2.10.0-Datei ohne Änderung und rechnet dasselbe wie vorher. Sie bekommt nur weniger Auskunft. Wer die neuen <code>kind</code>-Werte nicht kennt, behandelt sie wie bisher jede Verletzung.</p></div>
 
 <h4 id="k17-1-7">17.1.7 Der Wächter über dem Format</h4>
 
@@ -671,6 +685,7 @@
 <tr><td>Zurückschreiben</td><td>Fachdaten ins Modell schreiben — siehe <a href="#k17-5">Abschnitt 17.5</a>.</td></tr>
 <tr><td>Selbstauskunft</td><td>Welche Felder schreibbar sind, in welcher Einheit und in welchen Grenzen. Damit muss die Gegenstelle nicht ausprobieren, was geht, und kann ihre eigene Eingabemaske daraus bauen.</td></tr>
 <tr><td>Anmelden / abmelden für Änderungen</td><td>Die Gegenstelle wird benachrichtigt, sobald sich am Modell etwas ändert.</td></tr>
+<tr><td>Anmelden für <b>„Rohrnetz wurde neu gelegt"</b></td><td>Ein eigenes Ereignis, das <em>nur</em> nach „Rohrnetz auslegen" kommt — nicht beim Zeichnen einer Leitung, nicht beim Öffnen eines Projekts. Es trägt die Kurzfassung des Laufs: Verlegeart, Trassen- und Rohrlänge, Verbraucher, Armaturen, Durchbrüche, Geschosse, Steigleitungen, Räume mit Flächenheizung — und den schwersten Befund, falls einer vorliegt. Seit der Schnittstellenfassung 1.7.0.</td></tr>
 <tr><td>Lebenszeichen</td><td>Eine Anfrage, die nur die Fassung der Schnittstelle zurückgibt — damit die Gegenstelle weiß, dass jemand zuhört.</td></tr>
 </tbody>
 </table>
@@ -683,9 +698,11 @@
 
 <p><b>Bei Änderungen wird nur die Kurzfassung gemeldet, und die entprellt.</b> Wer am Wandende zieht, erzeugt Dutzende Änderungen je Sekunde. Gemeldet wird deshalb frühestens eine Viertelsekunde nach der letzten Änderung, und auch dann nur die Kurzfassung — den vollen Export holt sich die Gegenstelle bei Bedarf selbst. Bei jedem gezogenen Wandende den ganzen Export zu schicken wäre Verschwendung.</p>
 
+<p><b>Der Auslegungsstand ist ein Vorgang und wird deshalb nicht entprellt.</b> Das Änderungsereignis beantwortet „am Modell hat sich etwas getan"; für einen hydraulischen Abgleich ist das zu viel. Die RaVia-Seite hat es am 01.10.2026 so beschrieben: Der Abgleich soll „nicht auf jede Zwischenänderung neu rechnen, sondern erst auf einen abgeschlossenen Auslegungsstand". Dafür gibt es seit 1.7.0 das eigene Ereignis <b>„Rohrnetz wurde neu gelegt"</b>. Es kommt einmal je Auslegungslauf, sofort, und trägt eine fortlaufende Laufnummer — damit zwei Läufe mit gleichem Ergebnis unterscheidbar bleiben. Zwei Läufe sind zwei Ereignisse, auch wenn dabei zweimal dasselbe herauskommt.</p>
+
 <h4 id="k17-4-5">17.4.5 Die Fassung der Schnittstelle</h4>
 
-<p>Die Schnittstelle trägt eine eigene Fassungsnummer, unabhängig von der des Programms und der des Exportformats. Sie steht auf <b>1.6.0</b>.</p>
+<p>Die Schnittstelle trägt eine eigene Fassungsnummer, unabhängig von der des Programms und der des Exportformats. Sie steht auf <b>1.7.0</b>.</p>
 
 <table class="tab">
 <caption>Was jede Fassung der Schnittstelle gebracht hat</caption>
@@ -698,6 +715,7 @@
 <tr><td>1.4.0</td><td>Der Gebäudescan kann das gescannte Geschoss <b>neben</b> die vorhandenen legen, statt das Modell zu ersetzen.</td></tr>
 <tr><td>1.5.0</td><td>Das <b>Rohdokument</b> auch über die Nachrichtenbrücke. Im selben Fenster ging es längst; aus einem Rahmen heraus war es unerreichbar, weil beide Seiten getrennte Fenster sind und es über die Brücke kein Befehl war. Dort kam bis dahin „Unbekannter Befehl“.</td></tr>
 <tr><td>1.6.0</td><td><b>Verworfene Räume melden</b> — die Gegenstelle sagt zurück, welche Räume sie nicht übernommen hat.</td></tr>
+<tr><td>1.7.0</td><td><b>„Rohrnetz wurde neu gelegt"</b> als eigenes Ereignis — damit ein hydraulischer Abgleich auf dem abgeschlossenen Auslegungsstand rechnet und nicht auf jeder Zwischenänderung. Auf Anforderung der RaVia-Seite vom 01.10.2026.</td></tr>
 </tbody>
 </table>
 

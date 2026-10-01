@@ -21,6 +21,8 @@
 
 import type { Huellflaechenbilanz } from '../lib/huellflaechenbilanz';
 import type { NetzExport } from '../lib/netzExport';
+import type { Nutzungseinheit } from '../lib/nutzungseinheiten';
+import type { Skizzenseite } from '../lib/skizzenseite';
 
 // ===========================================================================
 // Identifikatoren & Primitiven
@@ -428,6 +430,23 @@ export interface Room {
   ventilationRole?: VentilationRole;
   /** Beheizt? Unbeheizte Räume gehen als Nachbarbereich in die Rechnung ein. */
   isHeated: boolean;
+  /**
+   * Nutzungseinheit, zu der dieser Raum gehört — Wohnung, Gewerbeeinheit oder
+   * Gemeinschaftsfläche (`BimDocument.units`).
+   *
+   * **Warum eine Zuordnung und keine Hierarchiestufe.** Die Wohnung sitzt
+   * nicht zwischen Geschoss und Raum: Eine Maisonettewohnung erstreckt sich
+   * über zwei Geschosse und passt damit unter keines. Eine Zuordnung am Raum
+   * greift über Geschosse hinweg und lässt den Aufbau des Modells
+   * unangetastet.
+   *
+   * Optional, und das ist der Punkt: Ein Einfamilienhaus braucht sie nicht,
+   * und ein Gebäude ohne Zuordnung ist ein Gebäude **ohne erfasste
+   * Einheiten** — nicht eines mit einer. Den Unterschied darf ein Programm
+   * nicht verwischen, denn an der Zahl hängt die Abgleichpflicht nach
+   * § 60c Abs. 1 GModG.
+   */
+  unitId?: string;
   /** U-Wert und Randbedingung von Boden und Decke (Raum übersteuert Geschoss). */
   floorUValue?: number;
   floorBoundary?: BoundaryCondition;
@@ -2652,7 +2671,7 @@ export type ToolId =
   | 'ink'
   | 'pan';
 
-export type ViewMode = '2d' | '3d' | 'split' | 'schema';
+export type ViewMode = '2d' | '3d' | 'split' | 'schema' | 'skizze';
 /**
  * Wie man das Modell ansieht — oder darin steht.
  *
@@ -2937,6 +2956,26 @@ export interface ProjectMeta {
    * gemessen wurde. Wer die Angabe später nachträgt, nimmt den Eintrag weg.
    */
   annahmen?: Annahme[];
+  /**
+   * Skizzenseiten — freie Blätter, die zum Projekt gehören, aber nicht zum
+   * Gebäude.
+   *
+   * Ein Strangschema von Hand, ein Detail am Anschluss, eine Notiz für den
+   * Kollegen. Die Striche liegen in **Blattkoordinaten** (Millimeter auf A4
+   * quer) und nicht in Metern im Gebäude: Ein Blatt hat keinen Maßstab, und
+   * einen zu behaupten wäre ein Fehler, den man erst im Ausdruck sieht.
+   *
+   * **Warum hier und nicht neben `walls`.** Ein Blatt ist Projektunterlage,
+   * keine Gebäudegeometrie — und die Projektangaben sind der eine Teil des
+   * Dokuments, der beim Speichern unverändert durch die Datei geht und beim
+   * Öffnen unverändert zurückkommt. Ein Blatt, das das Speichern nicht
+   * überlebt, zeichnet niemand ein zweites Mal.
+   *
+   * Nicht zu verwechseln mit dem **Skizzenblatt über dem Plan**: Dort hat
+   * jeder Strich eine Länge in Metern, und daraus werden Wände. Hier nicht —
+   * hier ist Papier.
+   */
+  skizzen?: Record<string, Skizzenseite>;
   lastHostPatch?: HostPatchTrace;
 }
 
@@ -3082,6 +3121,19 @@ export interface BimDocument {
    * dieses Feld gültig.
    */
   durchbrueche?: Record<string, Durchbruch>;
+  /**
+   * Nutzungseinheiten — Wohnungen, Gewerbeeinheiten, Gemeinschaftsflächen.
+   *
+   * Optional: Ein Einfamilienhaus hat keine, und das Fehlen heißt **nicht
+   * erfasst** und nicht „eine". An der Zahl hängt die Abgleichpflicht nach
+   * § 60c Abs. 1 GModG und die Auslegung der Trinkwassererwärmung; geraten
+   * wird sie deshalb nirgends (siehe `src/lib/nutzungseinheiten.ts`).
+   *
+   * Welche Räume dazugehören, steht am Raum (`Room.unitId`) und nicht hier —
+   * so kann eine Einheit über Geschosse hinweg greifen, und ein Raum kann
+   * nicht in zwei Einheiten zugleich stehen.
+   */
+  units?: Record<string, Nutzungseinheit>;
   pipes: Record<string, PipeRun>;
   /** Armaturen und Formstücke am Rohrnetz — vom Rohrausleger erzeugt. */
   pipeAccessories?: Record<string, PipeAccessory>;
@@ -3328,6 +3380,15 @@ export interface ExportRoom {
   floorOpeningArea?: number;
   /** Anteil davon, der auf massive Bauteile entfällt [m²] — siehe `solids`. */
   solidArea?: number;
+  /**
+   * Nutzungseinheit, zu der dieser Raum gehört — Kennung aus
+   * `occupancyUnits`.
+   *
+   * Fehlt das Feld, ist der Raum keiner Einheit zugeordnet. Das ist eine
+   * Aussage und keine Lücke: Im Einfamilienhaus wird nichts zugeordnet, weil
+   * es nichts zu unterscheiden gibt.
+   */
+  occupancyUnitId?: string;
   roof?: {
     pitch: number;
     kneeHeight: number;
@@ -4116,9 +4177,85 @@ export interface ExportPlant {
  * wandert das Format still weiter, während die Gegenstelle gegen eine
  * Fassung baut, die es nicht mehr gibt.
  */
+/**
+ * Eine Nutzungseinheit im Export — Wohnung, Gewerbeeinheit, Gemeinschaftsfläche.
+ *
+ * Die Zuordnung steht **am Raum** (`rooms[].occupancyUnitId`); hier stehen die
+ * Einheit selbst und die aus ihr gerechneten Summen. `roomIds` ist dieselbe
+ * Zuordnung von der anderen Seite gelesen — damit eine Gegenstelle nicht alle
+ * Räume durchlaufen muss, um eine Wohnung zusammenzusuchen.
+ */
+export interface ExportOccupancyUnit {
+  id: string;
+  name: string;
+  /** `dwelling` = Wohnung, `commercial` = Gewerbe, `communal` = Gemeinschaft. */
+  kind: 'dwelling' | 'commercial' | 'communal';
+  /** Dieselbe Art im Klartext, deutsch — für Berichte. */
+  kindLabel: string;
+  /** Lage im Haus, falls erfasst — reine Anzeige, keine Rechengröße. */
+  location?: string;
+  roomIds: RoomId[];
+  /** Lichte Fläche aller Räume der Einheit [m²]. */
+  area: number;
+  /** Davon die beheizten Räume [m²]. */
+  heatedArea: number;
+  roomCount: number;
+  heatedRoomCount: number;
+  /** Geschosse, über die sich die Einheit erstreckt. */
+  levelIds: string[];
+  /** Mehr als ein Geschoss — Maisonette. */
+  maisonette: boolean;
+  /**
+   * Summe der am Raum hinterlegten Norm-Heizlast [W]; 0, wo keine vorliegt.
+   *
+   * Das ist **keine** eigene Rechnung: Es ist die Summe dessen, was
+   * zurückgeschrieben wurde. Wer noch nicht gerechnet hat, sieht hier 0 und
+   * nicht eine Schätzung, die wie ein Ergebnis aussieht.
+   */
+  heatLoad: number;
+}
+
+/**
+ * Der Einheitenstand des Gebäudes — die Zahl, an die § 60c Abs. 1 GModG die
+ * Pflicht zum hydraulischen Abgleich knüpft.
+ *
+ * `independent` zählt Wohnungen **und** Gewerbeeinheiten; eine
+ * Gemeinschaftsfläche ist keine selbständige Nutzungseinheit. `declared` ist
+ * die im Anlagenblatt getippte Zahl (`plant.dhw.units`) — sie steht daneben,
+ * damit die Gegenstelle sieht, ob Modell und Eingabe übereinstimmen, und
+ * nicht erst, wenn sich zwei Nachweise widersprechen.
+ */
+export interface ExportOccupancy {
+  total: number;
+  dwellings: number;
+  commercial: number;
+  communal: number;
+  independent: number;
+  /** Schwelle des § 60c Abs. 1 — heute 6. */
+  threshold: number;
+  balancingRequired: boolean;
+  /** Getippte Zahl der Wohneinheiten aus dem Anlagenblatt, falls vorhanden. */
+  declared?: number;
+  /** Räume ohne Zuordnung. */
+  roomsWithoutUnit: number;
+}
+
 export interface RaviaExport {
   schema: 'ravia.bim.light';
   /**
+   * **2.10.0** ergänzt `occupancyUnits` und `occupancy`: die
+   * Nutzungseinheiten des Gebäudes — Wohnungen, Gewerbeeinheiten,
+   * Gemeinschaftsflächen — mit Räumen, Flächen, Geschossen und der Summe der
+   * zurückgeschriebenen Heizlast, dazu `rooms[].occupancyUnitId`.
+   *
+   * Der Anlass ist § 60c Abs. 1 GModG: Die Pflicht zum hydraulischen Abgleich
+   * hängt an der Zahl der „Wohnungen oder sonstigen selbständigen
+   * Nutzungseinheiten". Diese Zahl stand bisher ausschließlich als getippte
+   * Angabe im Anlagenblatt (`plant.dhw.units`) — das Modell hätte sie wissen
+   * können und wusste sie nicht. `occupancy.declared` stellt beide
+   * nebeneinander. Reiner Zuwachs; wo nichts zugeordnet ist, fehlen beide
+   * Blöcke, und alles andere bleibt unverändert.
+   *
    * 2.2.0 — gegenüber 2.1.0 additiv: `pipeLengths` an jedem Raum, also die
    * Rohrmeter, die in diesem Raum liegen. Damit lässt sich die Wärmeabgabe
    * der Verteilleitungen dem Raum zurechnen, durch den sie laufen — beim
@@ -4188,7 +4325,7 @@ export interface RaviaExport {
    * nichts; wer prüfen will, ob Boden, Decke und Dach angekommen sind, hat
    * jetzt eine Zahl statt einer Liste (Punkt 13).
    */
-  version: '2.9.0';
+  version: '2.10.0';
   generator: string;
   exportedAt: string;
   /** Einheiten explizit im Dokument — keine Konvention, die verloren gehen kann. */
@@ -4239,6 +4376,16 @@ export interface RaviaExport {
    */
   subsoil?: ExportSubsoil;
   levels: Level[];
+  /**
+   * Nutzungseinheiten — seit 2.10.0.
+   *
+   * Der Block fehlt, wenn keine erfasst sind; dann steht auch `occupancy`
+   * nicht da. Das ist bewusst: Ein Einfamilienhaus hat keine Einheiten, und
+   * „eine Einheit" wäre eine Behauptung, die niemand aufgestellt hat.
+   */
+  occupancyUnits?: ExportOccupancyUnit[];
+  /** Zusammenzählung dazu samt § 60c-Schwelle — nur mit `occupancyUnits`. */
+  occupancy?: ExportOccupancy;
   /** Bauteilkatalog — die U-Werte im Modell verweisen hierauf. */
   constructions: Construction[];
   /** Treppen und Schächte — Flächen, die kein Raum sind. */

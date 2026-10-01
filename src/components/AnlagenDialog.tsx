@@ -27,6 +27,7 @@
  */
 
 import { useCallback, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { useBimStore } from '../store/useBimStore';
 import { buildSchematic, designPlant } from '../lib/plantDesign';
 import { abweichungen, antwortenDes } from '../lib/anlagenFragen';
@@ -91,7 +92,28 @@ export default function AnlagenDialog({ onClose }: { onClose: () => void }) {
     onClose();
   }, [design, plant.schematic.manual, setSchematic, setStatus, onClose]);
 
-  return (
+  /*
+   * **Warum dieser Dialog durch ein Portal geht.**
+   *
+   * Er ist `fixed inset-0` — gemeint ist: über dem ganzen Fenster, in dessen
+   * Mitte. Das stimmte nicht. Der Dialog hing im Planbereich, und der trägt
+   * `backdrop-blur`; ein Backdrop-Filter macht das Element zum Bezugsrahmen
+   * für alles `fixed` darunter (CSS-Spezifikation „containing block"). Der
+   * Dialog war damit nicht am Fenster ausgerichtet, sondern am Planbereich —
+   * und dessen Höhe hängt daran, wie hoch die Kopfzeile gerade ist.
+   *
+   * Aufgefallen beim Einbau der fünften Ansicht in 1.66.0: Die Knopfreihe
+   * oben wurde am Tablet quer (1180 px) um 34 px zu breit, brach um, die
+   * Kopfzeile wuchs von 148 auf 182 px — und die sechste Frage lag unter der
+   * Faltkante. Also genau der Mangel, gegen den dieser Dialog gebaut ist, und
+   * ausgelöst von einer Änderung, die mit ihm nichts zu tun hat. Gefunden hat
+   * ihn `scripts/smoke-anlagendialog.mjs`, nicht das Auge.
+   *
+   * Im Körper des Dokuments gibt es keinen solchen Rahmen: Dort heißt
+   * `inset-0` wieder das ganze Fenster, und die Höhe des Dialogs hängt an
+   * nichts außer dem Fenster.
+   */
+  return createPortal(
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-graphite-950/70 p-6 backdrop-blur-sm"
       data-pruef="anlagendialog"
@@ -138,6 +160,7 @@ export default function AnlagenDialog({ onClose }: { onClose: () => void }) {
           </p>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }

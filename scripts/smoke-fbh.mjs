@@ -84,7 +84,50 @@ expect('Keine Fußbodenheizung im Demo', vorher.fbh, 0);
 expect('Heizkörper sind da', vorher.hk > 0, true);
 expect('Drei Räume', vorher.raeume, 3);
 
+console.log('\n▸ Rohrnetz für die Sanierung auslegen — auch dort wird Fläche gelegt');
+/*
+ * Sofort nach 1.65.0 gemeldet: „auch bei sanierung kann fbh gelegt werden …
+ * und es können auch gemischte system sein". Die erste Fassung hat die
+ * Flächenheizung an der Verlegeart festgemacht — falsch. Die Verlegeart sagt,
+ * wie die Verteilleitung läuft, nicht, welche Heizfläche im Raum liegt.
+ */
+const sanierung = await p.evaluate(() => {
+  const r = window.__ravia.getState().legeRohrnetzAus('sanierung');
+  const d = window.__ravia.getState().doc;
+  return {
+    meldungen: r.notes.map((n) => `${n.severity}: ${n.text}`),
+    fbh: Object.values(d.fixtures).filter((f) => f.type === 'underfloor').length,
+    rohr: Math.round(r.pipeLength),
+  };
+});
+await p.waitForTimeout(500);
+expect('Auch die Sanierung legt die Fläche', sanierung.fbh > 0, true);
+expect('… und zieht die Trasse dazu', sanierung.rohr > 0, true);
+/*
+ * **Und sie meldet, was daran im Bestand nicht aufgeht.** Mit der
+ * Flächenheizung steigt der Strom im Stamm, und der handelsübliche
+ * Sockelleistenkanal trägt Rohre nur bis 20 mm Außendurchmesser. Das ist
+ * kein Fehler der Auslegung, sondern ihr Ergebnis: Wer im Bestand eine
+ * Fußbodenheizung nachrüstet, führt die Zuleitung zum Verteiler nicht im
+ * Sockelleistenkanal. Geprüft wird deshalb, dass die Meldung **kommt** — ein
+ * stillschweigend zu großes Rohr im Kanal wäre der teurere Ausgang.
+ */
+expect('Der Kanal wird als zu klein gemeldet',
+  sanierung.meldungen.some((m) => m.startsWith('error') && /Sockelleistenkanal/.test(m)), true);
+
+console.log('\n▸ Abwählbar — ohne Fläche bleibt es beim Heizkörpernetz');
+await p.evaluate(() => window.__ravia.getState().loadDemo());
+await p.waitForTimeout(800);
+const ohne = await p.evaluate(() => {
+  window.__ravia.getState().legeRohrnetzAus('neubau', undefined, { flaechenheizung: false });
+  const d = window.__ravia.getState().doc;
+  return Object.values(d.fixtures).filter((f) => f.type === 'underfloor').length;
+});
+expect('Ohne Haken keine Fußbodenheizung', ohne, 0);
+
 console.log('\n▸ Rohrnetz für den Neubau auslegen');
+await p.evaluate(() => window.__ravia.getState().loadDemo());
+await p.waitForTimeout(800);
 const erg = await p.evaluate(() => {
   const r = window.__ravia.getState().legeRohrnetzAus('neubau');
   return { served: r.served, rohr: Math.round(r.pipeLength * 10) / 10, fehler: r.notes.filter((n) => n.severity === 'error').length };
@@ -121,7 +164,7 @@ const laengen = await p.evaluate(() => {
     k,
   };
 });
-expect('Exportfassung 2.9.0', laengen.version, '2.9.0');
+expect('Exportfassung 2.10.0', laengen.version, '2.10.0');
 expect('Ein Flächenheizkreis in der Übergabe', laengen.kreise, 1);
 expect('Rohr in der Fläche über 40 m', laengen.k.fieldLength > 40, true);
 /*

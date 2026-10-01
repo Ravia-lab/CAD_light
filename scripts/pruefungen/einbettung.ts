@@ -510,10 +510,25 @@ export function pruefeEinbettung(check: CheckFn): void {
 
     check('Der Vertrag hat Methoden', vertrag.length > 0, true);
     check('Die Brücke hat Befehle', bruecke.length > 0, true);
-    // `onChange` ist kein Befehl, sondern ein Abonnement; über die Brücke
-    // heißt es `subscribe`/`unsubscribe`. Alles andere muss dort ankommen.
-    const fehlend = vertrag.filter((m) => m !== 'onChange' && !bruecke.includes(m));
+    /*
+     * `onChange` und `onNetzGelegt` sind keine Befehle, sondern Abonnements:
+     * Über die Brücke heißt beides `subscribe`/`unsubscribe`, und ein
+     * angemeldetes Fenster bekommt daraufhin **beide** Nachrichten —
+     * `changed` bei jeder Änderung, `netzgelegt` nach einem Auslegungslauf.
+     * Alles andere muss als Befehl dort ankommen.
+     */
+    const abonnements = ['onChange', 'onNetzGelegt'];
+    const fehlend = vertrag.filter((m) => !abonnements.includes(m) && !bruecke.includes(m));
     check('Kein Befehl fehlt in der Nachrichtenbrücke', fehlend.join(', '), '');
+    /*
+     * Und die Gegenprobe zu dieser Ausnahme: Für jedes Abonnement muss es
+     * eine Nachricht über die Brücke geben. Sonst wäre die Ausnahme oben ein
+     * Loch — eine Methode, die im selben Fenster wirkt und eingebettet
+     * nicht, und eingebettet ist der Normalfall.
+     */
+    check('Änderungen gehen über die Brücke', /'changed'/.test(quelle), true);
+    check('Der Auslegungsstand auch', /'netzgelegt'/.test(quelle), true);
+    check('Beide über denselben Verteiler', /sendeAnAlle\(/.test(quelle), true);
     check('getDocument ist über die Brücke erreichbar', bruecke.includes('getDocument'), true);
     check('ping, subscribe und unsubscribe kommen dazu',
       ['ping', 'subscribe', 'unsubscribe'].every((b) => bruecke.includes(b)), true);

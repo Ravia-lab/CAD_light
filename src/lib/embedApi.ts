@@ -58,7 +58,7 @@ import type { HostPatch, HostPatchReport } from './hostPatch';
  * heraus unerreichbar: Beide Seiten sind getrennte Fenster, und über die
  * Brücke war `getDocument` kein Befehl. Wieder reiner Zuwachs.
  */
-export const EMBED_API_VERSION = '1.6.0';
+export const EMBED_API_VERSION = '1.7.0';
 
 /** Kurzfassung des Modells — das, was eine Gegenstelle meistens wissen will. */
 export interface RaviaSummary {
@@ -139,18 +139,73 @@ export interface RaviaCadApi {
    * Verschwendung.
    */
   onChange(listener: (summary: RaviaSummary) => void): () => void;
+  /**
+   * **Auf einen abgeschlossenen Auslegungsstand hören** — seit 1.66.0.
+   *
+   * `onChange` meldet jede Änderung am Modell, entprellt. Für einen
+   * hydraulischen Abgleich ist das zu viel: Er soll nicht auf jede
+   * Zwischenänderung neu rechnen, sondern erst, wenn das Rohrnetz steht. So
+   * hat es die RaVia-Seite am 01.10.2026 angefordert, und so ist es hier
+   * umgesetzt.
+   *
+   * Gemeldet wird **nur** nach „Rohrnetz auslegen" — nicht beim Zeichnen
+   * einzelner Leitungen, nicht beim Öffnen eines Projekts, nicht beim
+   * Verschieben einer Wand. Der Rückgabewert meldet den Hörer wieder ab.
+   *
+   * Das Ereignis ist **nicht entprellt**: Es ist ein Vorgang und kein
+   * Strom von Änderungen. Wer darauf rechnet, holt sich danach `getExport()`
+   * — in der Nutzlast steht die Kurzfassung des Laufs, nicht das Netz selbst.
+   */
+  onNetzGelegt(listener: (stand: NetzStand) => void): () => void;
+}
+
+/**
+ * Die Kurzfassung eines Auslegungslaufs, wie sie mit `onNetzGelegt` kommt.
+ *
+ * Bewusst klein: Sie beantwortet „was wurde gerade gelegt und ist es etwas
+ * geworden?". Das Netz selbst steht in `getExport().pipeGraph`, und es
+ * zweimal zu übertragen wäre Verschwendung.
+ */
+export interface NetzStand {
+  /** Fortlaufende Nummer des Laufs in dieser Sitzung. */
+  lauf: number;
+  at: string;
+  mode: string;
+  anordnung: 'baum' | 'ring';
+  flaechenheizung: boolean;
+  served: number;
+  routeLength: number;
+  pipeLength: number;
+  accessories: number;
+  durchbrueche: number;
+  geschosse: number;
+  straenge: number;
+  flaechenraeume: number;
+  /**
+   * Schwerster Befund der Auslegung, falls einer vorliegt.
+   *
+   * Steht hier etwas, ist der Lauf **nicht** ohne Befund durchgelaufen — dann
+   * ist der Auslegungsstand kein Stand, auf dem ein Nachweis aufbauen sollte.
+   */
+  fehler?: string;
 }
 
 interface StoreLike {
   getState: () => {
     doc: BimDocument;
+    netzStand?: NetzStand;
     loadProject: RaviaCadApi['loadProject'];
     loadIfc: RaviaCadApi['loadIfc'];
     loadBuilding: RaviaCadApi['loadBuilding'];
     applyHostPatch: (patch: HostPatch) => HostPatchReport;
     meldeVerworfeneRaeume: RaviaCadApi['reportDiscardedRooms'];
   };
-  subscribe: (listener: (state: { doc: BimDocument }, prev: { doc: BimDocument }) => void) => () => void;
+  subscribe: (
+    listener: (
+      state: { doc: BimDocument; netzStand?: NetzStand },
+      prev: { doc: BimDocument; netzStand?: NetzStand },
+    ) => void,
+  ) => () => void;
 }
 
 export function buildSummary(doc: BimDocument): RaviaSummary {
@@ -201,8 +256,33 @@ export function installEmbedApi(store: StoreLike, target: Window = window): () =
     }, 250);
   };
 
+  /*
+   * Der Auslegungsstand — ein Vorgang, kein Änderungsstrom.
+   *
+   * Deshalb ohne Entprellung und mit eigener Hörerliste: Wer auf
+   * „Rohrnetz wurde neu gelegt" wartet, will genau einmal rechnen und nicht
+   * 250 ms später noch einmal.
+   */
+  const netzHoerer = new Set<(stand: NetzStand) => void>();
+  const meldeNetz = (stand: NetzStand) => {
+    for (const l of [...netzHoerer]) {
+      try {
+        l(stand);
+      } catch {
+        // Ein fehlerhafter Hörer darf die anderen nicht mitreißen.
+      }
+    }
+  };
+
   const unsubscribeStore = store.subscribe((state, prev) => {
     if (state.doc !== prev.doc) notify();
+    /*
+     * Verglichen wird die **Laufnummer** und nicht das Objekt: Zwei Läufe mit
+     * demselben Ergebnis sind zwei Läufe, und ein neues Objekt mit derselben
+     * Nummer gibt es nicht.
+     */
+    const stand = state.netzStand;
+    if (stand && stand.lauf !== prev.netzStand?.lauf) meldeNetz(stand);
   });
 
   const api: RaviaCadApi = {
@@ -221,6 +301,10 @@ export function installEmbedApi(store: StoreLike, target: Window = window): () =
     onChange: (listener) => {
       listeners.add(listener);
       return () => listeners.delete(listener);
+    },
+    onNetzGelegt: (listener) => {
+      netzHoerer.add(listener);
+      return () => netzHoerer.delete(listener);
     },
   };
 
@@ -319,7 +403,11 @@ export function installEmbedApi(store: StoreLike, target: Window = window): () =
 
   target.addEventListener('message', onMessage);
 
-  const unsubscribeBroadcast = api.onChange((summary) => {
+  /**
+   * Dieselbe Nachricht über die Fensterbrücke — für eine Gegenstelle, die
+   * nicht im selben Dokument sitzt, sondern im Rahmen darüber.
+   */
+  const sendeAnAlle = (type: string, payload: unknown) => {
     for (const s of [...subscribers]) {
       const win = s.source as Window;
       try {
@@ -329,21 +417,27 @@ export function installEmbedApi(store: StoreLike, target: Window = window): () =
           continue;
         }
         win.postMessage(
-          { channel: 'ravia-cad', type: 'changed', id: null, payload: summary },
+          { channel: 'ravia-cad', type, id: null, payload },
           { targetOrigin: s.origin && s.origin !== 'null' ? s.origin : '*' },
         );
       } catch {
         subscribers.delete(s);
       }
     }
-  });
+  };
+
+  const unsubscribeNetz = api.onNetzGelegt((stand) => sendeAnAlle('netzgelegt', stand));
+
+  const unsubscribeBroadcast = api.onChange((summary) => sendeAnAlle('changed', summary));
 
   return () => {
     target.removeEventListener('message', onMessage);
     unsubscribeBroadcast();
+    unsubscribeNetz();
     unsubscribeStore();
     if (debounce) clearTimeout(debounce);
     listeners.clear();
+    netzHoerer.clear();
     subscribers.clear();
     delete (target as Window & { RaViaCAD?: RaviaCadApi }).RaViaCAD;
   };
