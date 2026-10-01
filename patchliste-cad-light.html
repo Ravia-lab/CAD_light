@@ -122,12 +122,12 @@
     <div class="karte">
       <div class="ort">Zeitraum</div>
       <div class="zahl" style="font-size:19px">29.08.2026 – 01.10.2026</div>
-      <div class="note">Spanne der Fassungen mit Commit; die 47 ohne liegen davor</div>
+      <div class="note">Spanne der Fassungen mit Commit; die 46 ohne liegen davor</div>
     </div>
     <div class="karte gut">
       <div class="ort">Live · ravia-tech.de/Cad_light/</div>
       <div class="zahl">1.67.0</div>
-      <div class="note">noch nicht eingecheckt — diese Seite nach dem Commit neu erzeugen</div>
+      <div class="note">Commit <code>dd74700</code> · aufgespielt und abgenommen</div>
     </div>
   </div>
 
@@ -160,7 +160,7 @@
     <span class="stichwort">Die Zahl, nach der RaVia gefragt hat</span>
     <span class="marke m-live">live</span>
   </div>
-  <div class="herkunft"><span class="leer">vor der Versionsverwaltung</span></div>
+  <div class="herkunft"><span class="datum">01.10.2026</span> <code>dd74700</code></div>
   <p class="was">Die RaVia-Seite hatte sich zum Verfahren für die <b>Deckungsanteile bivalenter Anlagen</b> entschieden — „Bivalenzpunkt + Jahresdauerlinie", ausdrücklich nicht Monatsbilanz —, und drei Festlegungen nachgeliefert: Gradstunden-Dauerlinie aus Norm-Außentemperatur und Heizgrenze ohne zusätzliche Klimadatenreihe, der Bivalenzpunkt <b>eingegeben</b> und nicht aus der Leistungskurve gerechnet, in der ersten Stufe die <b>parallele</b> Fahrweise. Genau so ist es gebaut — und weil die drei Fahrweisen dieselbe Konstruktion sind, rechnen alternativ und teilparallel mit. <b>Das Modell sind zwei Geraden:</b> die Gebäudekennlinie von der Norm-Heizlast auf null an der Heizgrenze, die Dauerlinie linear über die Heizzeit. Zusammengesetzt wird die Last über der Zeit ein Dreieck, und jeder Deckungsanteil ist ein Flächenverhältnis darin: parallel u², alternativ 2u − u², teilparallel beides hintereinander. Die Formeln gehen stetig ineinander über, und daran sind sie geprüft. <b>Was dabei auffällt und selten gesagt wird:</b> Bei alternativer Fahrweise trägt der zweite Erzeuger in 32 % der Heizzeit <b>53,8 %</b> der Heizarbeit — die kältesten Stunden haben die größte Last —, und er muss die <b>ganze</b> Norm-Heizlast tragen und nicht die Spitze. Ein 6-kW-Heizstab an einem 10-kW-Haus fehlt dort um 4 kW, und am Feld „Leistung" sieht man das nicht. Die Modellprüfung meldet den Fehlbetrag als <b>Fehler</b>, weil ein Haus, das am Auslegungspunkt nicht warm wird, kein Hinweis ist; umgerechnet wird nichts. <b>Jede Annahme steht am Ergebnis</b> — lineare Dauerlinie, konstante Wärmepumpenleistung unter dem Bivalenzpunkt, keine Klimadatenreihe, keine Kilowattstunden —, und ohne Heizgrenztemperatur wird gar nicht gerechnet: Sie ist eine Einstellung am Gerät, und geraten wird sie nicht. Für Solarthermie auch nicht, weil ihr Beitrag an der Einstrahlung hängt und nicht an der Temperatur. <b>Dazu die Verbindung Heizkreis ↔ Nutzungseinheit</b> für den Fall „zentrale Versorgung, Heizkreise je Wohnung": abgeleitet über die Räume und nicht am Kreis gespeichert, damit es keine zweite Wahrheit gibt; ein Kreis über zwei Wohnungen bekommt deshalb keine eindeutige Einheit, sondern einen Befund — er ist weder je Wohnung regelbar noch je Wohnung abrechenbar. <b>Berichtigt:</b> Die Meldung zum Sockelleistenkanal nennt jetzt den gebrauchten Außendurchmesser; sie endete bisher bei „passt nicht" und ließ die Frage offen, welcher Kanal dann. Beim Nachmessen stellte sich übrigens heraus, dass diese Meldung im Demohaus auch ohne Fußbodenheizung kommt — sie hängt am gemeinsamen Stamm und nicht, wie im Stand 1.66.0 vermutet, an der Verteilerzuleitung. Export <b>2.11.0</b> und <b>2.12.0</b>, beide reiner Zuwachs. Siehe <a href="#k13-19">Abschnitt 13.19</a>, <a href="#k10-7">10.7</a> und <a href="#k17-1">17.1</a>.</p>
 </article>
 <article class="fassung" data-v="1.66.0" data-korr="0" data-schnitt="0">
@@ -995,7 +995,7 @@ nicht mehr eindeutig belegen lässt, mit welcher Programmfassung sie kamen.</p>
   <br><br>
   <b>Zwei Lücken, die in den Daten liegen und nicht im Text.</b>
   Die Versionsverwaltung dieses Projekts beginnt erst bei <code>1.14.0</code> —
-  die 47 Fassungen ohne Datum liegen davor oder kamen gebündelt in einem
+  die 46 Fassungen ohne Datum liegen davor oder kamen gebündelt in einem
   Stand an. Namentlich die Fassungen <code>1.17.0</code> bis <code>1.27.0</code>:
   sie wurden zusammen eingecheckt (<code>630d70e</code>, „zwölf Fassungen in einem
   Stand"). Sie tragen deshalb kein eigenes Datum, und das steht an jeder einzelnen
