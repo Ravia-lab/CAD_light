@@ -27,7 +27,10 @@ export default function ValidationPanel() {
   const showDiagnostics = useBimStore((s) => s.showDiagnostics);
   const toggleDiagnostics = useBimStore((s) => s.toggleDiagnostics);
 
+  const entferneAnnahme = useBimStore((s) => s.entferneAnnahme);
+
   const report = useMemo(() => validateModel(doc), [doc]);
+  const annahmen = doc.meta.annahmen ?? [];
 
   const grouped = useMemo(() => {
     const order: ValidationIssue['severity'][] = ['error', 'warning', 'info'];
@@ -156,6 +159,51 @@ export default function ValidationPanel() {
           </div>
         </div>
       ))}
+
+      {/* ------------------------------------------------------------------
+          Angenommen, weil nichts vorlag.
+
+          Das sind keine Befunde: Nichts daran ist falsch, und wer sie
+          wegklickt, hat nichts behoben. Sie stehen hier trotzdem, weil
+          dies die Seite vor der Übergabe ist — ein angenommenes Badmaß
+          sieht im Plan genau aus wie ein nachgemessenes, und der
+          Unterschied gehört in den Bericht. Wer die Angabe nachträgt,
+          nimmt den Eintrag mit „Gemessen" weg.
+      ------------------------------------------------------------------ */}
+      {annahmen.length > 0 && (
+        <div>
+          <div className="label-xs mb-1.5">Angenommen, weil nichts vorlag · {annahmen.length}</div>
+          <div className="space-y-1">
+            {annahmen.map((a) => (
+              <div key={a.was} className="rounded-lg bg-graphite-900/60 px-2 py-1.5">
+                <div className="flex items-start gap-2">
+                  <span className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-amber-400/80" />
+                  <div className="min-w-0 flex-1">
+                    <div className="text-[10.5px] leading-snug text-slate-300">
+                      <span className="text-slate-200">{a.was}</span> — {a.wert}
+                    </div>
+                    <div className="mt-0.5 text-[10px] leading-relaxed text-slate-500">{a.grund}</div>
+                  </div>
+                  <button
+                    className="shrink-0 rounded-md border border-white/[0.1] px-1.5 py-0.5 text-[9.5px] text-slate-400 hover:text-slate-100"
+                    title="Die Angabe ist nachgetragen — den Vermerk wegnehmen"
+                    onClick={() => {
+                      entferneAnnahme(a.was);
+                      setStatus(`Vermerk „${a.was}" weggenommen — die Angabe gilt jetzt als erfasst.`);
+                    }}
+                  >
+                    Gemessen
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+          <div className="mt-1 text-[9.5px] leading-relaxed text-slate-600">
+            Diese Liste geht mit in die Übergabe (<span className="font-mono">project.annahmen</span>), damit
+            auf der Gegenseite steht, welche Angabe gemessen ist und welche nicht.
+          </div>
+        </div>
+      )}
     </div>
   );
 }

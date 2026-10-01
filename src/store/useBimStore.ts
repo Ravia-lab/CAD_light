@@ -110,6 +110,7 @@ export function pipeLength(points: readonly Vec2[]): number {
 /** Voreinstellung für ein neues Dach — siehe `DACH_VORGABE` in den Typen. */
 const DEFAULT_ROOF: RoofDefinition = DACH_VORGABE;
 import { anlageAusAntworten } from '../lib/anlagenFragen';
+import { doppelteWaende, gespiegelt } from '../lib/doppelwaende';
 import { erkenneSkizze } from '../lib/skizze';
 import { getroffene } from '../lib/notizen';
 import { vorzugsrichtung, EPS, closestPointOnSegment, distance, distanceToSegment, pointInPolygon, roundMm } from '../lib/geometry';
@@ -308,6 +309,19 @@ function emptyDocument(): BimDocument {
     activeLevelId: DEFAULT_LEVEL.id,
   };
 }
+
+/*
+ * Was vor dem Skizzen-Vollbild galt.
+ *
+ * Bewusst zwei schlichte Variablen neben dem Store und keine Felder darin:
+ * Sie sind reine Erinnerung für die Dauer eines Vollbilds, gehen in keine
+ * Sicherung ein und haben in einem Dokument nichts verloren. Ein Feld im
+ * Zustand hätte außerdem die Frage aufgeworfen, was beim Neuladen damit
+ * geschieht — und die Antwort wäre „nichts", weil das Vollbild dann ohnehin
+ * zu ist.
+ */
+let vorherigesWerkzeug: ToolId = 'select';
+let vorherigerFinger = false;
 
 const DEFAULT_SNAP: SnapSettings = {
   grid: true,
@@ -535,6 +549,25 @@ interface BimState {
    */
   skizze: SkizzenVorschlag | null;
   /**
+   * Läuft gerade die Aufnahme Zimmer für Zimmer?
+   *
+   * Reiner Oberflächenzustand — der Assistent hält **keine** eigenen Daten.
+   * Was er erfragt, steht nach jeder Antwort im Dokument; fällt er weg,
+   * bleibt alles stehen. Deshalb darf er auch mitten im Satz abgebrochen
+   * werden, ohne dass etwas verlorengeht.
+   */
+  assistent: boolean;
+  /**
+   * Vollbild zum Skizzieren — ohne Leisten, mit zeichnendem Finger.
+   *
+   * **Warum ein eigener Zustand und nicht nur ein Werkzeug.** Auf dem Plan
+   * ist ein Finger zweideutig: Er muss auch schieben können. Auf einem Blatt,
+   * das nichts anderes zulässt, ist er es nicht — und genau deshalb darf er
+   * dort zeichnen. Der Zustand merkt sich, was vorher galt, und stellt es
+   * beim Verlassen wieder her.
+   */
+  vollbildSkizze: boolean;
+  /**
    * Radiert das Notizwerkzeug gerade, statt zu schreiben?
    *
    * Auf dem Tablet gibt es keine zweite Maustaste und der Apple Pencil hat
@@ -700,6 +733,16 @@ interface BimState {
   fuehreKleineRaeumeAlsUnbeheizt: (schwelle?: number) => { geaendert: number; message: string };
   moveFixture: (id: string, position: Vec2) => void;
   updateMeta: (patch: Partial<BimDocument['meta']>) => void;
+  /** Die Ansicht auf den Inhalt einpassen — zählt den Einpassen-Zähler hoch. */
+  passeEin: () => void;
+  /** Die Aufnahme Zimmer für Zimmer öffnen oder schließen. */
+  setzeAssistent: (offen: boolean) => void;
+  /** Das Skizzen-Vollbild öffnen oder schließen; stellt den Finger-Zustand wieder her. */
+  setzeVollbildSkizze: (offen: boolean) => void;
+  /** Eine angenommene Angabe vermerken — dieselbe Angabe ersetzt den Eintrag. */
+  vermerkeAnnahme: (was: string, wert: string, grund: string) => void;
+  /** Den Vermerk wieder entfernen, weil die Angabe doch gemacht wurde. */
+  entferneAnnahme: (was: string) => void;
   updateLevel: (id: string, patch: Partial<Level>) => void;
   /** Dach über einem Geschoss anlegen oder ändern. `null` entfernt es. */
   setRoof: (levelId: string, patch: Partial<RoofDefinition> | null) => void;
@@ -1288,6 +1331,60 @@ function splitWallsAtNode(doc: BimDocument, node: BimNode, tolerance = 0.02): vo
       }
     }
   }
+}
+
+/**
+ * Deckungsgleiche Wände zusammenlegen — eine bleibt, die andere geht.
+ *
+ * Nötig nach jedem `splitWallsAtNode`: Der Schnitt kann aus einer langen Wand
+ * ein Stück machen, das genau auf einer eben erst angelegten Wand liegt. Die
+ * Dublettensperre beim Anlegen konnte das nicht sehen, weil das Stück damals
+ * noch nicht existierte. Zwei Wände an derselben Stelle sind zwei Raumgrenzen
+ * — doppelte Hüllfläche, doppelte Transmission, doppelter Massenauszug —, und
+ * im Plan sieht man es nicht.
+ *
+ * Mitgenommen wird alles, was an der weichenden Wand hängt: Öffnungen,
+ * wandgebundene Einbauten, Durchbrüche. Liegt die weichende Wand gegenläufig,
+ * werden die vom Anfangsknoten gezählten Maße gespiegelt.
+ *
+ * @returns Kennungen der entfernten Wände.
+ */
+function verschmelzeDoppelteWaende(doc: BimDocument): string[] {
+  const plan = doppelteWaende(Object.values(doc.walls).map((w) => ({
+    id: w.id, a: w.a, b: w.b, levelId: w.levelId,
+  })));
+  const weg: string[] = [];
+  for (const v of plan) {
+    const bleibt = doc.walls[v.behalten];
+    const geht = doc.walls[v.weg];
+    if (!bleibt || !geht) continue;
+    const a = doc.nodes[bleibt.a];
+    const b = doc.nodes[bleibt.b];
+    const laenge = a && b ? Math.hypot(b.x - a.x, b.y - a.y) : 0;
+
+    for (const op of Object.values(doc.openings)) {
+      if (op.wallId !== geht.id) continue;
+      doc.openings[op.id] = {
+        ...op,
+        wallId: bleibt.id,
+        distance: v.gedreht ? roundMm(gespiegelt(laenge, op.distance)) : op.distance,
+      };
+    }
+    for (const f of Object.values(doc.fixtures)) {
+      if (f.wallId === geht.id) doc.fixtures[f.id] = { ...f, wallId: bleibt.id };
+    }
+    for (const d of Object.values(doc.durchbrueche ?? {})) {
+      if (d.wallId !== geht.id) continue;
+      doc.durchbrueche![d.id] = {
+        ...d,
+        wallId: bleibt.id,
+        distance: v.gedreht && d.distance !== undefined ? roundMm(gespiegelt(laenge, d.distance)) : d.distance,
+      };
+    }
+    delete doc.walls[geht.id];
+    weg.push(geht.id);
+  }
+  return weg;
 }
 
 /** Entfernt Knoten ohne angeschlossene Wand. */
@@ -2087,6 +2184,8 @@ export const useBimStore = create<BimState>()((set, get) => {
     verworfeneRaeume: {},
     trace: null,
     skizze: null,
+    assistent: false,
+    vollbildSkizze: false,
     radiergummi: false,
     notizenSichtbar: true,
 
@@ -2373,6 +2472,18 @@ export const useBimStore = create<BimState>()((set, get) => {
         // geteilt. Damit entsteht gar nicht erst ein "fast angeschlossenes" Ende.
         splitWallsAtNode(doc, a);
         splitWallsAtNode(doc, b);
+        // Hat der Schnitt ein Stück erzeugt, das auf der neuen Wand liegt,
+        // bleibt nur eines von beiden stehen.
+        if (created && verschmelzeDoppelteWaende(doc).includes(created.id)) {
+          // Die neue Wand lag deckungsgleich auf einem Stück der geteilten
+          // Wand und ist weg. Zurückgemeldet wird dann das Stück, das steht —
+          // sonst griffe der Aufrufer (Auswahl, Statusmeldung) ins Leere.
+          const c = created;
+          created = Object.values(doc.walls).find(
+            (w) => w.levelId === c.levelId
+              && ((w.a === c.a && w.b === c.b) || (w.a === c.b && w.b === c.a)),
+          ) ?? null;
+        }
       });
 
       return created;
@@ -2514,6 +2625,8 @@ export const useBimStore = create<BimState>()((set, get) => {
 
       const defaults = get().wallDefaults;
       let count = 0;
+      /** Welche Wände dieser Aufruf angelegt hat — für die Zählung nach dem Verschmelzen. */
+      const neueWaende = new Set<string>();
       mutate((doc) => {
         const height = doc.levels[doc.activeLevelId]?.height ?? defaults.height;
         // Erst alle Knoten, dann alle Wände: so schließt der Ring sauber,
@@ -2539,12 +2652,16 @@ export const useBimStore = create<BimState>()((set, get) => {
             uValue: defaults.uValue,
           };
           doc.walls[wall.id] = wall;
+          neueWaende.add(wall.id);
           count += 1;
         }
         // Anschließend anbinden: läuft eine bestehende Wand durch eine Ecke
         // der Vorlage, wird sie dort geteilt. Das passiert erst nach dem
         // Ring, damit die neuen Wände sich nicht gegenseitig zerteilen.
         for (const node of ring) splitWallsAtNode(doc, node);
+        // Und erst danach die Dubletten: Der Schnitt kann ein Stück erzeugt
+        // haben, das deckungsgleich auf einer eben angelegten Wand liegt.
+        for (const id of verschmelzeDoppelteWaende(doc)) if (neueWaende.has(id)) count -= 1;
       });
 
       if (!count) {
@@ -3802,6 +3919,50 @@ export const useBimStore = create<BimState>()((set, get) => {
     },
 
     updateMeta: (patch) => mutate((doc) => Object.assign(doc.meta, patch)),
+
+    passeEin: () => set({ einpassenZaehler: get().einpassenZaehler + 1 }),
+
+    setzeAssistent: (offen) => set({ assistent: offen }),
+
+    /*
+     * Das Vollbild schaltet zwei Dinge zugleich: das Werkzeug auf „Skizze"
+     * und den Finger aufs Zeichnen. Beim Verlassen wird **beides**
+     * zurückgenommen — wer vorher mit dem Auswahlwerkzeug gearbeitet hat,
+     * soll danach nicht plötzlich skizzieren, und wer den Finger bewusst
+     * aufs Schieben gestellt hatte, behält das.
+     */
+    setzeVollbildSkizze: (offen) => {
+      const st = get();
+      if (offen) {
+        vorherigesWerkzeug = st.tool;
+        vorherigerFinger = st.snap.fingerZeichnet ?? false;
+        set({
+          vollbildSkizze: true,
+          tool: 'sketch',
+          snap: { ...st.snap, fingerZeichnet: true },
+          statusMessage: 'Zeichnen Sie den Grundriss, wie Sie es auf Papier täten — Finger oder Stift.',
+        });
+      } else {
+        set({
+          vollbildSkizze: false,
+          tool: vorherigesWerkzeug,
+          snap: { ...st.snap, fingerZeichnet: vorherigerFinger },
+        });
+      }
+    },
+
+    vermerkeAnnahme: (was, wert, grund) =>
+      mutate((doc) => {
+        const ohne = (doc.meta.annahmen ?? []).filter((a) => a.was !== was);
+        doc.meta.annahmen = ohne.concat({ was, wert, grund, at: new Date().toISOString() });
+      }),
+
+    entferneAnnahme: (was) =>
+      mutate((doc) => {
+        const liste = doc.meta.annahmen;
+        if (!liste || !liste.some((a) => a.was === was)) return;
+        doc.meta.annahmen = liste.filter((a) => a.was !== was);
+      }),
 
     addVertical: (kind, position) => {
       const isStair = kind !== 'shaft';

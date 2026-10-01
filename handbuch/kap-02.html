@@ -33,14 +33,23 @@ sind.</p>
 <p><b>Zweite Frage: Womit fangen wir an?</b></p>
 
 <table class="tab">
-  <caption>Die drei Wege beim ersten Start</caption>
+  <caption>Die fünf Wege beim ersten Start</caption>
   <thead><tr><th>Weg</th><th>Was passiert</th><th>Wann sinnvoll</th></tr></thead>
   <tbody>
+    <tr><td><b>Zimmer für Zimmer eintippen</b></td><td>Ein Fragenblatt öffnet sich und legt den Grundriss aus Ihren Antworten an. Gezeichnet wird nichts.</td><td>Wenn Sie noch nie mit einem Zeichenprogramm gearbeitet haben — und auf der Baustelle stehen.</td></tr>
+    <tr><td><b>Schnell hinzeichnen</b></td><td>Ein leeres Blatt über dem ganzen Bildschirm, Finger oder Stift. Aus dem Krakel werden gerade Wände.</td><td>Wenn Sie den Umriss schneller hinwerfen als eintippen.</td></tr>
     <tr><td><b>Beispiel ansehen</b></td><td>Ein fertiges Projekt wird geladen. Es lässt sich jederzeit löschen.</td><td>Wenn Sie erst sehen wollen, wie das Ergebnis aussieht.</td></tr>
     <tr><td><b>Leer anfangen</b></td><td>Leere Zeichenfläche, Wand-Werkzeug bereit.</td><td>Wenn Sie den Grundriss von Hand aufnehmen.</td></tr>
     <tr><td><b>Grundriss laden</b></td><td>Der Reiter <b>Referenz</b> öffnet sich; Sie ziehen ein Foto, ein PDF oder eine IFC-Datei hinein.</td><td>Wenn eine Zeichnung schon vorliegt.</td></tr>
   </tbody>
 </table>
+
+<p>Die beiden ersten stehen bewusst oben und sind bei der Antwort <b>Aufmaß vor
+Ort</b> hervorgehoben. Wer noch nie ein Zeichenprogramm bedient hat, scheitert
+nicht an der Zahl der Werkzeuge, sondern am leeren Blatt: Es sagt nicht, wo man
+anfängt. Eine Frage sagt es. Beide Wege sind ausführlich beschrieben — das
+Fragenblatt in <a href="#k2-7">Abschnitt 2.7</a>, das Skizzenblatt in
+<a href="#k2-8">Abschnitt 2.8</a>.</p>
 
 <p>Die Karte erscheint einmal. Danach merkt sich der Browser, dass Sie sie
 gesehen haben. Kommt beim nächsten Start eine automatische Sicherung zum
@@ -431,5 +440,112 @@ Sie eine Wohnung aufmessen und bis zum ersten Ausdruck kommen wollen.</p>
 für die Erfassung nicht, und die Schrittliste hält sie deshalb aus dem
 Fortschrittsbalken heraus, solange in Ihrem Projekt keine Anlagentechnik
 vorkommt.</p>
+
+
+<h3 id="k2-7">2.7 Zimmer für Zimmer eintippen — Aufnahme ohne Zeichnen</h3>
+
+<p>Dieser Weg ist für den Fall gedacht, der am häufigsten vorkommt und am
+schlechtesten unterstützt war: Sie stehen in einer Wohnung, haben einen
+Laserentfernungsmesser in der Hand, ein Tablet unter dem Arm — und nie zuvor
+mit einem Zeichenprogramm gearbeitet. Dann wird hier <b>nichts gezeichnet</b>.
+Es werden Fragen gestellt, und am Ende steht ein Grundriss.</p>
+
+<p>Sie erreichen das Fragenblatt auf zwei Wegen: über die Karte beim ersten
+Start (<b>Zimmer für Zimmer eintippen</b>) oder jederzeit später über denselben
+Knopf im Reiter <b>Start</b>.</p>
+
+<p><b>Zuerst fünf Fragen zum Gebäude.</b> Was wird aufgenommen (eine Wohnung
+oder ein ganzes Haus), wie alt ist das Haus etwa, was liegt darunter, was
+darüber, wie hoch sind die Räume. Mehr nicht. Jede dieser Angaben hat eine
+Vorbelegung, und jede lässt sich später im Reiter <b>Geschosse</b> ändern.</p>
+
+<p><b>Dann je Raum fünf Fragen.</b> Wo liegt der Raum vom vorigen aus gesehen —
+rechts daneben, links daneben, darüber, darunter. Welcher Raum ist es (zehn
+Kacheln: Wohnen, Schlafen, Kind, Küche, Bad, WC, Flur, Büro, Abstell, Technik,
+jede mit ihrer Solltemperatur). Wie groß ist er. Wie viele Fenster hat er.
+Hängt ein Heizkörper darin. Beim <b>ersten</b> Raum entfällt die erste Frage,
+weil es noch keinen vorigen gibt.</p>
+
+<p>Mit jeder Antwort entsteht sofort etwas im Plan: vier Wände, der Raum mit
+Namen und Solltemperatur, die Fenster in der Außenwand, der Heizkörper darunter.
+Der Plan rückt nach jedem Raum von selbst ins Bild. Sie sehen also beim Tippen,
+was Sie beschreiben — und merken sofort, wenn ein Raum auf der falschen Seite
+landet.</p>
+
+<p><b>„Weiß ich nicht" ist eine erlaubte Antwort.</b> Das ist der Kern dieses
+Weges. Unter der Maßfrage steht <b>Nicht gemessen — dann das übliche Maß</b>,
+unter der Fensterfrage <b>Weiß ich nicht — dann eines</b>. Das Programm nimmt
+dann einen Anhaltswert, geht weiter — und <b>schreibt auf, dass es angenommen
+hat</b>. Diese Vermerke stehen</p>
+
+<ul>
+  <li>auf dem Abschlussblatt, gelb hinterlegt, mit Begründung,</li>
+  <li>im Reiter <b>Prüfung</b> unter <i>Angenommen, weil nichts vorlag</i>, jeder
+      mit einem Knopf <b>Gemessen</b>, der ihn wegnimmt, sobald Sie die Angabe
+      nachgetragen haben,</li>
+  <li>und in der Übergabe an RaVia als <code>project.annahmen</code>.</li>
+</ul>
+
+<p>Damit hält eine Lücke niemanden auf und verschwindet trotzdem nicht still.
+Ein angenommenes Badmaß sieht im Plan genau aus wie ein nachgemessenes — der
+Unterschied steht an genau diesen drei Stellen und nirgends sonst.</p>
+
+<p><b>Was das Blatt noch kann.</b> <b>Zurück</b> geht eine Frage zurück, solange
+der Raum noch nicht angelegt ist; ein Raum, der steht, wird im Plan geändert und
+nicht im Blatt. <b>Keine Räume mehr</b> führt zum Abschluss. Dort gibt es
+<b>Noch ein Raum</b>, <b>Noch ein Stockwerk</b> (ein leeres Geschoss darüber;
+die Räume oben sind andere, deshalb wird nicht kopiert) und <b>Weiter zur
+Prüfung</b>. <b>Schließen</b> oben rechts beendet das Blatt jederzeit — alles
+bereits Angelegte bleibt stehen, und Sie zeichnen von Hand weiter.</p>
+
+<p><b>Wo die Fenster landen.</b> In eine Außenwand, und zwar in eine, vor der
+kein anderer Raum steht. Das Programm prüft das bei jedem Raum neu. Steht vor
+jeder Seite eines Raums ein anderer — ein innen liegendes Bad etwa —, bekommt
+er <b>keine</b> Fenster, und das steht als Annahme in der Liste. Ein Fenster in
+einer Innenwand wäre teurer als eines, das fehlt: Es rechnet gegen
+Außentemperatur, obwohl dahinter das Nebenzimmer liegt.</p>
+
+<div class="baustelle">
+  <b>Auf der Baustelle heißt das</b>
+  <p>Fangen Sie mit dem größten Raum an und arbeiten Sie sich außen herum.
+  Messen Sie nur, was Sie bequem messen können — für alles andere nehmen Sie
+  „weiß ich nicht". Die Liste der Annahmen ist am Abend Ihre Arbeitsliste: Was
+  darin steht, wird nachgetragen; was nicht darin steht, ist gemessen. Eine
+  Wohnung mit sechs Räumen ist so in etwa einer Viertelstunde erfasst.</p>
+</div>
+
+<h3 id="k2-8">2.8 Das Skizzenblatt — hinzeichnen wie auf Papier</h3>
+
+<p>Der zweite Weg ohne Zeichenkenntnisse ist das <b>Skizzenblatt</b>: ein
+leeres Blatt über dem ganzen Bildschirm. Alle Leisten sind weg, es gibt nur die
+Fläche, einen Streifen oben und vier Knöpfe unten. Gezeichnet wird mit dem
+Finger oder mit dem Stift — krumm, schief, mit Zittern, das ist gewollt. Aus den
+Strichen werden <b>gerade Wände</b>: Das Programm glättet, richtet nach
+Hauptrichtungen aus, verbindet Ecken und schließt den Umriss, wenn er fast
+geschlossen ist.</p>
+
+<table class="tab">
+  <caption>Die Knöpfe des Skizzenblatts</caption>
+  <thead><tr><th>Knopf</th><th>Was er tut</th></tr></thead>
+  <tbody>
+    <tr><td><b>Strich zurück</b></td><td>Nimmt den letzten Zug weg — nicht die ganze Skizze.</td></tr>
+    <tr><td><b>Alles weg</b></td><td>Verwirft den Vorschlag vollständig. Im Plan ändert sich dabei nichts.</td></tr>
+    <tr><td><b>Daraus Wände machen</b></td><td>Übernimmt den Vorschlag als echte Wände. Erst dieser Knopf ändert das Modell.</td></tr>
+    <tr><td><b>Schließen</b></td><td>Verlässt das Blatt. Ein noch nicht übernommener Vorschlag bleibt erhalten.</td></tr>
+  </tbody>
+</table>
+
+<p>Solange das Blatt offen ist, darf der Finger zeichnen. Das ist außerhalb des
+Blatts <b>abgeschaltet</b>, und zwar mit Absicht: Auf dem Tablet schiebt man
+mit dem Finger das Bild, und ein aufliegender Handballen zöge sonst Wände. Beim
+Schließen stellt das Programm beides wieder her — das Werkzeug, mit dem Sie
+vorher gearbeitet haben, und den Fingermodus, in dem es vorher stand. Umschalten
+lässt sich das jederzeit auch von Hand, über das Finger-Symbol in der
+Werkzeugleiste.</p>
+
+<p>Der Unterschied zum Fragenblatt in einem Satz: Das Skizzenblatt gibt Ihnen
+den <b>Umriss</b> schnell, das Fragenblatt gibt Ihnen <b>Räume mit Namen,
+Temperaturen, Fenstern und Heizkörpern</b>. Beides lässt sich kombinieren —
+erst den Umriss hinzeichnen, dann im Plan weiterarbeiten.</p>
 
 </section>

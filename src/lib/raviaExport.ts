@@ -210,7 +210,11 @@ export function buildRaviaExport(doc: BimDocument): RaviaExport {
     // 2.3.0: Hüllflächenbilanz je Raum und für das Gebäude (`envelope`).
     // 2.4.0: `envelope.withoutUValue` — wie viele Flächen ohne brauchbaren
     //        U-Wert in die Bilanz gingen. Reiner Zuwachs.
-    version: '2.7.0',
+    // 2.8.0: `project.annahmen` — was angenommen wurde, weil nichts vorlag.
+    //        Reiner Zuwachs; ändert keinen Wert, sondern sagt, welcher nicht
+    //        gemessen ist. Die vollständige Fassungsgeschichte steht an
+    //        `RaviaExport` in `src/types/bim.ts`.
+    version: '2.8.0',
     generator: GENERATOR,
     exportedAt: new Date().toISOString(),
     units: {

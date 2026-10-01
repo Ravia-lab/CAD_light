@@ -77,6 +77,8 @@ const icons: Record<string, ReactNode> = {
   grid: <><path d="M3 3h14v14H3z" /><path d="M8 3v14M13 3v14M3 8h14M3 13h14" /></>,
   dims: <><path d="M3 14h14M3 11v6M17 11v6" /><path d="M5 6h10" /></>,
   labels: <><path d="M3 5h14M3 10h9M3 15h11" /></>,
+  /* Eine Fingerkuppe über einer Linie — zeichnender Finger. */
+  finger: <><path d="M7 11V5.5a1.5 1.5 0 013 0V10" /><path d="M10 9.5a1.5 1.5 0 013 0V11" /><path d="M13 10.5a1.5 1.5 0 012.5 1.1v2.2a3.2 3.2 0 01-3.2 3.2H10a3 3 0 01-2.3-1.1L5 12.6a1.3 1.3 0 012-1.7l1.2 1.3" /></>,
   trash: <><path d="M4 6h12M8 6V4h4v2M6 6l.8 10h6.4L15 6" /></>,
   demo: <><rect x="3" y="3" width="14" height="14" rx="1.5" /><path d="M3 8h14M8 8v9" /></>,
   export: <><path d="M10 3v9M10 3L7 6M10 3l3 3" /><path d="M4 13v3a1 1 0 001 1h10a1 1 0 001-1v-3" /></>,
@@ -261,6 +263,27 @@ export default function ToolRail() {
       </RailButton>
       <RailButton active={showRoomLabels} title="Raumstempel" onClick={toggleRoomLabels}>
         <Icon>{icons.labels}</Icon>
+      </RailButton>
+      {/*
+        * Darf der Finger zeichnen?
+        *
+        * Die Vorgabe ist **nein**, und sie ist gut begründet: Wer mit dem
+        * Stift schreibt, legt die Hand auf, und ein mitzeichnender Finger
+        * zöge eine Wand quer durch die Wohnung. Für ein Tablet **ohne**
+        * Stift ist sie aber eine Sperre — gemessen: mit dem Stift ein Zug
+        * und zwei erkannte Strecken, mit dem Finger gar nichts. Die
+        * Einstellung gab es schon, nur keinen Weg zu ihr.
+        */}
+      <RailButton
+        active={snap.fingerZeichnet ?? false}
+        title={
+          snap.fingerZeichnet
+            ? 'Der Finger zeichnet. Für ein Tablet ohne Stift — der Handballen zeichnet dann mit.'
+            : 'Der Finger schiebt. Antippen, wenn kein Stift da ist: dann zeichnet er.'
+        }
+        onClick={() => setSnap({ fingerZeichnet: !snap.fingerZeichnet })}
+      >
+        <Icon>{icons.finger}</Icon>
       </RailButton>
 
       <Separator />

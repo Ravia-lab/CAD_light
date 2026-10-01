@@ -110,7 +110,7 @@ await p.addInitScript(() => {
   expect('IFC ist STEP', shapes.ifcHead, 'ISO-10303-21');
   expect('Prüfbericht rechenfähig', shapes.ready, true);
   expect('Rohdokument erreichbar', shapes.docWalls > 0, true);
-  expect('Exportfassung 2.7.0', shapes.version, '2.7.0');
+  expect('Exportfassung 2.8.0', shapes.version, '2.8.0');
   expect('Hüllflächenbilanz im Export', shapes.envelopeH > 0, true);
   expect('… je Raum', shapes.raeumeMitBilanz, shapes.rooms);
   expect('… mit Boden, Decke und Wand', ['ceiling', 'floor', 'wall'].every((k) => shapes.envelopeKinds.includes(k)), true);

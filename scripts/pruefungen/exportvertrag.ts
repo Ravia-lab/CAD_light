@@ -391,7 +391,7 @@ export function pruefeExportvertrag(check: CheckFn): void {
 
   // === 1 — Kennung und Version ============================================
   check('Schemakennung', ex.schema, 'ravia.bim.light');
-  check('Fassung', ex.version, '2.7.0');
+  check('Fassung', ex.version, '2.8.0');
   check('Der Erzeuger steht im Dokument', ex.generator.length > 0, true);
   check('Und der Zeitpunkt', /^\d{4}-\d{2}-\d{2}T/.test(ex.exportedAt), true);
 
@@ -501,7 +501,30 @@ export function pruefeExportvertrag(check: CheckFn): void {
   const zurueck = JSON.parse(JSON.stringify(ex)) as RaviaExport;
   check('Die Wurzel übersteht die Datei', fehlende(zurueck, WURZEL_PFLICHT), '');
   check('… und bringt nichts Neues mit', unbekannte(zurueck, WURZEL_PFLICHT, WURZEL_WAHLFREI), '');
-  check('Die Fassung steht auch danach da', zurueck.version, '2.7.0');
+  check('Die Fassung steht auch danach da', zurueck.version, '2.8.0');
+
+  // === 6a — Annahmen gehen mit (2.8.0) ====================================
+  /*
+   * Ein angenommenes Badmaß sieht im Modell genau aus wie ein nachgemessenes.
+   * Der Unterschied steht ausschließlich in `project.annahmen`, und er muss
+   * **durch die Datei** kommen: Was `JSON.stringify` verliert, kann die
+   * Gegenstelle nicht in ihren Bericht schreiben.
+   *
+   * Geprüft wird an einem Haus mit zwei Annahmen, von Hand gesetzt.
+   */
+  const mitAnnahmen = baueHaus();
+  mitAnnahmen.meta.annahmen = [
+    { was: 'Maße Bad', wert: '2,4 × 3,0 m angenommen', grund: 'Übliches Maß — nicht nachgemessen.', at: '2026-10-01T08:00:00.000Z' },
+    { was: 'Fenster Bad', wert: 'ein Fenster angenommen', grund: 'Nicht gezählt.', at: '2026-10-01T08:01:00.000Z' },
+  ];
+  const mitEx = JSON.parse(JSON.stringify(buildRaviaExport(mitAnnahmen))) as RaviaExport;
+  check('Annahmen · beide kommen an', (mitEx.project.annahmen ?? []).length, 2);
+  check('Annahmen · mit Angabe, Wert und Grund',
+    (mitEx.project.annahmen ?? []).filter((a) => a.was && a.wert && a.grund).length, 2);
+  check('Annahmen · die erste ist das Badmaß', (mitEx.project.annahmen ?? [])[0]?.was ?? '', 'Maße Bad');
+  // Gegenprobe: Ohne Annahmen fehlt der Block — und ist nicht etwa eine leere
+  // Liste, die eine Gegenstelle als „geprüft, nichts angenommen" lesen könnte.
+  check('Annahmen · ohne Annahmen kein Block', ex.project.annahmen === undefined, true);
 
   // === 7 — Eine Hüllfläche, nicht zwei ====================================
   //

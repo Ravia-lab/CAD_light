@@ -2,7 +2,7 @@
 <h2 id="k17">17 · Schnittstellen: Export, IFC, Einbettung in RaVia</h2>
 <p class="lead">Alles, was dieses Programm tut, läuft auf eine Datei zu: die Übergabe an die Heizlastberechnung. Dieses Kapitel sagt, was in dieser Datei steht, welche anderen Wege es daneben gibt — IFC4 hin und zurück, Einbettung in RaVia, der Rückweg von dort — und was der Betrieb davon merkt.</p>
 
-<h3 id="k17-1">17.1 Der Export <code>ravia.bim.light</code> 2.7.0</h3>
+<h3 id="k17-1">17.1 Der Export <code>ravia.bim.light</code> 2.8.0</h3>
 
 <p class="wo">Im Programm: Werkzeugleiste oben rechts → blauer Knopf <b>RaVia JSON</b>. Der Knopf trägt den Hinweis „Gebäudedaten als RaVia-BIM-JSON exportieren (DIN EN 12831) — dient zugleich als Projektdatei".</p>
 
@@ -370,7 +370,17 @@
 
 <p>Der Block fehlt, solange niemand einen Verbrauch oder ein Baualter eingetragen hat. Siehe <a href="#k13-4-7">Abschnitt 13.4.7</a>.</p>
 
-<div class="merke"><b>Merke</b><p>Alle sieben Schritte sind <b>additiv</b>. Eine Gegenstelle, die gegen 2.0.0 gebaut hat, liest eine 2.6.0-Datei ohne Änderung und rechnet dasselbe wie vorher. Sie bekommt nur weniger Auskunft. Wer die neuen <code>kind</code>-Werte nicht kennt, behandelt sie wie bisher jede Verletzung.</p></div>
+<p><b>2.8.0</b> brachte gegenüber 2.7.0 <code>project.annahmen</code> — die <b>Liste der Angaben, die angenommen und nicht gemessen wurden</b>:</p>
+
+<ul>
+<li>Je Eintrag <code>was</code> (welche Angabe), <code>wert</code> (was angenommen wurde), <code>grund</code> (warum) und <code>at</code> (wann). <code>was</code> ist zugleich der Schlüssel: Dieselbe Angabe steht nur einmal in der Liste.</li>
+<li>Die Liste <b>ändert keinen Wert</b>. Was gilt, steht weiterhin am Bauteil. Sie sagt nur, welche Angabe nicht gemessen ist — und ist damit das, was in einem Bericht unter „Annahmen" gehört.</li>
+<li>Der Block fehlt, wenn nichts angenommen wurde. Eine <b>leere Liste</b> wird nicht geschrieben: Sie würde behaupten, es sei geprüft worden, dass nichts angenommen ist.</li>
+</ul>
+
+<p>Der Anlass ist die Aufnahme Zimmer für Zimmer (<a href="#k2-7">Abschnitt 2.7</a>): Dort darf auf jede Frage „weiß ich nicht" die Antwort sein, und das Programm rechnet mit einem Anhaltswert weiter. Für die Gegenstelle ist das ein Unterschied, den sie sonst nicht sehen könnte — ein angenommenes Badmaß sieht im Modell genau aus wie ein nachgemessenes.</p>
+
+<div class="merke"><b>Merke</b><p>Alle acht Schritte sind <b>additiv</b>. Eine Gegenstelle, die gegen 2.0.0 gebaut hat, liest eine 2.8.0-Datei ohne Änderung und rechnet dasselbe wie vorher. Sie bekommt nur weniger Auskunft. Wer die neuen <code>kind</code>-Werte nicht kennt, behandelt sie wie bisher jede Verletzung.</p></div>
 
 <h4 id="k17-1-7">17.1.7 Der Wächter über dem Format</h4>
 

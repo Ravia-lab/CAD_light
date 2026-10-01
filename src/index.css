@@ -112,6 +112,34 @@
     @apply rounded-md px-2 py-1 text-[11px] font-medium tabular-nums transition-colors;
   }
 
+  /*
+   * Die Aufnahme Zimmer für Zimmer.
+   *
+   * Eigene Klassen und keine Tailwind-Ketten an jeder Stelle: Die Maße sind
+   * hier nicht Geschmack, sondern Vorgabe — **keine Berührfläche unter
+   * 44 px**, gemessen auf sechzehn Geräten vom Falttelefon bis zum
+   * 12,9-Zoll-Tablet. Wer sie an fünf Stellen einzeln schreibt, unterschreitet
+   * sie an der sechsten.
+   */
+  .assi-frage {
+    @apply m-0 text-[19px] font-semibold leading-tight tracking-tight text-slate-50;
+  }
+  .assi-unter {
+    @apply m-0 text-[13.5px] leading-snug text-slate-400;
+  }
+  .assi-rund {
+    @apply flex h-11 w-11 min-w-[44px] items-center justify-center rounded-full border border-white/[0.12]
+           bg-graphite-900/60 text-[22px] leading-none text-accent;
+  }
+  .assi-vor {
+    @apply flex min-h-[48px] w-full items-center justify-center rounded-xl bg-accent px-4
+           text-[16px] font-bold text-graphite-950;
+  }
+  .assi-neben {
+    @apply flex min-h-[46px] w-full items-center justify-center rounded-xl border border-white/[0.1]
+           px-4 text-[14.5px] font-semibold text-slate-300;
+  }
+
   .label-xs {
     @apply text-[10px] font-medium uppercase tracking-[0.14em] text-slate-500;
   }

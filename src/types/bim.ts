@@ -2907,7 +2907,39 @@ export interface ProjectMeta {
    * sie eine zweite Gegenprobe, für die niemand etwas nachschlagen muss.
    */
   baualter?: string;
+  /**
+   * Was das Programm angenommen hat, weil nichts vorlag.
+   *
+   * **Die Regel, auf der die Aufnahme Zimmer für Zimmer steht:** Auf jede
+   * Frage darf „weiß ich nicht" die Antwort sein. Das Programm nimmt dann
+   * einen Anhaltswert, geht weiter — und schreibt hier auf, dass es
+   * angenommen hat. Eine Lücke hält damit niemanden auf und verschwindet
+   * trotzdem nicht still.
+   *
+   * Die Liste ist **kein zweiter Datenbestand**: Sie sagt nichts darüber,
+   * welcher Wert gilt — der steht am Bauteil —, sondern nur, dass er nicht
+   * gemessen wurde. Wer die Angabe später nachträgt, nimmt den Eintrag weg.
+   */
+  annahmen?: Annahme[];
   lastHostPatch?: HostPatchTrace;
+}
+
+/**
+ * Eine Angabe, die angenommen und nicht gemessen wurde.
+ *
+ * `was` ist zugleich der Schlüssel: Dieselbe Angabe zweimal angenommen
+ * ersetzt den Eintrag, statt ihn zu verdoppeln. Eine Annahme **ohne Grund**
+ * ist geraten — deshalb ist `grund` Pflicht und nicht optional.
+ */
+export interface Annahme {
+  /** Worum es geht, z. B. „Raumhöhe". */
+  was: string;
+  /** Was stattdessen gilt, im Klartext: „2,50 m angenommen". */
+  wert: string;
+  /** Warum gerade dieser Wert. */
+  grund: string;
+  /** Wann (ISO-8601). */
+  at: string;
 }
 
 /** Was von einem Schreibvorgang der Gegenstelle im Modell zurückbleibt. */
@@ -4082,6 +4114,18 @@ export interface RaviaExport {
    * stehen weiterhin unverändert; eine Gegenstelle, die 2.0.0 oder 2.1.0
    * liest, rechnet ohne Änderung weiter.
    *
+   * **2.8.0** ergänzt `project.annahmen`: die Angaben, die das Programm
+   * angenommen hat, weil nichts vorlag — jede mit Wert, Begründung und
+   * Zeitpunkt. Reiner Zuwachs; der Block fehlt, wenn nichts angenommen wurde.
+   *
+   * Der Anlass ist die Aufnahme Zimmer für Zimmer: Dort darf auf jede Frage
+   * „weiß ich nicht" die Antwort sein, und das Programm rechnet mit einem
+   * Anhaltswert weiter. Für die Gegenstelle ist das ein Unterschied, den sie
+   * sonst nicht sehen könnte — ein angenommenes Badmaß sieht im Modell genau
+   * aus wie ein nachgemessenes. **Die Liste ändert keinen Wert:** Was gilt,
+   * steht weiterhin am Bauteil. Sie sagt nur, welche Angabe nicht gemessen
+   * wurde, und ist damit das, was in einem Bericht unter „Annahmen" gehört.
+   *
    * **2.7.0** ergänzt die Gegenprobe zur Heizlast: `project.verbrauch` und
    * `project.baualter` als Eingangsgrößen und `totals.heatLoadCrosscheck` als
    * Ergebnis — die Heizlast aus dem gemessenen Jahresverbrauch und aus
@@ -4115,7 +4159,7 @@ export interface RaviaExport {
    * nichts; wer prüfen will, ob Boden, Decke und Dach angekommen sind, hat
    * jetzt eine Zahl statt einer Liste (Punkt 13).
    */
-  version: '2.7.0';
+  version: '2.8.0';
   generator: string;
   exportedAt: string;
   /** Einheiten explizit im Dokument — keine Konvention, die verloren gehen kann. */

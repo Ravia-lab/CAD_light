@@ -449,6 +449,66 @@ for (const [lage, w, h] of [['quer', 1180, 820], ['hoch', 820, 1180]]) {
     await p.waitForTimeout(400);
   }
 
+  /*
+   * ----------------------------------------------------------------------
+   * Skizzenblatt — das leere Blatt auf dem ganzen Bild.
+   *
+   * Es ist **kein zweiter Zeichenweg**: Es schaltet auf dasselbe
+   * Skizzenwerkzeug, räumt die Leisten weg und erlaubt den Finger. Geprüft
+   * wird deshalb nicht, dass man darin zeichnen kann — das steht oben —,
+   * sondern die beiden Zusagen, bei denen ein Fehler teuer wäre: dass die
+   * Bedienelemente wirklich verschwinden und dass das Schließen den Zustand
+   * zurückgibt, in dem jemand vorher war. Ein Blatt, das den Fingermodus
+   * anlässt, lässt den nächsten Handballen eine Wand ziehen.
+   * ----------------------------------------------------------------------
+   */
+  console.log('  · Skizzenblatt');
+  {
+    await p.evaluate(() => {
+      const s = window.__ravia.getState();
+      s.setTool('select');
+      s.setSnap({ fingerZeichnet: false });
+    });
+    await p.waitForTimeout(150);
+    const vorher = await p.evaluate(() => {
+      const s = window.__ravia.getState();
+      return { tool: s.tool, finger: s.snap.fingerZeichnet };
+    });
+    expect('Vorher: Auswahlwerkzeug ohne Finger', [vorher.tool, vorher.finger], ['select', false]);
+
+    await p.evaluate(() => window.__ravia.getState().setzeVollbildSkizze(true));
+    await p.waitForTimeout(350);
+    const drin = await p.evaluate(() => {
+      const s = window.__ravia.getState();
+      const sichtbar = (sel) => !!document.querySelector(sel);
+      return {
+        tool: s.tool,
+        finger: s.snap.fingerZeichnet,
+        vollbild: s.vollbildSkizze,
+        // Der Rasterschalter steht in der Werkzeugleiste. Ist er da, ist die
+        // Leiste da — im Blatt darf beides weg sein.
+        leiste: sichtbar('button[title^="Raster-Fang"]'),
+        uebernehmen: [...document.querySelectorAll('button')]
+          .some((e) => /Daraus Wände machen/.test(e.textContent ?? '')),
+      };
+    });
+    expect('Im Blatt: Skizzenwerkzeug', drin.tool, 'sketch');
+    expect('Im Blatt: Finger erlaubt', drin.finger, true);
+    expect('Das Blatt weiß, dass es offen ist', drin.vollbild, true);
+    expect('Es bietet die Übernahme an', drin.uebernehmen, true);
+    expect('Die Werkzeugleiste ist weg', drin.leiste, false);
+
+    await p.evaluate(() => window.__ravia.getState().setzeVollbildSkizze(false));
+    await p.waitForTimeout(350);
+    const danach = await p.evaluate(() => {
+      const s = window.__ravia.getState();
+      return { tool: s.tool, finger: s.snap.fingerZeichnet, vollbild: s.vollbildSkizze };
+    });
+    expect('Nach dem Schließen: Werkzeug zurück', danach.tool, 'select');
+    expect('Nach dem Schließen: Finger wieder aus', danach.finger, false);
+    expect('Und das Blatt ist zu', danach.vollbild, false);
+  }
+
   await p.screenshot({ path: `./screenshots/tablet-${lage}.png`, fullPage: false });
   console.log('  ERRORS:', errs.length ? errs.join('\n') : 'keine');
   if (errs.length) failures += errs.length;

@@ -33,6 +33,8 @@ import ThermalBridgePanel from './components/ThermalBridgePanel';
 import VentilationPanel from './components/VentilationPanel';
 import AufmassPanel from './components/AufmassPanel';
 import ValidationPanel from './components/ValidationPanel';
+import AufnahmeAssistent from './components/AufnahmeAssistent';
+import Skizzenblatt from './components/Skizzenblatt';
 import AnlagenPanel from './components/AnlagenPanel';
 import SchemaView from './components/SchemaView';
 import ToolRail, { TopBar } from './components/Toolbar';
@@ -106,6 +108,9 @@ export default function App() {
   const viewMode = useBimStore((s) => s.viewMode);
   const selection = useBimStore((s) => s.selection);
   const loadDemo = useBimStore((s) => s.loadDemo);
+  const setzeAssistent = useBimStore((s) => s.setzeAssistent);
+  const setzeVollbildSkizze = useBimStore((s) => s.setzeVollbildSkizze);
+  const vollbildSkizze = useBimStore((s) => s.vollbildSkizze);
   const replaceDocument = useBimStore((s) => s.replaceDocument);
   const wallCount = Object.keys(doc.walls).length;
   const tool = useBimStore((s) => s.tool);
@@ -176,7 +181,7 @@ export default function App() {
    * Die Rolle wird gesetzt, bevor das Modell geladen wird: Sonst sähe der
    * Monteur den Beispielgrundriss für einen Augenblick mit dreizehn Reitern.
    */
-  const closeWelcome = (dann: 'demo' | 'leer' | 'bild', rolle: UiModus) => {
+  const closeWelcome = (dann: 'assistent' | 'skizze' | 'demo' | 'leer' | 'bild', rolle: UiModus) => {
     setUiMode(rolle);
     try {
       localStorage.setItem(WELCOME_KEY, '1');
@@ -186,6 +191,8 @@ export default function App() {
     setWelcome(false);
     if (dann === 'demo') loadDemo();
     if (dann === 'bild') setTab('reference');
+    if (dann === 'assistent') setzeAssistent(true);
+    if (dann === 'skizze') setzeVollbildSkizze(true);
   };
 
   /*
@@ -296,11 +303,17 @@ export default function App() {
   const showSchema = viewMode === 'schema';
 
   return (
-    <div className="flex h-full w-full flex-col bg-graphite-900">
-      <TopBar onProjekte={() => setProjekteOffen(true)} />
+    <div className="relative flex h-full w-full flex-col bg-graphite-900">
+      {/*
+        * Im Skizzen-Vollbild verschwinden Kopfleiste, Werkzeugleiste und
+        * Inspektor. Übrig bleibt, was ein Blatt Papier auch hat: Fläche.
+        * Die Zeichenfläche selbst ist dieselbe — es gibt keinen zweiten
+        * Zeichenweg, nur eine Oberfläche weniger.
+        */}
+      {!vollbildSkizze && <TopBar onProjekte={() => setProjekteOffen(true)} />}
 
       <div className="flex min-h-0 flex-1">
-        <ToolRail />
+        {!vollbildSkizze && <ToolRail />}
 
         {/* Zeichenflächen */}
         <main className="flex min-w-0 flex-1 gap-2 py-2 pr-2">
@@ -340,6 +353,7 @@ export default function App() {
             onClick={() => setInspektorOffen(false)}
           />
         )}
+        {!vollbildSkizze && (
         <aside
           className={
             schmal
@@ -402,13 +416,14 @@ export default function App() {
             {tab === 'layers' && <LayerPanel />}
           </div>
         </aside>
+        )}
 
         {/*
           * Der Griff zur Schublade. Er sitzt am rechten Rand auf halber Höhe,
           * weil dort der Daumen liegt, wenn man das Tablet hält — und nicht
           * oben in einer Leiste, wo man hingreifen müsste.
           */}
-        {schmal && !inspektorOffen && (
+        {schmal && !inspektorOffen && !vollbildSkizze && (
           <button
             className="panel fixed right-2 top-1/2 z-30 flex h-24 w-11 -translate-y-1/2 flex-col items-center justify-center gap-1 text-[11px] text-slate-300"
             onClick={() => setInspektorOffen(true)}
@@ -420,9 +435,12 @@ export default function App() {
         )}
       </div>
 
-      <StatusBar />
+      {!vollbildSkizze && <StatusBar />}
 
       {welcome && <Einfuehrung onChoose={closeWelcome} />}
+
+      <Skizzenblatt />
+      <AufnahmeAssistent onFertig={() => setTab('check')} />
 
       {restore && (
         <RestoreDialog
@@ -600,7 +618,11 @@ function ViewerFallback() {
  * sind ein Fingertipp mehr als eine — und ersparen dem einen Anwender neun
  * Reiter, die er nie braucht, und dem anderen die Suche nach ihnen.
  */
-function Einfuehrung({ onChoose }: { onChoose: (dann: 'demo' | 'leer' | 'bild', rolle: UiModus) => void }) {
+function Einfuehrung({
+  onChoose,
+}: {
+  onChoose: (dann: 'assistent' | 'skizze' | 'demo' | 'leer' | 'bild', rolle: UiModus) => void;
+}) {
   const [rolle, setRolle] = useState<UiModus | null>(null);
 
   return (
@@ -660,6 +682,34 @@ function Einfuehrung({ onChoose }: { onChoose: (dann: 'demo' | 'leer' | 'bild', 
         ) : (
           <>
             <p className="mt-5 text-[12px] font-medium text-slate-200">Womit fangen wir an?</p>
+            {/*
+              * Die beiden Wege, die **ohne Zeichnen** zum Grundriss führen,
+              * stehen zuerst — und bei der Rolle „Aufmaß" hervorgehoben. Wer
+              * noch nie ein CAD bedient hat, scheitert nicht an der Zahl der
+              * Werkzeuge, sondern am leeren Blatt: Es sagt nicht, wo man
+              * anfängt. Eine Frage dagegen sagt es.
+              */}
+            <div className="mt-2 grid grid-cols-2 gap-2">
+              <button
+                className="rounded-lg bg-accent/12 px-3 py-2.5 text-left transition hover:bg-accent/20"
+                onClick={() => onChoose('assistent', rolle)}
+              >
+                <div className="text-[12px] text-accent">Zimmer für Zimmer eintippen</div>
+                <div className="mt-0.5 text-[10px] leading-snug text-slate-500">
+                  Ich messe und tippe ein, gezeichnet wird nichts. Auf jede Frage darf „weiß ich nicht" die
+                  Antwort sein.
+                </div>
+              </button>
+              <button
+                className="rounded-lg bg-accent/12 px-3 py-2.5 text-left transition hover:bg-accent/20"
+                onClick={() => onChoose('skizze', rolle)}
+              >
+                <div className="text-[12px] text-accent">Schnell hinzeichnen</div>
+                <div className="mt-0.5 text-[10px] leading-snug text-slate-500">
+                  Wie auf Papier — mit dem Finger oder dem Stift. Daraus werden gerade Wände.
+                </div>
+              </button>
+            </div>
             <div className="mt-2 grid grid-cols-3 gap-2">
               <button
                 className="rounded-lg bg-accent/12 px-3 py-2.5 text-left transition hover:bg-accent/20"
