@@ -29,14 +29,16 @@
 
 <p>Die vier übrigen Vorlagen stützen sich auf Herstellerunterlagen, weil der Leitfaden den Fall nicht oder nicht so eng führt: der pufferlose Heizkörperkreis (Bosch), das Turmgerät, der Hydrosplit (beide aus der Bauformen-Recherche) und die Zwei-Kreis-Ausprägung des Parallelpufferschemas, deren Einengung ausdrücklich eine Annahme dieses Katalogs ist. Sie sind als solche gekennzeichnet — bei jeder steht die Bedingung „Dieses Schema ist herstellergestützt und nicht durch den BWP-Leitfaden belegt" beziehungsweise „Die Einengung auf genau zwei Heizkreise stammt nicht aus dem Leitfaden".</p>
 
+<p>„Herstellergestützt" heißt dabei nicht bei allen vier dasselbe. Beim Heizkörperkreis und beim Hydrosplit liegt eine <b>Planungsunterlage</b> zugrunde (Bosch Compress 7000i AW; Wolf CHA-16/20, Daikin Monoblock). Beim <b>Turmgerät</b> ist es eine Marktübersicht über die Bauformen — die Gerätezahlen darin stammen aus Datenblättern, eingesehen hat sie aber der Bericht und nicht dieses Programm. Diese Vorlage stand bis 1.68.0 fälschlich auf „primär" und steht seit 1.69.0 auf „sekundär"; siehe <a href="#k12-1-2">Abschnitt 12.1.2</a>.</p>
+
 <p>Jede Vorlage trägt eine Belastbarkeitsstufe:</p>
 
 <table class="tab">
 <caption>Wie belastbar eine Vorlage ist</caption>
 <thead><tr><th>Stufe</th><th>Bedeutung</th><th>Im Katalog</th></tr></thead>
 <tbody>
-<tr><td>primär</td><td>Herstellerdatenblatt oder Planungsunterlage im Volltext eingesehen.</td><td>HERST-H-01, -02, -03</td></tr>
-<tr><td>sekundär</td><td>Verbandsleitfaden (BWP, VdZ); der Normtext ist kostenpflichtig und wurde nicht eingesehen.</td><td>alle elf BWP-Schemata</td></tr>
+<tr><td>primär</td><td>Herstellerdatenblatt oder Planungsunterlage im Volltext eingesehen. Die Quellenangabe der Vorlage muss ein solches Dokument benennen.</td><td>HERST-H-01, HERST-H-03</td></tr>
+<tr><td>sekundär</td><td>Verbandsleitfaden (BWP, VdZ) oder Marktübersicht; der Normtext ist kostenpflichtig und wurde nicht eingesehen.</td><td>alle elf BWP-Schemata, HERST-H-02</td></tr>
 <tr><td>Annahme</td><td>Von diesem Programm gesetzt, weil eine Abgrenzung gebraucht wurde. Steht so auch im Text der Vorlage.</td><td>BWP-H-03-2HK</td></tr>
 </tbody>
 </table>
@@ -51,6 +53,21 @@
 <li>Die <b>Elektro-Zusatzheizung</b> ist in jedem der elf BWP-Schemata als graue, also wahlweise verwendbare Baugruppe eingezeichnet — im Vorlauf der Wärmepumpe und alternativ im Speicher. Sie ist deshalb im Katalog durchgängig optional und nicht als eigene bivalente Ausprägung geführt.</li>
 <li>Das <b>Membran-Ausdehnungsgefäß</b> sitzt immer im Rücklauf und immer mit Kappenventil. Jeder Erzeuger- und Heizkreiszweig führt die Kombination Umwälzpumpe plus Rückschlagklappe und beidseitige Absperrventile.</li>
 </ul>
+
+<h4 id="k12-1-2">12.1.2 Wer die Belegstufen bewacht</h4>
+
+<p>Eine Belegstufe ist eine Behauptung über die eigene Arbeit, und niemand prüft sie im Betrieb nach. Seit 1.69.0 prüft sie ein eigener Prüfblock bei jedem Programmlauf vor der Freigabe (<code>scripts/pruefungen/belegstufe.ts</code>). Er verlangt vier Dinge:</p>
+
+<ul>
+<li>Eine Vorlage mit der Stufe <b>primär</b> muss in ihrer Quellenangabe ein Herstellerdokument benennen — Datenblatt, Planungsunterlage, Planungsinformation, Kurzanleitung. Eine Recherche oder Marktübersicht allein genügt nicht.</li>
+<li>Kein Beleg darf einen <b>Recherchebericht dieses Projekts</b> als Quelle für eine Zahl anführen. Berichte über Bauformen dürfen bleiben, müssen aber als solche benannt sein.</li>
+<li>Jeder BWP-Beleg muss eine <b>Fundstelle</b> und die <b>Ausgabe August 2023</b> nennen. Ein Leitfaden ohne Ausgabe ist in zwei Jahren keine Fundstelle mehr.</li>
+<li>Die drei <b>Redaktionsfehler</b> des Leitfadens bleiben dokumentiert und werden nicht stillschweigend geglättet.</li>
+</ul>
+
+<div class="merke"><b>Merke</b><p>Der Prüfblock hat beim ersten Lauf etwas gefunden: HERST-H-02 stand auf „primär", obwohl die einzige Quelle eine Marktübersicht ist. Die Stufe wurde auf „sekundär" berichtigt. <b>Eine Belegstufe zu behaupten, die man nicht hat, ist schlimmer als eine Stufe tiefer zu stehen</b> — sie lädt dazu ein, die Zahl ungeprüft zu übernehmen.</p></div>
+
+<p>Zwei Schreibweisen im Katalog sehen wie Nachlässigkeit aus und sind keine: der Leitfaden schreibt „75 Prozent" und „20 Grad Celsius" aus. Die Prüftabelle hält diese Schreibweise fest, weil ein Beleg wörtlich zitiert, was dort steht, und nicht, was kürzer aussieht.</p>
 
 <h3 id="k12-2">12.2 Die fünfzehn Vorlagen</h3>
 

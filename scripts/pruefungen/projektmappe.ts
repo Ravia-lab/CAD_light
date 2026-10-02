@@ -97,6 +97,12 @@ const KAPITELFOLGE: readonly MappeKapitelId[] = [
   'inbetriebnahme',
   'quellen',
   'nachweis',
+  /*
+   * Die Objektaufnahme ist eine **Anlage** und steht deshalb hinter dem
+   * Nachweiskatalog: Wer die Mappe liest, will zuerst das Ergebnis sehen und
+   * danach die Grundlage prüfen können.
+   */
+  'aufnahme',
 ];
 
 /**
@@ -148,7 +154,7 @@ export function pruefeProjektmappe(check: CheckFn): void {
   check('Blattbereich: zwei getrennte Läufe', blattBereich([1, 2, 5, 6, 9]), '1–2, 5–6, 9');
 
   // --- Kapitelgerüst -------------------------------------------------------
-  check('Die Mappe hat zwölf Kapitel', mappe.kapitel.length, KAPITELFOLGE.length);
+  check('Die Mappe hat dreizehn Kapitel', mappe.kapitel.length, KAPITELFOLGE.length);
   check(
     'Kapitel stehen in der festgelegten Reihenfolge',
     mappe.kapitel.map((k) => k.id).join(','),
@@ -339,9 +345,42 @@ export function pruefeProjektmappe(check: CheckFn): void {
   check('Das Deckblatt grenzt die Ausführungsplanung aus', deckblatt.includes('Ausführungsplanung'), true);
 
   // --- Nachweiskatalog -----------------------------------------------------
-  const nachweis = blattHtml(mappe.html, mappe.kapitel[11].blaetter[0]);
+  const nachweisKapitel = mappe.kapitel.find((k) => k.id === 'nachweis');
+  const nachweis = blattHtml(mappe.html, (nachweisKapitel?.blaetter ?? [0])[0]);
   const nachweisText = nurText(nachweis);
-  check('Der Nachweiskatalog steht auf dem letzten Blatt', mappe.kapitel[11].blaetter[0], mappe.blaetter.length);
+  /*
+   * Seit der Objektaufnahme-Anlage ist der Nachweiskatalog das **vorletzte**
+   * Blatt. Geprüft wird deshalb die Reihenfolge und nicht mehr eine Zahl: Der
+   * Nachweis steht unmittelbar vor der Anlage, und die Anlage schließt die
+   * Mappe ab.
+   */
+  const aufnahmeKapitel = mappe.kapitel.find((k) => k.id === 'aufnahme');
+  check('Der Nachweiskatalog steht vor der Anlage',
+    (nachweisKapitel?.blaetter ?? [0])[0] < (aufnahmeKapitel?.blaetter ?? [0])[0], true);
+  check('Die Objektaufnahme schließt die Mappe ab',
+    (aufnahmeKapitel?.blaetter ?? [0])[0], mappe.blaetter.length);
+
+  /*
+   * --- Die Anlage zeigt auch, was fehlt -----------------------------------
+   *
+   * Der eigentliche Zweck des Bogens: Ein Aufnahmebogen, der nur die
+   * ausgefüllten Zeilen druckt, sieht immer vollständig aus. Im Prüfhaus ist
+   * nichts bei der Aufnahme eingetragen — also müssen dort „nicht erfasst"
+   * und die Zahl der belegten Positionen stehen.
+   */
+  const anlage = nurText(blattHtml(mappe.html, (aufnahmeKapitel?.blaetter ?? [0])[0]));
+  check('Die Anlage nennt die Checkliste als Quelle', anlage.includes('Praxisratgeber'), true);
+  check('Sie zählt die belegten Positionen', /\d+ von \d+ Positionen/.test(anlage), true);
+  check('Und sie sagt, was nicht erfasst ist', anlage.includes('nicht erfasst'), true);
+  check('Die fünf Gruppen der Checkliste stehen darauf',
+    ['Gebäude', 'Gebäudehülle', 'Nutzung', 'Bestehende Anlage', 'Wärmeverteilung']
+      .every((g) => anlage.includes(g)), true);
+  /*
+   * Und was aus dem Modell kommt, steht auch so da. Die Herkunftsspalte ist
+   * der Grund, warum dieser Bogen keine zweite Wahrheit anlegt: Wer sie liest,
+   * sieht, dass die Fläche nicht eingetippt wurde.
+   */
+  check('Die Herkunft steht an jeder Angabe', anlage.includes('aus dem Modell'), true);
   check(
     'Er führt alle sieben Pflichtangaben',
     bericht.nachweis.every((n) => nachweisText.includes(n.forderung)),
@@ -398,7 +437,7 @@ export function pruefeProjektmappe(check: CheckFn): void {
   // Das Kapitel bleibt stehen und nennt den Grund. Eine weggelassene Nummer
   // sähe aus wie ein verlorenes Blatt.
   const ohneSchema = buildProjektMappe(roh, { datum: '01.01.2026' });
-  check('Auch ohne Schema entstehen zwölf Kapitel', ohneSchema.kapitel.length, KAPITELFOLGE.length);
+  check('Auch ohne Schema entstehen dreizehn Kapitel', ohneSchema.kapitel.length, KAPITELFOLGE.length);
   check(
     'Das Schemakapitel meldet die Lücke',
     ohneSchema.kapitel.find((k) => k.id === 'schema')?.inhalt ?? true,
@@ -441,7 +480,7 @@ export function pruefeProjektmappe(check: CheckFn): void {
     },
     { datum: '01.01.2026' },
   );
-  check('Auch aus einem leeren Modell entstehen zwölf Kapitel', leer.kapitel.length, KAPITELFOLGE.length);
+  check('Auch aus einem leeren Modell entstehen dreizehn Kapitel', leer.kapitel.length, KAPITELFOLGE.length);
   check('Das leere Modell ergibt trotzdem Blätter', leer.blaetter.length > 0, true);
   check('Die Blattnummern bleiben lückenlos', leer.blaetter.every((b, i) => b.nr === i + 1), true);
   check(

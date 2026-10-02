@@ -77,6 +77,7 @@ import { pruefeSkizzenseite } from './pruefungen/skizzenseite';
 import { pruefeNutzungseinheiten } from './pruefungen/nutzungseinheiten';
 import { pruefeDialoge } from './pruefungen/dialoge';
 import { pruefeBivalenz } from './pruefungen/bivalenz';
+import { pruefeBelegstufe, pruefeObjektaufnahme } from './pruefungen/belegstufe';
 import { pruefeAufnahme } from './pruefungen/aufnahme';
 import { pruefeWissensbasis } from './pruefungen/wissensbasis';
 import { pruefeGeschossdecken } from './pruefungen/geschossdecken';
@@ -3910,6 +3911,8 @@ pruefeSkizzenseite(check);
 pruefeNutzungseinheiten(check);
 pruefeDialoge(check);
 pruefeBivalenz(check);
+pruefeBelegstufe(check);
+pruefeObjektaufnahme(check);
 
 console.log('\n▸ Wissensbasis — Wortnormalisierung, Rangfusion, Korpus');
 pruefeWissensbasis(check);

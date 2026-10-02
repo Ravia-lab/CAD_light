@@ -29,6 +29,15 @@
 import { useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { glossaryList } from '../lib/glossar';
+import {
+  BESTANDSHEIZUNG_LABELS,
+  DAEMMZUSTAND_LABELS,
+  WARMWASSER_BESTAND_LABELS,
+  aufnahmestand,
+  type BestandsheizungArt,
+  type Daemmzustand,
+  type WarmwasserBestand,
+} from '../lib/objektaufnahme';
 import { begradige } from '../lib/begradigen';
 import { berichtsUrteil, buildPipeReport } from '../lib/pipeReport';
 import { designPlant } from '../lib/plantDesign';
@@ -578,6 +587,8 @@ export default function GuidePanel({ onOpenTab }: { onOpenTab: (tab: string) => 
         ))}
       </div>
 
+      <Objektaufnahmebogen />
+
       <Begriffe />
 
       <div className="border-t border-white/[0.06] pt-3">
@@ -691,6 +702,196 @@ function StepRow({ step }: { step: Step }) {
  * ist dieser Weg, und sie steht bewusst im Start-Reiter: dort schaut nach,
  * wer nicht weiterweiß.
  */
+/**
+ * **Der Objektaufnahmebogen.**
+ *
+ * Die Checkliste des BWP-Praxisratgebers Modernisieren — und der Grund, warum
+ * sie hier im Reiter „Start" steht und nicht in einem eigenen Reiter: Sie ist
+ * das Erste, was man vor Ort tut, und „Start" ist die Seite, die die Frage
+ * „was ist zu tun" beantwortet.
+ *
+ * **Eingetippt wird nur, was im Modell keinen Platz hat.** Geschosse, Fläche,
+ * Bäder, Heizflächen stehen längst da; der Bogen liest sie und nennt die
+ * Herkunft. Zwei Felder für dieselbe Sache wären zwei Wahrheiten.
+ */
+function Objektaufnahmebogen() {
+  const doc = useBimStore((s) => s.doc);
+  const setzeAufnahme = useBimStore((s) => s.setzeAufnahme);
+  const [offen, setOffen] = useState(false);
+  const stand = aufnahmestand(doc);
+  const a = doc.meta.aufnahme ?? {};
+
+  return (
+    <div className="border-t border-white/[0.06] pt-3">
+      <button
+        className="flex w-full items-baseline justify-between text-left"
+        onClick={() => setOffen((x) => !x)}
+      >
+        <span className="label-xs">Objektaufnahme {offen ? '▾' : '▸'}</span>
+        <span className="text-[10px] text-slate-500">
+          {stand.belegt} von {stand.gesamt} Angaben
+        </span>
+      </button>
+
+      {!offen && stand.offen.length > 0 && (
+        <p className="mt-1 text-[9.5px] leading-relaxed text-slate-600">
+          Offen: {stand.offen.slice(0, 3).join(', ')}
+          {stand.offen.length > 3 ? ` und ${stand.offen.length - 3} weitere` : ''}.
+        </p>
+      )}
+
+      {offen && (
+        <div className="mt-2 space-y-2">
+          <p className="text-[9.5px] leading-relaxed text-slate-600">
+            Die Checkliste des BWP-Praxisratgebers Modernisieren. Was aus dem Modell kommt, steht
+            hier nur zum Lesen — eingetippt wird, was sich aus der Zeichnung nicht ablesen lässt.
+            Der Bogen liegt am Ende der Projektmappe als Anlage.
+          </p>
+
+          {/* Die eintippbaren Felder, in der Reihenfolge der Aufnahme. */}
+          <div className="space-y-1.5">
+            {(
+              [
+                ['daemmungDach', 'Dach bzw. oberste Decke'],
+                ['daemmungKeller', 'Kellerdecke'],
+                ['daemmungWand', 'Außenwand'],
+              ] as const
+            ).map(([feld, label]) => (
+              <label key={feld} className="flex items-center gap-2">
+                <span className="w-[112px] shrink-0 text-[10px] text-slate-500">{label}</span>
+                <select
+                  className="field min-w-0 flex-1 text-[11px]"
+                  value={a[feld] ?? ''}
+                  onChange={(e) =>
+                    setzeAufnahme({ [feld]: (e.target.value || undefined) as Daemmzustand })
+                  }
+                >
+                  <option value="" className="bg-graphite-850">— nicht erfasst —</option>
+                  {(Object.keys(DAEMMZUSTAND_LABELS) as Daemmzustand[]).map((d) => (
+                    <option key={d} value={d} className="bg-graphite-850">
+                      {DAEMMZUSTAND_LABELS[d]}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            ))}
+
+            <label className="flex items-center gap-2">
+              <span className="w-[112px] shrink-0 text-[10px] text-slate-500">Verglasung</span>
+              <input
+                className="field min-w-0 flex-1 text-[11px]"
+                placeholder="z. B. 2-fach, 1998"
+                value={a.verglasung ?? ''}
+                onChange={(e) => setzeAufnahme({ verglasung: e.target.value || undefined })}
+              />
+            </label>
+
+            <label className="flex items-center gap-2">
+              <span className="w-[112px] shrink-0 text-[10px] text-slate-500">aktuelle Heizung</span>
+              <select
+                className="field min-w-0 flex-1 text-[11px]"
+                value={a.heizungArt ?? ''}
+                onChange={(e) =>
+                  setzeAufnahme({ heizungArt: (e.target.value || undefined) as BestandsheizungArt })
+                }
+              >
+                <option value="" className="bg-graphite-850">— nicht erfasst —</option>
+                {(Object.keys(BESTANDSHEIZUNG_LABELS) as BestandsheizungArt[]).map((x) => (
+                  <option key={x} value={x} className="bg-graphite-850">
+                    {BESTANDSHEIZUNG_LABELS[x]}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <div className="flex items-center gap-2">
+              <span className="w-[112px] shrink-0 text-[10px] text-slate-500">Baujahr · kW</span>
+              <input
+                className="field min-w-0 flex-1 text-[11px] tabular-nums"
+                inputMode="numeric"
+                placeholder="Baujahr"
+                value={a.heizungBaujahr ?? ''}
+                onChange={(e) =>
+                  setzeAufnahme({ heizungBaujahr: Number(e.target.value) || undefined })
+                }
+              />
+              <input
+                className="field min-w-0 flex-1 text-[11px] tabular-nums"
+                inputMode="decimal"
+                placeholder="kW"
+                value={a.heizungLeistung ?? ''}
+                onChange={(e) =>
+                  setzeAufnahme({
+                    heizungLeistung: Number(e.target.value.replace(',', '.')) || undefined,
+                  })
+                }
+              />
+            </div>
+
+            <label className="flex items-center gap-2">
+              <span className="w-[112px] shrink-0 text-[10px] text-slate-500">Typenschild</span>
+              <input
+                className="field min-w-0 flex-1 text-[11px]"
+                placeholder="wörtlich abgeschrieben"
+                value={a.typenschild ?? ''}
+                onChange={(e) => setzeAufnahme({ typenschild: e.target.value || undefined })}
+              />
+            </label>
+
+            <label className="flex items-center gap-2">
+              <span className="w-[112px] shrink-0 text-[10px] text-slate-500">Warmwasser</span>
+              <select
+                className="field min-w-0 flex-1 text-[11px]"
+                value={a.warmwasser ?? ''}
+                onChange={(e) =>
+                  setzeAufnahme({ warmwasser: (e.target.value || undefined) as WarmwasserBestand })
+                }
+              >
+                <option value="" className="bg-graphite-850">— nicht erfasst —</option>
+                {(Object.keys(WARMWASSER_BESTAND_LABELS) as WarmwasserBestand[]).map((x) => (
+                  <option key={x} value={x} className="bg-graphite-850">
+                    {WARMWASSER_BESTAND_LABELS[x]}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label className="flex items-center gap-2">
+              <span className="w-[112px] shrink-0 text-[10px] text-slate-500">aufgenommen von</span>
+              <input
+                className="field min-w-0 flex-1 text-[11px]"
+                placeholder="Name"
+                value={a.aufgenommenVon ?? ''}
+                onChange={(e) => setzeAufnahme({ aufgenommenVon: e.target.value || undefined })}
+              />
+            </label>
+          </div>
+
+          {/* Und was das Modell schon weiß — zum Lesen, mit Herkunft. */}
+          <details className="pt-1">
+            <summary className="cursor-pointer text-[10px] text-slate-500 hover:text-slate-300">
+              Was das Modell schon weiß
+            </summary>
+            <div className="mt-1 space-y-0.5">
+              {stand.gruppen
+                .flatMap((g) => g.zeilen)
+                .filter((z) => z.herkunft !== 'aufnahme')
+                .map((z) => (
+                  <div key={z.id} className="flex justify-between gap-2 text-[9.5px]">
+                    <span className="truncate text-slate-600">{z.frage}</span>
+                    <span className={`shrink-0 ${z.wert ? 'text-slate-400' : 'text-amber-500/80'}`}>
+                      {z.wert ?? 'nicht erfasst'}
+                    </span>
+                  </div>
+                ))}
+            </div>
+          </details>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function Begriffe() {
   const [query, setQuery] = useState('');
   const [open, setOpen] = useState(false);

@@ -142,7 +142,10 @@ console.log('\n▸ Die Vorschau zeigt das gedruckte Dokument');
       mitNummer: alle.filter((e) => /Blatt \d+ von \d+/.test(e.textContent ?? '')).length,
       titel: d.title,
       inhalt: d.querySelector('#blatt-2')?.innerText ?? '',
-      nachweis: d.querySelector('.blatt:last-child')?.innerText ?? '',
+      // Seit 1.69.0 schließt die Objektaufnahme als Anlage die Mappe ab —
+      // der Nachweiskatalog ist damit das vorletzte Blatt.
+      nachweis: [...d.querySelectorAll('.blatt')].slice(-2, -1)[0]?.innerText ?? '',
+      anlage: d.querySelector('.blatt:last-child')?.innerText ?? '',
     };
   });
 
@@ -161,10 +164,20 @@ console.log('\n▸ Die Vorschau zeigt das gedruckte Dokument');
   expect('Blatt 2 ist das Inhaltsverzeichnis', rahmenDaten.inhalt.includes('Inhaltsverzeichnis'), true);
   expect('Das Inhaltsverzeichnis nennt die Blattzahl', /\d+ Blätter/.test(rahmenDaten.inhalt), true);
   expect(
-    'Das letzte Blatt ist der Nachweiskatalog',
+    'Das vorletzte Blatt ist der Nachweiskatalog',
     rahmenDaten.nachweis.includes('§ 60c Abs. 4 GModG'),
     true,
   );
+  /*
+   * Und das letzte ist die Objektaufnahme — die Anlage, die belegt, worauf
+   * alles davor beruht. Sie nennt ihre Quelle und zählt die offenen
+   * Positionen; ein Bogen, der nur das Ausgefüllte zeigt, sähe immer
+   * vollständig aus.
+   */
+  expect('Das letzte Blatt ist die Objektaufnahme', rahmenDaten.anlage.includes('Objektaufnahme'), true);
+  expect('Sie nennt den Praxisratgeber', rahmenDaten.anlage.includes('Praxisratgeber'), true);
+  expect('Sie zählt die belegten Positionen', /\d+ von \d+ Positionen/.test(rahmenDaten.anlage), true);
+  expect('Und sagt, was nicht erfasst ist', rahmenDaten.anlage.includes('nicht erfasst'), true);
   expect(
     'Der Nachweiskatalog sagt bei jeder Angabe, ob sie vorliegt',
     (rahmenDaten.nachweis.match(/liegt vor|fehlt, weil/g) ?? []).length,

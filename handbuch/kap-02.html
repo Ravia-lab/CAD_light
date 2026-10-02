@@ -548,4 +548,35 @@ den <b>Umriss</b> schnell, das Fragenblatt gibt Ihnen <b>Räume mit Namen,
 Temperaturen, Fenstern und Heizkörpern</b>. Beides lässt sich kombinieren —
 erst den Umriss hinzeichnen, dann im Plan weiterarbeiten.</p>
 
+<h3 id="k2-9">2.9 Der Objektaufnahmebogen</h3>
+
+<p>Vor der Zeichnung steht die Aufnahme. Der <b>BWP-Praxisratgeber Modernisieren</b> führt sie als Checkliste, und sie ist genau der Arbeitsablauf, den dieses Programm bedient — nur fing es bisher bei der Zeichnung an. Seit 1.69.0 gibt es den Bogen.</p>
+
+<p class="wo">Im Programm: Reiter <b>Start</b>, Block <b>Objektaufnahme</b>. Die Zahl daneben sagt, wie viele der zwanzig Angaben belegt sind; zugeklappt nennt der Block die ersten offenen.</p>
+
+<div class="merke"><b>Merke</b><p><b>Es wird nichts zweimal eingetippt.</b> Geschosse, beheizte Fläche, Bäder, Fensterfläche und Heizflächen stehen im Modell; Baujahr und Verbrauch stehen am Projekt. Der Bogen <em>liest</em> sie und nennt die Herkunft dazu. Zwei Felder für dieselbe Angabe wären zwei Wahrheiten, die sich widersprechen können — und der Widerspruch fiele erst im Nachweis auf.</p></div>
+
+<p>Eingetippt wird nur, was sich aus der Zeichnung nicht ablesen lässt — <b>neun Angaben</b>:</p>
+
+<table class="tab">
+<caption>Was der Bogen fragt und was er liest</caption>
+<thead><tr><th>Gruppe</th><th>eingetippt</th><th>aus Modell, Projekt oder Anlagenblatt</th></tr></thead>
+<tbody>
+<tr><td><b>Gebäude</b></td><td>—</td><td>Baualtersklasse, Geschosse, beheizte Fläche, Bauart der Außenwand</td></tr>
+<tr><td><b>Gebäudehülle</b></td><td>Dämmung Dach, Keller, Außenwand; Verglasung</td><td>Fensterfläche</td></tr>
+<tr><td><b>Nutzung</b></td><td>—</td><td>Personen, Bäder, Nutzungseinheiten</td></tr>
+<tr><td><b>Bestehende Anlage</b></td><td>Heizungsart, Baujahr, Nennleistung, Typenschild, Warmwasserbereitung</td><td>Jahresverbrauch</td></tr>
+<tr><td><b>Wärmeverteilung</b></td><td>—</td><td>Heizflächen, beheizte Räume mit Heizfläche</td></tr>
+</tbody>
+</table>
+
+<p>Die Zeile <b>beheizte Räume mit Heizfläche</b> ist die, die sich im Betrieb bezahlt: Sie sagt „7 von 9". Ein beheizter Raum ohne Heizfläche ist der häufigste Aufnahmefehler überhaupt — und auf dieser Zeile fällt er auf, bevor die Heizlast gerechnet ist.</p>
+
+<p><b>Nichts wird geraten.</b> Eine Position ohne Angabe steht als „nicht erfasst" da, und der Zähler sieht nicht darüber hinweg. Eine Vollständigkeit, die leere Felder mitzählt, wäre die unbrauchbarste Zahl von allen.</p>
+
+<p>Wer etwas einträgt, bekommt den <b>Zeitpunkt</b> der Aufnahme mitgeschrieben; den Namen tippt man dazu. Beides gehört auf eine Anlage zum Nachweis, und beides vergisst jeder, der es eigens eintragen muss.</p>
+
+<p>Am Ende der <b>Projektmappe</b> steht der Bogen als Anlage — hinter dem Nachweiskatalog, mit jeder Position und ihrer Herkunft. Siehe <a href="#k14-7">Abschnitt 14.7</a>.</p>
+
+<p class="quelle">Quelle: BWP-Praxisratgeber Modernisieren, Objektaufnahme in fünf Schritten. Die Zuordnung der Positionen auf Modell, Projekt und Aufnahme ist eine Festlegung dieses Programms und steht in <code>src/lib/objektaufnahme.ts</code>.</p>
 </section>

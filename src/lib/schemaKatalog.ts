@@ -40,6 +40,25 @@
  * Maßnahmen **nicht vollständig**; sie sind anlagenspezifisch zu ergänzen.
  *
  * HERKUNFT UND BELEGREGEL
+ *
+ * **Der Leitfaden selbst liegt vor und ist gegengelesen.** Bis September 2026
+ * war dieser Katalog aus Rechercheberichten gebaut — also aus Berichten *über*
+ * den BWP-Leitfaden Hydraulik. Am 27.09.2026 lag das Original vor (Ausgabe
+ * August 2023), und alle tragenden Zahlen sind Zahl für Zahl dagegen
+ * gegengelesen worden; sie stimmten. Festgehalten in
+ * `claude/bwp-leitfaeden-auswertung.md`.
+ *
+ * Seitdem gilt: Was im Leitfaden steht, wird **aus dem Leitfaden** belegt, mit
+ * Schema-, Zeilen- oder Seitenangabe. Der Prüfblock
+ * `scripts/pruefungen/belegstufe.ts` hält die Katalogwerte gegen eine von Hand
+ * abgeschriebene Tabelle der Leitfadenzahlen — der Katalog kann sich damit
+ * nicht mehr stillschweigend von seiner Quelle entfernen.
+ *
+ * Die **Marktübersicht der Bauformen** bleibt ein Bericht und sagt das auch:
+ * Was in einem Turm- oder Kompaktgerät schon eingebaut ist, steht in keinem
+ * Leitfaden. Ein Herstellerdatenblatt zu zitieren, das niemand im Volltext
+ * gelesen hat, wäre die schlechtere Angabe.
+ *
  * Der Inhalt stammt aus vier Rechercheberichten (Stand August 2026):
  *   • recherche-schemata-neutral.md  → die 11 BWP-Schemata, ZVSHK/VdZ,
  *                                      Kaskaden, bivalente Anlagen (Hauptquelle)
@@ -1869,7 +1888,23 @@ export const SCHEMA_KATALOG: SchemaVorlage[] = [
     ],
     wissenIds: ['hyd-trinkwasser-umschaltventil-ladepumpe', 'hyd-trinkwasser-sicherheitsgruppe', 'hyd-trinkwasser-anschlussregeln', 'hyd-legionellenschutz-umsetzung', 'hyd-wt-flaeche-trinkwasser', 'hyd-heizstab-einbindung'],
     quelle: 'Recherche Bauformen, Abschnitt 6 (Turm- und Kompaktgerät mit integriertem Trinkwasserspeicher) und Abschnitt 9 (Master-Tabelle, Prüfliste)',
-    belastbarkeit: 'primaer',
+    /*
+     * **Sekundär und nicht primär — berichtigt mit 1.69.0.**
+     *
+     * Diese Vorlage trug `primaer`, obwohl ihre Quelle eine Marktübersicht
+     * ist: „Recherche Bauformen, Abschnitt 6 und 9". Die Stufe `primaer` ist
+     * in diesem Katalog aber als „Herstellerdatenblatt oder Planungsunterlage
+     * **im Volltext**" definiert. Die Gerätezahlen in den Belegen unten
+     * stammen aus Datenblättern — gelesen hat sie der Bericht, nicht dieses
+     * Programm. Gefunden hat das der Prüfblock `belegstufe.ts`, der seit
+     * 1.69.0 verlangt, dass eine primäre Vorlage ein Herstellerdokument
+     * benennt.
+     *
+     * Eine Belegstufe zu behaupten, die man nicht hat, ist schlimmer als eine
+     * Stufe tiefer zu stehen: Sie lädt dazu ein, die Zahl ungeprüft zu
+     * übernehmen.
+     */
+    belastbarkeit: 'sekundaer',
   },
 
   // -------------------------------------------------------------------------

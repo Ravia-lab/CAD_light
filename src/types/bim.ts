@@ -22,6 +22,7 @@
 import type { Huellflaechenbilanz } from '../lib/huellflaechenbilanz';
 import type { NetzExport } from '../lib/netzExport';
 import type { Nutzungseinheit } from '../lib/nutzungseinheiten';
+import type { Objektaufnahme } from '../lib/objektaufnahme';
 import type { Skizzenseite } from '../lib/skizzenseite';
 
 // ===========================================================================
@@ -2942,6 +2943,22 @@ export interface ProjectMeta {
    * sie eine zweite Gegenprobe, für die niemand etwas nachschlagen muss.
    */
   baualter?: string;
+  /**
+   * Der Objektaufnahmebogen — die Angaben, die bei der Aufnahme vor Ort
+   * anfallen und im Modell keinen anderen Platz haben.
+   *
+   * **Nur diese.** Geschosse, Fläche, Bäder und Heizflächen stehen im Modell,
+   * Baujahr und Verbrauch stehen daneben an diesem Objekt; sie werden nicht
+   * verdoppelt. Hier liegt, was sich aus dem Modell nicht lesen lässt: die
+   * bestehende Heizung samt Typenschild, die Warmwasserbereitung im Bestand
+   * und die Einschätzungen zu Dämmung und Verglasung.
+   *
+   * Alles davon ist **Aufnahme und keine Rechengröße**: Es geht in den Bogen
+   * und in die Projektmappe, nicht in die Heizlast. Siehe
+   * `src/lib/objektaufnahme.ts` (BWP-Praxisratgeber Modernisieren,
+   * Objektaufnahme in fünf Schritten).
+   */
+  aufnahme?: Objektaufnahme;
   /**
    * Was das Programm angenommen hat, weil nichts vorlag.
    *

@@ -171,6 +171,7 @@ import { importIfc } from '../lib/ifcImport';
 import { ordneRaumnamenZu } from '../lib/raumnutzung';
 import { importRaumplan } from '../lib/raumplanImport';
 import { ordneRaeumeZu } from '../lib/raumZuordnung';
+import type { Objektaufnahme } from '../lib/objektaufnahme';
 import {
   EINHEIT_LABELS,
   einheitenstand,
@@ -752,6 +753,14 @@ interface BimState {
   fuehreKleineRaeumeAlsUnbeheizt: (schwelle?: number) => { geaendert: number; message: string };
   moveFixture: (id: string, position: Vec2) => void;
   updateMeta: (patch: Partial<BimDocument['meta']>) => void;
+  /**
+   * Eine Angabe des Objektaufnahmebogens setzen.
+   *
+   * Nur die Felder, die im Modell keinen anderen Platz haben — alles andere
+   * liest der Bogen aus Modell, Projekt und Anlagenblatt. Siehe
+   * `lib/objektaufnahme.ts`.
+   */
+  setzeAufnahme: (patch: Partial<Objektaufnahme>) => void;
   /** Die Ansicht auf den Inhalt einpassen — zählt den Einpassen-Zähler hoch. */
   passeEin: () => void;
   // --- Skizzenseiten ------------------------------------------------------
@@ -4084,6 +4093,25 @@ export const useBimStore = create<BimState>()((set, get) => {
     },
 
     updateMeta: (patch) => mutate((doc) => Object.assign(doc.meta, patch)),
+
+    setzeAufnahme: (patch) =>
+      mutate(
+        (doc) => {
+          /*
+           * Wer etwas einträgt, hat aufgenommen — also wird der Zeitpunkt
+           * mitgeschrieben, falls er noch fehlt. Ein Aufnahmebogen ohne Datum
+           * ist als Anlage zu einem Nachweis wenig wert, und ihn eigens
+           * einzutippen vergisst jeder.
+           */
+          const vorher = doc.meta.aufnahme ?? {};
+          doc.meta.aufnahme = {
+            ...vorher,
+            ...patch,
+            aufgenommenAm: patch.aufgenommenAm ?? vorher.aufgenommenAm ?? new Date().toISOString(),
+          };
+        },
+        { skipRooms: true },
+      ),
 
     passeEin: () => set({ einpassenZaehler: get().einpassenZaehler + 1 }),
 

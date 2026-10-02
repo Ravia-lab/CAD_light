@@ -61,6 +61,7 @@ import { GENERATOR, buildRaviaExport } from './raviaExport';
 import { BELASTBARKEIT_LABELS, KORPUS_LABELS, type KorpusId, type WissensEintrag } from './wissensbasis';
 import { druckeDokument } from './druckFenster';
 import { inbetriebnahmeblatt, type Quellenart } from './inbetriebnahme';
+import { aufnahmestand, type Aufnahmezeile } from './objektaufnahme';
 
 // ---------------------------------------------------------------------------
 // Öffentliche Typen
@@ -81,7 +82,8 @@ export type MappeKapitelId =
   | 'anlagenbuch'
   | 'inbetriebnahme'
   | 'quellen'
-  | 'nachweis';
+  | 'nachweis'
+  | 'aufnahme';
 
 /**
  * Ein Blatt der Mappe.
@@ -568,6 +570,25 @@ export function buildProjektMappe(doc: BimDocument, optionen: ProjektMappeOption
       inhalt: nachweisBlatt(bericht),
     });
     kopf('nachweis', 'Nachweiskatalog nach § 60c Abs. 4 GModG', true);
+  }
+
+  // --- Kapitel 13: Objektaufnahme als Anlage --------------------------------
+  /*
+   * **Warum am Ende und nicht am Anfang.** Aufgenommen wird zuerst — der
+   * BWP-Praxisratgeber führt die Objektaufnahme als ersten Schritt. In der
+   * Mappe ist sie trotzdem eine **Anlage**: Sie belegt, worauf die Rechnungen
+   * davor beruhen, und wer die Mappe liest, will zuerst das Ergebnis sehen
+   * und danach die Grundlage prüfen können. Der Bogen zum Ausfüllen steht im
+   * Reiter „Start", nicht hier.
+   */
+  if (!omit.has('aufnahme')) {
+    entwuerfe.push({
+      kapitel: 'aufnahme',
+      titel: 'Anlage: Objektaufnahme',
+      art: 'text',
+      inhalt: aufnahmeBlatt(doc),
+    });
+    kopf('aufnahme', 'Anlage: Objektaufnahme', true);
   }
 
   // --- Nummerierung ---------------------------------------------------------
@@ -1516,6 +1537,65 @@ function quellenBlaetter(
  * Zeilen, die zur Bauart gehören: Eine Liste, in der neben dem Verdampfer der
  * Luftwärmepumpe auch der Schluckbrunnen steht, wird nicht gelesen.
  */
+/**
+ * Das Blatt zur Objektaufnahme.
+ *
+ * Es zeigt **jede** Position der Checkliste, auch die unbeantworteten — und
+ * zwar mit der Herkunft daneben. Ein Aufnahmebogen, der nur die ausgefüllten
+ * Zeilen druckt, sieht immer vollständig aus; genau das soll er nicht.
+ */
+function aufnahmeBlatt(doc: BimDocument): string {
+  const stand = aufnahmestand(doc);
+  const a = doc.meta.aufnahme ?? {};
+  const herkunft: Record<Aufnahmezeile['herkunft'], string> = {
+    modell: 'aus dem Modell',
+    projekt: 'am Projekt erfasst',
+    aufnahme: 'bei der Aufnahme erfasst',
+    anlage: 'aus dem Anlagenblatt',
+  };
+
+  return (
+    h2('Anlage: Objektaufnahme') +
+    p(
+      'Die Aufnahme des Objekts nach der Checkliste des BWP-Praxisratgebers Modernisieren. ' +
+        'Die Spalte „Herkunft" sagt, woher jede Angabe kommt: aus dem gezeichneten Modell, am ' +
+        'Projekt erfasst, aus dem Anlagenblatt oder bei der Aufnahme eingetragen. Was aus dem ' +
+        'Modell kommt, ist hier nicht eingetippt und kann der Zeichnung deshalb nicht ' +
+        'widersprechen.',
+    ) +
+    kasten(
+      `${stand.belegt} von ${stand.gesamt} Positionen sind belegt.` +
+        (stand.offen.length
+          ? ` Offen: ${stand.offen.join('; ')}.`
+          : ' Der Bogen ist vollständig.'),
+    ) +
+    stand.gruppen
+      .map(
+        (g) =>
+          h3(g.titel) +
+          tabelle(
+            [
+              { titel: 'Position', breite: '62mm' },
+              { titel: 'Angabe', breite: '58mm' },
+              { titel: 'Herkunft' },
+            ],
+            g.zeilen.map((z) => [z.frage, z.wert ?? 'nicht erfasst', herkunft[z.herkunft]]),
+          ),
+      )
+      .join('') +
+    (a.bemerkung?.trim() ? h3('Bemerkung') + p(a.bemerkung.trim()) : '') +
+    (a.aufgenommenVon || a.aufgenommenAm
+      ? p(
+          `Aufgenommen${a.aufgenommenVon ? ` von ${a.aufgenommenVon}` : ''}` +
+            `${a.aufgenommenAm ? ` am ${a.aufgenommenAm.slice(0, 10).split('-').reverse().join('.')}` : ''}.`,
+        )
+      : p(
+          'Aufnehmender und Datum sind nicht eingetragen. Für eine Anlage zum Nachweis gehören ' +
+            'beide dazu — sie stehen im Reiter „Start" unter „Objektaufnahme".',
+        ))
+  );
+}
+
 function inbetriebnahmeBlatt(doc: BimDocument): string {
   const plant = plantOf(doc);
   const kreise = Object.values(plant.circuits ?? {});
