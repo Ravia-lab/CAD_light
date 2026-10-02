@@ -38,7 +38,8 @@
  * misst Geometrie und rechnet nichts; die Leistung ist Sache der Auslegung.
  */
 
-import type { BimNode, Fixture, FixtureType, Opening, OpeningKind, RoofKind, RoomUsage, Vec2, Wall, WallType } from '../types/bim';
+import type { BimNode, Fixture, FixtureType, Opening, OpeningKind, RoofKind, RoomUsage, ScanDachHerkunft, Vec2, Wall, WallType } from '../types/bim';
+export type { ScanDachHerkunft } from '../types/bim';
 import { VORGABE_U } from './uwert';
 import {
   bauart,
@@ -78,6 +79,17 @@ export interface DachVorschlag {
   kneeHeight: number;
   azimuth: number;
   collarHeight?: number;
+  /** Was der Scan über die Herkunft der Dachmaße sagt (Schema 1.10.0). */
+  scan: ScanDachHerkunft;
+}
+
+/** Ein Prüfpunkt aus der Prüfliste der App, mit Ort im Grundriss. */
+export interface ScanPruefpunkt {
+  levelId: string;
+  punkt: Vec2;
+  text: string;
+  schwere: 'error' | 'warning' | 'info';
+  code: string;
 }
 
 export interface BuildingImportErgebnis extends RaumplanImportErgebnis {
@@ -88,6 +100,33 @@ export interface BuildingImportErgebnis extends RaumplanImportErgebnis {
   /** Herkunft für die Meldung („RaVia Scan 0.4 · iPhone16,1"). */
   quelle?: string;
   heizkoerperUnbestaetigt: number;
+  /**
+   * Die Wände (Kennungen dieses Modells, nach dem Teilen an T-Stößen), die
+   * belegen, dass über ihnen eine Dachschräge liegt — je Geschoss.
+   * Siehe `scanDachZuordnen` in `lib/scanUebernahme.ts`.
+   */
+  dachBelege: Record<string, string[]>;
+  /** Prüfpunkte der App mit Ort — werden Hinweisfahnen im Grundriss. */
+  pruefpunkte: ScanPruefpunkt[];
+  /** Prüfpunkte der App ohne Ort — für die Übernahmemeldung. */
+  pruefhinweise: { text: string; schwere: 'error' | 'warning' | 'info'; code: string }[];
+  /** „± 3,0 % (angenommen, kein Kontrollmaß)" — oder undefiniert, wenn der Scan nichts sagt. */
+  toleranz?: string;
+  /**
+   * Netto-Wandflächen aus dem Scan [m²] je Quellwand (`walls[].netArea`).
+   * Gelesen für die Gegenprobe im Prüfblock, nicht für die Rechnung: Die
+   * Flächen rechnet dieses Programm aus seiner eigenen Geometrie, und zwei
+   * Quellen für dieselbe Fläche wären zwei Wahrheiten.
+   */
+  wandNettoflaechen: Record<string, number>;
+  /**
+   * Luftvolumen je Geschoss, wie der Scan es rechnet (`rooms[].volume`,
+   * `volumeFlat`, `volumeSource`, Schema 1.10.0) — summiert über die Räume
+   * des Scans. Gelesen für die Gegenprobe in der Übernahmemeldung: Die
+   * Räume entstehen hier aus der eigenen Erkennung, ihr Volumen auch; das
+   * des Scans steht daneben, damit eine große Abweichung auffällt.
+   */
+  scanVolumen: { levelId: string; volumen: number; volumenGerade?: number; quelle?: string }[];
 }
 
 // --- Gestalt des Modells (nur, was gelesen wird) ------------------------------
@@ -96,10 +135,16 @@ interface P { x: number; y: number }
 interface RbmWall {
   id: string; levelId: string; start: P; end: P; height: number; thickness: number;
   thicknessSource?: string; type: string; confidence?: number;
+  /** Seit Schema 1.10.0: Kniestockwand unter der Traufe. */
+  kneeWall?: boolean;
+  /** Seit Schema 1.10.0: Schrägumriss einer Giebel- oder Innenwand unter dem Dach. */
+  profile?: unknown[];
+  netArea?: number;
 }
 interface RbmRoom {
   id: string; levelId: string; name?: string; usage?: string; polygon?: P[];
   nameSource?: string; raviaRoomId?: string;
+  volumeSource?: string; volumeFlat?: number; volume?: number;
 }
 interface RbmOpening {
   id: string; wallId: string; kind: string; width: number; height: number; sillHeight: number;
@@ -107,7 +152,20 @@ interface RbmOpening {
 }
 interface RbmLevel {
   id: string; name?: string; elevation: number; height: number;
-  roof?: { kind?: string; pitchDeg?: number; kneeHeight?: number; slopeAzimuthsDeg?: number[]; collarHeight?: number };
+  roof?: {
+    kind?: string; pitchDeg?: number; kneeHeight?: number; slopeAzimuthsDeg?: number[]; collarHeight?: number;
+    kneeWallIds?: string[];
+    /** Seit Schema 1.10.0: „user" (gemessen) oder „scan" (geschätzt). */
+    source?: string; ridgeHeight?: number; userDelta?: number;
+  };
+  /** Seit Schema 1.4.0: Dachflächen getrennt nach Fallrichtung. */
+  roofSegments?: { azimuthDeg?: number; pitchDeg?: number }[];
+}
+interface RbmCheck {
+  code?: string; severity?: string; text?: string; count?: number; points?: P[]; roomIds?: string[];
+}
+interface RbmAccuracy {
+  basis?: string; roomAreaUncertaintyPct?: number; scaleChecked?: boolean;
 }
 interface RbmEmitter {
   id: string; levelId: string; wallId?: string | null; kind: string; position: P; rotationDeg: number;
@@ -117,8 +175,10 @@ interface RbmEmitter {
 }
 interface Rbm {
   format?: string; schemaVersion?: string;
-  project?: { name?: string; address?: string };
+  project?: { name?: string; address?: string; location?: { latitude?: number; longitude?: number } };
   location?: { latitude?: number; longitude?: number };
+  checklist?: RbmCheck[];
+  accuracy?: RbmAccuracy;
   source?: { app?: { name?: string; version?: string }; device?: { model?: string } };
   orientation?: { northPlanAngleDeg?: number; northAccuracyDeg?: number; northSource?: string };
   levels?: RbmLevel[]; walls?: RbmWall[]; openings?: RbmOpening[];
@@ -129,7 +189,8 @@ interface Rbm {
 
 const LEER: BuildingImportErgebnis = {
   ok: false, message: '', drehung: 0, levels: [], nodes: [], walls: [], openings: [],
-  raumHinweise: [], geschaetzt: [], skipped: [], fixtures: [], daecher: {}, heizkoerperUnbestaetigt: 0,
+  raumHinweise: [], geschaetzt: [], skipped: [], fixtures: [], daecher: {}, heizkoerperUnbestaetigt: 0, scanVolumen: [],
+  dachBelege: {}, pruefpunkte: [], pruefhinweise: [], wandNettoflaechen: {},
 };
 
 const KNOTEN_TOLERANZ = 0.05;
@@ -173,6 +234,23 @@ export function importBuildingModel(data: unknown): BuildingImportErgebnis {
   const uebersprungen = new Map<string, number>();
   const merke = (grund: string): void => { uebersprungen.set(grund, (uebersprungen.get(grund) ?? 0) + 1); };
 
+  // --- Nordrichtung --------------------------------------------------------
+  //
+  // Die Dachrichtung aus dem Scan ist eine **Kompassrichtung** (0° =
+  // geografisch Nord). `RoofDefinition.azimuth` ist dagegen **planbezogen**
+  // (0° = Plan-oben); erst der Export rechnet mit der Nordabweichung des
+  // Projekts in die Kompassrichtung um (`Planazimut − Nordabweichung`). Der
+  // Import muss also umgekehrt rechnen: `Kompass + Nordabweichung`.
+  //
+  // Bis 1.69.0 ging die Kompasszahl unverändert in den Plan. Beim Feldscan
+  // vom 02.10.2026 zeigt Norden im Plan nach 205° statt 90° — das Dach lag
+  // um diese Abweichung schief über dem Haus, die Dachflächen kreuzten sich
+  // mit den Wänden. Bei einem Scan ohne Kompasswert gilt Plan-oben als Nord
+  // (Abweichung 0), wie überall sonst im Programm.
+  const nordPlan = m.orientation?.northPlanAngleDeg;
+  const nordAbweichung = zahl(nordPlan) ? 90 - nordPlan : 0;
+  const zumPlan = (kompass: number): number => normGrad(kompass + nordAbweichung);
+
   // --- Geschosse ------------------------------------------------------------
   const levelIds = new Set<string>();
   const levels: RaumplanGeschoss[] = [];
@@ -185,14 +263,26 @@ export function importBuildingModel(data: unknown): BuildingImportErgebnis {
     const r = l.roof;
     const form = r?.kind ? DACHFORMEN[r.kind] : undefined;
     if (r && form && zahl(r.pitchDeg)) {
+      const segmente = (Array.isArray(l.roofSegments) ? l.roofSegments : [])
+        .filter((s) => s && zahl(s.azimuthDeg) && zahl(s.pitchDeg))
+        .map((s) => ({ azimuth: normGrad(s.azimuthDeg!), pitch: rund(s.pitchDeg!, 1) }));
       daecher[l.id] = {
         kind: form,
         pitch: rund(Math.min(75, Math.max(0, r.pitchDeg)), 1),
         kneeHeight: zahl(r.kneeHeight) ? rund(r.kneeHeight, 2) : 0,
         // Beim Satteldach die Richtung der *einen* Dachfläche — im Modell
         // stehen beide, die erste genügt (die Firstachse steht senkrecht dazu).
-        azimuth: normGrad(r.slopeAzimuthsDeg?.[0] ?? 90),
+        // Ohne Angabe: nach Plan-Ost wie bisher, ohne Umrechnung.
+        azimuth: zahl(r.slopeAzimuthsDeg?.[0]) ? zumPlan(r.slopeAzimuthsDeg![0]) : 90,
         ...(zahl(r.collarHeight) && r.collarHeight < l.height - 0.05 ? { collarHeight: rund(r.collarHeight, 2) } : {}),
+        scan: {
+          herkunft: r.source === 'user' ? 'gemessen' : r.source === 'scan' ? 'geschaetzt' : 'unbekannt',
+          ...(zahl(r.ridgeHeight) ? { firsthoehe: rund(r.ridgeHeight, 2) } : {}),
+          ...(zahl(r.userDelta) ? { korrektur: rund(r.userDelta, 2) } : {}),
+          segmente,
+          // Wird unten gesetzt, sobald die Wände gelesen sind.
+          lageBelegt: false,
+        },
       };
     }
   }
@@ -260,6 +350,58 @@ export function importBuildingModel(data: unknown): BuildingImportErgebnis {
   const benutzt = new Set(walls.flatMap((w) => [w.a, w.b]));
   const knotenRein = knoten.filter((k) => benutzt.has(k.id));
   const knotenNach = new Map(knotenRein.map((k) => [k.id, k]));
+
+  // --- Wo sitzt das Dach? (Schema 1.10.0) ---------------------------------
+  //
+  // Bis 1.69.0 legte der Import das eine Dach eines Geschosses über den
+  // **ganzen** Grundriss. Beim ersten echten Feldscan (eine Wohnung mit
+  // L-Grundriss, 02.10.2026) zog das Satteldach damit über einen Flügel, der
+  // gar nicht unter der Schräge liegt, und die Dachflächen kreuzten sich.
+  //
+  // Der Scan sagt aber, **wo** die Schräge ist — an den Wänden:
+  //
+  //   · `kneeWall`            Kniestockwand unter der Traufe,
+  //   · `profile`             Giebel- oder Innenwand mit Schrägumriss,
+  //   · `roof.kneeWallIds`    dieselbe Aussage am Dach (älter als `kneeWall`),
+  //   · Wandhöhe > Geschosshöhe   die Wand reicht in den Dachraum.
+  //
+  // Das letzte Merkmal steht nicht in der Schnittstellenbeschreibung der App;
+  // es ist hier dazugekommen, weil der Feldscan es braucht: Ein Raum an der
+  // Nordtraufe hat dort eine voll hohe Außenwand ohne Kniestockkennung — aber
+  // seine Innenwand ist 2,65 m hoch bei 2,41 m Geschosshöhe. Eine Wand, die
+  // über das Geschoss hinausreicht, steht unter dem Dach und nicht unter
+  // einer Decke. Es gilt nur, wenn der Scan für das Geschoss überhaupt ein
+  // Dach meldet; fünf Zentimeter Spielraum, damit Messrauschen an einer
+  // geraden Decke nicht zum Dachbeleg wird.
+  //
+  // Welche Räume daraus unter das Dach kommen, entscheidet
+  // `scanDachZuordnen` nach der Raumerkennung — hier werden nur die Wände
+  // gesammelt, in den Kennungen dieses Modells.
+  const dachBelege: Record<string, string[]> = {};
+  const geschossHoehe = new Map(levels.map((l) => [l.id, l.height]));
+  const kniestockAmDach = new Map<string, Set<string>>();
+  for (const l of rbmLevels) {
+    if (l?.roof && Array.isArray(l.roof.kneeWallIds)) kniestockAmDach.set(l.id, new Set(l.roof.kneeWallIds));
+  }
+  for (const w of rbmWalls) {
+    if (!w || typeof w.id !== 'string' || !daecher[w.levelId]) continue;
+    const hoch = geschossHoehe.get(w.levelId) ?? Infinity;
+    const beleg =
+      w.kneeWall === true ||
+      (Array.isArray(w.profile) && w.profile.length > 0) ||
+      (kniestockAmDach.get(w.levelId)?.has(w.id) ?? false) ||
+      (zahl(w.height) && w.height > hoch + 0.05);
+    if (!beleg) continue;
+    const teile = wandZuQuelle.get(w.id) ?? [];
+    (dachBelege[w.levelId] ??= []).push(...teile.map((t) => t.id));
+  }
+  for (const [levelId, dach] of Object.entries(daecher)) {
+    dach.scan.lageBelegt = (dachBelege[levelId] ?? []).length > 0;
+  }
+  const wandNettoflaechen: Record<string, number> = {};
+  for (const w of rbmWalls) {
+    if (w && typeof w.id === 'string' && zahl(w.netArea)) wandNettoflaechen[w.id] = rund(w.netArea, 2);
+  }
 
   /** Das Teilstück einer (evtl. geteilten) Wand, das `p` am nächsten liegt, mit Abstand vom Teilanfang. */
   const teilstueck = (quelle: string, p: Vec2): { wand: Wall; distance: number; laenge: number; ab: number } | null => {
@@ -330,9 +472,27 @@ export function importBuildingModel(data: unknown): BuildingImportErgebnis {
       levelId: r.levelId,
       ...(typeof r.raviaRoomId === 'string' ? { raviaRoomId: r.raviaRoomId } : {}),
       vomNutzer: true,
+      flaeche: gueltig.map((p) => ({ x: rund(p.x), y: rund(p.y) })),
     });
     benannteRaeume += 1;
   }
+  // Volumen je Geschoss aus den Räumen des Scans (Gegenprobe, siehe oben).
+  const volumenJe = new Map<string, { volumen: number; volumenGerade?: number; quellen: Set<string> }>();
+  for (const r of Array.isArray(m.rooms) ? m.rooms : []) {
+    if (!r || !levelIds.has(r.levelId) || !zahl(r.volume)) continue;
+    const v = volumenJe.get(r.levelId) ?? { volumen: 0, quellen: new Set<string>() };
+    v.volumen += r.volume!;
+    if (zahl(r.volumeFlat)) v.volumenGerade = (v.volumenGerade ?? 0) + r.volumeFlat!;
+    if (typeof r.volumeSource === 'string') v.quellen.add(r.volumeSource);
+    volumenJe.set(r.levelId, v);
+  }
+  const scanVolumen = [...volumenJe].map(([levelId, v]) => ({
+    levelId,
+    volumen: rund(v.volumen, 1),
+    ...(v.volumenGerade !== undefined ? { volumenGerade: rund(v.volumenGerade, 1) } : {}),
+    ...(v.quellen.size === 1 ? { quelle: [...v.quellen][0] } : {}),
+  }));
+
   for (const h of Array.isArray(m.roomHints) ? m.roomHints : []) {
     if (!h || !punkt(h.point) || !levelIds.has(h.levelId) || typeof h.name !== 'string') continue;
     raumHinweise.push({
@@ -408,12 +568,67 @@ export function importBuildingModel(data: unknown): BuildingImportErgebnis {
     geschaetzt.push({ was: 'Türanschlag', anzahl: tueren, begruendung: 'Der Scan kennt die Bandseite nicht. Anschlag von Hand setzen.' });
   }
   const dachZahl = Object.keys(daecher).length;
-  if (dachZahl) {
+  const dachGemessen = Object.values(daecher).filter((d) => d.scan.herkunft === 'gemessen').length;
+  if (dachZahl > dachGemessen) {
     geschaetzt.push({
-      was: 'Dach', anzahl: dachZahl,
+      was: 'Dach', anzahl: dachZahl - dachGemessen,
       begruendung: 'Neigung und Kniestock aus den gescannten Dachschrägen geschätzt. Dachaufbau und Firstlage prüfen.',
     });
   }
+
+  // --- Prüfliste der App ----------------------------------------------------
+  //
+  // Was die App selbst bemängelt, gehört nicht in eine Meldung, die nach zehn
+  // Sekunden verschwindet. Mit Ort wird es eine Hinweisfahne im Grundriss —
+  // dort, wo der Monteur hingehen muss —, ohne Ort steht es in der Meldung.
+  const schwere = (s: unknown): 'error' | 'warning' | 'info' =>
+    s === 'error' ? 'error' : s === 'warning' ? 'warning' : 'info';
+  const pruefpunkte: ScanPruefpunkt[] = [];
+  const pruefhinweise: BuildingImportErgebnis['pruefhinweise'] = [];
+  const ersteEbene = levels[0]?.id;
+  for (const c of Array.isArray(m.checklist) ? m.checklist : []) {
+    if (!c || typeof c.text !== 'string' || !c.text.trim()) continue;
+    const orte = (Array.isArray(c.points) ? c.points : []).filter(punkt);
+    // Die Prüfliste nennt kein Geschoss je Punkt. Bei einem Geschoss ist das
+    // eindeutig; bei mehreren ordnet die Raumkennung zu, sonst das erste.
+    const raumEbene = c.roomIds
+      ?.map((id) => (Array.isArray(m.rooms) ? m.rooms : []).find((x) => x?.id === id)?.levelId)
+      .find((id): id is string => typeof id === 'string' && levelIds.has(id));
+    const ebene = raumEbene ?? ersteEbene;
+    if (orte.length && ebene) {
+      for (const o of orte) {
+        pruefpunkte.push({ levelId: ebene, punkt: { x: rund(o.x), y: rund(o.y) }, text: c.text.trim(), schwere: schwere(c.severity), code: String(c.code ?? '') });
+      }
+    } else {
+      pruefhinweise.push({ text: c.text.trim(), schwere: schwere(c.severity), code: String(c.code ?? '') });
+    }
+  }
+
+  /*
+   * Die Herkunft der Dachmaße steht seit Schema 1.10.0 in `roof.source`. Der
+   * Feldscan vom 02.10.2026 hat das Feld nicht — sagt es aber in der
+   * Prüfliste: „roof.notAimed" heißt, Kniestock und First sind geschätzt.
+   * Das ist dieselbe Aussage an anderer Stelle; sie zu überlesen hieße,
+   * „unbekannt" anzuzeigen, wo die App es weiß.
+   */
+  if ((Array.isArray(m.checklist) ? m.checklist : []).some((c) => c?.code === 'roof.notAimed')) {
+    for (const d of Object.values(daecher)) if (d.scan.herkunft === 'unbekannt') d.scan.herkunft = 'geschaetzt';
+  }
+
+  // --- Toleranz -------------------------------------------------------------
+  //
+  // Die Zahl, mit der jede Fläche aus diesem Scan zu lesen ist. „Angenommen"
+  // heißt: Die App hat keine nachgemessene Strecke und setzt den üblichen
+  // Maßstabsfehler eines LiDAR-Scans an; „gemessen" heißt, ein Kontrollmaß
+  // hat ihn bestimmt. Der Unterschied gehört in die Meldung, weil 3 % auf
+  // 120 m² fast vier Quadratmeter sind — ein ganzes Bad.
+  const acc = m.accuracy;
+  const gemessen = !!acc && (acc.basis === 'measured' || acc.scaleChecked === true);
+  const toleranz =
+    acc && zahl(acc.roomAreaUncertaintyPct)
+      ? `± ${acc.roomAreaUncertaintyPct.toFixed(1).replace('.', ',')} % ` +
+        (gemessen ? '(gemessen)' : '(angenommen, kein Kontrollmaß)')
+      : undefined;
   if (fixtures.length) {
     geschaetzt.push({
       was: 'Heizleistung', anzahl: fixtures.length,
@@ -426,10 +641,12 @@ export function importBuildingModel(data: unknown): BuildingImportErgebnis {
   const app = m.source?.app;
   const message =
     `${walls.length} Wände, ${openings.length} Öffnungen, ${levels.length} Geschoss(e)` +
-    (benannteRaeume ? `, ${benannteRaeume} Räume benannt` : '') +
+    (benannteRaeume ? `, ${benannteRaeume} ${benannteRaeume === 1 ? 'Raumname' : 'Raumnamen'} vom Monteur` : '') +
     (fixtures.length ? `, ${fixtures.length} Heizkörper` + (unbestaetigt ? ` (${unbestaetigt} Bauart offen)` : '') : '') +
     (stoesse ? `, ${stoesse} T-Stöße hergestellt` : '') +
     (dachZahl ? `, Dach aus dem Scan übernommen` : '') +
+    (toleranz ? ` · Toleranz ${toleranz}` : '') +
+    (pruefpunkte.length ? ` · ${pruefpunkte.length} ${pruefpunkte.length === 1 ? 'Prüfpunkt' : 'Prüfpunkte'} der App im Plan markiert` : '') +
     (aussenZahl ? '' : ' · keine Außenwand im Scan');
 
   return {
@@ -437,8 +654,15 @@ export function importBuildingModel(data: unknown): BuildingImportErgebnis {
     message,
     projektName: m.project?.name?.trim() || undefined,
     adresse: m.project?.address?.trim() || undefined,
-    koordinaten: zahl(m.location?.latitude) && zahl(m.location?.longitude)
-      ? { breite: m.location!.latitude!, laenge: m.location!.longitude! } : undefined,
+    /*
+     * Die Lage steht seit Schema 1.10.0 unter `project.location`, davor auf
+     * oberster Ebene. Bis 1.69.0 wurde nur die alte Stelle gelesen — beim
+     * Feldscan vom 02.10.2026 ging die Lage damit still verloren.
+     */
+    koordinaten: (() => {
+      const ort = zahl(m.project?.location?.latitude) && zahl(m.project?.location?.longitude) ? m.project!.location! : m.location;
+      return ort && zahl(ort.latitude) && zahl(ort.longitude) ? { breite: ort.latitude, laenge: ort.longitude } : undefined;
+    })(),
     drehung: 0,
     nordrichtung: hatNorden ? (o!.northPlanAngleDeg! * Math.PI) / 180 : undefined,
     nordGenauigkeitGrad: hatNorden && zahl(o!.northAccuracyDeg) ? rund(o!.northAccuracyDeg!, 1) : undefined,
@@ -453,5 +677,11 @@ export function importBuildingModel(data: unknown): BuildingImportErgebnis {
     daecher,
     quelle: [app?.name, app?.version, m.source?.device?.model].filter(Boolean).join(' · ') || undefined,
     heizkoerperUnbestaetigt: unbestaetigt,
+    dachBelege,
+    pruefpunkte,
+    pruefhinweise,
+    ...(toleranz ? { toleranz } : {}),
+    wandNettoflaechen,
+    scanVolumen,
   };
 }

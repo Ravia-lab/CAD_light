@@ -142,7 +142,16 @@ export function pruefeGebaeudescan(check: CheckFn): void {
   check('Dachform', dach?.kind ?? '', 'gable');
   check('Dachneigung [°]', dach?.pitch ?? 0, 36.5, 0.01);
   check('Kniestock [m]', dach?.kneeHeight ?? 0, 1.19, 0.001);
-  check('Azimut der Dachfläche [°]', dach?.azimuth ?? 0, 66.5, 0.01);
+  /*
+   * Die App meldet den Azimut als **Kompassrichtung** (66,5°). Im Modell
+   * steht er seit jeher planbezogen (0 = Plan oben), und der Export rechnet
+   * Kompass = Plan − Nordabweichung. Bis 1.69.0 wurde die Kompasszahl
+   * unverändert als Planwinkel übernommen — und dieser Prüfblock hat genau
+   * das als richtig festgeschrieben. Im Feldscan vom 02.10.2026 fiel es auf:
+   * das Dach lag um die Nordabweichung verdreht. Richtig ist
+   * 66,5° + 113,5° = 180°.
+   */
+  check('Azimut der Dachfläche im Plan [°] (Kompass 66,5 + Nord 113,5)', dach?.azimuth ?? 0, 180, 0.01);
   check('Keine Kehlbalkenlage in voller Geschosshöhe', dach?.collarHeight === undefined, true);
 
   // --- Räume ----------------------------------------------------------------

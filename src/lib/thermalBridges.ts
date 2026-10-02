@@ -29,6 +29,7 @@
 
 import { distance, normalize, sub } from './geometry';
 import { getWallGeometry, indexOpeningsByWall, openingsOf, openingSpan } from './wallGeometry';
+import { dachUeberRaum } from './dachlandschaft';
 import type {
   BimDocument,
   Opening,
@@ -107,7 +108,9 @@ export function bridgeLengths(
   };
 
   const level = doc.levels[room.levelId];
-  const roof = level?.roof && level.roof.kind !== 'flat' ? level.roof : undefined;
+  // Das Dach über **diesem** Raum, nicht `level.roof` — siehe `dachUeberRaum`.
+  const dach = dachUeberRaum(level, room.id);
+  const roof = dach && dach.kind !== 'flat' ? dach : undefined;
   const height = room.height;
 
   // Gibt es ein Geschoss darüber? Dann durchdringt dessen Deckenplatte die

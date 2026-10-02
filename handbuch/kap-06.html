@@ -129,6 +129,40 @@ Firsthöhe: 2,20 + 4,563 · tan 30° = 2,20 + 2,635 = <b>4,835 m</b>.</p>
 
 <p><b>Ein Dach ohne Raumzuweisung deckt das ganze Geschoss.</b> Das ist der Zustand jedes Projekts, das vor Fassung 1.36.0 gespeichert wurde, und er bleibt gültig: Solche Dateien rechnen auf den Zehntelmillimeter genauso wie vorher.</p>
 
+<h3 id="k6-1c">6.1b Das Dach im 3D-Bild — geschnitten, nicht abgetastet</h3>
+
+<p><b>Seit 1.70.0 enden Wände, Rahmen und Dachhaut genau an der Dachfläche.</b> Bis dahin wurde eine Wand unter dem Dach in Scheiben von 8 cm zerlegt, und jede Scheibe bekam die Dachhöhe ihrer Mitte auf der Wandachse. Im Bild waren das <b>Treppenstufen</b>; und weil die Achse in der Wandmitte liegt, stach die äußere Hälfte einer Traufwand um halbe Wandstärke × Steigung durch die Dachhaut — bei einer 36,5er Außenwand unter 36° um dreizehn Zentimeter. Im ersten echten Feldscan ragten Innenwände mehr als einen halben Meter über das Dach.</p>
+
+<p><b>Wie es jetzt geht.</b> Die Dachfläche ist stückweise eben: Zwischen First, Kniestock, Kehlbalkenlage, den Graten und den Linien, an denen die Traufe gegen den Umriss gerechnet wird, ist sie jeweils eine Ebene. Diese <b>Knickgeraden</b> lassen sich aus der Dachform ausrechnen. Der Fußabdruck einer Wand — Länge × volle Dicke — wird an ihnen zerschnitten, und jedes Stück bekommt seine Ebene als Oberseite. Kein Punkt wird abgetastet, und es bleibt keine Stufe übrig, die nicht im Dach selbst liegt.</p>
+
+<table class="tab">
+<caption>Was der Polygonschnitt prüfbar macht</caption>
+<thead><tr><th>Prüfung</th><th>Ergebnis</th></tr></thead>
+<tbody>
+<tr><td>Wandoberseiten gegen die Dachfläche, über die ganze Wanddicke gemessen — Satteldach, versetzter First, L-Umriss, schräg zum Grundriss, Pult-, Krüppelwalm-, Mansard- und Walmdach</td><td>größter Abstand unter <b>1 mm</b>, nirgends darüber</td></tr>
+<tr><td>Dieselbe Messung am Feldscan vom 02.10.2026, 49 Wände, rund 26 700 Messpunkte</td><td>größter Abstand <b>0,000 mm</b>; das alte Verfahren stach dort bis zu 55 cm durch</td></tr>
+<tr><td>Im 3D-Bild selbst: jedes Dreieck jedes gekappten Körpers gegen die Dachfläche</td><td>größter Überstand <b>0,0075 mm</b></td></tr>
+</tbody>
+</table>
+
+<p>Wo die Dachfläche nicht als Ebene bekannt ist — am einspringenden Winkel eines Walmdachs über einem L, dort ist sie ein Kegel —, wird halbiert, bis jedes Stück auf 0,2 mm eben ist. Solche Stücke sind als Näherung gekennzeichnet. Beim Satteldach gibt es keine: Der Prüfblock verlangt dort null.</p>
+
+<h4 id="k6-1c-1">Vier Fehler, die dabei gefunden wurden</h4>
+
+<table class="tab">
+<thead><tr><th>Befund</th><th>Ursache</th><th>Seit 1.70.0</th></tr></thead>
+<tbody>
+<tr><td>Eine <b>Rinne in der Wandkrone</b> entlang einer Giebelwand, einige Millimeter breit, bis auf den Kniestock hinab</td><td>Ein gescannter Grundriss steht nie exakt im Winkel. Bei 0,15° Schiefe traf die Traufrechnung die Giebelwand streifend und hielt sie für eine Traufe. In der Wandabwicklung wurde dieselbe Giebelwand als Traufwand gerechnet.</td><td>Eine Umrisskante bis <b>3°</b> neben der Fallrichtung ist ein <b>Ortgang</b>, keine Traufe.</td></tr>
+<tr><td>Eine <b>Rinne quer über die ganze Dachhälfte</b></td><td>Der Scan ließ zwischen zwei Wänden eine Lücke von 28 cm; im Umriss wurde daraus ein Schlitz von der Traufe 1,6 m ins Haus. Jeder Punkt dahinter, bis zum First, rechnete seine Traufe an dessen Boden.</td><td>Ein <b>Schlitz</b> — schmaler als 60 cm, beide Ecken einspringend, die Seiten gegenläufig parallel — wird an seiner <b>Mündung</b> gerechnet, als wäre er zu. Die Dachhaut überspannt ihn.</td></tr>
+<tr><td>Die <b>Seitenwand dieses Schlitzes</b> stand 2,40 m hoch durch eine Traufe von 1,24 m</td><td>Welches Dach über einer Wand liegt, wurde nur an der Wandmitte gefragt. Die Achse einer Außenwand liegt aber genau auf dem Umriss, und die Mitte fiel heraus.</td><td>Gefragt wird an der Mitte und an <b>beiden Wandseiten</b>.</td></tr>
+<tr><td>Eine <b>Platte über dem Dach</b>, über einem Fenster</td><td>Der Sturz über einem Fenster, dessen Oberkante über der Traufe liegt, begann über der Dachfläche und wurde als Fläche der Dicke null auf seine Unterkante gedrückt.</td><td>Liegt das Dach unter dem Wandfuß, gibt es dort keine Wand.</td></tr>
+</tbody>
+</table>
+
+<div class="merke"><b>Merke</b><p>Ein Fenster, dessen Oberkante über der Traufe liegt, ist am Bau eine Gaube oder ein Fehler im Aufmaß. Das Programm kappt Rahmen und Glas an der tiefsten Dachhöhe über dem Fenster und zeigt damit, was ein solches Fenster wäre. Was es wirklich ist, entscheidet, wer davorsteht.</p></div>
+
+<div class="baustelle"><b>Was davon nicht gelöst ist</b><p>Springt die Traufe an einem Rücksprung im Umriss um mehr als einen Schlitz — im Feldscan auf der Nordseite um 78 cm —, rechnet jede Seite gegen ihre eigene Traufkante. Im Dach steht dann eine Stufe entlang der Fallinie durch die Ecke. Das ist die Regel „Traufe gegen den Umriss", wie sie seit dem L-Grundriss gilt. Ob ein Dach dort durchläuft oder abgesetzt ist, steht nicht im Grundriss. Prüfen Sie die Stelle im 3D-Bild.</p></div>
+
 <h3 id="k6-2">6.2 Die Raumhöhe unter der Schräge</h3>
 
 <p>Unter einem Dach ist die Raumhöhe keine Zahl mehr, sondern eine Fläche voller verschiedener Zahlen. An jedem Punkt des Grundrisses gibt es eine eigene lichte Höhe. Daraus folgt: das Luftvolumen ist nicht Fläche mal Höhe, eine Außenwand ist nicht Länge mal Geschosshöhe, und die Decke ist keine waagerechte Fläche, sondern eine geneigte mit Giebeln an den Enden.</p>

@@ -40,6 +40,8 @@ import SchemaView from './components/SchemaView';
 import SkizzenSeite from './components/SkizzenSeite';
 import ToolRail, { TopBar } from './components/Toolbar';
 import ProjektDialog from './components/ProjektDialog';
+import Pruefansicht from './components/Pruefansicht';
+import { geraeteprofil, geraetemerkmale } from './lib/geraeteprofil';
 import { RaumnamenListe } from './components/RaumnameFeld';
 import { clearAutosave, loadAutosave, relativeTime, scheduleAutosave } from './lib/autosave';
 import type { AutosaveEntry, SicherungsErgebnis } from './lib/autosave';
@@ -299,6 +301,15 @@ export default function App() {
     if (!schmal) setInspektorOffen(false);
   }, [schmal]);
 
+  const pruefansicht = useBimStore((s) => s.pruefansicht);
+  const setPruefansicht = useBimStore((s) => s.setPruefansicht);
+  const wandZahl = useBimStore((s) => Object.keys(s.doc.walls).length);
+  // Die Form eines Geräts ändert sich beim Drehen nicht (`lib/geraeteprofil`).
+  const telefon = useMemo(
+    () => typeof window !== 'undefined' && geraeteprofil(geraetemerkmale(window)).form === 'phone',
+    [],
+  );
+
   const show2D = viewMode === '2d' || viewMode === 'split';
   const show3D = viewMode === '3d' || viewMode === 'split';
   const showSchema = viewMode === 'schema';
@@ -312,6 +323,15 @@ export default function App() {
         * Die Zeichenfläche selbst ist dieselbe — es gibt keinen zweiten
         * Zeichenweg, nur eine Oberfläche weniger.
         */}
+      {/*
+        * Am Telefon nach einem Scan: die Prüfansicht statt der ganzen
+        * Oberfläche (`components/Pruefansicht.tsx`). Ersetzt, nicht
+        * überlagert — sonst liefen Plan und 3D zweimal.
+        */}
+      {pruefansicht ? (
+        <Pruefansicht />
+      ) : (
+      <>
       {!vollbildSkizze && <TopBar onProjekte={() => setProjekteOffen(true)} />}
 
       <div className="flex min-h-0 flex-1">
@@ -371,6 +391,17 @@ export default function App() {
               : 'panel my-2 mr-2 flex w-[300px] shrink-0 flex-col overflow-hidden'
           }
           aria-hidden={schmal && !inspektorOffen}
+          // Die Schublade liegt fest über allem — der Abstand von `#root` zu
+          // Kamerausschnitt und Home-Leiste gilt für sie nicht von selbst.
+          style={
+            schmal
+              ? {
+                  top: 'calc(env(safe-area-inset-top) + 0.5rem)',
+                  bottom: 'calc(env(safe-area-inset-bottom) + 0.5rem)',
+                  right: 'calc(env(safe-area-inset-right) + 0.5rem)',
+                }
+              : undefined
+          }
         >
           {schmal && (
             <button
@@ -444,6 +475,20 @@ export default function App() {
       </div>
 
       {!vollbildSkizze && <StatusBar />}
+
+      {/* Am Telefon von der Bearbeitung zurück zur Prüfansicht. */}
+      {telefon && !vollbildSkizze && wandZahl > 0 && (
+        <button
+          className="fixed left-3 z-30 min-h-[44px] rounded-xl bg-graphite-800/95 px-4 text-[14px] text-slate-200 shadow-lg ring-1 ring-white/10"
+          style={{ bottom: 'calc(env(safe-area-inset-bottom) + 44px)' }}
+          onClick={() => setPruefansicht(true)}
+          data-zur-pruefansicht
+        >
+          ‹ Prüfansicht
+        </button>
+      )}
+      </>
+      )}
 
       {welcome && <Einfuehrung onChoose={closeWelcome} />}
 

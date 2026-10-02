@@ -1,0 +1,2240 @@
+{
+  "accuracy" : {
+    "axisSnapped" : 41,
+    "basis" : "assumed",
+    "openingUncertainty" : 0.047,
+    "pointNoise" : 0.02,
+    "roomAreaUncertaintyPct" : 3.01,
+    "scaleAssumedPct" : 1.5,
+    "scaleChecked" : false,
+    "selfChecked" : false,
+    "thicknessSnapped" : 0,
+    "wallLengthUncertainty" : 0.05
+  },
+  "checklist" : [
+    {
+      "code" : "level.noControlMeasure",
+      "count" : 1,
+      "severity" : "warning",
+      "text" : "Kein Kontrollmaß im Scan — eine mit dem Laser nachgemessene Strecke je Geschoss hält den Maßstabsfehler aus dem Modell."
+    },
+    {
+      "code" : "room.noDoor",
+      "count" : 1,
+      "points" : [
+        {
+          "x" : -5.262624006814932,
+          "y" : -2.336057575920668
+        }
+      ],
+      "roomIds" : [
+        "r-001"
+      ],
+      "severity" : "warning",
+      "text" : "Raum ohne Tür und ohne Durchgang — da kommt niemand hinein. Entweder fehlt die Tür oder zwei Räume wurden zu einem."
+    },
+    {
+      "code" : "room.noEmitter",
+      "count" : 1,
+      "points" : [
+        {
+          "x" : -5.262624006814932,
+          "y" : -2.336057575920668
+        }
+      ],
+      "roomIds" : [
+        "r-001"
+      ],
+      "severity" : "warning",
+      "text" : "Beheizter Raum ohne erfassten Heizkörper — entweder fehlt er, oder der Raum ist unbeheizt."
+    },
+    {
+      "code" : "level.noThicknessMeasured",
+      "count" : 1,
+      "severity" : "info",
+      "text" : "In EG ist keine Wandstärke gemessen — eine Türlaibung antippen genügt für das ganze Geschoss."
+    },
+    {
+      "code" : "roof.notAimed",
+      "count" : 1,
+      "severity" : "info",
+      "text" : "EG: Kniestock und First sind geschätzt, nicht gemessen — zwei Zielpunkte machen daraus eine Messung"
+    }
+  ],
+  "createdAt" : "2026-10-02T16:42:21Z",
+  "emitters" : [
+
+  ],
+  "format" : "ravia.building",
+  "id" : "E3C92597-E89E-4138-AEE8-0D0E028F5599",
+  "levels" : [
+    {
+      "elevation" : 0,
+      "elevationSource" : "lidar",
+      "height" : 2.41,
+      "id" : "level-0",
+      "index" : 0,
+      "name" : "EG",
+      "roof" : {
+        "azimuthDeg" : 295.2,
+        "collarHeight" : 2.43,
+        "kind" : "gable",
+        "kneeHeight" : 1.24,
+        "kneeWallIds" : [
+          "w-002",
+          "w-006"
+        ],
+        "pitchDeg" : 36.2,
+        "pitchSpreadDeg" : 0.6,
+        "sampleCount" : 6,
+        "sampleLength" : 9.46,
+        "slopeAzimuthsDeg" : [
+          295.2,
+          115.2
+        ]
+      },
+      "roofSegments" : [
+        {
+          "azimuthDeg" : 295.2,
+          "kind" : "monopitch",
+          "kneeHeight" : 1.23,
+          "kneeWallIds" : [
+
+          ],
+          "pitchDeg" : 36.2,
+          "pitchSpreadDeg" : 0.2,
+          "sampleCount" : 3,
+          "sampleLength" : 4.94,
+          "slopeAzimuthsDeg" : [
+            295.2
+          ]
+        },
+        {
+          "azimuthDeg" : 115.2,
+          "kind" : "monopitch",
+          "kneeHeight" : 1.23,
+          "kneeWallIds" : [
+
+          ],
+          "pitchDeg" : 36.8,
+          "pitchSpreadDeg" : 3.4,
+          "sampleCount" : 3,
+          "sampleLength" : 4.52,
+          "slopeAzimuthsDeg" : [
+            115.2
+          ]
+        }
+      ]
+    }
+  ],
+  "measurements" : [
+
+  ],
+  "openings" : [
+    {
+      "area" : 1.47,
+      "centerOffset" : 2.563,
+      "confidence" : 0.95,
+      "height" : 2.05,
+      "id" : "o-001",
+      "isOpen" : false,
+      "kind" : "door",
+      "leaves" : 1,
+      "leavesSource" : "estimated",
+      "levelId" : "level-0",
+      "sillHeight" : 0,
+      "sizeUncertainty" : 0.047,
+      "source" : "scan",
+      "sourceId" : "20001383-39C4-41D1-9F2B-C1D9867C658A",
+      "wallId" : "w-023",
+      "width" : 0.719
+    },
+    {
+      "area" : 1.25,
+      "centerOffset" : 2.6,
+      "confidence" : 0.6,
+      "height" : 1.985,
+      "id" : "o-002",
+      "isOpen" : true,
+      "kind" : "door",
+      "leaves" : 1,
+      "leavesSource" : "estimated",
+      "levelId" : "level-0",
+      "sillHeight" : 0,
+      "sizeUncertainty" : 0.069,
+      "source" : "scan",
+      "sourceId" : "0CF39C28-8937-4B28-972D-E25571D38CC5",
+      "wallId" : "w-048",
+      "width" : 0.629
+    },
+    {
+      "area" : 1.52,
+      "centerOffset" : 0.509,
+      "confidence" : 0.95,
+      "height" : 2.016,
+      "id" : "o-003",
+      "isOpen" : true,
+      "kind" : "door",
+      "leaves" : 1,
+      "leavesSource" : "estimated",
+      "levelId" : "level-0",
+      "sillHeight" : 0,
+      "sizeUncertainty" : 0.047,
+      "source" : "scan",
+      "sourceId" : "805FA2D5-41BC-4A48-BBDD-128F6AE020DA",
+      "wallId" : "w-047",
+      "width" : 0.753
+    },
+    {
+      "area" : 1.65,
+      "centerOffset" : 0.711,
+      "confidence" : 0.95,
+      "height" : 1.977,
+      "id" : "o-004",
+      "isOpen" : true,
+      "kind" : "door",
+      "leaves" : 1,
+      "leavesSource" : "estimated",
+      "levelId" : "level-0",
+      "sillHeight" : 0,
+      "sizeUncertainty" : 0.046,
+      "source" : "scan",
+      "sourceId" : "0A14516E-A677-4EB3-A7AB-A09FD7DB842F",
+      "wallId" : "w-045",
+      "width" : 0.833
+    },
+    {
+      "area" : 1.47,
+      "centerOffset" : 0.828,
+      "confidence" : 0.6,
+      "height" : 1.972,
+      "id" : "o-005",
+      "isOpen" : true,
+      "kind" : "door",
+      "leaves" : 1,
+      "leavesSource" : "estimated",
+      "levelId" : "level-0",
+      "sillHeight" : 0,
+      "sizeUncertainty" : 0.069,
+      "source" : "scan",
+      "sourceId" : "D1067DEE-5632-43D0-AD09-EA6779BADA2C",
+      "wallId" : "w-043",
+      "width" : 0.746
+    },
+    {
+      "area" : 1.46,
+      "centerOffset" : 1.941,
+      "confidence" : 0.6,
+      "height" : 2.01,
+      "id" : "o-006",
+      "isOpen" : true,
+      "kind" : "door",
+      "leaves" : 1,
+      "leavesSource" : "estimated",
+      "levelId" : "level-0",
+      "sillHeight" : 0,
+      "sizeUncertainty" : 0.069,
+      "source" : "scan",
+      "sourceId" : "7F13D48A-0332-4B84-95CF-C1E78264C5E0",
+      "wallId" : "w-040",
+      "width" : 0.728
+    },
+    {
+      "area" : 1.24,
+      "centerOffset" : 1.788,
+      "confidence" : 0.6,
+      "height" : 1.85,
+      "id" : "o-007",
+      "isOpen" : true,
+      "kind" : "door",
+      "leaves" : 1,
+      "leavesSource" : "estimated",
+      "levelId" : "level-0",
+      "sillHeight" : 0,
+      "sizeUncertainty" : 0.068,
+      "source" : "scan",
+      "sourceId" : "724E2E66-D533-4719-A275-E2E17327BA65",
+      "wallId" : "w-041",
+      "width" : 0.67
+    },
+    {
+      "area" : 2.33,
+      "azimuthDeg" : 115.1,
+      "centerOffset" : 1.702,
+      "confidence" : 0.95,
+      "height" : 1.506,
+      "id" : "o-008",
+      "kind" : "window",
+      "levelId" : "level-0",
+      "orientation" : "SO",
+      "sillHeight" : 0.872,
+      "sizeUncertainty" : 0.048,
+      "source" : "scan",
+      "sourceId" : "60196EC0-DD2E-4EA6-BE8D-B1C2A3046113",
+      "wallId" : "w-001",
+      "width" : 1.549
+    },
+    {
+      "area" : 0.99,
+      "azimuthDeg" : 295.2,
+      "centerOffset" : 1.868,
+      "confidence" : 0.95,
+      "height" : 1.411,
+      "id" : "o-009",
+      "kind" : "window",
+      "levelId" : "level-0",
+      "orientation" : "NW",
+      "sillHeight" : 0.877,
+      "sizeUncertainty" : 0.047,
+      "source" : "scan",
+      "sourceId" : "A8293D0D-EFAB-479F-8195-87BEDE7684A6",
+      "wallId" : "w-013",
+      "width" : 0.701
+    },
+    {
+      "area" : 0.94,
+      "azimuthDeg" : 295.3,
+      "centerOffset" : 1.247,
+      "confidence" : 0.95,
+      "height" : 1.237,
+      "id" : "o-010",
+      "kind" : "window",
+      "levelId" : "level-0",
+      "orientation" : "NW",
+      "sillHeight" : 0.893,
+      "sizeUncertainty" : 0.046,
+      "source" : "scan",
+      "sourceId" : "477A31B8-BC1E-4120-BBA4-F56A0E49764B",
+      "wallId" : "w-014",
+      "width" : 0.764
+    },
+    {
+      "area" : 0.4,
+      "azimuthDeg" : 25.2,
+      "centerOffset" : 1.37,
+      "confidence" : 0.95,
+      "height" : 0.822,
+      "id" : "o-011",
+      "kind" : "window",
+      "levelId" : "level-0",
+      "orientation" : "NO",
+      "sillHeight" : 0.824,
+      "sizeUncertainty" : 0.044,
+      "source" : "scan",
+      "sourceId" : "84CB1DC1-C110-4306-8EA9-E2C49D34AD11",
+      "wallId" : "w-015",
+      "width" : 0.489
+    },
+    {
+      "area" : 1.6,
+      "azimuthDeg" : 25.1,
+      "centerOffset" : 2.73,
+      "confidence" : 0.95,
+      "height" : 1.457,
+      "id" : "o-012",
+      "kind" : "window",
+      "levelId" : "level-0",
+      "orientation" : "NO",
+      "sillHeight" : 0.924,
+      "sizeUncertainty" : 0.048,
+      "source" : "scan",
+      "sourceId" : "CFF2DA2C-F9CE-4FAA-BBF3-01823D7D9B47",
+      "wallId" : "w-016",
+      "width" : 1.1
+    },
+    {
+      "area" : 1.31,
+      "azimuthDeg" : 25.2,
+      "centerOffset" : 1.995,
+      "confidence" : 0.95,
+      "height" : 1.372,
+      "id" : "o-013",
+      "kind" : "window",
+      "levelId" : "level-0",
+      "orientation" : "NO",
+      "sillHeight" : 0.783,
+      "sizeUncertainty" : 0.047,
+      "source" : "scan",
+      "sourceId" : "F936E775-0CE8-4D82-B7C1-A75005F2A1B4",
+      "wallId" : "w-024",
+      "width" : 0.956
+    },
+    {
+      "area" : 0.47,
+      "azimuthDeg" : 25.2,
+      "centerOffset" : 1.121,
+      "confidence" : 0.95,
+      "height" : 0.883,
+      "id" : "o-014",
+      "kind" : "window",
+      "levelId" : "level-0",
+      "orientation" : "NO",
+      "sillHeight" : 0.786,
+      "sizeUncertainty" : 0.044,
+      "source" : "scan",
+      "sourceId" : "2C5DD423-A218-4C1F-B256-C5E6ACD200B9",
+      "wallId" : "w-025",
+      "width" : 0.535
+    },
+    {
+      "area" : 0.4,
+      "azimuthDeg" : 205.2,
+      "centerOffset" : 0.506,
+      "confidence" : 0.6,
+      "height" : 0.811,
+      "id" : "o-015",
+      "kind" : "window",
+      "levelId" : "level-0",
+      "orientation" : "SW",
+      "sillHeight" : 0.918,
+      "sizeUncertainty" : 0.075,
+      "source" : "scan",
+      "sourceId" : "236E2BC7-1D0C-4A45-B2BB-807BB73A3D49",
+      "wallId" : "w-029",
+      "width" : 0.497
+    },
+    {
+      "area" : 1.81,
+      "azimuthDeg" : 205.2,
+      "centerOffset" : 2.243,
+      "confidence" : 0.6,
+      "height" : 1.573,
+      "id" : "o-016",
+      "kind" : "window",
+      "levelId" : "level-0",
+      "orientation" : "SW",
+      "sillHeight" : 0.815,
+      "sizeUncertainty" : 0.078,
+      "source" : "scan",
+      "sourceId" : "0157D3F5-58CA-4D52-88EC-6200A6B28462",
+      "wallId" : "w-030",
+      "width" : 1.148
+    },
+    {
+      "area" : 1.51,
+      "azimuthDeg" : 205.1,
+      "centerOffset" : 7.002,
+      "confidence" : 0.95,
+      "height" : 1.378,
+      "id" : "o-017",
+      "kind" : "window",
+      "levelId" : "level-0",
+      "orientation" : "SW",
+      "sillHeight" : 0.851,
+      "sizeUncertainty" : 0.047,
+      "source" : "scan",
+      "sourceId" : "EE32F227-EDA2-4C33-8EC8-8221D5ACB7B8",
+      "wallId" : "w-044",
+      "width" : 1.094
+    },
+    {
+      "area" : 0.97,
+      "azimuthDeg" : 115.2,
+      "centerOffset" : 2.436,
+      "confidence" : 0.6,
+      "height" : 0.754,
+      "id" : "o-018",
+      "kind" : "window",
+      "levelId" : "level-0",
+      "orientation" : "SO",
+      "sillHeight" : 1.307,
+      "sizeUncertainty" : 0.077,
+      "source" : "scan",
+      "sourceId" : "C3BC1CD3-13DA-4D41-B13F-F5515A031B9F",
+      "wallId" : "w-036",
+      "width" : 1.289
+    },
+    {
+      "area" : 4.1,
+      "centerOffset" : 0.927,
+      "confidence" : 0.95,
+      "height" : 2.22,
+      "id" : "o-019",
+      "kind" : "passage",
+      "levelId" : "level-0",
+      "sillHeight" : 0,
+      "sizeUncertainty" : 0.049,
+      "source" : "scan",
+      "sourceId" : "6AB907D5-6B3D-4B6C-8ED2-6E17FCCDDC62",
+      "wallId" : "w-037",
+      "width" : 1.848
+    },
+    {
+      "area" : 1.7,
+      "centerOffset" : 0.457,
+      "confidence" : 0.95,
+      "height" : 1.86,
+      "id" : "o-020",
+      "kind" : "passage",
+      "levelId" : "level-0",
+      "sillHeight" : 0,
+      "sizeUncertainty" : 0.045,
+      "source" : "scan",
+      "sourceId" : "F7AB178D-876B-4EB3-9473-5CBB68AEAF17",
+      "wallId" : "w-038",
+      "width" : 0.913
+    },
+    {
+      "area" : 2.05,
+      "centerOffset" : 0.514,
+      "confidence" : 0.95,
+      "height" : 2,
+      "id" : "o-021",
+      "kind" : "passage",
+      "levelId" : "level-0",
+      "sillHeight" : 0,
+      "sizeUncertainty" : 0.046,
+      "source" : "scan",
+      "sourceId" : "BD1F94C6-8474-4986-9D7B-C0CF8F566B31",
+      "wallId" : "w-039",
+      "width" : 1.026
+    }
+  ],
+  "orientation" : {
+    "northAccuracyDeg" : 14.596194648742676,
+    "northPlanAngleDeg" : 205,
+    "northSource" : "compass",
+    "planRotationDeg" : -16.77
+  },
+  "photos" : [
+
+  ],
+  "project" : {
+    "location" : {
+      "accuracyM" : 11.459524679977191,
+      "latitude" : 50.329168747685124,
+      "longitude" : 8.750672622937568
+    },
+    "name" : "Wohnung · 02.10. 18:28",
+    "sessionId" : "lokal-319C34FB"
+  },
+  "quality" : {
+    "assumptions" : [
+      {
+        "code" : "axis.exteriorShifted",
+        "count" : 19,
+        "text" : "Außenwandachse um halbe Wandstärke nach außen gelegt (Innenfläche gemessen)"
+      },
+      {
+        "code" : "door.swing",
+        "count" : 7,
+        "text" : "Türanschlag und Aufschlagrichtung werden nicht erfasst"
+      },
+      {
+        "code" : "opening.leavesEstimated",
+        "count" : 7,
+        "text" : "Flügelzahl aus der Breite geschätzt — im Scan oder in CAD Light bestätigen"
+      },
+      {
+        "code" : "thickness.exterior",
+        "count" : 19,
+        "text" : "Außenwandstärke nicht messbar (nur Innenseite gescannt) — pauschal 0.365 m"
+      },
+      {
+        "code" : "thickness.interior",
+        "count" : 29,
+        "text" : "Innenwandstärke nicht messbar (nur eine Seite gescannt) — pauschal 0.115 m"
+      },
+      {
+        "code" : "uvalue.notCaptured",
+        "count" : 69,
+        "text" : "U-Werte und Bauteilaufbauten werden nicht gescannt — Vorgaben in RaVia"
+      },
+      {
+        "code" : "volume.underRoof",
+        "count" : 1,
+        "text" : "Raumvolumen unter der Dachschräge aufsummiert statt Fläche × Höhe — der frühere Wert steht daneben"
+      },
+      {
+        "code" : "wall.axisSnapped",
+        "count" : 82,
+        "text" : "Wandrichtung auf die Hauptachse gelegt (Abweichung unter 2° gilt als Messrauschen)"
+      }
+    ],
+    "issues" : [
+      {
+        "code" : "opening.widerThanWall",
+        "count" : 1,
+        "severity" : "warning",
+        "text" : "Öffnung breiter als ihre Wand — auf Wandlänge begrenzt"
+      },
+      {
+        "code" : "roof.detected",
+        "count" : 1,
+        "severity" : "info",
+        "text" : "Dachschräge erkannt: Neigung ca. 36°, Kniestock 1.24 m — in CAD Light als Dachvorschlag prüfen"
+      },
+      {
+        "code" : "scale.unchecked",
+        "count" : 1,
+        "severity" : "info",
+        "text" : "Kein Kontrollmaß im Scan — der Maßstab ist ungeprüft"
+      }
+    ],
+    "lowConfidenceElements" : 0,
+    "score" : 95
+  },
+  "roomHints" : [
+    {
+      "levelId" : "level-0",
+      "name" : "Wohnen",
+      "point" : {
+        "x" : -1.079,
+        "y" : -3.649
+      },
+      "sourceLabel" : "livingRoom",
+      "usage" : "living"
+    },
+    {
+      "levelId" : "level-0",
+      "name" : "Essen",
+      "point" : {
+        "x" : -11.288,
+        "y" : -3.867
+      },
+      "sourceLabel" : "diningRoom",
+      "usage" : "living"
+    },
+    {
+      "levelId" : "level-0",
+      "name" : "Küche",
+      "point" : {
+        "x" : -10.891,
+        "y" : -1.004
+      },
+      "sourceLabel" : "kitchen",
+      "usage" : "kitchen"
+    },
+    {
+      "levelId" : "level-0",
+      "name" : "Bad",
+      "point" : {
+        "x" : -8.23,
+        "y" : -1.106
+      },
+      "sourceLabel" : "bathroom",
+      "usage" : "bath"
+    }
+  ],
+  "rooms" : [
+    {
+      "area" : 118.67,
+      "areaUncertainty" : 3.57,
+      "boundaryWallIds" : [
+        "w-001",
+        "w-002",
+        "w-003",
+        "w-006",
+        "w-013",
+        "w-014",
+        "w-015",
+        "w-016",
+        "w-017",
+        "w-022",
+        "w-024",
+        "w-025",
+        "w-029",
+        "w-030",
+        "w-033",
+        "w-034",
+        "w-036",
+        "w-044",
+        "w-046"
+      ],
+      "height" : 2.4,
+      "id" : "r-001",
+      "kind" : "room",
+      "levelId" : "level-0",
+      "lowAreaPct" : 0,
+      "meanHeight" : 2.3,
+      "name" : "Manu",
+      "nameSource" : "user",
+      "perimeter" : 57.62,
+      "polygon" : [
+        {
+          "x" : -9.195,
+          "y" : -6.992
+        },
+        {
+          "x" : -6.089,
+          "y" : -7.015
+        },
+        {
+          "x" : -3.237,
+          "y" : -7.022
+        },
+        {
+          "x" : -3.203,
+          "y" : -5.374
+        },
+        {
+          "x" : -2.56,
+          "y" : -5.42
+        },
+        {
+          "x" : -2.564,
+          "y" : -7.077
+        },
+        {
+          "x" : 0.863,
+          "y" : -7.086
+        },
+        {
+          "x" : 0.867,
+          "y" : -5.46
+        },
+        {
+          "x" : 0.877,
+          "y" : -1.365
+        },
+        {
+          "x" : 0.896,
+          "y" : 6.19
+        },
+        {
+          "x" : -2.225,
+          "y" : 6.198
+        },
+        {
+          "x" : -2.237,
+          "y" : 1.169
+        },
+        {
+          "x" : -2.24,
+          "y" : 0.228
+        },
+        {
+          "x" : -3.117,
+          "y" : 0.231
+        },
+        {
+          "x" : -9.109,
+          "y" : 0.227
+        },
+        {
+          "x" : -13.057,
+          "y" : 0.218
+        },
+        {
+          "x" : -13.063,
+          "y" : -2.012
+        },
+        {
+          "x" : -13.102,
+          "y" : -5.333
+        },
+        {
+          "x" : -13.106,
+          "y" : -6.968
+        }
+      ],
+      "usage" : "other",
+      "volume" : 273.28,
+      "volumeFlat" : 285.4,
+      "volumeSource" : "roofModel"
+    }
+  ],
+  "schemaVersion" : "1.10.0",
+  "source" : {
+    "app" : {
+      "build" : "16",
+      "name" : "RaVia Scan",
+      "version" : "1.0"
+    },
+    "captureId" : "103F9FF8-ECC1-4E08-AF14-54CD70DDD668",
+    "capturedAt" : "2026-10-02T16:41:02Z",
+    "device" : {
+      "model" : "iPhone13,3",
+      "osVersion" : "26.6.2"
+    },
+    "engineVersion" : "1.0.0",
+    "kind" : "roomplan"
+  },
+  "stairs" : [
+
+  ],
+  "summary" : {
+    "doorCount" : 7,
+    "emitterCount" : 0,
+    "exteriorWallCount" : 19,
+    "exteriorWallGrossArea" : 128.95,
+    "exteriorWallNetArea" : 116.21,
+    "levelCount" : 1,
+    "netFloorArea" : 118.67,
+    "passageCount" : 3,
+    "roomCount" : 1,
+    "stairCount" : 0,
+    "twoLeafOpeningCount" : 0,
+    "volume" : 273.28,
+    "wallCount" : 48,
+    "windowAreaByOrientation" : {
+      "NO" : 3.78,
+      "NW" : 1.93,
+      "SO" : 3.3,
+      "SW" : 3.72
+    },
+    "windowCount" : 11
+  },
+  "walls" : [
+    {
+      "azimuthDeg" : 115.1,
+      "boundary" : "exterior",
+      "boundarySource" : "scan",
+      "confidence" : 0.95,
+      "curved" : false,
+      "end" : {
+        "x" : 1.075,
+        "y" : 6.376
+      },
+      "grossArea" : 8.39,
+      "height" : 2.405,
+      "id" : "w-001",
+      "length" : 3.487,
+      "lengthUncertainty" : 0.059,
+      "levelId" : "level-0",
+      "netArea" : 6.06,
+      "orientation" : "SO",
+      "sourceIds" : [
+        "1EDA2922-3551-48D6-B98E-25BB4EED295E"
+      ],
+      "start" : {
+        "x" : -2.412,
+        "y" : 6.378
+      },
+      "thickness" : 0.365,
+      "thicknessSource" : "estimated",
+      "type" : "exterior"
+    },
+    {
+      "azimuthDeg" : 295.1,
+      "boundary" : "exterior",
+      "boundarySource" : "scan",
+      "confidence" : 0.95,
+      "curved" : false,
+      "end" : {
+        "x" : -2.747,
+        "y" : -7.266
+      },
+      "grossArea" : 4.68,
+      "height" : 1.235,
+      "id" : "w-002",
+      "kneeWall" : true,
+      "length" : 3.794,
+      "lengthUncertainty" : 0.064,
+      "levelId" : "level-0",
+      "netArea" : 4.68,
+      "orientation" : "NW",
+      "sourceIds" : [
+        "9A24A122-C8FA-40DC-81DA-C5FD917135CD"
+      ],
+      "start" : {
+        "x" : 1.047,
+        "y" : -7.269
+      },
+      "thickness" : 0.365,
+      "thicknessSource" : "estimated",
+      "type" : "exterior"
+    },
+    {
+      "azimuthDeg" : 205.2,
+      "boundary" : "exterior",
+      "boundarySource" : "scan",
+      "confidence" : 0.95,
+      "curved" : false,
+      "end" : {
+        "x" : -3.026,
+        "y" : -7.196
+      },
+      "grossArea" : 3.89,
+      "height" : 2.405,
+      "id" : "w-003",
+      "length" : 1.617,
+      "lengthUncertainty" : 0.037,
+      "levelId" : "level-0",
+      "netArea" : 3.89,
+      "orientation" : "SW",
+      "sourceIds" : [
+        "90DDC993-04B9-4347-BF96-52496978F01C"
+      ],
+      "start" : {
+        "x" : -3.023,
+        "y" : -5.578
+      },
+      "thickness" : 0.365,
+      "thicknessSource" : "estimated",
+      "type" : "exterior"
+    },
+    {
+      "boundary" : "interior",
+      "boundarySource" : "scan",
+      "confidence" : 0.95,
+      "curved" : false,
+      "end" : {
+        "x" : -3.199,
+        "y" : -3.527
+      },
+      "grossArea" : 6.93,
+      "height" : 2.405,
+      "id" : "w-004",
+      "length" : 2.88,
+      "lengthUncertainty" : 0.052,
+      "levelId" : "level-0",
+      "netArea" : 6.93,
+      "sourceIds" : [
+        "08708C49-E003-4C80-AD79-166F77201558"
+      ],
+      "start" : {
+        "x" : -6.079,
+        "y" : -3.521
+      },
+      "thickness" : 0.115,
+      "thicknessSource" : "estimated",
+      "type" : "interior"
+    },
+    {
+      "boundary" : "interior",
+      "boundarySource" : "scan",
+      "confidence" : 0.95,
+      "curved" : false,
+      "end" : {
+        "x" : -1.972,
+        "y" : -1.609
+      },
+      "grossArea" : 7.22,
+      "height" : 2.646,
+      "id" : "w-005",
+      "length" : 2.73,
+      "lengthUncertainty" : 0.05,
+      "levelId" : "level-0",
+      "netArea" : 7.22,
+      "sourceIds" : [
+        "277077E0-16CF-435A-ADE2-E5E61B6E9691"
+      ],
+      "start" : {
+        "x" : -3.913,
+        "y" : -3.528
+      },
+      "thickness" : 0.115,
+      "thicknessSource" : "estimated",
+      "type" : "interior"
+    },
+    {
+      "azimuthDeg" : 295.2,
+      "boundary" : "exterior",
+      "boundarySource" : "scan",
+      "confidence" : 0.95,
+      "curved" : false,
+      "end" : {
+        "x" : -13.278,
+        "y" : -7.169
+      },
+      "grossArea" : 5.07,
+      "height" : 1.235,
+      "id" : "w-006",
+      "kneeWall" : true,
+      "length" : 4.104,
+      "lengthUncertainty" : 0.068,
+      "levelId" : "level-0",
+      "netArea" : 5.07,
+      "orientation" : "NW",
+      "sourceIds" : [
+        "0523BDAF-34AC-4356-83D4-38B492BC6802"
+      ],
+      "start" : {
+        "x" : -9.174,
+        "y" : -7.177
+      },
+      "thickness" : 0.365,
+      "thicknessSource" : "estimated",
+      "type" : "exterior"
+    },
+    {
+      "boundary" : "interior",
+      "boundarySource" : "scan",
+      "confidence" : 0.95,
+      "curved" : false,
+      "end" : {
+        "x" : -1.973,
+        "y" : -2.491
+      },
+      "grossArea" : 1.37,
+      "height" : 2.405,
+      "id" : "w-007",
+      "length" : 0.569,
+      "lengthUncertainty" : 0.03,
+      "levelId" : "level-0",
+      "netArea" : 1.37,
+      "sourceIds" : [
+        "16BA75FA-C5C7-4C56-BB3B-C78C22F71165"
+      ],
+      "start" : {
+        "x" : -1.972,
+        "y" : -1.922
+      },
+      "thickness" : 0.115,
+      "thicknessSource" : "estimated",
+      "type" : "interior"
+    },
+    {
+      "boundary" : "interior",
+      "boundarySource" : "scan",
+      "confidence" : 0.95,
+      "curved" : false,
+      "end" : {
+        "x" : -1.972,
+        "y" : -1.361
+      },
+      "grossArea" : 1.35,
+      "height" : 2.405,
+      "id" : "w-008",
+      "length" : 0.562,
+      "lengthUncertainty" : 0.03,
+      "levelId" : "level-0",
+      "netArea" : 1.35,
+      "sourceIds" : [
+        "E13459C2-D3CE-4206-9748-6D4187DD749F"
+      ],
+      "start" : {
+        "x" : -1.972,
+        "y" : -1.922
+      },
+      "thickness" : 0.115,
+      "thicknessSource" : "estimated",
+      "type" : "interior"
+    },
+    {
+      "boundary" : "interior",
+      "boundarySource" : "scan",
+      "confidence" : 0.95,
+      "curved" : false,
+      "end" : {
+        "x" : -10.25,
+        "y" : -2.013
+      },
+      "grossArea" : 1.17,
+      "height" : 2.405,
+      "id" : "w-009",
+      "length" : 0.486,
+      "lengthUncertainty" : 0.029,
+      "levelId" : "level-0",
+      "netArea" : 1.17,
+      "sourceIds" : [
+        "71D69E49-7DB0-4B14-9436-D6E7DBBD5426"
+      ],
+      "start" : {
+        "x" : -10.251,
+        "y" : -2.499
+      },
+      "thickness" : 0.115,
+      "thicknessSource" : "estimated",
+      "type" : "interior"
+    },
+    {
+      "boundary" : "interior",
+      "boundarySource" : "scan",
+      "confidence" : 0.95,
+      "curved" : false,
+      "end" : {
+        "x" : -9.156,
+        "y" : -3.515
+      },
+      "grossArea" : 4.39,
+      "height" : 2.405,
+      "id" : "w-010",
+      "length" : 1.827,
+      "lengthUncertainty" : 0.039,
+      "levelId" : "level-0",
+      "netArea" : 4.39,
+      "sourceIds" : [
+        "E0011945-914A-4168-997E-31F929ED3A75"
+      ],
+      "start" : {
+        "x" : -9.166,
+        "y" : -5.342
+      },
+      "thickness" : 0.115,
+      "thicknessSource" : "estimated",
+      "type" : "interior"
+    },
+    {
+      "boundary" : "interior",
+      "boundarySource" : "scan",
+      "confidence" : 0.95,
+      "curved" : false,
+      "end" : {
+        "x" : -9.166,
+        "y" : -5.342
+      },
+      "grossArea" : 4.41,
+      "height" : 2.405,
+      "id" : "w-011",
+      "length" : 1.835,
+      "lengthUncertainty" : 0.039,
+      "levelId" : "level-0",
+      "netArea" : 4.41,
+      "sourceIds" : [
+        "55C91B29-2833-4E8F-99A2-BA189C2C2978"
+      ],
+      "start" : {
+        "x" : -9.174,
+        "y" : -7.177
+      },
+      "thickness" : 0.115,
+      "thicknessSource" : "estimated",
+      "type" : "interior"
+    },
+    {
+      "boundary" : "interior",
+      "boundarySource" : "scan",
+      "confidence" : 0.95,
+      "curved" : false,
+      "end" : {
+        "x" : -6.079,
+        "y" : -3.521
+      },
+      "grossArea" : 8.82,
+      "height" : 2.405,
+      "id" : "w-012",
+      "length" : 3.667,
+      "lengthUncertainty" : 0.062,
+      "levelId" : "level-0",
+      "netArea" : 8.82,
+      "sourceIds" : [
+        "2F2D01BA-828B-4AED-B6DA-B6D29D41315F"
+      ],
+      "start" : {
+        "x" : -6.089,
+        "y" : -7.189
+      },
+      "thickness" : 0.115,
+      "thicknessSource" : "estimated",
+      "type" : "interior"
+    },
+    {
+      "azimuthDeg" : 295.2,
+      "boundary" : "exterior",
+      "boundarySource" : "scan",
+      "confidence" : 0.95,
+      "curved" : false,
+      "end" : {
+        "x" : -6.089,
+        "y" : -7.189
+      },
+      "grossArea" : 7.37,
+      "height" : 2.405,
+      "id" : "w-013",
+      "length" : 3.062,
+      "lengthUncertainty" : 0.054,
+      "levelId" : "level-0",
+      "netArea" : 6.38,
+      "orientation" : "NW",
+      "sourceIds" : [
+        "2F6F7667-AACD-4CC9-9A94-3F53B7FF2869"
+      ],
+      "start" : {
+        "x" : -3.026,
+        "y" : -7.196
+      },
+      "thickness" : 0.365,
+      "thicknessSource" : "estimated",
+      "type" : "exterior"
+    },
+    {
+      "azimuthDeg" : 295.3,
+      "boundary" : "exterior",
+      "boundarySource" : "scan",
+      "confidence" : 0.95,
+      "curved" : false,
+      "end" : {
+        "x" : -9.174,
+        "y" : -7.177
+      },
+      "grossArea" : 7.42,
+      "height" : 2.405,
+      "id" : "w-014",
+      "length" : 3.085,
+      "lengthUncertainty" : 0.054,
+      "levelId" : "level-0",
+      "netArea" : 6.47,
+      "orientation" : "NW",
+      "sourceIds" : [
+        "731CE8E7-FE63-4CF0-9717-10C579F15847"
+      ],
+      "start" : {
+        "x" : -6.089,
+        "y" : -7.189
+      },
+      "thickness" : 0.365,
+      "thicknessSource" : "estimated",
+      "type" : "exterior"
+    },
+    {
+      "azimuthDeg" : 25.2,
+      "boundary" : "exterior",
+      "boundarySource" : "scan",
+      "confidence" : 0.95,
+      "curved" : false,
+      "end" : {
+        "x" : -13.272,
+        "y" : -5.333
+      },
+      "grossArea" : 3.02,
+      "height" : 2.405,
+      "id" : "w-015",
+      "length" : 1.836,
+      "lengthUncertainty" : 0.039,
+      "levelId" : "level-0",
+      "netArea" : 2.62,
+      "orientation" : "NO",
+      "profile" : [
+        {
+          "x" : 0.188,
+          "y" : 1.235
+        },
+        {
+          "x" : 1.836,
+          "y" : 2.435
+        },
+        {
+          "x" : 1.836,
+          "y" : 0
+        },
+        {
+          "x" : 0.188,
+          "y" : 0
+        }
+      ],
+      "sourceIds" : [
+        "BA469B6E-7D31-47D9-BEA5-24D4A1D72A45"
+      ],
+      "start" : {
+        "x" : -13.278,
+        "y" : -7.169
+      },
+      "thickness" : 0.365,
+      "thicknessSource" : "estimated",
+      "type" : "exterior"
+    },
+    {
+      "azimuthDeg" : 25.1,
+      "boundary" : "exterior",
+      "boundarySource" : "scan",
+      "confidence" : 0.95,
+      "curved" : false,
+      "end" : {
+        "x" : -2.412,
+        "y" : 6.378
+      },
+      "grossArea" : 12.53,
+      "height" : 2.405,
+      "id" : "w-016",
+      "length" : 5.21,
+      "lengthUncertainty" : 0.083,
+      "levelId" : "level-0",
+      "netArea" : 10.93,
+      "orientation" : "NO",
+      "sourceIds" : [
+        "B19B0B4A-BD10-42DE-B435-70899C432D75"
+      ],
+      "start" : {
+        "x" : -2.418,
+        "y" : 1.168
+      },
+      "thickness" : 0.365,
+      "thicknessSource" : "estimated",
+      "type" : "exterior"
+    },
+    {
+      "azimuthDeg" : 25.3,
+      "boundary" : "exterior",
+      "boundarySource" : "scan",
+      "confidence" : 0.95,
+      "curved" : false,
+      "end" : {
+        "x" : -2.418,
+        "y" : 1.168
+      },
+      "grossArea" : 1.89,
+      "height" : 2.405,
+      "id" : "w-017",
+      "length" : 0.785,
+      "lengthUncertainty" : 0.031,
+      "levelId" : "level-0",
+      "netArea" : 1.89,
+      "orientation" : "NO",
+      "sourceIds" : [
+        "1F14FE9C-2BDA-4818-A74D-EADF26C799AC"
+      ],
+      "start" : {
+        "x" : -2.421,
+        "y" : 0.383
+      },
+      "thickness" : 0.365,
+      "thicknessSource" : "estimated",
+      "type" : "exterior"
+    },
+    {
+      "boundary" : "interior",
+      "boundarySource" : "scan",
+      "confidence" : 0.95,
+      "curved" : false,
+      "end" : {
+        "x" : -3.129,
+        "y" : -2.49
+      },
+      "grossArea" : 1.6,
+      "height" : 2.405,
+      "id" : "w-018",
+      "length" : 0.663,
+      "lengthUncertainty" : 0.03,
+      "levelId" : "level-0",
+      "netArea" : 1.6,
+      "sourceIds" : [
+        "4017F4FF-8393-4090-BE3F-D32C771F643F"
+      ],
+      "start" : {
+        "x" : -3.789,
+        "y" : -2.422
+      },
+      "thickness" : 0.115,
+      "thicknessSource" : "estimated",
+      "type" : "interior"
+    },
+    {
+      "boundary" : "interior",
+      "boundarySource" : "scan",
+      "confidence" : 0.95,
+      "curved" : false,
+      "end" : {
+        "x" : -3.199,
+        "y" : -3.527
+      },
+      "grossArea" : 2.5,
+      "height" : 2.405,
+      "id" : "w-019",
+      "length" : 1.04,
+      "lengthUncertainty" : 0.032,
+      "levelId" : "level-0",
+      "netArea" : 2.5,
+      "sourceIds" : [
+        "97ABFF80-287B-4937-992B-287B69A39EFF"
+      ],
+      "start" : {
+        "x" : -3.129,
+        "y" : -2.49
+      },
+      "thickness" : 0.115,
+      "thicknessSource" : "estimated",
+      "type" : "interior"
+    },
+    {
+      "boundary" : "interior",
+      "boundarySource" : "scan",
+      "confidence" : 0.95,
+      "curved" : false,
+      "end" : {
+        "x" : -6.046,
+        "y" : -2.506
+      },
+      "grossArea" : 0.42,
+      "height" : 2.405,
+      "id" : "w-020",
+      "length" : 0.174,
+      "lengthUncertainty" : 0.028,
+      "levelId" : "level-0",
+      "netArea" : 0.42,
+      "sourceIds" : [
+        "3F81E425-6503-48F0-A189-1E2EF6BAA96A"
+      ],
+      "start" : {
+        "x" : -6.22,
+        "y" : -2.504
+      },
+      "thickness" : 0.115,
+      "thicknessSource" : "estimated",
+      "type" : "interior"
+    },
+    {
+      "boundary" : "interior",
+      "boundarySource" : "scan",
+      "confidence" : 0.95,
+      "curved" : false,
+      "end" : {
+        "x" : -1.972,
+        "y" : -1.361
+      },
+      "grossArea" : 7.3,
+      "height" : 2.405,
+      "id" : "w-021",
+      "length" : 3.036,
+      "lengthUncertainty" : 0.054,
+      "levelId" : "level-0",
+      "netArea" : 7.3,
+      "sourceIds" : [
+        "FEE5B458-61D2-4C7C-AA8B-F017B00ECCDC"
+      ],
+      "start" : {
+        "x" : 1.064,
+        "y" : -1.364
+      },
+      "thickness" : 0.115,
+      "thicknessSource" : "estimated",
+      "type" : "interior"
+    },
+    {
+      "azimuthDeg" : 115.5,
+      "boundary" : "exterior",
+      "boundarySource" : "scan",
+      "confidence" : 0.95,
+      "curved" : false,
+      "end" : {
+        "x" : -2.421,
+        "y" : 0.383
+      },
+      "grossArea" : 1.67,
+      "height" : 2.405,
+      "id" : "w-022",
+      "length" : 0.694,
+      "lengthUncertainty" : 0.03,
+      "levelId" : "level-0",
+      "netArea" : 1.67,
+      "orientation" : "SO",
+      "sourceIds" : [
+        "EA176765-0637-4DC0-A56F-F0902EBC0E6F"
+      ],
+      "start" : {
+        "x" : -3.115,
+        "y" : 0.389
+      },
+      "thickness" : 0.365,
+      "thicknessSource" : "estimated",
+      "type" : "exterior"
+    },
+    {
+      "boundary" : "interior",
+      "boundarySource" : "scan",
+      "confidence" : 0.95,
+      "curved" : false,
+      "end" : {
+        "x" : -10.25,
+        "y" : -2.013
+      },
+      "grossArea" : 7.24,
+      "height" : 2.405,
+      "id" : "w-023",
+      "length" : 3.011,
+      "lengthUncertainty" : 0.053,
+      "levelId" : "level-0",
+      "netArea" : 5.77,
+      "sourceIds" : [
+        "0B1B0361-8066-47BD-8A95-64D8CEFA0CDC"
+      ],
+      "start" : {
+        "x" : -13.261,
+        "y" : -2.01
+      },
+      "thickness" : 0.115,
+      "thicknessSource" : "estimated",
+      "type" : "interior"
+    },
+    {
+      "azimuthDeg" : 25.2,
+      "boundary" : "exterior",
+      "boundarySource" : "scan",
+      "confidence" : 0.95,
+      "curved" : false,
+      "end" : {
+        "x" : -13.261,
+        "y" : -2.01
+      },
+      "grossArea" : 7.99,
+      "height" : 2.405,
+      "id" : "w-024",
+      "length" : 3.323,
+      "lengthUncertainty" : 0.057,
+      "levelId" : "level-0",
+      "netArea" : 6.68,
+      "orientation" : "NO",
+      "sourceIds" : [
+        "9501A1B2-6526-4533-A90B-86EC1044EE7F"
+      ],
+      "start" : {
+        "x" : -13.272,
+        "y" : -5.333
+      },
+      "thickness" : 0.365,
+      "thicknessSource" : "estimated",
+      "type" : "exterior"
+    },
+    {
+      "azimuthDeg" : 25.2,
+      "boundary" : "exterior",
+      "boundarySource" : "scan",
+      "confidence" : 0.95,
+      "curved" : false,
+      "end" : {
+        "x" : -13.255,
+        "y" : 0.418
+      },
+      "grossArea" : 5.84,
+      "height" : 2.405,
+      "id" : "w-025",
+      "length" : 2.428,
+      "lengthUncertainty" : 0.046,
+      "levelId" : "level-0",
+      "netArea" : 5.37,
+      "orientation" : "NO",
+      "sourceIds" : [
+        "CB6D16DF-217C-42CC-BDD6-0D8AFF4C7355"
+      ],
+      "start" : {
+        "x" : -13.261,
+        "y" : -2.01
+      },
+      "thickness" : 0.365,
+      "thicknessSource" : "estimated",
+      "type" : "exterior"
+    },
+    {
+      "boundary" : "interior",
+      "boundarySource" : "scan",
+      "confidence" : 0.95,
+      "curved" : false,
+      "end" : {
+        "x" : -3.789,
+        "y" : -2.422
+      },
+      "grossArea" : 1.66,
+      "height" : 2.405,
+      "id" : "w-026",
+      "length" : 0.691,
+      "lengthUncertainty" : 0.03,
+      "levelId" : "level-0",
+      "netArea" : 1.66,
+      "sourceIds" : [
+        "E8C93135-813D-43A1-B9A5-AB6512841E0E"
+      ],
+      "start" : {
+        "x" : -3.123,
+        "y" : -2.239
+      },
+      "thickness" : 0.115,
+      "thicknessSource" : "estimated",
+      "type" : "interior"
+    },
+    {
+      "boundary" : "interior",
+      "boundarySource" : "scan",
+      "confidence" : 0.95,
+      "curved" : false,
+      "end" : {
+        "x" : -3.123,
+        "y" : -2.239
+      },
+      "grossArea" : 2.87,
+      "height" : 2.405,
+      "id" : "w-027",
+      "length" : 1.193,
+      "lengthUncertainty" : 0.033,
+      "levelId" : "level-0",
+      "netArea" : 2.87,
+      "sourceIds" : [
+        "59CD697F-8282-4F75-ADC8-18E9A7FFD95F"
+      ],
+      "start" : {
+        "x" : -1.972,
+        "y" : -1.922
+      },
+      "thickness" : 0.115,
+      "thicknessSource" : "estimated",
+      "type" : "interior"
+    },
+    {
+      "boundary" : "interior",
+      "boundarySource" : "scan",
+      "confidence" : 0.95,
+      "curved" : false,
+      "end" : {
+        "x" : -3.123,
+        "y" : -2.239
+      },
+      "grossArea" : 0.6,
+      "height" : 2.405,
+      "id" : "w-028",
+      "length" : 0.25,
+      "lengthUncertainty" : 0.029,
+      "levelId" : "level-0",
+      "netArea" : 0.6,
+      "sourceIds" : [
+        "4E3228EC-3B4D-4097-863F-9CABDC81622D"
+      ],
+      "start" : {
+        "x" : -3.129,
+        "y" : -2.49
+      },
+      "thickness" : 0.115,
+      "thicknessSource" : "estimated",
+      "type" : "interior"
+    },
+    {
+      "azimuthDeg" : 205.2,
+      "boundary" : "exterior",
+      "boundarySource" : "scan",
+      "confidence" : 0.95,
+      "curved" : false,
+      "end" : {
+        "x" : 1.047,
+        "y" : -7.269
+      },
+      "grossArea" : 3.01,
+      "height" : 2.405,
+      "id" : "w-029",
+      "length" : 1.824,
+      "lengthUncertainty" : 0.039,
+      "levelId" : "level-0",
+      "netArea" : 2.61,
+      "orientation" : "SW",
+      "profile" : [
+        {
+          "x" : 0.003,
+          "y" : 2.435
+        },
+        {
+          "x" : 1.645,
+          "y" : 1.235
+        },
+        {
+          "x" : 1.645,
+          "y" : 0
+        },
+        {
+          "x" : 0.003,
+          "y" : 0
+        }
+      ],
+      "sourceIds" : [
+        "610F7BEC-46CE-4EE9-907F-6AB41835994F"
+      ],
+      "start" : {
+        "x" : 1.053,
+        "y" : -5.445
+      },
+      "thickness" : 0.365,
+      "thicknessSource" : "estimated",
+      "type" : "exterior"
+    },
+    {
+      "azimuthDeg" : 205.2,
+      "boundary" : "exterior",
+      "boundarySource" : "scan",
+      "confidence" : 0.95,
+      "curved" : false,
+      "end" : {
+        "x" : 1.053,
+        "y" : -5.445
+      },
+      "grossArea" : 9.82,
+      "height" : 2.405,
+      "id" : "w-030",
+      "length" : 4.081,
+      "lengthUncertainty" : 0.067,
+      "levelId" : "level-0",
+      "netArea" : 8.01,
+      "orientation" : "SW",
+      "sourceIds" : [
+        "B7B58EAE-987A-4EA5-B3B0-C5D00E5E2902"
+      ],
+      "start" : {
+        "x" : 1.064,
+        "y" : -1.364
+      },
+      "thickness" : 0.365,
+      "thicknessSource" : "estimated",
+      "type" : "exterior"
+    },
+    {
+      "boundary" : "interior",
+      "boundarySource" : "scan",
+      "confidence" : 0.95,
+      "curved" : false,
+      "end" : {
+        "x" : -2.745,
+        "y" : -5.44
+      },
+      "grossArea" : 9.13,
+      "height" : 2.405,
+      "id" : "w-031",
+      "length" : 3.798,
+      "lengthUncertainty" : 0.064,
+      "levelId" : "level-0",
+      "netArea" : 9.13,
+      "sourceIds" : [
+        "BF5E3AB7-781A-49A1-B879-8EC451CADB97"
+      ],
+      "start" : {
+        "x" : 1.053,
+        "y" : -5.445
+      },
+      "thickness" : 0.115,
+      "thicknessSource" : "estimated",
+      "type" : "interior"
+    },
+    {
+      "boundary" : "interior",
+      "boundarySource" : "scan",
+      "confidence" : 0.95,
+      "curved" : false,
+      "end" : {
+        "x" : -4.701,
+        "y" : 0.394
+      },
+      "grossArea" : 6.77,
+      "height" : 2.405,
+      "id" : "w-032",
+      "length" : 2.815,
+      "lengthUncertainty" : 0.051,
+      "levelId" : "level-0",
+      "netArea" : 6.77,
+      "sourceIds" : [
+        "0600C598-086D-4E7E-A6D2-11053F873E51"
+      ],
+      "start" : {
+        "x" : -4.702,
+        "y" : -2.421
+      },
+      "thickness" : 0.115,
+      "thicknessSource" : "estimated",
+      "type" : "interior"
+    },
+    {
+      "azimuthDeg" : 300.6,
+      "boundary" : "exterior",
+      "boundarySource" : "scan",
+      "confidence" : 0.95,
+      "curved" : false,
+      "end" : {
+        "x" : -3.023,
+        "y" : -5.578
+      },
+      "grossArea" : 0.67,
+      "height" : 2.405,
+      "id" : "w-033",
+      "length" : 0.279,
+      "lengthUncertainty" : 0.029,
+      "levelId" : "level-0",
+      "netArea" : 0.67,
+      "orientation" : "NW",
+      "sourceIds" : [
+        "F3E2ADE8-65EB-4287-BEF7-84119DEB855E"
+      ],
+      "start" : {
+        "x" : -2.746,
+        "y" : -5.605
+      },
+      "thickness" : 0.365,
+      "thicknessSource" : "estimated",
+      "type" : "exterior"
+    },
+    {
+      "azimuthDeg" : 25.1,
+      "boundary" : "exterior",
+      "boundarySource" : "scan",
+      "confidence" : 0.95,
+      "curved" : false,
+      "end" : {
+        "x" : -2.746,
+        "y" : -5.605
+      },
+      "grossArea" : 2.7,
+      "height" : 2.405,
+      "id" : "w-034",
+      "length" : 1.66,
+      "lengthUncertainty" : 0.038,
+      "levelId" : "level-0",
+      "netArea" : 2.7,
+      "orientation" : "NO",
+      "profile" : [
+        {
+          "x" : 0.186,
+          "y" : 1.235
+        },
+        {
+          "x" : 1.66,
+          "y" : 2.435
+        },
+        {
+          "x" : 1.66,
+          "y" : 0
+        },
+        {
+          "x" : 0.186,
+          "y" : 0
+        }
+      ],
+      "sourceIds" : [
+        "6563DD4C-D67C-4961-9371-1A4F1C58B89E"
+      ],
+      "start" : {
+        "x" : -2.747,
+        "y" : -7.266
+      },
+      "thickness" : 0.365,
+      "thicknessSource" : "estimated",
+      "type" : "exterior"
+    },
+    {
+      "boundary" : "interior",
+      "boundarySource" : "scan",
+      "confidence" : 0.95,
+      "curved" : false,
+      "end" : {
+        "x" : -6.046,
+        "y" : 0.398
+      },
+      "grossArea" : 5.55,
+      "height" : 2.405,
+      "id" : "w-035",
+      "length" : 2.904,
+      "lengthUncertainty" : 0.052,
+      "levelId" : "level-0",
+      "netArea" : 5.55,
+      "profile" : [
+        {
+          "x" : 0,
+          "y" : 2.435
+        },
+        {
+          "x" : 1.031,
+          "y" : 2.435
+        },
+        {
+          "x" : 1.27,
+          "y" : 2.31
+        },
+        {
+          "x" : 2.72,
+          "y" : 1.106
+        },
+        {
+          "x" : 2.72,
+          "y" : 0
+        },
+        {
+          "x" : 0,
+          "y" : 0
+        }
+      ],
+      "sourceIds" : [
+        "D886BAC8-12BD-4D68-B67D-94E467C8FD12"
+      ],
+      "start" : {
+        "x" : -6.046,
+        "y" : -2.506
+      },
+      "thickness" : 0.115,
+      "thicknessSource" : "estimated",
+      "type" : "interior"
+    },
+    {
+      "azimuthDeg" : 115.2,
+      "boundary" : "exterior",
+      "boundarySource" : "scan",
+      "confidence" : 0.95,
+      "curved" : false,
+      "end" : {
+        "x" : -9.145,
+        "y" : 0.407
+      },
+      "grossArea" : 9.88,
+      "height" : 2.405,
+      "id" : "w-036",
+      "length" : 4.11,
+      "lengthUncertainty" : 0.068,
+      "levelId" : "level-0",
+      "netArea" : 8.91,
+      "orientation" : "SO",
+      "sourceIds" : [
+        "4D5DB500-3FBE-479C-9478-372B9F5F2C86"
+      ],
+      "start" : {
+        "x" : -13.255,
+        "y" : 0.418
+      },
+      "thickness" : 0.365,
+      "thicknessSource" : "estimated",
+      "type" : "exterior"
+    },
+    {
+      "boundary" : "interior",
+      "boundarySource" : "scan",
+      "confidence" : 0.95,
+      "curved" : false,
+      "end" : {
+        "x" : -3.205,
+        "y" : -5.561
+      },
+      "grossArea" : 4.89,
+      "height" : 2.405,
+      "id" : "w-037",
+      "length" : 2.033,
+      "lengthUncertainty" : 0.042,
+      "levelId" : "level-0",
+      "netArea" : 0.79,
+      "sourceIds" : [
+        "8C289EA5-6DF8-49EC-A239-25C33AEBF70D"
+      ],
+      "start" : {
+        "x" : -3.199,
+        "y" : -3.527
+      },
+      "thickness" : 0.115,
+      "thicknessSource" : "estimated",
+      "type" : "interior"
+    },
+    {
+      "boundary" : "interior",
+      "boundarySource" : "scan",
+      "confidence" : 0.95,
+      "curved" : false,
+      "end" : {
+        "x" : -4.702,
+        "y" : -2.421
+      },
+      "grossArea" : 2.2,
+      "height" : 2.405,
+      "id" : "w-038",
+      "length" : 0.913,
+      "lengthUncertainty" : 0.031,
+      "levelId" : "level-0",
+      "netArea" : 0.5,
+      "sourceIds" : [
+        "AB7AE992-8DF2-4557-A7A4-330B372FE68E"
+      ],
+      "start" : {
+        "x" : -3.789,
+        "y" : -2.422
+      },
+      "thickness" : 0.115,
+      "thicknessSource" : "estimated",
+      "type" : "interior"
+    },
+    {
+      "boundary" : "interior",
+      "boundarySource" : "scan",
+      "confidence" : 0.95,
+      "curved" : false,
+      "end" : {
+        "x" : -6.079,
+        "y" : -3.521
+      },
+      "grossArea" : 2.47,
+      "height" : 2.405,
+      "id" : "w-039",
+      "length" : 1.027,
+      "lengthUncertainty" : 0.032,
+      "levelId" : "level-0",
+      "netArea" : 0.42,
+      "sourceIds" : [
+        "F210A9C9-2CAC-4644-8BEA-7619C81587EC"
+      ],
+      "start" : {
+        "x" : -6.22,
+        "y" : -2.504
+      },
+      "thickness" : 0.115,
+      "thicknessSource" : "estimated",
+      "type" : "interior"
+    },
+    {
+      "boundary" : "interior",
+      "boundarySource" : "scan",
+      "confidence" : 0.95,
+      "curved" : false,
+      "end" : {
+        "x" : -9.156,
+        "y" : -3.515
+      },
+      "grossArea" : 8.14,
+      "height" : 2.646,
+      "id" : "w-040",
+      "length" : 3.077,
+      "lengthUncertainty" : 0.054,
+      "levelId" : "level-0",
+      "netArea" : 6.68,
+      "sourceIds" : [
+        "14F98F9C-1C77-4E03-A8B2-DF9D89730AEC"
+      ],
+      "start" : {
+        "x" : -6.079,
+        "y" : -3.521
+      },
+      "thickness" : 0.115,
+      "thicknessSource" : "estimated",
+      "type" : "interior"
+    },
+    {
+      "boundary" : "interior",
+      "boundarySource" : "scan",
+      "confidence" : 0.95,
+      "curved" : false,
+      "end" : {
+        "x" : -9.166,
+        "y" : -5.342
+      },
+      "grossArea" : 9.87,
+      "height" : 2.405,
+      "id" : "w-041",
+      "length" : 4.106,
+      "lengthUncertainty" : 0.068,
+      "levelId" : "level-0",
+      "netArea" : 8.63,
+      "sourceIds" : [
+        "75D48332-83F6-4510-B6DA-06673458AB22"
+      ],
+      "start" : {
+        "x" : -13.272,
+        "y" : -5.333
+      },
+      "thickness" : 0.115,
+      "thicknessSource" : "estimated",
+      "type" : "interior"
+    },
+    {
+      "boundary" : "interior",
+      "boundarySource" : "scan",
+      "confidence" : 0.95,
+      "curved" : false,
+      "end" : {
+        "x" : -1.973,
+        "y" : -2.491
+      },
+      "grossArea" : 2.78,
+      "height" : 2.405,
+      "id" : "w-042",
+      "length" : 1.156,
+      "lengthUncertainty" : 0.033,
+      "levelId" : "level-0",
+      "netArea" : 2.78,
+      "sourceIds" : [
+        "1122CF0C-51F3-4649-9530-E0CE4245F7EB"
+      ],
+      "start" : {
+        "x" : -3.129,
+        "y" : -2.49
+      },
+      "thickness" : 0.115,
+      "thicknessSource" : "estimated",
+      "type" : "interior"
+    },
+    {
+      "boundary" : "interior",
+      "boundarySource" : "scan",
+      "confidence" : 0.95,
+      "curved" : false,
+      "end" : {
+        "x" : -3.116,
+        "y" : 0.389
+      },
+      "grossArea" : 4.98,
+      "height" : 2.405,
+      "id" : "w-043",
+      "length" : 2.629,
+      "lengthUncertainty" : 0.049,
+      "levelId" : "level-0",
+      "netArea" : 3.51,
+      "profile" : [
+        {
+          "x" : 0,
+          "y" : 2.435
+        },
+        {
+          "x" : 0.835,
+          "y" : 2.435
+        },
+        {
+          "x" : 2.439,
+          "y" : 1.235
+        },
+        {
+          "x" : 2.439,
+          "y" : 0
+        },
+        {
+          "x" : 0,
+          "y" : 0
+        }
+      ],
+      "sourceIds" : [
+        "5B0BE848-D30F-43BC-8878-19BECB6F6610"
+      ],
+      "start" : {
+        "x" : -3.123,
+        "y" : -2.239
+      },
+      "thickness" : 0.115,
+      "thicknessSource" : "estimated",
+      "type" : "interior"
+    },
+    {
+      "azimuthDeg" : 205.1,
+      "boundary" : "exterior",
+      "boundarySource" : "scan",
+      "confidence" : 0.95,
+      "curved" : false,
+      "end" : {
+        "x" : 1.064,
+        "y" : -1.364
+      },
+      "grossArea" : 18.61,
+      "height" : 2.405,
+      "id" : "w-044",
+      "length" : 7.739,
+      "lengthUncertainty" : 0.119,
+      "levelId" : "level-0",
+      "netArea" : 17.1,
+      "orientation" : "SW",
+      "sourceIds" : [
+        "AE8FA5DD-6246-48DC-85DD-046ACCCF5C52"
+      ],
+      "start" : {
+        "x" : 1.075,
+        "y" : 6.376
+      },
+      "thickness" : 0.365,
+      "thicknessSource" : "estimated",
+      "type" : "exterior"
+    },
+    {
+      "boundary" : "interior",
+      "boundarySource" : "scan",
+      "confidence" : 0.95,
+      "curved" : false,
+      "end" : {
+        "x" : 1.068,
+        "y" : 1.166
+      },
+      "grossArea" : 8.38,
+      "height" : 2.405,
+      "id" : "w-045",
+      "length" : 3.486,
+      "lengthUncertainty" : 0.059,
+      "levelId" : "level-0",
+      "netArea" : 6.73,
+      "sourceIds" : [
+        "CCD0ECFE-3A4D-4A53-932B-F0E6014622C8"
+      ],
+      "start" : {
+        "x" : -2.418,
+        "y" : 1.168
+      },
+      "thickness" : 0.115,
+      "thicknessSource" : "estimated",
+      "type" : "interior"
+    },
+    {
+      "azimuthDeg" : 115.2,
+      "boundary" : "exterior",
+      "boundarySource" : "scan",
+      "confidence" : 0.95,
+      "curved" : false,
+      "end" : {
+        "x" : -3.115,
+        "y" : 0.389
+      },
+      "grossArea" : 14.5,
+      "height" : 2.405,
+      "id" : "w-046",
+      "length" : 6.03,
+      "lengthUncertainty" : 0.095,
+      "levelId" : "level-0",
+      "netArea" : 14.5,
+      "orientation" : "SO",
+      "sourceIds" : [
+        "497663C7-8171-4A41-974F-4EEBFE0FFC18"
+      ],
+      "start" : {
+        "x" : -9.145,
+        "y" : 0.407
+      },
+      "thickness" : 0.365,
+      "thicknessSource" : "estimated",
+      "type" : "exterior"
+    },
+    {
+      "boundary" : "interior",
+      "boundarySource" : "scan",
+      "confidence" : 0.95,
+      "curved" : false,
+      "end" : {
+        "x" : -9.145,
+        "y" : 0.407
+      },
+      "grossArea" : 8.24,
+      "height" : 2.646,
+      "id" : "w-047",
+      "length" : 3.923,
+      "lengthUncertainty" : 0.065,
+      "levelId" : "level-0",
+      "netArea" : 6.72,
+      "profile" : [
+        {
+          "x" : 0.003,
+          "y" : 2.646
+        },
+        {
+          "x" : 2.281,
+          "y" : 2.31
+        },
+        {
+          "x" : 3.745,
+          "y" : 1.235
+        },
+        {
+          "x" : 3.745,
+          "y" : -0
+        },
+        {
+          "x" : 0.003,
+          "y" : -0
+        }
+      ],
+      "sourceIds" : [
+        "AFAE9055-D7D7-4DB7-BA30-EBD3C2B24BEF"
+      ],
+      "start" : {
+        "x" : -9.156,
+        "y" : -3.515
+      },
+      "thickness" : 0.115,
+      "thicknessSource" : "estimated",
+      "type" : "interior"
+    },
+    {
+      "boundary" : "interior",
+      "boundarySource" : "scan",
+      "confidence" : 0.95,
+      "curved" : false,
+      "end" : {
+        "x" : -6.22,
+        "y" : -2.504
+      },
+      "grossArea" : 9.69,
+      "height" : 2.405,
+      "id" : "w-048",
+      "length" : 4.03,
+      "lengthUncertainty" : 0.067,
+      "levelId" : "level-0",
+      "netArea" : 8.44,
+      "sourceIds" : [
+        "5D5E7A0C-5834-4F9A-8A4B-E6A42363D17E"
+      ],
+      "start" : {
+        "x" : -10.251,
+        "y" : -2.499
+      },
+      "thickness" : 0.115,
+      "thicknessSource" : "estimated",
+      "type" : "interior"
+    }
+  ]
+}

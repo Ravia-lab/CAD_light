@@ -3752,7 +3752,7 @@ export default function Editor2D({ className = '' }: { className?: string }) {
 
       {!showLegend && (
         <button
-          className="panel absolute bottom-4 left-3 px-2.5 py-1.5 text-[10px] text-slate-400 transition hover:text-slate-200"
+          className="panel absolute bottom-4 left-3 px-2.5 py-1.5 text-[10px] text-slate-400 transition hover:text-slate-200 [@media(pointer:coarse)]:min-h-[44px] [@media(pointer:coarse)]:text-[13px]"
           title="Was bedeuten die Symbole und Farben im Plan?"
           onClick={() => setShowLegend(true)}
         >

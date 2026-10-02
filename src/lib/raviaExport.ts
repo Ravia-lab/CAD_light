@@ -105,9 +105,10 @@ import {
 } from './geometry';
 import { solidFootprint } from './verticalSymbols';
 import { getWallGeometry, indexOpeningsByWall, openingsOf, openingSpan } from './wallGeometry';
-import { gebaeudeUmriss, gradeSplit, isMassiveArea } from './roomDetection';
+import { gradeSplit, isMassiveArea } from './roomDetection';
 import { validateModel } from './validation';
-import { buildRoofFrame, roofFaceAzimuthAt } from './roofGeometry';
+import { roofFaceAzimuthAt } from './roofGeometry';
+import { baueDachlandschaft, dachteilAn, dachUeberRaum } from './dachlandschaft';
 import {
   envelopeArea,
   roomEnvelopeArea,
@@ -1044,26 +1045,29 @@ function buildPipeSchedule(doc: BimDocument): PipeScheduleEntry[] {
  */
 function skylightAzimuth(doc: BimDocument, room: Room, opening: { position: Vec2 }): number {
   const level = doc.levels[room.levelId];
-  const roof = level?.roof;
+  const roof = dachUeberRaum(level, room.id);
   if (!roof) return 0;
 
+  /*
+   * Das Gerüst über **dem Dachteil, unter dem das Fenster sitzt** — gebaut
+   * von derselben Dachlandschaft, die auch die 3D-Ansicht zeichnet. Bis
+   * 1.69.0 stand hier ein Gerüst über allen Wänden des Geschosses und
+   * `level.roof`; beim Geschoss mit zwei Dächern gab es `level.roof` nicht,
+   * und jedes Dachfenster bekam den Azimut 0.
+   *
+   * Für ein Geschoss mit **einem** Dach ohne Raumliste ist das dieselbe
+   * Rechnung wie vorher: alle Wände, deren Knoten als Punktwolke, der
+   * geordnete Gebäudeumriss — sonst landete beim Walmdach jedes Dachfenster
+   * auf einer der vier Flächen des umschließenden Rechtecks.
+   */
   const levelWalls = Object.values(doc.walls).filter((w) => w.levelId === room.levelId);
-  const outline: Vec2[] = [];
-  for (const w of levelWalls) {
-    const a = doc.nodes[w.a];
-    const b = doc.nodes[w.b];
-    if (a) outline.push({ x: a.x, y: a.y });
-    if (b) outline.push({ x: b.x, y: b.y });
-  }
-  // Ohne den geordneten Umriss landete beim Walmdach jedes Dachfenster auf
-  // einer der vier Flächen des umschließenden Rechtecks — bei einem L also
-  // regelmäßig auf einer Fassade, die es dort gar nicht gibt.
-  const frame = buildRoofFrame(
-    roof,
-    outline,
-    [],
-    roof.kind !== 'flat' ? gebaeudeUmriss(levelWalls, doc.nodes) : [],
-  );
+  const teile = baueDachlandschaft({
+    level,
+    walls: levelWalls,
+    nodes: doc.nodes,
+    rooms: Object.values(doc.rooms).filter((r) => r.levelId === room.levelId),
+  });
+  const frame = dachteilAn(teile, opening.position)?.frame ?? null;
   return frame ? roofFaceAzimuthAt(frame, opening.position) : roof.azimuth;
 }
 
@@ -1093,7 +1097,9 @@ function buildRoom(
   // stehen, wäre er doppelt gezählt.
   const detailedBridges = doc.meta.thermalBridgeMethod === 'detailed';
   const defaultTb = detailedBridges ? 0 : doc.meta.thermalBridgeSupplement;
-  const roof = level?.roof && level.roof.kind !== 'flat' ? level.roof : undefined;
+  // Das Dach über **diesem** Raum, nicht `level.roof` — siehe `dachUeberRaum`.
+  const dachHier = dachUeberRaum(level, room.id);
+  const roof = dachHier && dachHier.kind !== 'flat' ? dachHier : undefined;
   const gableConstruction = roof?.gableConstructionId
     ? (doc.constructions ?? {})[roof.gableConstructionId]
     : undefined;

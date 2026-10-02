@@ -168,6 +168,10 @@ export const REMEDIES: Record<string, string> = {
   'roof.overlap':
     'Im Reiter „Dach" die Raumzuweisung der beiden Dächer prüfen: Jeder Raum gehört unter genau eines. Welches sonst gilt, entscheidet die Reihenfolge im Dokument — reproduzierbar, aber von niemandem gewollt.',
   'roof.pitch': 'Dachneigung im Reiter „Dach" prüfen — übliche Dächer liegen zwischen 15 und 50 Grad.',
+  'roof.scan-not-captured':
+    'Vor Ort nachsehen, was über diesem Raum ist. Liegt er unter der Schräge, im Reiter „Dach" den Raum dem Dach aus dem Scan zuweisen; hat er eine gerade Decke oder ein eigenes Dach, ist nichts zu tun bzw. ein eigenes Dach anzulegen.',
+  'roof.scan-position-unknown':
+    'Im Reiter „Dach" die Räume auswählen, über denen die Schräge wirklich liegt. Ein Scan aus RaVia Scan ab Schema 1.10.0 bringt diese Angabe mit.',
   'roof.u-value': 'U-Wert der Dachfläche im Reiter „Dach" eintragen. Ein gedämmtes Dach liegt bei 0,14 bis 0,24.',
   'roof.collar': 'Die Kehlbalkenlage muss über dem Kniestock liegen, sonst gibt es keine Schräge dazwischen.',
   'roof.wall-height': 'Kein Fehler: unter der Schräge zählt ohnehin die tatsächliche Höhe. Die Wandhöhe wirkt dort nur als Obergrenze.',
@@ -1484,6 +1488,52 @@ export function validateModel(doc: BimDocument): ValidationReport {
         } else {
           belegt.set(id, dach.name ?? 'Dach');
         }
+      }
+    }
+  }
+
+  /*
+   * **Dach aus dem Scan: wo es nicht belegt ist** (seit 1.70.0).
+   *
+   * Der Gebäudescan legt sein Dach nur über die Räume, an deren Rand eine
+   * Kniestock-, Profil- oder in den Dachraum reichende Wand steht
+   * (`lib/scanUebernahme.ts`). Jeder andere Raum des Geschosses rechnet mit
+   * gerader Decke. Das kann stimmen — ein Flügel mit Flachdach, eine
+   * Kehlbalkendecke — oder der Scan hat die Schräge dort nicht gesehen.
+   * Entscheiden kann das nur, wer vor Ort war; deshalb ein Hinweis je Raum
+   * und kein stilles Ja.
+   *
+   * Ausgenommen sind Räume, über denen ein Geschoss liegt: Dort ist eine
+   * Decke und kein Dach, und die Meldung wäre falsch.
+   */
+  {
+    const geschosse = Object.values(doc.levels).sort((a, b) => a.order - b.order);
+    for (let i = 0; i < geschosse.length; i++) {
+      const level = geschosse[i];
+      const scanDaecher = daecherVon(level).filter((d) => d.scan);
+      if (!scanDaecher.length) continue;
+      if (scanDaecher.every((d) => !d.scan!.lageBelegt)) {
+        add(
+          'info',
+          'roof.scan-position-unknown',
+          `Das Dach über ${level.name} kommt aus dem Scan, der aber nicht belegt, wo die Schräge sitzt — es liegt deshalb über dem ganzen Geschoss.`,
+        );
+        continue;
+      }
+      const gedeckt = new Set(daecherVon(level).flatMap((d) => d.roomIds ?? []));
+      const hier = rooms.filter((r) => r.levelId === level.id);
+      const oben = geschosse[i + 1];
+      const ohneGeschoss = new Set(
+        oben ? raeumeOhneGeschossDarueber(hier, rooms.filter((r) => r.levelId === oben.id)) : hier.map((r) => r.id),
+      );
+      for (const raum of hier) {
+        if (gedeckt.has(raum.id) || !ohneGeschoss.has(raum.id)) continue;
+        add(
+          'warning',
+          'roof.scan-not-captured',
+          `${raum.name}: Dach über diesem Gebäudeteil nicht erfasst — prüfen. Der Scan belegt hier keine Dachschräge; gerechnet wird mit gerader Decke in Geschosshöhe.`,
+          { kind: 'room', id: raum.id },
+        );
       }
     }
   }

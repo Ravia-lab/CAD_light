@@ -1125,6 +1125,41 @@ export const DACHFORMEN_AUS_UMRISS: readonly { name: string; umriss: string }[] 
  * Beim Pultdach zählt nur die Seite, die von `azimuth` weg zeigt; die
  * Gegenseite liegt vollständig auf Kniestockhöhe.
  */
+/**
+ * Herkunft der Dachmaße aus dem Scan — gespeichert am Dach, angezeigt im
+ * Dach-Panel.
+ *
+ * **Warum das am Dach stehen muss und nicht nur in der Übernahmemeldung.**
+ * Die Meldung ist nach zehn Sekunden weg; das Dach bleibt im Projekt, und wer
+ * es in drei Wochen anfasst, muss wissen, ob Kniestock und First gemessen
+ * oder geschätzt sind. Eine geschätzte Neigung sieht im Feld genauso aus wie
+ * eine gemessene.
+ */
+export interface ScanDachHerkunft {
+  /**
+   * `gemessen`: Kniestock und First mit Zielpunkten aufgenommen
+   * (`roof.source: "user"`). `geschaetzt`: aus den Dachschrägen des Scans
+   * abgeleitet (`"scan"`). `unbekannt`: Das Modell sagt es nicht (vor 1.10.0).
+   */
+  herkunft: 'gemessen' | 'geschaetzt' | 'unbekannt';
+  /** Firsthöhe über Fußboden [m], falls der Scan sie nennt. */
+  firsthoehe?: number;
+  /** Abweichung der Messung von der Schätzung [m], falls genannt (`userDelta`). */
+  korrektur?: number;
+  /**
+   * Dachflächen nach Fallrichtung (`roofSegments`, seit Schema 1.4.0) — wie
+   * die App sie meldet, also als **Kompassrichtung** (0° = geografisch Nord),
+   * nicht planbezogen wie `RoofDefinition.azimuth`.
+   */
+  segmente: { azimuth: number; pitch: number }[];
+  /**
+   * Ist belegt, **wo** das Dach sitzt — über Kniestock-, Profil- oder in den
+   * Dachraum reichende Wände? Ohne Beleg (ältere Scans) liegt es wie bisher
+   * über dem ganzen Geschoss, und die Prüfung sagt das.
+   */
+  lageBelegt: boolean;
+}
+
 export interface RoofDefinition {
   /**
    * Kennung dieses Dachs — nötig, seit ein Geschoss mehrere tragen kann.
@@ -1137,6 +1172,11 @@ export interface RoofDefinition {
   id?: string;
   /** Name für die Liste — „Hauptdach", „Anbau". Ohne Angabe durchnummeriert. */
   name?: string;
+  /**
+   * Seit 1.70.0: Das Dach kommt aus einem Gebäudescan — mit der Herkunft
+   * seiner Maße. Fehlt bei gezeichneten Dächern.
+   */
+  scan?: ScanDachHerkunft;
   /**
    * Räume, über denen dieses Dach sitzt. Leer oder fehlend = das ganze
    * Geschoss.

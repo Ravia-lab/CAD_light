@@ -144,6 +144,13 @@ export interface RaumHinweis {
   raviaRoomId?: string;
   /** Hat ein Mensch den Namen vergeben? Solche Hinweise gehen vor. */
   vomNutzer?: boolean;
+  /**
+   * Die Fläche, die der Monteur benannt hat (seit 1.70.0, nur aus dem
+   * Gebäudescan). Überdeckt sie mehr als einen erkannten Raum, ist sie ein
+   * **Bereich** und kein Raum — dann bekommt keiner der Räume ihren Namen.
+   * Siehe `benenneRaeume` in `lib/scanUebernahme.ts`.
+   */
+  flaeche?: Vec2[];
 }
 
 /** Was nicht gemessen, sondern angenommen wurde. */

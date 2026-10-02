@@ -325,6 +325,73 @@ console.log('\n▸ Der Scan als Datei, und die Heizlast zurück');
   pruefe('… und die Gebäudeheizlast ersetzt den Überschlag [W]', rueck.gesamt, 8400);
 }
 
+// ---------------------------------------------------------------------------
+// Der erste echte Feldscan (RaVia Scan, Schema 1.10.0, 02.10.2026)
+// ---------------------------------------------------------------------------
+/*
+ * Derselbe Fall wie im Prüfblock `scanuebernahme`, aber durch den echten
+ * Store und den Dateidialog. Der Prüfblock kann den Store nicht laden; hier
+ * fällt auf, wenn `loadBuilding` die Schritte in anderer Reihenfolge geht —
+ * Dach vor der Raumerkennung, Namen vor dem Dach, Prüfpunkte vergessen.
+ */
+console.log('\n▸ Feldscan 02.10.2026 — Dach nur über belegten Räumen');
+{
+  await p.locator('header input[type=file][accept*="json"]').first().setInputFiles('./scripts/referenz/scan-wohnung-2026-10-02.json');
+  await p.waitForTimeout(3000);
+  const st = await p.evaluate(() => {
+    const s = window.__ravia.getState();
+    const doc = s.doc;
+    const lvl = Object.values(doc.levels)[0];
+    const daecher = lvl.roofs ?? [];
+    const raeume = Object.values(doc.rooms);
+    const bericht = window.RaViaCAD.validate();
+    return {
+      meldung: s.statusMessage ?? '',
+      waende: Object.keys(doc.walls).length,
+      raeume: raeume.length,
+      namen: raeume.map((r) => r.name).sort(),
+      daecher: daecher.length,
+      altesDach: lvl.roof === undefined,
+      unterDach: (daecher[0]?.roomIds ?? []).length,
+      herkunft: daecher[0]?.scan?.herkunft ?? null,
+      nichtErfasst: bericht.issues.filter((i) => i.code === 'roof.scan-not-captured').length,
+      fahnen: Object.values(doc.annotations).filter((a) => (a.text ?? '').startsWith('Prüfpunkt Scan')).length,
+      ohneRoof: raeume.filter((r) => !r.roof).map((r) => Math.round(r.area * 10) / 10),
+    };
+  });
+  console.log('    Meldung:', st.meldung);
+  pruefe('53 Wände nach den T-Stößen', st.waende, 53);
+  pruefe('elf Räume erkannt', st.raeume, 11);
+  pruefe('kein Raum heißt „Manu"', st.namen.includes('Manu'), false);
+  pruefe('Wohnen, Essen, Küche, Bad vergeben', ['Bad', 'Essen', 'Küche', 'Wohnen'].every((n) => st.namen.includes(n)), true);
+  pruefe('ein Dach im Geschoss', st.daecher, 1);
+  pruefe('… in roofs, nicht in roof', st.altesDach, true);
+  pruefe('… über zehn Räumen', st.unterDach, 10);
+  pruefe('… Herkunft „geschätzt" am Dach', st.herkunft, 'geschaetzt');
+  pruefe('ein Raum ohne Dach — der Flügel, 15,5 m² brutto (licht kleiner)', st.ohneRoof.length, 1);
+  pruefe('ein Hinweis „Dach nicht erfasst" in der Prüfung', st.nichtErfasst, 1);
+  pruefe('eine Prüfpunkt-Fahne im Plan', st.fahnen, 1);
+  pruefe('Meldung: Toleranz', st.meldung, 'Toleranz ± 3,0 % (angenommen, kein Kontrollmaß)');
+  pruefe('Meldung: Dach über 10 Räumen, 1 mit gerader Decke', st.meldung, 'Dach über 10 Räumen, 1 mit gerader Decke');
+  pruefe('Meldung: „Manu" als Bereich benannt', st.meldung, '„Manu" galt für das ganze Geschoss');
+
+  // Das Dach-Panel zeigt die Herkunft.
+  await p.locator('button:has-text("Dach")').first().click().catch(() => {});
+  await p.waitForTimeout(500);
+  pruefe('Dach-Panel: Herkunft sichtbar', await p.locator('[data-scan-herkunft="geschaetzt"]').count(), 1);
+
+  // Zum Ansehen: die 3D-Ansicht nach der Übernahme.
+  await p.locator('button:has-text("3D")').first().click().catch(() => {});
+  await p.waitForTimeout(2500);
+  await p.screenshot({ path: 'scripts/referenz/scan-wohnung-2026-10-02/cad-3d.png' });
+
+  // A2 an den gezeichneten Körpern: Nichts ragt über die Dachfläche.
+  const ueber = await p.evaluate(() => window.__raviaUeberDach?.() ?? null);
+  console.log('    über der Dachfläche:', JSON.stringify(ueber));
+  pruefe('Wände, Rahmen, Glas unter dem Dach: Eckpunkte geprüft', (ueber?.punkte ?? 0) > 500, true);
+  pruefe('… keiner mehr als 1 mm über der Dachfläche', (ueber?.groesster ?? 1) <= 0.001, true);
+}
+
 // --- Fehlerfreiheit --------------------------------------------------------
 pruefe('Keine Fehler in der Konsole', errs.length, 0);
 if (errs.length) errs.slice(0, 5).forEach((e) => console.log('     ' + e));

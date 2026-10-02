@@ -70,12 +70,13 @@ await p.addInitScript(() => {
   // 1.1.0: der Rückweg ist dazugekommen, die lesenden Befehle sind
   // unverändert geblieben.
   // 1.3.0: `loadBuilding` (Gebäudemodell aus RaVia Scan) — reiner Zuwachs.
-  expect('Version gemeldet', api.version, '1.7.0');
+  // 1.8.0: `getDeviceProfile` — reiner Zuwachs.
+  expect('Version gemeldet', api.version, '1.8.0');
   expect(
     'Alle Methoden da',
     api.methods,
     [
-      'applyPatch', 'getDocument', 'getExport', 'getIfc', 'getSummary', 'getWritableFields',
+      'applyPatch', 'getDeviceProfile', 'getDocument', 'getExport', 'getIfc', 'getSummary', 'getWritableFields',
       'loadBuilding', 'loadIfc', 'loadProject', 'onChange', 'onNetzGelegt', 'reportDiscardedRooms', 'validate', 'version',
     ],
   );
@@ -196,7 +197,7 @@ console.log('\n▸ Nachrichtenbrücke (postMessage aus dem umgebenden Fenster)')
 
   const status = await p.locator('#status').innerText();
   expect('Verbindung steht', status, 'verbunden');
-  expect('Version angezeigt', await p.locator('#version').innerText(), '1.7.0');
+  expect('Version angezeigt', await p.locator('#version').innerText(), '1.8.0');
 
   const panel = await p.locator('#summary').innerText();
   expect('Kurzfassung angekommen', /Räume/.test(panel), true);
@@ -260,6 +261,69 @@ console.log('\n▸ Nachrichtenbrücke (postMessage aus dem umgebenden Fenster)')
     return answered;
   });
   expect('Fremde Nachrichten ignoriert', foreign, false);
+}
+
+console.log('\n▸ Geräteprofil (getDeviceProfile, Embed-API 1.8.0)');
+{
+  /*
+   * Gefragt wird über die Nachrichtenbrücke aus einem umgebenden Fenster —
+   * so, wie die RaVia-Seite fragt. Je Gerät ein eigener Browserkontext mit
+   * der Kennung, dem Fenster und der Berührung des echten Geräts. Erwartet
+   * wird, was `geraeteprofil.ts` aus genau diesen Merkmalen ableitet.
+   *
+   * Das iPad meldet sich mit der Mac-Kennung von Safari — der Fall, an dem
+   * eine Erkennung über die Kennung allein scheitert.
+   */
+  const MAC_SAFARI =
+    'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Safari/605.1.15';
+  const IPHONE =
+    'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1';
+  const geraete = [
+    { name: 'Rechner', ctx: { viewport: { width: 1440, height: 900 } }, form: 'desktop', touch: false },
+    { name: 'iPhone hochkant', ctx: { viewport: { width: 393, height: 659 }, screen: { width: 393, height: 852 }, userAgent: IPHONE, hasTouch: true, isMobile: true }, form: 'phone', touch: true },
+    { name: 'iPhone quer', ctx: { viewport: { width: 852, height: 361 }, screen: { width: 852, height: 393 }, userAgent: IPHONE, hasTouch: true, isMobile: true }, form: 'phone', touch: true },
+    { name: 'iPad (meldet sich als Mac)', ctx: { viewport: { width: 820, height: 1106 }, screen: { width: 820, height: 1180 }, userAgent: MAC_SAFARI, hasTouch: true, isMobile: false }, form: 'tablet', touch: true },
+    { name: 'iPad, geteilte Ansicht 320 px', ctx: { viewport: { width: 320, height: 1106 }, screen: { width: 1180, height: 820 }, userAgent: MAC_SAFARI, hasTouch: true, isMobile: false }, form: 'tablet', touch: true },
+  ];
+  for (const g of geraete) {
+    const ctx = await b.newContext(g.ctx);
+    await ctx.addInitScript(() => {
+      localStorage.setItem('ravia-ui-mode', 'profi');
+      localStorage.setItem('ravia-einfuehrung', '1');
+    });
+    const seite = await ctx.newPage();
+    seite.on('pageerror', (e) => errs.push(`PAGEERROR (${g.name}): ` + e.message));
+    await seite.goto(BASIS + 'einbettung-beispiel.html', { waitUntil: 'networkidle' });
+    await seite.locator('#status').filter({ hasText: 'verbunden' }).waitFor({ timeout: 20000 }).catch(() => {});
+    const antwort = await seite.evaluate(
+      () =>
+        new Promise((resolve) => {
+          const cad = document.getElementById('cad').contentWindow;
+          const h = (e) => {
+            if (e.data?.channel !== 'ravia-cad' || e.data.id !== 'geraet') return;
+            window.removeEventListener('message', h);
+            resolve({ type: e.data.type, payload: e.data.payload });
+          };
+          window.addEventListener('message', h);
+          cad.postMessage({ channel: 'ravia-cad', type: 'getDeviceProfile', id: 'geraet' }, '*');
+          setTimeout(() => resolve({ type: 'keine Antwort', payload: null }), 5000);
+        }),
+    );
+    expect(`${g.name}: Antworttyp`, antwort.type, 'deviceProfile');
+    expect(`${g.name}: form`, antwort.payload?.form, g.form);
+    expect(`${g.name}: touch`, antwort.payload?.touch, g.touch);
+    /*
+     * `width` ist das Fenster von CAD Light — eingebettet also die
+     * Innenbreite des Rahmens, nicht die der Seite. Ein erster Entwurf
+     * dieser Zeile verlangte „höchstens so breit wie die Seite" und fiel bei
+     * 320 px durch: Der Rahmen der Beispielseite hat eine Mindestbreite und
+     * ragt dann über die Seite hinaus. Das ist eine Eigenschaft der
+     * Beispielseite, kein Fehler im Profil — geprüft wird deshalb genau.
+     */
+    const rahmen = await seite.evaluate(() => document.getElementById('cad').clientWidth);
+    expect(`${g.name}: width = Innenbreite des Rahmens (${rahmen})`, antwort.payload?.width, rahmen);
+    await ctx.close();
+  }
 }
 
 console.log('\n▸ Schreibweg (applyPatch über postMessage)');
@@ -541,7 +605,12 @@ console.log('\n▸ Gebäudescan aus RaVia Scan über die Nachrichtenbrücke (loa
       heizkoerper: hk.length, mitRaum: hk.filter((f) => !!f.roomId).length,
       typen: hk.map((f) => f.params.radiatorType).join(','),
       leistung: hk.reduce((s, f) => s + (f.params.powerW ?? 0), 0),
-      dach: level?.roof ? `${level.roof.kind} ${level.roof.pitch}° KS ${level.roof.kneeHeight}` : null,
+      // Seit 1.70.0 steht das Scan-Dach als Dachteil in `roofs` (an Räume
+      // gebunden), nicht mehr als das eine Geschossdach `roof`.
+      dach: (() => {
+        const d = level?.roofs?.[0] ?? level?.roof;
+        return d ? `${d.kind} ${d.pitch}° KS ${d.kneeHeight}` : null;
+      })(),
       nord: doc.meta.northAngle, geschoss: level?.name,
     };
     // Rückgängig bringt den vorigen Stand zurück.
@@ -589,7 +658,19 @@ console.log('\n▸ Zweites Geschoss dazuladen (loadBuilding mit merge)');
   for (const liste of ['walls', 'openings', 'rooms', 'emitters', 'roomHints']) {
     for (const x of og[liste] ?? []) if (x.levelId) x.levelId = 'level-1';
   }
-  for (const r of og.rooms ?? []) { r.name = 'Schlafen'; r.nameSource = 'user'; r.raviaRoomId = 'og-1'; }
+  /*
+   * Ein vom Monteur benannter Raum mit RaVia-Kennung. Bis 1.69.0 war das
+   * der eine Raum des Beispiels über das ganze Geschoss. Seit 1.70.0 ist so
+   * ein Raum ein **Bereich** und benennt keinen erkannten Raum (Auftrag A3,
+   * Feldscan „Manu"; geprüft im Prüfblock `scanuebernahme`). Hier deshalb
+   * ein Raum, wie ihn der nächste App-Build liefert: eine Fläche, die einen
+   * erkannten Raum trifft — um den Punkt, an dem RoomPlan „Wohnen" sah.
+   */
+  for (const r of og.rooms ?? []) {
+    r.name = 'Kinderzimmer'; r.nameSource = 'user'; r.raviaRoomId = 'og-1';
+    const m = { x: -0.156, y: 6.421 };
+    r.polygon = [{ x: m.x - 0.4, y: m.y - 0.4 }, { x: m.x + 0.4, y: m.y - 0.4 }, { x: m.x + 0.4, y: m.y + 0.4 }, { x: m.x - 0.4, y: m.y + 0.4 }];
+  }
 
   const ergebnis = await p.evaluate(async ([eg, og]) => {
     const cad = document.getElementById('cad').contentWindow;
@@ -628,7 +709,7 @@ console.log('\n▸ Zweites Geschoss dazuladen (loadBuilding mit merge)');
   expect('Zwei Geschosse', ergebnis.geschosse, ['EG', 'OG']);
   expect('Erdgeschoss steht noch', ergebnis.waendeEG > 0, true);
   expect('Obergeschoss hat Wände', ergebnis.waendeOG > 0, true);
-  expect('Raumname aus der App übernommen', ergebnis.namenOG.includes('Schlafen'), true);
+  expect('Raumname aus der App übernommen', ergebnis.namenOG.includes('Kinderzimmer'), true);
   expect('RaVia-Raumkennung übernommen', ergebnis.raviaIds > 0, true);
   expect('Ohne merge wird wieder ersetzt', ergebnis.ersetztOk && ergebnis.nachErsetzen === 1, true);
 }
@@ -656,7 +737,7 @@ console.log('\n▸ Zweiter Aufruf mit warmem Zwischenspeicher');
   await p.goto(BASIS + 'einbettung-beispiel.html', { waitUntil: 'networkidle' });
   await p.locator('#status').filter({ hasText: 'verbunden' }).waitFor({ timeout: 20000 }).catch(() => {});
   expect('Auch mit warmem Zwischenspeicher verbunden', await p.locator('#status').innerText(), 'verbunden');
-  expect('… mit Version', await p.locator('#version').innerText(), '1.7.0');
+  expect('… mit Version', await p.locator('#version').innerText(), '1.8.0');
 }
 
 console.log('\nERRORS:', errs.length ? errs.join('\n') : 'keine');

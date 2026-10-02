@@ -411,7 +411,10 @@ export function offsetPolygonPerEdge(poly: readonly Vec2[], offsets: readonly nu
     // Punkt auf der Verbindung Ecke→Gehrung zurückgezogen — die Ecke wird
     // stumpf statt falsch.
     const ecke = poly[i];
-    const grenze = MITER_LIMIT * Math.max(offsets[(i - 1 + n) % n] ?? 0, offsets[i] ?? 0, 1e-6);
+    // Betrag: Ein negativer Versatz rückt nach außen (Dachüberstand, seit
+    // 1.70.0). Ohne Betrag wäre die Grenze dann 4 µm gewesen, und jede Ecke
+    // wäre auf den Umriss zurückgezogen worden — der Überstand verschwand.
+    const grenze = MITER_LIMIT * Math.max(Math.abs(offsets[(i - 1 + n) % n] ?? 0), Math.abs(offsets[i] ?? 0), 1e-6);
     const dx = hit.x - ecke.x;
     const dy = hit.y - ecke.y;
     const weit = Math.hypot(dx, dy);

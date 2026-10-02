@@ -123,13 +123,17 @@ export function pruefeDachgeschoss(check: CheckFn): void {
 
   /*
    * Der eigentliche Stolperdraht: Ein *nackter* `roofHeightAt(roofFrame, …)`
-   * ist die Schreibweise, die den Fehler hatte. Genau ein Vorkommen ist
-   * erlaubt — das Dachraster selbst, denn das *ist* die Dachfläche des
-   * Dachgeschosses. Jedes weitere bedeutet: irgendetwas wird wieder an einem
-   * Dach gekappt, ohne nach dem Geschoss zu fragen.
+   * ist die Schreibweise, die den Fehler hatte. Erlaubt ist er nur für die
+   * Dachhaut selbst, denn die *ist* die Dachfläche des Dachgeschosses. Seit
+   * 1.70.0 sind das zwei Stellen: der Polygonschnitt (`dachhaut`) und das
+   * Raster als Rückfall für ein Dach ohne Umriss. Jedes weitere Vorkommen
+   * bedeutet: irgendetwas wird wieder an einem Dach gekappt, ohne nach dem
+   * Geschoss zu fragen.
    */
   const nackt = (quelltext.match(/roofHeightAt\(roofFrame\b/g) ?? []).length;
-  check('Genau ein ungeschützter Aufruf — das Dachraster selbst', nackt, 1);
+  check('Genau zwei ungeschützte Aufrufe — die Dachhaut selbst (Schnitt und Raster)', nackt, 2);
+  check('… und beide bauen die Dachhaut',
+    quelltext.includes('dachhaut(roofFrame, ueberstand, (p) => roofHeightAt(roofFrame, p))'), true);
 
   // === 4 — Auch die TGA endet nur unter ihrem eigenen Dach =================
   //

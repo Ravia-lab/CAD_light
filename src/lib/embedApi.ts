@@ -28,6 +28,7 @@ import { buildIfc } from './ifcExport';
 import { validateModel } from './validation';
 import { writableFields } from './hostPatch';
 import type { HostPatch, HostPatchReport } from './hostPatch';
+import { geraetemerkmale, geraeteprofil, type Geraeteprofil } from './geraeteprofil';
 
 /**
  * 1.1.0 — der Rückweg ist dazugekommen: `applyPatch` und
@@ -58,7 +59,14 @@ import type { HostPatch, HostPatchReport } from './hostPatch';
  * heraus unerreichbar: Beide Seiten sind getrennte Fenster, und über die
  * Brücke war `getDocument` kein Befehl. Wieder reiner Zuwachs.
  */
-export const EMBED_API_VERSION = '1.7.0';
+/*
+ * 1.8.0 — `getDeviceProfile`: CAD Light sagt, auf welchem Gerät es läuft
+ * (`{ touch, form: "phone"|"tablet"|"desktop", width, height, grund }`).
+ * Die RaVia-Seite richtet danach den Dialog „Gebäude scannen" aus, statt
+ * das Gerät ein zweites Mal selbst zu raten — siehe `lib/geraeteprofil.ts`.
+ * Reiner Zuwachs.
+ */
+export const EMBED_API_VERSION = '1.8.0';
 
 /** Kurzfassung des Modells — das, was eine Gegenstelle meistens wissen will. */
 export interface RaviaSummary {
@@ -118,6 +126,12 @@ export interface RaviaCadApi {
    * kann ihre eigene Maske daraus bauen.
    */
   getWritableFields(): ReturnType<typeof writableFields>;
+  /**
+   * Auf welchem Gerät läuft CAD Light (seit 1.8.0)? Gelesen bei jedem
+   * Aufruf neu — `width`/`height` sind das Fenster *jetzt*, nach einem
+   * Drehen also die neuen Maße. Die Form bleibt beim Drehen gleich.
+   */
+  getDeviceProfile(): Geraeteprofil;
   /** Projektdatei (RaVia-JSON) laden. */
   loadProject(data: unknown): { ok: boolean; message: string };
   /** IFC4-Datei laden. Ersetzt das aktuelle Modell. */
@@ -298,6 +312,7 @@ export function installEmbedApi(store: StoreLike, target: Window = window): () =
     loadBuilding: (data, optionen) => store.getState().loadBuilding(data, optionen),
     applyPatch: (patch) => store.getState().applyHostPatch(patch),
     getWritableFields: () => writableFields(),
+    getDeviceProfile: () => geraeteprofil(geraetemerkmale(target as Window)),
     onChange: (listener) => {
       listeners.add(listener);
       return () => listeners.delete(listener);
@@ -382,6 +397,9 @@ export function installEmbedApi(store: StoreLike, target: Window = window): () =
         break;
       case 'getWritableFields':
         reply(event, 'writableFields', data.id, api.getWritableFields());
+        break;
+      case 'getDeviceProfile':
+        reply(event, 'deviceProfile', data.id, api.getDeviceProfile());
         break;
       case 'subscribe': {
         const source = event.source;

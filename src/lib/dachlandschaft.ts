@@ -261,6 +261,34 @@ export function frameAn(teile: readonly Dachteil[], p: Vec2): RoofFrame | null {
 }
 
 /**
+ * Das Gerüst über einer Wand (seit 1.70.0).
+ *
+ * Gefragt wurde bis 1.69.0 nur an der **Wandmitte**. Eine Außenwand liegt
+ * mit ihrer Achse aber genau auf dem Umriss, und die Mitte fällt je nach
+ * Rundung hinein oder heraus. Fiel sie heraus, galt die Wand als „ohne
+ * Dach", wurde nicht gekappt und stand in voller Geschosshöhe durch die
+ * Dachfläche — im Feldscan die 1,6 m lange Seitenwand eines Schlitzes,
+ * 2,40 m hoch unter einer Traufe von 1,24 m: ein Schornstein, den es nicht
+ * gibt. Jetzt werden nach der Mitte beide Wandseiten gefragt (90 % der
+ * halben Dicke), danach die Viertelpunkte der Achse.
+ */
+export function frameUeberWand(
+  teile: readonly Dachteil[],
+  g: { a: Vec2; b: Vec2; normal: Vec2; halfThickness: number },
+): RoofFrame | null {
+  const auf = (t: number, s: number): Vec2 => ({
+    x: g.a.x + (g.b.x - g.a.x) * t + g.normal.x * s,
+    y: g.a.y + (g.b.y - g.a.y) * t + g.normal.y * s,
+  });
+  const h = g.halfThickness * 0.9;
+  for (const p of [auf(0.5, 0), auf(0.5, h), auf(0.5, -h), auf(0.25, h), auf(0.25, -h), auf(0.75, h), auf(0.75, -h)]) {
+    const f = frameAn(teile, p);
+    if (f) return f;
+  }
+  return null;
+}
+
+/**
  * Das Gerüst über einem Raum.
  *
  * Gefragt wird am **Schwerpunkt des Raumpolygons**, nicht an einer Ecke: Eine
@@ -333,4 +361,29 @@ export function raeumeMitGeschossDarueber(
   if (!roomIds.length) return [];
   const ohne = new Set(raeumeOhneGeschossDarueber(raeumeHier, raeumeDarueber));
   return roomIds.filter((id) => raeumeHier.some((r) => r.id === id) && !ohne.has(id));
+}
+
+/**
+ * Welches Dach liegt über diesem Raum? — die Frage, die bis 1.69.0 an fünf
+ * Stellen falsch gestellt wurde.
+ *
+ * Export (Giebelaufbau, Dachfensterrichtung), Wärmebrücken und IFC-Export
+ * lasen `level.roof`. Seit 1.36.0 kann ein Geschoss aber mehrere Dächer
+ * tragen, und dann steht dort **nichts** — die Dächer stehen in
+ * `level.roofs`. Ein L-Haus mit zwei Dächern verlor damit im Export den
+ * Giebelaufbau, in der Wärmebrückenbilanz die Traufe und im IFC das Dach,
+ * und zwar ohne Meldung. Aufgefallen ist es erst, als der Gebäudescan sein
+ * Dach an Räume binden sollte (1.70.0): genau dieser Weg hätte jede dieser
+ * Stellen getroffen.
+ *
+ * Zugeordnet wird über die **Raumliste des Dachs**, nicht über die Lage —
+ * sie ist die Festlegung, die der Planer getroffen hat. Gibt es ein Dach
+ * ohne Raumliste, gilt es für jeden Raum, der in keiner Liste steht (der
+ * Zustand eines Projekts von vor 1.36.0). Steht der Raum in keiner Liste
+ * und gibt es kein solches Dach, liegt über ihm **kein** Dach — beim
+ * Gebäudescan der Flügel, über dem der Scan keine Schräge belegt.
+ */
+export function dachUeberRaum(level: Level | undefined, roomId: string): RoofDefinition | undefined {
+  const daecher = daecherVon(level);
+  return daecher.find((r) => (r.roomIds ?? []).includes(roomId)) ?? daecher.find((r) => !(r.roomIds ?? []).length);
 }

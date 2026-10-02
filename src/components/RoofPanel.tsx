@@ -200,7 +200,15 @@ export default function RoofPanel() {
         ))}
       </div>
 
-      {roof && mehrere && (
+      {roof?.scan && <ScanHerkunft scan={roof.scan} />}
+
+      {/*
+       * Die Raumzuweisung auch bei **einem** Dach, sobald es eine Raumliste
+       * trägt — das ist beim Dach aus dem Scan der Regelfall (seit 1.70.0).
+       * Ohne diese Bedingung stünde im Prüfhinweis „Raum dem Dach zuweisen",
+       * und es gäbe keine Stelle, an der das geht.
+       */}
+      {roof && (mehrere || (roof.roomIds?.length ?? 0) > 0) && (
         <Raumzuweisung
           rooms={rooms}
           roof={roof}
@@ -754,6 +762,45 @@ function Raumzuweisung({
         <b>▲</b> heißt: Darüber liegt ein Geschoss — dort gehört eine Decke hin, kein Dach. Leer
         gelassen deckt das Dach das ganze Geschoss.
       </p>
+    </div>
+  );
+}
+
+/**
+ * Woher die Maße eines Dachs aus dem Scan stammen.
+ *
+ * Eine geschätzte Neigung sieht im Feld genauso aus wie eine gemessene. Wer
+ * das Dach in drei Wochen anfasst, muss es trotzdem unterscheiden können —
+ * deshalb steht es am Dach und nicht nur in der Übernahmemeldung.
+ */
+function ScanHerkunft({ scan }: { scan: NonNullable<RoofDefinition['scan']> }) {
+  const de = (v: number, n = 2) => v.toFixed(n).replace('.', ',');
+  const herkunft =
+    scan.herkunft === 'gemessen'
+      ? 'Kniestock und First gemessen'
+      : scan.herkunft === 'geschaetzt'
+        ? 'Kniestock und First geschätzt, nicht gemessen'
+        : 'Herkunft der Maße im Scan nicht angegeben';
+  return (
+    <div
+      className={`rounded-lg px-2.5 py-2 text-[10px] leading-relaxed ${
+        scan.herkunft === 'gemessen' ? 'bg-white/[0.03] text-slate-400' : 'bg-amber-500/10 text-amber-200/90'
+      }`}
+      data-scan-herkunft={scan.herkunft}
+    >
+      <b className="text-slate-300">Aus dem Scan:</b> {herkunft}
+      {scan.firsthoehe !== undefined && <> · Firsthöhe {de(scan.firsthoehe)} m</>}
+      {scan.korrektur !== undefined && <> · gegen die Schätzung {scan.korrektur >= 0 ? '+' : '−'}{de(Math.abs(scan.korrektur))} m</>}
+      {scan.segmente.length > 0 && (
+        <>
+          {' '}· {scan.segmente.length} Dachfläche{scan.segmente.length === 1 ? '' : 'n'} (Fallrichtung nach Kompass / Neigung):{' '}
+          {scan.segmente.map((s) => `${Math.round(s.azimuth)}° / ${de(s.pitch, 1)}°`).join(', ')}
+        </>
+      )}
+      <br />
+      {scan.lageBelegt
+        ? 'Liegt über den Räumen, an deren Rand der Scan Kniestock- oder Schrägwände belegt. Andere Räume haben eine gerade Decke.'
+        : 'Der Scan belegt nicht, wo die Schräge sitzt — das Dach liegt über dem ganzen Geschoss.'}
     </div>
   );
 }

@@ -93,6 +93,7 @@ declare global {
      * gebaut wurde.
      */
     __raviaSzene?: () => Record<string, number>;
+    __raviaUeberDach?: () => { groesster: number | null; wo: { art: string; x: number; y: number; z: number } | null; punkte: number };
     /**
      * Wie weit jedes Türblatt aufsteht — 0 = zu, 1 = ganz auf. Dieselbe Sorte
      * Haken wie die beiden darüber: Ob eine Tür wirklich offen ist, entscheidet

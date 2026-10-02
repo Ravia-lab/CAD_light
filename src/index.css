@@ -36,6 +36,21 @@
   }
 
   /*
+   * Kamerausschnitt, abgerundete Ecken und Home-Leiste (seit 1.70.0).
+   *
+   * `viewport-fit=cover` (index.html) legt die Seite bis unter diese Stellen
+   * — das ist gewollt, sonst bleiben graue Streifen. Dann muss aber der
+   * Inhalt selbst Abstand halten: Bis 1.69.0 lag auf dem iPhone die
+   * Kopfleiste unter der Dynamic Island und die Statuszeile unter der
+   * Home-Leiste. Auf Rechner und Android ohne Ausschnitt sind alle vier
+   * Werte 0, es ändert sich nichts.
+   */
+  #root {
+    padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom)
+      env(safe-area-inset-left);
+  }
+
+  /*
    * Kein Lupen-Popup und keine Textauswahl beim Halten.
    *
    * Safari blendet beim längeren Auflegen des Fingers ein Kontextmenü und
@@ -194,8 +209,21 @@ canvas {
      */
     flex: none;
   }
+  /*
+   * Hauptknöpfe — der eine Knopf, um den es auf einer Ansicht geht
+   * („Bearbeiten" in der Prüfansicht, „Übernehmen" im Dialog): 56 px. Das
+   * ist größer als das Mindestmaß, weil er oft mit dem Daumen der Hand
+   * getroffen wird, die das Telefon hält.
+   */
+  .hauptknopf {
+    min-height: 56px;
+  }
   .chip {
-    min-height: 36px;
+    /* 44 px wie überall (bis 1.69.0: 36 px — unter dem Mindestmaß), und
+       in beiden Richtungen: „2D" oder „EG" ergaben 40 px Breite. */
+    min-height: 44px;
+    min-width: 44px;
+    justify-content: center;
     padding-inline: 12px;
     display: inline-flex;
     align-items: center;

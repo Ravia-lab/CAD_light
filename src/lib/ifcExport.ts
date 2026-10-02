@@ -31,6 +31,7 @@ import { deckendurchbruchUmriss } from './durchbruchSymbols';
 import { getWallGeometry, openingSpan, indexOpeningsByWall, openingsOf } from './wallGeometry';
 import { ERZEUGER, FASSUNG } from './fassung';
 import { pointInPolygon } from './geometry';
+import { daecherVon, dachUeberRaum } from './dachlandschaft';
 
 /** Schreibt STEP-Zeilen und vergibt fortlaufende Entity-IDs. */
 class StepWriter {
@@ -460,14 +461,20 @@ export function buildIfc(doc: BimDocument, options: IfcExportOptions = {}): stri
     for (const o of Object.values(doc.roofOpenings ?? {})) {
       if (o.levelId !== level.id) continue;
       const height = o.kind === 'skylight' ? 0.16 : (o.frontHeight ?? 2.2);
-      const zStart = o.kind === 'skylight' ? (level.roof?.kneeHeight ?? 1) : 0;
+      // Das Dach, unter dem dieses Fenster sitzt — nicht `level.roof`, das
+      // es bei mehreren Dächern nicht gibt (siehe `dachUeberRaum`).
+      const raumDesFensters = Object.values(doc.rooms).find(
+        (r) => r.levelId === level.id && r.polygon.length >= 3 && pointInPolygon(o.position, r.polygon),
+      );
+      const dachHier = raumDesFensters ? dachUeberRaum(level, raumDesFensters.id) : daecherVon(level)[0];
+      const zStart = o.kind === 'skylight' ? (dachHier?.kneeHeight ?? 1) : 0;
       const solid = extrudedBox(
         w,
         bodyContext,
         dirZ,
         dirX,
         o.position,
-        ((level.roof?.azimuth ?? 0) * Math.PI) / 180,
+        ((dachHier?.azimuth ?? 0) * Math.PI) / 180,
         o.depth,
         o.width,
         zStart,
@@ -489,17 +496,26 @@ export function buildIfc(doc: BimDocument, options: IfcExportOptions = {}): stri
     // --- Dach ----------------------------------------------------------------
     // Als Platte über dem Geschoss: die exakte Schrägenverschneidung gehört
     // in ein Architekturprogramm, die Lage und Ausdehnung aber hierher.
-    if (level.roof && level.roof.kind !== 'flat') {
-      const outline = roofOutlineOf(doc, level.id);
+    /*
+     * Je Dach ein Körper über **seinen** Räumen. Bis 1.69.0 stand hier
+     * `level.roof` — ein Geschoss mit mehreren Dächern (seit 1.36.0) hatte
+     * im IFC gar keins. Ein einzelnes Dach behält die Kennung von vorher,
+     * damit eine Datei, die der Architekt schon eingelesen hat, beim
+     * nächsten Export dasselbe Dach wiederfindet.
+     */
+    const daecherHier = daecherVon(level).filter((d) => d.kind !== 'flat');
+    for (const dach of daecherHier) {
+      const outline = roofOutlineOf(doc, level.id, dach.roomIds ?? []);
       if (outline.length >= 3) {
-        const solid = extrudedPolygon(w, dirZ, dirX, outline, level.roof.kneeHeight, 0.24);
+        const solid = extrudedPolygon(w, dirZ, dirX, outline, dach.kneeHeight, 0.24);
         const shape = w.add(
           `IFCSHAPEREPRESENTATION(${bodyContext},'Body','SweptSolid',(${solid}))`,
         );
         const product = w.add(`IFCPRODUCTDEFINITIONSHAPE($,$,(${shape}))`);
+        const kennung = daecherHier.length === 1 ? `roof-${level.id}` : `roof-${level.id}-${dach.id}`;
         products.push(
           w.add(
-            `IFCROOF(${own(`roof-${level.id}`)},'Dach',$,$,${lplace},${product},$,.GABLE_ROOF.)`,
+            `IFCROOF(${own(kennung)},${s(dach.name ?? 'Dach')},$,$,${lplace},${product},$,.GABLE_ROOF.)`,
           ),
         );
       }
@@ -603,8 +619,14 @@ function extrudedPolygon(
  * darunterliegenden Geschosses genommen. Das Dach sitzt schließlich über dem
  * Gebäude, nicht über der gezeichneten Fläche.
  */
-function roofOutlineOf(doc: BimDocument, levelId: string): { x: number; y: number }[] {
-  let rooms = Object.values(doc.rooms).filter((r) => r.levelId === levelId);
+function roofOutlineOf(
+  doc: BimDocument,
+  levelId: string,
+  /** Seit 1.70.0: nur über diesen Räumen — die Raumliste des Dachs. Leer = ganzes Geschoss. */
+  roomIds: readonly string[] = [],
+): { x: number; y: number }[] {
+  const nur = new Set(roomIds);
+  let rooms = Object.values(doc.rooms).filter((r) => r.levelId === levelId && (!nur.size || nur.has(r.id)));
   if (!rooms.length) {
     const levels = Object.values(doc.levels).sort((a, b) => a.order - b.order);
     const index = levels.findIndex((l) => l.id === levelId);

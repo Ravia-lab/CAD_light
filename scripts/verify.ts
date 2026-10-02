@@ -127,6 +127,9 @@ import { balanceNetwork, dimensionForDn, requiredKv } from '../src/lib/hydraulic
 import { pruefeGeraeteimport } from './pruefungen/geraeteimport';
 import { pruefeMassenauszug } from './pruefungen/massenauszug';
 import { pruefeLeitungsbefund } from './pruefungen/leitungsbefund';
+import { pruefeGeraeteprofil } from './pruefungen/geraeteprofil';
+import { pruefeScanUebernahme } from './pruefungen/scanuebernahme';
+import { pruefeDachschnitt } from './pruefungen/dachschnitt';
 import { pruefeAnlagenbuch } from './pruefungen/anlagenbuch';
 import { pruefeEinbettung } from './pruefungen/einbettung';
 import { pruefeFussbodenheizung } from './pruefungen/fussbodenheizung';
@@ -3746,6 +3749,9 @@ pruefeGeraeteimport(check);
 console.log('\n▸ Massenauszug');
 pruefeMassenauszug(check);
 pruefeLeitungsbefund(check);
+pruefeGeraeteprofil(check);
+pruefeScanUebernahme(check);
+pruefeDachschnitt(check);
 
 console.log('\n▸ Anlagenbuch');
 pruefeAnlagenbuch(check);

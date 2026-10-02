@@ -705,6 +705,7 @@
 <tr><td>Anmelden / abmelden für Änderungen</td><td>Die Gegenstelle wird benachrichtigt, sobald sich am Modell etwas ändert.</td></tr>
 <tr><td>Anmelden für <b>„Rohrnetz wurde neu gelegt"</b></td><td>Ein eigenes Ereignis, das <em>nur</em> nach „Rohrnetz auslegen" kommt — nicht beim Zeichnen einer Leitung, nicht beim Öffnen eines Projekts. Es trägt die Kurzfassung des Laufs: Verlegeart, Trassen- und Rohrlänge, Verbraucher, Armaturen, Durchbrüche, Geschosse, Steigleitungen, Räume mit Flächenheizung — und den schwersten Befund, falls einer vorliegt. Seit der Schnittstellenfassung 1.7.0.</td></tr>
 <tr><td>Lebenszeichen</td><td>Eine Anfrage, die nur die Fassung der Schnittstelle zurückgibt — damit die Gegenstelle weiß, dass jemand zuhört.</td></tr>
+<tr><td><b>Geräteprofil</b></td><td>Auf welchem Gerät CAD Light läuft: <code>{ touch, form, width, height }</code>, <code>form</code> ist <code>phone</code>, <code>tablet</code> oder <code>desktop</code>. Seit der Schnittstellenfassung 1.8.0. Siehe <a href="#k17-4-8">Abschnitt 17.4.8</a>.</td></tr>
 </tbody>
 </table>
 
@@ -720,7 +721,7 @@
 
 <h4 id="k17-4-5">17.4.5 Die Fassung der Schnittstelle</h4>
 
-<p>Die Schnittstelle trägt eine eigene Fassungsnummer, unabhängig von der des Programms und der des Exportformats. Sie steht auf <b>1.7.0</b>.</p>
+<p>Die Schnittstelle trägt eine eigene Fassungsnummer, unabhängig von der des Programms und der des Exportformats. Sie steht auf <b>1.8.0</b>.</p>
 
 <table class="tab">
 <caption>Was jede Fassung der Schnittstelle gebracht hat</caption>
@@ -734,6 +735,7 @@
 <tr><td>1.5.0</td><td>Das <b>Rohdokument</b> auch über die Nachrichtenbrücke. Im selben Fenster ging es längst; aus einem Rahmen heraus war es unerreichbar, weil beide Seiten getrennte Fenster sind und es über die Brücke kein Befehl war. Dort kam bis dahin „Unbekannter Befehl“.</td></tr>
 <tr><td>1.6.0</td><td><b>Verworfene Räume melden</b> — die Gegenstelle sagt zurück, welche Räume sie nicht übernommen hat.</td></tr>
 <tr><td>1.7.0</td><td><b>„Rohrnetz wurde neu gelegt"</b> als eigenes Ereignis — damit ein hydraulischer Abgleich auf dem abgeschlossenen Auslegungsstand rechnet und nicht auf jeder Zwischenänderung. Auf Anforderung der RaVia-Seite vom 01.10.2026.</td></tr>
+<tr><td>1.8.0</td><td><b>Geräteprofil</b> (<code>getDeviceProfile</code>) — CAD Light sagt der RaVia-Seite, ob es auf Telefon, Tablet oder Rechner läuft und ob das Gerät Berührung kann. Damit zeigt die Seite den Knopf „Gebäude scannen" passend zum Gerät, ohne selbst noch einmal zu raten. Auftrag vom 02.10.2026.</td></tr>
 </tbody>
 </table>
 
@@ -767,7 +769,10 @@
 <tr><td>Wände</td><td>Als Achsen; Außenwände bereits um die halbe Stärke nach außen versetzt. Die Stärke ist entweder <b>gemessen</b> (aus einem Flächenpaar) oder <b>geschätzt</b> — das Modell sagt, welches von beiden.</td></tr>
 <tr><td>Öffnungen</td><td>Mit Wandbezug und Mittenabstand vom Wandanfang.</td></tr>
 <tr><td>Nordrichtung</td><td>Als Planwinkel, dazu die Genauigkeit des Kompasses, mit der das Gerät gemessen hat — etwa ±15,7°. Die Achslage ist dieselbe wie hier, übernommen wird also ohne Spiegelung und ohne Drehung.</td></tr>
-<tr><td>Dach</td><td>Eine Schätzung je Geschoss aus den erfassten Dachschrägen.</td></tr>
+<tr><td>Dach</td><td>Eine Schätzung je Geschoss aus den erfassten Dachschrägen — seit 1.70.0 nur über den Räumen, an deren Rand der Scan eine Schräge belegt. Siehe <a href="#k17-4-7">Abschnitt 17.4.7</a>.</td></tr>
+<tr><td>Prüfpunkte der App</td><td>Was die App selbst für fraglich hält. Mit Ort als Marke im Grundriss, ohne Ort in der Übernahmemeldung.</td></tr>
+<tr><td>Genauigkeit</td><td>Als Toleranz in der Übernahmemeldung: <span class="zeichen">± 3,0 % (angenommen, kein Kontrollmaß)</span> oder <span class="zeichen">± 1,1 % (gemessen)</span>.</td></tr>
+<tr><td>Luftvolumen</td><td>Was der Scan je Raum rechnet, mit und ohne Dachschräge. Steht in der Übernahmemeldung neben dem Volumen, das hier aus den erkannten Räumen entsteht. Gerechnet wird mit dem eigenen.</td></tr>
 <tr><td>Heizkörper</td><td>Mit den Maßen vom LiDAR und der Bauart, die der Monteur vor Ort bestätigt hat. Die App schlägt sie nur vor.</td></tr>
 </tbody>
 </table>
@@ -777,6 +782,46 @@
 <div class="warnung"><b>Achtung</b><p>Eine <b>Heizleistung wird nicht gesetzt</b>. RaVia Scan misst Geometrie und rechnet nichts; welche Leistung ein vorgefundener Heizkörper hat, ist eine Frage der Auslegung und nicht des Aufmaßes. Die Heizkörper kommen also mit Maß und Bauart, aber ohne Watt.</p></div>
 
 <div class="baustelle"><b>Auf der Baustelle heißt das</b><p>Ein Scan hat Lücken — offene Wandenden dort, wo das Gerät um eine Ecke nicht herumkam, weil ein Schrank davorstand. Die Raumerkennung schließt dort nicht. Der Grundriss zeigt jedes offene Wandende als orangefarbenen Punkt; <a href="#k4-4-2">Abschnitt 4.4.2</a> sagt, was damit zu tun ist. Rechnen Sie nach einem Scan damit als Regelfall, nicht als Ausnahme.</p></div>
+
+<h4 id="k17-4-7">17.4.7 Der erste Feldscan — was die Übernahme seit 1.70.0 anders macht</h4>
+
+<p>Am 02.10.2026 kam der erste echte Feldscan: eine Wohnung im Dachgeschoss, L-förmig, ein Flügel mit gerader Decke, gelesen im Schema <code>ravia.building</code> <b>1.10.0</b>. Er liegt als <code>scripts/referenz/scan-wohnung-2026-10-02.json</code> im Programm und ist seither ein fester Prüffall. Was er gezeigt hat:</p>
+
+<table class="tab">
+<caption>Feldscan 02.10.2026 — Befund und Antwort</caption>
+<thead><tr><th>Befund im Bild</th><th>Ursache</th><th>Seit 1.70.0</th></tr></thead>
+<tbody>
+<tr><td>Ein Satteldach über dem ganzen L, der Flügel schief darunter, Dachflächen kreuzen sich</td><td>Der Scan liefert <b>ein</b> Dach je Geschoss, und es wurde über das ganze Geschoss gelegt.</td><td>Das Dach wird an die Räume gebunden, an deren Rand der Scan eine <b>Kniestockwand</b> oder eine Wand mit <b>Schrägumriss</b> gemessen hat. Die übrigen bekommen eine gerade Decke in Geschosshöhe und in der Prüfung den Hinweis <span class="zeichen">Dach über diesem Gebäudeteil nicht erfasst — prüfen</span>. Ein Dach über einen Umriss zu spannen, den der Scan nicht als Schräge belegt, wäre eine erfundene Dachfläche.</td></tr>
+<tr><td>Das Dach verdreht — genau um die Nordabweichung</td><td>Die App meldet die Fallrichtung als <b>Kompassrichtung</b>. Übernommen wurde sie als Planwinkel. Ein Prüfblock hatte genau das als richtig festgeschrieben.</td><td>Umgerechnet: Plan = Kompass + Nordabweichung, wie es der Export seit jeher zurückrechnet.</td></tr>
+<tr><td>Ein Raum hieß „Manu"</td><td>Der Monteur hatte die Bodenfläche des ganzen Geschosses benannt, und der Name ging an den Raum, in dessen Mitte er lag.</td><td>Deckt ein benannter Bereich mehr als einen erkannten Raum, ist er ein <b>Bereich</b> und kein Raum. Die Meldung sagt das, und keiner der Räume bekommt den Namen. Kommen mehrere vom Monteur benannte Räume, gehen sie der eigenen Erkennung vor.</td></tr>
+<tr><td>Wände durchs Dach, Stufen an den Kanten</td><td>Siehe <a href="#k6-1c">Abschnitt 6.1b</a>.</td><td>Polygonschnitt an der Dachfläche.</td></tr>
+</tbody>
+</table>
+
+<p><b>Woher die Dachmaße stammen,</b> zeigt der Reiter <b>Dach</b>: ob Kniestock und First gemessen oder geschätzt sind, dazu die Korrektur des Monteurs und die Dachflächen getrennt nach Fallrichtung. Ein geschätzter First ist kein Fehler, aber eine Zahl, die man vor der Heizlast ansehen sollte. Die App sagt selbst, wie daraus eine Messung wird: zwei Zielpunkte.</p>
+
+<p><b>Was gelesen und nicht gerechnet wird.</b> Die Nettoflächen der Wände und das Luftvolumen der Räume kommen aus dem Scan mit. Das Programm rechnet beide aus seiner eigenen Geometrie, weil zwei Quellen für dieselbe Fläche zwei Wahrheiten wären. Das Volumen des Scans steht deshalb in der Übernahmemeldung <b>neben</b> dem eigenen, damit eine große Abweichung auffällt. Die Nettoflächen prüft ein Prüfblock gegen die Summe, die der Scan selbst nennt.</p>
+
+<h4 id="k17-4-8">17.4.8 Am Telefon: erst prüfen, dann bearbeiten</h4>
+
+<p>Wer einen Scan am iPhone übernimmt, landet seit 1.70.0 in der <b>Prüfansicht</b> und nicht in der Zeichenoberfläche. Am Telefon will man in diesem Moment wissen: Ist das mein Haus, und ist es vollständig? Dafür gibt es drei Ansichten — <span class="zeichen">3D</span>, <span class="zeichen">Grundriss</span>, <span class="zeichen">Prüfliste</span> — und einen Knopf, <span class="zeichen">Bearbeiten</span>. In der Prüfansicht verschiebt ein Finger den Plan und dreht das Modell; er fasst nichts an. Aus der Zeichenoberfläche führt <span class="zeichen">‹ Prüfansicht</span> zurück.</p>
+
+<table class="tab">
+<caption>Welches Gerät was bekommt</caption>
+<thead><tr><th>Gerät</th><th>Nach der Übernahme</th></tr></thead>
+<tbody>
+<tr><td>iPhone, hochkant</td><td>Prüfansicht, eine Ansicht zur Zeit, der Hauptknopf unten</td></tr>
+<tr><td>iPhone, quer</td><td>Prüfansicht; Titel, Umschalter und Hauptknopf in einer Zeile, Prüfliste neben dem Bild</td></tr>
+<tr><td>iPad, auch in der geteilten Ansicht</td><td>Die volle Oberfläche</td></tr>
+<tr><td>Rechner</td><td>Die volle Oberfläche, wie bisher</td></tr>
+</tbody>
+</table>
+
+<p><b>Wie das Gerät erkannt wird.</b> Das iPhone an der Kennung des Browsers. Das iPad an seiner Kennung, oder — weil Safari auf dem iPad sich als Mac ausgibt — an einer Mac-Kennung mit mehr als einem Berührpunkt. Sonst entscheidet der Zeiger: Ein Finger ist ein Telefon oder Tablet, die Maus ein Rechner, auch wenn der Bildschirm Berührung kann. Telefon und Tablet trennt die <b>kürzere Bildschirmseite</b> bei 600 Punkten. Gemessen wird der Bildschirm und nicht das Fenster: Ein iPad in der geteilten Ansicht bleibt ein iPad, und ein Telefon wird beim Drehen kein Tablet. Dieselbe Antwort bekommt die RaVia-Seite über die Schnittstelle (<code>getDeviceProfile</code>), damit beide Seiten dasselbe Gerät sehen. <b>Ob das Gerät LiDAR hat, sagt das Profil nicht</b> — das lässt sich aus dem Browser nicht feststellen; die App prüft es selbst.</p>
+
+<p><b>Maße am Gerät.</b> Unter Berührung ist jedes Tippziel mindestens <b>44 Punkte</b> groß, in beiden Richtungen; der Hauptknopf der Prüfansicht <b>56</b>. Inhalt hält Abstand zu Kamerausschnitt, abgerundeten Ecken und Home-Leiste. Die Höhe folgt der Adressleiste. Gedreht wird ohne Verlust: Ob Prüfansicht und welche Ansicht, bleibt stehen. Ein Rauchtest (<code>smoke:geraete</code>) prüft das bei 375 und 430 Punkten Breite (iPhone, hoch und quer), bei 768, 834, 1024 und 1366 (iPad hoch und quer) und in der geteilten Ansicht bei 320 und 694.</p>
+
+<div class="baustelle"><b>Was der Rauchtest nicht sieht</b><p>Er misst, was nach der Übernahme auf dem Bildschirm steht. Dialoge und die Reiter des Inspektors, die erst auf einen Tipp hin aufgehen, misst er nicht. Ein echtes iPhone hat er auch nicht in der Hand — die Geräte sind im Browser nachgebildet.</p></div>
 
 <h3 id="k17-5">17.5 Der Rückweg: wenn RaVia ins Modell schreibt</h3>
 

@@ -55,7 +55,22 @@ interface UmrissKante {
   /** Außennormale, normiert. Gilt nur für einen Umriss gegen den Uhrzeigersinn. */
   nx: number;
   ny: number;
+  /**
+   * Boden eines schmalen Schlitzes im Umriss (seit 1.70.0) — siehe
+   * `umrissKanten`. Eine solche Kante ist keine Traufe.
+   */
+  schlitzboden?: boolean;
+  /**
+   * Beim Schlitzboden: die Mündung des Schlitzes — die Strecke vom Ende der
+   * folgenden zum Anfang der vorigen Kante. An ihr endet die Traufe, als
+   * wäre der Schlitz zu; sie verbindet die Traufkanten links und rechts
+   * ohne Stufe.
+   */
+  muendung?: { ax: number; ay: number; dx: number; dy: number };
 }
+
+/** Breiter als das ist ein Rücksprung im Umriss ein Rücksprung, kein Schlitz [m]. */
+const SCHLITZ_BREITE = 0.6;
 
 /**
  * Bereitet die Kanten eines Umrisspolygons auf.
@@ -77,6 +92,47 @@ function umrissKanten(umriss: readonly Vec2[]): UmrissKante[] {
     if (len2 < 1e-12) continue;
     const len = Math.sqrt(len2);
     kanten.push({ ax: a.x, ay: a.y, dx, dy, len2, nx: dy / len, ny: -dx / len });
+  }
+  /*
+   * Schlitze erkennen.
+   *
+   * Ein Scan lässt zwischen zwei Wänden gern eine Lücke von einer Handbreit
+   * bis zu einem halben Meter; im Umriss wird daraus ein Schlitz von der
+   * Traufe ins Haus hinein (Feldscan 02.10.2026: 28 cm breit, 1,6 m tief).
+   * Für die Traufe gegen den Umriss war sein Boden eine Traufkante: Jeder
+   * Punkt dahinter, bis hinauf zum First, rechnete seine Traufe an diesem
+   * Boden — im Dach stand eine Rinne über die ganze Dachhälfte. Ein echtes
+   * Dach überspannt einen solchen Schlitz.
+   *
+   * Schlitzboden heißt: kürzer als `SCHLITZ_BREITE`, an beiden Enden eine
+   * einspringende Ecke, und die beiden Seiten laufen gegenläufig parallel
+   * (bis 10°) — der Schlitz ist nach außen offen. Ein gerundeter Erker aus
+   * kurzen Kanten erfüllt das nicht (dort springt keine Ecke ein).
+   */
+  const m = kanten.length;
+  if (m >= 4) {
+    // Eine Ecke springt ein, wenn ihr Kreuzprodukt das Vorzeichen gegen den
+    // Umlaufsinn hat. Der Umlaufsinn wird gemessen, nicht vorausgesetzt.
+    let flaeche2 = 0;
+    for (const k of kanten) flaeche2 += k.ax * (k.ay + k.dy) - (k.ax + k.dx) * k.ay;
+    const sinn = flaeche2 >= 0 ? 1 : -1;
+    const kreuz = (u: UmrissKante, w: UmrissKante) => sinn * (u.dx * w.dy - u.dy * w.dx);
+    for (let i = 0; i < m; i++) {
+      const k = kanten[i];
+      if (k.len2 >= SCHLITZ_BREITE * SCHLITZ_BREITE) continue;
+      const vor = kanten[(i - 1 + m) % m];
+      const nach = kanten[(i + 1) % m];
+      if (kreuz(vor, k) >= 0 || kreuz(k, nach) >= 0) continue;
+      const lv = Math.sqrt(vor.len2);
+      const ln = Math.sqrt(nach.len2);
+      const gegen = (vor.dx * nach.dx + vor.dy * nach.dy) / (lv * ln);
+      if (gegen < -Math.cos((10 * Math.PI) / 180)) {
+        k.schlitzboden = true;
+        const ex = nach.ax + nach.dx;
+        const ey = nach.ay + nach.dy;
+        k.muendung = { ax: ex, ay: ey, dx: vor.ax - ex, dy: vor.ay - ey };
+      }
+    }
   }
   return kanten;
 }
@@ -160,6 +216,9 @@ function naechsteKante(kanten: readonly UmrissKante[], p: Vec2): UmrissKante | u
  * `Infinity`, wenn der Strahl keine Kante trifft — dann liegt der Punkt
  * außerhalb des Umrisses, und der Aufrufer bleibt bei der Rechteckformel.
  */
+/** Sinus des Winkels, bis zu dem eine Umrisskante als Ortgang gilt (3°). */
+const ORTGANG_SINUS = Math.sin((3 * Math.PI) / 180);
+
 function randAbstandInRichtung(
   kanten: readonly UmrissKante[],
   p: Vec2,
@@ -171,12 +230,23 @@ function randAbstandInRichtung(
     // Nur Kanten, durch die der Strahl nach außen tritt. Das schließt
     // zugleich den parallelen Fall aus: dort steht der Strahl senkrecht auf
     // der Normalen, und die Nachbarkanten fangen ihn auf.
-    if (fx * k.nx + fy * k.ny <= 1e-12) continue;
-    const nenner = fx * k.dy - fy * k.dx;
+    //
+    // „Parallel" heißt dabei: bis 3° neben der Fallrichtung (seit 1.70.0,
+    // vorher nur exakt). Eine solche Kante ist ein Ortgang, keine Traufe.
+    // Ein gescannter Grundriss steht nie exakt im Winkel; bei 0,15° Schiefe
+    // traf der Strahl die Giebelwand streifend, und die Traufe sank an ihrer
+    // Innenseite auf einem Streifen von einigen Millimetern bis auf den
+    // Kniestock — eine Rinne in der Wandkrone, und in der Wandabwicklung
+    // eine Giebelwand, die als Traufwand gerechnet wurde.
+    if (fx * k.nx + fy * k.ny <= ORTGANG_SINUS) continue;
+    // Boden eines Schlitzes: gerechnet wird an seiner Mündung, als wäre der
+    // Schlitz geschlossen (siehe `umrissKanten`).
+    const e = k.muendung ?? k;
+    const nenner = fx * e.dy - fy * e.dx;
     if (Math.abs(nenner) < 1e-12) continue;
-    const diffx = k.ax - p.x;
-    const diffy = k.ay - p.y;
-    const u = (diffx * k.dy - diffy * k.dx) / nenner;
+    const diffx = e.ax - p.x;
+    const diffy = e.ay - p.y;
+    const u = (diffx * e.dy - diffy * e.dx) / nenner;
     // Eine winzige Toleranz nach unten: ein Punkt genau auf der Kante soll
     // null herausbekommen und nicht den Austritt auf der Gegenseite.
     if (u < -1e-6 || u >= best) continue;

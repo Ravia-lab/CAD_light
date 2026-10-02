@@ -179,8 +179,9 @@ import {
   type EinheitArt,
   type Nutzungseinheit,
 } from '../lib/nutzungseinheiten';
-import type { RaumHinweis, RaumplanImportErgebnis } from '../lib/raumplanImport';
+import type { RaumplanImportErgebnis } from '../lib/raumplanImport';
 import { importBuildingModel } from '../lib/buildingModelImport';
+import { benenneRaeume, pruefpunkteAlsHinweise, scanDachZuordnen, type ScanDachZuordnung } from '../lib/scanUebernahme';
 import { begradige } from '../lib/begradigen';
 import { befundSatz, hoehenbefund } from '../lib/wandhoehen';
 import { SPRACHEN, spracheSetzen, type Sprache } from '../lib/sprache';
@@ -195,6 +196,7 @@ import { treppenmasse } from '../lib/treppenlogik';
 import { VORHABEN_VORBELEGUNG, emptyPlant, emptySite } from '../lib/plantDefaults';
 import { ANBINDUNG_LABELS, schemaVorlage } from '../lib/schemaKatalog';
 import { applyHostPatch as applyPatchToDocument } from '../lib/hostPatch';
+import { geraeteprofil, geraetemerkmale } from '../lib/geraeteprofil';
 import type { HostPatch, HostPatchReport } from '../lib/hostPatch';
 import {
   DEFAULT_TEMPLATE_OPTIONS,
@@ -430,6 +432,16 @@ interface BimState {
 
   tool: ToolId;
   viewMode: ViewMode;
+  /**
+   * Prüfansicht statt Zeichenoberfläche (seit 1.70.0).
+   *
+   * Nach einem Gebäudescan auf dem **Telefon** zeigt CAD Light zuerst, was
+   * angekommen ist — 3D, Grundriss, Prüfliste — und nicht die Werkzeuge. Am
+   * Telefon prüft man einen Scan, man zeichnet ihn nicht nach; Bearbeiten
+   * gibt es auf Wunsch. Liegt im Store und nicht in der Komponente, damit
+   * das Drehen des Geräts (neues Layout) den Zustand nicht verliert.
+   */
+  pruefansicht: boolean;
   cameraMode: CameraMode;
   selection: Selection | null;
   /** Mehrfachauswahl. `selection` ist immer das zuletzt gefasste Objekt. */
@@ -602,6 +614,7 @@ interface BimState {
   // --- UI ----------------------------------------------------------------
   setTool: (tool: ToolId) => void;
   setViewMode: (mode: ViewMode) => void;
+  setPruefansicht: (an: boolean) => void;
   setCameraMode: (mode: CameraMode) => void;
   setSelection: (sel: Selection | null, quelle?: AuswahlQuelle) => void;
   setSelections: (sels: Selection[]) => void;
@@ -1643,47 +1656,7 @@ function transferRoomProperties(doc: BimDocument, fromLevelId: string, toLevelId
  * vergessenes Feld führt dazu, dass eine Änderung daran im Bild nicht
  * ankommt, und das fällt beim ersten Ausprobieren auf.
  */
-/**
- * Räume benennen, die aus einem Scan kommen.
- *
- * Zugeordnet wird über die Lage, nicht über eine Kennung: Der Scan teilt das
- * Haus in eigene Bereiche, und deren Grenzen sind nicht die Wandachsen, an
- * denen die Raumerkennung arbeitet. Fällt der Punkt eines Hinweises in einen
- * erkannten Raum, erbt der Raum Namen und Nutzung.
- *
- * **Rangfolge:** Was der Monteur in der App benannt hat (`vomNutzer`), geht
- * vor die Bereichsbezeichnung, die RoomPlan geraten hat — er stand im Raum.
- * Trifft ein Raum mehrere Hinweise, gewinnt der erste; dass es mehrere sind,
- * heißt, dass zwischen ihnen eine Wand fehlt, und wird gezählt.
- */
-function benenneRaeume(
-  doc: BimDocument,
-  hinweise: readonly RaumHinweis[],
-): { benannt: number; doppelt: number } {
-  let benannt = 0;
-  let doppelt = 0;
-  const vergeben = new Set<string>();
-  const sortiert = [...hinweise].sort((a, b) => Number(b.vomNutzer ?? false) - Number(a.vomNutzer ?? false));
-  for (const hinweis of sortiert) {
-    const raum = Object.values(doc.rooms).find(
-      (r) => r.levelId === hinweis.levelId && pointInPolygon(hinweis.punkt, r.polygon),
-    );
-    if (!raum) continue;
-    if (vergeben.has(raum.id)) {
-      doppelt++;
-      continue;
-    }
-    vergeben.add(raum.id);
-    doc.rooms[raum.id] = {
-      ...raum,
-      name: hinweis.name,
-      usage: hinweis.usage,
-      ...(hinweis.raviaRoomId ? { raviaRoomId: hinweis.raviaRoomId } : {}),
-    };
-    benannt++;
-  }
-  return { benannt, doppelt };
-}
+/* `benenneRaeume` steht seit 1.70.0 in `lib/scanUebernahme.ts` — dort prüfbar. */
 
 /**
  * Aus einem Scan-Ergebnis (RoomPlan-Datei oder RaVia Building Model) ein
@@ -1695,7 +1668,7 @@ function benenneRaeume(
 function dokumentAusScan(
   ergebnis: RaumplanImportErgebnis,
   vorRaeumen?: (doc: BimDocument) => void,
-): { fresh: BimDocument; benannt: number; doppelt: number } {
+): { fresh: BimDocument; benannt: number; doppelt: number; bereiche: string[] } {
   const fresh = emptyDocument();
   fresh.meta = {
     ...fresh.meta,
@@ -1765,8 +1738,8 @@ function dokumentAusScan(
   // mehrere Bereiche (weil eine Wand dazwischen im Scan fehlt), gewinnt
   // der erste; ihn stillschweigend zu überschreiben hieße, die Reihenfolge
   // in der Datei über die Sache entscheiden zu lassen.
-  const { benannt, doppelt } = benenneRaeume(fresh, ergebnis.raumHinweise);
-  return { fresh, benannt, doppelt };
+  const { benannt, doppelt, bereiche } = benenneRaeume(fresh, ergebnis.raumHinweise);
+  return { fresh, benannt, doppelt, bereiche };
 }
 
 
@@ -2290,6 +2263,7 @@ export const useBimStore = create<BimState>()((set, get) => {
 
     tool: 'wall',
     viewMode: '2d',
+    pruefansicht: false,
     cameraMode: 'orbit',
     selection: null,
     auswahlQuelle: 'plan',
@@ -2375,6 +2349,9 @@ export const useBimStore = create<BimState>()((set, get) => {
       set({ tool, openingPreset, selection: tool === 'select' ? state.selection : null });
     },
     setViewMode: (viewMode) => set({ viewMode }),
+    setPruefansicht: (an) =>
+      // In der Prüfansicht verschiebt ein Finger den Plan und legt nichts an.
+      set(an ? { pruefansicht: true, tool: 'pan', selection: null, selections: [] } : { pruefansicht: false, tool: 'select' }),
     setCameraMode: (cameraMode) => set({ cameraMode }),
     setSelection: (selection, quelle = 'plan') =>
       set({ selection, selections: selection ? [selection] : [], auswahlQuelle: quelle }),
@@ -6343,16 +6320,27 @@ export const useBimStore = create<BimState>()((set, get) => {
       const ergebnis = importBuildingModel(data);
       if (!ergebnis.ok) return { ok: false, message: ergebnis.message };
 
-      const { fresh, benannt, doppelt } = dokumentAusScan(ergebnis, (doc) => {
-        for (const [levelId, dach] of Object.entries(ergebnis.daecher)) {
-          const level = doc.levels[levelId];
-          if (level) doc.levels[levelId] = { ...level, roof: { ...DEFAULT_ROOF, ...dach } };
-        }
+      const { fresh, benannt, doppelt, bereiche } = dokumentAusScan(ergebnis, (doc) => {
         for (const f of ergebnis.fixtures) {
           if (doc.levels[f.levelId]) doc.fixtures[f.id] = f;
         }
       });
       if (ergebnis.koordinaten && !fresh.meta.name) fresh.meta.name = 'Gebäudescan';
+
+      /*
+       * Das Dach erst **nach** der ersten Raumerkennung — es wird an Räume
+       * gebunden, und die gibt es vorher nicht (`lib/scanUebernahme.ts`).
+       * Danach noch einmal erkennen: Das Dach bestimmt Höhe und Volumen
+       * unter der Schräge. Die Raumkennungen bleiben dabei stehen, weil die
+       * Erkennung sie über die Randwände wiederfindet, und mit ihnen die
+       * Namen.
+       */
+      let zuordnung: ScanDachZuordnung[] = [];
+      if (Object.keys(ergebnis.daecher).length) {
+        zuordnung = scanDachZuordnen(fresh.levels, Object.values(fresh.rooms), ergebnis);
+        recomputeRooms(fresh);
+      }
+      for (const a of pruefpunkteAlsHinweise(ergebnis, (i) => `sc-pp${i}`)) fresh.annotations[a.id] = a;
 
       /*
        * Hinzufügen statt ersetzen.
@@ -6421,12 +6409,29 @@ export const useBimStore = create<BimState>()((set, get) => {
           const id = vorsatz(f.id);
           ziel.fixtures[id] = { ...f, id, ...(f.wallId ? { wallId: neueWaende.get(f.wallId) ?? f.wallId } : {}) };
         }
+        // Prüfpunkte dieses Geschosses ersetzen die eines früheren Scans davon.
+        for (const a of Object.values(ziel.annotations)) {
+          if (a.id.includes('sc-pp') && fresh.levels[a.levelId]) delete ziel.annotations[a.id];
+        }
+        for (const a of Object.values(fresh.annotations)) {
+          const id = vorsatz(a.id);
+          ziel.annotations[id] = { ...a, id };
+        }
         // Geschosse neu ordnen: die Reihenfolge ergibt sich aus der Höhenlage.
         const sortiert = Object.values(ziel.levels).sort((a, b) => a.elevation - b.elevation);
         const egIdx = erdgeschossIndex(sortiert.map((l) => l.elevation));
         sortiert.forEach((l, i) => { ziel.levels[l.id] = { ...l, order: i - egIdx }; });
         ziel.activeLevelId = Object.values(fresh.levels)[0]?.id ?? ziel.activeLevelId;
         recomputeRooms(ziel);
+        // Die Dachbelege tragen die Wandkennungen aus dem Scan; im
+        // zusammengelegten Modell haben die Wände den Geschoss-Vorsatz.
+        if (Object.keys(ergebnis.daecher).length) {
+          const belege = Object.fromEntries(
+            Object.entries(ergebnis.dachBelege).map(([l, ids]) => [l, ids.map((id) => neueWaende.get(id) ?? id)]),
+          );
+          zuordnung = scanDachZuordnen(ziel.levels, Object.values(ziel.rooms), { daecher: ergebnis.daecher, dachBelege: belege });
+          recomputeRooms(ziel);
+        }
         const namen = benenneRaeume(ziel, ergebnis.raumHinweise);
         benanntGesamt = namen.benannt;
         doppeltGesamt = namen.doppelt;
@@ -6440,15 +6445,49 @@ export const useBimStore = create<BimState>()((set, get) => {
         selections: [],
         einpassenZaehler: get().einpassenZaehler + 1,
       });
+      // Am Telefon zuerst prüfen, nicht zeichnen (Auftrag A5).
+      if (typeof window !== 'undefined' && geraeteprofil(geraetemerkmale(window)).form === 'phone') {
+        get().setPruefansicht(true);
+      }
 
       const offen = ziel.diagnostics.openEnds.length;
       const raeume = Object.keys(ziel.rooms).length;
+      const ohneDach = zuordnung.reduce((s, z) => s + z.ohneDach.length, 0);
+      const unterDach = zuordnung.filter((z) => z.lageBelegt).reduce((s, z) => s + z.unterDach.length, 0);
+      const dachText = zuordnung.length
+        ? zuordnung.every((z) => !z.lageBelegt)
+          ? ' · Dach über dem ganzen Geschoss — der Scan belegt nicht, wo es sitzt (Hinweis in der Prüfung)'
+          : ` · Dach über ${unterDach} Räumen` + (ohneDach ? `, ${ohneDach} mit gerader Decke (Hinweis in der Prüfung)` : '')
+        : '';
+      // Gegenprobe Luftvolumen: was der Scan rechnet, neben dem, was hier aus
+      // den erkannten Räumen entsteht (Schema 1.10.0, `rooms[].volume`).
+      const fmt = (v: number) => v.toFixed(1).replace('.', ',');
+      const volumenText =
+        ziel === fresh
+          ? ergebnis.scanVolumen
+              .map((v) => {
+                const hier = Object.values(ziel.rooms)
+                  .filter((r) => r.levelId === v.levelId)
+                  .reduce((summe, r) => summe + (r.volume ?? 0), 0);
+                const art = v.quelle === 'roofModel' ? 'unter dem Dachmodell' : v.quelle ? `Quelle ${v.quelle}` : '';
+                const gerade = v.volumenGerade !== undefined ? `gerade Decke ${fmt(v.volumenGerade)} m³` : '';
+                const klammer = [art, gerade].filter(Boolean).join('; ');
+                return ` · Luftvolumen ${ziel.levels[v.levelId]?.name ?? v.levelId}: Scan ${fmt(v.volumen)} m³${klammer ? ` (${klammer})` : ''}, hier aus den Räumen ${fmt(hier)} m³`;
+              })
+              .join('')
+          : '';
       const dazu = ziel === fresh ? '' :
         ` · ${ergaenzt} Geschoss(e) ergänzt${ersetzt ? `, ${ersetzt} ersetzt` : ''}, bestehende Geschosse bleiben stehen`;
       return {
         ok: true,
         message:
           `RaVia Scan: ${ergebnis.message}${dazu} · ${raeume} Räume erkannt, ${benanntGesamt} benannt` +
+          dachText +
+          volumenText +
+          (bereiche.length
+            ? ` · ${bereiche.map((b) => `„${b}"`).join(', ')} galt für das ganze Geschoss und wurde keinem Raum gegeben`
+            : '') +
+          (ergebnis.pruefhinweise.length ? ` · Hinweise der App: ${ergebnis.pruefhinweise.map((h) => h.text).join(' / ')}` : '') +
           (doppeltGesamt ? ` · ${doppeltGesamt} Raumname nicht vergeben (zwei Bereiche in einem Raum, dazwischen fehlt eine Wand)` : '') +
           (offen ? ` · ${offen} offene Wandenden` : '') +
           (ergebnis.nordGenauigkeitGrad !== undefined

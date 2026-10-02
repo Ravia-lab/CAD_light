@@ -103,8 +103,7 @@ export default function LevelBar() {
                     ? `${level.name} im Modell ausblenden — am Grundriss ändert sich nichts`
                     : `${level.name} im Modell zeigen`
                 }
-                className={`px-1 ${gezeigt ? 'text-slate-500 hover:text-slate-300' : 'text-slate-700 hover:text-slate-400'}`}
-                style={{ minHeight: 28 }}
+                className={`min-h-[28px] px-1 [@media(pointer:coarse)]:min-h-[44px] [@media(pointer:coarse)]:min-w-[44px] ${gezeigt ? 'text-slate-500 hover:text-slate-300' : 'text-slate-700 hover:text-slate-400'}`}
               >
                 <AugeIcon offen={gezeigt} />
               </button>

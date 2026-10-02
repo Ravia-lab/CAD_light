@@ -93,7 +93,6 @@ import {
   sceneRotationY,
   wallBoxPlacement,
   wallLocalToScene,
-  wallLocalToWorld,
   wallSolidParts,
   type WallGeometry,
 } from '../lib/wallGeometry';
@@ -116,8 +115,9 @@ import {
 } from '../lib/begehen';
 import { pointInPolygon } from '../lib/geometry';
 import { deuteTreffer, szeneZuModell } from '../lib/raumtreffer';
-import { buildRoofFrame, roofHeightAt } from '../lib/roofGeometry';
-import { baueDachlandschaft, frameAn, type Dachteil } from '../lib/dachlandschaft';
+import { roofHeightAt } from '../lib/roofGeometry';
+import { dachhaut, tiefsteDachhoehe, wandUnterDach, type Koerperflaeche, type Punkt3 } from '../lib/dachschnitt';
+import { baueDachlandschaft, frameAn, frameUeberWand, type Dachteil } from '../lib/dachlandschaft';
 import { sammleVerlegekurven, verlegelinien, type Verlegelinie } from '../lib/fussbodenkurven';
 import { kompassRose } from '../lib/kompass';
 import { DEFAULT_SLAB, levelBaseHeights } from '../lib/levelGeometry';
@@ -407,6 +407,54 @@ const FIXTURE_HEIGHT: Partial<Record<FixtureType, number>> = {
  * darf die Achse einer schrägen Wand nicht selbst nachrechnen: genau daraus
  * entstand der Versatz zwischen Aussparung im Plan und Aussparung im Modell.
  */
+/**
+ * Ein Körper aus ebenen Flächen (`lib/dachschnitt.ts`) als Geometrie.
+ *
+ * Aufgebaut wie eine Kiste — jede Fläche mit eigenen Eckpunkten, damit die
+ * Normalen flach bleiben und das Stück neben den Kisten der übrigen Wände
+ * gleich schattiert ist. Jede Fläche ist konvex und wird als Fächer zerlegt;
+ * die Umlaufrichtung wird gegen die Außenrichtung der Fläche geprüft und
+ * nötigenfalls umgedreht.
+ *
+ * Liefert dieselben Attribute wie `THREE.BoxGeometry` (Position, Normale,
+ * UV, Index) — sonst lehnt `mergeGeometries` das Zusammenfügen mit den
+ * übrigen Wänden ab.
+ */
+function koerperAusFlaechen(flaechen: readonly Koerperflaeche[], base = 0): THREE.BufferGeometry | null {
+  const pos: number[] = [];
+  const idx: number[] = [];
+  const S = (p: Punkt3) => {
+    const sp = modelToScene({ x: p.x, y: p.y }, p.z + base);
+    return new THREE.Vector3(sp.x, sp.y, sp.z);
+  };
+  for (const f of flaechen) {
+    if (f.punkte.length < 3) continue;
+    const pts = f.punkte.map(S);
+    // Normale der ganzen Fläche (Newell), gegen die Außenrichtung halten.
+    const n = new THREE.Vector3();
+    for (let i = 0; i < pts.length; i++) {
+      const a = pts[i];
+      const b = pts[(i + 1) % pts.length];
+      n.x += (a.y - b.y) * (a.z + b.z);
+      n.y += (a.z - b.z) * (a.x + b.x);
+      n.z += (a.x - b.x) * (a.y + b.y);
+    }
+    if (n.lengthSq() < 1e-16) continue; // entartet (Höhe null)
+    const aussen = S({ x: f.aussen.x, y: f.aussen.y, z: f.aussen.z - base }).sub(S({ x: 0, y: 0, z: -base }));
+    const ecken = n.dot(aussen) >= 0 ? pts : [...pts].reverse();
+    const start = pos.length / 3;
+    for (const e of ecken) pos.push(e.x, e.y, e.z);
+    for (let i = 1; i + 1 < ecken.length; i++) idx.push(start, start + i, start + i + 1);
+  }
+  if (!idx.length) return null;
+  const geom = new THREE.BufferGeometry();
+  geom.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  geom.setAttribute('uv', new THREE.Float32BufferAttribute(new Array((pos.length / 3) * 2).fill(0), 2));
+  geom.setIndex(idx);
+  geom.computeVertexNormals();
+  return geom;
+}
+
 function boxInWall(
   g: WallGeometry,
   uStart: number,
@@ -474,6 +522,14 @@ interface BuiltGeometry {
   floorSupply: THREE.BufferGeometry | null;
   glass: THREE.BufferGeometry | null;
   frames: THREE.BufferGeometry | null;
+  /**
+   * Alles, was an einer Dachfläche gekappt wurde (Wände, Rahmen, Glas), als
+   * eigene Geometrie — **nicht gezeichnet**, nur für `__raviaUeberDach`.
+   * Gemessen werden soll, ob ein gekappter Körper durch sein Dach sticht;
+   * eine höhere Wand eines Anbaus ohne Dach, die an eine niedrigere Traufe
+   * stößt, darf das und ist kein Fehler.
+   */
+  unterDach: THREE.BufferGeometry | null;
   /**
    * Türblätter — je Flügel eines, mit Kennung und Angelpunkt.
    *
@@ -591,6 +647,8 @@ function buildGeometry(input: BuildInput): BuiltGeometry {
   const exteriorParts: THREE.BufferGeometry[] = [];
   const interiorParts: THREE.BufferGeometry[] = [];
   const glassParts: THREE.BufferGeometry[] = [];
+  /** Kopien der Körper, die an einem Dach gekappt wurden — nur für die Diagnose. */
+  const unterDachParts: THREE.BufferGeometry[] = [];
   const framePartsGeom: THREE.BufferGeometry[] = [];
   const doorLeaves: BuiltGeometry['doors'] = [];
   const floorParts: THREE.BufferGeometry[] = [];
@@ -661,18 +719,8 @@ function buildGeometry(input: BuildInput): BuiltGeometry {
       ? [...input.dachteile]
       : [];
 
-  /**
-   * Welches Dach liegt über diesem Punkt?
-   *
-   * Ein Gerüst ohne Umriss deckt das ganze Geschoss. Sonst entscheidet der
-   * Umriss — mit einem Zentimeter Nachsicht zur Kante hin, weil die Punkte,
-   * die hier gefragt werden, Wandmitten sind und die Wände *der* Umriss
-   * sind. Genau auf der Kante ist `pointInPolygon` nicht definiert: Beim
-   * Rechteckhaus galt damit die Westwand als drinnen und die Ostwand als
-   * draußen.
-   */
-  const dachAn = (p: { x: number; y: number }): ReturnType<typeof buildRoofFrame> =>
-    frameAn(dachteile, p);
+  // Welches Dach über einer Wand liegt, sagt `frameUeberWand`
+  // (`lib/dachlandschaft.ts`) — an der Mitte und an beiden Wandseiten.
 
   for (const wall of walls) {
     const g = getWallGeometry(wall, nodes as never);
@@ -696,10 +744,7 @@ function buildGeometry(input: BuildInput): BuiltGeometry {
      * sonst unter dem Dach des Hauptbaus und würde an einer Fläche gekappt,
      * die über ihr gar nicht liegt.
      */
-    const wandDach =
-      wall.levelId === dachGeschoss
-        ? dachAn({ x: (g.a.x + g.b.x) / 2, y: (g.a.y + g.b.y) / 2 })
-        : null;
+    const wandDach = wall.levelId === dachGeschoss ? frameUeberWand(dachteile, g) : null;
 
     for (const part of parts) {
       if (!wandDach) {
@@ -709,33 +754,55 @@ function buildGeometry(input: BuildInput): BuiltGeometry {
         continue;
       }
 
-      // Unter dem Dach wird die Wand in kurze Scheiben zerlegt, deren Höhe der
-      // Dachfläche folgt. 8 cm sind fein genug, dass die Treppung in der
-      // Silhouette verschwindet, und ersparen jede Verschneidungsrechnung.
-      const SLICE = 0.08;
-      const span = part.uEnd - part.uStart;
-      const n = Math.max(1, Math.ceil(span / SLICE));
-      for (let i = 0; i < n; i++) {
-        const u0 = part.uStart + (span * i) / n;
-        const u1 = part.uStart + (span * (i + 1)) / n;
-        const um = (u0 + u1) / 2;
-        const mid = wallLocalToWorld(g, um, 0);
-        const top = Math.min(part.zEnd, roofHeightAt(wandDach, mid));
-        if (top <= part.zStart + 1e-4) continue;
-        target.push(boxInWall(g, u0, u1, g.halfThickness, part.zStart, top, undefined, dz));
+      /*
+       * Unter dem Dach endet die Wand **an der Dachfläche**, über ihre ganze
+       * Dicke: Ihr Fußabdruck wird an den Knickgeraden des Dachs zerschnitten,
+       * jedes Stück trägt die Dachfläche als Ebene (`lib/dachschnitt.ts`).
+       * Bis 1.69.0 standen hier 8-cm-Scheiben
+       * mit der Dachhöhe der Scheibenmitte auf der Wandachse: im Bild
+       * Treppenstufen, und auf der Traufseite stach die Wand um halbe
+       * Wandstärke × tan(Neigung) durch die Dachhaut — bei einer 36,5er
+       * Außenwand unter 36° dreizehn Zentimeter.
+       */
+      const stueck = wandUnterDach(
+        g,
+        part.uStart,
+        part.uEnd,
+        g.halfThickness,
+        part.zStart,
+        part.zEnd,
+        wandDach,
+        (p) => roofHeightAt(wandDach, p),
+      );
+      const koerper = koerperAusFlaechen(stueck.flaechen, dz);
+      if (koerper) {
+        target.push(koerper);
+        unterDachParts.push(koerper.clone());
       }
     }
 
     // Öffnungsfüllungen: Glas, Rahmen, Türblatt
+    const rahmenVorher = framePartsGeom.length;
+    const glasVorher = glassParts.length;
     for (const op of wallOpenings) {
       const span = openingSpan(g, op);
-      // Unter der Schräge endet auch die Öffnung an der Dachfläche — sonst
-      // ragen Rahmen und Glas sichtbar durch das Dach.
-      const opCentre = wallLocalToWorld(g, (span.from + span.to) / 2, 0);
-      const roofTop = wandDach ? roofHeightAt(wandDach, opCentre) : Infinity;
+      const frameDepth = g.halfThickness * 0.92;
+      /*
+       * Unter der Schräge endet auch die Öffnung an der Dachfläche — sonst
+       * ragen Rahmen und Glas sichtbar durch das Dach.
+       *
+       * Rahmen und Glas sind Kisten mit waagerechter Oberkante. Damit nichts
+       * durch die Dachhaut sticht, gilt die **niedrigste** Dachhöhe über der
+       * Kiste (`tiefsteDachhoehe`) — nicht, wie bis 1.69.0, die Dachhöhe in
+       * Öffnungsmitte. Die Ecken allein genügen dafür nicht: Auf der Achse
+       * einer Traufwand liegt das Dach tiefer als an beiden Ecken, weil dort
+       * der Umriss verläuft, gegen den die Traufe gerechnet wird.
+       */
+      const roofTop = wandDach
+        ? tiefsteDachhoehe(g, span.from, span.to, frameDepth, wandDach, (p) => roofHeightAt(wandDach, p))
+        : Infinity;
       const head = Math.min(wall.height, op.sillHeight + op.height, roofTop);
       if (head <= op.sillHeight + 0.05) continue;
-      const frameDepth = g.halfThickness * 0.92;
       const fw = 0.045;
 
       // Ein Durchgang bekommt bewusst keinen Rahmen und kein Blatt — die
@@ -839,6 +906,12 @@ function buildGeometry(input: BuildInput): BuiltGeometry {
         }
       }
     }
+    // Für den Diagnosehaken `__raviaUeberDach`: nur was an einem Dach
+    // gekappt wurde, wird dort gegen die Dachfläche gemessen.
+    if (wandDach) {
+      for (const t of framePartsGeom.slice(rahmenVorher)) unterDachParts.push(t.clone());
+      for (const t of glassParts.slice(glasVorher)) unterDachParts.push(t.clone());
+    }
   }
 
   /*
@@ -917,10 +990,16 @@ function buildGeometry(input: BuildInput): BuiltGeometry {
     }
   }
 
-  // Dachflächen: der Grundriss wird gerastert und je Zelle ein kleines
-  // Viereck auf Dachhöhe gesetzt. Das ist grob, aber es zeigt genau das, was
-  // im Dachgeschoss zählt — wo der Kopf anstößt. Eine exakte Verschneidung
-  // von Dachebenen mit dem Grundriss wäre erheblich mehr Code für ein Bild.
+  /*
+   * Dachflächen. Seit 1.70.0 **exakt**: der Umriss des Dachs mit Überstand,
+   * an den Knickgeraden zerschnitten, jedes Stück auf seiner Ebene
+   * (`lib/dachschnitt.ts`) — dieselben Ebenen, auf denen die Wandoberseiten
+   * enden. Bis 1.69.0 war die Haut ein Raster aus 12-cm-Zellen; eine Zelle
+   * über dem First lag bis zu ½ · 12 cm · tan(Neigung) unter der
+   * Dachfläche, und eine Wand darunter stach durch. Das Raster bleibt nur,
+   * wo das Gerüst keinen Umriss kennt (ein Geschoss, dessen Wände sich nicht
+   * schließen).
+   */
   /*
    * **Je Dach ein eigener Durchgang.**
    *
@@ -945,7 +1024,35 @@ function buildGeometry(input: BuildInput): BuiltGeometry {
     // das Dach endete an der Innenkante der Außenwand statt darüber hinaus.
     const OVERHANG = 0.5;
     const polys = teilRaeume.map((r) => r.polygon).filter((p) => p.length >= 3);
-    if (polys.length) {
+    if (roofFrame.umriss.length >= 3) {
+      /*
+       * Überstand je Umrisskante: 0,50 m — außer dort, wo hinter der Kante
+       * ein Raum desselben Geschosses liegt, der nicht unter diesem Dach
+       * steht. Dort endet das Dach an der Wandachse; sonst schnitte es in
+       * den Nachbarn (beim Feldscan vom 02.10.2026 in den Flügel mit gerader
+       * Decke).
+       */
+      const fremd = teil.roomIds.length
+        ? dachRaeume.filter((r) => !teil.roomIds.includes(r.id)).map((r) => r.polygon).filter((p) => p.length >= 3)
+        : [];
+      const u = roofFrame.umriss;
+      const ueberstand = u.map((a, i) => {
+        const b = u[(i + 1) % u.length];
+        const l = Math.hypot(b.x - a.x, b.y - a.y) || 1;
+        // Außen liegt rechts der Laufrichtung (Umriss gegen den Uhrzeigersinn).
+        const aussen = { x: (a.x + b.x) / 2 + ((b.y - a.y) / l) * 0.25, y: (a.y + b.y) / 2 - ((b.x - a.x) / l) * 0.25 };
+        return fremd.some((poly) => pointInPolygon(aussen, poly)) ? 0 : OVERHANG;
+      });
+      const verts: number[] = [];
+      for (const d of dachhaut(roofFrame, ueberstand, (p) => roofHeightAt(roofFrame, p))) {
+        for (const p of d) verts.push(p.x, p.z, -p.y);
+      }
+      if (verts.length) {
+        const g = new THREE.BufferGeometry();
+        g.setAttribute('position', new THREE.Float32BufferAttribute(verts, 3));
+        roofParts.push(hebe(g, input.roofLevelId ?? ''));
+      }
+    } else if (polys.length) {
       let minX = Infinity;
       let minY = Infinity;
       let maxX = -Infinity;
@@ -963,7 +1070,18 @@ function buildGeometry(input: BuildInput): BuiltGeometry {
       maxX += OVERHANG;
       maxY += OVERHANG;
 
+      /*
+       * Der Überstand endet an einem Raum desselben Geschosses, der **nicht**
+       * unter diesem Dach liegt. Bis 1.69.0 lief er 0,50 m über alles
+       * hinweg; beim Feldscan vom 02.10.2026 schnitt das Dach des Hauptbaus
+       * damit in den Flügel, der eine gerade Decke hat — im Bild als dunkles
+       * Dreieck in dessen Wand.
+       */
+      const fremde = teil.roomIds.length
+        ? dachRaeume.filter((r) => !teil.roomIds.includes(r.id)).map((r) => r.polygon).filter((p) => p.length >= 3)
+        : [];
       const covered = (c: { x: number; y: number }): boolean => {
+        for (const poly of fremde) if (pointInPolygon(c, poly)) return false;
         for (const poly of polys) if (pointInPolygon(c, poly)) return true;
         for (const poly of polys) {
           for (let i = 0; i < poly.length; i++) {
@@ -1273,6 +1391,7 @@ function buildGeometry(input: BuildInput): BuiltGeometry {
     if (g) pipeMeshes.push({ runId, colour: eintrag.colour, geometry: g });
   }
   const glass = merge(glassParts);
+  const unterDach = merge(unterDachParts);
   const frames = merge(framePartsGeom);
   const doors = doorLeaves;
   /*
@@ -1312,6 +1431,7 @@ function buildGeometry(input: BuildInput): BuiltGeometry {
     floorSupply,
     glass,
     frames,
+    unterDach,
     doors,
     heating,
     sanitary,
@@ -1898,6 +2018,7 @@ export default function Viewer3D({ className = '' }: { className?: string }) {
    */
   const zeigeDecke = cameraMode === 'walk' || showCeiling;
   const selections = useBimStore((s) => s.selections);
+  const pruefansicht = useBimStore((s) => s.pruefansicht);
   const site = useBimStore((s) => s.doc.site);
   /**
    * Das Gelände lässt sich ausblenden — über **seine Ebene**.
@@ -2488,16 +2609,31 @@ export default function Viewer3D({ className = '' }: { className?: string }) {
       geom: THREE.BufferGeometry | null,
       material: THREE.Material,
       shadows: { cast: boolean; receive: boolean },
+      art?: string,
     ) => {
       if (!geom) return;
       const mesh = new THREE.Mesh(geom, material);
       mesh.castShadow = shadows.cast;
       mesh.receiveShadow = shadows.receive;
+      if (art) mesh.userData = { art };
       content.add(mesh);
     };
 
-    addMesh(built.exterior, materials.clay, { cast: true, receive: true });
-    addMesh(built.interior, materials.clayInterior, { cast: true, receive: true });
+    addMesh(built.exterior, materials.clay, { cast: true, receive: true }, 'aussenwand');
+    /*
+     * Die gekappten Körper für den Diagnosehaken — unsichtbar und auf einer
+     * eigenen Ebene, damit weder das Bild noch ein Strahl beim Antippen oder
+     * Begehen sie trifft. Sie hängen trotzdem in der Szene, damit sie beim
+     * nächsten Neuaufbau mit allem anderen freigegeben werden.
+     */
+    if (built.unterDach) {
+      const diag = new THREE.Mesh(built.unterDach, materials.clay);
+      diag.visible = false;
+      diag.layers.set(31);
+      diag.userData = { art: 'unter-dach-diagnose' };
+      content.add(diag);
+    }
+    addMesh(built.interior, materials.clayInterior, { cast: true, receive: true }, 'innenwand');
     addMesh(built.floors, materials.floor, { cast: false, receive: true });
     for (const boden of built.coveredFloors) {
       const mesh = new THREE.Mesh(boden.geometry, materials.belag[boden.colour] ?? materials.floor);
@@ -2544,7 +2680,7 @@ export default function Viewer3D({ className = '' }: { className?: string }) {
       mesh.userData = { art: 'accessory', id: armatur.id, grund: materials.heating };
       content.add(mesh);
     }
-    addMesh(built.frames, materials.frame, { cast: true, receive: true });
+    addMesh(built.frames, materials.frame, { cast: true, receive: true }, 'rahmen');
     /*
      * Türblätter — je Flügel ein eigener Körper.
      *
@@ -2584,7 +2720,7 @@ export default function Viewer3D({ className = '' }: { className?: string }) {
 
     // Die TGA-Objekte füllt der eigene Effekt weiter unten — hier steht nur
     // die leere Gruppe, damit sie in der richtigen Reihenfolge hängt.
-    addMesh(built.glass, materials.glass, { cast: false, receive: false });
+    addMesh(built.glass, materials.glass, { cast: false, receive: false }, 'glas');
 
     // Das Gelände hängt in derselben Gruppe wie das Gebäude und wird beim
     // nächsten Neuaufbau mit ihr freigegeben.
@@ -2618,7 +2754,12 @@ export default function Viewer3D({ className = '' }: { className?: string }) {
     // der erzeugten Geometrien liegen. Sie steht hier ohnehin schon.
     boundsRef.current = built.bounds.clone();
 
-    if (!fittedRef.current && walls.length > 2) {
+    // Nur einpassen, wenn das Bild zu sehen ist: Unsichtbar steht das
+    // Seitenverhältnis der Kamera noch auf dem alten Fenster, und hochkant am
+    // Telefon (Prüfansicht) lag das Haus dann halb neben dem Bild. Sonst
+    // holt die Bildschleife das Einpassen nach, sobald sie anläuft.
+    const sichtbarJetzt = ['3d', 'split'].includes(useBimStore.getState().viewMode);
+    if (!fittedRef.current && walls.length > 2 && sichtbarJetzt) {
       fitToBounds(built.bounds);
       fittedRef.current = true;
     }
@@ -2662,6 +2803,89 @@ export default function Viewer3D({ className = '' }: { className?: string }) {
         zahlen[art] = (zahlen[art] ?? 0) + geom.attributes.position.count;
       });
       return zahlen;
+    };
+    /*
+     * Diagnosehaken für A2 (1.70.0): Wie weit ragt der höchste Eckpunkt einer
+     * Wand, eines Rahmens oder eines Glases über die Dachfläche, unter der er
+     * steht? Gerechnet an den **gezeichneten** Körpern, mit derselben
+     * Dachlandschaft, aus der sie gebaut sind. Positiv heißt: sticht durch.
+     * Der Rauchtest am Feldscan verlangt höchstens 1 mm.
+     */
+    const dachteileHier = baueDachlandschaft({
+      level: doc.levels[doc.activeLevelId],
+      walls: walls.filter((w) => w.levelId === doc.activeLevelId),
+      nodes: doc.nodes,
+      rooms: rooms.filter((r) => r.levelId === doc.activeLevelId),
+      roofOpenings,
+    });
+    const dachBasis = geschossHoehen.get(doc.activeLevelId) ?? 0;
+    window.__raviaUeberDach = () => {
+      let groesster = -Infinity;
+      let wo: { art: string; x: number; y: number; z: number } | null = null;
+      let punkte = 0;
+      let geo: THREE.BufferGeometry | undefined;
+      content.traverse((o) => {
+        if ((o.userData as { art?: string } | undefined)?.art === 'unter-dach-diagnose') {
+          geo = (o as THREE.Mesh).geometry;
+        }
+      });
+      const art = 'unter dem Dach gekappt';
+      /*
+       * Gemessen wird je Dreieck, nicht je Eckpunkt: Die Ecken liegen auf
+       * den Schnittkanten, und an einer Umrisskante springt die Dachfläche —
+       * eine Ecke genau auf der Sprungkante gehört zu beiden Seiten, die
+       * Dachfunktion entscheidet dort für eine. Deshalb wird jede Ecke um ein
+       * Tausendstel zum Schwerpunkt ihres Dreiecks hin gerückt (und der
+       * Schwerpunkt selbst gemessen) — das ist der Punkt, den das Dreieck
+       * tatsächlich bedeckt.
+       */
+      if (geo) {
+        const pos = geo.attributes.position;
+        const idx = geo.index;
+        const n = idx ? idx.count : pos.count;
+        const ecke = (k: number) => {
+          const i = idx ? idx.getX(k) : k;
+          return { x: pos.getX(i), y: pos.getY(i), z: pos.getZ(i) };
+        };
+        for (let k = 0; k + 2 < n; k += 3) {
+          const a = ecke(k);
+          const b = ecke(k + 1);
+          const c = ecke(k + 2);
+          // Senkrechte Flächen (Wandseiten, Stirnseiten) überspringen: Ihre
+          // obere Kante ist die Kante einer Oberseite und wird dort gemessen;
+          // steht eine senkrechte Fläche genau auf einer Sprungkante des
+          // Dachs, gehört sie zu beiden Seiten und hätte kein eindeutiges Maß.
+          const ux = b.x - a.x, uy = b.y - a.y, uz = b.z - a.z;
+          const vx = c.x - a.x, vy = c.y - a.y, vz = c.z - a.z;
+          const nx = uy * vz - uz * vy, ny = uz * vx - ux * vz, nz = ux * vy - uy * vx;
+          const nl = Math.hypot(nx, ny, nz);
+          if (!(nl > 0) || Math.abs(ny) / nl < 0.01) continue;
+          const m = { x: (a.x + b.x + c.x) / 3, y: (a.y + b.y + c.y) / 3, z: (a.z + b.z + c.z) / 3 };
+          for (const p of [a, b, c, m]) {
+            const q = p === m ? m : { x: p.x + (m.x - p.x) * 1e-3, y: p.y + (m.y - p.y) * 1e-3, z: p.z + (m.z - p.z) * 1e-3 };
+            const frame = frameAn(dachteileHier, { x: q.x, y: -q.z });
+            if (!frame) continue;
+            punkte++;
+            // Auf einer Sprungkante (Traufe gegen den Umriss) hat die
+            // Dachfläche zwei Werte; ein Punkt, der 1 µm neben ihr liegt,
+            // bekommt von der Dachfunktion womöglich den der anderen Seite.
+            // Deshalb gilt die höchste Dachhöhe im Umkreis von 10 µm — ein
+            // echter Durchstich ist breiter als das.
+            let dach = -Infinity;
+            for (const [ox, oy] of [[0, 0], [1e-5, 0], [-1e-5, 0], [0, 1e-5], [0, -1e-5]]) {
+              const r = { x: q.x + ox, y: -q.z + oy };
+              const f = frameAn(dachteileHier, r);
+              if (f) dach = Math.max(dach, roofHeightAt(f, r));
+            }
+            const d = q.y - (dach + dachBasis);
+            if (d > groesster) {
+              groesster = d;
+              wo = { art, x: q.x, y: -q.z, z: q.y };
+            }
+          }
+        }
+      }
+      return { groesster: Number.isFinite(groesster) ? groesster : null, wo, punkte };
     };
 
     setNeuaufbau((n) => n + 1);
@@ -2762,6 +2986,13 @@ export default function Viewer3D({ className = '' }: { className?: string }) {
     const center = bounds.getCenter(new THREE.Vector3());
     const size = bounds.getSize(new THREE.Vector3());
     const radius = Math.max(size.x, size.z, size.y) * 0.5 || 6;
+    /*
+     * Für den Abstand der perspektivischen Kamera zählt die **Umkugel**,
+     * nicht die längste Seite: Von schräg oben gesehen ist ein Haus so breit
+     * wie seine Diagonale. Mit der halben längsten Seite ragte es hochkant am
+     * Telefon (Seitenverhältnis 0,56) links und rechts aus dem Bild.
+     */
+    const kugel = size.length() * 0.5 || radius;
 
     // Abstand aus *beiden* Öffnungswinkeln bestimmen. Nur den vertikalen FOV
     // zu betrachten reicht nicht: im Split-Screen ist das Fenster hochkant,
@@ -2771,7 +3002,7 @@ export default function Viewer3D({ className = '' }: { className?: string }) {
     const aspect = perspective.aspect > 0.01 ? perspective.aspect : 1;
     const hFov = 2 * Math.atan(Math.tan(vFov / 2) * aspect);
     const distance =
-      Math.max(radius / Math.tan(vFov / 2), radius / Math.tan(hFov / 2)) * 1.18;
+      Math.max(kugel / Math.tan(vFov / 2), kugel / Math.tan(hFov / 2)) * 1.05;
     const dir = new THREE.Vector3(0.72, 0.55, 0.85).normalize();
     perspective.position.copy(center).addScaledVector(dir, distance);
     controls.target.copy(center);
@@ -3394,6 +3625,9 @@ export default function Viewer3D({ className = '' }: { className?: string }) {
       // Nur die linke Taste; rechts und Mitte gehören der Kamera.
       if (e.button !== 0) return;
       const s2 = useBimStore.getState();
+      // Prüfansicht am Telefon: nur ansehen. Ein Finger dreht die Kamera und
+      // fasst nichts an (`components/Pruefansicht.tsx`).
+      if (s2.pruefansicht) return;
 
       /*
        * **Der Griff hat Vorfahrt vor allem anderen.**
@@ -4470,6 +4704,10 @@ export default function Viewer3D({ className = '' }: { className?: string }) {
     }
 
     resizeRef.current();
+    if (!fittedRef.current && boundsRef.current) {
+      fitToBounds(boundsRef.current);
+      fittedRef.current = true;
+    }
     if (!uhrRef.current) uhrRef.current = new THREE.Clock();
     const uhr = uhrRef.current;
     uhr.getDelta(); // den aufgelaufenen Rest verwerfen
@@ -4657,7 +4895,9 @@ export default function Viewer3D({ className = '' }: { className?: string }) {
       </div>
 
       {/* Kamera-Umschalter */}
-      <div className="panel absolute right-3 top-3 flex gap-1 p-1">
+      {/* Umbrechen statt links aus dem Bild laufen — am Telefon (375 px)
+          fehlten sonst „Orbit", „Iso" und „Top". */}
+      <div className="panel absolute right-3 top-3 flex max-w-[calc(100%-1.5rem)] flex-wrap justify-end gap-1 p-1">
         {(
           [
             { id: 'orbit', label: 'Orbit' },
@@ -4665,7 +4905,11 @@ export default function Viewer3D({ className = '' }: { className?: string }) {
             { id: 'top', label: 'Top' },
             { id: 'walk', label: 'Begehen' },
           ] as { id: CameraMode; label: string }[]
-        ).map((mode) => (
+        )
+          // Prüfansicht: ansehen, nicht hineingehen — und auf 375 px passt
+          // die Leiste so in eine Zeile, statt das halbe Modell zu verdecken.
+          .filter((mode) => !(pruefansicht && mode.id === 'walk'))
+          .map((mode) => (
           <button
             key={mode.id}
             className={`chip ${cameraMode === mode.id ? 'bg-accent/15 text-accent' : 'text-slate-400 hover:text-slate-200'}`}
@@ -4674,6 +4918,8 @@ export default function Viewer3D({ className = '' }: { className?: string }) {
             {mode.label}
           </button>
         ))}
+        {!pruefansicht && (
+        <>
         <div className="divider-v" />
         <button
           className={`chip ${zeigeDecke ? 'bg-accent/15 text-accent' : 'text-slate-400 hover:text-slate-200'}`}
@@ -4716,6 +4962,8 @@ export default function Viewer3D({ className = '' }: { className?: string }) {
           >
             Baugrube
           </span>
+        )}
+        </>
         )}
         <div className="divider-v" />
         <button
@@ -5087,7 +5335,7 @@ export default function Viewer3D({ className = '' }: { className?: string }) {
         durch Zufall. Der Hinweis verschwindet, sobald etwas ausgewählt ist:
         dann ist die Frage beantwortet, und der Platz gehört dem Modell.
       */}
-      {cameraMode !== 'walk' && walls.length > 0 && selections.length === 0 && (
+      {cameraMode !== 'walk' && walls.length > 0 && selections.length === 0 && !pruefansicht && (
         <div className="panel pointer-events-none absolute bottom-4 left-1/2 -translate-x-1/2 px-3 py-2 text-center">
           <div className="text-[11px] text-slate-300">
             Antippen wählt · Ziehen setzt um · Umschalt + Ziehen ändert die Höhe

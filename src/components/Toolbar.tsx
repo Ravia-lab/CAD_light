@@ -737,7 +737,7 @@ export function TopBar({ onProjekte }: { onProjekte: () => void }) {
 
         {/* Projektname */}
         <input
-          className="w-48 rounded-md bg-transparent px-2 py-1 text-xs text-slate-200 outline-none transition-colors hover:bg-white/[0.04] focus:bg-white/[0.06]"
+          className="w-48 rounded-md bg-transparent px-2 py-1 text-xs text-slate-200 outline-none [@media(pointer:coarse)]:min-h-[44px] [@media(pointer:coarse)]:text-[16px] transition-colors hover:bg-white/[0.04] focus:bg-white/[0.06]"
           value={doc.meta.name}
           onChange={(e) => updateMeta({ name: e.target.value })}
           spellCheck={false}
@@ -967,7 +967,7 @@ export function TopBar({ onProjekte }: { onProjekte: () => void }) {
 
         <button
           onClick={handleExport}
-          className="flex items-center gap-1.5 rounded-lg bg-accent/15 px-3 py-1.5 text-[11px] font-medium text-accent shadow-glow transition-colors hover:bg-accent/25"
+          className="flex items-center gap-1.5 rounded-lg bg-accent/15 px-3 py-1.5 text-[11px] font-medium text-accent shadow-glow [@media(pointer:coarse)]:min-h-[44px] transition-colors hover:bg-accent/25"
           title="Gebäudedaten als RaVia-BIM-JSON exportieren (DIN EN 12831) — dient zugleich als Projektdatei"
         >
           <Icon>{icons.export}</Icon>
@@ -1067,7 +1067,7 @@ function WallDefaultsBar() {
       </div>
 
       <select
-        className="rounded-md bg-graphite-900/60 px-2 py-1.5 text-[11px] text-slate-300 outline-none"
+        className="rounded-md bg-graphite-900/60 px-2 py-1.5 text-[11px] text-slate-300 outline-none [@media(pointer:coarse)]:min-h-[44px] [@media(pointer:coarse)]:text-[16px]"
         value={wallDefaults.type}
         onChange={(e) => {
           const type = e.target.value as WallType;
