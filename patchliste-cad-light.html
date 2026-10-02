@@ -107,7 +107,7 @@
 
 <header>
   <h1>RaVia CAD Light · Patchliste</h1>
-  <p class="unter">Alle Fassungen von <b>0.4.0</b> bis <b>1.67.0</b> — vollständig, von der neuesten
+  <p class="unter">Alle Fassungen von <b>0.4.0</b> bis <b>1.68.0</b> — vollständig, von der neuesten
   zur ältesten. Der Text jeder Zeile stammt aus der Fassungsgeschichte des Handbuchs
   (Kapitel 18.6); Datum und Commit kommen aus der Versionsverwaltung. Diese Seite wird
   daraus <b>erzeugt</b> (<code>scripts/patchliste.mjs</code>) — hier ist nichts nachträglich
@@ -116,18 +116,18 @@
   <div class="karten">
     <div class="karte acc">
       <div class="ort">Fassungen</div>
-      <div class="zahl">87</div>
+      <div class="zahl">88</div>
       <div class="note">davon 10 reine Korrekturfassungen</div>
     </div>
     <div class="karte">
       <div class="ort">Zeitraum</div>
-      <div class="zahl" style="font-size:19px">29.08.2026 – 01.10.2026</div>
+      <div class="zahl" style="font-size:19px">29.08.2026 – 02.10.2026</div>
       <div class="note">Spanne der Fassungen mit Commit; die 46 ohne liegen davor</div>
     </div>
     <div class="karte gut">
       <div class="ort">Live · ravia-tech.de/Cad_light/</div>
-      <div class="zahl">1.67.0</div>
-      <div class="note">Commit <code>dd74700</code> · aufgespielt und abgenommen</div>
+      <div class="zahl">1.68.0</div>
+      <div class="note">Commit <code>b9943bb</code> · aufgespielt und abgenommen</div>
     </div>
   </div>
 
@@ -153,12 +153,21 @@
 </div>
 
 <section class="reihe" data-reihe="60">
-<h2>1.60 bis 1.69<span class="zusatz">Verbrauchsabgleich, Baugrube, Scan als Datei, Aufnahme ohne Zeichnen, Fußbodenheizung · 8 Fassungen</span></h2>
-<article class="fassung ist-live" data-v="1.67.0" data-korr="0" data-schnitt="0">
+<h2>1.60 bis 1.69<span class="zusatz">Verbrauchsabgleich, Baugrube, Scan als Datei, Aufnahme ohne Zeichnen, Fußbodenheizung · 9 Fassungen</span></h2>
+<article class="fassung ist-live" data-v="1.68.0" data-korr="0" data-schnitt="0">
+  <div class="kopfzeile">
+    <span class="nr">1.68.0</span>
+    <span class="stichwort">Das Blatt wird zum Grundriss</span>
+    <span class="marke m-live">live</span>
+  </div>
+  <div class="herkunft"><span class="datum">02.10.2026</span> <code>b9943bb</code></div>
+  <p class="was">Gemeldet aus der Benutzung: „bei skizze wird nur skizziert, hier sollte dann auch die funktion der räume also wände erzeugen und dergleichen gegeben sein das man es übertragen kann". Berechtigt — und die Lücke war größer, als sie klingt: Ein <b>leeres Blatt ist die naheliegendste Fläche, um eine Wohnung aufzuzeichnen</b>, und wer das tat, hatte danach ein Bild. Der Weg über das Skizzenblatt im Plan setzt einen Plan voraus, den es am Anfang eines Projekts gerade nicht gibt. <b>Gefehlt hat genau eine Angabe: der Maßstab.</b> Ein Blatt hat Millimeter, ein Gebäude hat Meter. Jetzt gibt es auf dem Blatt eine <b>Messstrecke</b> — dieselbe Idee wie beim Referenzbild: über eine bekannte Länge ziehen, Maß in Metern eintippen — und daneben den Knopf <b>In den Grundriss</b>. Was dann passiert, ist <b>kein zweiter Erkennungsweg</b>: Die Striche werden mit dem Maßstab in Meter gerechnet und durch dieselbe Erkennung geschickt wie das Skizzenblatt über dem Plan. Es entsteht derselbe Vorschlag in Magenta, mit derselben Leiste zum Prüfen, Verwerfen einzelner Vektoren und Übernehmen — eine zweite Erkennung mit eigenen Schwellen wäre ein zweites Verhalten für dieselbe Sache. Drei Entscheidungen, die dabei bewusst so fallen: <b>Ohne Maßstab wird nicht geraten</b> — ein angenommener Maßstab ergäbe einen Grundriss, der plausibel aussieht und um einen beliebigen Faktor falsch ist, und man sucht den Fehler dann in den Wänden. Die <b>Messstrecke muss mindestens 20 mm</b> lang sein, weil 4 mm für 3,50 m jeden Zeichenfehler mit dem Faktor 875 umlegen. Und die <b>y-Achse wird umgeklappt</b>: Auf dem Blatt zählt y nach unten, im Modell nach oben — ohne das käme der Grundriss gespiegelt an, und eine Spiegelung sieht man an einem freihändigen Umriss erst, wenn das Bad an der falschen Hausseite liegt. Der Vorschlag wird <b>neben</b> den Bestand gelegt und nicht darüber, mit einem Meter Abstand; was in vorhandenen Wänden liegt, lässt sich nicht prüfen. Das Blatt bleibt dabei Papier: Übernehmen verbraucht es nicht, und mit dem Haken „nur schwarze" bleiben Maße in Grün und Bemerkungen in Rot außen vor. <b>Was es nicht ist:</b> ein Aufmaß. Das Maß richtet eine Länge, die Erkennung den Rest auf rechte Winkel — alles Übrige erbt die Verzerrung der Hand. Es ist ein Anfang, über den gemessen wird, wie beim eingelesenen Grundrissbild. Nachgetragen außerdem die Regel zu <code>cutOffPoint</code> im Export: Dort steht der <b>gerechnete</b> Abschaltpunkt und nicht zwangsläufig der eingetippte, weil ein Abschaltpunkt über dem Bivalenzpunkt widersprüchlich ist und begrenzt wird. Das stand bisher nur im Rechenkern und in einem Brief. Siehe <a href="#k4-11">Abschnitt 4.11</a> und <a href="#k17-1">17.1</a>.</p>
+</article>
+<article class="fassung" data-v="1.67.0" data-korr="0" data-schnitt="0">
   <div class="kopfzeile">
     <span class="nr">1.67.0</span>
     <span class="stichwort">Die Zahl, nach der RaVia gefragt hat</span>
-    <span class="marke m-live">live</span>
+    
   </div>
   <div class="herkunft"><span class="datum">01.10.2026</span> <code>dd74700</code></div>
   <p class="was">Die RaVia-Seite hatte sich zum Verfahren für die <b>Deckungsanteile bivalenter Anlagen</b> entschieden — „Bivalenzpunkt + Jahresdauerlinie", ausdrücklich nicht Monatsbilanz —, und drei Festlegungen nachgeliefert: Gradstunden-Dauerlinie aus Norm-Außentemperatur und Heizgrenze ohne zusätzliche Klimadatenreihe, der Bivalenzpunkt <b>eingegeben</b> und nicht aus der Leistungskurve gerechnet, in der ersten Stufe die <b>parallele</b> Fahrweise. Genau so ist es gebaut — und weil die drei Fahrweisen dieselbe Konstruktion sind, rechnen alternativ und teilparallel mit. <b>Das Modell sind zwei Geraden:</b> die Gebäudekennlinie von der Norm-Heizlast auf null an der Heizgrenze, die Dauerlinie linear über die Heizzeit. Zusammengesetzt wird die Last über der Zeit ein Dreieck, und jeder Deckungsanteil ist ein Flächenverhältnis darin: parallel u², alternativ 2u − u², teilparallel beides hintereinander. Die Formeln gehen stetig ineinander über, und daran sind sie geprüft. <b>Was dabei auffällt und selten gesagt wird:</b> Bei alternativer Fahrweise trägt der zweite Erzeuger in 32 % der Heizzeit <b>53,8 %</b> der Heizarbeit — die kältesten Stunden haben die größte Last —, und er muss die <b>ganze</b> Norm-Heizlast tragen und nicht die Spitze. Ein 6-kW-Heizstab an einem 10-kW-Haus fehlt dort um 4 kW, und am Feld „Leistung" sieht man das nicht. Die Modellprüfung meldet den Fehlbetrag als <b>Fehler</b>, weil ein Haus, das am Auslegungspunkt nicht warm wird, kein Hinweis ist; umgerechnet wird nichts. <b>Jede Annahme steht am Ergebnis</b> — lineare Dauerlinie, konstante Wärmepumpenleistung unter dem Bivalenzpunkt, keine Klimadatenreihe, keine Kilowattstunden —, und ohne Heizgrenztemperatur wird gar nicht gerechnet: Sie ist eine Einstellung am Gerät, und geraten wird sie nicht. Für Solarthermie auch nicht, weil ihr Beitrag an der Einstrahlung hängt und nicht an der Temperatur. <b>Dazu die Verbindung Heizkreis ↔ Nutzungseinheit</b> für den Fall „zentrale Versorgung, Heizkreise je Wohnung": abgeleitet über die Räume und nicht am Kreis gespeichert, damit es keine zweite Wahrheit gibt; ein Kreis über zwei Wohnungen bekommt deshalb keine eindeutige Einheit, sondern einen Befund — er ist weder je Wohnung regelbar noch je Wohnung abrechenbar. <b>Berichtigt:</b> Die Meldung zum Sockelleistenkanal nennt jetzt den gebrauchten Außendurchmesser; sie endete bisher bei „passt nicht" und ließ die Frage offen, welcher Kanal dann. Beim Nachmessen stellte sich übrigens heraus, dass diese Meldung im Demohaus auch ohne Fußbodenheizung kommt — sie hängt am gemeinsamen Stamm und nicht, wie im Stand 1.66.0 vermutet, an der Verteilerzuleitung. Export <b>2.11.0</b> und <b>2.12.0</b>, beide reiner Zuwachs. Siehe <a href="#k13-19">Abschnitt 13.19</a>, <a href="#k10-7">10.7</a> und <a href="#k17-1">17.1</a>.</p>
@@ -991,7 +1000,7 @@ nicht mehr eindeutig belegen lässt, mit welcher Programmfassung sie kamen.</p>
   <b>Quellen.</b> Der Text jeder Fassung ist wörtlich die Fassungsgeschichte aus Kapitel 18.6
   des Handbuchs (<code>handbuch/kap-18.html</code>) — dieselbe Quelle, aus der auch das
   ausgelieferte Handbuch entsteht. Datum und Commit stammen aus <code>git log</code>.
-  Erzeugt am 1.10.2026 mit <code>node scripts/patchliste.mjs</code>.
+  Erzeugt am 2.10.2026 mit <code>node scripts/patchliste.mjs</code>.
   <br><br>
   <b>Zwei Lücken, die in den Daten liegen und nicht im Text.</b>
   Die Versionsverwaltung dieses Projekts beginnt erst bei <code>1.14.0</code> —
