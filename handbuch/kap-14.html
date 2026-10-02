@@ -602,6 +602,8 @@
 <tr><td>Warnung</td><td>„Es sind keine Leitungen gezeichnet. Die Rohrmengen fehlen in der Liste — sie lassen sich aus Räumen und Geräten nicht ableiten."</td></tr>
 <tr><td>Warnung</td><td>„Die Flächenheizung ist nicht ausgelegt. Gezählt sind nur die gesetzten Objekte — Rohrmenge, Verteilergröße, Systemplatten und Randdämmstreifen fehlen."</td></tr>
 <tr><td>Warnung</td><td>„<em>n</em> Leitungsabschnitte haben keine belastbare Verlegehöhe. Für sie ist keine Verlegeart angegeben; die Höhe ist an der Leitung nachzutragen."</td></tr>
+<tr><td>Warnung</td><td>„<em>n</em> Leitungsabschnitte haben keine Länge und stehen nicht in der Liste (EG: <em>a</em>, OG: <em>b</em>)." — mit dem wahrscheinlichen Grund: ein Doppelklick beim Zeichnen, oder ungültige Koordinaten aus einer eingelesenen Datei.</td></tr>
+<tr><td>Warnung</td><td>„<em>n</em> Leitungsabschnitte liegen deckungsgleich auf einem anderen derselben Art, Nennweite und Höhe … ist die Rohrlänge um <em>x</em> m zu hoch."</td></tr>
 <tr><td>Hinweis</td><td>„Alle Leitungen liegen auf derselben Verlegehöhe. Die Verlegeart ist damit nicht erkennbar; die Rohrpositionen sind nicht danach getrennt."</td></tr>
 <tr><td>Hinweis</td><td>„Das Dokument hat kein Anlagenblatt. Für Speicher, Heizkreise und Sicherheitstechnik gelten die Vorbelegungen; ausgelegt ist davon nichts."</td></tr>
 <tr><td>Fehler</td><td>„Das Dokument enthält weder Wände noch Öffnungen, Leitungen oder TGA-Objekte. Es gibt nichts zu ermitteln."</td></tr>
@@ -610,6 +612,12 @@
 </table>
 
 <p>Die Verlegeart wird an der Höhe der Leitung unterschieden: unter 0,10 m „im Fußbodenaufbau", über 2,00 m „unter der Decke", dazwischen „an der Wand". Liegen alle Leitungen auf derselben Höhe, wird gar nicht danach getrennt — dann sagt das Modell nichts über die Verlegeart aus, und eine erfundene Trennung wäre schlimmer als keine.</p>
+
+<p><b>Leitungen ohne Länge und doppelt gesetzte Leitungen.</b> Beide sind im Plan unsichtbar — ein Punkt sieht aus wie nichts, zwei deckungsgleiche Striche sehen aus wie einer. Bis 1.69.0 waren sie es auch in der Liste: Die eine fiel still heraus, die andere wurde still zweimal gezählt. Seit 1.70.0 stehen beide als Warnung unter der Liste, je Geschoss gezählt; die einzelnen Leitungen mit Sprung in den Plan führt die Modellprüfung (<code>pipes.zero-length</code>, <code>pipes.duplicate</code>).</p>
+
+<p>Als doppelt gilt eine Leitung nur, wenn <b>alles</b> übereinstimmt: Geschoss, Leitungsart, Nennweite, Werkstoff, Höhen und der ganze Zug, Punkt für Punkt auf einen Millimeter genau, in derselben oder der umgekehrten Richtung. Das ist mit Absicht eng. Vorlauf und Rücklauf in einer Trasse, Saug- und Flüssigkeitsleitung eines Splitgeräts, zwei Züge, die am selben Verteiler beginnen und ein Stück gemeinsam laufen — all das liegt übereinander und ist richtig gezeichnet. Eine Meldung dafür hieße, ein echtes Rohr zum Löschen anzubieten.</p>
+
+<div class="warnung"><b>Achtung</b><p>Die doppelte Leitung <b>bleibt in der Menge</b>. Ob an dieser Stelle versehentlich zweimal gezeichnet wurde oder wirklich zwei gleiche Rohre liegen, weiß nur, wer gezeichnet hat. Die Bemerkung nennt die Meter, um die die Menge im ersten Fall zu hoch ist; herausgerechnet wird nichts.</p></div>
 
 <h4 id="k14-6-5">14.6.5 Die CSV-Datei</h4>
 

@@ -41,6 +41,7 @@ import type {
   Vec2,
 } from '../types/bim';
 import { hoeheAnPunkt, hoehenversatz, trassenlaenge } from './rohrlaenge';
+import { nullLeitungen } from './leitungsbefund';
 
 export type { PipeNetworkReport, PipePath, PipeSegment };
 
@@ -240,6 +241,11 @@ function buildGraph(doc: BimDocument): { graph: Graph; risers: number } {
 
   // --- Leitungen ----------------------------------------------------------
   const ends = new Map<string, { first: GraphNode; last: GraphNode }>();
+  const ungueltigeLage = new Set(
+    nullLeitungen(runs)
+      .filter((l) => l.grund === 'ungueltig')
+      .map((l) => l.id),
+  );
   // Armaturen nach Leitung vorsortieren — sonst wird die Zuordnung quadratisch.
   const armaturenJeLeitung = new Map<string, PipeAccessory[]>();
   for (const a of Object.values(doc.pipeAccessories ?? {})) {
@@ -251,6 +257,23 @@ function buildGraph(doc: BimDocument): { graph: Graph; risers: number } {
 
   for (const run of runs) {
     if (run.points.length < 2) continue;
+    /*
+     * **Eine Leitung, deren Lage keine Zahl ist, gehört nicht ins Netz.**
+     *
+     * Bis 1.69.0 kam sie hinein — und eine einzige NaN-Koordinate brachte
+     * die Modellprüfung zum Stehen: Die Teilstrecke bekam die Länge NaN, im
+     * Dijkstra ist `bekannt <= NaN` immer falsch, und die beiden Enden der
+     * Strecke „verbesserten" sich gegenseitig ohne Ende. Gefunden hat das
+     * der Prüfblock `leitungsbefund`, nicht die Benutzung — eine solche
+     * Koordinate entsteht beim Einlesen einer beschädigten Datei, und dann
+     * friert das Programm ein, ohne zu sagen, warum.
+     *
+     * Ausgelassen wird sie nicht still: `nullLeitungen` meldet genau diese
+     * Leitungen als `pipes.zero-length` mit dem Grund „ungültige
+     * Koordinaten". Angeschlossen wäre sie ohnehin an nichts — ein Punkt
+     * ohne Lage liegt neben keinem anderen.
+     */
+    if (ungueltigeLage.has(run.id)) continue;
     let previous = graph.node(run.points[0], run.levelId, hoeheAnPunkt(run, 0));
     const first = previous;
     const armaturen = armaturenJeLeitung.get(run.id) ?? [];
@@ -518,6 +541,10 @@ function shortestPaths(graph: Graph, sourceNodes: { node: number; fixtureId: str
 
     for (const edge of graph.edges.get(node) ?? []) {
       const next = distance + edge.length;
+      // Zweite Sicherung neben `buildGraph`: Eine Weglänge, die keine
+      // endliche Zahl ist, verbessert nichts. Ohne diese Zeile genügt eine
+      // einzige NaN-Kante, damit die Schleife nicht endet (siehe dort).
+      if (!Number.isFinite(next)) continue;
       const known = best.get(edge.to);
       if (known && known.distance <= next + 1e-9) continue;
       best.set(edge.to, { distance: next, from: node, edge, source: current.source });

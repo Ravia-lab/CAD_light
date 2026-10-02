@@ -62,6 +62,7 @@ import {
 } from '../types/bim';
 import { BELAG_GRENZE, belagNach } from './bodenbelag';
 import { rohrlaenge, steiganteil } from './rohrlaenge';
+import { doppelteLeitungen, nullLeitungen } from './leitungsbefund';
 import { rohrbezeichnungLang } from './rohrbezeichnung';
 import { herkunftText, uWertOeffnung, uWertWand, type UWertAuskunft } from './uwert';
 import { findModel } from './deviceCatalog';
@@ -359,6 +360,14 @@ function pipeRows(runs: readonly PipeRun[], splitByLaying: boolean): PipeRow[] {
      */
     const length = rohrlaenge(run);
     const steig = steiganteil(run);
+    /*
+     * **Verworfen ja, still nein.** Eine Leitung ohne Länge ist keine
+     * Bestellposition und bleibt draußen. Bis 1.69.0 geschah das aber ohne
+     * ein Wort. Seit 1.70.0 meldet `collectPipes` jede so verworfene Leitung
+     * unter der Liste — und zwar über `nullLeitungen`, deren Bedingung mit
+     * dieser Zeile übereinstimmt. Ändert jemand die eine, ohne die andere,
+     * schlägt der Prüfblock `leitungsbefund` an.
+     */
     if (!Number.isFinite(length) || length <= 0) continue;
     const laying = splitByLaying ? layingOf(run) : undefined;
     const key = `${run.service}|${run.nominalDiameter}|${run.material ?? ''}|${run.outerDiameter ?? ''}|${run.insulation}|${laying ?? ''}`;
@@ -427,6 +436,63 @@ function rohrBemerkung(row: PipeRow): string {
   );
 }
 
+/**
+ * Die Leitungen, die in der Menge fehlen oder zu viel sind — als Bemerkung
+ * unter der Liste.
+ *
+ * **Je Geschoss gezählt, nicht je Leitung aufgezählt.** Der Massenauszug
+ * ist eine Bestellung; wer sie liest, will wissen, *ob* und *wo ungefähr*
+ * etwas fehlt, nicht jede Kennung. Die einzelnen Leitungen mit Sprung im
+ * Editor stehen in der Modellprüfung (`pipes.zero-length`,
+ * `pipes.duplicate`). Zwei Listen derselben Befunde in voller Länge wären
+ * zwei Stellen, die auseinanderlaufen können.
+ *
+ * **Die doppelte Leitung bleibt in der Menge.** Ob sie überflüssig ist oder
+ * zwei Rohre an derselben Stelle wirklich verlegt werden, weiß das Programm
+ * nicht. Sie herauszurechnen hieße, eine Entscheidung zu treffen, die beim
+ * Zeichner liegt. Genannt wird die Länge, um die die Menge dann zu hoch ist.
+ */
+function leitungsbefundNotieren(doc: BimDocument, runs: readonly PipeRun[], notes: MaterialNote[]): void {
+  const geschoss = (id: string): string => doc.levels?.[id]?.name ?? 'ohne Geschoss';
+  const jeGeschoss = (ids: readonly string[]): string => {
+    const zahl = new Map<string, number>();
+    for (const id of ids) zahl.set(geschoss(id), (zahl.get(geschoss(id)) ?? 0) + 1);
+    return [...zahl.entries()].map(([name, n]) => `${name}: ${n}`).join(', ');
+  };
+
+  const leer = nullLeitungen(runs);
+  if (leer.length) {
+    const ungueltig = leer.filter((l) => l.grund === 'ungueltig').length;
+    const einzahl = leer.length === 1;
+    notes.push({
+      severity: 'warn',
+      text:
+        `${leer.length} Leitungsabschnitt${einzahl ? ' hat' : 'e haben'} keine Länge und ${einzahl ? 'steht' : 'stehen'} ` +
+        `nicht in der Liste (${jeGeschoss(leer.map((l) => l.levelId))}). ` +
+        (ungueltig
+          ? `${ungueltig === leer.length ? (einzahl ? 'Er hat' : 'Alle haben') : `${ungueltig} davon ${ungueltig === 1 ? 'hat' : 'haben'}`} ` +
+            'ungültige Koordinaten oder Höhen — das kommt vom Einlesen einer Datei, nicht vom Zeichnen, und ' +
+            'betrifft dann oft mehr als eine Leitung. '
+          : 'Meist ist das ein Doppelklick beim Zeichnen. ') +
+        'Ist an einer solchen Leitung ein Gerät angebunden, hängt es im Rohrnetz an nichts. Die Modellprüfung führt jede einzeln.',
+    });
+  }
+
+  const doppelt = doppelteLeitungen(runs);
+  if (doppelt.length) {
+    const zuViel = doppelt.reduce((s, d) => s + d.laenge, 0);
+    const einzahl = doppelt.length === 1;
+    notes.push({
+      severity: 'warn',
+      text:
+        `${doppelt.length} Leitungsabschnitt${einzahl ? ' liegt' : 'e liegen'} deckungsgleich auf einem anderen ` +
+        `derselben Art, Nennweite und Höhe (${jeGeschoss(doppelt.map((d) => d.levelId))}). ` +
+        `${einzahl ? 'Er ist' : 'Sie sind'} in der Menge enthalten; ist ${einzahl ? 'er' : 'sie'} versehentlich gesetzt, ` +
+        `ist die Rohrlänge um ${num(zuViel, 2)} m zu hoch. Die Modellprüfung führt jedes Paar einzeln.`,
+    });
+  }
+}
+
 function collectPipes(doc: BimDocument, sheet: Sheet, notes: MaterialNote[]): void {
   const runs = Object.values(doc.pipes ?? {});
   if (!runs.length) {
@@ -458,6 +524,7 @@ function collectPipes(doc: BimDocument, sheet: Sheet, notes: MaterialNote[]): vo
     }
 
     const rows = pipeRows(runs, splitByLaying);
+    leitungsbefundNotieren(doc, runs, notes);
     for (const row of rows) {
       sheet.add({
         trade: 'rohr',

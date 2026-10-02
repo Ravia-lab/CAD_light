@@ -20,11 +20,12 @@
 import type { BimDocument, ValidationIssue, ValidationReport, Vec2 } from '../types/bim';
 import { distance } from './geometry';
 import { durchbruchPasst } from './durchbruchSymbols';
-import { durchbruchWirt } from '../types/bim';
+import { PIPE_SERVICE_LABELS, durchbruchWirt } from '../types/bim';
 import { BRUESTUNGS_HOEHE, diagnoseClosure, gebaeudeUmriss, gradeSplit } from './roomDetection';
 import { BAUTEIL_BEZEICHNUNG, VORGABE_U, istErfasst, uWertOeffnung, uWertWand } from './uwert';
 import { documentBridgeHeatLoss, envelopeArea } from './thermalBridges';
 import { buildPipeNetwork } from './pipeNetwork';
+import { doppelteLeitungen, nullLeitungen } from './leitungsbefund';
 import { acousticReport, protectionIssues, protectionStatus, sourceDemand, waterProtectionVerdict } from './heatPump';
 import { anlagenHinweise } from './anlagenhinweise';
 import { dichtheitspflicht } from './kaeltemittel';
@@ -192,6 +193,10 @@ export const REMEDIES: Record<string, string> = {
   'pipes.unconnected':
     'Beim Verlegen auf das Symbol klicken — damit hängt es am Strang. Oder die Leitung bis an das Symbol heranziehen.',
   'pipes.idle-source': 'An dieser Quelle hängt nichts. Entweder eine Leitung anschließen oder sie entfernen.',
+  'pipes.zero-length':
+    'Die Leitung anspringen und löschen. Hängt ein Gerät an ihr, die Anbindung danach mit einem richtigen Zug neu setzen — sonst ist es im Rohrnetz nicht angeschlossen.',
+  'pipes.duplicate':
+    'Eine der beiden Leitungen löschen — es sei denn, an dieser Stelle werden wirklich zwei gleiche Rohre verlegt. Dann die zweite um den Rohrabstand versetzen, damit beide im Plan zu sehen sind.',
   'heatpump.no-reference':
     'Im Reiter „Wärmepumpe" die Grundstücksgrenze zeichnen — oder einen Immissionsort dort setzen, wo beim Nachbarn das nächste Fenster sitzt.',
   'heatpump.noise-exceeded':
@@ -948,6 +953,44 @@ export function validateModel(doc: BimDocument): ValidationReport {
         kind: 'fixture',
         id: s.fixtureId,
       });
+    }
+    /*
+     * Leitungen ohne Länge und doppelt gesetzte Leitungen (seit 1.70.0).
+     *
+     * Beide waren bis dahin unsichtbar: im Plan, weil ein Punkt und zwei
+     * deckungsgleiche Striche nicht auffallen; im Massenauszug, weil die
+     * eine still verworfen und die andere still doppelt gezählt wurde.
+     * Warnung und nicht Fehler: Eine Nullleitung verfälscht keine Rechnung,
+     * sie fehlt nur; und ob eine doppelte Leitung überflüssig ist, kann nur
+     * der Zeichner sagen.
+     */
+    const pipeRuns = Object.values(doc.pipes ?? {});
+    const geschossName = (id: string) => doc.levels?.[id]?.name ?? 'ohne Geschoss';
+    for (const leer of nullLeitungen(pipeRuns)) {
+      const run = doc.pipes[leer.id];
+      const art = PIPE_SERVICE_LABELS[run.service] ?? run.service;
+      add(
+        'warning',
+        'pipes.zero-length',
+        leer.grund === 'ungueltig'
+          ? `Leitung „${art}" (${geschossName(leer.levelId)}) hat ungültige Koordinaten oder Höhen und fehlt im Massenauszug.`
+          : `Leitung „${art}" (${geschossName(leer.levelId)}) hat keine Länge und fehlt im Massenauszug.`,
+        { kind: 'pipe', id: leer.id },
+        run.points[0] && Number.isFinite(run.points[0].x) && Number.isFinite(run.points[0].y)
+          ? run.points[0]
+          : undefined,
+      );
+    }
+    for (const d of doppelteLeitungen(pipeRuns)) {
+      const run = doc.pipes[d.doppelId];
+      const art = PIPE_SERVICE_LABELS[run.service] ?? run.service;
+      add(
+        'warning',
+        'pipes.duplicate',
+        `Leitung „${art}" DN ${run.nominalDiameter} (${geschossName(d.levelId)}) liegt deckungsgleich auf einer zweiten — ` +
+          `im Massenauszug stehen ${d.laenge.toFixed(2).replace('.', ',')} m Rohr doppelt.`,
+        { kind: 'pipe', id: d.doppelId },
+      );
     }
   }
 

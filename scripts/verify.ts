@@ -126,6 +126,7 @@ import { balanceNetwork, dimensionForDn, requiredKv } from '../src/lib/hydraulic
 // Blöcke unabhängig voneinander entstehen können; gezählt wird hier.
 import { pruefeGeraeteimport } from './pruefungen/geraeteimport';
 import { pruefeMassenauszug } from './pruefungen/massenauszug';
+import { pruefeLeitungsbefund } from './pruefungen/leitungsbefund';
 import { pruefeAnlagenbuch } from './pruefungen/anlagenbuch';
 import { pruefeEinbettung } from './pruefungen/einbettung';
 import { pruefeFussbodenheizung } from './pruefungen/fussbodenheizung';
@@ -3744,6 +3745,7 @@ pruefeGeraeteimport(check);
 
 console.log('\n▸ Massenauszug');
 pruefeMassenauszug(check);
+pruefeLeitungsbefund(check);
 
 console.log('\n▸ Anlagenbuch');
 pruefeAnlagenbuch(check);
