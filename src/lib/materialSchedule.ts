@@ -64,6 +64,7 @@ import { BELAG_GRENZE, belagNach } from './bodenbelag';
 import { rohrlaenge, steiganteil } from './rohrlaenge';
 import { doppelteLeitungen, nullLeitungen } from './leitungsbefund';
 import { rohrbezeichnungLang } from './rohrbezeichnung';
+import { FORMTEIL_LABELS, formteile } from './formteile';
 import { herkunftText, uWertOeffnung, uWertWand, type UWertAuskunft } from './uwert';
 import { findModel } from './deviceCatalog';
 import { verlegebilanz, verlegesumme } from './fussbodenkurven';
@@ -421,7 +422,7 @@ function pipeRows(runs: readonly PipeRun[], splitByLaying: boolean): PipeRow[] {
  * Prüfer rechnen zu lassen, was das Programm schon gerechnet hat.
  */
 function rohrBemerkung(row: PipeRow): string {
-  const ohneZuschlag = 'Ohne Formstücke und ohne Verschnitt.';
+  const ohneZuschlag = 'Ohne Verschnitt; die Formteile stehen als eigene Positionen.';
   // Unter einem Zentimeter ist der senkrechte Anteil kein Höhenversatz,
   // sondern Rundung aus den Verlegehöhen. Ihn auszuweisen erzeugte an jeder
   // waagerechten Leitung einen Satz über nichts.
@@ -620,6 +621,30 @@ function collectPipes(doc: BimDocument, sheet: Sheet, notes: MaterialNote[]): vo
         text: `${unknownInsulation} Leitungsabschnitt${unknownInsulation === 1 ? ' trägt' : 'e tragen'} keine belastbare Dämmstärke. Für diese Leitungen ist keine Dämmung ausgewiesen; die Stärke ist an der Leitung nachzutragen.`,
       });
     }
+  }
+
+  /*
+   * Formteile — Bögen, T-Stücke, Reduzierungen (seit 1.71.0, siehe
+   * `lib/formteile.ts`). Bis dahin stand hier „ohne Formstücke", und die
+   * Liste hatte keinen einzigen. Gezählt aus der Geometrie des Plans, je
+   * Medium und Maß; Bögen an Steigleitungen getrennt, weil sie eigens
+   * bestellt werden.
+   */
+  for (const f of formteile(runs, Object.values(doc.pipeAccessories ?? {}))) {
+    sheet.add({
+      trade: 'rohr',
+      name: `${FORMTEIL_LABELS[f.art]}${f.steigleitung ? ' (Steigleitung)' : ''} — ${PIPE_SERVICE_LABELS[f.service]}`,
+      spec: f.abmessung,
+      quantity: f.anzahl,
+      unit: 'Stk',
+      origin: 'Leitungen im Grundriss (Formteilzählung)',
+      remark:
+        f.art === 'bogen-90'
+          ? 'Je Richtungswechsel über 15° ein Bogen; an der Steigleitung je ein Bogen unten und oben.'
+          : f.art === 't-stueck'
+            ? 'Je Abzweig ein T-Stück; das Maß ist das der durchgehenden, größten Leitung.'
+            : 'Je Wechsel des Rohrmaßes an einem geraden Stoß.',
+    });
   }
 
   // Steigstränge sind Objekte, keine Trassen — sie tragen keine Länge, aber

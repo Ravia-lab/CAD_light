@@ -2,7 +2,7 @@
 <h2 id="k17">17 · Schnittstellen: Export, IFC, Einbettung in RaVia</h2>
 <p class="lead">Alles, was dieses Programm tut, läuft auf eine Datei zu: die Übergabe an die Heizlastberechnung. Dieses Kapitel sagt, was in dieser Datei steht, welche anderen Wege es daneben gibt — IFC4 hin und zurück, Einbettung in RaVia, der Rückweg von dort — und was der Betrieb davon merkt.</p>
 
-<h3 id="k17-1">17.1 Der Export <code>ravia.bim.light</code> 2.12.0</h3>
+<h3 id="k17-1">17.1 Der Export <code>ravia.bim.light</code> 2.13.0</h3>
 
 <p class="wo">Im Programm: Werkzeugleiste oben rechts → blauer Knopf <b>RaVia JSON</b>. Der Knopf trägt den Hinweis „Gebäudedaten als RaVia-BIM-JSON exportieren (DIN EN 12831) — dient zugleich als Projektdatei".</p>
 
@@ -39,7 +39,7 @@
 <tr><td><code>durchbrueche</code></td><td>Durchbrüche und Bohrungen — Kernbohrung, Wanddurchbruch, Wandschlitz, Deckendurchbruch. Ausführungsangaben, keine Rechengrößen: Lage, lichtes Maß, Höhe, Gewerk und die Anforderung an die Schottung — siehe unten.</td></tr>
 <tr><td><code>pipes</code>, <code>pipeSchedule</code>, <code>pipeNetwork</code></td><td>Die einzelnen Leitungsabschnitte, der Längenauszug (Meter je Gewerk, Nennweite und Dämmstärke) und das Strangschema: je Verbraucher der Weg zu seiner Quelle, dazu Quellen, Steigstränge, nicht angeschlossene Objekte und der ungünstigste Fließweg.</td></tr>
 <tr><td><code>emitters</code></td><td>Je Heizfläche ein Rechenfall: Norm- und Betriebspunkt, Heizkörperexponent, Baumaße, bei Flächenheizung die Eingangsgrößen nach DIN EN 1264. Jede Zahl trägt ihre Herkunft — gemessen, eingegeben, gerechnet oder angenommen —, und was fehlt, steht im Klartext daneben. Der Block ist leer, solange keine Heizfläche gezeichnet ist.</td></tr>
-<tr><td><code>hydraulics</code></td><td>Die Vorbemessung des hydraulischen Abgleichs, ausdrücklich als solche gekennzeichnet: je Verbraucher k<sub>v</sub>, Drosselbedarf, Ventilautorität und Voreinstellung. Gerechnet wird der Abgleich in RaVia; der Block ist der Stand, den die Zeichnung selbst hergibt. Fehlt, solange kein Rohrnetz gezeichnet ist.</td></tr>
+<tr><td><code>hydraulics</code></td><td>Die Vorbemessung des hydraulischen Abgleichs, ausdrücklich als solche gekennzeichnet: je Verbraucher k<sub>v</sub>, Drosselbedarf, Ventilautorität und Voreinstellung; seit 2.13.0 auch Weg-, Zuleitungs-, Kreis- und Steigleitungslänge und die Formteile im Weg. Gerechnet wird der Abgleich in RaVia; der Block ist der Stand, den die Zeichnung selbst hergibt. Fehlt, solange kein Rohrnetz gezeichnet ist.</td></tr>
 <tr><td><code>heatPump</code></td><td>Außenanlage und Wärmepumpe. Fehlt, solange im Lageplan nichts steht.</td></tr>
 <tr><td><code>plant</code></td><td>Die Anlagentechnik: Gerät, Speicher, Auslegungstemperaturen, Heizkreise, Sicherheitsausrüstung nach DIN EN 12828, Trinkwarmwasser und das Anlagenschema als Bauteile und Verbindungen. Fehlt, solange kein Gerät gewählt wurde.</td></tr>
 <tr><td><code>rooms</code></td><td>Der Kern. Je Raum die Kennwerte und darin die Liste aller Hüllbauteile — siehe unten.</td></tr>
@@ -429,7 +429,22 @@
 
 <p>Der Block fehlt bei monovalenter Anlage, ohne Heizgrenztemperatur und bei Solarthermie als zweitem Erzeuger — und zwar ganz. Warum, steht dann in der Modellprüfung. Siehe <a href="#k13-19">Abschnitt 13.19</a>.</p>
 
-<div class="merke"><b>Merke</b><p>Alle zwölf Schritte sind <b>additiv</b>. Eine Gegenstelle, die gegen 2.0.0 gebaut hat, liest eine 2.12.0-Datei ohne Änderung und rechnet dasselbe wie vorher. Sie bekommt nur weniger Auskunft. Wer die neuen <code>kind</code>-Werte nicht kennt, behandelt sie wie bisher jede Verletzung.</p></div>
+<p><b>2.13.0</b> bringt die <b>Längen und Formteile für den hydraulischen Abgleich</b> (gemeldet am 02.10.2026: „bei der Rohrverlegung gibt es keine Rohrlängen, die sind aber wichtig für RaVia für den hydraulischen Abgleich, außerdem müssen auch die Fittinge mitgezählt werden, Steigstränge ebenso"):</p>
+
+<ul>
+<li><code>hydraulics.consumers[].routeLength</code> — einfache Weglänge von der Quelle (meist der Verteiler) bis zum Verbraucher [m].</li>
+<li><code>hydraulics.consumers[].feedLength</code> — die Zuleitung vom Wärmeerzeuger oder Speicher bis zu diesem Verteiler [m]; 0, wenn der Verbraucher direkt am Erzeuger hängt.</li>
+<li><code>hydraulics.consumers[].circuitLength</code> — Vor- und Rücklauf zusammen: 2 × (Weg + Zuleitung) [m]. Bei einem Flächenkreis kommt die Rohrlänge des Kreises im Raum hinzu.</li>
+<li><code>hydraulics.consumers[].riserLength</code> — davon in Steigleitungen und Deckendurchgängen [m].</li>
+<li><code>hydraulics.consumers[].generatorId</code> — der Erzeuger oder Speicher am Anfang des Wegs.</li>
+<li><code>hydraulics.consumers[].fittings</code> — die Formteile und Armaturen auf dem Weg, gezählt als <code>{ id, count }</code> mit denselben Kennungen wie <code>pipeGraph.segments[].fittings</code> (<code>bogen-90</code>, <code>t-abzweig</code>, Armaturen).</li>
+<li><code>pipeGraph.segments[].fittings</code> — je Abschnitt die Formteile: Bögen an Richtungswechseln und am Fuß und Kopf einer Steigleitung, das T-Stück am Abzweig.</li>
+<li><code>pipeFittings</code> (an der Wurzel) — die Bestellliste der Formteile des ganzen Netzes: <code>art</code> (<code>bogen-90</code>, <code>t-stueck</code>, <code>reduzierung</code>), <code>abmessung</code>, <code>service</code>, <code>levelId</code>, <code>steigleitung</code>, <code>anzahl</code>. Gezählt aus der Geometrie, nicht aus dem Fließweg — ein T-Stück wird eingebaut, auch wenn noch kein Erzeuger angeschlossen ist.</li>
+</ul>
+
+<p>Der Weg geht seit 1.71.0 <b>über die Geschosse</b>: Eine Steigleitung des Rohrauslegers ist im Netz mit dem Geschoss darüber verbunden, und ein Verbraucher im Obergeschoss hat seinen Erzeuger im Keller als Quelle der Zuleitung. Bis 1.70.0 endete der Weg am Verteiler des eigenen Geschosses.</p>
+
+<div class="merke"><b>Merke</b><p>Alle dreizehn Schritte sind <b>additiv</b>. Eine Gegenstelle, die gegen 2.0.0 gebaut hat, liest eine 2.13.0-Datei ohne Änderung und rechnet dasselbe wie vorher. Sie bekommt nur weniger Auskunft. Wer die neuen <code>kind</code>-Werte nicht kennt, behandelt sie wie bisher jede Verletzung.</p></div>
 
 <h4 id="k17-1-7">17.1.7 Der Wächter über dem Format</h4>
 

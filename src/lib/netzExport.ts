@@ -91,6 +91,36 @@ export interface NetzAbschnitt {
   source: string;
   /** Senkrechter Abschnitt einer Steigleitung? */
   riser: boolean;
+  /**
+   * Formteile und Armaturen auf diesem Abschnitt (seit 2.13.0): Bögen aus
+   * dem Richtungswechsel am Anfang, ein T-Stück, wenn der Abschnitt an einer
+   * Verzweigung beginnt, dazu die gesetzten Armaturen.
+   */
+  fittings: { id: string; count: number }[];
+}
+
+/**
+ * Kennzahlen eines Fließwegs für den hydraulischen Abgleich (seit 2.13.0).
+ *
+ * Gemeldet am 02.10.2026: Für den Abgleich in RaVia fehlten die Rohrlängen
+ * und die Formteile je Verbraucher, und die Steigleitung stand in keinem
+ * Weg. Hier stehen sie: die eigene Länge ab der Quelle, die Zuleitung vom
+ * Erzeuger zum Verteiler (falls die Quelle ein Verteiler ist), der
+ * senkrechte Anteil und die Formteile entlang des ganzen Wegs.
+ */
+export interface WegKennzahlen {
+  /** Einfache Länge Quelle → Verbraucher [m]. */
+  routeLength: number;
+  /** Einfache Länge Erzeuger → Verteiler [m], 0 ohne Zuleitung. */
+  feedLength: number;
+  /** Vor- und Rücklauf über den ganzen Weg einschließlich Zuleitung [m]. */
+  circuitLength: number;
+  /** Davon Steigleitung (einfach) [m]. */
+  riserLength: number;
+  /** Erzeuger am Anfang des ganzen Wegs. */
+  generatorId?: string;
+  /** Formteile entlang des Wegs (einfach, je Vor- und Rücklauf gleich). */
+  fittings: { id: string; count: number }[];
 }
 
 export interface NetzFlaechenkreis {
@@ -191,6 +221,8 @@ export function baueNetzExport(
     }
   }
 
+  const verzweigung = verzweigungen(netz);
+
   for (const weg of netz.paths) {
     const strom = stromJeVerbraucher.get(weg.fixtureId);
     const gerechnet = gerechnetJeWeg.get(weg.fixtureId);
@@ -236,7 +268,8 @@ export function baueNetzExport(
           : {}),
         consumers: [weg.fixtureId],
         source: weg.sourceFixtureId,
-        riser: seg.runId.startsWith('riser-'),
+        riser: seg.runId.startsWith('riser-') || seg.runId.includes('steig'),
+        fittings: abschnittFormteile(seg, verzweigung),
       });
     });
 
@@ -376,4 +409,62 @@ export function gemischteRaeume(doc: BimDocument): NetzExport['mixedHeating'] {
     }
   }
   return raus;
+}
+
+/** Knoten, an denen sich das Netz verzweigt (mehr als ein Abschnitt geht ab). */
+function verzweigungen(netz: PipeNetworkReport): Set<number> {
+  const ab = new Map<number, Set<number>>();
+  const alle = netz.paths.flatMap((w) => [...(w.feed?.segments ?? []), ...w.segments]);
+  for (const s of alle) {
+    if (s.fromNode === undefined || s.toNode === undefined) continue;
+    const satz = ab.get(s.fromNode) ?? new Set<number>();
+    satz.add(s.toNode);
+    ab.set(s.fromNode, satz);
+  }
+  return new Set([...ab.entries()].filter(([, n]) => n.size > 1).map(([k]) => k));
+}
+
+/** Formteile eines Abschnitts: Bögen, T-Stück am Anfang, Armaturen. */
+function abschnittFormteile(seg: PipeSegment, verzweigung: Set<number>): { id: string; count: number }[] {
+  const z = new Map<string, number>();
+  const plus = (id: string, n = 1) => z.set(id, (z.get(id) ?? 0) + n);
+  if (seg.bends && seg.bends > 0) plus('bogen-90', seg.bends);
+  const abzweig = seg.fromNode !== undefined && verzweigung.has(seg.fromNode);
+  if (abzweig) plus('t-abzweig');
+  for (const a of seg.accessories ?? []) {
+    // Das T-Stück des Rohrauslegers ist derselbe Abzweig, den die Verzweigung
+    // schon zählt; ein gesetzter Bogen ist ein Bogen.
+    if (a === 'tee') {
+      if (!abzweig) plus('t-abzweig');
+      continue;
+    }
+    plus(a === 'elbow' ? 'bogen-90' : a);
+  }
+  return [...z.entries()].map(([id, count]) => ({ id, count }));
+}
+
+/** Kennzahlen je Verbraucher — siehe `WegKennzahlen`. */
+export function wegKennzahlen(netz: PipeNetworkReport): Map<string, WegKennzahlen> {
+  const verzweigung = verzweigungen(netz);
+  const aus = new Map<string, WegKennzahlen>();
+  const r2 = (v: number): number => Math.round(v * 100) / 100;
+  for (const weg of netz.paths) {
+    const segs = [...(weg.feed?.segments ?? []), ...weg.segments];
+    const z = new Map<string, number>();
+    for (const s of segs) for (const f of abschnittFormteile(s, verzweigung)) z.set(f.id, (z.get(f.id) ?? 0) + f.count);
+    const steig = segs
+      .filter((s) => s.runId.startsWith('riser-') || s.runId.includes('steig'))
+      .reduce((sum, s) => sum + s.length, 0);
+    const route = weg.routeLength;
+    const feed = weg.feed?.routeLength ?? 0;
+    aus.set(weg.fixtureId, {
+      routeLength: r2(route),
+      feedLength: r2(feed),
+      circuitLength: r2(2 * (route + feed)),
+      riserLength: r2(steig),
+      generatorId: weg.feed?.sourceFixtureId ?? weg.sourceFixtureId,
+      fittings: [...z.entries()].sort((a, b) => a[0].localeCompare(b[0])).map(([id, count]) => ({ id, count })),
+    });
+  }
+  return aus;
 }

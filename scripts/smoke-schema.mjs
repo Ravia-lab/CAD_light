@@ -313,6 +313,12 @@ console.log('\n▸ Die vier Hydraulikregeln am laufenden Bild');
   await p.waitForTimeout(600);
   await p.locator('aside').getByRole('button', { name: 'Anlage', exact: true }).click();
   await p.waitForTimeout(800);
+  // Seit 1.71.0 stehen die Hinweise eingeklappt unter einer Zeile — erst
+  // aufklappen, dann lesen.
+  const hinweisZeile = p.locator('aside [data-protokoll-schalter]', { hasText: 'Hinweise zur Anlagenauslegung' });
+  expect('Die Hinweise stehen eingeklappt als eine Zeile', await hinweisZeile.count(), 1);
+  await hinweisZeile.click();
+  await p.waitForTimeout(200);
   const satz = await p.locator('aside').getByText(/Umwälzpumpe sitzt in der Inneneinheit/).count();
   expect('Das Anlagenblatt sagt, wo die Pumpe sitzt', satz > 0, true);
 }

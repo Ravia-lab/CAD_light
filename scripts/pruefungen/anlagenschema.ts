@@ -1139,6 +1139,24 @@ export function pruefeHydraulikregeln(check: CheckFn): void {
     check('Pumpe · das Bild sagt, wo die Pumpe sitzt', Boolean(hinweis), true);
     check('Pumpe · und nennt die erforderliche Förderhöhe', /m³\/h/.test(hinweis?.text ?? ''), true);
     /*
+     * **Mit Trennpuffer ist die Gerätepumpe die Pufferladepumpe** (1.71.0,
+     * gemeldet an BWP-H-03: „eine Pumpe zuviel"). Sie fördert nur bis zum
+     * Puffer; die Heizkreise haben eigene Pumpen. Eine externe Pumpe im
+     * Erzeugerkreis gibt es dann nicht, auch wenn der ungünstigste Heizkreis
+     * mehr verlangt, als das Gerät hergibt.
+     */
+    const planTrenn = designPlant(
+      anlage({ ...ANTWORTEN_VORGABE, inneneinheit: 'mit-heizstab', kreise: ['ungemischt', 'gemischt'], trinkwasserLiter: 200, pufferLiter: 100 }),
+      {},
+    );
+    check('Pumpe · mit Trennpuffer: Puffer parallel', planTrenn.buffer.selected?.kind ?? 'keiner', 'buffer-parallel');
+    check('Pumpe · mit Trennpuffer: keine externe Pumpe', planTrenn.pumpenherkunft, 'inneneinheit');
+    check(
+      'Pumpe · mit Trennpuffer: der Hinweis nennt die Pufferladepumpe',
+      planTrenn.notes.some((n) => /Pufferladepumpe/.test(n.text)),
+      true,
+    );
+    /*
      * Der Hinweis sagt auch, dass es eine **Ableitung** ist und keine
      * Geräteangabe — die Ausnahme gibt es (Vaillant VWZ MEH hat keine
      * Umwälzpumpe), und wer sie hat, muss sie eintragen können.
@@ -1267,10 +1285,15 @@ export function pruefeHydraulikregeln(check: CheckFn): void {
         l.to === uSpeicher?.id ? l.toPort : undefined,
       ]),
     );
+    /*
+     * Seit 1.71.0 steht das Kaltwasser auch in der Übersicht (gemeldet am
+     * 02.10.2026: „nicht Kaltwasser Zulauf und Ablauf, nur gemischt") —
+     * der Stutzen ist dort also belegt und wird mit Leitung gezeichnet.
+     */
     check(
-      'Hydraulik · Übersicht: der Kaltwasserstutzen ist dort frei',
+      'Hydraulik · Übersicht: der Kaltwasserstutzen ist dort angeschlossen',
       uBelegt.has('cold'),
-      false,
+      true,
     );
     check(
       'Hydraulik · Übersicht: die Ladeschlange hängt dort trotzdem',

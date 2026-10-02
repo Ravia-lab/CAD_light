@@ -2251,6 +2251,19 @@ export interface PipePath {
   minimumDiameter: number;
   /** Abschnitte in Fließrichtung von der Quelle zum Verbraucher. */
   segments: PipeSegment[];
+  /**
+   * Zuleitung vom Erzeuger zum Verteiler, an dem dieser Weg beginnt (seit
+   * 1.71.0) — nur, wenn die Quelle ein Heizkreisverteiler ist und der im
+   * Netz eines Erzeugers hängt. Enthält die Steigleitung, wenn der Verteiler
+   * in einem anderen Geschoss steht.
+   */
+  feed?: {
+    sourceFixtureId: string;
+    sourceLabel: string;
+    /** Einfache Länge Erzeuger → Verteiler [m]. */
+    routeLength: number;
+    segments: PipeSegment[];
+  };
 }
 
 export interface PipeNetworkReport {
@@ -4422,7 +4435,7 @@ export interface RaviaExport {
    * nichts; wer prüfen will, ob Boden, Decke und Dach angekommen sind, hat
    * jetzt eine Zahl statt einer Liste (Punkt 13).
    */
-  version: '2.12.0';
+  version: '2.13.0';
   generator: string;
   exportedAt: string;
   /** Einheiten explizit im Dokument — keine Konvention, die verloren gehen kann. */
@@ -4495,6 +4508,15 @@ export interface RaviaExport {
   pipes: ExportPipe[];
   /** Längenauszug: Meter je Gewerk, Nennweite und Dämmstärke. */
   pipeSchedule: PipeScheduleEntry[];
+  /** Seit 2.13.0: Formteile aus der Geometrie, siehe `lib/formteile.ts`. */
+  pipeFittings?: {
+    art: 'bogen-90' | 't-stueck' | 'reduzierung';
+    abmessung: string;
+    service: PipeService;
+    levelId: string;
+    steigleitung: boolean;
+    anzahl: number;
+  }[];
   /**
    * Strangschema: je Verbraucher der Weg zu seiner Quelle. Die Grundlage des
    * hydraulischen Abgleichs — gerechnet wird er in RaVia.
@@ -4763,6 +4785,18 @@ export interface ExportConsumerBalance {
   authority?: number;
   /** Vorgeschlagene Voreinstellung, falls das Ventil eine Reihe hat. */
   preset?: string;
+  /** Seit 2.13.0: einfache Länge Quelle → Verbraucher [m]. */
+  routeLength?: number;
+  /** Seit 2.13.0: einfache Länge Erzeuger → Verteiler [m], 0 ohne Zuleitung. */
+  feedLength?: number;
+  /** Seit 2.13.0: Vor- und Rücklauf über den ganzen Weg [m]. */
+  circuitLength?: number;
+  /** Seit 2.13.0: davon Steigleitung, einfach [m]. */
+  riserLength?: number;
+  /** Seit 2.13.0: Erzeuger am Anfang des Wegs. */
+  generatorId?: string;
+  /** Seit 2.13.0: Formteile und Armaturen entlang des Wegs. */
+  fittings?: { id: string; count: number }[];
 }
 
 // ===========================================================================

@@ -2033,13 +2033,33 @@ function drawSymbolLabels(
   ctx.font = `500 ${opt.fontSize}px JetBrains Mono, ui-monospace, monospace`;
   ctx.textAlign = 'center';
   ctx.fillStyle = opt.color;
+  /*
+   * Läuft aus der Mitte oben (unten) eine Leitung heraus — beim
+   * Trinkwasserspeicher das Warmwasser, seit 1.71.0 auch unten das
+   * Kaltwasser —, läge der Text mittig genau darauf. Dann steht der Name
+   * rechts neben dem Symbol und die Angabe links neben der Leitung.
+   */
+  const mittigBelegt = (seite: 'top' | 'bottom') =>
+    !opt.rotation &&
+    def.ports.some((pt) => pt.side === seite && Math.abs(pt.x) < 0.1 && (opt.angeschlossen?.includes(pt.id) ?? false));
   if (opt.label) {
     ctx.textBaseline = 'bottom';
-    ctx.fillText(opt.label, x, y - half - gap);
+    if (mittigBelegt('top')) {
+      // Rechts neben das Symbol, auf halber Höhe: links laufen beim Speicher
+      // die Heizungsanschlüsse hoch, oben biegt die Warmwasserleitung ab.
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(opt.label, x + (def.width * size) / 2 + gap, y);
+      ctx.textAlign = 'center';
+    } else ctx.fillText(opt.label, x, y - half - gap);
   }
   if (opt.spec) {
     ctx.textBaseline = 'top';
-    ctx.fillText(opt.spec, x, y + half + gap);
+    if (mittigBelegt('bottom')) {
+      ctx.textAlign = 'right';
+      ctx.fillText(opt.spec, x - gap, y + half + gap);
+      ctx.textAlign = 'center';
+    } else ctx.fillText(opt.spec, x, y + half + gap);
   }
   ctx.restore();
 }

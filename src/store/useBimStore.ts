@@ -164,6 +164,7 @@ import {
 } from '../lib/roomDetection';
 import { solidFootprint } from '../lib/verticalSymbols';
 import { rohrbezeichnung } from '../lib/rohrbezeichnung';
+import { formteile, formteilSumme } from '../lib/formteile';
 import { planeGebaeudeNetz, type GebaeudeNetzErgebnis } from '../lib/gebaeudeNetz';
 import { baseRoofHeightAt, buildRoofFrame, dormerSide } from '../lib/roofGeometry';
 import { baueDachlandschaft, daecherVon, raeumeOhneGeschossDarueber } from '../lib/dachlandschaft';
@@ -4802,11 +4803,16 @@ export const useBimStore = create<BimState>()((set, get) => {
           ...(schwer ? { fehler: schwer.text } : {}),
         },
       });
+      // Formteile des ganzen Netzes (seit 1.71.0, `lib/formteile.ts`).
+      const ft = formteilSumme(
+        formteile(Object.values(get().doc.pipes ?? {}), Object.values(get().doc.pipeAccessories ?? {})),
+      );
       set({
         statusMessage: schwer
           ? schwer.text
           : `Rohrnetz ausgelegt — ${ergebnis.served} Verbraucher, ${ergebnis.routeLength.toFixed(1)} m Trasse, ` +
             `${ergebnis.pipeLength.toFixed(1)} m Rohr, ${ergebnis.accessories.length} Armaturen, ` +
+            `${ft['bogen-90']} Bögen, ${ft['t-stueck']} T-Stücke, ${ft.reduzierung} Reduzierungen, ` +
             `${anzahlDurchbrueche} ${anzahlDurchbrueche === 1 ? 'Durchbruch' : 'Durchbrüche'}` +
             (ergebnis.geschosse.length > 1
               ? ` · ${ergebnis.geschosse.length} Geschosse, ${ergebnis.straenge.length} Steigleitung(en)`

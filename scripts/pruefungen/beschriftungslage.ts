@@ -356,7 +356,8 @@ export function pruefeBeschriftungslage(check: CheckFn): void {
     const dnOhne = ohneStempel.filter((t) => t.text.startsWith('MSV '));
     check('Auf dem Blatt steht genau eine Rohrangabe', dnMit.length, 1);
     check('… und zwar das Handelsmaß, nicht die Nennweite',
-      dnMit[0]?.text ?? '—', 'MSV 20 × 2 · 20 mm');
+      // Seit 1.71.0 mit Länge: 11,5 − (4 + 1/6) = 7,33 m.
+      dnMit[0]?.text ?? '—', 'MSV 20 × 2 · 7,33 m · Dä 20 mm');
     check('Der Raumstempel steht auch drauf',
       mitStempel.some((t) => t.text === 'Schlafen'), true);
     check('Ohne Raumstempel gäbe es die Rohrangabe ebenfalls', dnOhne.length, 1);

@@ -239,9 +239,14 @@ export function zeichneUebersicht(
       ctx.fill();
       if (b.label) {
         ctx.font = '11px ui-sans-serif, system-ui, sans-serif';
-        ctx.textAlign = 'left';
         ctx.textBaseline = 'middle';
-        ctx.fillText(b.label, x + 8, y);
+        // Geht die Leitung nach rechts ab — „Kaltwasser" ist ein Anfang,
+        // kein Ende —, steht der Name links, sonst läge der Strich darüber.
+        const rechtsBelegt = u.leitungen.some(
+          (l) => (l.from === b.id && l.fromPort === 'east') || (l.to === b.id && l.toPort === 'east'),
+        );
+        ctx.textAlign = rechtsBelegt ? 'right' : 'left';
+        ctx.fillText(b.label, rechtsBelegt ? x - 8 : x + 8, y);
       }
       ctx.restore();
       continue;

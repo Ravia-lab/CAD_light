@@ -385,8 +385,71 @@ function buildGraph(doc: BimDocument): { graph: Graph; risers: number } {
     }
   }
 
+  /*
+   * --- Steigleitungen als gezeichnete Leitung (seit 1.71.0) ---------------
+   *
+   * Der Rohrausleger legt die Steigleitung als **senkrechte Leitung auf dem
+   * unteren Geschoss** an — vom Fußboden bis unter die Decke. Oben endet sie
+   * auf diesem Geschoss in der Höhe der Geschosshöhe; die Verteilung im
+   * Geschoss darüber beginnt an derselben Stelle auf dessen Fußboden. Im
+   * Graphen waren das zwei Knoten auf zwei Geschossen, und nichts verband
+   * sie: Jeder Verbraucher oben hing am Verteiler seines Geschosses, die
+   * Steigleitung stand in keinem Fließweg, und ihre Meter fehlten im
+   * hydraulischen Abgleich. Gemeldet am 02.10.2026.
+   *
+   * Verbunden wird das obere Ende einer senkrechten Leitung, die bis an die
+   * Decke reicht, mit dem nächsten Knoten des Geschosses darüber an derselben
+   * Stelle — die Länge ist der verbleibende Höhenunterschied (Deckenstärke),
+   * damit nichts doppelt gezählt wird. Ebenso abwärts: das untere Ende einer
+   * senkrechten Leitung am Fußboden mit dem Geschoss darunter.
+   */
+  const geordnet = Object.values(doc.levels).sort((a, b) => a.order - b.order);
+  const lage = (levelId: string): number => doc.levels[levelId]?.elevation ?? 0;
+  for (const run of runs) {
+    if (run.points.length < 2 || ungueltigeLage.has(run.id)) continue;
+    if (run.elevationTo === undefined) continue;
+    let planlaenge = 0;
+    for (let i = 1; i < run.points.length; i++) planlaenge += dist(run.points[i - 1], run.points[i]);
+    if (planlaenge > STEIG_PLAN) continue;
+    const level = doc.levels[run.levelId];
+    if (!level) continue;
+    const k = geordnet.findIndex((l) => l.id === level.id);
+    const e = ends.get(run.id);
+    if (!e) continue;
+    for (const ende of [e.first, e.last]) {
+      const nachOben = ende.hoehe >= level.height - STEIG_HOEHE;
+      const nachUnten = ende.hoehe <= STEIG_HOEHE && Math.abs(run.elevationTo - run.elevation) > STEIG_HOEHE;
+      const ziel = nachOben ? geordnet[k + 1] : nachUnten ? geordnet[k - 1] : undefined;
+      if (!ziel) continue;
+      const gegen = graph.nearest(ende.point, ziel.id, STEIG_FANG);
+      if (!gegen) continue;
+      const hoeheHier = lage(level.id) + ende.hoehe;
+      const hoeheDort = lage(ziel.id) + gegen.hoehe;
+      graph.connect(ende, gegen, {
+        length: Math.round(Math.abs(hoeheDort - hoeheHier) * 1000) / 1000,
+        runId: `${DECKENDURCHGANG}${run.id}-${ziel.id}`,
+        nominalDiameter: run.nominalDiameter,
+        material: run.material,
+        outerDiameter: run.outerDiameter,
+        insulation: run.insulation,
+        service: run.service,
+        accessories: [],
+      });
+      risers++;
+    }
+  }
+
   return { graph, risers };
 }
+
+/** Kennung des Deckendurchgangs — beginnt mit `riser-`, damit er als Strang zählt. */
+const DECKENDURCHGANG = 'riser-decke-';
+/** Größte Grundrisslänge einer Leitung, die als senkrechter Strang gilt [m]. */
+const STEIG_PLAN = 0.05;
+/** Abstand zur Decke bzw. zum Fußboden, in dem ein Strangende anschließt [m]. */
+const STEIG_HOEHE = 0.1;
+/** Fangabstand im Grundriss zum Anschluss im Nachbargeschoss [m]. */
+const STEIG_FANG = 0.15;
 
 /**
  * Richtungswechsel entlang eines Wegs zählen.
@@ -409,7 +472,7 @@ function buildGraph(doc: BimDocument): { graph: Graph; risers: number } {
  */
 function zaehleBoegen(
   graph: Graph,
-  kette: readonly { from: number; to: number; riser: boolean }[],
+  kette: readonly { from: number; to: number; riser: boolean; runId?: string }[],
   segments: PipeSegment[],
 ): void {
   const SCHRANKE = Math.cos((15 * Math.PI) / 180);
@@ -427,9 +490,27 @@ function zaehleBoegen(
   };
 
   for (let i = 0; i < segments.length; i++) {
+    // Der Deckendurchgang zwischen zwei Geschossen (seit 1.71.0, siehe
+    // `buildGraph`) ist gerades Rohr: Die Bögen sitzen an der senkrechten
+    // Leitung darunter, nicht hier.
+    if (kette[i]?.runId?.startsWith(DECKENDURCHGANG)) {
+      segments[i].bends = 0;
+      continue;
+    }
     if (kette[i]?.riser) {
       segments[i].bends = 2;
       continue;
+    }
+    // Eine senkrecht gezeichnete Leitung (Steigleitung des Rohrauslegers):
+    // ein Bogen unten, einer oben.
+    {
+      const glied = kette[i];
+      const a = glied ? graph.nodes[glied.from] : undefined;
+      const b = glied ? graph.nodes[glied.to] : undefined;
+      if (a && b && dist(a.point, b.point) < 1e-6 && segments[i].length > 0.05) {
+        segments[i].bends = 2;
+        continue;
+      }
     }
     // Der erste Abschnitt hat keinen Vorgänger — dort ist ein Anschluss, kein
     // Bogen. Der Anschluss selbst steckt im Verbraucherwiderstand.
@@ -587,6 +668,13 @@ export function buildPipeNetwork(doc: BimDocument): PipeNetworkReport {
     graph,
     sourceFixtures.map((f) => ({ node: nodeOf.get(f.id)!, fixtureId: f.id })),
   );
+  /** Dieselbe Suche nur von den Erzeugern aus — für die Zuleitung der Verteiler. */
+  const primaerBesuche = shortestPaths(
+    graph,
+    sourceFixtures
+      .filter((f) => f.type !== 'manifold')
+      .map((f) => ({ node: nodeOf.get(f.id)!, fixtureId: f.id })),
+  );
 
   const label = (f: Fixture): string => f.label ?? f.type;
   const paths: PipePath[] = [];
@@ -618,33 +706,34 @@ export function buildPipeNetwork(doc: BimDocument): PipeNetworkReport {
     // Weg rückwärts abrollen und dann umdrehen — von der Quelle zum
     // Verbraucher gelesen ist die Nennweitenfolge das, was man erwartet:
     // vorne dick, hinten dünn.
-    const segments: PipeSegment[] = [];
-    /** Knotenkette des Wegs, in derselben Reihenfolge wie `segments`. */
-    const kette: { from: number; to: number; riser: boolean }[] = [];
-    let cursor: number | undefined = node;
-    let guard = 0;
-    while (cursor !== undefined && guard++ < 10000) {
-      const step: Visit | undefined = visits.get(cursor);
-      if (!step?.edge || step.from === undefined) break;
-      segments.push({
-        runId: step.edge.runId,
-        length: round(step.edge.length),
-        nominalDiameter: step.edge.nominalDiameter,
-        insulation: step.edge.insulation,
-        service: step.edge.service,
-        material: step.edge.material,
-        outerDiameter: step.edge.outerDiameter,
-        accessories: step.edge.accessories.length ? [...step.edge.accessories] : undefined,
-        // Das Knotenpaar macht aus Wegen ein Netz — siehe `PipeSegment`.
-        fromNode: step.from,
-        toNode: cursor,
-      });
-      kette.push({ from: step.from, to: cursor, riser: step.edge.runId.startsWith('riser-') });
-      cursor = step.from;
+    const segments = abrollen(graph, visits, node);
+
+    /*
+     * Die Zuleitung zum Verteiler (seit 1.71.0).
+     *
+     * Ein Heizkreisverteiler ist im Netz eine Quelle: Die Kreise einer
+     * Fußbodenheizung werden an ihm abgeglichen, und das bleibt so. Für den
+     * hydraulischen Abgleich des **Gebäudes** fehlte damit aber das Stück vom
+     * Erzeuger bis zum Verteiler — beim Obergeschoss genau die Steigleitung.
+     * Gemeldet am 02.10.2026: „Steigstränge ebenso". Liegt der Verteiler im
+     * Netz eines Erzeugers, steht dieser Weg jetzt als `feed` am Fließweg.
+     */
+    const quelleHier = byId.get(visit.source);
+    let feed: PipePath['feed'];
+    if (quelleHier?.type === 'manifold') {
+      const mNode = nodeOf.get(quelleHier.id);
+      const vp = mNode !== undefined ? primaerBesuche.get(mNode) : undefined;
+      if (mNode !== undefined && vp && vp.source !== quelleHier.id) {
+        const zu = abrollen(graph, primaerBesuche, mNode);
+        const erzeuger = byId.get(vp.source);
+        feed = {
+          sourceFixtureId: vp.source,
+          sourceLabel: erzeuger ? label(erzeuger) : vp.source,
+          routeLength: round(vp.distance),
+          segments: zu,
+        };
+      }
     }
-    segments.reverse();
-    kette.reverse();
-    zaehleBoegen(graph, kette, segments);
 
     const source = byId.get(visit.source);
     const elevation =
@@ -667,6 +756,7 @@ export function buildPipeNetwork(doc: BimDocument): PipeNetworkReport {
         ? Math.min(...segments.map((s) => s.nominalDiameter))
         : 0,
       segments,
+      ...(feed ? { feed } : {}),
     });
   }
 
@@ -689,3 +779,37 @@ export function buildPipeNetwork(doc: BimDocument): PipeNetworkReport {
 }
 
 const round = (v: number): number => Math.round(v * 100) / 100;
+
+/**
+ * Einen Weg aus der Suche abrollen — vom Zielknoten zurück zur Quelle, dann
+ * umgedreht, mit Bögen. Gemeinsam für den Fließweg und seine Zuleitung.
+ */
+function abrollen(graph: Graph, visits: Map<number, Visit>, ziel: number): PipeSegment[] {
+  const segments: PipeSegment[] = [];
+  const kette: { from: number; to: number; riser: boolean; runId: string }[] = [];
+  let cursor: number | undefined = ziel;
+  let guard = 0;
+  while (cursor !== undefined && guard++ < 10000) {
+    const step: Visit | undefined = visits.get(cursor);
+    if (!step?.edge || step.from === undefined) break;
+    segments.push({
+      runId: step.edge.runId,
+      length: round(step.edge.length),
+      nominalDiameter: step.edge.nominalDiameter,
+      insulation: step.edge.insulation,
+      service: step.edge.service,
+      material: step.edge.material,
+      outerDiameter: step.edge.outerDiameter,
+      accessories: step.edge.accessories.length ? [...step.edge.accessories] : undefined,
+      // Das Knotenpaar macht aus Wegen ein Netz — siehe `PipeSegment`.
+      fromNode: step.from,
+      toNode: cursor,
+    });
+    kette.push({ from: step.from, to: cursor, riser: step.edge.runId.startsWith('riser-'), runId: step.edge.runId });
+    cursor = step.from;
+  }
+  segments.reverse();
+  kette.reverse();
+  zaehleBoegen(graph, kette, segments);
+  return segments;
+}

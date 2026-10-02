@@ -1167,15 +1167,35 @@ export function designPlant(doc: BimDocument, options: PlantDesignOptions = {}):
    * Eine Pumpe zusätzlich zu zeichnen, weil eine Zahl fehlt, wäre die
    * schlechtere Vermutung.
    */
+  /*
+   * **Mit Trennpuffer zählt der Verteilerkreis nicht.** Gemeldet am
+   * 02.10.2026 an BWP-H-03: „eine Pumpe zuviel hier — die hat da nichts zu
+   * suchen". Der Parallelpuffer trennt Erzeuger- und Verteilerkreis; die
+   * Gerätepumpe fördert nur noch vom Gerät zum Puffer und zurück, die
+   * Heizkreise haben ihre eigenen Pumpen. Bis 1.70.0 wurde sie trotzdem
+   * gegen den ungünstigsten **Heizkreis** gemessen — dann reichte sie
+   * scheinbar nicht, und das Schema setzte eine externe Pumpe in einen
+   * Kreis, in dem schon eine fördert. Mit Trennpuffer ist die eingebaute
+   * Pumpe deshalb die Pufferladepumpe (so heißt sie in BWP-H-03).
+   */
+  const getrenntGefoerdert = Boolean(bufferStorage) && bufferStorage?.kind !== 'buffer-series';
   const pumpenherkunft: PlantDesignResult['pumpenherkunft'] =
-    foerdertSelbst && pumpDesign?.sufficient !== false
+    foerdertSelbst && (getrenntGefoerdert || pumpDesign?.sufficient !== false)
       ? geraetePumpe
         ? 'geraet'
         : 'inneneinheit'
       : 'extern';
   if (pumpDesign) {
     const erf = `${pumpDesign.head.toFixed(1).replace('.', ',')} m bei ${pumpDesign.flow.toFixed(2).replace('.', ',')} m³/h`;
-    if (pumpenherkunft === 'geraet') {
+    if (pumpenherkunft !== 'extern' && getrenntGefoerdert) {
+      notes.push({
+        severity: 'info',
+        text:
+          `Die Umwälzpumpe ${pumpenherkunft === 'geraet' ? 'des Geräts' : 'der Inneneinheit'} fördert nur den ` +
+          'Erzeugerkreis bis zum Trennpuffer (Pufferladepumpe); das Schema zeichnet keine externe Pumpe. ' +
+          `Die Heizkreise fördern ihre eigenen Pumpen — ${erf} sind deren Sache, nicht die der Gerätepumpe.`,
+      });
+    } else if (pumpenherkunft === 'geraet') {
       notes.push({
         severity: 'info',
         text:

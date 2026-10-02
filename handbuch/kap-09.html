@@ -761,4 +761,34 @@ liegt dabei auf dem Geschoss seines Raums.</p>
 
 <div class="baustelle"><b>Auf der Baustelle heißt das</b><p>Diese Meldung ist fast immer ein Zeichenfehler und kein Planungsproblem: Dem Raum fehlt die Tür. Setzen Sie die Türöffnung, und legen Sie neu aus.</p></div>
 
+<h3 id="k9-13">9.13 Längen, Formteile und das Protokoll — seit 1.71.0</h3>
+
+<p>Gemeldet am 02.10.2026: <i>„Bei der Rohrverlegung gibt es keine Rohrlängen, die sind aber wichtig für RaVia für den hydraulischen Abgleich, außerdem müssen auch die Fittinge mitgezählt werden, Steigstränge ebenso. Das Protokoll sollte immer ausgeblendet sein — das impliziert, dass da Fehler sind. Und die Rohrnetzberechnung muss über alle Ebenen gehen."</i></p>
+
+<h4 id="k9-13-1">9.13.1 Die Länge steht an der Leitung</h4>
+
+<p>Die Beschriftung jeder Leitung im Plan und im Druck nennt seit 1.71.0 ihre Länge: <span class="zeichen">Cu 18 × 1 · 3,45 m</span>, mit Dämmung dahinter <span class="zeichen">· Dä 20 mm</span>. Eine Steigleitung hat ihre senkrechte Länge.</p>
+
+<h4 id="k9-13-2">9.13.2 Formteile werden gezählt</h4>
+
+<p>Nach dem Auslegen nennt die Statuszeile Bögen, T-Stücke und Reduzierungen, das Anlagenblatt zeigt sie unter dem Ergebnis, und der Massenauszug führt sie als eigene Positionen in Stück. Gezählt wird aus der Geometrie, je Knoten im Plan (Enden, die auf 4 cm und in der Höhe zusammenfallen, gleiches Medium):</p>
+
+<ul>
+<li>zwei Leitungen mit Richtungswechsel über 15° → ein <b>Bogen 90°</b>; ein Knick innerhalb einer gezeichneten Polylinie ebenso;</li>
+<li>zwei Leitungen verschiedener Abmessung → eine <b>Reduzierung</b>, mit beiden Maßen;</li>
+<li>drei Leitungen → ein <b>T-Stück</b>, vier → zwei; beim Rohrausleger zählt sein T-Stück am Abzweig, je eins für Vor- und Rücklauf;</li>
+<li>eine <b>Steigleitung</b> → unten und oben je ein Bogen, als eigene Position „(Steigleitung)"; läuft dort eine waagerechte Leitung durch, ist es ein T-Stück;</li>
+<li>zwei Leitungen, die vom selben Punkt in dieselbe Richtung loslaufen, liegen übereinander — dort wird nichts gezählt, weil die Geometrie nicht sagt, was dort sitzt.</li>
+</ul>
+
+<p>Je Verbraucher stehen dieselben Formteile auf seinem Fließweg im Export für RaVia, zusammen mit Weglänge, Zuleitung bis zum Verteiler, Kreislänge und Steigleitungslänge (siehe <a href="#k17-1">17.1</a>, Fassung 2.13.0).</p>
+
+<h4 id="k9-13-3">9.13.3 Über alle Geschosse</h4>
+
+<p>Mit Wärmeerzeuger oder Speicher legt der Ausleger wie in <a href="#k9-10">9.10</a> alle Geschosse über die Steigleitung aus — und seit 1.71.0 ist die Steigleitung auch <b>im Fließweg</b>: Ein Heizkörper im Obergeschoss hat den Erzeuger im Keller als Quelle, und sein Weg führt durch den Strang und die Decke. Steht im Modell kein Erzeuger und kein Speicher, wird jedes Geschoss ab seinem eigenen Verteiler ausgelegt; bis 1.70.0 bekam dann nur das sichtbare Geschoss Leitungen. Die Steigleitung zwischen den Geschossen fehlt in diesem Fall, und das steht als Warnung im Protokoll. Die Rohrnetzberechnung zeigt Rohr und Formteile über alle Geschosse, und ihr Druck nimmt jeden Grundriss mit Leitungen mit (siehe <a href="#k14-4-3">14.4.3</a>).</p>
+
+<h4 id="k9-13-4">9.13.4 Das Protokoll ist eingeklappt</h4>
+
+<p>Auslegungsprotokoll, Hinweise zur Anlagenauslegung und Prüfprotokoll der Rohrnetzberechnung stehen als <b>eine Zeile</b> unter dem Ergebnis: <span class="zeichen">Auslegungsprotokoll einblenden · 14 Einträge (2 Hinweise zur Prüfung)</span>. Ein Klick klappt es auf. Was ein echter Fehler ist, bleibt sichtbar: Die Zeile nennt die Zahl der Fehler in Rot, und ein Fehler, an dem die Auslegung scheitert, steht ohnehin in der Statuszeile.</p>
+
 </section>

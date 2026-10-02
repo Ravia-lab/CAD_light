@@ -117,8 +117,9 @@ import {
   roomBridgeHeatLoss,
 } from './thermalBridges';
 import { buildPipeNetwork } from './pipeNetwork';
+import { formteile } from './formteile';
 import { buildEmitters, buildHydraulics } from './auslegungExport';
-import { baueNetzExport } from './netzExport';
+import { baueNetzExport, wegKennzahlen } from './netzExport';
 import {
   ABGLEICHPFLICHT_AB,
   EINHEIT_LABELS,
@@ -285,7 +286,22 @@ export function buildRaviaExport(doc: BimDocument): RaviaExport {
           terminalLoss: 10000,
         })
       : undefined;
-  const hydraulik = abgleich ? buildHydraulics(abgleich, erzeuger) : undefined;
+  const hydraulikRoh = abgleich ? buildHydraulics(abgleich, erzeuger) : undefined;
+  /*
+   * Je Verbraucher die Weglänge und die Formteile (seit 2.13.0) — gemeldet
+   * am 02.10.2026: Für den Abgleich in RaVia fehlten die Rohrlängen, die
+   * Formteile und die Steigleitung. Reiner Zuwachs an `consumers[]`.
+   */
+  const kennzahlen = wegKennzahlen(netz);
+  const hydraulik = hydraulikRoh
+    ? {
+        ...hydraulikRoh,
+        consumers: hydraulikRoh.consumers.map((c) => {
+          const k = kennzahlen.get(c.fixtureId);
+          return k ? { ...c, ...k } : c;
+        }),
+      }
+    : undefined;
   const graph = baueNetzExport(doc, netz, abgleich);
   const einheiten = baueEinheiten(doc);
 
@@ -294,6 +310,10 @@ export function buildRaviaExport(doc: BimDocument): RaviaExport {
     // 2.3.0: Hüllflächenbilanz je Raum und für das Gebäude (`envelope`).
     // 2.4.0: `envelope.withoutUValue` — wie viele Flächen ohne brauchbaren
     //        U-Wert in die Bilanz gingen. Reiner Zuwachs.
+    // 2.13.0: `pipeFittings` — Formteile (Bögen, T-Stücke, Reduzierungen)
+    //         aus der Geometrie; `hydraulics.consumers[]` mit routeLength,
+    //         feedLength, circuitLength, riserLength und fittings;
+    //         `pipeGraph.segments[].fittings`. Reiner Zuwachs.
     // 2.12.0: `plant.bivalence` — Deckungsanteile nach Bivalenzpunkt und
     //         Jahresdauerlinie, mit allen Annahmen im Klartext.
     // 2.11.0: Heizkreis ↔ Nutzungseinheit — `circuits[].occupancyUnitId`,
@@ -305,7 +325,7 @@ export function buildRaviaExport(doc: BimDocument): RaviaExport {
     //        Reiner Zuwachs; ändert keinen Wert, sondern sagt, welcher nicht
     //        gemessen ist. Die vollständige Fassungsgeschichte steht an
     //        `RaviaExport` in `src/types/bim.ts`.
-    version: '2.12.0',
+    version: '2.13.0',
     generator: GENERATOR,
     exportedAt: new Date().toISOString(),
     units: {
@@ -349,6 +369,8 @@ export function buildRaviaExport(doc: BimDocument): RaviaExport {
     durchbrueche: buildDurchbrueche(doc),
     pipes: buildPipes(doc),
     pipeSchedule: buildPipeSchedule(doc),
+    // Formteile aus der Geometrie — seit 2.13.0, siehe `lib/formteile.ts`.
+    pipeFittings: formteile(Object.values(doc.pipes ?? {}), Object.values(doc.pipeAccessories ?? {})),
     pipeNetwork: netz,
     emitters: buildEmitters(doc),
     ...(hydraulik ? { hydraulics: hydraulik } : {}),

@@ -211,11 +211,12 @@ export function pruefeMassenauszug(check: CheckFn): void {
   // in diesem Abschnitt ist aus der Geometrie des Referenzhauses gerechnet.
 
   check('Projektname wird aus den Stammdaten übernommen', ohne.projectName, 'Referenzhaus');
-  // 2 Rohr + 1 Verteilerobjekt + 4 Heizfläche + 2 Lüftung + 9 Bauteil.
+  // 2 Rohr + 1 Formteil (Bögen, seit 1.71.0) + 1 Verteilerobjekt
+  // + 4 Heizfläche + 2 Lüftung + 9 Bauteil.
   // Neun Bauteilpositionen, seit das Referenzhaus einen Keller hat: dessen
   // Außenwand trägt einen eigenen U-Wert und steht deshalb getrennt, und
   // seine beiden Kellerfenster haben ein eigenes Format.
-  check('Ohne Auslegung stehen 18 Positionen im Auszug', ohne.positionCount, 18);
+  check('Ohne Auslegung stehen 19 Positionen im Auszug', ohne.positionCount, 19);
 
   // Leitungen: je Geschoss (2,4 + 0,2) + (7,4 + 0,2) m, zwei Geschosse.
   check(
@@ -379,7 +380,10 @@ export function pruefeMassenauszug(check: CheckFn): void {
   check(
     'Der Gewerksatz nennt Positionszahl und Menge im Klartext',
     gruppe(mit, 'rohr')?.summary ?? '',
-    '2 Positionen · 40,80 m',
+    // Seit 1.71.0 mit den Formteilen: je Leitung ein Knick, vier Leitungen →
+    // 4 Bögen. Die beiden Leitungen eines Geschosses beginnen am selben
+    // Punkt und laufen übereinander los — dort wird nichts gezählt.
+    '3 Positionen · 40,80 m · 4 Stk',
   );
   check(
     'Gewerk „Geräte" erscheint genau dann, wenn Gerät oder Speicher ausgelegt sind',

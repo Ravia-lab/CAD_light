@@ -46,7 +46,7 @@ import { pointInPolygon, polygonArea } from './geometry';
 import { druckeDokument } from './druckFenster';
 import { drawableScaleBar } from './planScaleBar';
 import { findeBeschriftungslage, type Rechteck } from './beschriftungsLage';
-import { rohrbezeichnung, rohrbezeichnungLang } from './rohrbezeichnung';
+import { leitungsbeschriftung, rohrbezeichnungLang } from './rohrbezeichnung';
 import { EBENE_DURCHBRUECHE, ebeneFuerMedium, ebeneFuerObjekt } from './ebenen';
 
 /** Schriftgröße der Rohrbeschriftung auf dem Blatt [mm]. */
@@ -758,7 +758,9 @@ export function buildPlanSvg(doc: BimDocument, options: PlanPrintOptions): PlanF
      * zudeckt, hilft niemandem.
      */
     if (run.service === 'heating-flow') {
-      const text = `${rohrbezeichnung(run)}${run.insulation ? ` · ${run.insulation} mm` : ''}`;
+      // Maß und Länge des Abschnitts, dahinter die Dämmstärke (seit 1.71.0
+      // mit Länge — siehe `leitungsbeschriftung`).
+      const text = `${leitungsbeschriftung(run)}${run.insulation ? ` · Dä ${run.insulation} mm` : ''}`;
       // Der weiße Rand (`stroke-width` 0,45) zählt zur belegten Breite: er
       // frisst sich sonst in die Nachbarschrift.
       const mass = {

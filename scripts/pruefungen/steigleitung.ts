@@ -45,7 +45,7 @@ import type { CheckFn } from './typ';
 
 const HOEHE = 2.5;
 
-function baueHaus(optionen: { speicherGeschoss?: 'kg' | 'eg'; schacht?: boolean; ohneOG?: boolean } = {}): BimDocument {
+export function baueHaus(optionen: { speicherGeschoss?: 'kg' | 'eg'; schacht?: boolean; ohneOG?: boolean; ohneSpeicher?: boolean; hkImKg?: boolean; verteilerJeGeschoss?: boolean } = {}): BimDocument {
   const levels: Record<string, Level> = {
     kg: { id: 'kg', name: 'KG', order: 0, elevation: 0, height: HOEHE, floorUValue: 0.35, floorBoundary: 'ground', ceilingUValue: 0.2, ceilingBoundary: 'heated' } as unknown as Level,
     eg: { id: 'eg', name: 'EG', order: 1, elevation: HOEHE, height: HOEHE, floorUValue: 0.35, floorBoundary: 'heated', ceilingUValue: 0.2, ceilingBoundary: 'unheated' } as unknown as Level,
@@ -71,11 +71,28 @@ function baueHaus(optionen: { speicherGeschoss?: 'kg' | 'eg'; schacht?: boolean;
 
   const fixtures: Record<string, Fixture> = {};
   const geschossDesSpeichers = optionen.speicherGeschoss ?? 'kg';
-  fixtures.puffer = {
+  if (!optionen.ohneSpeicher) fixtures.puffer = {
     id: 'puffer', type: 'storage', category: 'heating', levelId: geschossDesSpeichers,
     position: { x: 2, y: 1.5 }, rotation: 0, length: 0.6, depth: 0.6, elevation: 0,
     label: 'Pufferspeicher', params: { volumeL: 300 },
   } as Fixture;
+  if (optionen.verteilerJeGeschoss) {
+    for (const levelId of ['kg', 'eg']) {
+      fixtures[`v-${levelId}`] = {
+        id: `v-${levelId}`, type: 'manifold', category: 'heating', levelId,
+        position: { x: 1, y: 5.74 }, rotation: 0, length: 0.6, depth: 0.15, elevation: 0.5,
+        label: `Verteiler ${levelId.toUpperCase()}`, params: {},
+      } as Fixture;
+    }
+  }
+  if (optionen.hkImKg) {
+    fixtures.hkKg = {
+      id: 'hkKg', type: 'radiator', category: 'heating', levelId: 'kg',
+      position: { x: 4, y: 0.23 }, rotation: 0, length: 1, depth: 0.1, elevation: 0.15,
+      label: 'Heizkörper KG',
+      params: { powerW: 1000, flowTemperature: 55, returnTemperature: 45 },
+    } as Fixture;
+  }
   if (!optionen.ohneOG) {
     for (const [i, x] of [2, 6].entries()) {
       fixtures[`hk${i}`] = {

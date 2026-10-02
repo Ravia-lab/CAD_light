@@ -448,6 +448,50 @@ export function pruefeUebersichtsschema(check: CheckFn): void {
   }
 
   // =========================================================================
+  // 7b · Trinkwasser mit Kaltwasser, externe Pumpe in Fließrichtung (1.71.0)
+  // =========================================================================
+  {
+    /*
+     * Gemeldet am 02.10.2026: Der Speicher hing nur an der Heizung, und es
+     * kam nur gemischtes Wasser heraus. Jetzt: Kaltwasser unten in den
+     * Speicher und zum Kaltwassereingang des Mischers, Warmwasser oben aus
+     * dem Speicher in den Mischer.
+     */
+    const an = (id: string, port: string, service: string) =>
+      u.leitungen.some((l) => l.service === service && ((l.to === id && l.toPort === port) || (l.from === id && l.fromPort === port)));
+    check('Übersicht · Kaltwasser in den Speicher', an('u-speicher', 'cold', 'cold-water'), true);
+    check('Übersicht · Kaltwasser zum Verbrühschutz', an('u-verbrueh', 'cold', 'cold-water'), true);
+    check('Übersicht · Warmwasser aus dem Speicher in den Verbrühschutz', an('u-verbrueh', 'hot', 'hot-water'), true);
+    check('Übersicht · gemischtes Wasser zur Zapfstelle', an('u-verbrueh', 'mixed', 'hot-water'), true);
+    check(
+      'Übersicht · die Kaltwasserquelle ist beschriftet',
+      u.bauteile.find((b) => b.id === 'u-k-kaltwasser')?.label ?? '',
+      'Kaltwasser',
+    );
+
+    /*
+     * Die externe Pumpe stand links der Absperrung, die Leitung lief von der
+     * Absperrung zu ihr zurück — im Bild förderte sie rückwärts. Erzwungen
+     * wird der Fall mit „extern"; dann darf keine Vorlaufleitung des
+     * Erzeugerzweigs nach links laufen.
+     */
+    const s = buildSchematic({ ...designPlant(basis, {}), pumpenherkunft: 'extern' });
+    const e = uebersichtsschema(s.components, s.links);
+    const x = new Map(e.bauteile.map((b) => [b.id, b.x]));
+    const pumpe = e.bauteile.find((b) => b.id === 'u-erzeugerpumpe');
+    check('Übersicht · externe Pumpe steht im Bild', Boolean(pumpe), true);
+    check(
+      'Übersicht · externe Pumpe hinter der Absperrung',
+      (pumpe?.x ?? -1) > (x.get('u-absperr-vor') ?? Infinity),
+      true,
+    );
+    const rueckwaerts = e.leitungen.filter(
+      (l) => l.service === 'heating-flow' && (x.get(l.to) ?? 0) < (x.get(l.from) ?? 0),
+    );
+    check('Übersicht · keine Vorlaufleitung läuft rückwärts', rueckwaerts.map((l) => `${l.from}→${l.to}`).join(', '), '');
+  }
+
+  // =========================================================================
   // 8 · Die Weglassliste
   // =========================================================================
   {

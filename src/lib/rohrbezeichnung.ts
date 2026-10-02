@@ -35,8 +35,9 @@
  * Schichtgrenze: nur `types` und andere `lib`-Bausteine.
  */
 
-import type { PipeMaterial } from '../types/bim';
+import type { PipeMaterial, PipeRun } from '../types/bim';
 import { PIPE_TABLES } from './hydraulics';
+import { rohrlaenge } from './rohrlaenge';
 
 /**
  * Werkstoffkürzel, wie es auf einen Plan passt.
@@ -115,4 +116,20 @@ export function rohrbezeichnungLang(run: Rohrangabe, rueckfallWerkstoff?: PipeMa
   const kurz = rohrbezeichnung(run, rueckfallWerkstoff);
   if (kurz.startsWith('DN ')) return kurz;
   return `${kurz} · DN ${run.nominalDiameter}`;
+}
+
+/**
+ * Die Beschriftung einer Leitung im Plan — Maß **und Länge** (seit 1.71.0).
+ *
+ * Bis 1.70.0 stand im Plan nur „Cu 15 × 1". Gemeldet am 02.10.2026: Die
+ * Rohrlängen fehlen, und gerade sie braucht der hydraulische Abgleich in
+ * RaVia. Die Länge ist die **wahre** Länge des Abschnitts einschließlich
+ * Höhenversatz (`rohrlaenge`) — dieselbe Zahl, die im Massenauszug und im
+ * Export steht. Der Rohrausleger legt jede gerade Strecke als eigenen
+ * Abschnitt an; die Beschriftung nennt damit genau das Stück, an dem sie
+ * steht, und lässt sich im Plan nachmessen.
+ */
+export function leitungsbeschriftung(run: Rohrangabe & Pick<PipeRun, 'points' | 'elevation' | 'elevationTo'>): string {
+  const l = rohrlaenge(run);
+  return `${rohrbezeichnung(run)} · ${l.toFixed(2).replace('.', ',')} m`;
 }

@@ -4,6 +4,7 @@
  * Ausführen:  npm run verify
  */
 
+import { pruefeRohrlaengen } from './pruefungen/rohrlaengen';
 import type { BimDocument, BimNode, HeatPump, Opening, Wall } from '../src/types/bim';
 import { applyVerticalDeductions, detectRooms, findOpenEnds } from '../src/lib/roomDetection';
 import { buildRaviaExport } from '../src/lib/raviaExport';
@@ -744,7 +745,7 @@ console.log('\n▸ Export für die Heizlastberechnung');
   };
 
   const ex = buildRaviaExport(doc as never);
-  check('Schema-Version', ex.version, '2.12.0');
+  check('Schema-Version', ex.version, '2.13.0');
   check('Einheiten dokumentiert', ex.units.uValue, 'W/(m2K)');
 
   const room = ex.rooms.find((r) => r.polygon.some((p) => p.x < 4))!;
@@ -4037,6 +4038,7 @@ pruefeNormsymbole(check);
 console.log('\n▸ Handbuchstand — beschreibt das ausgelieferte Handbuch diesen Stand?');
 pruefeHandbuchstand(check);
 pruefeSchichtgrenze(check);
+pruefeRohrlaengen(check);
 
 console.log(
   `\n${failures === 0 ? '✓ ALLE TESTS BESTANDEN' : `✗ ${failures} FEHLER`} — ${checks - failures}/${checks}\n`,

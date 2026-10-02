@@ -17,7 +17,7 @@
  * geplant" muss sichtbar bleiben.
  */
 
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { Fragment, useCallback, useMemo, useRef, useState } from 'react';
 import type {
   AnlagenAntworten,
   BivalenzBetrieb,
@@ -63,6 +63,9 @@ import {
   type Brennstoff,
 } from '../lib/verbrauchsabgleich';
 import Erklaerung from './Erklaerung';
+import Protokoll from './Protokoll';
+import { formteile, formteilSumme } from '../lib/formteile';
+import { rohrlaenge, trassenlaenge } from '../lib/rohrlaenge';
 import { BIVALENZ_HINDERNIS_TEXT } from '../lib/bivalenz';
 import {
   ABGLEICHPFLICHT_AB,
@@ -169,6 +172,14 @@ export default function AnlagenPanel() {
     [doc],
   );
   const [rohrbericht, setRohrbericht] = useState<GebaeudeNetzErgebnis | null>(null);
+  /** Steigleitung und Formteile des ganzen Netzes — nach jeder Auslegung neu. */
+  const netzZahlen = useMemo(() => {
+    const runs = Object.values(doc.pipes ?? {});
+    const steig = runs
+      .filter((r) => r.elevationTo !== undefined && trassenlaenge(r.points) <= 0.05)
+      .reduce((s, r) => s + rohrlaenge(r), 0);
+    return { steig, formteile: formteilSumme(formteile(runs, Object.values(doc.pipeAccessories ?? {}))) };
+  }, [doc.pipes, doc.pipeAccessories]);
   const setStatus = useBimStore((s) => s.setStatus);
   const uiMode = useBimStore((s) => s.uiMode);
   const [seriesFilter, setSeriesFilter] = useState<string>('');
@@ -1849,17 +1860,32 @@ export default function AnlagenPanel() {
               <span className="text-right font-mono">{rohrbericht.pipeLength.toFixed(1)} m</span>
               <span>Armaturen</span>
               <span className="text-right font-mono">{rohrbericht.accessories.length}</span>
+              {/* Seit 1.71.0: Steigleitung, Formteile und je Geschoss —
+                  gemeldet am 02.10.2026, die Zahlen braucht der Abgleich. */}
+              {netzZahlen.steig > 0 && (
+                <>
+                  <span>davon Steigleitung</span>
+                  <span className="text-right font-mono">{netzZahlen.steig.toFixed(1)} m</span>
+                </>
+              )}
+              <span>Formteile</span>
+              <span className="text-right font-mono" title="Bögen · T-Stücke · Reduzierungen">
+                {netzZahlen.formteile['bogen-90']} B · {netzZahlen.formteile['t-stueck']} T · {netzZahlen.formteile.reduzierung} R
+              </span>
             </div>
-            {rohrbericht.notes
-              .filter((n) => n.severity !== 'info')
-              .map((n, i) => (
-                <p
-                  key={i}
-                  className={`text-[10px] leading-relaxed ${n.severity === 'error' ? 'text-red-300' : 'text-orange-300'}`}
-                >
-                  {n.text}
-                </p>
-              ))}
+            {rohrbericht.geschosse.length > 1 && (
+              <div className="grid grid-cols-2 gap-x-3 gap-y-0.5 border-t border-white/[0.06] pt-1 text-[10px] text-slate-400">
+                {rohrbericht.geschosse.map((g) => (
+                  <Fragment key={g.levelId}>
+                    <span>{g.name}</span>
+                    <span className="text-right font-mono">
+                      {g.served} Verbr. · {g.pipeLength.toFixed(1)} m
+                    </span>
+                  </Fragment>
+                ))}
+              </div>
+            )}
+            <Protokoll eintraege={rohrbericht.notes} titel="Auslegungsprotokoll" />
           </div>
         )}
       </div>
@@ -1912,15 +1938,14 @@ export default function AnlagenPanel() {
         </p>
       </div>
 
+      {/* Seit 1.71.0 eingeklappt — dieselbe Regel wie beim Rohrnetz: eine
+          offene Liste roter Kästen liest sich wie eine Fehlerliste, auch wo
+          nur steht, wie gerechnet wurde (gemeldet am 02.10.2026). */}
       {mindestens(uiMode, 'profi') && design.notes.length > 0 && (
-        <div className="space-y-1">
-          <span className="label-xs block">Hinweise ({design.notes.length})</span>
-          {design.notes.map((n, i) => (
-            <p key={i} className={`rounded px-2.5 py-1.5 text-[10px] leading-relaxed ${SEVERITY_STYLE[n.severity]}`}>
-              {n.text}
-            </p>
-          ))}
-        </div>
+        <Protokoll
+          titel="Hinweise zur Anlagenauslegung"
+          eintraege={design.notes}
+        />
       )}
     </div>
   );

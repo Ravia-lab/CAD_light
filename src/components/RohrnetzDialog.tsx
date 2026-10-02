@@ -24,6 +24,8 @@ import type { PipeRoutingMode } from '../types/bim';
 import { BELASTBARKEIT_LABELS, KORPUS_LABELS, type KorpusId } from '../lib/wissensbasis';
 import { verlegeartAus } from '../lib/plantDefaults';
 import { useBimStore } from '../store/useBimStore';
+import Protokoll from './Protokoll';
+import { formteile, formteilSumme } from '../lib/formteile';
 
 const SCALES = [50, 100, 200];
 
@@ -58,6 +60,10 @@ export default function RohrnetzDialog({ onClose }: { onClose: () => void }) {
   );
 
   const urteil = berichtsUrteil(bericht);
+  const formteilZahl = useMemo(
+    () => formteilSumme(formteile(Object.values(doc.pipes ?? {}), Object.values(doc.pipeAccessories ?? {}))),
+    [doc.pipes, doc.pipeAccessories],
+  );
   const aktuell = Math.min(blatt, druck.sheets.length - 1);
 
   const treffer = useMemo(() => {
@@ -140,30 +146,22 @@ export default function RohrnetzDialog({ onClose }: { onClose: () => void }) {
                   Rohrnetz auslegen · {verlegeart === 'neubau' ? 'Neubau' : 'Sanierung'}
                 </button>
 
-                <div
-                  className={`rounded-lg px-2.5 py-2 ${
-                    urteil.nachweisfaehig ? 'bg-emerald-500/10' : 'bg-orange-500/10'
-                  }`}
-                >
-                  <p
-                    className={`text-[11px] font-semibold ${
-                      urteil.nachweisfaehig ? 'text-emerald-300' : 'text-orange-300'
-                    }`}
-                  >
-                    {urteil.nachweisfaehig ? 'Nachweisfähig' : 'Nicht nachweisfähig'}
-                  </p>
-                  {!urteil.nachweisfaehig && (
-                    <ul className="mt-1 space-y-0.5">
-                      {urteil.offen.slice(0, 5).map((o) => (
-                        <li key={o} className="text-[10px] leading-relaxed text-orange-200/90">
-                          · {o}
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                </div>
-
+                {/*
+                  Das Urteil und die Hinweise stehen seit 1.71.0 im
+                  eingeklappten Protokoll unten (siehe `Protokoll.tsx`). Ein
+                  offener orangefarbener Block las sich wie eine Fehlerliste —
+                  gemeldet am 02.10.2026.
+                */}
                 <div className="space-y-1 rounded-lg bg-white/[0.03] px-2.5 py-2">
+                  <Kennzahl
+                    label="Rohr (VL + RL)"
+                    wert={`${bericht.rohrlaenge.toFixed(1)} m`}
+                    zusatz={druck.planGeschosse.length > 1 ? `${druck.planGeschosse.length} Geschosse` : undefined}
+                  />
+                  <Kennzahl
+                    label="Formteile"
+                    wert={`${formteilZahl['bogen-90']} B · ${formteilZahl['t-stueck']} T · ${formteilZahl.reduzierung} R`}
+                  />
                   <Kennzahl label="Heizlast" wert={`${bericht.heizlast.wert.toFixed(1)} kW`} zusatz={bericht.heizlast.herkunft} />
                   <Kennzahl label="Volumenstrom" wert={`${bericht.volumenstrom.toFixed(3)} m³/h`} />
                   <Kennzahl
@@ -292,6 +290,14 @@ export default function RohrnetzDialog({ onClose }: { onClose: () => void }) {
                   Im Druckdialog „Als PDF speichern" wählen und die Skalierung auf 100 % stellen. Der
                   Grundriss ist nur dann maßstäblich, wenn nicht auf die Seite skaliert wird.
                 </p>
+
+                <Protokoll
+                  titel={urteil.nachweisfaehig ? 'Prüfprotokoll' : 'Prüfprotokoll (Nachweis unvollständig)'}
+                  eintraege={[
+                    ...urteil.offen.map((o) => ({ severity: 'warn' as const, text: `Offen für den Nachweis: ${o}` })),
+                    ...bericht.hinweise,
+                  ]}
+                />
               </>
             ) : (
               <>

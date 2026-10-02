@@ -151,6 +151,61 @@ export function planeGebaeudeNetz(
   /** Geschosse, die versorgt werden wollen. */
   const zuVersorgen = levels.filter((l) => hatVerbraucher(doc, l.id) || l.id === quellGeschoss?.id);
 
+  /*
+   * **Ohne Wärmeerzeuger: jedes Geschoss für sich** (seit 1.71.0).
+   *
+   * Bis 1.70.0 wurde dann nur das sichtbare Geschoss ausgelegt. Gemeldet am
+   * 02.10.2026: Bei zwei Stockwerken bekam das zweite keine einzige Leitung,
+   * und der Druck zeigte nur eine Etage. Ohne Erzeuger gibt es keinen Punkt,
+   * von dem eine Steigleitung ausgehen könnte — aber jedes Geschoss hat seinen
+   * Verteiler, und von dort lässt es sich auslegen. Die Steigleitung fehlt
+   * dann, und das steht als Warnung im Protokoll.
+   */
+  if (!quellGeschoss && zuVersorgen.length > 1) {
+    const runs: PipeRun[] = [];
+    const accessories: PipeAccessory[] = [];
+    const geschosse: GeschossNetz[] = [];
+    const notes: PlanningNote[] = [
+      {
+        severity: 'warn',
+        text:
+          `Im Modell steht kein Wärmeerzeuger und kein Speicher. Ausgelegt ist jedes der ${zuVersorgen.length} Geschosse ` +
+          'ab seinem eigenen Verteiler — die Steigleitung zwischen den Geschossen fehlt, bis ein Erzeuger gesetzt ist.',
+      },
+    ];
+    let routeLength = 0;
+    let pipeLength = 0;
+    let served = 0;
+    for (const level of zuVersorgen) {
+      const ergebnis = planPipeNetwork(doc, { ...options, levelId: level.id });
+      for (const n of ergebnis.notes) notes.push({ severity: n.severity, text: `${level.name}: ${n.text}` });
+      const teile = eindeutig(level.id, ergebnis.runs, ergebnis.accessories);
+      runs.push(...teile.runs);
+      accessories.push(...teile.accessories);
+      routeLength += ergebnis.routeLength;
+      pipeLength += ergebnis.pipeLength;
+      served += ergebnis.served;
+      geschosse.push({
+        levelId: level.id,
+        name: level.name,
+        served: ergebnis.served,
+        designFlow: ergebnis.designFlow,
+        routeLength: ergebnis.routeLength,
+        pipeLength: ergebnis.pipeLength,
+      });
+    }
+    return {
+      runs,
+      accessories,
+      routeLength: Math.round(routeLength * 1000) / 1000,
+      pipeLength: Math.round(pipeLength * 1000) / 1000,
+      served,
+      notes,
+      geschosse,
+      straenge: [],
+    };
+  }
+
   if (!quellGeschoss || zuVersorgen.length <= 1) {
     const level = doc.levels[options.levelId];
     return einzeln(planPipeNetwork(doc, options), level);

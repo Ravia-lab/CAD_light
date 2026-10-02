@@ -651,7 +651,14 @@ export function uebersichtsschema(
     const bP = setze(
       'u-erzeugerpumpe',
       'pump',
-      SP.zweiterzeuger + 2,
+      /*
+       * **Hinter** der Absperrung, nicht davor. Bis 1.70.0 stand sie in
+       * Spalte 10, links der Absperrung (12) — gelegt wurde die Leitung aber
+       * von der Absperrung zur Pumpe, also nach links. Im Bild lief das
+       * Wasser durch die Pumpe rückwärts. Gemeldet am 02.10.2026: „die
+       * arbeitet entgegen der Flussrichtung".
+       */
+      SP.armatur + 2,
       ZE.vor,
       [erzeugerpumpe],
       kurzform(erzeugerpumpe.spec, 'pump'),
@@ -742,17 +749,36 @@ export function uebersichtsschema(
       bSpeicher = bSp;
       speicherRueck = speicher.kind === 'cylinder' ? 'return' : 'prim-return';
       const zapf = knoten('u-k-zapf', SP.zapf, ZE.trinkwasser, 'speicherung', 'Zapfstellen');
+      let bVerbrueh: UebersichtBauteil | undefined;
       if (verbrueh) {
         const bV = setze('u-verbrueh', 'mixing-valve-dhw', SP.verbruehschutz, ZE.trinkwasser, [verbrueh], kurzform(verbrueh.spec, 'mixing-valve-dhw'));
         leite(bSp, speicher.kind === 'cylinder' ? 'dhw' : 'dhw', bV, 'hot', 'hot-water');
         leite(bV, 'mixed', zapf, 'west', 'hot-water');
+        bVerbrueh = bV;
       } else {
         leite(bSp, 'dhw', zapf, 'west', 'hot-water');
       }
+      /*
+       * **Das Kaltwasser.** Bis 1.70.0 hing der Speicher nur an der Heizung,
+       * und aus ihm kam allein das gemischte Wasser zur Zapfstelle. Gemeldet
+       * am 02.10.2026: „der Trinkwasserspeicher hat hier nur die Heizung
+       * angebunden und nicht Kaltwasser Zulauf und Ablauf, nur gemischt".
+       * Ein Speicher ohne Zulauf gibt nichts ab, und ein thermostatischer
+       * Mischer ohne Kaltwasser kann nicht mischen. Deshalb: Kaltwasser aus
+       * dem Hausanschluss unten in den Speicher, Abzweig zum Kaltwasser-
+       * eingang des Mischers; das Warmwasser oben aus dem Speicher in den
+       * Mischer, das gemischte zur Zapfstelle. Die Zirkulation kommt in den
+       * Kaltwasserzulauf des Speichers zurück.
+       */
+      const kaltQuelle = knoten('u-k-kaltwasser', SP.speicher - 5, ZE.trinkwasser + 4, 'speicherung', 'Kaltwasser');
+      const kalt = knoten('u-k-kalt', SP.speicher, ZE.trinkwasser + 4, 'speicherung');
+      leite(kaltQuelle, 'east', kalt, 'west', 'cold-water');
+      leite(kalt, 'north', bSp, 'cold', 'cold-water');
+      if (bVerbrueh) leite(kalt, 'east', bVerbrueh, 'cold', 'cold-water');
       if (zirk) {
-        const bZ = setze('u-zirk', 'circulation-pump', SP.verbruehschutz, ZE.trinkwasser + 5, [zirk], kurzform(zirk.spec, 'circulation-pump'));
+        const bZ = setze('u-zirk', 'circulation-pump', SP.verbruehschutz, ZE.trinkwasser + 7, [zirk], kurzform(zirk.spec, 'circulation-pump'));
         leite(zapf, 'south', bZ, 'in', 'circulation');
-        leite(bZ, 'out', bSp, 'cold', 'circulation');
+        leite(bZ, 'out', kalt, 'south', 'circulation');
       }
     }
   }
