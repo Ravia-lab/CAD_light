@@ -58,12 +58,78 @@ export interface Strich {
   staerke: number;
 }
 
+/**
+ * Der Maßstab eines Blattes: eine Strecke darauf und ihre wirkliche Länge.
+ *
+ * **Warum das die ganze Frage ist.** Ein Blatt hat Millimeter, ein Gebäude hat
+ * Meter. Solange niemand gesagt hat, wie viele Meter ein Millimeter Papier
+ * sind, lässt sich aus einem Strich keine Wand machen — jede Zahl wäre
+ * geraten. Dieselbe Frage stellt das Referenzbild, und sie wird hier genauso
+ * beantwortet: Man zieht eine Strecke über etwas, dessen Maß man kennt, und
+ * schreibt das Maß dazu.
+ */
+export interface Massstab {
+  /** Die beiden Enden der Messstrecke in Blattkoordinaten [mm]. */
+  von: Vec2;
+  nach: Vec2;
+  /** Die wirkliche Länge dieser Strecke [m]. */
+  laenge: number;
+}
+
 export interface Skizzenseite {
   id: string;
   name: string;
   striche: Strich[];
   /** Wann angelegt — ISO-Zeitpunkt, für die Reihenfolge und die Mappe. */
   at: string;
+  /**
+   * Der Maßstab, falls einer angelegt wurde.
+   *
+   * Ohne ihn ist das Blatt Papier und bleibt es. Mit ihm lässt sich das
+   * Gezeichnete in den Grundriss übernehmen — als **Vorschlag**, der dort
+   * geprüft wird, nicht als fertige Wand.
+   */
+  massstab?: Massstab;
+}
+
+/**
+ * Meter je Millimeter Papier — oder `undefined`, wenn der Maßstab nichts
+ * hergibt.
+ *
+ * **Die kurze Messstrecke ist der Fehler, den man nicht sieht.** Wer 4 mm auf
+ * dem Papier mit „3,50 m" beschriftet, legt jeden Zeichenfehler mit dem Faktor
+ * 875 auf das Modell um: Zwei Millimeter danebengetippt sind dann anderthalb
+ * Meter Wand. Unter `MESSSTRECKE_MIN` wird deshalb nichts zurückgegeben —
+ * lieber keine Übernahme als eine, deren Maßstab niemand nachrechnen kann.
+ */
+export const MESSSTRECKE_MIN = 20;
+
+export function meterJeMm(massstab: Massstab | undefined): number | undefined {
+  if (!massstab) return undefined;
+  const d = Math.hypot(massstab.nach.x - massstab.von.x, massstab.nach.y - massstab.von.y);
+  if (!(d >= MESSSTRECKE_MIN)) return undefined;
+  if (!(massstab.laenge > 0)) return undefined;
+  return massstab.laenge / d;
+}
+
+/**
+ * Blattkoordinaten [mm] in Weltkoordinaten [m] umrechnen.
+ *
+ * **Die y-Achse wird umgeklappt.** Auf dem Blatt zählt y nach unten (so rechnet
+ * eine Leinwand), im Modell nach oben (+y ist Norden). Ohne das Umklappen käme
+ * der Grundriss gespiegelt an — und eine Spiegelung sieht man an einem
+ * freihändigen Umriss erst, wenn das Bad plötzlich an der falschen Hausseite
+ * liegt.
+ */
+export function nachWelt(
+  punkte: readonly Vec2[],
+  faktor: number,
+  ursprung: Vec2 = { x: 0, y: 0 },
+): Vec2[] {
+  return punkte.map((p) => ({
+    x: ursprung.x + p.x * faktor,
+    y: ursprung.y + (BLATT.hoehe - p.y) * faktor,
+  }));
 }
 
 /** Ein leeres Blatt. */

@@ -5255,7 +5255,19 @@ export interface ExportBivalence {
   operation: BivalenzBetrieb;
   /** Eingetragener Bivalenzpunkt [°C]. */
   bivalencePoint: number;
-  /** Abschaltpunkt der Wärmepumpe [°C] — nur bei alternativ und teilparallel. */
+  /**
+   * Abschaltpunkt der Wärmepumpe [°C] — nur bei alternativ und teilparallel.
+   *
+   * **Hier steht der Wert, mit dem gerechnet wurde, und nicht zwangsläufig
+   * der eingetippte.** Ein Abschaltpunkt **über** dem Bivalenzpunkt ist
+   * widersprüchlich: Die Wärmepumpe kann nicht abschalten, bevor der zweite
+   * Erzeuger zugeschaltet hat. Steht es doch so im Anlagenblatt, wird der Wert
+   * auf den Bivalenzpunkt begrenzt — und damit ist es der alternative Betrieb.
+   *
+   * Wer dieses Feld anzeigt, zeigt also die gerechnete Annahme. Umgedeutet
+   * wird nichts still: Am Bildschirm steht die Eingabe weiterhin so da, wie
+   * sie getippt wurde.
+   */
   cutOffPoint?: number;
   /** Deckungsanteil der Wärmepumpe an der Heizarbeit [0 … 1]. */
   heatPumpShare: number;

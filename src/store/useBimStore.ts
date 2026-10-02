@@ -113,10 +113,14 @@ import { anlageAusAntworten } from '../lib/anlagenFragen';
 import { doppelteWaende, gespiegelt } from '../lib/doppelwaende';
 import { erkenneSkizze } from '../lib/skizze';
 import {
+  MESSSTRECKE_MIN,
   duenneAus,
+  meterJeMm,
+  nachWelt,
   naechsterBlattname,
   neueSeite,
   strichZurueck,
+  type Massstab,
   type StiftfarbeId,
   type Strich,
 } from '../lib/skizzenseite';
@@ -769,6 +773,36 @@ interface BimState {
   sorgeFuerBlatt: () => string;
   loescheBlatt: (id: string) => void;
   benenneBlatt: (id: string, name: string) => void;
+  /**
+   * Den Maßstab eines Blattes setzen — zwei Punkte darauf und ihre wirkliche
+   * Länge. `undefined` als Länge nimmt ihn wieder weg.
+   */
+  setzeBlattMassstab: (id: string, massstab: Massstab | undefined) => void;
+  /**
+   * **Das Blatt in den Grundriss übernehmen.**
+   *
+   * Gemeldet wurde: „bei skizze wird nur skizziert, hier sollte dann auch die
+   * funktion der räume also wände erzeugen und dergleichen gegeben sein das man
+   * es übertragen kann". Und so war es: Ein leeres Blatt ist die
+   * naheliegendste Fläche, um eine Wohnung aufzuzeichnen — und danach war der
+   * Strich ein Bild und kein Modell.
+   *
+   * Was hier passiert, ist deshalb **kein neuer Erkennungsweg**, sondern der
+   * vorhandene: Die Striche werden mit dem Maßstab des Blattes in Meter
+   * gerechnet und durch dieselbe Erkennung geschickt wie das Skizzenblatt über
+   * dem Plan (`skizziere`). Es entsteht derselbe **Vorschlag** in Magenta, mit
+   * derselben Leiste zum Prüfen, Verwerfen einzelner Vektoren und Übernehmen.
+   * Eine zweite Erkennung mit eigenen Schwellen wäre ein zweites Verhalten für
+   * dieselbe Sache.
+   *
+   * **Das Blatt bleibt, wie es ist.** Übernehmen verbraucht es nicht; es ist
+   * Papier und bleibt Papier. Wer zweimal übernimmt, bekommt zweimal einen
+   * Vorschlag — und sieht beim zweiten Mal, dass er schon einen hat.
+   */
+  uebertrageBlatt: (
+    id: string,
+    optionen?: { nurSchwarz?: boolean },
+  ) => { ok: boolean; message: string; zuege: number };
   /** Einen fertigen Zug auf das Blatt legen — Punkte in Blattkoordinaten [mm]. */
   zeichneAufBlatt: (id: string, punkte: Vec2[], farbe: StiftfarbeId, staerke: number) => void;
   /** Den letzten Zug zurücknehmen. */
@@ -4239,6 +4273,87 @@ export const useBimStore = create<BimState>()((set, get) => {
         if (!sauber) return;
         doc.meta.skizzen = { ...doc.meta.skizzen, [id]: { ...seite, name: sauber } };
       }),
+
+    setzeBlattMassstab: (id, massstab) =>
+      mutate((doc) => {
+        const seite = doc.meta.skizzen?.[id];
+        if (!seite) return;
+        doc.meta.skizzen = {
+          ...doc.meta.skizzen,
+          [id]: massstab ? { ...seite, massstab } : { ...seite, massstab: undefined },
+        };
+      }),
+
+    uebertrageBlatt: (id, optionen) => {
+      const seite = get().doc.meta.skizzen?.[id];
+      if (!seite) return { ok: false, message: 'Dieses Blatt gibt es nicht.', zuege: 0 };
+
+      const faktor = meterJeMm(seite.massstab);
+      if (faktor === undefined) {
+        /*
+         * Ohne Maßstab wird nicht geraten. Ein angenommener Maßstab — etwa
+         * „das Blatt ist 10 m breit" — ergäbe einen Grundriss, der plausibel
+         * aussieht und um einen beliebigen Faktor falsch ist. Das ist der
+         * schlechteste Ausgang: Man sucht den Fehler dann in den Wänden.
+         */
+        const message = seite.massstab
+          ? `Die Messstrecke ist zu kurz (unter ${MESSSTRECKE_MIN} mm Papier) oder ohne Länge — damit lässt sich kein Maßstab bilden.`
+          : 'Dem Blatt fehlt der Maßstab. Ziehen Sie eine Messstrecke über eine Länge, die Sie kennen, und schreiben Sie das Maß dazu.';
+        set({ statusMessage: message });
+        return { ok: false, message, zuege: 0 };
+      }
+
+      const striche = seite.striche.filter((st) => !optionen?.nurSchwarz || st.farbe === 'schwarz');
+      if (!striche.length) {
+        const message = optionen?.nurSchwarz
+          ? 'Auf diesem Blatt steht kein schwarzer Strich — schwarz ist die Farbe für das Bauliche.'
+          : 'Das Blatt ist leer.';
+        set({ statusMessage: message });
+        return { ok: false, message, zuege: 0 };
+      }
+
+      /*
+       * **Wohin im Grundriss?** Ist das Geschoss leer, beginnt der Vorschlag
+       * im Ursprung. Steht schon etwas, wird er **neben** den Bestand gelegt,
+       * mit einem Meter Abstand — nicht darüber. Ein Vorschlag, der in den
+       * vorhandenen Wänden liegt, ist nicht zu prüfen: Man sieht nicht mehr,
+       * was neu ist und was dastand.
+       */
+      const levelId = get().doc.activeLevelId;
+      const knoten = Object.values(get().doc.walls)
+        .filter((w) => w.levelId === levelId)
+        .flatMap((w) => [get().doc.nodes[w.a], get().doc.nodes[w.b]])
+        .filter((n): n is BimNode => Boolean(n));
+      const ursprung =
+        knoten.length > 0
+          ? { x: Math.max(...knoten.map((n) => n.x)) + 1, y: Math.min(...knoten.map((n) => n.y)) }
+          : { x: 0, y: 0 };
+
+      let gelesen = 0;
+      let letzte = '';
+      for (const strich of striche) {
+        const welt = nachWelt(strich.punkte, faktor, ursprung);
+        const r = get().skizziere(welt);
+        if (r.ok) gelesen += 1;
+        else letzte = r.message;
+      }
+
+      if (gelesen === 0) {
+        const message = `Aus den ${striche.length} Strichen ließ sich keine Wand lesen. ${letzte}`.trim();
+        set({ statusMessage: message });
+        return { ok: false, message, zuege: 0 };
+      }
+
+      // Der Vorschlag liegt im Grundriss — dort muss der Anwender auch
+      // hinsehen können. Ein Vorschlag, den niemand sieht, ist keiner.
+      const vorschlag = get().skizze;
+      const message =
+        `${gelesen} von ${striche.length} ${striche.length === 1 ? 'Strich' : 'Strichen'} übernommen: ` +
+        `${vorschlag?.strecken.length ?? 0} Wandvorschläge bei ${(1 / faktor).toFixed(1).replace('.', ',')} mm je Meter. ` +
+        'Jetzt im Grundriss prüfen und mit „Übernehmen" anlegen — das Blatt bleibt, wie es ist.';
+      set({ viewMode: '2d', tool: 'select', statusMessage: message });
+      return { ok: true, message, zuege: gelesen };
+    },
 
     zeichneAufBlatt: (id, punkte, farbe, staerke) => {
       // Ein Zug aus einem einzigen Punkt ist ein Tippen, kein Strich.

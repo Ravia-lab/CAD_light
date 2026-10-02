@@ -420,6 +420,7 @@
 <li><code>heatPumpShare</code> und <code>secondGeneratorShare</code> — die Aufteilung der Heizarbeit [0 … 1].</li>
 <li><code>timeShareBelowBivalence</code>, <code>timeShareWithoutHeatPump</code> — die Zeitanteile.</li>
 <li><code>capacityAtBivalence</code>, <code>secondGeneratorRequired</code>, <code>secondGeneratorInstalled</code>, <code>secondGeneratorShortfall</code>.</li>
+<li><code>cutOffPoint</code> — der Abschaltpunkt, und zwar <b>der Wert, mit dem gerechnet wurde</b>. Ein Abschaltpunkt über dem Bivalenzpunkt ist widersprüchlich (die Wärmepumpe kann nicht abschalten, bevor der zweite Erzeuger zugeschaltet hat) und wird auf den Bivalenzpunkt begrenzt. Wer das Feld anzeigt, zeigt die gerechnete Annahme; am Bildschirm steht die Eingabe weiterhin so da, wie sie getippt wurde.</li>
 <li><code>curve</code> — Norm-Heizlast, Norm-Außentemperatur, Heizgrenze: die drei Eingangsgrößen, damit die Rechnung nachvollziehbar ist.</li>
 <li><code>assumptions</code> — <b>jede</b> Annahme im Klartext.</li>
 </ul>

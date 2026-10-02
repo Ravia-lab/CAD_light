@@ -173,6 +173,100 @@ expect('Mit ihren Strichen', ueberlebt.stricheNachher, ueberlebt.stricheVorher);
 expect('Und ihren Namen', ueberlebt.namen, ['Blatt 1', 'Blatt 2', 'Blatt 3']);
 
 await p.screenshot({ path: './screenshots/skizzenseite.png' });
+console.log('\n▸ Vom Blatt in den Grundriss');
+/*
+ * Gemeldet wurde: „bei skizze wird nur skizziert, hier sollte dann auch die
+ * funktion der räume also wände erzeugen und dergleichen gegeben sein das man
+ * es übertragen kann". Geprüft wird deshalb die ganze Kette — und vor allem,
+ * dass sie **ohne Maßstab nicht läuft**: Ein geratener Maßstab ergäbe einen
+ * Grundriss, der plausibel aussieht und um einen beliebigen Faktor falsch ist.
+ */
+const uebertragen = await p.evaluate(async () => {
+  const s = window.__ravia.getState();
+  // Ein leerer Plan, damit die Wandzahl am Ende eindeutig ist.
+  s.clearAll();
+  const blattId = window.__ravia.getState().neuesBlatt();
+  // Ein Rechteck auf dem Blatt: 100 × 60 mm, mit vier Zügen gezeichnet.
+  const ecken = [
+    [{ x: 60, y: 60 }, { x: 160, y: 60 }],
+    [{ x: 160, y: 60 }, { x: 160, y: 120 }],
+    [{ x: 160, y: 120 }, { x: 60, y: 120 }],
+    [{ x: 60, y: 120 }, { x: 60, y: 60 }],
+  ];
+  for (const [a, b] of ecken) {
+    // Zwischenpunkte, damit es ein Zug ist und kein Tippen.
+    const punkte = [];
+    for (let i = 0; i <= 10; i++) {
+      punkte.push({ x: a.x + ((b.x - a.x) * i) / 10, y: a.y + ((b.y - a.y) * i) / 10 });
+    }
+    window.__ravia.getState().zeichneAufBlatt(blattId, punkte, 'schwarz', 1);
+  }
+
+  // **Zuerst ohne Maßstab** — das muss abgelehnt werden.
+  const ohne = window.__ravia.getState().uebertrageBlatt(blattId);
+
+  // Eine zu kurze Messstrecke ebenfalls: 10 mm für 4 m.
+  window.__ravia.getState().setzeBlattMassstab(blattId, { von: { x: 60, y: 60 }, nach: { x: 70, y: 60 }, laenge: 4 });
+  const kurz = window.__ravia.getState().uebertrageBlatt(blattId);
+
+  // Jetzt richtig: Die obere Kante ist 100 mm lang und in Wirklichkeit 10 m.
+  window.__ravia.getState().setzeBlattMassstab(blattId, { von: { x: 60, y: 60 }, nach: { x: 160, y: 60 }, laenge: 10 });
+  const mit = window.__ravia.getState().uebertrageBlatt(blattId);
+  const nach = window.__ravia.getState();
+  return {
+    ohneOk: ohne.ok,
+    ohneText: ohne.message,
+    kurzOk: kurz.ok,
+    mitOk: mit.ok,
+    zuege: mit.zuege,
+    strecken: nach.skizze ? nach.skizze.strecken.length : 0,
+    ansicht: nach.viewMode,
+    // Das Blatt bleibt, wie es ist — Übernehmen verbraucht es nicht.
+    stricheNachher: Object.values(nach.doc.meta.skizzen)[0] ? nach.doc.meta.skizzen[blattId].striche.length : -1,
+    waendeVorAnnahme: Object.keys(nach.doc.walls).length,
+    blattId,
+  };
+});
+expect('Ohne Maßstab wird nicht übernommen', uebertragen.ohneOk, false);
+expect('Und es wird gesagt, warum', /Maßstab/.test(uebertragen.ohneText), true);
+expect('Eine zu kurze Messstrecke auch nicht', uebertragen.kurzOk, false);
+expect('Mit Maßstab läuft es', uebertragen.mitOk, true);
+expect('Alle vier Züge gelesen', uebertragen.zuege, 4);
+expect('Es entstehen Wandvorschläge', uebertragen.strecken >= 4, true);
+/*
+ * **Der Kern:** Es ist ein Vorschlag und noch keine Wand. Geprüft wird im
+ * Grundriss — deshalb schaltet die Übernahme die Ansicht dorthin.
+ */
+expect('Noch keine Wand im Modell', uebertragen.waendeVorAnnahme, 0);
+expect('Die Ansicht springt in den Grundriss', uebertragen.ansicht, '2d');
+expect('Das Blatt behält seine vier Striche', uebertragen.stricheNachher, 4);
+
+// Und jetzt annehmen: aus dem Vorschlag werden Wände.
+const angenommen = await p.evaluate(() => {
+  const r = window.__ravia.getState().uebernimmSkizze();
+  const d = window.__ravia.getState().doc;
+  const waende = Object.values(d.walls);
+  const laengen = waende.map((w) => {
+    const a = d.nodes[w.a];
+    const b = d.nodes[w.b];
+    return Math.round(Math.hypot(b.x - a.x, b.y - a.y) * 100) / 100;
+  }).sort((x, y) => x - y);
+  return { ok: r.ok, waende: waende.length, laengen, skizze: window.__ravia.getState().skizze === null };
+});
+expect('Angenommen', angenommen.ok, true);
+expect('Vier Wände im Modell', angenommen.waende, 4);
+expect('Und der Vorschlag ist aufgebraucht', angenommen.skizze, true);
+/*
+ * **Die Maßprobe.** Das Rechteck ist auf dem Blatt 100 × 60 mm, der Maßstab
+ * 10 m je 100 mm — also 0,1 m je mm. In der Welt müssen daraus 10,00 m × 6,00 m
+ * werden: zwei Wände um 10 m, zwei um 6 m. Das ist die Zahl, auf die es bei der
+ * ganzen Übung ankommt — ein Grundriss im falschen Maßstab sieht richtig aus.
+ */
+const lange = angenommen.laengen.filter((l) => l > 8 && l < 12).length;
+const kurze = angenommen.laengen.filter((l) => l > 4.5 && l < 7.5).length;
+expect('Zwei Wände um 10 m', lange, 2);
+expect('Zwei Wände um 6 m', kurze, 2);
+
 console.log('\n▸ Nichts in der Konsole');
 expect('Keine Fehler im Browser', errs.slice(0, 3), []);
 

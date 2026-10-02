@@ -16,15 +16,30 @@
  * ein aufliegender Handballen zöge sonst Wände — deshalb ist er dort
  * abgeschaltet. Auf einem Blatt Papier gibt es nichts zu verschieben: Das
  * Blatt liegt ganz im Bild, und der Finger zeichnet.
+ *
+ * **Und doch führt ein Weg vom Blatt in den Grundriss** — seit 1.68.0.
+ * Gemeldet wurde: „bei skizze wird nur skizziert, hier sollte dann auch die
+ * funktion der räume also wände erzeugen und dergleichen gegeben sein das man
+ * es übertragen kann". Das ist berechtigt: Ein leeres Blatt ist die
+ * naheliegendste Fläche, um eine Wohnung aufzuzeichnen, und danach war der
+ * Strich ein Bild.
+ *
+ * Gefehlt hat dafür genau eine Angabe: **der Maßstab.** Ein Blatt hat
+ * Millimeter, ein Gebäude hat Meter. Deshalb gibt es hier eine Messstrecke —
+ * dieselbe Idee wie beim Referenzbild —, und mit ihr den Knopf „In den
+ * Grundriss". Dort entsteht ein **Vorschlag** und keine Wand: geprüft wird im
+ * Plan, mit derselben Leiste wie beim Skizzenblatt. Das Blatt bleibt Papier.
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useBimStore } from '../store/useBimStore';
 import {
   BLATT,
+  MESSSTRECKE_MIN,
   STIFTFARBEN,
   STRICHSTAERKEN,
   istLeer,
+  meterJeMm,
   punktzahl,
   type StiftfarbeId,
 } from '../lib/skizzenseite';
@@ -41,6 +56,8 @@ export default function SkizzenSeite() {
   const zeichneAufBlatt = useBimStore((s) => s.zeichneAufBlatt);
   const nimmZurueck = useBimStore((s) => s.nimmBlattstrichZurueck);
   const leere = useBimStore((s) => s.leereBlatt);
+  const setzeMassstab = useBimStore((s) => s.setzeBlattMassstab);
+  const uebertrage = useBimStore((s) => s.uebertrageBlatt);
 
   const blaetter = Object.values(doc.meta.skizzen ?? {}).sort((a, b) => a.at.localeCompare(b.at));
   const seite = blaetter.find((b) => b.id === aktivesBlatt) ?? blaetter[0];
@@ -48,6 +65,14 @@ export default function SkizzenSeite() {
   const [farbe, setFarbe] = useState<StiftfarbeId>('schwarz');
   const [staerke, setStaerke] = useState<number>(1);
   const [radierer, setRadierer] = useState(false);
+  /**
+   * Der Messmodus. Er ist kein Stift: Der Zug legt keinen Strich auf das
+   * Blatt, sondern setzt den Maßstab — und danach schaltet er sich selbst
+   * wieder aus, damit niemand aus Versehen das Maß überschreibt, während er
+   * weiterzeichnet.
+   */
+  const [messen, setMessen] = useState(false);
+  const [nurSchwarz, setNurSchwarz] = useState(false);
 
   const flaeche = useRef<HTMLDivElement>(null);
   const leinwand = useRef<HTMLCanvasElement>(null);
@@ -130,11 +155,44 @@ export default function SkizzenSeite() {
       const wert = STIFTFARBEN.find((f2) => f2.id === strich.farbe)?.wert ?? '#E2E8F0';
       zeichneZug(strich.punkte, wert, strich.staerke);
     }
-    if (zug.current.length > 1) {
-      const wert = STIFTFARBEN.find((f2) => f2.id === farbe)?.wert ?? '#E2E8F0';
-      zeichneZug(zug.current, wert, staerke);
+    /*
+     * Die Messstrecke liegt **über** den Strichen, gestrichelt und in der
+     * Akzentfarbe: Sie gehört nicht zur Zeichnung, sondern sagt etwas über
+     * sie. Wer sie für einen Strich hielte, würde sie mit „Strich zurück"
+     * suchen — deshalb sieht sie aus wie ein Werkzeug und nicht wie ein Stift.
+     */
+    if (seite.massstab) {
+      const { von, nach } = seite.massstab;
+      ctx.save();
+      ctx.strokeStyle = '#38BDF8';
+      ctx.lineWidth = 0.6;
+      ctx.setLineDash([3, 2]);
+      ctx.beginPath();
+      ctx.moveTo(von.x, von.y);
+      ctx.lineTo(nach.x, nach.y);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      for (const p of [von, nach]) {
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, 1.2, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+      ctx.fillStyle = '#38BDF8';
+      ctx.font = '4px sans-serif';
+      ctx.fillText(
+        `${seite.massstab.laenge.toFixed(2).replace('.', ',')} m`,
+        (von.x + nach.x) / 2 + 2,
+        (von.y + nach.y) / 2 - 2,
+      );
+      ctx.restore();
     }
-  }, [seite, farbe, staerke]);
+
+    if (zug.current.length > 1) {
+      const messend = messen;
+      const wert = messend ? '#38BDF8' : STIFTFARBEN.find((f2) => f2.id === farbe)?.wert ?? '#E2E8F0';
+      zeichneZug(zug.current, wert, messend ? 0.6 : staerke);
+    }
+  }, [seite, farbe, staerke, messen]);
 
   useEffect(() => {
     male();
@@ -147,6 +205,9 @@ export default function SkizzenSeite() {
   }, [male]);
 
   if (!seite) return <div className="flex h-full items-center justify-center text-slate-500">Blatt wird angelegt …</div>;
+
+  /** Meter je Millimeter Papier — `undefined` heißt: noch kein brauchbarer Maßstab. */
+  const faktor = meterJeMm(seite.massstab);
 
   const beginn = (e: React.PointerEvent) => {
     if (radierer) return;
@@ -177,8 +238,47 @@ export default function SkizzenSeite() {
     setZeichnet(false);
     const punkte = zug.current;
     zug.current = [];
-    if (punkte.length >= 2) zeichneAufBlatt(seite.id, punkte, farbe, staerke);
-    else male();
+    if (punkte.length < 2) {
+      male();
+      return;
+    }
+
+    if (messen) {
+      /*
+       * Gemessen wird die **Luftlinie** zwischen Anfang und Ende des Zugs und
+       * nicht seine Länge: Wer eine Messstrecke zieht, meint die Strecke und
+       * nicht den Weg, den seine Hand dabei genommen hat.
+       */
+      const von = punkte[0];
+      const nach = punkte[punkte.length - 1];
+      const papier = Math.hypot(nach.x - von.x, nach.y - von.y);
+      if (papier < MESSSTRECKE_MIN) {
+        setMessen(false);
+        male();
+        window.alert(
+          `Die Messstrecke ist nur ${papier.toFixed(0)} mm lang. Unter ${MESSSTRECKE_MIN} mm wird jeder ` +
+            'Zeichenfehler zu groß umgelegt — ziehen Sie sie über eine längere Strecke, deren Maß Sie kennen.',
+        );
+        return;
+      }
+      const eingabe = window.prompt(
+        `Wie lang ist diese Strecke in Wirklichkeit? Angabe in Metern.\n` +
+          `Auf dem Papier sind es ${papier.toFixed(0)} mm.`,
+        seite.massstab ? seite.massstab.laenge.toString().replace('.', ',') : '',
+      );
+      setMessen(false);
+      male();
+      if (eingabe === null) return;
+      const laenge = Number(eingabe.replace(',', '.').trim());
+      if (!Number.isFinite(laenge) || laenge <= 0) {
+        window.alert('Das war keine Länge in Metern. Der Maßstab bleibt, wie er war.');
+        return;
+      }
+      setzeMassstab(seite.id, { von, nach, laenge });
+      return;
+    }
+
+    zeichneAufBlatt(seite.id, punkte, farbe, staerke);
   };
 
   return (
@@ -238,8 +338,10 @@ export default function SkizzenSeite() {
             <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
               <p className="max-w-[46ch] text-center text-[13px] leading-relaxed text-slate-600">
                 Leeres Blatt. Zeichnen Sie mit Finger, Stift oder Maus — ein Strangschema, ein
-                Detail, eine Notiz. Dieses Blatt gehört zum Projekt und wird mitgespeichert; es ist
-                <b> kein Grundriss</b> und wird zu keiner Wand.
+                Detail, eine Notiz. Das Blatt gehört zum Projekt und wird mitgespeichert.
+                <br />
+                Wer eine Wohnung aufzeichnet, legt danach ein <b>Maß</b> an und übernimmt sie
+                <b> in den Grundriss</b>: dort wird daraus ein Wandvorschlag.
               </p>
             </div>
           )}
@@ -293,9 +395,52 @@ export default function SkizzenSeite() {
         >
           Blatt leeren
         </button>
+
+        {/* --- Vom Blatt in den Grundriss ------------------------------- */}
+        <span className="mx-1 h-5 w-px bg-white/[0.12]" />
+        <button
+          className={`chip ${messen ? 'bg-accent/20 text-accent' : 'text-slate-400 hover:text-slate-100'}`}
+          onClick={() => {
+            setMessen((x) => !x);
+            setRadierer(false);
+          }}
+          title="Eine Strecke über etwas ziehen, dessen Maß Sie kennen — danach das Maß eintippen"
+        >
+          {seite.massstab ? 'Maß ändern' : 'Maß anlegen'}
+        </button>
+        {seite.massstab && (
+          <span className="text-[10px] tabular-nums text-slate-500">
+            {faktor === undefined
+              ? 'Messstrecke zu kurz'
+              : `1 m = ${(1 / faktor).toFixed(1).replace('.', ',')} mm`}
+          </span>
+        )}
+        <button
+          className="chip bg-accent/12 text-accent hover:bg-accent/20"
+          onClick={() => uebertrage(seite.id, { nurSchwarz })}
+          disabled={istLeer(seite) || faktor === undefined}
+          title={
+            faktor === undefined
+              ? 'Dafür braucht das Blatt erst einen Maßstab'
+              : 'Die Striche als Wandvorschlag in den Grundriss legen — geprüft wird dort'
+          }
+        >
+          In den Grundriss
+        </button>
+        <label className="flex items-center gap-1 text-[10px] text-slate-500">
+          <input
+            type="checkbox"
+            checked={nurSchwarz}
+            onChange={(e) => setNurSchwarz(e.target.checked)}
+            className="h-3 w-3 accent-accent"
+          />
+          nur schwarze
+        </label>
+
         <p className="ml-auto max-w-[52ch] text-[10px] leading-relaxed text-slate-600">
-          Finger und Stift zeichnen hier beide — auf einem Blatt gibt es nichts zu verschieben.
-          Für einen Grundriss, aus dem Wände werden, nehmen Sie das Skizzenblatt über dem Plan.
+          {faktor === undefined
+            ? 'Mit einem Maßstab wird aus dem Blatt ein Grundrissvorschlag: eine Strecke über ein bekanntes Maß ziehen, Länge eintippen, übernehmen.'
+            : 'Übernehmen legt einen Vorschlag in den Grundriss — geprüft und angelegt wird er dort. Das Blatt bleibt, wie es ist. Eine Handskizze ist dabei nur so genau wie die Hand; das Maß richtet eine Länge, den Rest richtet die Erkennung auf rechte Winkel.'}
         </p>
       </div>
     </div>

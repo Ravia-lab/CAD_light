@@ -13,6 +13,9 @@
 import type { CheckFn } from './typ';
 import type { Vec2 } from '../../src/types/bim';
 import {
+  MESSSTRECKE_MIN,
+  meterJeMm,
+  nachWelt,
   BLATT,
   STIFTFARBEN,
   STRICHSTAERKEN,
@@ -135,4 +138,83 @@ export function pruefeSkizzenseite(check: CheckFn): void {
   check('Skizzenseite · und zwar den letzten', einer.striche[0].id, 'a');
   // Und auf einem leeren Blatt tut es nichts — statt zu werfen.
   check('Skizzenseite · zurück auf leerem Blatt tut nichts', strichZurueck(leer).striche.length, 0);
+
+  // -------------------------------------------------------------------------
+  // 5 · Der Maßstab — die eine Angabe, ohne die nichts geht
+  // -------------------------------------------------------------------------
+  /*
+   * Ein Blatt hat Millimeter, ein Gebäude hat Meter. Der Maßstab ist die
+   * Brücke, und er ist die ganze Schwierigkeit: Jeder Fehler darin wird mit
+   * dem Maßstabsfaktor auf jedes Maß im Modell umgelegt.
+   *
+   * Messstrecke von (20|100) nach (120|100): 100 mm Papier. Beschriftet mit
+   * 10,00 m → **0,1 m je mm**, also 1 m = 10 mm (Maßstab 1:100).
+   */
+  const massstab = { von: { x: 20, y: 100 }, nach: { x: 120, y: 100 }, laenge: 10 };
+  check('Skizzenseite · 100 mm für 10 m ergeben 0,1 m/mm', meterJeMm(massstab) ?? -1, 0.1, 1e-12);
+  // Schräg gemessen zählt die Länge der Strecke: (0|0) nach (30|40) sind 50 mm
+  // (3-4-5-Dreieck), beschriftet mit 5,00 m → 0,1 m/mm, dasselbe Ergebnis.
+  check('Skizzenseite · schräg gemessen zählt die Strecke',
+    meterJeMm({ von: { x: 0, y: 0 }, nach: { x: 30, y: 40 }, laenge: 5 }) ?? -1, 0.1, 1e-12);
+
+  /*
+   * **Die Gegenproben, auf die es ankommt.** Eine zu kurze Messstrecke legt
+   * jeden Zeichenfehler vergrößert um: 4 mm Papier für 3,50 m sind 875 mm je
+   * Meter — zwei Millimeter danebengetippt wären anderthalb Meter Wand.
+   * Deshalb gibt es darunter **keinen** Maßstab und nicht einen schlechten.
+   */
+  check('Skizzenseite · die Schranke steht bei 20 mm', MESSSTRECKE_MIN, 20);
+  check('Skizzenseite · 4 mm Messstrecke ergeben keinen Maßstab',
+    meterJeMm({ von: { x: 0, y: 0 }, nach: { x: 4, y: 0 }, laenge: 3.5 }) === undefined, true);
+  // Genau an der Schranke gilt er noch — 20 mm für 2 m sind 0,1 m/mm.
+  check('Skizzenseite · genau 20 mm gelten noch',
+    meterJeMm({ von: { x: 0, y: 0 }, nach: { x: 20, y: 0 }, laenge: 2 }) ?? -1, 0.1, 1e-12);
+  // Ohne Länge und ohne Maßstab gibt es nichts zu rechnen.
+  check('Skizzenseite · Länge 0 ergibt keinen Maßstab',
+    meterJeMm({ von: { x: 0, y: 0 }, nach: { x: 100, y: 0 }, laenge: 0 }) === undefined, true);
+  check('Skizzenseite · kein Maßstab ergibt keinen Faktor', meterJeMm(undefined) === undefined, true);
+
+  // -------------------------------------------------------------------------
+  // 6 · Vom Blatt in die Welt — und die umgeklappte y-Achse
+  // -------------------------------------------------------------------------
+  /*
+   * Auf dem Blatt zählt y nach **unten**, im Modell nach **oben**. Beim
+   * Umrechnen wird y deshalb gespiegelt: y_welt = (210 − y_blatt) · Faktor.
+   * Ohne das käme der Grundriss gespiegelt an, und eine Spiegelung sieht man
+   * an einem freihändigen Umriss erst, wenn das Bad an der falschen Hausseite
+   * liegt.
+   *
+   * Faktor 0,1 m/mm. Blattpunkt (0|210) ist die **untere linke** Ecke des
+   * Papiers → Welt (0|0). Blattpunkt (0|0) ist oben links → Welt (0|21,0),
+   * denn 210 mm Papier sind bei diesem Maßstab 21,0 m.
+   */
+  const welt = nachWelt([{ x: 0, y: 210 }, { x: 0, y: 0 }, { x: 100, y: 110 }], 0.1);
+  check('Skizzenseite · untere linke Blattecke liegt im Ursprung x', welt[0].x, 0, 1e-12);
+  check('Skizzenseite · … und y', welt[0].y, 0, 1e-12);
+  check('Skizzenseite · obere linke Ecke liegt bei y = 21 m', welt[1].y, 21, 1e-12);
+  // (100|110): x = 10,0 m, y = (210 − 110) · 0,1 = 10,0 m.
+  check('Skizzenseite · ein Punkt in der Mitte x', welt[2].x, 10, 1e-12);
+  check('Skizzenseite · ein Punkt in der Mitte y', welt[2].y, 10, 1e-12);
+  /*
+   * **Die Gegenprobe zur Spiegelung:** Ein Punkt, der auf dem Blatt *weiter
+   * unten* liegt, muss in der Welt *weiter unten* liegen — also einen
+   * kleineren y-Wert haben. Ohne das Umklappen wäre es umgekehrt, und genau
+   * das ist der Fehler, den man nicht sieht.
+   */
+  const paar = nachWelt([{ x: 0, y: 50 }, { x: 0, y: 150 }], 0.1);
+  check('Skizzenseite · weiter unten auf dem Blatt heißt weiter unten in der Welt',
+    paar[1].y < paar[0].y, true);
+  // Der Ursprung verschiebt beides gleich: + (5|7) m.
+  const versetzt = nachWelt([{ x: 0, y: 210 }], 0.1, { x: 5, y: 7 });
+  check('Skizzenseite · der Ursprung verschiebt x', versetzt[0].x, 5, 1e-12);
+  check('Skizzenseite · der Ursprung verschiebt y', versetzt[0].y, 7, 1e-12);
+  /*
+   * Und der Maßstab wirkt auf Längen: Zwei Punkte, 100 mm auseinander, sind
+   * bei 0,1 m/mm genau 10,00 m auseinander — die Länge, die der Anwender
+   * beschriftet hat. Das ist die Probe, die Maßstab und Umrechnung
+   * zusammenhält.
+   */
+  const strecke = nachWelt([{ x: 20, y: 100 }, { x: 120, y: 100 }], meterJeMm(massstab) as number);
+  check('Skizzenseite · die beschriftete Strecke ist in der Welt 10 m lang',
+    Math.hypot(strecke[1].x - strecke[0].x, strecke[1].y - strecke[0].y), 10, 1e-12);
 }
