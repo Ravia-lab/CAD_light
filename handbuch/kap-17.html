@@ -2,7 +2,7 @@
 <h2 id="k17">17 · Schnittstellen: Export, IFC, Einbettung in RaVia</h2>
 <p class="lead">Alles, was dieses Programm tut, läuft auf eine Datei zu: die Übergabe an die Heizlastberechnung. Dieses Kapitel sagt, was in dieser Datei steht, welche anderen Wege es daneben gibt — IFC4 hin und zurück, Einbettung in RaVia, der Rückweg von dort — und was der Betrieb davon merkt.</p>
 
-<h3 id="k17-1">17.1 Der Export <code>ravia.bim.light</code> 2.14.0</h3>
+<h3 id="k17-1">17.1 Der Export <code>ravia.bim.light</code> 2.15.0</h3>
 
 <p class="wo">Im Programm: Werkzeugleiste oben rechts → blauer Knopf <b>RaVia JSON</b>. Der Knopf trägt den Hinweis „Gebäudedaten als RaVia-BIM-JSON exportieren (DIN EN 12831) — dient zugleich als Projektdatei".</p>
 
@@ -452,7 +452,16 @@
 <li>Eine Wand zu einem Raum mit <code>isHeated: false</code> hat <code>boundary: "unheated"</code> mit <code>neighbourRoomId</code> und <code>neighbourTemperature</code> = <code>unheatedTemperature</code>. Bis 2.13.0 stand sie als <code>adjacent-room</code> mit der Solltemperatur des Nachbarn da und war damit verlustfrei.</li>
 </ul>
 
-<div class="merke"><b>Merke</b><p>Alle vierzehn Schritte sind <b>additiv</b> — bis auf die Korrektur in 2.14.0, die bewusst andere Zahlen liefert, weil die alten falsch waren. Eine Gegenstelle, die gegen 2.0.0 gebaut hat, liest eine 2.14.0-Datei ohne Änderung und rechnet dasselbe wie vorher. Sie bekommt nur weniger Auskunft. Wer die neuen <code>kind</code>-Werte nicht kennt, behandelt sie wie bisher jede Verletzung.</p></div>
+<p><b>2.15.0</b> (1.73.0) gleicht den Export mit RaVia ab und legt ihm ein Schema bei:</p>
+
+<ul>
+<li>Ein JSON-Schema <code>ravia-vertrag/schema/ravia.bim.light-2.15.0.schema.json</code>, aus den Typen erzeugt (<code>npm run vertrag:schema</code>). Der Prüflauf validiert jeden Export, den er baut, dagegen.</li>
+<li><code>project.unheatedTemperature</code> mit Herkunft (<code>unheatedTemperatureSource</code>): ohne Eintrag aus dem Temperatur-Korrekturfaktor b<sub>u</sub> der Raumart und θ<sub>e</sub> statt fest 10 °C.</li>
+<li>Neue Randbedingung <code>boundary: "neighbour"</code> für eine Wand zu einem fremden beheizten Gebäude mit <code>project.neighbourTemperature</code> (Vorgabe 15 °C).</li>
+<li><code>rooms[].raviaRoomId</code>, an Heizkörpern <code>panelType</code>, <code>levels[].order</code>; Wärmebrückenzuschläge nur noch für beheizte Räume und nur auf Hüllflächen.</li>
+</ul>
+
+<div class="merke"><b>Merke</b><p>Alle fünfzehn Schritte sind <b>additiv</b> — bis auf die Korrekturen in 2.14.0 und 2.15.0, die bewusst andere Zahlen liefern, weil die alten falsch waren. Eine Gegenstelle, die gegen 2.0.0 gebaut hat, liest eine 2.15.0-Datei ohne Änderung und rechnet dasselbe wie vorher. Sie bekommt nur weniger Auskunft. Wer die neuen <code>kind</code>-Werte nicht kennt, behandelt sie wie bisher jede Verletzung.</p></div>
 
 <h4 id="k17-1-7">17.1.7 Der Wächter über dem Format</h4>
 
