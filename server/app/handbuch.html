@@ -12390,10 +12390,10 @@ Verordnung, und das steht auf dem Blatt.</p>
 <ul>
 <li><code>hydraulics.consumers[].routeLength</code> — einfache Weglänge von der Quelle (meist der Verteiler) bis zum Verbraucher [m].</li>
 <li><code>hydraulics.consumers[].feedLength</code> — die Zuleitung vom Wärmeerzeuger oder Speicher bis zu diesem Verteiler [m]; 0, wenn der Verbraucher direkt am Erzeuger hängt.</li>
-<li><code>hydraulics.consumers[].circuitLength</code> — Vor- und Rücklauf zusammen: 2 × (Weg + Zuleitung) [m]. Bei einem Flächenkreis kommt die Rohrlänge des Kreises im Raum hinzu.</li>
+<li><code>hydraulics.consumers[].circuitLength</code> — Vor- und Rücklauf zusammen: 2 × (Weg + Zuleitung) [m]. Die Rohrlänge eines Flächenkreises im Raum ist <b>nicht</b> darin; sie steht in <code>pipeGraph.floorCircuits[].loopLength</code>.</li>
 <li><code>hydraulics.consumers[].riserLength</code> — davon in Steigleitungen und Deckendurchgängen [m].</li>
 <li><code>hydraulics.consumers[].generatorId</code> — der Erzeuger oder Speicher am Anfang des Wegs.</li>
-<li><code>hydraulics.consumers[].fittings</code> — die Formteile und Armaturen auf dem Weg, gezählt als <code>{ id, count }</code> mit denselben Kennungen wie <code>pipeGraph.segments[].fittings</code> (<code>bogen-90</code>, <code>t-abzweig</code>, Armaturen).</li>
+<li><code>hydraulics.consumers[].fittings</code> — die Formteile und Armaturen auf dem Weg, gezählt als <code>{ id, count }</code> mit denselben Kennungen wie <code>pipeGraph.segments[].fittings</code> (<code>bogen-90</code>, <code>t-abzweig</code>, Armaturen). Bögen und T-Abzweige sind <b>einmal je Trasse</b> gezählt — Vor- und Rücklauf haben je dieselben, für den Kreis also doppelt; Armaturen stehen so oft da, wie sie gesetzt sind.</li>
 <li><code>pipeGraph.segments[].fittings</code> — je Abschnitt die Formteile: Bögen an Richtungswechseln und am Fuß und Kopf einer Steigleitung, das T-Stück am Abzweig.</li>
 <li><code>pipeFittings</code> (an der Wurzel) — die Bestellliste der Formteile des ganzen Netzes: <code>art</code> (<code>bogen-90</code>, <code>t-stueck</code>, <code>reduzierung</code>), <code>abmessung</code>, <code>service</code>, <code>levelId</code>, <code>steigleitung</code>, <code>anzahl</code>. Gezählt aus der Geometrie, nicht aus dem Fließweg — ein T-Stück wird eingebaut, auch wenn noch kein Erzeuger angeschlossen ist.</li>
 </ul>
