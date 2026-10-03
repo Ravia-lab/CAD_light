@@ -3,8 +3,9 @@
  * ---------------------------------------------------------------------------
  * Genau der Teil von JSON Schema 2020-12, den `erzeuge-schema.mjs` schreibt:
  * `$ref` (nur `#/$defs/…`), `type`, `const`, `enum`, `properties`,
- * `required`, `additionalProperties`, `items`, `prefixItems`, `anyOf`,
- * `allOf`. Eigene Prüfung statt einer Bibliothek, weil die Prüfläufe ohne
+ * `required`, `additionalProperties`, `items`, `prefixItems`, `minItems`,
+ * `maxItems`, `anyOf`, `allOf` — dazu für das Scan-Schema `ravia.building`
+ * `integer`, `minimum`, `maximum` und `format: date-time`. Eigene Prüfung statt einer Bibliothek, weil die Prüfläufe ohne
  * zusätzliche Abhängigkeit laufen sollen; kommt im Schema ein anderes
  * Schlüsselwort vor, meldet die Prüfung das, statt es zu übergehen.
  */
@@ -14,6 +15,7 @@ export type Schema = Record<string, unknown>;
 const BEKANNT = new Set([
   '$schema', '$id', '$ref', '$defs', 'title', 'description', 'type', 'const', 'enum', 'properties',
   'required', 'additionalProperties', 'items', 'prefixItems', 'minItems', 'maxItems', 'anyOf', 'allOf',
+  'minimum', 'maximum', 'format',
 ]);
 
 function typVon(v: unknown): string {
@@ -62,11 +64,21 @@ export function pruefeGegenSchema(wurzel: Schema, wert: unknown, maxFehler = 20)
     }
     if (s.type) {
       const t = typVon(v);
-      const ok = s.type === 'number' ? t === 'number' && Number.isFinite(v as number) : t === s.type;
+      const ok =
+        s.type === 'number' ? t === 'number' && Number.isFinite(v as number)
+        : s.type === 'integer' ? t === 'number' && Number.isInteger(v)
+        : t === s.type;
       if (!ok) {
         out.push(`${pfad}: erwartet ${s.type as string}, steht ${t === 'number' ? String(v) : t}`);
         return;
       }
+    }
+    if (typeof v === 'number') {
+      if (typeof s.minimum === 'number' && v < s.minimum) out.push(`${pfad}: ${v} < Minimum ${s.minimum}`);
+      if (typeof s.maximum === 'number' && v > s.maximum) out.push(`${pfad}: ${v} > Maximum ${s.maximum}`);
+    }
+    if (s.format === 'date-time' && typeof v === 'string' && !/^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d(\.\d+)?(Z|[+-]\d\d:\d\d)$/.test(v)) {
+      out.push(`${pfad}: ${JSON.stringify(v)} ist kein Zeitpunkt nach RFC 3339`);
     }
     if (typVon(v) === 'object' && (s.properties || s.additionalProperties !== undefined)) {
       const o = v as Record<string, unknown>;
@@ -81,6 +93,8 @@ export function pruefeGegenSchema(wurzel: Schema, wert: unknown, maxFehler = 20)
       }
     }
     if (Array.isArray(v)) {
+      if (typeof s.minItems === 'number' && v.length < s.minItems) out.push(`${pfad}: ${v.length} Einträge, mindestens ${s.minItems}`);
+      if (typeof s.maxItems === 'number' && v.length > s.maxItems) out.push(`${pfad}: ${v.length} Einträge, höchstens ${s.maxItems}`);
       const pre = (s.prefixItems ?? []) as Schema[];
       v.forEach((x, i) => {
         if (i < pre.length) gueltig(pre[i], x, `${pfad}[${i}]`, out);

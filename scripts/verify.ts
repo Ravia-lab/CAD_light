@@ -133,6 +133,7 @@ import { pruefeMassenauszug } from './pruefungen/massenauszug';
 import { pruefeLeitungsbefund } from './pruefungen/leitungsbefund';
 import { pruefeGeraeteprofil } from './pruefungen/geraeteprofil';
 import { pruefeScanUebernahme } from './pruefungen/scanuebernahme';
+import { pruefeScan112 } from './pruefungen/scan112';
 import { pruefeDachschnitt } from './pruefungen/dachschnitt';
 import { pruefeAnlagenbuch } from './pruefungen/anlagenbuch';
 import { pruefeEinbettung } from './pruefungen/einbettung';
@@ -3784,6 +3785,7 @@ pruefeMassenauszug(check);
 pruefeLeitungsbefund(check);
 pruefeGeraeteprofil(check);
 pruefeScanUebernahme(check);
+pruefeScan112(check);
 pruefeDachschnitt(check);
 
 console.log('\n▸ Anlagenbuch');

@@ -35,6 +35,8 @@ export interface ScanDachZuordnung {
   ohneDach: string[];
   /** Gab es überhaupt Belege? Ohne Belege liegt das Dach wie bisher über allem. */
   lageBelegt: boolean;
+  /** Woraus die Lage stammt: Dachumriss des Scans (1.12.0), Wandbelege oder nichts. */
+  quelle: 'umriss' | 'waende' | 'keine';
 }
 
 const schwerpunkt = (poly: readonly Vec2[]): Vec2 => {
@@ -65,6 +67,11 @@ const schwerpunkt = (poly: readonly Vec2[]): Vec2 => {
  * Transmission. Eine gerade Decke mit Prüfhinweis ist eine Lücke, die man
  * sieht.
  *
+ * **Vorrang hat der Umriss** (`roof.footprint`, seit Schema 1.12.0, Brücke
+ * H3): Liegt ein innerer Punkt des Raums darin, ist er unter dem Dach,
+ * sonst nicht — gleich, welche Wände an ihm stehen. Der Scan hat die
+ * Schräge dort gemessen; die Wandbelege sind nur der Rückfall dafür.
+ *
  * **Ohne jeden Beleg** (Scans vor Schema 1.10.0 kennen weder `kneeWall` noch
  * `profile`) bleibt es beim Verhalten von 1.69.0: das Dach über dem ganzen
  * Geschoss. Es gibt dann keine Grundlage, einen Raum herauszunehmen; die
@@ -84,11 +91,19 @@ export function scanDachZuordnen(
     if (!level) continue;
     const belege = new Set(ergebnis.dachBelege[levelId] ?? []);
     const hier = rooms.filter((r) => r.levelId === levelId);
-    const unterDach = hier.filter((r) => r.boundaries.some((b) => belege.has(b.wallId))).map((r) => r.id);
-    const lageBelegt = belege.size > 0;
+    const { umriss, ...dachOhneUmriss } = dach;
+    const quelle: ScanDachZuordnung['quelle'] = umriss && umriss.length >= 3 ? 'umriss' : belege.size > 0 ? 'waende' : 'keine';
+    const unterDach = hier
+      .filter((r) =>
+        quelle === 'umriss'
+          ? r.polygon.length >= 3 && pointInPolygon(innererPunkt(r.polygon), umriss!)
+          : r.boundaries.some((b) => belege.has(b.wallId)),
+      )
+      .map((r) => r.id);
+    const lageBelegt = quelle !== 'keine';
     const roof = {
       ...DACH_VORGABE,
-      ...dach,
+      ...dachOhneUmriss,
       id: SCAN_DACH_ID,
       name: 'Dach aus Scan',
       // Ohne Beleg: keine Raumliste = ganzes Geschoss (Verhalten bis 1.69.0).
@@ -101,6 +116,7 @@ export function scanDachZuordnen(
       unterDach: lageBelegt ? unterDach : hier.map((r) => r.id),
       ohneDach: lageBelegt ? hier.filter((r) => !unterDach.includes(r.id)).map((r) => r.id) : [],
       lageBelegt,
+      quelle,
     });
   }
   return aus;

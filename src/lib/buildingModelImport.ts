@@ -78,6 +78,12 @@ export interface DachVorschlag {
   kneeHeight: number;
   azimuth: number;
   collarHeight?: number;
+  /**
+   * Umriss der Schräge im Plan (`roof.footprint`, seit Schema 1.12.0): vier
+   * Punkte [m], gegen den Uhrzeigersinn, offen. Fehlt er, entscheiden die
+   * Wandbelege (`dachBelege`), welche Räume unter dem Dach liegen.
+   */
+  umriss?: Vec2[];
   /** Was der Scan über die Herkunft der Dachmaße sagt (Schema 1.10.0). */
   scan: ScanDachHerkunft;
 }
@@ -166,6 +172,8 @@ interface RbmLevel {
     kneeWallIds?: string[];
     /** Seit Schema 1.10.0: „user" (gemessen) oder „scan" (geschätzt). */
     source?: string; ridgeHeight?: number; userDelta?: number;
+    /** Seit Schema 1.12.0: Umriss der Schräge (4 Planpunkte) und Fallrichtung als Planvektor. */
+    footprint?: P[]; fallDirection?: P;
   };
   /** Seit Schema 1.4.0: Dachflächen getrennt nach Fallrichtung. */
   roofSegments?: { azimuthDeg?: number; pitchDeg?: number }[];
@@ -296,6 +304,19 @@ export function importBuildingModel(data: unknown): BuildingImportErgebnis {
     const r = l.roof;
     const form = r?.kind ? DACHFORMEN[r.kind] : undefined;
     if (r && form && zahl(r.pitchDeg)) {
+      /*
+       * Schema 1.12.0 (Brücke H3): `fallDirection` ist ein Einheitsvektor im
+       * Plan — kein Kompasswinkel, braucht also keine Nordrichtung. Im Plan
+       * gilt 0° = Plan-oben, im Uhrzeigersinn: atan2(x, y). Beim Satteldach
+       * ist das Vorzeichen bedeutungslos (beide Hälften fallen gegenläufig),
+       * beim Pultdach kann es bis Scan-Build 18 verkehrt sein — dann
+       * korrigiert man es wie bisher am Dach. Ohne Vektor: Kompass +
+       * Nordabweichung, ohne beides Plan-Ost.
+       */
+      const fall = punkt(r.fallDirection) && Math.hypot(r.fallDirection.x, r.fallDirection.y) > 0.5 ? r.fallDirection : null;
+      const umriss = Array.isArray(r.footprint) && r.footprint.length >= 3 && r.footprint.every(punkt)
+        ? r.footprint.map((p) => ({ x: rund(p.x), y: rund(p.y) }))
+        : undefined;
       const segmente = (Array.isArray(l.roofSegments) ? l.roofSegments : [])
         .filter((s) => s && zahl(s.azimuthDeg) && zahl(s.pitchDeg))
         .map((s) => ({ azimuth: normGrad(s.azimuthDeg!), pitch: rund(s.pitchDeg!, 1) }));
@@ -306,7 +327,10 @@ export function importBuildingModel(data: unknown): BuildingImportErgebnis {
         // Beim Satteldach die Richtung der *einen* Dachfläche — im Modell
         // stehen beide, die erste genügt (die Firstachse steht senkrecht dazu).
         // Ohne Angabe: nach Plan-Ost wie bisher, ohne Umrechnung.
-        azimuth: zahl(r.slopeAzimuthsDeg?.[0]) ? zumPlan(r.slopeAzimuthsDeg![0]) : 90,
+        azimuth: fall
+          ? normGrad((Math.atan2(fall.x, fall.y) * 180) / Math.PI)
+          : zahl(r.slopeAzimuthsDeg?.[0]) ? zumPlan(r.slopeAzimuthsDeg![0]) : 90,
+        ...(umriss ? { umriss } : {}),
         ...(zahl(r.collarHeight) && r.collarHeight < l.height - 0.05 ? { collarHeight: rund(r.collarHeight, 2) } : {}),
         scan: {
           herkunft: r.source === 'user' ? 'gemessen' : r.source === 'scan' ? 'geschaetzt' : 'unbekannt',
