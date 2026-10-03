@@ -44,13 +44,15 @@ export function pruefeHeizlastInEinemRutsch(check: CheckFn): void {
       ueberschlag.rooms.length <= Object.keys(doc.rooms).length, true);
     check('Er ist als Überschlag gekennzeichnet', ueberschlag.istUeberschlag, true);
     /*
-     * Die Summe der Räume ist die Gebäudeheizlast — `total` steht in kW,
-     * die Räume in W. Wenn das auseinanderliefe, wäre die Zahl im Raumbuch
-     * eine andere als die im Anlagenblatt, und niemand wüsste welche gilt.
+     * Die Summe der Räume ist die Gebäudeheizlast bis auf die Lüftung —
+     * `total` steht in kW, die Räume in W. Seit 1.73.0 (Befund B8) steht die
+     * Lüftung auf Gebäudeebene; die Summe der Räume zählte die Abluft von Bad
+     * und Küche doppelt. Die Prüfung hielt das fest und ist umgestellt.
      */
     const summeRaeume = ueberschlag.rooms.reduce((s, r) => s + r.total, 0);
-    check('Die Räume summieren sich zur Gebäudeheizlast [kW]',
-      Math.round(summeRaeume / 10) / 100, Math.round(ueberschlag.total * 100) / 100, 0.02);
+    check('Räume − Raumlüftung + Gebäudelüftung = Gebäudeheizlast [kW]',
+      Math.round((summeRaeume - ueberschlag.ventilationRooms + ueberschlag.ventilation) / 10) / 100,
+      Math.round(ueberschlag.total * 100) / 100, 0.02);
 
     // Jeder beheizte Raum bekommt eine Zahl größer null — sonst wäre der
     // Knopf in genau den Fällen wirkungslos, für die es ihn gibt.

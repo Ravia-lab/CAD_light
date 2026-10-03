@@ -255,7 +255,7 @@ export default function AnlagenPanel() {
    * andere Zahl zeigt als die, mit der gerechnet wird, ist eine Falle.
    */
   const ohneVorgabe =
-    design.normCoverage.complete && design.normCoverage.total > 0 ? design.normCoverage.total : design.estimate?.total;
+    design.normCoverage.complete && design.normCoverage.total > 0 ? design.normCoverage.gebaeude : design.estimate?.total;
 
   /**
    * Der hydraulische Abgleich hängt am *gezeichneten* Rohrnetz, nicht an der

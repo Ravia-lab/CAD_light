@@ -278,6 +278,8 @@ const LEERES_ERGEBNIS: PlantDesignResult = {
     withNorm: 0,
     outdated: 0,
     total: 0,
+    gebaeude: 0,
+    lueftungGebaeude: false,
     complete: true,
     missing: [],
     outdatedRooms: [],

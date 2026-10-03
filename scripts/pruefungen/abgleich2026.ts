@@ -12,7 +12,7 @@ import { join, sep } from 'node:path';
 import type { CheckFn } from './typ';
 import { buildReferenceDocument } from '../reference';
 import { designPlant, gebaeudeHeizlast, leistungsbedarf } from '../../src/lib/plantDesign';
-import { estimateHeatLoad } from '../../src/lib/heatLoadEstimate';
+import { estimateHeatLoad, gebaeudeLueftung, normHeatLoadCoverage } from '../../src/lib/heatLoadEstimate';
 import type { BimDocument } from '../../src/types/bim';
 import { NORM_TEMPERATUREN } from '../../src/lib/auslegungExport';
 import { NORM_UEBERTEMPERATUR } from '../../src/lib/heizflaechenLeistung';
@@ -239,6 +239,52 @@ export function pruefeAbgleich2026(check: CheckFn): void {
     const alt = Object.values(doc.rooms).reduce(
       (s, r) => s + r.boundaries.filter((b) => b.boundary === 'exterior').reduce((x, b) => x + b.grossArea, 0) + 2 * r.area, 0);
     check('B5 · Gebäudehülle kleiner als die alte Zählung', envelopeArea(doc) < alt, true);
+  }
+
+  // -------------------------------------------------------------------------
+  // B8 · Gebäudeheizlast ohne doppelt gezählte Lüftung
+  // -------------------------------------------------------------------------
+  // Vorher: Gebäude = Σ Raumlasten, die Lüftung also Σ n_min · V — die Luft
+  // der Abluftraeume (Bad, Küche) kommt aber über den Überströmweg aus den
+  // Zulufträumen und ist dort schon als Außenluft gezählt.
+  // Jetzt Außenluft = max(Zuluftseite, Abluftseite) + Räume ohne Rolle.
+  {
+    check('B8 · Lüftungsbilanz: max(Zu, Ab) + ohne Rolle [W]', gebaeudeLueftung([
+      { rolle: 'supply', watt: 300 }, { rolle: 'supply', watt: 200 }, { rolle: 'exhaust', watt: 250 },
+      { rolle: 'transfer', watt: 50 }, { rolle: 'none', watt: 40 }, { rolle: undefined, watt: 10 },
+    ]), 600, 1e-9);
+    check('B8 · ohne Lüftungsrollen bleibt die Summe [W]',
+      gebaeudeLueftung([{ rolle: 'none', watt: 100 }, { rolle: undefined, watt: 50 }]), 150, 1e-9);
+
+    const e = estimateHeatLoad(doc);
+    const raum = (id: string) => doc.rooms[id];
+    const zu = e.rooms.filter((r) => raum(r.roomId)?.ventilationRole === 'supply').reduce((x, r) => x + r.ventilation, 0);
+    const ab = e.rooms.filter((r) => raum(r.roomId)?.ventilationRole === 'exhaust').reduce((x, r) => x + r.ventilation, 0);
+    check('B8 · Referenzhaus hat Zu- und Abluftraeume', zu > 0 && ab > 0, true);
+    check('B8 · Überschlag: Gebäudelüftung = max(Zu, Ab) [W]', e.ventilation, Math.max(zu, ab), 1);
+    check('B8 · Überschlag: Gebäude kleiner als Σ Räume',
+      e.total < e.rooms.reduce((x, r) => x + r.total, 0) / 1000, true);
+
+    // Raumweise Norm-Heizlasten aus RaVia: mit Lüftungsanteil auf Gebäudeebene.
+    const mitNorm = (mitAnteil: boolean): BimDocument => ({
+      ...doc,
+      rooms: Object.fromEntries(Object.entries(doc.rooms).map(([id, r]) => [id, r.isHeated
+        ? { ...r, normHeatLoad: { total: 1000, ...(mitAnteil ? { ventilation: r.ventilationRole === 'exhaust' ? 300 : 200 } : {}), source: 'Prüfung', receivedAt: '2026-01-01T00:00:00.000Z' } }
+        : r])),
+    });
+    const beheizt = Object.values(doc.rooms).filter((r) => r.isHeated);
+    const nZu = beheizt.filter((r) => r.ventilationRole === 'supply' || r.ventilationRole === 'transfer').length;
+    const nAb = beheizt.filter((r) => r.ventilationRole === 'exhaust').length;
+    const nSonst = beheizt.length - nZu - nAb;
+    const soll = beheizt.length * 1000 - (nZu * 200 + nAb * 300 + nSonst * 200) + Math.max(nZu * 200, nAb * 300) + nSonst * 200;
+    const c = normHeatLoadCoverage(mitNorm(true));
+    check('B8 · Raumlasten: Summe wie bisher [kW]', c.total, beheizt.length, 1e-9);
+    check('B8 · Raumlasten: Gebäude mit Lüftung auf Gebäudeebene [kW]', c.gebaeude, soll / 1000, 1e-9);
+    check('B8 · Anlage rechnet mit dem Gebäudewert [kW]', gebaeudeHeizlast(mitNorm(true)).heatLoad, soll / 1000, 1e-9);
+    const ohne = normHeatLoadCoverage(mitNorm(false));
+    check('B8 · ohne Lüftungsanteil: Summe, aber als solche erkannt', ohne.gebaeude === ohne.total && !ohne.lueftungGebaeude, true);
+    check('B8 · ohne Lüftungsanteil: Warnung im Anlagenblatt',
+      designPlant(mitNorm(false)).notes.some((n) => n.severity === 'warn' && n.text.includes('Lüftungsanteil')), true);
   }
 
   // -------------------------------------------------------------------------

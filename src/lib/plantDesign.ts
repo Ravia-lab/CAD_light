@@ -600,7 +600,7 @@ export function gebaeudeHeizlast(doc: BimDocument, vorgabe?: number) {
     heatLoadProvenance === 'vorgabe'
       ? (vorgabe ?? estimate.total)
       : heatLoadProvenance === 'raumweise'
-        ? normCoverage.total
+        ? normCoverage.gebaeude
         : estimate.total;
   return { heatLoad, heatLoadProvenance, estimate, normCoverage };
 }
@@ -663,8 +663,16 @@ export function designPlant(doc: BimDocument, options: PlantDesignOptions = {}):
   if (heatLoadProvenance === 'raumweise') {
     notes.push({
       severity: 'info',
-      text: `Gerechnet wird mit ${heatLoad.toFixed(2)} kW aus den Norm-Heizlasten aller ${normCoverage.heatedRooms} beheizten Räume${herkunft(normCoverage)}. Der eigene Überschlag käme auf ${estimate.total.toFixed(2)} kW; er wird nicht verwendet.`,
+      text: `Gerechnet wird mit ${heatLoad.toFixed(2)} kW aus den Norm-Heizlasten aller ${normCoverage.heatedRooms} beheizten Räume${herkunft(normCoverage)}${normCoverage.lueftungGebaeude && normCoverage.gebaeude < normCoverage.total ? `, Lüftung auf Gebäudeebene (Summe der Räume ${normCoverage.total.toFixed(2)} kW)` : ''}. Der eigene Überschlag käme auf ${estimate.total.toFixed(2)} kW; er wird nicht verwendet.`,
     });
+    // Befund B8: ohne Lüftungsanteil je Raum ist die Summe eine obere
+    // Schranke, die Lüftung steckt darin mehrfach.
+    if (!normCoverage.lueftungGebaeude) {
+      notes.push({
+        severity: 'warn',
+        text: 'Die Raum-Heizlasten weisen ihren Lüftungsanteil nicht aus. Ihre Summe zählt die Luft, die über Bad, WC und Küche abströmt, doppelt und liegt über der Gebäudeheizlast. Bitte die Gebäudeheizlast aus RaVia übernehmen.',
+      });
+    }
   }
   if (heatLoadProvenance === 'überschlag') {
     notes.push({
@@ -685,11 +693,11 @@ export function designPlant(doc: BimDocument, options: PlantDesignOptions = {}):
     // Die Gegenprobe kostet nichts und fängt den häufigsten Fehler ab: eine
     // stehen gebliebene Vorgabe aus einem früheren Stand, während die
     // raumweisen Lasten längst neu gerechnet sind.
-    const abweichung = normCoverage.complete && heatLoad > 0 ? Math.abs(normCoverage.total - heatLoad) / heatLoad : 0;
+    const abweichung = normCoverage.complete && heatLoad > 0 ? Math.abs(normCoverage.gebaeude - heatLoad) / heatLoad : 0;
     if (abweichung > 0.05) {
       notes.push({
         severity: 'warn',
-        text: `Die eingetragene Heizlast von ${heatLoad.toFixed(2)} kW steht gegen ${normCoverage.total.toFixed(2)} kW aus den gerechneten Raum-Heizlasten${herkunft(normCoverage)}. Gerechnet wird mit der Eintragung; welche der beiden Zahlen gilt, entscheidet nicht das Programm.`,
+        text: `Die eingetragene Heizlast von ${heatLoad.toFixed(2)} kW steht gegen ${normCoverage.gebaeude.toFixed(2)} kW aus den gerechneten Raum-Heizlasten${herkunft(normCoverage)}. Gerechnet wird mit der Eintragung; welche der beiden Zahlen gilt, entscheidet nicht das Programm.`,
       });
     }
   }

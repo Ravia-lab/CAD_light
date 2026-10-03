@@ -3548,9 +3548,12 @@ console.log('\n▸ Heizlast-Überschlag und Anlagenauslegung');
   check('Transmission und Lüftung ergeben die Summe',
     Math.abs(estimate.total * 1000 - (estimate.transmission + estimate.ventilation)) <= 5, true);
   check('Kennzahl eingeordnet', estimate.klassifizierung.includes('W/m²'), true);
-  // Die Summe der Räume ist die Gebäudelast.
+  // Die Summe der Räume ist die Gebäudelast — bis auf die Lüftung: die steht
+  // seit 1.73.0 auf Gebäudeebene (Befund B8). Diese Prüfung hielt die
+  // Doppelzählung fest und ist deshalb umgestellt, nicht gestrichen.
   const sum = estimate.rooms.reduce((s2, r) => s2 + r.total, 0);
-  check('Summe der Räume = Gebäudelast', Math.abs(sum / 1000 - estimate.total) < 0.02, true);
+  check('Summe der Räume − Raumlüftung + Gebäudelüftung = Gebäudelast',
+    Math.abs((sum - estimate.ventilationRooms + estimate.ventilation) / 1000 - estimate.total) < 0.02, true);
 
   const plan = designPlant(doc);
   check('Ein Gerät wird vorgeschlagen', Boolean(plan.selected), true);

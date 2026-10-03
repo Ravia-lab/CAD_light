@@ -220,6 +220,8 @@ function baueAuslegung(anpassung: Partial<PlantDesignResult> = {}): PlantDesignR
       withNorm: 4,
       outdated: 0,
       total: 6,
+      gebaeude: 6,
+      lueftungGebaeude: false,
       complete: true,
       missing: [],
       outdatedRooms: [],

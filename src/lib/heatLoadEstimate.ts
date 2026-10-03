@@ -37,7 +37,7 @@
  */
 
 import { dachraumTemperatur, istUnbeheizterNachbar, unbeheizteTemperatur, unbeheizterRaumTemperatur } from './unbeheizt';
-import type { BimDocument, Room, RoomBoundary, RoomHeatLoad as NormRoomHeatLoad } from '../types/bim';
+import type { BimDocument, Room, RoomBoundary, RoomHeatLoad as NormRoomHeatLoad, VentilationRole } from '../types/bim';
 import { gradeSplit, isMassiveArea } from './roomDetection';
 import { dachUeberRaum } from './dachlandschaft';
 import { roomBridgeHeatLoss, roomThermalBridges } from './thermalBridges';
@@ -136,6 +136,14 @@ export interface NormHeatLoadCoverage {
   outdated: number;
   /** Summe der gerechneten Lasten [kW] — nur aussagekräftig, wenn `complete`. */
   total: number;
+  /**
+   * Gebäudeheizlast aus den Raumlasten [kW] (Befund B8): Σ(Last − Lüftung) +
+   * Lüftung auf Gebäudeebene, wenn jede Raumlast ihren Lüftungsanteil
+   * ausweist; sonst gleich `total`.
+   */
+  gebaeude: number;
+  /** Ist in `gebaeude` die Lüftung auf Gebäudeebene gebildet? */
+  lueftungGebaeude: boolean;
   /** Tragen alle beheizten Räume eine gerechnete Last? */
   complete: boolean;
   /** Namen der Räume ohne gerechnete Last — sie sind der Grund, wenn es nicht reicht. */
@@ -155,7 +163,10 @@ export interface HeatLoadEstimate {
   /** Gebäudeheizlast [kW]. */
   total: number;
   transmission: number;
+  /** Lüftungswärmeverlust des Gebäudes [W] — nicht die Summe der Räume (Befund B8). */
   ventilation: number;
+  /** Summe der Raum-Lüftungsverluste [W] — nur zum Vergleich. */
+  ventilationRooms: number;
   /** Beheizte Nettogrundfläche [m²]. */
   heatedArea: number;
   /** Spezifische Heizlast des Gebäudes [W/m²] — die Plausibilitätsprobe. */
@@ -555,6 +566,9 @@ export function normHeatLoadCoverage(doc: BimDocument): NormHeatLoadCoverage {
   const missing: string[] = [];
   const outdatedRooms: string[] = [];
   let watt = 0;
+  let ohneLueftung = 0;
+  const lueftung: { rolle: VentilationRole | undefined; watt: number }[] = [];
+  let mitAnteil = true;
   let withNorm = 0;
   let source: string | undefined;
   let receivedAt: string | undefined;
@@ -567,6 +581,10 @@ export function normHeatLoadCoverage(doc: BimDocument): NormHeatLoadCoverage {
     }
     withNorm += 1;
     watt += load.total;
+    if (typeof load.ventilation === 'number' && Number.isFinite(load.ventilation)) {
+      ohneLueftung += load.total - load.ventilation;
+      lueftung.push({ rolle: room.ventilationRole, watt: load.ventilation });
+    } else mitAnteil = false;
     if (!istAktuell(load)) outdatedRooms.push(room.name);
     // Jüngste Übernahme gewinnt: sie ist die, nach der der Anwender sucht,
     // wenn er wissen will, wie alt der Stand ist.
@@ -581,6 +599,8 @@ export function normHeatLoadCoverage(doc: BimDocument): NormHeatLoadCoverage {
     withNorm,
     outdated: outdatedRooms.length,
     total: Math.round((watt / 1000) * 100) / 100,
+    gebaeude: Math.round(((mitAnteil && withNorm > 0 ? ohneLueftung + gebaeudeLueftung(lueftung) : watt) / 1000) * 100) / 100,
+    lueftungGebaeude: mitAnteil && withNorm > 0,
     complete: heated.length > 0 && withNorm === heated.length,
     missing,
     outdatedRooms,
@@ -613,6 +633,33 @@ function heatedTemperatureByLevel(doc: BimDocument): Map<string, number> {
   return out;
 }
 
+/**
+ * Lüftungswärmeverlust des Gebäudes aus den Raumwerten [W].
+ *
+ * **Befund B8.** Bis 1.72.0 war die Gebäudeheizlast die Summe der Raumlasten,
+ * die Lüftung also Σ n_min · V aller Räume. Ein Abluftraum (Bad, WC, Küche)
+ * bezieht seine Luft aber über den Überströmweg aus den Zulufträumen; die
+ * Außenluft dafür ist dort schon gezählt. Für den Raum gehört sie in die
+ * Heizlast — die Heizfläche im Bad muss sie erwärmen können —, für das
+ * Gebäude nicht ein zweites Mal (DIN EN 12831-1, 6.3.3: Lüftung auf
+ * Gebäudeebene aus der Luftbilanz).
+ *
+ * Außenluft des Gebäudes = max(Zuluftseite, Abluftseite) + Räume ohne Rolle.
+ * Überströmräume zählen zur Zuluftseite (die vorsichtige Richtung). Ohne
+ * Lüftungsrollen — kein Raum Zu- oder Abluftraum — bleibt es die Summe.
+ */
+export function gebaeudeLueftung(eintraege: { rolle: VentilationRole | undefined; watt: number }[]): number {
+  let zu = 0;
+  let ab = 0;
+  let sonst = 0;
+  for (const e of eintraege) {
+    if (e.rolle === 'supply' || e.rolle === 'transfer') zu += e.watt;
+    else if (e.rolle === 'exhaust') ab += e.watt;
+    else sonst += e.watt;
+  }
+  return Math.max(zu, ab) + sonst;
+}
+
 /** Überschlägige Heizlast des ganzen Gebäudes. */
 export function estimateHeatLoad(doc: BimDocument): HeatLoadEstimate {
   const istAktuell = currentAgainst(doc.meta.modifiedAt, patchHops(doc));
@@ -624,7 +671,12 @@ export function estimateHeatLoad(doc: BimDocument): HeatLoadEstimate {
     .sort((a, b) => b.total - a.total);
 
   const transmission = rooms.reduce((s, r) => s + r.transmission + r.openings, 0);
-  const ventilation = rooms.reduce((s, r) => s + r.ventilation, 0);
+  // Befund B8: auf Gebäudeebene nicht die Summe der Raumwerte, siehe
+  // `gebaeudeLueftung`.
+  const ventilationRooms = rooms.reduce((s, r) => s + r.ventilation, 0);
+  const ventilation = gebaeudeLueftung(
+    rooms.map((r) => ({ rolle: doc.rooms[r.roomId]?.ventilationRole, watt: r.ventilation })),
+  );
   const heatedArea = rooms.reduce((s, r) => s + r.area, 0);
   const totalW = transmission + ventilation;
   const specific = heatedArea > 0 ? Math.round(totalW / heatedArea) : 0;
@@ -638,6 +690,7 @@ export function estimateHeatLoad(doc: BimDocument): HeatLoadEstimate {
     total: Math.round((totalW / 1000) * 100) / 100,
     transmission: Math.round(transmission),
     ventilation: Math.round(ventilation),
+    ventilationRooms: Math.round(ventilationRooms),
     heatedArea: Math.round(heatedArea * 100) / 100,
     specific,
     designOutdoor: doc.meta.designOutdoorTemperature,

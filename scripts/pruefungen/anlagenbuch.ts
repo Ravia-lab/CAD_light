@@ -204,6 +204,8 @@ function leereAuslegung(): PlantDesignResult {
       withNorm: 0,
       outdated: 0,
       total: 0,
+      gebaeude: 0,
+      lueftungGebaeude: false,
       complete: false,
       missing: [],
       outdatedRooms: [],
