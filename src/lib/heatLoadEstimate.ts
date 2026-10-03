@@ -36,23 +36,11 @@
  * Anlagenauslegung.
  */
 
-import { dachraumTemperatur, istUnbeheizterNachbar, unbeheizteTemperatur, unbeheizterRaumTemperatur } from './unbeheizt';
-import type { BimDocument, Room, RoomBoundary, RoomHeatLoad as NormRoomHeatLoad, VentilationRole } from '../types/bim';
-import { gradeSplit, isMassiveArea } from './roomDetection';
-import { dachUeberRaum } from './dachlandschaft';
+import type { BimDocument, ExportSurface, Room, RoomHeatLoad as NormRoomHeatLoad, VentilationRole } from '../types/bim';
+import { isMassiveArea } from './roomDetection';
 import { roomBridgeHeatLoss, roomThermalBridges } from './thermalBridges';
-import { pointInPolygon } from './geometry';
-import { DACH_VORGABE } from '../types/bim';
-import {
-  BAUTEIL_BEZEICHNUNG,
-  istErfasst,
-  U_FENSTER_BESTAND,
-  uWertBoden,
-  uWertDach,
-  uWertDecke,
-  uWertWand,
-  type UWertAuskunft,
-} from './uwert';
+import { raumFlaechen } from './raviaExport';
+import { BAUTEIL_BEZEICHNUNG } from './uwert';
 
 /**
  * Volumenbezogener Wärmekapazitätsstrom der Luft [Wh/(m³·K)].
@@ -190,42 +178,18 @@ export interface HeatLoadEstimate {
   /**
    * Ist die Gebäudeheizlast aus lückenlosen Angaben entstanden?
    *
-   * `false` heißt nicht „falsch", sondern „zu klein" — und das ist die
-   * gefährlichere der beiden Aussagen, weil sie plausibel aussieht.
+   * `false` heißt: mindestens ein Bauteil geht mit einer Annahme des Exports
+   * statt mit einem erfassten U-Wert ein (seit 1.73.0, Festlegung F1 — bis
+   * 1.72.0 ging es mit 0 W ein, die Zahl war dann zu klein).
    */
   vollstaendig: boolean;
 }
 
-/**
- * Temperatur auf der anderen Seite eines Bauteils [°C].
- *
- * Dieselbe Zuordnung wie im Export, hier noch einmal ohne den Umweg über den
- * vollständigen Exportaufbau: der Überschlag soll auch dann funktionieren,
- * wenn das Dokument gerade bearbeitet wird.
- */
-function neighbourTemperature(doc: BimDocument, boundary: RoomBoundary, inside: number): number {
-  switch (boundary.boundary) {
-    case 'exterior':
-      return doc.meta.designOutdoorTemperature;
-    case 'ground':
-      return doc.meta.groundTemperature;
-    case 'unheated':
-      return unbeheizterRaumTemperatur(doc, boundary.neighbourRoomId ? doc.rooms[boundary.neighbourRoomId] : undefined);
-    case 'adjacent-room': {
-      const other = boundary.neighbourRoomId ? doc.rooms[boundary.neighbourRoomId] : undefined;
-      // Ein unbeheizter Nachbarraum zählt mit θ_u, nicht mit seiner Solltemperatur.
-      if (istUnbeheizterNachbar(other)) return unbeheizterRaumTemperatur(doc, other);
-      return other?.setpointTemperature ?? doc.meta.designIndoorTemperature;
-    }
-    case 'adiabatic':
-      // Adiabat heißt: gleich temperierter Bereich, kein Wärmestrom (f = 0).
-      // Bis 1.72.0 fiel dieser Fall in den Zweig darunter und rechnete wie
-      // Außenluft — eine Wohnungstrennwand verlor dann so viel wie eine
-      // Fassade.
-      return inside;
-    default:
-      return doc.meta.designOutdoorTemperature;
-  }
+
+/** Klartext der Bauteilart einer Exportfläche — für die Lückenliste. */
+function bauteilVon(f: ExportSurface): string {
+  if (f.kind === 'wall') return f.component === 'slab' ? 'Wand' : BAUTEIL_BEZEICHNUNG[f.component];
+  return { floor: 'Boden', ceiling: 'Decke', roof: 'Dach', gable: 'Giebel' }[f.kind];
 }
 
 /**
@@ -244,203 +208,41 @@ function roomLoad(
   doc: BimDocument,
   room: Room,
   istAktuell: (load: NormRoomHeatLoad) => boolean,
-  heatedByLevel: Map<string, number>,
+  flaechen: readonly ExportSurface[],
 ): RoomHeatLoad {
   const inside = room.setpointTemperature;
-  const flat = doc.meta.thermalBridgeMethod === 'flat' ? doc.meta.thermalBridgeSupplement : 0;
   let transmission = 0;
   let openings = 0;
 
   /*
-   * Die Lücken dieses Raums.
-   *
-   * Ein `Set`, weil hier Bauteil**arten** gesammelt werden: vierzehn
-   * Außenwände ohne U-Wert sind eine Aussage, nicht vierzehn.
+   * Die Lücken dieses Raums: Bauteil**arten**, deren U-Wert nur eine Annahme
+   * des Exports ist (weder Aufbau noch Eintrag noch Katalog). Ein `Set`, weil
+   * vierzehn Außenwände ohne U-Wert eine Aussage sind, nicht vierzehn.
+   * Gemeldet wird nur, was auch wirkt: Fläche > 0 und Δθ > 0.
    */
   const luecken = new Set<string>();
 
-  /**
-   * Eine Lücke festhalten — aber nur, wenn sie die Zahl auch verfälscht.
+  /*
+   * **Festlegung F1 (seit 1.73.0).** Die Flächen sind dieselben, die der
+   * Export an RaVia übergibt (`raumFlaechen`): Giebel, Dach, Gaube,
+   * Treppenloch, Erdreich-Split, U-Wert je Öffnung, ΔU_WB je Wand, θ_u und
+   * Nachbartemperatur. Bis 1.72.0 bildete der Überschlag sie ein zweites Mal
+   * aus den Raumkanten — mit anderer U-Rangfolge an Boden und Decke, Fenstern
+   * pauschal mit 1,3 und ohne Treppenloch. Dasselbe Gebäude hatte damit im
+   * Anlagenblatt eine andere Hülle als in der Übergabe.
    *
-   * Die beiden Bedingungen sind kein Feinschliff. Ohne die Flächenprüfung
-   * meldete jede Wandscheibe, die vollständig aus Fenster besteht, einen
-   * fehlenden Wand-U-Wert; ohne die Temperaturprüfung meldete jede Innenwand
-   * zwischen zwei gleich temperierten Räumen dasselbe. Beides ändert an der
-   * Heizlast kein Watt — und ein Heft, in dem unter jedem Raum eine Handvoll
-   * folgenloser Vorbehalte steht, wird nach der zweiten Seite überblättert.
-   * Dann fällt auch der eine auf, der zählt, nicht mehr auf.
+   * Hier bleibt nur die Rechnung: A · (U + ΔU_WB) · (θ_i − θ_Nachbar), ohne
+   * die Temperaturkorrekturfaktoren der Norm — die rechnet RaVia.
    */
-  const meldeLuecke = (auskunft: UWertAuskunft, flaeche: number, bezeichnung: string): void => {
-    if (auskunft.herkunft !== 'fehlt') return;
-    if (flaeche <= 1e-6) return;
-    luecken.add(bezeichnung);
-  };
-
-  // Höhenlage des Geschosses und Geländeoberkante entscheiden, welcher Teil
-  // einer Außenwand gegen Erdreich statt gegen Außenluft grenzt. Das ist
-  // kein Feinschliff: bei −12 °C außen, 10 °C im Erdreich und 20 °C innen
-  // liegt der Temperaturfaktor der erdberührten Fläche bei 10/32 = 0,31
-  // statt 1,0. Ohne diese Unterscheidung zeigt das Anlagenblatt bei einem
-  // Keller das Dreifache.
-  const levelElevation = doc.levels[room.levelId]?.elevation ?? 0;
-  const groundTemperature = doc.meta.groundTemperature;
-
-  for (const b of room.boundaries) {
-    const outside = neighbourTemperature(doc, b, inside);
-    const dt = inside - outside;
-    /*
-     * Der U-Wert kommt aus `uwert.ts` und nicht mehr aus `b.uValue ?? 0`.
-     *
-     * Zwei Fehler stecken in dem alten Ausdruck. Der eine: Die Raumerkennung
-     * reichte bis 1.23.0 nur `wall.uValue` durch — ein zugewiesener
-     * Bauteilaufbau mit gerechnetem U-Wert wurde hier nie gesehen, obwohl die
-     * Übergabe an RaVia ihn längst benutzte. Dieselbe Wand hatte damit im Heft
-     * und in der Gegenstelle verschiedene U-Werte. Der andere: `?? 0` machte
-     * aus einer fehlenden Angabe ein Bauteil ohne Verlust. Die Wand fiel aus
-     * der Bilanz, statt eine Lücke zu melden.
-     *
-     * Gefragt wird deshalb die Wand selbst, nicht der mitgeführte Abschnitt:
-     * sie kennt ihren Aufbau. Nur wenn es keine Wand mehr gibt — eine
-     * Raumkante, deren Wand zwischenzeitlich gelöscht wurde —, bleibt der im
-     * Abschnitt festgehaltene Wert die letzte Auskunft.
-     */
-    const wand = b.wallId ? doc.walls[b.wallId] : undefined;
-    const auskunft: UWertAuskunft = wand
-      ? uWertWand(wand, doc.constructions)
-      : istErfasst(b.uValue)
-        ? { wert: b.uValue, herkunft: 'bauteil' }
-        : { herkunft: 'fehlt' };
-    const bauteilName = wand ? BAUTEIL_BEZEICHNUNG[wand.type] : 'Raumkante ohne Wand';
-    const u = (auskunft.wert ?? 0) + flat;
-    // Öffnungen stecken in `openingArea`; ihr U-Wert liegt an der Öffnung
-    // selbst. Ohne Zugriff darauf wird hier der Flächenanteil mit dem
-    // Fenster-Regelwert gerechnet — deshalb ist das ein Überschlag.
-    const uOpening = DEFAULT_WINDOW_U + flat;
-
-    // Nur Außenwände können im Erdreich stecken; eine Innenwand hat kein
-    // Gelände hinter sich. Die mittlere Höhe des Abschnitts folgt aus
-    // Bruttofläche ÷ Länge — unter einer Dachschräge ist das die einzige
-    // Höhe, die zur Fläche passt.
-    const wallHeight = b.length > 1e-6 ? b.grossArea / b.length : 0;
-    const split =
-      b.boundary === 'exterior'
-        ? gradeSplit(levelElevation, wallHeight, doc.meta.terrainElevation)
-        : { buriedHeight: 0, exposedHeight: wallHeight, embedmentDepth: 0 };
-
-    if (split.buriedHeight <= 1e-6) {
-      if (dt <= 0) continue;
-      meldeLuecke(auskunft, b.netArea, bauteilName);
-      transmission += b.netArea * u * dt;
-      openings += b.openingArea * uOpening * dt;
-      continue;
-    }
-
-    // Aufteilung an der Geländeoberkante. Öffnungen bleiben oberhalb, solange
-    // dort Platz für sie ist; erst was nicht mehr hineinpasst, liegt unter
-    // Gelände. Der `RoomBoundary` führt nur die Summe der Öffnungsflächen,
-    // keine Brüstungshöhen — die genaue Zuordnung leistet der Export. Beide
-    // Wege ergeben dieselbe Gesamtfläche, und mehr braucht ein Überschlag
-    // nicht.
-    const buriedGross = Math.min(b.length * split.buriedHeight, b.grossArea);
-    const aboveGross = Math.max(0, b.grossArea - buriedGross);
-    const openingsBelow = Math.max(0, b.openingArea - aboveGross);
-    const openingsAbove = b.openingArea - openingsBelow;
-    const dtGround = inside - groundTemperature;
-
-    if (dt > 0) {
-      meldeLuecke(auskunft, Math.max(0, aboveGross - openingsAbove), bauteilName);
-      transmission += Math.max(0, aboveGross - openingsAbove) * u * dt;
-      openings += openingsAbove * uOpening * dt;
-    }
-    if (dtGround > 0) {
-      meldeLuecke(auskunft, Math.max(0, buriedGross - openingsBelow), bauteilName);
-      transmission += Math.max(0, buriedGross - openingsBelow) * u * dtGround;
-      openings += openingsBelow * uOpening * dtGround;
-    }
-  }
-
-  // Boden und Decke des Raums.
-  const level = doc.levels[room.levelId];
-  if (level) {
-    // Auch hier über `uwert.ts`: Boden und Decke tragen am Geschoss einen
-    // Bauteilaufbau (`floorConstructionId`, `ceilingConstructionId`), den
-    // dieses Modul bis 1.23.0 nicht einmal angesehen hat. Und ein
-    // `floorUValue: 0` — der Vorgabewert eines frisch angelegten Geschosses —
-    // lief als gültige Zahl durch und machte die Bodenplatte verlustfrei.
-    const bodenU = uWertBoden(room, level, doc.constructions);
-    const deckeU = uWertDecke(room, level, doc.constructions);
-    const floorU = bodenU.wert ?? 0;
-    const floorBoundary = room.floorBoundary ?? level.floorBoundary;
-    const ceilingU = deckeU.wert ?? 0;
-    const ceilingBoundary = room.ceilingBoundary ?? level.ceilingBoundary;
-    // Was hinter Boden und Decke liegt.
-    //
-    // „An Nachbarraum" galt hier bisher bedingungslos als gleich temperiert
-    // und damit verlustfrei. Zwischen zwei *beheizten* Geschossen bleibt das
-    // so — dieses Modul führt ausdrücklich keine Bilanz über Geschossgrenzen
-    // hinweg (siehe Kopf), und ein halber Kelvin Unterschied zwischen zwei
-    // Wohnebenen ist kein Wärmeverlust des Gebäudes.
-    //
-    // Falsch wird es erst, wenn im angrenzenden Geschoss gar nicht geheizt
-    // wird: ein unbeheizter Keller unter beheiztem Erdgeschoss macht die
-    // Kellerdecke zum am stärksten belasteten Bauteil dieses Geschosses, und
-    // sie stünde mit 0 W in der Bilanz. Fehlen dort beheizte Räume — oder
-    // fehlt das Geschoss ganz —, gilt deshalb θ_u. Dieselbe Entscheidung
-    // trifft der Export in `slabBoundary`.
-    const levelsSorted = Object.values(doc.levels).sort((a, b) => a.order - b.order);
-    const levelIndex = levelsSorted.findIndex((l) => l.id === level.id);
-    const temperatureOf = (kind: string, which: 'floor' | 'ceiling') => {
-      if (kind === 'ground') return doc.meta.groundTemperature;
-      // Über der obersten Decke liegt der Dachraum, nicht der Keller.
-      const oberste = which === 'ceiling' && levelIndex === levelsSorted.length - 1;
-      if (kind === 'unheated') return oberste ? dachraumTemperatur(doc.meta) : unbeheizteTemperatur(doc.meta);
-      if (kind === 'exterior') return doc.meta.designOutdoorTemperature;
-      if (kind === 'adjacent-room') {
-        const neighbour = levelsSorted[which === 'floor' ? levelIndex - 1 : levelIndex + 1];
-        const heated = neighbour ? heatedByLevel.get(neighbour.id) : undefined;
-        return heated !== undefined ? inside : oberste ? dachraumTemperatur(doc.meta) : unbeheizteTemperatur(doc.meta);
-      }
-      return inside;
-    };
-    const dtFloor = inside - temperatureOf(floorBoundary, 'floor');
-    const dtCeiling = inside - temperatureOf(ceilingBoundary, 'ceiling');
-    if (dtFloor > 0) {
-      meldeLuecke(bodenU, room.area, 'Boden');
-      transmission += room.area * (floorU + flat) * dtFloor;
-    }
-    /*
-     * B3 · Unter einem geneigten Dach ist die obere Begrenzung die
-     * Dachfläche (gegen Außenluft) und nur der Rest eine waagerechte Decke —
-     * dieselbe Aufteilung wie im Export (`room.roof`). Bis 1.72.0 rechnete
-     * der Überschlag hier die Grundfläche als Decke und ließ die Dachfläche,
-     * im Dachgeschoss den größten Verlustweg, ganz weg.
-     */
-    const dach = dachUeberRaum(level, room.id);
-    const schraege = dach && dach.kind !== 'flat' && room.roof && room.roof.slopedArea > 0.05 ? room.roof : undefined;
-    const deckenFlaeche = schraege ? schraege.flatCeilingArea : room.area;
-    if (dtCeiling > 0 && deckenFlaeche > 0.05) {
-      meldeLuecke(deckeU, deckenFlaeche, 'Decke');
-      transmission += deckenFlaeche * (ceilingU + flat) * dtCeiling;
-    }
-    if (dach && schraege) {
-      const dachU = uWertDach(dach, doc.constructions);
-      // Ohne erfassten Wert der Vorgabewert wie im Export — dort steht er als
-      // Annahme in der Fläche, hier darf er nicht fehlen, sonst stünde die
-      // größte Fläche des Dachgeschosses mit 0 W in der Bilanz.
-      const uDach = (dachU.wert ?? DACH_VORGABE.uValue) + flat;
-      const dtAussen = inside - doc.meta.designOutdoorTemperature;
-      const fenster = Object.values(doc.roofOpenings ?? {}).filter(
-        (o) =>
-          o.levelId === room.levelId &&
-          o.kind === 'skylight' &&
-          room.innerPolygon.length >= 3 &&
-          pointInPolygon(o.position, room.innerPolygon),
-      );
-      const fensterFlaeche = Math.min(schraege.slopedArea, fenster.reduce((sum, o) => sum + o.width * o.depth, 0));
-      if (dtAussen > 0) {
-        transmission += (schraege.slopedArea - fensterFlaeche) * uDach * dtAussen;
-        for (const o of fenster) openings += o.width * o.depth * ((o.uValue ?? DEFAULT_WINDOW_U) + flat) * dtAussen;
-      }
+  for (const f of flaechen) {
+    const dt = inside - f.neighbourTemperature;
+    if (!(dt > 0)) continue;
+    const tb = Number.isFinite(f.thermalBridgeSupplement) ? f.thermalBridgeSupplement : 0;
+    if (f.uValueSource === 'annahme' && f.netArea > 1e-6) luecken.add(bauteilVon(f));
+    transmission += f.netArea * (f.uValue + tb) * dt;
+    for (const o of f.openings) {
+      if (o.uValueSource === 'annahme' && o.area > 1e-6) luecken.add(o.kind === 'door' ? 'Tür' : 'Fenster');
+      openings += o.area * (o.uValue + tb) * dt;
     }
   }
 
@@ -471,15 +273,6 @@ function roomLoad(
   };
 }
 
-/**
- * U-Wert, mit dem Öffnungen im Überschlag gerechnet werden [W/(m²·K)].
- *
- * 1,3 ist der Wert eines Zweischeiben-Wärmeschutzfensters mittleren Alters —
- * bewusst nicht der Neubauwert 0,9, damit der Überschlag im Bestand nicht
- * systematisch zu niedrig liegt. Wer es genauer braucht, exportiert und lässt
- * RaVia rechnen: dort steht der U-Wert jeder einzelnen Öffnung.
- */
-export const DEFAULT_WINDOW_U = U_FENSTER_BESTAND;
 
 /**
  * Einordnung der spezifischen Heizlast.
@@ -612,29 +405,6 @@ export function normHeatLoadCoverage(doc: BimDocument): NormHeatLoadCoverage {
   };
 }
 
-/**
- * Mittlere Solltemperatur der beheizten Räume je Geschoss.
- *
- * Dieselbe Größe, die der Export für Boden- und Deckenanschlüsse bildet.
- * Einmal je Dokument statt je Raum: bei 700 Räumen liefe die Raumliste sonst
- * zweimal je Raum durch.
- */
-function heatedTemperatureByLevel(doc: BimDocument): Map<string, number> {
-  const sums = new Map<string, { sum: number; count: number }>();
-  for (const room of Object.values(doc.rooms)) {
-    if (!room.isHeated) continue;
-    const entry = sums.get(room.levelId);
-    if (entry) {
-      entry.sum += room.setpointTemperature;
-      entry.count++;
-    } else {
-      sums.set(room.levelId, { sum: room.setpointTemperature, count: 1 });
-    }
-  }
-  const out = new Map<string, number>();
-  for (const [levelId, { sum, count }] of sums) out.set(levelId, sum / count);
-  return out;
-}
 
 /**
  * Lüftungswärmeverlust des Gebäudes aus den Raumwerten [W].
@@ -666,11 +436,10 @@ export function gebaeudeLueftung(eintraege: { rolle: VentilationRole | undefined
 /** Überschlägige Heizlast des ganzen Gebäudes. */
 export function estimateHeatLoad(doc: BimDocument): HeatLoadEstimate {
   const istAktuell = currentAgainst(doc.meta.modifiedAt, patchHops(doc));
-  const heatedByLevel = heatedTemperatureByLevel(doc);
-  const rooms = Object.values(doc.rooms)
-    .filter((r) => !isMassiveArea(r))
-    .filter((r) => r.isHeated)
-    .map((r) => roomLoad(doc, r, istAktuell, heatedByLevel))
+  const beheizt = Object.values(doc.rooms).filter((r) => !isMassiveArea(r) && r.isHeated);
+  const flaechen = raumFlaechen(doc, beheizt);
+  const rooms = beheizt
+    .map((r) => roomLoad(doc, r, istAktuell, flaechen.get(r.id) ?? []))
     .sort((a, b) => b.total - a.total);
 
   const transmission = rooms.reduce((s, r) => s + r.transmission + r.openings, 0);

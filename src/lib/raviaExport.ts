@@ -213,6 +213,24 @@ function baueEinheiten(
   };
 }
 
+/**
+ * Die Flächen je Raum, genau wie der Export sie bildet (Festlegung F1).
+ *
+ * Der eine Flächenaufbau für Übergabe und Überschlag: `estimateHeatLoad`
+ * rechnet auf diesen Flächen, statt sie aus den Raumkanten ein zweites Mal
+ * zu bilden. Heizflächen und Rohre gehören nicht zur Hülle und bleiben weg.
+ */
+export function raumFlaechen(doc: BimDocument, rooms: readonly Room[]): Map<string, ExportSurface[]> {
+  const openingIndex = indexOpeningsByWall(Object.values(doc.openings));
+  const heatedByLevel = heatedTemperatureByLevel(doc);
+  const leer = new Map<string, never[]>();
+  const out = new Map<string, ExportSurface[]>();
+  for (const room of rooms) {
+    out.set(room.id, buildRoom(doc, room, openingIndex, heatedByLevel, leer, leer).surfaces);
+  }
+  return out;
+}
+
 export function buildRaviaExport(doc: BimDocument): RaviaExport {
   /*
    * Massive Flächen sind keine Räume.

@@ -170,6 +170,24 @@ export function pruefeAbgleich2026(check: CheckFn): void {
   // Erwartung: Transmission 595 − 253,3 + 330,7 = 672,4 → 672 W.
   // Bad OG (24 °C): 37,48 · 0,18 · 36 = 242,9 W statt 28,71 · 0,2 · 32,8 = 188,3 W
   // → 587 − 188,3 + 242,9 = 641,6 → 642 W.
+  //
+  // Seit F1 (ein Flächenaufbau mit dem Export) rechnet der Überschlag auf den
+  // Exportflächen. Die Zahlen oben hielten den alten, eigenen Aufbau fest,
+  // in dem die Giebelflächen über dem Kniestock gar nicht vorkamen und die
+  // Gaube fehlte; sie sind deshalb umgestellt, nicht gestrichen:
+  // Wohnen OG (20 °C, Δθ 32 K, U_Wand 0,24, U_Giebel 0,22, U_Dach 0,18):
+  //   Wände 17,56 + 20,26 + 6,65 = 44,47 m² · 0,24 · 32 = 341,5 W
+  //   Giebel 11,56 + 14,26 = 25,82 m² · 0,22 · 32       = 181,8 W
+  //   Dach 47,92 + 9,48 = 57,40 m² · 0,18 · 32           = 330,6 W
+  //   Gaubendach 3,2 m² · 0,2 · 32                        =  20,5 W
+  //   → 874,4 W
+  // Bad OG (24 °C, Δθ 36 K):
+  //   Wände 9,09 + 8 + 10,71 = 27,80 · 0,24 · 36 = 240,2 W
+  //   Giebel 5,09 + 6,71 = 11,80 · 0,22 · 36    =  93,5 W
+  //   Wand/Giebel zu Wohnen OG (20 °C): 33,07 · 1,2 · 4 + 25,07 · 0,22 · 4 = 180,8 W
+  //   Boden zu EG (22 °C): 28,71 · 0,3 · 2 = 17,2 W
+  //   Dach 37,48 · 0,18 · 36 = 242,9 W
+  //   → 774,6 W
   // Seit B4 kommt im ausführlichen Verfahren Σψ·l · (θi − θe) hinzu; die
   // Zahlen hier gelten der Dachfläche und werden deshalb ohne diesen Anteil
   // geprüft (die Anschlüsse prüft B4).
@@ -181,8 +199,8 @@ export function pruefeAbgleich2026(check: CheckFn): void {
       if (!r || !raum) return -1;
       return r.transmission - roomBridgeHeatLoss(roomThermalBridges(doc, raum)) * (raum.setpointTemperature + 12);
     };
-    check('B3 · Wohnen OG mit Dachfläche statt Decke [W]', t('Wohnen OG'), 672, 1);
-    check('B3 · Bad OG mit Dachfläche statt Decke [W]', t('Bad OG'), 642, 1);
+    check('B3 · Wohnen OG mit Dachfläche statt Decke [W]', t('Wohnen OG'), 874.4, 1);
+    check('B3 · Bad OG mit Dachfläche statt Decke [W]', t('Bad OG'), 774.6, 1);
     // Ein Geschoss ohne Dach bleibt unberührt.
     check('B3 · Wohnen EG unverändert [W]', t('Wohnen EG'), 787, 0.5);
   }
@@ -285,6 +303,38 @@ export function pruefeAbgleich2026(check: CheckFn): void {
     check('B8 · ohne Lüftungsanteil: Summe, aber als solche erkannt', ohne.gebaeudeKw === ohne.totalKw && !ohne.lueftungGebaeude, true);
     check('B8 · ohne Lüftungsanteil: Warnung im Anlagenblatt',
       designPlant(mitNorm(false)).notes.some((n) => n.severity === 'warn' && n.text.includes('Lüftungsanteil')), true);
+  }
+
+  // -------------------------------------------------------------------------
+  // F1 · ein Flächenaufbau für Überschlag und Export
+  // -------------------------------------------------------------------------
+  // Gegenprobe über die tatsächliche Übergabe: Für jeden beheizten Raum muss
+  // der Überschlag (Transmission + Öffnungen, ohne ψ·l) genau
+  // Σ A · (U + ΔU_WB) · (θi − θ_Nachbar) über die Exportflächen sein.
+  {
+    const exp = buildRaviaExport(doc);
+    const zeilen = estimateHeatLoad(doc).rooms;
+    let geprueft = 0;
+    for (const er of exp.rooms) {
+      const raum = doc.rooms[er.id];
+      const z = zeilen.find((x) => x.roomId === er.id);
+      if (!raum?.isHeated || !z) continue;
+      let w = 0;
+      for (const f of er.surfaces) {
+        const dt = raum.setpointTemperature - f.neighbourTemperature;
+        if (dt <= 0) continue;
+        w += f.netArea * (f.uValue + f.thermalBridgeSupplement) * dt;
+        for (const o of f.openings) w += o.area * (o.uValue + f.thermalBridgeSupplement) * dt;
+      }
+      const psi = roomBridgeHeatLoss(roomThermalBridges(doc, raum)) * (raum.setpointTemperature - doc.meta.designOutdoorTemperature);
+      check(`F1 · ${raum.name}: Überschlag = Exportflächen [W]`, z.transmission + z.openings - psi, w, 1.5);
+      geprueft++;
+    }
+    check('F1 · alle beheizten Räume geprüft', geprueft, Object.values(doc.rooms).filter((r) => r.isHeated).length);
+    // Fenster mit ihrem eigenen U-Wert, nicht mehr pauschal 1,3.
+    const eg = zeilen.find((r) => r.name === 'Wohnen EG')!;
+    check('F1 · Fenster Wohnen EG mit U 1,1 statt 1,3 [W]', eg.openings,
+      Math.round((2.7 * 1.1 + 1.35 * 1.1) * 32 + 1.78 * 1.8 * 0), 1);
   }
 
   // -------------------------------------------------------------------------
