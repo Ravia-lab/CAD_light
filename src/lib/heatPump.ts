@@ -670,20 +670,6 @@ export function blockingFactor(hours: number): number {
   return round2(24 / (24 - t));
 }
 
-/**
- * Erforderliche Wärmepumpen-Heizleistung, überschlägig:
- * (Gebäudeheizlast + Warmwasserzuschlag) × Sperrzeitfaktor.
- *
- * Bewusst der einfache Weg und nicht die 24-Stunden-Energiebilanz nach
- * VDI 4645 — die rechnet die Gegenstelle. Exportiert werden ohnehin die
- * Rohgrößen, damit dort *beide* Wege möglich bleiben.
- */
-export function requiredCapacity(heatLoadKw: number, pump: HeatPump): number {
-  const water = pump.domesticHotWater ? 0.2 * Math.max(0, pump.occupants) : 0;
-  const factor = pump.gridRegime === 'evu-3x2h' ? blockingFactor(pump.blockedHours) : 1;
-  return round2((heatLoadKw + water) * factor);
-}
-
 /** Abstand eines Objekts zu einem Punkt — Punkt, Zug oder Fläche. */
 export function elementDistance(element: SiteElement, point: Vec2): number {
   if (!element.points.length) return Infinity;

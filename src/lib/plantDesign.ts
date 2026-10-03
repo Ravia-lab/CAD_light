@@ -605,6 +605,32 @@ export function gebaeudeHeizlast(doc: BimDocument, vorgabe?: number) {
   return { heatLoad, heatLoadProvenance, estimate, normCoverage };
 }
 
+/**
+ * Erforderliche Erzeugerleistung [kW]: (Gebäudeheizlast + Warmwasserzuschlag)
+ * × Sperrzeitfaktor.
+ *
+ * Der eine Rechenweg dafür (seit 1.73.0). Bis 1.72.0 gab es einen zweiten im
+ * Wärmepumpenblatt (`heatPump.requiredCapacity`), der den Warmwasserzuschlag
+ * pauschal mit 0,2 kW je Person aus `pump.occupants` rechnete, während die
+ * Anlagenauslegung Wohneinheiten, Personen je Einheit und Komfortstufe aus
+ * dem Anlagenblatt nahm. Dasselbe Gebäude hatte damit zwei erforderliche
+ * Leistungen.
+ *
+ * Bewusst der einfache Weg und nicht die 24-Stunden-Energiebilanz nach
+ * VDI 4645 — die rechnet die Gegenstelle.
+ */
+export function leistungsbedarf(doc: BimDocument, heatLoad: number) {
+  const plant = plantOf(doc);
+  const pumps = doc.site?.pumps ?? {};
+  const pump = plant.pumpId ? pumps[plant.pumpId] : Object.values(pumps)[0];
+  const warmwasser = plant.dhw.units > 0 && pump?.domesticHotWater !== false;
+  const occupants = warmwasser ? plant.dhw.units * plant.dhw.occupantsPerUnit : 0;
+  const dhwSurcharge = warmwasser ? domesticHotWaterSurcharge(occupants, plant.dhw.comfort) : 0;
+  const blocking = pump?.gridRegime === 'evu-3x2h' ? blockingFactor(pump.blockedHours) : 1;
+  const requiredCapacity = Math.round((heatLoad + dhwSurcharge) * blocking * 100) / 100;
+  return { occupants, dhwSurcharge, blocking, requiredCapacity };
+}
+
 export function designPlant(doc: BimDocument, options: PlantDesignOptions = {}): PlantDesignResult {
   const notes: PlanningNote[] = [];
   const plant = plantOf(doc);
@@ -721,10 +747,7 @@ export function designPlant(doc: BimDocument, options: PlantDesignOptions = {}):
   const antwortGegeben = plant.antworten !== undefined;
 
   const warmwasser = plant.dhw.units > 0 && pump?.domesticHotWater !== false;
-  const occupants = warmwasser ? plant.dhw.units * plant.dhw.occupantsPerUnit : 0;
-  const dhwSurcharge = warmwasser ? domesticHotWaterSurcharge(occupants, plant.dhw.comfort) : 0;
-  const blocking = pump?.gridRegime === 'evu-3x2h' ? blockingFactor(pump.blockedHours) : 1;
-  const requiredCapacity = Math.round((heatLoad + dhwSurcharge) * blocking * 100) / 100;
+  const { dhwSurcharge, blocking, requiredCapacity } = leistungsbedarf(doc, heatLoad);
   if (blocking > 1) {
     notes.push({
       severity: 'info',

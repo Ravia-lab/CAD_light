@@ -31,7 +31,6 @@ import {
   IMMISSION_LIMITS,
   polygonArea,
   protectionIssues,
-  requiredCapacity,
   ROOM_ANGLE,
   sourceDemand,
   waterProtectionVerdict, protectionStatus} from '../lib/heatPump';
@@ -39,7 +38,7 @@ import { KAELTEMITTEL, KLASSENTEXT, dichtheitspflicht, kaeltemittel } from '../l
 import { anschlussVonGeraet, nennweiteAusText, NENNWEITE_GEWINDE } from '../lib/anschlussgroesse';
 import { primaerauslegung } from '../lib/primaerkreis';
 import { findModel } from '../lib/deviceCatalog';
-import { gebaeudeHeizlast } from '../lib/plantDesign';
+import { gebaeudeHeizlast, leistungsbedarf } from '../lib/plantDesign';
 import { useBimStore } from '../store/useBimStore';
 import Erklaerung from './Erklaerung';
 
@@ -106,6 +105,8 @@ export default function HeatPumpPanel() {
    */
   const heatLoadInfo = useMemo(() => gebaeudeHeizlast(doc, doc.plant?.heatLoadOverride), [doc]);
   const heatLoad = heatLoadInfo.heatLoad;
+  // Derselbe Rechenweg wie in der Anlagenauslegung (Befund F3).
+  const bedarf = useMemo(() => leistungsbedarf(doc, heatLoad), [doc, heatLoad]);
 
   const elements = useMemo(() => Object.values(site.elements), [site.elements]);
   const hasBoundary = elements.some((e) => e.kind === 'boundary');
@@ -368,13 +369,13 @@ export default function HeatPumpPanel() {
               onChange={(v) => updateHeatPump(pump.id, { cop: v })}
             />
             <div className="rounded-lg bg-white/[0.03] px-2.5 py-2 text-[10px] leading-relaxed text-slate-400">
-              Erforderlich nach Faustformel: {fmt(requiredCapacity(heatLoad, pump), 1)} kW
+              Erforderlich nach Faustformel: {fmt(bedarf.requiredCapacity, 1)} kW
               <span className="text-slate-600">
                 {' '}
                 — Heizlast {fmt(heatLoad, 1)} kW
                 {heatLoadInfo.heatLoadProvenance === 'überschlag' ? ' (Überschlag)' : heatLoadInfo.heatLoadProvenance === 'raumweise' ? ' (Norm, raumweise)' : ' (Vorgabe)'}
-                {pump.domesticHotWater ? ` + ${fmt(0.2 * pump.occupants, 1)} kW Warmwasser` : ''}
-                {pump.gridRegime === 'evu-3x2h' ? ' × Sperrzeitfaktor' : ''}
+                {bedarf.dhwSurcharge > 0 ? ` + ${fmt(bedarf.dhwSurcharge, 1)} kW Warmwasser (${fmt(bedarf.occupants, 0)} Personen laut Anlagenblatt)` : ''}
+                {bedarf.blocking > 1 ? ` × Sperrzeitfaktor ${fmt(bedarf.blocking, 2)}` : ''}
               </span>
             </div>
 

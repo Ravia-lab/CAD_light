@@ -11,7 +11,7 @@ import { readFileSync, statSync } from 'node:fs';
 import { join, sep } from 'node:path';
 import type { CheckFn } from './typ';
 import { buildReferenceDocument } from '../reference';
-import { designPlant, gebaeudeHeizlast } from '../../src/lib/plantDesign';
+import { designPlant, gebaeudeHeizlast, leistungsbedarf } from '../../src/lib/plantDesign';
 import { estimateHeatLoad } from '../../src/lib/heatLoadEstimate';
 import type { BimDocument } from '../../src/types/bim';
 import { buildIfc, schichtenAusText } from '../../src/lib/ifcExport';
@@ -144,5 +144,19 @@ export function pruefeAbgleich2026(check: CheckFn): void {
     check('B7 · „36,5 Ziegel + 14 cm WDVS" mit Komma und „cm"', schichtenAusText('36,5 Ziegel + 14 cm WDVS', 0.505)?.length ?? 0, 2);
     check('B7 · Summe passt nicht zur Wand: keine Aufteilung', schichtenAusText('24 MW + 14 WDVS', 0.24) === undefined, true);
     check('B7 · Text ohne Dicken: keine Aufteilung', schichtenAusText('Vollziegel verputzt', 0.24) === undefined, true);
+  }
+
+  // -------------------------------------------------------------------------
+  // F3 · Ein Rechenweg für den Leistungsbedarf der Wärmepumpe
+  // -------------------------------------------------------------------------
+  {
+    check('F3 · Leistungsbedarf = Anlagenauslegung (7,5 kW)',
+      leistungsbedarf(doc, 7.5).requiredCapacity, designPlant(doc, { heatLoad: 7.5 }).requiredCapacity, 1e-9);
+    check('F3 · Warmwasserzuschlag = Anlagenauslegung',
+      leistungsbedarf(doc, 7.5).dhwSurcharge, designPlant(doc, { heatLoad: 7.5 }).dhwSurcharge, 1e-9);
+    check('F3 · kein zweiter Rechenweg in heatPump.ts',
+      /export function requiredCapacity/.test(quelle('src/lib/heatPump.ts')), false);
+    check('F3 · Wärmepumpenblatt rechnet über leistungsbedarf()',
+      quelle('src/components/HeatPumpPanel.tsx').includes('leistungsbedarf(doc'), true);
   }
 }
