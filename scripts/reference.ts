@@ -96,19 +96,19 @@ export function buildReferenceDocument(): BimDocument {
 
     // Fenster nach Süden und Westen, eine Tür in der Trennwand.
     openings[`${levelId}-o-s1`] = {
-      id: `${levelId}-o-s1`, wallId: `${levelId}-w-s1`, kind: 'window', subtype: 'turn-tilt',
+      id: `${levelId}-o-s1`, wallId: `${levelId}-w-s1`, kind: 'window', windowType: 'tilt-turn',
       distance: 3, width: 2, height: 1.35, sillHeight: 0.9, uValue: 1.1, gValue: 0.6,
     } as Opening;
     openings[`${levelId}-o-s2`] = {
-      id: `${levelId}-o-s2`, wallId: `${levelId}-w-s2`, kind: 'window', subtype: 'fixed',
+      id: `${levelId}-o-s2`, wallId: `${levelId}-w-s2`, kind: 'window', windowType: 'fixed',
       distance: 2, width: 1.2, height: 1.35, sillHeight: 0.9, uValue: 1.1, gValue: 0.6,
     } as Opening;
     openings[`${levelId}-o-w`] = {
-      id: `${levelId}-o-w`, wallId: `${levelId}-w-w`, kind: 'window', subtype: 'turn',
+      id: `${levelId}-o-w`, wallId: `${levelId}-w-w`, kind: 'window', windowType: 'casement',
       distance: 4, width: 1, height: 1.35, sillHeight: 0.9, uValue: 1.1, gValue: 0.6,
     } as Opening;
     openings[`${levelId}-o-d`] = {
-      id: `${levelId}-o-d`, wallId: `${levelId}-w-mid`, kind: 'door', subtype: 'single-885',
+      id: `${levelId}-o-d`, wallId: `${levelId}-w-mid`, kind: 'door', doorType: 'single',
       distance: 4, width: 0.885, height: 2.01, sillHeight: 0, uValue: 1.8,
     } as Opening;
 
@@ -173,17 +173,17 @@ export function buildReferenceDocument(): BimDocument {
     // Brüstung 1,40 m über Kellerfußboden = −1,20 m absolut, also 0,25 m
     // über Gelände: dieses Fenster gehört ganz in den freistehenden Teil.
     openings['kg-o-s1'] = {
-      id: 'kg-o-s1', wallId: 'kg-w-s1', kind: 'window', subtype: 'fixed',
+      id: 'kg-o-s1', wallId: 'kg-w-s1', kind: 'window', windowType: 'fixed',
       distance: 3, width: 1, height: 0.6, sillHeight: 1.4, uValue: 1.1, gValue: 0.6,
     } as Opening;
     // Brüstung 0,40 m über Kellerfußboden = −2,20 m absolut, also 0,75 m
     // unter Gelände: Lichtschacht, und damit ganz im erdberührten Teil.
     openings['kg-o-w'] = {
-      id: 'kg-o-w', wallId: 'kg-w-w', kind: 'window', subtype: 'fixed',
+      id: 'kg-o-w', wallId: 'kg-w-w', kind: 'window', windowType: 'fixed',
       distance: 4, width: 1, height: 0.6, sillHeight: 0.4, uValue: 1.1, gValue: 0.6,
     } as Opening;
     openings['kg-o-d'] = {
-      id: 'kg-o-d', wallId: 'kg-w-mid', kind: 'door', subtype: 'single-885',
+      id: 'kg-o-d', wallId: 'kg-w-mid', kind: 'door', doorType: 'single',
       distance: 4, width: 0.885, height: 2.01, sillHeight: 0, uValue: 1.8,
     } as Opening;
   }
@@ -246,12 +246,16 @@ export function buildReferenceDocument(): BimDocument {
     openings,
     fixtures,
     verticals: {
+      // Bis 1.72.0 stand die Treppe hier in einer alten Form (kind „stair",
+      // deductsFloorArea, stairKind, riserHeight), die das Modell nicht
+      // kennt; der Export trug sie unverändert weiter. Seit der Prüfung gegen
+      // das Vertragsschema (Festlegung F6) in der gültigen Form.
       treppe: {
-        id: 'treppe', levelId: 'eg', kind: 'stair', name: 'Treppe',
+        id: 'treppe', levelId: 'eg', kind: 'stair-straight', name: 'Treppe',
         position: { x: 8, y: 6.5 }, rotation: 0, width: 1, length: 3,
-        deductsFloorArea: true, openToAbove: true,
-        toLevelId: 'og', stairKind: 'straight', steps: 16, riserHeight: 0.18,
-      } as never,
+        deductsArea: true, openToAbove: true,
+        toLevelId: 'og', steps: 16,
+      },
     },
     pipes,
     annotations: {},

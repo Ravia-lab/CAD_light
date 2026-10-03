@@ -82,17 +82,17 @@ function baueHaus(v: Vorgabe = {}): BimDocument {
     constructions['c-wand'] = {
       id: 'c-wand',
       name: 'Prüfaufbau Wand',
+      category: 'wall',
       uValue: v.aufbauU,
-      layers: [],
-    } as unknown as Construction;
+    };
   }
   if (v.bodenAufbauU !== undefined) {
     constructions['c-boden'] = {
       id: 'c-boden',
       name: 'Prüfaufbau Boden',
+      category: 'floor',
       uValue: v.bodenAufbauU,
-      layers: [],
-    } as unknown as Construction;
+    };
   }
 
   const wand = (name: string, a: string, b: string, sued: boolean): void => {

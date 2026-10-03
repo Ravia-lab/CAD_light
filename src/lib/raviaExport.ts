@@ -27,9 +27,10 @@
  */
 
 import { leistungJeVerbraucher } from './verbraucherlast';
-import { heizleistung } from './normleistung';
+import { heizleistung, istEn442, migriereParams } from './normleistung';
 import { dachraumTemperatur, istUnbeheizterNachbar, nachbarTemperatur, unbeheiztEingetragen, unbeheizteTemperatur, unbeheizterRaumTemperatur } from './unbeheizt';
 import type {
+  FixtureParams,
   ExportPlant,
   BimDocument,
   BoundaryCondition,
@@ -213,6 +214,9 @@ function baueEinheiten(
   };
 }
 
+/** Fassung des Exportvertrags; das Schema dazu liegt unter `ravia-vertrag/schema/`. */
+export const EXPORT_FASSUNG = '2.15.0' as const;
+
 /**
  * Die Flächen je Raum, genau wie der Export sie bildet (Festlegung F1).
  *
@@ -328,7 +332,7 @@ export function buildRaviaExport(doc: BimDocument): RaviaExport {
   const graph = baueNetzExport(doc, netz, abgleich);
   const einheiten = baueEinheiten(doc);
 
-  return {
+  const ergebnis: RaviaExport = {
     schema: 'ravia.bim.light',
     // 2.3.0: Hüllflächenbilanz je Raum und für das Gebäude (`envelope`).
     // 2.4.0: `envelope.withoutUValue` — wie viele Flächen ohne brauchbaren
@@ -351,7 +355,12 @@ export function buildRaviaExport(doc: BimDocument): RaviaExport {
     // 2.14.0: `project.atticTemperature` — der Dachraum über der obersten
     //         Decke hat eine eigene Temperatur; Wände zu unbeheizten Räumen
     //         sind `unheated` mit θ_u statt `adjacent-room` mit deren Soll.
-    version: '2.14.0',
+    // 2.15.0: `rooms[].raviaRoomId`, boundary `neighbour` mit
+    //         `project.neighbourTemperature`, Heizkörper mit `ratedPower`
+    //         (75/65/20), `exponentN`, `ratedPowerSource`, `panelType`;
+    //         `project.unheatedTemperatureSource`. Schema in
+    //         `ravia-vertrag/schema/ravia.bim.light-2.15.0.schema.json`.
+    version: EXPORT_FASSUNG,
     generator: GENERATOR,
     exportedAt: new Date().toISOString(),
     units: {
@@ -386,6 +395,10 @@ export function buildRaviaExport(doc: BimDocument): RaviaExport {
     },
     project: {
       ...doc.meta,
+      // Ältere Dokumente kennen beide Felder nicht; gerechnet wird dann mit
+      // dem pauschalen Verfahren ohne Kategorie — das steht jetzt auch da.
+      thermalBridgeMethod: doc.meta.thermalBridgeMethod ?? 'flat',
+      thermalBridgeCategory: doc.meta.thermalBridgeCategory ?? 'none',
       atticTemperature: dachraumTemperatur(doc.meta),
       // Seit 1.73.0 (Befund B1): θ_u steht immer da, auch wenn es aus b_u
       // abgeleitet ist; unheatedTemperatureSource sagt, welcher Fall es ist.
@@ -395,7 +408,9 @@ export function buildRaviaExport(doc: BimDocument): RaviaExport {
       neighbourTemperature: nachbarTemperatur(doc.meta),
     },
     ...(subsoil ? { subsoil } : {}),
-    levels: Object.values(doc.levels).sort((a, b) => a.order - b.order),
+    levels: Object.values(doc.levels)
+      .sort((a, b) => (a.order ?? a.elevation) - (b.order ?? b.elevation))
+      .map((l, i) => ({ ...l, order: l.order ?? i })),
     // Nutzungseinheiten — seit 2.10.0, nur wenn welche erfasst sind.
     ...(einheiten ?? {}),
     constructions: Object.values(doc.constructions ?? {}),
@@ -452,6 +467,11 @@ export function buildRaviaExport(doc: BimDocument): RaviaExport {
       ...(Object.keys(doc.freihand ?? {}).length ? { freihand: Object.values(doc.freihand ?? {}) } : {}),
     },
   };
+  // Prüfhaken für die Prüfläufe (Festlegung F6): `npm run verify` prüft
+  // jeden hier gebauten Export gegen das Vertragsschema. Im Programm ist er
+  // nicht gesetzt und kostet nichts.
+  (globalThis as { __raviaExportGebaut?: (e: RaviaExport) => void }).__raviaExportGebaut?.(ergebnis);
+  return ergebnis;
 }
 
 /**
@@ -1812,6 +1832,8 @@ function buildRoom(
     // Frühere Kennungen nur, wenn es welche gibt: ein leeres Feld an jedem
     // Raum wäre Rauschen in einer Datei, die ohnehin groß genug ist.
     ...(room.altKennungen?.length ? { formerIds: [...room.altKennungen] } : {}),
+    // Seit 2.15.0 (Festlegung F5): die Kennung des Raums in RaVia.
+    ...(room.raviaRoomId ? { raviaRoomId: room.raviaRoomId } : {}),
     // Steht hier nur, damit der Typ vollständig ist; gebildet wird sie eine
     // Ebene höher über den fertigen Raum. Siehe `raumPruefsumme`.
     checksum: '',
@@ -1980,6 +2002,17 @@ function buildHeatPumpExport(doc: BimDocument): ExportHeatPump {
   };
 }
 
+/**
+ * Parameter im Exportformat: an Heizkörpern nach Festlegung F2 die
+ * Normleistung 75/65/20 °C (`ratedPower`, auch aus einem nicht migrierten
+ * `powerW` umgerechnet) und die Bauart als `panelType` (seit 2.15.0).
+ */
+function exportParams(f: Fixture): FixtureParams {
+  if (!istEn442(f.type)) return { ...f.params };
+  const p = migriereParams(f.type, f.params);
+  return { ...p, ...(p.radiatorType ? { panelType: p.radiatorType } : {}) };
+}
+
 /** Wandelt ein platziertes TGA-Objekt ins Exportformat. */
 function toExportFixture(f: Fixture): ExportFixture {
   return {
@@ -1991,7 +2024,7 @@ function toExportFixture(f: Fixture): ExportFixture {
     rotation: Math.round(f.rotation * 10) / 10,
     length: roundMm(f.length),
     elevation: roundMm(f.elevation),
-    params: { ...f.params },
+    params: exportParams(f),
   };
 }
 

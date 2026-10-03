@@ -1,6 +1,6 @@
 {
   "schema": "ravia.bim.light",
-  "version": "2.14.0",
+  "version": "2.15.0",
   "rooms": [
     {
       "id": "room-eg-0",
@@ -37,8 +37,8 @@
       "name": "Bad EG",
       "level": "EG",
       "area": 28.71,
-      "netFloorArea": 28.71,
-      "volume": 78.95,
+      "netFloorArea": 25.71,
+      "volume": 70.7,
       "perimeter": 22.79,
       "height": 2.75,
       "surfaces": 6,
@@ -50,7 +50,7 @@
       "groundSurfaces": 0,
       "embedmentDepth": 0,
       "exposedFacadeCount": 3,
-      "minimumAirflow": 39.47,
+      "minimumAirflow": 35.35,
       "installedHeatingPower": 1762,
       "thermalBridgeHeatLoss": 1.749,
       "thermalBridges": 6,
@@ -60,7 +60,7 @@
       "slopedArea": 0,
       "pipeLength": 2.14,
       "pipeKinds": 1,
-      "envelopeConductance": 70.402
+      "envelopeConductance": 67.702
     },
     {
       "id": "room-kg-0",
@@ -157,8 +157,8 @@
       "name": "Bad OG",
       "level": "OG",
       "area": 28.71,
-      "netFloorArea": 28.71,
-      "volume": 78.51,
+      "netFloorArea": 25.71,
+      "volume": 70.31,
       "perimeter": 22.79,
       "height": 2.735,
       "surfaces": 9,
@@ -170,7 +170,7 @@
       "groundSurfaces": 0,
       "embedmentDepth": 0,
       "exposedFacadeCount": 3,
-      "minimumAirflow": 39.26,
+      "minimumAirflow": 35.15,
       "installedHeatingPower": 1762,
       "thermalBridgeHeatLoss": 0.937,
       "thermalBridges": 7,
@@ -180,19 +180,19 @@
       "slopedArea": 37.48,
       "pipeLength": 2.14,
       "pipeKinds": 1,
-      "envelopeConductance": 74.813
+      "envelopeConductance": 73.913
     }
   ],
   "totals": {
     "roomCount": 6,
     "netFloorArea": 218.07,
-    "netVolume": 596.81,
+    "netVolume": 580.36,
     "exteriorWallArea": 202.08,
     "windowArea": 12.54,
     "windowWallRatio": 0.058,
-    "compactness": 0.577,
+    "compactness": 0.594,
     "installedHeatingPower": 9006,
-    "heatedVolume": 429.63,
+    "heatedVolume": 413.18,
     "bridgeMethod": "detailed",
     "bridgeDetailed": 7.52,
     "bridgeFlat": 17.23,
@@ -203,8 +203,8 @@
     "exhaustAirflow": 120,
     "effectiveSupplyAirflow": 24,
     "ventilationBalance": 0,
-    "setbackTimeConstant": 114.58,
-    "setbackTemperatureDrop": 2.16
+    "setbackTimeConstant": 111.21,
+    "setbackTemperatureDrop": 2.22
   },
   "pipes": {
     "schedule": 1,

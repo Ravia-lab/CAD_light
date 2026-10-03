@@ -187,9 +187,11 @@ export function pruefeAbgleich2026(check: CheckFn): void {
   //   Wände 9,09 + 8 + 10,71 = 27,80 · 0,24 · 36 = 240,2 W
   //   Giebel 5,09 + 6,71 = 11,80 · 0,22 · 36    =  93,5 W
   //   Wand/Giebel zu Wohnen OG (20 °C): 33,07 · 1,2 · 4 + 25,07 · 0,22 · 4 = 180,8 W
-  //   Boden zu EG (22 °C): 28,71 · 0,3 · 2 = 17,2 W
+  //   Boden zu EG (22 °C): 25,71 · 0,3 · 2 = 15,4 W (28,71 m² abzüglich
+  //     3 m² Treppenloch — seit das Prüfhaus die Treppe in gültiger Form
+  //     führt, siehe scripts/reference.ts)
   //   Dach 37,48 · 0,18 · 36 = 242,9 W
-  //   → 774,6 W
+  //   → 772,8 W
   // Seit B4 kommt im ausführlichen Verfahren Σψ·l · (θi − θe) hinzu; die
   // Zahlen hier gelten der Dachfläche und werden deshalb ohne diesen Anteil
   // geprüft (die Anschlüsse prüft B4).
@@ -202,7 +204,7 @@ export function pruefeAbgleich2026(check: CheckFn): void {
       return r.transmission - roomBridgeHeatLoss(roomThermalBridges(doc, raum)) * (raum.setpointTemperature + 12);
     };
     check('B3 · Wohnen OG mit Dachfläche statt Decke [W]', t('Wohnen OG'), 874.4, 1);
-    check('B3 · Bad OG mit Dachfläche statt Decke [W]', t('Bad OG'), 774.6, 1);
+    check('B3 · Bad OG mit Dachfläche statt Decke [W]', t('Bad OG'), 772.8, 1);
     // Ein Geschoss ohne Dach bleibt unberührt.
     check('B3 · Wohnen EG unverändert [W]', t('Wohnen EG'), 787, 0.5);
   }
@@ -588,6 +590,31 @@ export function pruefeAbgleich2026(check: CheckFn): void {
         quelle('src/components/LayerPanel.tsx').includes('Bad/WC prüfen'), true);
     check('Bad/WC · Bestätigung überlebt das Neuerkennen',
       quelle('src/lib/roomDetection.ts').includes('inherited?.nutzungGeprueft'), true);
+  }
+
+
+  // -------------------------------------------------------------------------
+  // Schritt 3 · Export 2.15.0
+  // -------------------------------------------------------------------------
+  {
+    const r0 = Object.values(doc.rooms).find((r) => r.name === 'Wohnen EG')!;
+    const mitId: BimDocument = { ...doc, rooms: { ...doc.rooms, [r0.id]: { ...r0, raviaRoomId: 'ravia-17' } } };
+    const exp = buildRaviaExport(mitId);
+    check('2.15.0 · Fassung', exp.version, '2.15.0');
+    check('2.15.0 · rooms[].raviaRoomId (F5)', exp.rooms.find((r) => r.id === r0.id)?.raviaRoomId ?? '', 'ravia-17');
+    check('2.15.0 · ohne Kennung kein leeres Feld', exp.rooms.filter((r) => r.id !== r0.id).every((r) => !('raviaRoomId' in r)), true);
+    const hk = exp.rooms.flatMap((r) => r.fixtures).filter((f) => f.type === 'radiator');
+    check('2.15.0 · Heizkörper mit ratedPower, ohne powerW (F2)',
+      hk.length > 0 && hk.every((f) => typeof f.params.ratedPower === 'number' && f.params.powerW === undefined), true);
+    check('2.15.0 · Heizkörper mit ratedPowerSource', hk.every((f) => typeof f.params.ratedPowerSource === 'string'), true);
+    check('2.15.0 · panelType = radiatorType',
+      hk.every((f) => f.params.panelType === f.params.radiatorType), true);
+    const schema = JSON.parse(quelle('ravia-vertrag/schema/ravia.bim.light-2.15.0.schema.json')) as {
+      $defs: Record<string, { properties?: Record<string, { enum?: string[] }> }>;
+    };
+    check('2.15.0 · Schema kennt neighbour (F4)',
+      schema.$defs.ExportSurface?.properties?.boundary?.enum?.join(',') ?? '',
+      'exterior,ground,unheated,neighbour,adjacent-room,adiabatic');
   }
 
 }

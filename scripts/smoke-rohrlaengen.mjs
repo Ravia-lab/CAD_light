@@ -101,7 +101,7 @@ console.log('\n▸ Zwei Geschosse, Wärmeerzeuger im EG');
       geschosseMitLeitung: Object.values(S().doc.levels).filter((l) => Object.values(S().doc.pipes).some((x) => x.levelId === l.id)).map((l) => lv[l.id]),
     };
   });
-  pruefe('Export 2.14.0', r.version, '2.14.0');
+  pruefe('Export 2.15.0', r.version, '2.15.0');
   pruefe('beide Geschosse haben Leitungen', r.geschosseMitLeitung.length, 2);
   pruefe('Statuszeile nennt die Formteile', /Bögen, \d+ T-Stücke, \d+ Reduzierungen/.test(r.status), true);
   pruefe('Formteilliste an der Wurzel', r.formteile > 0, true);

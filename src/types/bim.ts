@@ -19,6 +19,7 @@
  * Store und macht strukturelles Sharing für React-Renderer trivial.
  */
 
+import type { DomesticWaterResult } from '../lib/domesticWater';
 import type { Huellflaechenbilanz } from '../lib/huellflaechenbilanz';
 import type { NetzExport } from '../lib/netzExport';
 import type { Nutzungseinheit } from '../lib/nutzungseinheiten';
@@ -770,6 +771,12 @@ export interface FixtureParams {
   powerSource?: LeistungHerkunft;
   /** Heizung: Bautiefe/Typ, z. B. "22" für Typ 22. */
   radiatorType?: string;
+  /**
+   * Bauart des Heizkörpers im Export (seit 2.15.0, Festlegung F2/H1) —
+   * derselbe Wert wie `radiatorType`, unter dem Namen des Vertrags. Wird
+   * nur beim Export gesetzt.
+   */
+  panelType?: string;
   /** Heizung: Vor-/Rücklauftemperatur [°C]. */
   flowTemperature?: number;
   returnTemperature?: number;
@@ -3356,6 +3363,11 @@ export interface ExportRoom {
    */
   formerIds?: string[];
   /**
+   * Kennung des Raums in RaVia (seit 2.15.0, Festlegung F5). RaVia ordnet
+   * zu in der Reihenfolge raviaRoomId → id → formerIds[] → Name.
+   */
+  raviaRoomId?: string;
+  /**
    * Prüfsumme über die heizlastrelevanten Größen dieses Raums.
    *
    * Sie beantwortet der Gegenstelle eine einzige Frage: *Ist die Heizlast,
@@ -4156,8 +4168,11 @@ export interface ExportPlant {
   circuits: ExportHeatingCircuit[];
   /** Sicherheitsausrüstung nach DIN EN 12828. */
   safety?: SafetyDesign;
-  /** Trinkwarmwasser. */
-  domesticHotWater?: DomesticHotWaterDesign;
+  /**
+   * Trinkwarmwasser — das Ergebnis der Auslegung nach DIN 4708/DVGW W 551
+   * (`designDomesticWater`), so wie es gerechnet wurde.
+   */
+  domesticHotWater?: DomesticWaterResult;
   /**
    * Deckungsanteile bei bivalenter Anlage — seit 2.12.0.
    *
@@ -4269,9 +4284,26 @@ export interface ExportOccupancy {
   roomsWithoutUnit: number;
 }
 
+/** Ein Geschoss im Export — wie `Level`, U-Werte von Boden und Decke optional. */
+export type ExportLevel = Omit<Level, 'floorUValue' | 'ceilingUValue'> & {
+  floorUValue?: number;
+  ceilingUValue?: number;
+};
+
 export interface RaviaExport {
   schema: 'ravia.bim.light';
   /**
+   * **2.15.0** (Abgleich 2026-10, Festlegungen F2, F4, F5, F6) ergänzt
+   * `rooms[].raviaRoomId`, die Randbedingung `neighbour` (fremde
+   * Nutzungseinheit oder Nachbargebäude) mit `project.neighbourTemperature`,
+   * an Heizkörpern `params.ratedPower` (Normleistung 75/65/20 °C),
+   * `params.exponentN`, `params.ratedPowerSource` und `params.panelType`,
+   * dazu `project.unheatedTemperatureSource` und `project.unheatedKind`.
+   * `params.powerW` an einem Heizkörper entfällt (beim Laden umgerechnet,
+   * Festlegung F2). Gültig ist, was im Schema
+   * `ravia-vertrag/schema/ravia.bim.light-2.15.0.schema.json` steht; jeder
+   * Export der Prüfläufe wird dagegen geprüft.
+   *
    * **2.12.0** ergänzt `plant.bivalence`: die **Deckungsanteile einer
    * bivalenten Anlage** nach Bivalenzpunkt und Jahresdauerlinie — Anteil der
    * Wärmepumpe, Anteil des zweiten Erzeugers, Zeitanteile, verlangte Leistung
@@ -4377,7 +4409,7 @@ export interface RaviaExport {
    * nichts; wer prüfen will, ob Boden, Decke und Dach angekommen sind, hat
    * jetzt eine Zahl statt einer Liste (Punkt 13).
    */
-  version: '2.14.0';
+  version: '2.15.0';
   generator: string;
   exportedAt: string;
   /** Einheiten explizit im Dokument — keine Konvention, die verloren gehen kann. */
@@ -4427,7 +4459,11 @@ export interface RaviaExport {
    * dieses Blocks — eine behauptete Bodenart wäre schlechter als keine.
    */
   subsoil?: ExportSubsoil;
-  levels: Level[];
+  /**
+   * Die Geschosse. U-Werte von Boden und Decke fehlen, wenn sie am Geschoss
+   * nicht erfasst sind (dann gilt der Aufbau oder die Annahme der Flächen).
+   */
+  levels: ExportLevel[];
   /**
    * Nutzungseinheiten — seit 2.10.0.
    *
@@ -4553,7 +4589,8 @@ export interface RaviaExport {
      * Wärmepumpen, Bodenart. `heatPump` weiter oben ist die ausgewertete
      * Sicht für den Rechenkern; **hier** steht, was zum Zurücklesen nötig ist.
      */
-    site: SitePlan;
+    /** Lageplan; fehlt bei Dokumenten ohne Lageplan. */
+    site?: SitePlan;
     /** Handnotizen, falls welche im Plan liegen. */
     freihand?: Freihandstrich[];
   };

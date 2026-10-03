@@ -5,6 +5,11 @@
  */
 
 import { unbeheizteTemperatur } from '../src/lib/unbeheizt';
+import { pruefeGegenSchema } from './vertrag/pruefeSchema';
+import { readFileSync } from 'node:fs';
+import { execFileSync } from 'node:child_process';
+import { join } from 'node:path';
+import { EXPORT_FASSUNG } from '../src/lib/raviaExport';
 import { pruefeRohrlaengen } from './pruefungen/rohrlaengen';
 import { pruefeAbgleich2026 } from './pruefungen/abgleich2026';
 import { pruefePraxispruefung } from './pruefungen/praxispruefung';
@@ -198,6 +203,25 @@ import { pruefeEbenen } from './pruefungen/ebenen';
 
 let failures = 0;
 let checks = 0;
+
+/*
+ * Festlegung F6: Jeder Export, den ein Prüflauf baut, wird gegen das
+ * Vertragsschema geprüft — gesammelt hier, geprüft am Ende.
+ */
+const gebauteExporte: { abschnitt: string; e: unknown }[] = [];
+let abschnitt = '';
+{
+  const log = console.log.bind(console);
+  console.log = (...a: unknown[]) => {
+    const t = typeof a[0] === 'string' ? (a[0] as string) : '';
+    const m = /▸ (.+)/.exec(t);
+    if (m) abschnitt = m[1];
+    log(...a);
+  };
+}
+(globalThis as { __raviaExportGebaut?: (e: unknown) => void }).__raviaExportGebaut = (e) => {
+  gebauteExporte.push({ abschnitt, e: JSON.parse(JSON.stringify(e)) });
+};
 
 function check(label: string, actual: number | string | boolean, expected: number | string | boolean, tol = 0) {
   checks++;
@@ -748,7 +772,7 @@ console.log('\n▸ Export für die Heizlastberechnung');
   };
 
   const ex = buildRaviaExport(doc as never);
-  check('Schema-Version', ex.version, '2.14.0');
+  check('Schema-Version', ex.version, '2.15.0');
   check('Einheiten dokumentiert', ex.units.uValue, 'W/(m2K)');
 
   const room = ex.rooms.find((r) => r.polygon.some((p) => p.x < 4))!;
@@ -2220,7 +2244,7 @@ console.log('\n▸ Wärmebrücken');
   // Ein Fenster 1,00 × 1,00 m in der Südwand.
   const bo: Opening[] = [
     {
-      id: 'bo1', wallId: 'bw0', kind: 'window', subtype: 'turn-tilt',
+      id: 'bo1', wallId: 'bw0', kind: 'window', windowType: 'tilt-turn',
       distance: 3, width: 1, height: 1, sillHeight: 0.9, uValue: 1.1, gValue: 0.6,
     } as Opening,
   ];
@@ -4054,6 +4078,36 @@ pruefeSchichtgrenze(check);
 pruefeRohrlaengen(check);
 pruefeAbgleich2026(check);
 pruefePraxispruefung(check);
+
+console.log('\n▸ Exportvertrag — jeder gebaute Export gegen ravia-vertrag/schema (Festlegung F6)');
+{
+  const exportSchema = JSON.parse(
+    readFileSync(join(process.cwd(), 'ravia-vertrag', 'schema', `ravia.bim.light-${EXPORT_FASSUNG}.schema.json`), 'utf-8'),
+  ) as Record<string, unknown>;
+  check('Schema trägt die Fassung des Exports', String(exportSchema.title).includes(EXPORT_FASSUNG), true);
+  // Das Schema ist aus den Typen erzeugt; eine Typänderung ohne neues Schema
+  // fällt hier auf.
+  let aktuell = true;
+  try {
+    execFileSync(process.execPath, [join(process.cwd(), 'scripts', 'vertrag', 'erzeuge-schema.mjs'), '--pruefen'], { stdio: 'pipe' });
+  } catch {
+    aktuell = false;
+  }
+  check('Schema entspricht den Typen (npm run vertrag:schema)', aktuell, true);
+  let ungueltig = 0;
+  const meldungen = new Map<string, number>();
+  for (const { abschnitt: wo, e } of gebauteExporte) {
+    const fehler = pruefeGegenSchema(exportSchema, e);
+    if (fehler.length) ungueltig++;
+    for (const f of fehler) {
+      const kurz = `${f.replace(/\[\d+\]/g, '[]')} — ${wo}`;
+      meldungen.set(kurz, (meldungen.get(kurz) ?? 0) + 1);
+    }
+  }
+  for (const [m, n] of [...meldungen].slice(0, 80)) console.log(`      ${m} (${n}×)`);
+  check('Prüfläufe haben Exporte gebaut', gebauteExporte.length > 20, true);
+  check(`Alle ${gebauteExporte.length} Exporte schemagültig`, ungueltig, 0);
+}
 
 console.log(
   `\n${failures === 0 ? '✓ ALLE TESTS BESTANDEN' : `✗ ${failures} FEHLER`} — ${checks - failures}/${checks}\n`,

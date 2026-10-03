@@ -477,7 +477,7 @@ export function pruefeRueckweg(check: CheckFn): void {
   check('Die Rohgeometrie trägt das Grundstück', Boolean(geo.site), true);
   check('… mit allen Geländeobjekten', Object.keys(geo.site?.elements ?? {}).length, 2);
   check('… und die Grenze ist noch eine Fläche', geo.site?.elements?.grenze?.points.length ?? 0, 4);
-  check('… die Bodenart reist mit', geo.site?.soil, doc.site.soil);
+  check('… die Bodenart reist mit', geo.site?.soil ?? 'fehlt', doc.site.soil);
   check('Handnotizen reisen mit', geo.freihand?.length ?? 0, 1);
   check('… mit ihren Punkten', geo.freihand?.[0]?.punkte.length ?? 0, 2);
 
