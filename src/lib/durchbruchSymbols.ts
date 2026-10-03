@@ -58,12 +58,6 @@ function grundrissBreite(d: Durchbruch): number {
   return d.form === 'rund' ? (d.diameter ?? 0) : (d.width ?? 0);
 }
 
-/** Das zweite Grundrissmaß [m]. In der Wand die Wanddicke, in der Decke `height`. */
-function grundrissTiefe(d: Durchbruch, wanddicke: number | null): number {
-  if (wanddicke !== null) return wanddicke;
-  return d.form === 'rund' ? (d.diameter ?? 0) : (d.height ?? 0);
-}
-
 /**
  * Mittelpunkt des Durchbruchs in Weltkoordinaten.
  *
@@ -356,16 +350,6 @@ export function durchbruchPasst(
     return { passt: false, grund: 'Reicht über die lichte Geschosshöhe hinaus.' };
   }
   return { passt: true };
-}
-
-/** Nur für Prüfung und 3D: die Grundrisstiefe, ohne sie doppelt zu rechnen. */
-export function durchbruchTiefe(d: Durchbruch, doc: BimDocument): number {
-  if (durchbruchWirt(d.kind) === 'decke') return grundrissTiefe(d, null);
-  if (!d.wallId) return 0;
-  const wall = doc.walls[d.wallId];
-  if (!wall) return 0;
-  const g = getWallGeometry(wall, doc.nodes);
-  return g ? g.halfThickness * 2 : 0;
 }
 
 /**

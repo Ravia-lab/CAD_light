@@ -29,7 +29,7 @@
 
 import type { PlantDefinition } from '../types/bim';
 import type { PlantDesignResult } from './plantDesign';
-import { SCHEMA_KATALOG, schemaVorlage, type SchemaVorlage } from './schemaKatalog';
+import { schemaVorlage, type SchemaVorlage } from './schemaKatalog';
 import { anlagenMerkmale, bewerte, schlageSchemaVor, type Abweichung, type Passung } from './schemaAuswahl';
 
 export interface Zuordnung {
@@ -103,11 +103,3 @@ function satzFuer(vorlage: SchemaVorlage, quelle: Zuordnung['quelle'], abweichun
     .join(' · ');
   return `${kopf} Abweichend vom Schema — ${liste}.`;
 }
-
-/**
- * Wie viele Vorlagen der Katalog führt.
- *
- * Steht hier und nicht in der Oberfläche, damit die Zahl an einer Stelle
- * entsteht und im Prüflauf gegen den Katalog gehalten werden kann.
- */
-export const VORLAGEN_IM_KATALOG = SCHEMA_KATALOG.length;

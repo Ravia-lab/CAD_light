@@ -77,9 +77,6 @@ export const DEFAULT_BRIDGE_CATALOGUE: ThermalBridgeCatalogue = Object.fromEntri
   BRIDGE_TYPES.map((t) => [t.kind, t.psi]),
 ) as ThermalBridgeCatalogue;
 
-const LABEL = new Map(BRIDGE_TYPES.map((t) => [t.kind, t.label]));
-export const bridgeLabel = (kind: ThermalBridgeKind): string => LABEL.get(kind) ?? kind;
-
 const round = (v: number, d = 3): number => {
   const f = 10 ** d;
   return Math.round(v * f) / f;
@@ -384,23 +381,4 @@ export interface BridgeComparison {
   envelopeArea: number;
   /** Gleichwertiger Zuschlag: Σ ψ·l ÷ Hüllfläche [W/(m²·K)]. */
   equivalentSupplement: number;
-}
-
-/**
- * Der eigentliche Nutzen der Rechnerei: sieht der pauschale Zuschlag für
- * *dieses* Gebäude zu groß oder zu klein aus? Ohne diesen Vergleich bliebe
- * die Wahl zwischen 0,10 und 0,05 ein Bauchgefühl.
- */
-export function compareBridgeMethods(
-  doc: BimDocument,
-  envelopeArea: number,
-  detailed: number,
-): BridgeComparison {
-  const flatPsi = doc.meta.thermalBridgeSupplement;
-  return {
-    detailed: round(detailed, 2),
-    flat: round(flatPsi * envelopeArea, 2),
-    envelopeArea: round(envelopeArea, 2),
-    equivalentSupplement: envelopeArea > 0.01 ? round(detailed / envelopeArea, 4) : 0,
-  };
 }

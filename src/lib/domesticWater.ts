@@ -453,12 +453,6 @@ export const DAILY_DEMAND_PER_PERSON: Record<ComfortLevel, number> = {
 /** Bezugstemperatur der Tagesbedarfswerte [°C]. */
 export const DAILY_DEMAND_TEMPERATURE = 45;
 
-export const COMFORT_LABELS: Record<ComfortLevel, string> = {
-  sparsam: 'sparsam (25 l/(P·d) bei 45 °C)',
-  normal: 'normal (40 l/(P·d) bei 45 °C)',
-  komfort: 'komfortabel (60 l/(P·d) bei 45 °C)',
-};
-
 /** Die Bedarfsspitze: was in einer Stunde gleichzeitig gezapft wird. */
 export interface PeakDrawInput {
   /** Duschvorgänge in der Spitze. */

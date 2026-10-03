@@ -207,9 +207,6 @@ export function expansionTable(glycol?: { fraction: number; kind: GlycolKind }):
   return points;
 }
 
-/** Die Kurve für reines Heizungswasser — der Normalfall. */
-export const WATER_EXPANSION_TABLE: ExpansionPoint[] = expansionTable();
-
 /**
  * Kennwerte eines Frostschutzgemisches.
  *

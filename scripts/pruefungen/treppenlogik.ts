@@ -22,11 +22,11 @@
 import type { CheckFn } from './typ';
 import type { Vec2, VerticalElement } from '../../src/types/bim';
 import { bodenloecher, type SlabPlan } from '../../src/lib/slabGeometry';
+import { polygonArea } from '../../src/lib/geometry';
 import {
   DURCHGANGSHOEHE,
   TREPPE_GRENZEN,
   oeffnungAb,
-  polygonflaeche,
   treppenmasse,
   treppenoeffnung,
 } from '../../src/lib/treppenlogik';
@@ -166,7 +166,7 @@ export function pruefeTreppenlogik(check: CheckFn): void {
     const v = geradeTreppe();
     const loch = treppenoeffnung(v, m, 2.75);
     check('Treppe · das Loch ist ein Viereck', loch.length, 4);
-    check('Treppe · Lochfläche [m²]', polygonflaeche(loch), 1.98, 1e-9);
+    check('Treppe · Lochfläche [m²]', polygonArea(loch), 1.98, 1e-9);
 
     /*
      * **Über dem Antritt bleibt die Decke stehen.** Der erste Punkt des
@@ -185,7 +185,7 @@ export function pruefeTreppenlogik(check: CheckFn): void {
      *   Loch = (3,00 − 0,272) × 1,00      = 2,728 m²
      */
     check('Treppe · niedrigere Decke, früheres Loch', oeffnungAb(m, 2.2), 0.272, 1e-12);
-    check('Treppe · und ein größeres', polygonflaeche(treppenoeffnung(v, m, 2.2)), 2.728, 1e-9);
+    check('Treppe · und ein größeres', polygonArea(treppenoeffnung(v, m, 2.2)), 2.728, 1e-9);
 
     /*
      * **Unter der Durchgangshöhe ist alles offen.** Liegt die Decke selbst
@@ -193,7 +193,7 @@ export function pruefeTreppenlogik(check: CheckFn): void {
      * ist der ganze Lauf offen, und das Loch ist das volle Rechteck.
      */
     check('Treppe · bei 1,90 m Decke ist alles offen', oeffnungAb(m, 1.9), 0, 1e-12);
-    check('Treppe · Loch = ganzes Rechteck [m²]', polygonflaeche(treppenoeffnung(v, m, 1.9)), 3.0, 1e-9);
+    check('Treppe · Loch = ganzes Rechteck [m²]', polygonArea(treppenoeffnung(v, m, 1.9)), 3.0, 1e-9);
     check('Treppe · die Durchgangshöhe ist 2,00 m', DURCHGANGSHOEHE, 2.0, 1e-12);
   }
 
@@ -228,8 +228,8 @@ export function pruefeTreppenlogik(check: CheckFn): void {
     const m = treppenmasse(3.0, { steps: 16 });
     const loch = treppenoeffnung(l, m, 2.75);
     check('Treppe · die gewendelte Öffnung hat mehr als vier Ecken', loch.length > 4, true);
-    check('Treppe · und bleibt kleiner als das ganze Rechteck', polygonflaeche(loch) < 2.5 * 3, true);
-    check('Treppe · sie hat überhaupt eine Fläche', polygonflaeche(loch) > 0.5, true);
+    check('Treppe · und bleibt kleiner als das ganze Rechteck', polygonArea(loch) < 2.5 * 3, true);
+    check('Treppe · sie hat überhaupt eine Fläche', polygonArea(loch) > 0.5, true);
   }
 
   // =========================================================================

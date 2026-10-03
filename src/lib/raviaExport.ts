@@ -96,12 +96,12 @@ import { ERZEUGER } from './fassung';
 import type { UWertAuskunft } from './uwert';
 import { VORGABE_U, istErfasst, uWertOeffnung, uWertWand } from './uwert';
 import {
-  azimuthFromNormal,
   distance,
   distanceToSegment,
   normalize,
   orientationFromAzimuth,
   pointInPolygon,
+  polygonArea,
   polygonPerimeter,
   roundCm2,
   roundMm,
@@ -137,7 +137,6 @@ import {
   acousticReport,
   blockingFactor,
   IMMISSION_LIMITS,
-  polygonArea,
   protectionIssues,
   sourceDemand,
 } from './heatPump';
@@ -2274,11 +2273,6 @@ function countByCategory(fixtures: Fixture[]): Record<FixtureCategory, number> {
   const counts: Record<FixtureCategory, number> = { heating: 0, sanitary: 0, ventilation: 0 };
   for (const f of fixtures) counts[f.category]++;
   return counts;
-}
-
-/** Orientierung einer beliebigen Richtung — für Ad-hoc-Auswertungen im UI. */
-export function orientationOf(dx: number, dy: number, northAngle = 0): Orientation {
-  return orientationFromAzimuth(azimuthFromNormal({ x: dx, y: dy }, northAngle));
 }
 
 /** Löst den Download der Exportdatei aus. */

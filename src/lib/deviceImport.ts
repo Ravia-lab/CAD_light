@@ -1695,26 +1695,6 @@ function readRow(
   return data;
 }
 
-// ===========================================================================
-// Plausibilität
-// ===========================================================================
-
-/**
- * Wertebereiche, in denen eine Angabe plausibel ist.
- *
- * Die Grenzen stammen aus dem, was am deutschen Markt für Wohngebäude
- * überhaupt vorkommt, nicht aus einer Norm. Sie sollen den Zahlendreher und
- * die verwechselte Einheit fangen (Watt statt Kilowatt, Millimeter statt
- * Meter), nicht die Auslegung ersetzen. Wer ein Gerät außerhalb dieser
- * Grenzen einliest, muss den Wert von Hand bestätigen.
- */
-export const PLAUSIBILITY_RANGES: Readonly<Record<string, readonly [number, number]>> = Object.freeze(
-  FIELDS.reduce<Record<string, readonly [number, number]>>((acc, spec) => {
-    if (spec.range) acc[spec.key] = spec.range;
-    return acc;
-  }, {}),
-);
-
 /** Einheit aus der Vorlagenüberschrift, z. B. „Füllmenge [kg]" → „kg". */
 function unitOf(spec: FieldSpec): string {
   const m = /\[([^\]]+)\]/.exec(spec.heading);

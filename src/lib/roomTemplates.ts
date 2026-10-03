@@ -305,19 +305,3 @@ export const ROOM_SIZE_PRESETS: RoomSizePreset[] = [
   { label: 'Büro', width: 4.0, depth: 3.0, usage: 'office' },
 ];
 
-/**
- * Fläche eines Achspolygons [m²] — für die Vorschau beim Aufziehen.
- *
- * Das ist die **Achsfläche**, nicht die Wohnfläche: die lichte Fläche liegt
- * um den halben Wandumfang darunter und wird erst von der Raumerkennung
- * berechnet, wenn die Wände stehen.
- */
-export function polygonArea(points: readonly Vec2[]): number {
-  let sum = 0;
-  for (let i = 0; i < points.length; i += 1) {
-    const a = points[i];
-    const b = points[(i + 1) % points.length];
-    sum += a.x * b.y - b.x * a.y;
-  }
-  return Math.abs(sum) / 2;
-}

@@ -133,9 +133,6 @@ export type SymbolRenderer = (
   options: SymbolOptions,
 ) => void;
 
-/** Rasterweite, auf der die Symbole entworfen wurden [px]. */
-export const SYMBOL_SIZE = 34;
-
 // ---------------------------------------------------------------------------
 // Zeichenhilfen — alle in Einheitskoordinaten
 // ---------------------------------------------------------------------------
@@ -1854,11 +1851,6 @@ export function symbolExtent(kind: SchematicKind, size: number): { width: number
   return { width: def.width * size, height: def.height * size };
 }
 
-/** Ein einzelner Anschluss, oder `undefined`, wenn das Symbol ihn nicht hat. */
-export function findPort(kind: SchematicKind, portId: string): SymbolPort | undefined {
-  return SYMBOLS[kind].ports.find((p) => p.id === portId);
-}
-
 /**
  * Anschlusspunkte in absoluten Bildschirmkoordinaten.
  *
@@ -2173,49 +2165,6 @@ export const drawMixingValveDhwSymbol = renderer('mixing-valve-dhw');
 export const drawCirculationPumpSymbol = renderer('circulation-pump');
 export const drawNodeSymbol = renderer('node');
 
-/** Alle Einzelfunktionen, falls über die Symbolart gesucht wird. */
-export const SYMBOL_RENDERERS: Record<SchematicKind, SymbolRenderer> = {
-  'heatpump-outdoor': drawHeatPumpOutdoorSymbol,
-  'heatpump-indoor': drawHeatPumpIndoorSymbol,
-  'hydraulic-station': drawHydraulicStationSymbol,
-  cylinder: drawCylinderSymbol,
-  buffer: drawBufferSymbol,
-  'buffer-series': drawBufferSeriesSymbol,
-  separator: drawSeparatorSymbol,
-  freshwater: drawFreshWaterSymbol,
-  pump: drawPumpSymbol,
-  'valve-2way': drawValve2WaySymbol,
-  'valve-3way': drawValve3WaySymbol,
-  'valve-diverter': drawDiverterValveSymbol,
-  'check-valve': drawCheckValveSymbol,
-  shutoff: drawShutoffSymbol,
-  'balancing-valve': drawBalancingValveSymbol,
-  'overflow-valve': drawOverflowValveSymbol,
-  'safety-valve': drawSafetyValveSymbol,
-  'expansion-vessel': drawExpansionVesselSymbol,
-  'pressure-gauge': drawPressureGaugeSymbol,
-  thermometer: drawThermometerSymbol,
-  sensor: drawSensorSymbol,
-  'flow-switch': drawFlowSwitchSymbol,
-  'temperature-limiter': drawTemperatureLimiterSymbol,
-  strainer: drawStrainerSymbol,
-  'air-separator': drawAirSeparatorSymbol,
-  'dirt-separator': drawDirtSeparatorSymbol,
-  'filling-valve': drawFillingValveSymbol,
-  'backflow-preventer': drawBackflowPreventerSymbol,
-  'water-meter': drawWaterMeterSymbol,
-  'heat-meter': drawHeatMeterSymbol,
-  manifold: drawManifoldSymbol,
-  radiator: drawRadiatorSymbol,
-  'floor-loop': drawFloorLoopSymbol,
-  boiler: drawBoilerSymbol,
-  'electric-heater': drawElectricHeaterSymbol,
-  solar: drawSolarSymbol,
-  'mixing-valve-dhw': drawMixingValveDhwSymbol,
-  'circulation-pump': drawCirculationPumpSymbol,
-  node: drawNodeSymbol,
-};
-
 // ---------------------------------------------------------------------------
 // Trefferprüfung
 // ---------------------------------------------------------------------------
@@ -2243,35 +2192,4 @@ export function hitTestSymbol(
     Math.abs(point.x) <= (def.width * size) / 2 + tolerance &&
     Math.abs(point.y) <= (def.height * size) / 2 + tolerance
   );
-}
-
-/**
- * Der Anschluss, der einem Punkt am nächsten liegt — für das Ziehen einer
- * Leitung von Symbol zu Symbol. `undefined`, wenn keiner innerhalb von
- * `radius` liegt.
- */
-export function nearestPort(
-  kind: SchematicKind,
-  x: number,
-  y: number,
-  size: number,
-  point: { x: number; y: number },
-  rotation = 0,
-  radius = 10,
-): { port: SymbolPort; x: number; y: number } | undefined {
-  let best: { port: SymbolPort; x: number; y: number } | undefined;
-  let bestDistance = radius;
-  for (const candidate of symbolPortPoints(kind, x, y, size, rotation)) {
-    const distance = Math.hypot(candidate.x - point.x, candidate.y - point.y);
-    if (distance <= bestDistance) {
-      bestDistance = distance;
-      best = candidate;
-    }
-  }
-  return best;
-}
-
-/** Die Legende als Liste, in der Reihenfolge der Symboltabelle. */
-export function schematicLegendList(): SymbolLegendEntry[] {
-  return (Object.keys(SYMBOLS) as SchematicKind[]).map((kind) => SCHEMATIC_LEGEND[kind]);
 }

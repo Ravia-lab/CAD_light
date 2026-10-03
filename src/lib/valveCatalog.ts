@@ -69,9 +69,6 @@ export const MAX_VALVE_AUTHORITY = 0.6;
  */
 export const MAX_THERMOSTAT_PRESSURE = 15_000;
 
-/** Schalltechnische Obergrenze [Pa] nach SAENA (200 mbar). */
-export const NOISE_LIMIT_PRESSURE = 20_000;
-
 /**
  * Auslegungsdifferenzdruck am Thermostatventil [Pa], wenn das Netz unbekannt
  * ist. VdZ-Leitfaden S. 25: 8–10 kPa; IKZ nennt 10–15 kPa.

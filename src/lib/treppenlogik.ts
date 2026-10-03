@@ -340,20 +340,3 @@ export function treppenoeffnung(
   }
   return [...links, ...rechts.reverse()];
 }
-
-/**
- * Die Fläche eines Polygons [m²] — als Maß dafür, dass ein Loch eines ist.
- *
- * Der Betrag der Gaußschen Trapezformel; die Umlaufrichtung ist gleichgültig,
- * weil ein Loch keine Orientierung hat.
- */
-export function polygonflaeche(punkte: readonly Vec2[]): number {
-  if (punkte.length < 3) return 0;
-  let zwei = 0;
-  for (let i = 0; i < punkte.length; i += 1) {
-    const a = punkte[i]!;
-    const b = punkte[(i + 1) % punkte.length]!;
-    zwei += a.x * b.y - b.x * a.y;
-  }
-  return Math.abs(zwei) / 2;
-}

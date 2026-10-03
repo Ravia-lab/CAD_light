@@ -97,15 +97,6 @@ export function versetzeQuer(points: readonly Vec2[], vz: number): Vec2[] {
   return aus;
 }
 
-/** Länge eines Zuges [m]. */
-export function zuglaenge(points: readonly Vec2[]): number {
-  let sum = 0;
-  for (let i = 1; i < points.length; i++) {
-    sum += Math.hypot(points[i].x - points[i - 1].x, points[i].y - points[i - 1].y);
-  }
-  return sum;
-}
-
 /**
  * Aus einem gezeichneten Zug ein Paar machen.
  *

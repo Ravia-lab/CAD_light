@@ -276,12 +276,6 @@ export function findDimension(material: PipeMaterial, label: string): PipeDimens
  */
 export type PipeCondition = 'neu' | 'betrieblich' | 'alt';
 
-export const PIPE_CONDITION_LABELS: Record<PipeCondition, string> = {
-  neu: 'neu, fabrikfrisch',
-  betrieblich: 'betrieblich gealtert',
-  alt: 'alt, angerostet oder versintert',
-};
-
 /**
  * Absolute Rohrrauheit k [mm] im Neuzustand.
  *
@@ -484,21 +478,6 @@ export function glycolFreezePoint(fractionPercent: number, kind: GlycolKind): nu
 /** Gefrierpunkt [°C] eines Gemisches mit dem Volumenanteil `fraction` [0…1]. */
 export function freezePoint(fraction: number, kind: GlycolKind = 'ethylen'): number {
   return glycolFreezePoint(fraction * 100, kind);
-}
-
-/**
- * Umkehrung: welcher Volumenanteil [0…1] hält bis zur geforderten Temperatur?
- *
- * Praxisnah gefragt wird andersherum — „ich brauche Frostsicherheit bis −15 °C".
- * Die Umkehrung geschieht durch Suche auf derselben Tabelle, damit Hin- und
- * Rückrechnung konsistent bleiben. Aufgerundet auf volle Prozent, weil im
- * Eimer nichts Genaueres abgemessen wird.
- */
-export function glycolFractionForFreezePoint(target: number, kind: GlycolKind = 'ethylen'): number {
-  for (let f = 0; f <= 0.6001; f += 0.01) {
-    if (glycolFreezePoint(f * 100, kind) <= target) return round(f, 2);
-  }
-  return 0.6;
 }
 
 /**
@@ -717,11 +696,6 @@ export function massFlow(power: number, spread: number, fluid: FluidProperties =
 export function volumeFlow(power: number, spread: number, fluid: FluidProperties = DEFAULT_FLUID): number {
   if (spread <= 0) return 0;
   return (power * 1000 * 3600) / (fluid.volumetricHeatCapacity * spread);
-}
-
-/** Umkehrung: welche Leistung transportiert ein Volumenstrom [m³/h] bei der Spreizung [K]? Ergebnis [kW]. */
-export function powerFromVolumeFlow(flow: number, spread: number, fluid: FluidProperties = DEFAULT_FLUID): number {
-  return (flow * fluid.volumetricHeatCapacity * spread) / (3600 * 1000);
 }
 
 /**
@@ -1203,23 +1177,6 @@ export function sizePipe(flow: number, options: SizingOptions = {}): PipeSizing 
     lambda: chosen.state.lambda,
     reason,
   };
-}
-
-/** Erklärungstext zu einer Dimensionierung — für Ausdruck und Oberfläche. */
-export function explainSizing(sizing: PipeSizing, limits: { maxVelocity?: number; maxGradient?: number } = {}): string {
-  const v = limits.maxVelocity ?? DEFAULT_SIZING_LIMITS.maxVelocity;
-  const r = limits.maxGradient ?? DEFAULT_SIZING_LIMITS.maxGradient;
-  const head = `${sizing.dimension.label}: ${de(round(sizing.velocity, 2))} m/s, ${Math.round(sizing.gradient)} Pa/m`;
-  switch (sizing.reason) {
-    case 'geschwindigkeit':
-      return `${head}. Maßgebend war die Höchstgeschwindigkeit von ${de(v)} m/s — die nächstkleinere Dimension wäre zu laut.`;
-    case 'druckgefälle':
-      return `${head}. Maßgebend war das Höchstdruckgefälle von ${de(r)} Pa/m — die nächstkleinere Dimension würde die Pumpe kosten.`;
-    case 'kleinste':
-      return `${head}. Schon die kleinste Dimension der Reihe hält beide Grenzen ein; die Wahl folgt dem Sortiment, nicht der Hydraulik.`;
-    default:
-      return `${head}. ${sizing.warning ?? 'Keine Dimension der Reihe reicht aus.'}`;
-  }
 }
 
 // ===========================================================================

@@ -123,7 +123,7 @@ import {
   type Strich,
 } from '../lib/skizzenseite';
 import { getroffene } from '../lib/notizen';
-import { vorzugsrichtung, EPS, closestPointOnSegment, distance, distanceToSegment, pointInPolygon, roundMm } from '../lib/geometry';
+import { vorzugsrichtung, EPS, closestPointOnSegment, distance, distanceToSegment, pointInPolygon, polygonArea, roundMm } from '../lib/geometry';
 import { ACCESSORY_LABELS } from '../lib/pipeAccessorySymbols';
 import { hoehenText } from '../lib/beschriftung3d';
 import { normleistungAusRaumlast, zieheHeizflaechenNach } from '../lib/heizflaechenAbgleich';
@@ -202,7 +202,6 @@ import type { HostPatch, HostPatchReport } from '../lib/hostPatch';
 import {
   DEFAULT_TEMPLATE_OPTIONS,
   ROOM_TEMPLATE_BY_KIND,
-  polygonArea,
   templatePolygon,
   type RoomTemplateKind,
   type TemplateOptions,

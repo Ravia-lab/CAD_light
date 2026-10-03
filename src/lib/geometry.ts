@@ -34,20 +34,10 @@ export function distance(a: Vec2, b: Vec2): number {
   return Math.sqrt(dx * dx + dy * dy);
 }
 
-/** Quadrierte Distanz — für Vergleiche, spart die Wurzel. */
-export function distanceSq(a: Vec2, b: Vec2): number {
-  const dx = b.x - a.x;
-  const dy = b.y - a.y;
-  return dx * dx + dy * dy;
-}
-
 export function normalize(a: Vec2): Vec2 {
   const len = Math.sqrt(a.x * a.x + a.y * a.y);
   return len < EPS ? { x: 0, y: 0 } : { x: a.x / len, y: a.y / len };
 }
-
-/** Linksnormale (90° CCW gedreht). */
-export const perp = (a: Vec2): Vec2 => ({ x: -a.y, y: a.x });
 
 export const lerp = (a: Vec2, b: Vec2, t: number): Vec2 => ({
   x: a.x + (b.x - a.x) * t,

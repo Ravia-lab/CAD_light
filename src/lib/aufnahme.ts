@@ -263,7 +263,6 @@ export function loescheAnnahme(liste: readonly Annahme[], was: string): Annahme[
 
 /** Die Fragen zum Gebäude — einmal, nicht je Raum. */
 export const GEBAEUDE_FRAGEN = ['umfang', 'baualter', 'unten', 'oben', 'hoehe'] as const;
-export type GebaeudeFrage = (typeof GEBAEUDE_FRAGEN)[number];
 
 /** Die Fragen je Raum. `anbau` entfällt beim ersten. */
 export const RAUM_FRAGEN = ['anbau', 'art', 'groesse', 'fenster', 'heizkoerper'] as const;

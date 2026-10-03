@@ -543,9 +543,3 @@ export function schlageSchemaVor(result: PlantDesignResult, plant?: PlantDefinit
 
   return { merkmale, vorschlaege, passende, beste: passende[0], hinweise };
 }
-
-export const PASSUNG_LABELS: Record<Passung, string> = {
-  passt: 'passt',
-  moeglich: 'baubar, weicht ab',
-  'passt-nicht': 'passt nicht',
-};

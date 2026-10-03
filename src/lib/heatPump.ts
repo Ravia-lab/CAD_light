@@ -39,12 +39,12 @@ import type {
   BimDocument,
   HeatPump,
   MountingSituation,
-  SiteElement,
   SoilKind,
   Vec2,
 } from '../types/bim';
 import { OPENING_LABELS } from '../types/bim';
 import { KAELTEMITTEL, brauchtSchutzbereich, kaeltemittel } from './kaeltemittel';
+import { polygonArea } from './geometry';
 import { getWallGeometry, openingCenter } from './wallGeometry';
 
 // ---------------------------------------------------------------------------
@@ -577,18 +577,6 @@ export function sourceDemand(doc: BimDocument, pump: HeatPump): SourceDemand | u
   };
 }
 
-/** Fläche eines Polygons [m²] — Betrag, Umlaufrichtung egal. */
-export function polygonArea(points: Vec2[]): number {
-  if (points.length < 3) return 0;
-  let sum = 0;
-  for (let i = 0; i < points.length; i++) {
-    const a = points[i];
-    const b = points[(i + 1) % points.length];
-    sum += a.x * b.y - b.x * a.y;
-  }
-  return Math.abs(sum) / 2;
-}
-
 // ---------------------------------------------------------------------------
 // Abstandsregeln der Wärmequelle
 // ---------------------------------------------------------------------------
@@ -625,8 +613,6 @@ export const DISTANCE_RULES: DistanceRule[] = [
   { id: 'collector-water', label: 'Kollektor ↔ Wasserleitung', minimum: 1.5, source: 'Praxiswert (Frostschutz)', binding: 'faustwert' },
   { id: 'well-well', label: 'Förder- ↔ Schluckbrunnen', minimum: 15, source: 'Praxiswert, Fließrichtung beachten', binding: 'faustwert' },
 ];
-
-export const ruleById = (id: string): DistanceRule | undefined => DISTANCE_RULES.find((r) => r.id === id);
 
 const round1 = (v: number): number => Math.round(v * 10) / 10;
 const round2 = (v: number): number => Math.round(v * 100) / 100;
@@ -668,12 +654,4 @@ export function waterProtectionVerdict(
 export function blockingFactor(hours: number): number {
   const t = Math.min(8, Math.max(0, hours));
   return round2(24 / (24 - t));
-}
-
-/** Abstand eines Objekts zu einem Punkt — Punkt, Zug oder Fläche. */
-export function elementDistance(element: SiteElement, point: Vec2): number {
-  if (!element.points.length) return Infinity;
-  if (element.points.length === 1) return distanceOf(point, element.points[0]);
-  const closed = element.kind === 'boundary' || element.kind === 'collector' || element.kind === 'neighbour-building' || element.kind === 'paved';
-  return distanceToPolyline(point, element.points, closed);
 }

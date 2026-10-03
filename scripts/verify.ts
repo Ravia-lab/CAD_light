@@ -39,11 +39,6 @@ import {
   acousticReport,
   blockingFactor,
   IMMISSION_LIMITS,
-  // heatPump.ts führt eine eigene Flächenformel; geometry.ts exportiert
-  // denselben Namen. Beide bleiben importiert, damit jeder Prüfblock die
-  // Fassung prüft, die das geprüfte Modul selbst benutzt — der Aliasname
-  // sagt am Aufrufort, welche das ist.
-  polygonArea as heatPumpPolygonArea,
   protectionIssues,
   requiredDistance,
   ROOM_ANGLE,
@@ -123,7 +118,7 @@ import { designDomesticHotWater, mixedVolume } from '../src/lib/domesticWater';
 import { estimateHeatLoad } from '../src/lib/heatLoadEstimate';
 import { buildSchematic, designPlant } from '../src/lib/plantDesign';
 import { SCHEMATIC_LEGEND } from '../src/lib/schematicSymbols';
-import { ROOM_TEMPLATES, polygonArea as templateArea, templatePolygon } from '../src/lib/roomTemplates';
+import { ROOM_TEMPLATES, templatePolygon } from '../src/lib/roomTemplates';
 import {
   buildComponentTable,
   buildSchematicSvg,
@@ -3202,7 +3197,7 @@ console.log('\n▸ Wärmepumpe');
   check('Abstand zur nächsten Grenze', report.points[0].distance, 5, 1e-9);
   check('Beurteilungspegel an der Grenze', report.points[0].level, 36.0, 0.05);
   check('Richtwert eingehalten, aber knapp', report.points[0].verdict, 'tight');
-  check('Fläche des Grundstücks', heatPumpPolygonArea(doc.site.elements.grenze.points), 400, 1e-9);
+  check('Fläche des Grundstücks', polygonArea(doc.site.elements.grenze.points), 400, 1e-9);
 
   // Näher an die Grenze: der Richtwert kippt.
   const close = mkSite({ position: { x: 1.5, y: 5 } });
@@ -3625,21 +3620,21 @@ console.log('\n▸ Raumvorlagen');
   // Rechteck 5 × 4 → vier Ecken, 20 m² Achsfläche.
   const rect = templatePolygon('rechteck', { x: 0, y: 0 }, { x: 5, y: 4 });
   check('Rechteck hat vier Ecken', rect.length, 4);
-  check('Achsfläche des Rechtecks', templateArea(rect), 20, 0.001);
+  check('Achsfläche des Rechtecks', polygonArea(rect), 20, 0.001);
 
   // L-Form 10 × 8 mit halber Aussparung: 80 − 5·4 = 60 m².
   const l = templatePolygon('l-form', { x: 0, y: 0 }, { x: 10, y: 8 }, { notchX: 0.5, notchY: 0.5 });
   check('L-Form hat sechs Ecken', l.length, 6);
-  check('Achsfläche der L-Form', templateArea(l), 60, 0.001);
+  check('Achsfläche der L-Form', polygonArea(l), 60, 0.001);
 
   // U-Form: Einschnitt 40 % breit, 40 % tief → 80 − 0,4·10 · 0,4·8 = 67,2.
   const u = templatePolygon('u-form', { x: 0, y: 0 }, { x: 10, y: 8 }, { notchX: 0.4, notchY: 0.4 });
   check('U-Form hat acht Ecken', u.length, 8);
-  check('Achsfläche der U-Form', templateArea(u), 67.2, 0.001);
+  check('Achsfläche der U-Form', polygonArea(u), 67.2, 0.001);
 
   // Drehen ändert die Fläche nicht, nur die Lage der Aussparung.
   const turned = templatePolygon('l-form', { x: 0, y: 0 }, { x: 10, y: 8 }, { notchX: 0.5, notchY: 0.5, quarterTurns: 1 });
-  check('Drehen erhält die Fläche', templateArea(turned), 60, 0.001);
+  check('Drehen erhält die Fläche', polygonArea(turned), 60, 0.001);
   check('Aber nicht die Form', JSON.stringify(turned) === JSON.stringify(l), false);
 
   // Zu klein aufgezogen: nichts erzeugen statt Zwergwände.

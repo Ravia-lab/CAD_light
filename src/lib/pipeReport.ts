@@ -40,7 +40,6 @@ import type {
   PipeSegment,
   PipeSurrounding,
 } from '../types/bim';
-import { PIPE_MATERIAL_LABELS, PIPE_SERVICE_LABELS } from '../types/bim';
 import { rohrlaenge as rohrlaengeVon } from './rohrlaenge';
 import type { FluidProperties, PipeSegmentResult, PumpDesign } from './hydraulics';
 import { FITTING_RESISTANCES, fluidProperties } from './hydraulics';
@@ -824,7 +823,3 @@ export function armaturenListe(doc: BimDocument): { kind: string; anzahl: number
     .map(([kind, anzahl]) => ({ kind, anzahl }))
     .sort((a, b) => b.anzahl - a.anzahl);
 }
-
-/** Nur damit die Dienstbezeichnungen im Bericht dieselben sind wie im Plan. */
-export const SERVICE_LABELS = PIPE_SERVICE_LABELS;
-export const MATERIAL_LABELS = PIPE_MATERIAL_LABELS;

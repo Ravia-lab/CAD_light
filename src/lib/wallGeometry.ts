@@ -7,7 +7,7 @@
  */
 
 import type { BimNode, Opening, Vec2, Wall } from '../types/bim';
-import { EPS, clamp, distance, normalize, sub } from './geometry';
+import { EPS, clamp, distance, sub } from './geometry';
 
 export interface WallGeometry {
   wall: Wall;
@@ -45,32 +45,6 @@ export function getWallGeometry(wall: Wall, nodes: Record<string, BimNode>): Wal
     mid: { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 },
     halfThickness: wall.thickness / 2,
   };
-}
-
-/**
- * Die vier Eckpunkte des Wandrechtecks. `extendStart`/`extendEnd` verlängern
- * die Wand über die Achsknoten hinaus — damit an Ecken und T-Stößen keine
- * Lücke entsteht (Gehrungsersatz für rechtwinklige Anschlüsse).
- */
-export function wallQuad(
-  g: WallGeometry,
-  inset = 0,
-  extendStart = 0,
-  extendEnd = 0,
-): [Vec2, Vec2, Vec2, Vec2] {
-  const h = Math.max(0.001, g.halfThickness - inset);
-  const ax = g.a.x - g.dir.x * extendStart;
-  const ay = g.a.y - g.dir.y * extendStart;
-  const bx = g.b.x + g.dir.x * extendEnd;
-  const by = g.b.y + g.dir.y * extendEnd;
-  const nx = g.normal.x * h;
-  const ny = g.normal.y * h;
-  return [
-    { x: ax + nx, y: ay + ny },
-    { x: bx + nx, y: by + ny },
-    { x: bx - nx, y: by - ny },
-    { x: ax - nx, y: ay - ny },
-  ];
 }
 
 /** Wie weit muss an einem Knoten verlängert werden, damit die Ecke schließt? */
@@ -439,8 +413,3 @@ const NO_OPENINGS: Opening[] = [];
 
 export const openingsOf = (index: Map<string, Opening[]>, wallId: string): Opening[] =>
   index.get(wallId) ?? NO_OPENINGS;
-
-/** Außennormale einer Wandseite als Richtungsvektor (+1 = Linksnormale). */
-export function wallSideNormal(g: WallGeometry, side: 1 | -1): Vec2 {
-  return normalize({ x: g.normal.x * side, y: g.normal.y * side });
-}

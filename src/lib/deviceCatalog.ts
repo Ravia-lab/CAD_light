@@ -997,10 +997,6 @@ export const STORAGE_CATALOG: StorageModel[] = [
   ...[50, 100, 200].map((v) => buildStorage('separator', v)),
 ];
 
-export function findStorage(id: string, extra: readonly StorageModel[] = []): StorageModel | undefined {
-  return extra.find((s) => s.id === id) ?? STORAGE_CATALOG.find((s) => s.id === id);
-}
-
 /** Nächstgrößerer Speicher einer Art. */
 export function selectStorage(kind: StorageKind, minimumVolume: number, extra: readonly StorageModel[] = []): StorageModel | undefined {
   const pool = [...extra, ...STORAGE_CATALOG].filter((s) => s.kind === kind).sort((a, b) => a.volume - b.volume);

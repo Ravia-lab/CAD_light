@@ -70,6 +70,7 @@ import {
   innererPunkt,
   normalize,
   pointInPolygon,
+  polygonArea,
   snapToAngle,
   snapToGrid,
   sub,
@@ -115,7 +116,7 @@ import { useBimStore } from '../store/useBimStore';
 import { baueDachlandschaft } from '../lib/dachlandschaft';
 import { drawHeatPump, drawSiteElement, hitTestPump, hitTestSiteArea, hitTestSiteElement } from '../lib/siteSymbols';
 import { stehtAufGeschoss } from '../lib/aufstellgeschoss';
-import { ROOM_TEMPLATES, ROOM_TEMPLATE_BY_KIND, ROOM_SIZE_PRESETS, polygonArea, templatePolygon } from '../lib/roomTemplates';
+import { ROOM_TEMPLATES, ROOM_TEMPLATE_BY_KIND, ROOM_SIZE_PRESETS, templatePolygon } from '../lib/roomTemplates';
 import { acousticReport, protectionIssues, requiredDistance, ROOM_ANGLE, ratedSoundPower, IRRELEVANCE_MARGIN, IMMISSION_LIMITS } from '../lib/heatPump';
 import CalibrationOverlay from './CalibrationOverlay';
 import SkizzenLeiste from './SkizzenLeiste';

@@ -29,11 +29,11 @@ import {
 import {
   acousticReport,
   IMMISSION_LIMITS,
-  polygonArea,
   protectionIssues,
   ROOM_ANGLE,
   sourceDemand,
   waterProtectionVerdict, protectionStatus} from '../lib/heatPump';
+import { polygonArea } from '../lib/geometry';
 import { KAELTEMITTEL, KLASSENTEXT, dichtheitspflicht, kaeltemittel } from '../lib/kaeltemittel';
 import { anschlussVonGeraet, nennweiteAusText, NENNWEITE_GEWINDE } from '../lib/anschlussgroesse';
 import { primaerauslegung } from '../lib/primaerkreis';

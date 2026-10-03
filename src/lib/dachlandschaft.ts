@@ -113,11 +113,6 @@ function vollstaendig(roof: RoofDefinition, id: string): RoofDefinition {
   };
 }
 
-/** Trägt das Geschoss überhaupt ein geneigtes Dach? */
-export function hatDach(level: Level | undefined): boolean {
-  return daecherVon(level).some((r) => r.kind !== 'flat');
-}
-
 export interface LandschaftEingabe {
   level: Level | undefined;
   walls: Wall[];

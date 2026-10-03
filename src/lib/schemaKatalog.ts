@@ -2076,11 +2076,3 @@ export const ANBINDUNG_LABELS: Record<Anbindung, string> = {
   weiche: 'Hydraulische Weiche',
   kombispeicher: 'Kombispeicher',
 };
-
-export const TRINKWASSERART_LABELS: Record<Trinkwasserart, string> = {
-  keine: 'Ohne Trinkwassererwärmung',
-  speicher: 'Trinkwasserspeicher',
-  kombispeicher: 'Kombispeicher',
-  frischwasser: 'Frischwasserstation',
-  integriert: 'Speicher im Gerät',
-};
