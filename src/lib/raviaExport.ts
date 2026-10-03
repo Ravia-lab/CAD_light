@@ -1765,7 +1765,7 @@ function buildRoom(
   // die nur einen pauschalen Zuschlag kennt, multipliziert ihn wieder mit
   // der Bezugsfläche — und muss dafür wissen, welche gemeint ist.
   const bridgeHeatLoss = roomBridgeHeatLoss(bridges);
-  const bridgeEnvelope = roomEnvelopeArea(room);
+  const bridgeEnvelope = roomEnvelopeArea(doc, room);
 
   // Wärmerückgewinnung wirkt nur bei einer Zu-/Abluftanlage; eine reine
   // Abluftanlage hat nichts, woraus sie zurückgewinnen könnte.
@@ -2014,7 +2014,8 @@ function buildTotals(
    *
    * Benutzt wird deshalb dieselbe Fläche, die auch die Wärmebrückenbilanz
    * und das Panel benutzen: `envelopeArea` zählt die Außenbauteile
-   * **brutto** — Wand samt Fenstern und Türen — plus Boden und Decke. Das
+   * **brutto** — Wand samt Fenstern und Türen — plus Boden, Decke bzw.
+   * Dach, soweit sie an Außenluft, Erdreich oder Unbeheiztes grenzen. Das
    * ist die wärmeübertragende Hüllfläche, wie DIN EN ISO 13789 sie meint.
    */
   const bridgeEnvelope = envelopeArea(doc);
@@ -2077,6 +2078,8 @@ function bridgeTotals(
 
   for (const room of rooms) {
     const source = doc.rooms[room.id];
+    // Unbeheizte Räume liegen außerhalb der Hülle (Befund B5).
+    if (source && !source.isHeated) continue;
     const bridges = room.thermalBridges ?? (source ? roomThermalBridges(doc, source, openingIndex) : []);
     for (const b of bridges) {
       detailed += b.heatLossCoefficient;

@@ -25,6 +25,7 @@ import { glycolMixture, waterDensity as waterDensitySicherheit } from '../../src
 import { buildIfc, schichtenAusText } from '../../src/lib/ifcExport';
 import { migriereUnbeheizt, unbeheizteArtVonRaum, unbeheizteTemperatur, unbeheizterRaumTemperatur } from '../../src/lib/unbeheizt';
 import { buildRaviaExport } from '../../src/lib/raviaExport';
+import { envelopeArea, roomBridgeHeatLoss, roomEnvelopeArea, roomThermalBridges } from '../../src/lib/thermalBridges';
 import { importIfc, parseStep } from '../../src/lib/ifcImport';
 
 function wurzel(): string | undefined {
@@ -79,7 +80,19 @@ export function pruefeAbgleich2026(check: CheckFn): void {
       ...doc,
       rooms: { ...doc.rooms, [raum.id]: { ...raum, boundaries } },
     });
-    const zeile = (d: BimDocument) => estimateHeatLoad(d).rooms.find((r) => r.roomId === raum.id)!;
+    // Seit B4 stehen die Anschlüsse (ψ·l) im Überschlag, und die hängen an
+    // den Außenwandabschnitten: ohne die Wand fehlen Ecke und Laibungen. Die
+    // Prüfung gilt der Wandfläche, also mit ψ = 0.
+    const ohnePsi = (d: BimDocument): BimDocument => ({
+      ...d,
+      meta: {
+        ...d.meta,
+        thermalBridgeCatalogue: Object.fromEntries(
+          Object.values(d.rooms).flatMap((r) => roomThermalBridges(d, r).map((b) => [b.kind, 0])),
+        ) as BimDocument['meta']['thermalBridgeCatalogue'],
+      },
+    });
+    const zeile = (d: BimDocument) => estimateHeatLoad(ohnePsi(d)).rooms.find((r) => r.roomId === raum.id)!;
     const adiabat = zeile(mitRand(raum.boundaries.map((b, i) => (i === idx ? { ...b, boundary: 'adiabatic' as const } : b))));
     const ohne = zeile(mitRand(raum.boundaries.filter((_, i) => i !== idx)));
     const mit = zeile(doc);
@@ -157,13 +170,75 @@ export function pruefeAbgleich2026(check: CheckFn): void {
   // Erwartung: Transmission 595 − 253,3 + 330,7 = 672,4 → 672 W.
   // Bad OG (24 °C): 37,48 · 0,18 · 36 = 242,9 W statt 28,71 · 0,2 · 32,8 = 188,3 W
   // → 587 − 188,3 + 242,9 = 641,6 → 642 W.
+  // Seit B4 kommt im ausführlichen Verfahren Σψ·l · (θi − θe) hinzu; die
+  // Zahlen hier gelten der Dachfläche und werden deshalb ohne diesen Anteil
+  // geprüft (die Anschlüsse prüft B4).
   {
     const zeilen = estimateHeatLoad(doc).rooms;
-    const t = (name: string) => zeilen.find((r) => r.name === name)?.transmission ?? -1;
+    const t = (name: string) => {
+      const r = zeilen.find((z) => z.name === name);
+      const raum = Object.values(doc.rooms).find((x) => x.name === name);
+      if (!r || !raum) return -1;
+      return r.transmission - roomBridgeHeatLoss(roomThermalBridges(doc, raum)) * (raum.setpointTemperature + 12);
+    };
     check('B3 · Wohnen OG mit Dachfläche statt Decke [W]', t('Wohnen OG'), 672, 1);
     check('B3 · Bad OG mit Dachfläche statt Decke [W]', t('Bad OG'), 642, 1);
     // Ein Geschoss ohne Dach bleibt unberührt.
     check('B3 · Wohnen EG unverändert [W]', t('Wohnen EG'), 787, 0.5);
+  }
+
+  // -------------------------------------------------------------------------
+  // B4 · ausführliches Wärmebrückenverfahren: ψ·l steht im Überschlag
+  // -------------------------------------------------------------------------
+  // Vorher: Zuschlag 0 und kein ψ·l — die Anschlüsse fehlten ganz.
+  // Gegenprobe: derselbe Raum mit ψ = 0 für jede Anschlussart; der Abstand
+  // muss genau Σψ·l · (θ_i − θ_e) sein.
+  {
+    const ohnePsi: BimDocument = {
+      ...doc,
+      meta: {
+        ...doc.meta,
+        thermalBridgeCatalogue: Object.fromEntries(
+          roomThermalBridges(doc, Object.values(doc.rooms)[0]).map((b) => [b.kind, 0]),
+        ) as BimDocument['meta']['thermalBridgeCatalogue'],
+      },
+    };
+    const alle = Object.values(doc.rooms).flatMap((r) => roomThermalBridges(doc, r).map((b) => b.kind));
+    ohnePsi.meta.thermalBridgeCatalogue = Object.fromEntries(alle.map((k) => [k, 0])) as BimDocument['meta']['thermalBridgeCatalogue'];
+    check('B4 · Referenzhaus rechnet ausführlich', doc.meta.thermalBridgeMethod, 'detailed');
+    for (const name of ['Wohnen EG', 'Wohnen OG']) {
+      const raum = Object.values(doc.rooms).find((r) => r.name === name)!;
+      const psiL = roomBridgeHeatLoss(roomThermalBridges(doc, raum));
+      const t = (d: BimDocument) => estimateHeatLoad(d).rooms.find((r) => r.roomId === raum.id)!.transmission;
+      check(`B4 · ${name} hat Anschlüsse`, psiL > 0, true);
+      check(`B4 · ${name}: + Σψ·l · (θi − θe) [W]`, t(doc) - t(ohnePsi), psiL * (raum.setpointTemperature + 12), 1);
+    }
+  }
+
+  // -------------------------------------------------------------------------
+  // B5 · Hüllfläche nur aus Hüllbauteilen
+  // -------------------------------------------------------------------------
+  // Vorher je Raum: Außenwände + 2 · Grundfläche, auch für den unbeheizten
+  // Keller und für die Decke zwischen EG und OG. Jetzt nur, was an außen,
+  // Erdreich oder Unbeheiztes grenzt.
+  {
+    const raum = (name: string) => Object.values(doc.rooms).find((r) => r.name === name)!;
+    const waende = (name: string) =>
+      raum(name).boundaries
+        .filter((b) => b.boundary === 'exterior' || b.boundary === 'ground' || b.boundary === 'unheated' ||
+          (b.boundary === 'adjacent-room' && doc.rooms[b.neighbourRoomId ?? '']?.isHeated === false))
+        .reduce((s, b) => s + b.grossArea, 0);
+    check('B5 · unbeheizter Keller gehört nicht zur Hülle [m²]', roomEnvelopeArea(doc, raum('Keller')), 0);
+    // Wohnen EG: Boden über dem unbeheizten Keller ja, Decke zum OG nein.
+    check('B5 · Wohnen EG: Wände + Boden, keine Decke [m²]',
+      roomEnvelopeArea(doc, raum('Wohnen EG')), waende('Wohnen EG') + raum('Wohnen EG').area, 0.01);
+    // Wohnen OG: kein Boden (EG beheizt), oben Dachfläche + Restdecke.
+    const og = raum('Wohnen OG');
+    check('B5 · Wohnen OG: Wände + Dach, kein Boden [m²]',
+      roomEnvelopeArea(doc, og), waende('Wohnen OG') + (og.roof?.slopedArea ?? NaN) + (og.roof?.flatCeilingArea ?? NaN), 0.01);
+    const alt = Object.values(doc.rooms).reduce(
+      (s, r) => s + r.boundaries.filter((b) => b.boundary === 'exterior').reduce((x, b) => x + b.grossArea, 0) + 2 * r.area, 0);
+    check('B5 · Gebäudehülle kleiner als die alte Zählung', envelopeArea(doc) < alt, true);
   }
 
   // -------------------------------------------------------------------------

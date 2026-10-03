@@ -2425,7 +2425,9 @@ console.log('\n▸ Wärmebrücken');
       ...room,
       id: 'hohl',
       area: 0,
-      boundaries: room.boundaries.map((b) => ({ ...b, boundary: 'unheated' as const })),
+      // Seit 1.73.0 (Befund B5) zählt eine Wand zum Unbeheizten zur Hülle;
+      // „ohne Hüllfläche" heißt deshalb jetzt: nur adiabate Wände.
+      boundaries: room.boundaries.map((b) => ({ ...b, boundary: 'adiabatic' as const })),
       // Erdkontakt ohne Außenwand ist baulich abwegig; hier steht er, weil nur
       // so ψ·l ≠ 0 auf eine Hüllfläche von 0 trifft. Aus der Geometrie heraus
       // kann dieser Fall nicht entstehen: jede Anschlussart setzt einen

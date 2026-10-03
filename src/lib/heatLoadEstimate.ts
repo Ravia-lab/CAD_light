@@ -40,6 +40,7 @@ import { dachraumTemperatur, istUnbeheizterNachbar, unbeheizteTemperatur, unbehe
 import type { BimDocument, Room, RoomBoundary, RoomHeatLoad as NormRoomHeatLoad } from '../types/bim';
 import { gradeSplit, isMassiveArea } from './roomDetection';
 import { dachUeberRaum } from './dachlandschaft';
+import { roomBridgeHeatLoss, roomThermalBridges } from './thermalBridges';
 import { pointInPolygon } from './geometry';
 import { DACH_VORGABE } from '../types/bim';
 import {
@@ -220,6 +221,10 @@ function neighbourTemperature(doc: BimDocument, boundary: RoomBoundary, inside: 
  * aufgeschlagen; beim ausführlichen Verfahren steckt er in ψ·l und darf hier
  * nicht noch einmal auftauchen. Genau diese Fallunterscheidung ist der Grund,
  * warum der Zuschlag nicht einfach addiert wird.
+ *
+ * **Befund B4.** Bis 1.72.0 fiel beim ausführlichen Verfahren der Zuschlag
+ * weg, ψ·l kam aber nirgends hinzu — der Überschlag lag typisch 5 … 15 % zu
+ * niedrig. Jetzt H_T = Σ A·U + Σ ψ·l, die Anschlüsse mit (θ_i − θ_e).
  */
 function roomLoad(
   doc: BimDocument,
@@ -426,6 +431,9 @@ function roomLoad(
   }
 
   const dtOutside = inside - doc.meta.designOutdoorTemperature;
+  if (doc.meta.thermalBridgeMethod === 'detailed' && room.isHeated && dtOutside > 0) {
+    transmission += roomBridgeHeatLoss(roomThermalBridges(doc, room)) * dtOutside;
+  }
   const ventilation = Math.max(0, AIR_CAPACITY * room.airChangeRate * room.volume * dtOutside);
   const total = transmission + openings + ventilation;
   return {

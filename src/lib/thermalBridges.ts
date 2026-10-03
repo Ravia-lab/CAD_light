@@ -252,35 +252,78 @@ export function roomBridgeHeatLoss(bridges: RoomThermalBridge[]): number {
 }
 
 /**
- * Wärmeübertragende Hüllfläche eines einzelnen Raums [m²] — seine
- * Außenwände (netto, samt Giebel und Fenstern) plus Boden und Decke.
- *
- * Ungerundet, weil das Ergebnis sowohl einzeln ausgewiesen als auch
- * aufsummiert wird; gerundet wird erst dort, wo die Zahl das Modul verlässt.
- * Boden und Decke zählen auch bei einem innenliegenden Raum mit, weil die
- * Gebäudebilanz sie ebenfalls zählt — beide Ebenen müssen dieselbe
- * Bezugsfläche benutzen, sonst passt die Aufteilung nicht mehr zur Summe.
+ * Geschosse mit mindestens einem beheizten Raum — eine Geschossdecke dorthin
+ * trennt beheizt von beheizt und ist keine Hülle.
  */
-export function roomEnvelopeArea(room: Room): number {
-  let area = 0;
-  for (const b of room.boundaries) {
-    if (b.boundary === 'exterior') area += b.grossArea;
-  }
-  return area + 2 * room.area;
+export function beheizteGeschosse(doc: BimDocument): Set<string> {
+  const out = new Set<string>();
+  for (const r of Object.values(doc.rooms)) if (r.isHeated) out.add(r.levelId);
+  return out;
 }
 
 /**
- * Wärmeübertragende Hüllfläche [m²] — Außenwände (netto, samt Giebel und
- * Fenstern) plus Boden und Decke. Bezugsfläche des pauschalen Zuschlags.
+ * Wärmeübertragende Hüllfläche eines einzelnen Raums [m²] nach DIN 4108
+ * Beiblatt 2 / DIN/TS 12831-1: nur Bauteile zwischen beheiztem Raum und
+ * außen, Erdreich oder unbeheiztem Bereich.
+ *
+ *  - Wände **brutto** (samt Fenstern, Türen und Giebel) an Außenluft,
+ *    Erdreich, unbeheizten Bereich oder einen unbeheizten Nachbarraum;
+ *  - der Boden, wenn darunter kein beheiztes Geschoss liegt;
+ *  - oben die Dachfläche samt Restdecke unter einem geneigten Dach, sonst
+ *    die Decke, wenn darüber kein beheiztes Geschoss liegt.
+ *
+ * **Befund B5.** Bis 1.72.0 zählte hier jeder Raum, auch ein unbeheizter oder
+ * innenliegender, seine Außenwände plus zweimal die Grundfläche — die
+ * Geschossdecken zwischen beheizten Geschossen also als Hülle, im
+ * Mehrgeschosser auf jeder Ebene. Σψ·l / A und damit der gleichwertige
+ * Zuschlag im Export fielen entsprechend zu klein aus.
+ *
+ * Ungerundet, weil das Ergebnis sowohl einzeln ausgewiesen als auch
+ * aufsummiert wird; gerundet wird erst dort, wo die Zahl das Modul verlässt.
+ */
+export function roomEnvelopeArea(doc: BimDocument, room: Room, beheizt = beheizteGeschosse(doc)): number {
+  if (!room.isHeated) return 0;
+  let area = 0;
+  for (const b of room.boundaries) {
+    if (b.boundary === 'exterior' || b.boundary === 'ground' || b.boundary === 'unheated') area += b.grossArea;
+    else if (b.boundary === 'adjacent-room' && b.neighbourRoomId && doc.rooms[b.neighbourRoomId]?.isHeated === false) {
+      area += b.grossArea;
+    }
+  }
+  const level = doc.levels[room.levelId];
+  const levels = Object.values(doc.levels).sort((x, y) => x.order - y.order);
+  const i = levels.findIndex((l) => l.id === room.levelId);
+  const istHuelle = (which: 'floor' | 'ceiling'): boolean => {
+    const rand =
+      (which === 'floor' ? room.floorBoundary ?? level?.floorBoundary : room.ceilingBoundary ?? level?.ceilingBoundary) ??
+      (which === 'floor' ? 'ground' : 'unheated');
+    if (rand === 'adiabatic') return false;
+    if (rand !== 'adjacent-room') return true;
+    const nachbar = levels[which === 'floor' ? i - 1 : i + 1];
+    return !(nachbar && beheizt.has(nachbar.id));
+  };
+  if (istHuelle('floor')) area += room.area;
+  const dach = level ? dachUeberRaum(level, room.id) : undefined;
+  if (dach && dach.kind !== 'flat' && room.roof && room.roof.slopedArea > 0.05) {
+    area += room.roof.slopedArea + room.roof.flatCeilingArea;
+  } else if (istHuelle('ceiling')) {
+    area += room.area;
+  }
+  return area;
+}
+
+/**
+ * Wärmeübertragende Hüllfläche des Gebäudes [m²] — Summe über
+ * `roomEnvelopeArea`. Bezugsfläche des pauschalen Zuschlags.
  *
  * Bewusst hier und nicht im Export: Panel und Export müssen dieselbe Zahl
  * benutzen, sonst widerspricht der Vergleich auf dem Bildschirm dem, was in
- * der Datei steht. Die Summe läuft über `roomEnvelopeArea`, damit die
- * Gebäudefläche per Konstruktion die Summe der Raumflächen ist.
+ * der Datei steht.
  */
 export function envelopeArea(doc: BimDocument): number {
+  const beheizt = beheizteGeschosse(doc);
   let area = 0;
-  for (const room of Object.values(doc.rooms)) area += roomEnvelopeArea(room);
+  for (const room of Object.values(doc.rooms)) area += roomEnvelopeArea(doc, room, beheizt);
   return round(area, 2);
 }
 
@@ -304,21 +347,27 @@ export function roomEquivalentSupplement(heatLoss: number, envelope: number): nu
   return envelope > 0.01 ? round(heatLoss / envelope, 4) : 0;
 }
 
-/** Σ ψ·l über alle Räume [W/K]. */
+/**
+ * Σ ψ·l über alle beheizten Räume [W/K]. Ein unbeheizter Raum liegt außerhalb
+ * der Hülle; seine Anschlüsse sind keine Wärmebrücken des beheizten Gebäudes
+ * (seit 1.73.0, Befund B5 — dieselbe Abgrenzung wie die Hüllfläche).
+ */
 export function documentBridgeHeatLoss(doc: BimDocument): number {
   const index = indexOpeningsByWall(Object.values(doc.openings));
   let sum = 0;
   for (const room of Object.values(doc.rooms)) {
+    if (!room.isHeated) continue;
     sum += roomBridgeHeatLoss(roomThermalBridges(doc, room, index));
   }
   return round(sum, 2);
 }
 
-/** Anschlusslängen je Art über alle Räume [m]. */
+/** Anschlusslängen je Art über alle beheizten Räume [m]. */
 export function documentBridgeLengths(doc: BimDocument): Map<ThermalBridgeKind, number> {
   const index = indexOpeningsByWall(Object.values(doc.openings));
   const out = new Map<ThermalBridgeKind, number>();
   for (const room of Object.values(doc.rooms)) {
+    if (!room.isHeated) continue;
     for (const b of roomThermalBridges(doc, room, index)) {
       out.set(b.kind, round((out.get(b.kind) ?? 0) + b.length, 2));
     }

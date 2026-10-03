@@ -17,10 +17,9 @@ import type { ThermalBridgeKind } from '../types/bim';
 import {
   BRIDGE_TYPES,
   FLAT_SUPPLEMENT,
+  documentBridgeHeatLoss,
   documentBridgeLengths,
   envelopeArea,
-  roomBridgeHeatLoss,
-  roomThermalBridges,
 } from '../lib/thermalBridges';
 import { useBimStore } from '../store/useBimStore';
 import Erklaerung from './Erklaerung';
@@ -56,7 +55,7 @@ export default function ThermalBridgePanel() {
   const balance = useMemo(() => {
     const rooms = Object.values(doc.rooms);
     const area = envelopeArea(doc);
-    const detailed = rooms.reduce((sum, r) => sum + roomBridgeHeatLoss(roomThermalBridges(doc, r)), 0);
+    const detailed = documentBridgeHeatLoss(doc);
     const lengths = documentBridgeLengths(doc);
     return {
       area,
