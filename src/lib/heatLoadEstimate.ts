@@ -183,7 +183,7 @@ export interface HeatLoadEstimate {
  * vollständigen Exportaufbau: der Überschlag soll auch dann funktionieren,
  * wenn das Dokument gerade bearbeitet wird.
  */
-function neighbourTemperature(doc: BimDocument, boundary: RoomBoundary): number {
+function neighbourTemperature(doc: BimDocument, boundary: RoomBoundary, inside: number): number {
   switch (boundary.boundary) {
     case 'exterior':
       return doc.meta.designOutdoorTemperature;
@@ -197,6 +197,12 @@ function neighbourTemperature(doc: BimDocument, boundary: RoomBoundary): number 
       if (istUnbeheizterNachbar(other)) return doc.meta.unheatedTemperature;
       return other?.setpointTemperature ?? doc.meta.designIndoorTemperature;
     }
+    case 'adiabatic':
+      // Adiabat heißt: gleich temperierter Bereich, kein Wärmestrom (f = 0).
+      // Bis 1.72.0 fiel dieser Fall in den Zweig darunter und rechnete wie
+      // Außenluft — eine Wohnungstrennwand verlor dann so viel wie eine
+      // Fassade.
+      return inside;
     default:
       return doc.meta.designOutdoorTemperature;
   }
@@ -256,7 +262,7 @@ function roomLoad(
   const groundTemperature = doc.meta.groundTemperature;
 
   for (const b of room.boundaries) {
-    const outside = neighbourTemperature(doc, b);
+    const outside = neighbourTemperature(doc, b, inside);
     const dt = inside - outside;
     /*
      * Der U-Wert kommt aus `uwert.ts` und nicht mehr aus `b.uValue ?? 0`.

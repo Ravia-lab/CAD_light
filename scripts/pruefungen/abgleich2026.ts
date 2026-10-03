@@ -12,6 +12,8 @@ import { join, sep } from 'node:path';
 import type { CheckFn } from './typ';
 import { buildReferenceDocument } from '../reference';
 import { designPlant, gebaeudeHeizlast } from '../../src/lib/plantDesign';
+import { estimateHeatLoad } from '../../src/lib/heatLoadEstimate';
+import type { BimDocument } from '../../src/types/bim';
 
 function wurzel(): string | undefined {
   let pfad = process.cwd();
@@ -52,4 +54,26 @@ export function pruefeAbgleich2026(check: CheckFn): void {
   const panel = quelle('src/components/HeatPumpPanel.tsx');
   check('A3 · Wärmepumpenblatt summiert keine Heizflächenleistung mehr',
     panel.includes('gebaeudeHeizlast(') && !/fixtures\)\.reduce\([^)]*powerW/.test(panel), true);
+
+  // -------------------------------------------------------------------------
+  // B2 · `adiabatic` im Überschlag heißt ΔT = 0, nicht Außenluft
+  // -------------------------------------------------------------------------
+  // Gegenprobe über einen zweiten Weg: Ein adiabat gestellter Wandabschnitt
+  // muss genau so viel beitragen wie ein gar nicht vorhandener, nämlich 0 W.
+  {
+    const raum = Object.values(doc.rooms).find((r) => r.name === 'Wohnen OG')!;
+    const idx = raum.boundaries.findIndex((b) => b.boundary === 'exterior' && b.netArea > 1);
+    const mitRand = (boundaries: typeof raum.boundaries): BimDocument => ({
+      ...doc,
+      rooms: { ...doc.rooms, [raum.id]: { ...raum, boundaries } },
+    });
+    const zeile = (d: BimDocument) => estimateHeatLoad(d).rooms.find((r) => r.roomId === raum.id)!;
+    const adiabat = zeile(mitRand(raum.boundaries.map((b, i) => (i === idx ? { ...b, boundary: 'adiabatic' as const } : b))));
+    const ohne = zeile(mitRand(raum.boundaries.filter((_, i) => i !== idx)));
+    const mit = zeile(doc);
+    check('B2 · Prüfling hat einen Außenwandabschnitt', idx >= 0, true);
+    check('B2 · adiabate Wand: Transmission wie ohne die Wand', adiabat.transmission, ohne.transmission, 0.5);
+    check('B2 · adiabate Wand: Öffnungen wie ohne die Wand', adiabat.openings, ohne.openings, 0.5);
+    check('B2 · als Außenwand verliert sie dagegen etwas', mit.transmission > adiabat.transmission, true);
+  }
 }
