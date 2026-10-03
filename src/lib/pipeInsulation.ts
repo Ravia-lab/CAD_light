@@ -1,17 +1,16 @@
 /**
  * Mindestdicke der Dämmschicht von Rohrleitungen nach GEG Anlage 8.
  *
- * **Warum dieses Modul eigenständig ist.** `domesticWater.ts` führt bereits
- * eine `insulationThickness`. Sie bildet die Grundtabelle über die *Nennweite*
- * ab und kennt nur eine pauschale „Halbierung". Beides ist zu grob, um damit
- * eine Leitung im Plan zu beschriften: Anlage 8 Nr. 1 a) stellt ausdrücklich
+ * **Die einzige Stelle für die Rohrdämmung.** `domesticWater.ts` führte bis
+ * 1.72.0 eine zweite `insulationThickness`. Sie bildete die Grundtabelle über
+ * die *Nennweite* ab und kannte nur eine pauschale „Halbierung". Beides ist zu
+ * grob, um damit eine Leitung im Plan zu beschriften: Anlage 8 Nr. 1 a) stellt ausdrücklich
  * auf den **Innendurchmesser** ab — bei einem Mehrschichtverbundrohr 26 × 3
  * ist das 20 mm bei DN 20, bei einem Stahlrohr DN 20 aber 21,6 mm; die eine
  * Leitung fällt unter aa), die andere unter bb), 20 mm gegen 30 mm. Und die
  * Ermäßigungen sind keine einzige Regel, sondern sechs verschiedene mit
  * verschiedenen Voraussetzungen. Dieses Modul bildet sie einzeln ab und sagt
- * in `rule` und `reason`, welche gegriffen hat. Die alte Funktion bleibt
- * unangetastet; wer beide importiert, muss eine davon umbenennen.
+ * in `rule` und `reason`, welche gegriffen hat.
  *
  * **Die drei Fallen, an denen Programme diese Anlage regelmäßig verfehlen** —
  * sie stehen hier oben, weil jede davon im Code eine eigene Verzweigung hat:

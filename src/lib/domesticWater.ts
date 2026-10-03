@@ -1548,51 +1548,10 @@ export function sizeInstallation(sections: readonly InstallationSection[], optio
 // 8 — Dämmung und Hygiene
 // ===========================================================================
 
-/**
- * Dämmschichtdicke nach GEG Anlage 8, bezogen auf λ = 0,035 W/(m·K).
- *
- * Der Gesetzestext ist frei zugänglich und wird deshalb direkt abgebildet:
- * bis DN 22 → 20 mm, über DN 22 bis DN 35 → 30 mm, über DN 35 bis DN 100 →
- * Dämmdicke gleich der Nennweite in Millimetern, über DN 100 → 100 mm.
- * Halbierung für Leitungen in Bauteilen zwischen beheizten Räumen
- * verschiedener Nutzer, in Wand- und Deckendurchbrüchen, an Kreuzungen und
- * für Verteilerleitungen innerhalb der Dämmung.
- *
- * Für Kaltwasserleitungen regelt das GEG nichts — dort geht es nicht um
- * Wärmeverlust, sondern um Erwärmung. Der Kaltwasserschutz nach DIN 1988-200
- * ist als eigene Situation geführt.
- */
-export type InsulationSituation = 'standard' | 'halbiert' | 'kaltwasser';
-
-export interface InsulationResult {
-  /** Dämmschichtdicke [mm] bei λ = 0,035 W/(m·K). */
-  thickness: number;
-  basis: string;
-  note?: string;
-}
-
-export function insulationThickness(dn: number, situation: InsulationSituation = 'standard'): InsulationResult {
-  if (situation === 'kaltwasser') {
-    return {
-      thickness: 13,
-      basis: 'DIN 1988-200 — Schutz gegen Erwärmung, nicht gegen Wärmeverlust.',
-      note:
-        'Richtwert. Maßgebend ist nicht eine Dicke, sondern das Ziel: das Kaltwasser bleibt unter 25 °C. In warmen Schächten, neben ' +
-        'Warmwasser- oder Zirkulationsleitungen und im Fußbodenaufbau über der Heizung reicht auch 13 mm oft nicht — dort hilft nur Abstand ' +
-        'oder eine getrennte Führung.',
-    };
-  }
-  const base = dn <= 22 ? 20 : dn <= 35 ? 30 : dn <= 100 ? dn : 100;
-  const thickness = situation === 'halbiert' ? base / 2 : base;
-  return {
-    thickness,
-    basis: `GEG Anlage 8${situation === 'halbiert' ? ', halbierte Anforderung' : ''} (λ = 0,035 W/(m·K))`,
-    note:
-      situation === 'halbiert'
-        ? 'Die Halbierung gilt für Leitungen in Bauteilen zwischen beheizten Räumen verschiedener Nutzer, in Durchbrüchen, an Kreuzungen und für Verteilerleitungen innerhalb der Dämmung.'
-        : 'Bei anderem λ ist die Dicke umzurechnen; die Anforderung ist ein Dämmwert, keine Dicke.',
-  };
-}
+// Die Dämmschichtdicke nach GEG Anlage 8 steht in `pipeInsulation.ts`
+// (`insulationThickness`, `insulationForDimension`). Bis 1.72.0 lag hier eine
+// zweite, gröbere Fassung über die Nennweite, die niemand mehr aufrief —
+// entfernt mit Befund F5.
 
 /**
  * Hygienehinweise zur Trinkwasserinstallation.
