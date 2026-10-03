@@ -38,7 +38,8 @@
  * misst Geometrie und rechnet nichts; die Leistung ist Sache der Auslegung.
  */
 
-import type { BimNode, Fixture, FixtureType, Opening, OpeningKind, RoofKind, RoomUsage, ScanDachHerkunft, Vec2, Wall, WallType } from '../types/bim';
+import type { BimNode, BoundaryCondition, Fixture, FixtureType, Opening, OpeningKind, RoofKind, RoomUsage, ScanDachHerkunft, Vec2, Wall, WallType } from '../types/bim';
+import { BOUNDARY_CONDITIONS } from '../types/bim';
 export type { ScanDachHerkunft } from '../types/bim';
 import { U_FENSTER_BESTAND, U_TUER_BESTAND, VORGABE_U } from './uwert';
 import {
@@ -125,6 +126,12 @@ export interface BuildingImportErgebnis extends RaumplanImportErgebnis {
    * des Scans steht daneben, damit eine große Abweichung auffällt.
    */
   scanVolumen: { levelId: string; volumen: number; volumenGerade?: number; quelle?: string }[];
+  /**
+   * Beheizt oder nicht je Scanraum (`rooms[].heated`, Brücke K2). Die Räume
+   * entstehen aus der eigenen Erkennung; übertragen wird über die Lage, wie
+   * beim Namen — siehe `uebernimmBeheizung` in `lib/scanUebernahme.ts`.
+   */
+  raumBeheizung: { levelId: string; punkt: Vec2; flaeche: Vec2[]; heated: boolean }[];
 }
 
 // --- Gestalt des Modells (nur, was gelesen wird) ------------------------------
@@ -138,11 +145,15 @@ interface RbmWall {
   /** Seit Schema 1.10.0: Schrägumriss einer Giebel- oder Innenwand unter dem Dach. */
   profile?: unknown[];
   netArea?: number;
+  /** Randbedingung nach Festlegung F4 (Scan-Brücke K2). */
+  boundary?: string;
 }
 interface RbmRoom {
   id: string; levelId: string; name?: string; usage?: string; polygon?: P[];
   nameSource?: string; raviaRoomId?: string;
   volumeSource?: string; volumeFlat?: number; volume?: number;
+  /** Beheizt (Festlegung F4: `heated` im Scan = `isHeated` hier, Brücke K2). */
+  heated?: boolean;
 }
 interface RbmOpening {
   id: string; wallId: string; kind: string; width: number; height: number; sillHeight: number;
@@ -187,9 +198,25 @@ interface Rbm {
 
 const LEER: BuildingImportErgebnis = {
   ok: false, message: '', drehung: 0, levels: [], nodes: [], walls: [], openings: [],
-  raumHinweise: [], geschaetzt: [], skipped: [], fixtures: [], daecher: {}, heizkoerperUnbestaetigt: 0, scanVolumen: [],
+  raumHinweise: [], geschaetzt: [], skipped: [], fixtures: [], daecher: {}, heizkoerperUnbestaetigt: 0, scanVolumen: [], raumBeheizung: [],
   dachBelege: {}, pruefpunkte: [], pruefhinweise: [], wandNettoflaechen: {},
 };
+
+/**
+ * Randbedingung einer Scanwand übernehmen (Festlegung F4, Brücke K2).
+ *
+ * Gesetzt wird sie nur, wo sie von der eigenen Ableitung abweicht: eine
+ * Außenwand ist ohnehin `exterior`, eine Innenwand mit Raum dahinter ohnehin
+ * `adjacent-room`. Was der Scan darüber hinaus weiß — Erdreich, unbeheizt,
+ * fremde Nutzung, adiabat —, kann die Geometrie nicht hergeben.
+ */
+export function randAusScan(rand: unknown, typ: WallType): BoundaryCondition | undefined {
+  if (typeof rand !== 'string' || !(BOUNDARY_CONDITIONS as readonly string[]).includes(rand)) return undefined;
+  const r = rand as BoundaryCondition;
+  if (typ === 'exterior' && r === 'exterior') return undefined;
+  if (typ !== 'exterior' && r === 'adjacent-room') return undefined;
+  return r;
+}
 
 const KNOTEN_TOLERANZ = 0.05;
 const BRUESTUNGS_HOEHE = 1.6;
@@ -334,6 +361,7 @@ export function importBuildingModel(data: unknown): BuildingImportErgebnis {
       layerId: 'layer-walls',
       uValue: VORGABE_U[typ],
       ...(zahl(w.confidence) ? { confidence: rund(w.confidence, 2) } : {}),
+      ...(randAusScan(w.boundary, typ) ? { boundary: randAusScan(w.boundary, typ) } : {}),
     };
     walls.push(wand);
     unten.set(wand.id, 0);
@@ -473,6 +501,20 @@ export function importBuildingModel(data: unknown): BuildingImportErgebnis {
       flaeche: gueltig.map((p) => ({ x: rund(p.x), y: rund(p.y) })),
     });
     benannteRaeume += 1;
+  }
+  // Beheizung je Scanraum (K2) — alle Räume mit Angabe, nicht nur benannte.
+  const raumBeheizung: BuildingImportErgebnis['raumBeheizung'] = [];
+  for (const r of Array.isArray(m.rooms) ? m.rooms : []) {
+    if (!r || typeof r.heated !== 'boolean' || !levelIds.has(r.levelId) || !Array.isArray(r.polygon)) continue;
+    const gueltig = r.polygon.filter(punkt);
+    if (gueltig.length < 3) continue;
+    const mitte = gueltig.reduce((a, p) => ({ x: a.x + p.x / gueltig.length, y: a.y + p.y / gueltig.length }), { x: 0, y: 0 });
+    raumBeheizung.push({
+      levelId: r.levelId,
+      punkt: { x: rund(mitte.x), y: rund(mitte.y) },
+      flaeche: gueltig.map((p) => ({ x: rund(p.x), y: rund(p.y) })),
+      heated: r.heated,
+    });
   }
   // Volumen je Geschoss aus den Räumen des Scans (Gegenprobe, siehe oben).
   const volumenJe = new Map<string, { volumen: number; volumenGerade?: number; quellen: Set<string> }>();
@@ -669,6 +711,7 @@ export function importBuildingModel(data: unknown): BuildingImportErgebnis {
     walls,
     openings,
     raumHinweise,
+    raumBeheizung,
     geschaetzt,
     skipped: [...uebersprungen].map(([reason, count]) => ({ reason, count })),
     fixtures,

@@ -169,6 +169,8 @@ export interface ProjectPatch {
   n50?: number;
   shielding?: ProjectMeta['shielding'];
   unheatedTemperature?: number;
+  /** θ hinter Wänden zu fremder Nutzung oder Nachbargebäude (seit 1.73.0). */
+  neighbourTemperature?: number;
   groundTemperature?: number;
   thermalBridgeSupplement?: number;
   thermalBridgeMethod?: ProjectMeta['thermalBridgeMethod'];
@@ -249,6 +251,7 @@ export const PATCH_RANGES = {
   designIndoorTemperature: [-30, 60],
   n50: [0.1, 30],
   unheatedTemperature: [-40, 40],
+  neighbourTemperature: [-40, 40],
   groundTemperature: [-20, 30],
   thermalBridgeSupplement: [0, 1],
   reheatFactor: [0, 50],
@@ -965,6 +968,12 @@ const PROJECT_FIELDS: Record<keyof ProjectPatch, Feld> = {
     unit: '°C',
     range: PATCH_RANGES.unheatedTemperature,
     check: (v) => checkNumber(v, PATCH_RANGES.unheatedTemperature, '°C'),
+  },
+  neighbourTemperature: {
+    label: 'Temperatur fremder Nutzung / Nachbargebäude',
+    unit: '°C',
+    range: PATCH_RANGES.neighbourTemperature,
+    check: (v) => checkNumber(v, PATCH_RANGES.neighbourTemperature, '°C'),
   },
   groundTemperature: {
     label: 'Erdreichtemperatur',

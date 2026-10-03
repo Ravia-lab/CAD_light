@@ -181,8 +181,8 @@ import {
   type Nutzungseinheit,
 } from '../lib/nutzungseinheiten';
 import type { RaumplanImportErgebnis } from '../lib/raumplanImport';
-import { importBuildingModel } from '../lib/buildingModelImport';
-import { benenneRaeume, pruefpunkteAlsHinweise, scanDachZuordnen, type ScanDachZuordnung } from '../lib/scanUebernahme';
+import { importBuildingModel, type BuildingImportErgebnis } from '../lib/buildingModelImport';
+import { benenneRaeume, pruefpunkteAlsHinweise, scanDachZuordnen, uebernimmBeheizung, type ScanDachZuordnung } from '../lib/scanUebernahme';
 import { begradige } from '../lib/begradigen';
 import { befundSatz, hoehenbefund } from '../lib/wandhoehen';
 import { SPRACHEN, spracheSetzen, type Sprache } from '../lib/sprache';
@@ -1734,6 +1734,8 @@ function dokumentAusScan(
   // der erste; ihn stillschweigend zu überschreiben hieße, die Reihenfolge
   // in der Datei über die Sache entscheiden zu lassen.
   const { benannt, doppelt, bereiche } = benenneRaeume(fresh, ergebnis.raumHinweise);
+  // K2: beheizt oder nicht kommt aus dem Scan (Festlegung F4).
+  if ('raumBeheizung' in ergebnis) uebernimmBeheizung(fresh, (ergebnis as BuildingImportErgebnis).raumBeheizung);
   return { fresh, benannt, doppelt, bereiche };
 }
 
@@ -6437,6 +6439,7 @@ export const useBimStore = create<BimState>()((set, get) => {
           recomputeRooms(ziel);
         }
         const namen = benenneRaeume(ziel, ergebnis.raumHinweise);
+        uebernimmBeheizung(ziel, ergebnis.raumBeheizung);
         benanntGesamt = namen.benannt;
         doppeltGesamt = namen.doppelt;
       }

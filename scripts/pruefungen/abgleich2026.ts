@@ -27,6 +27,8 @@ import { migriereUnbeheizt, unbeheizteArtVonRaum, unbeheizteTemperatur, unbeheiz
 import { buildRaviaExport } from '../../src/lib/raviaExport';
 import { envelopeArea, roomBridgeHeatLoss, roomEnvelopeArea, roomThermalBridges } from '../../src/lib/thermalBridges';
 import { importIfc, parseStep } from '../../src/lib/ifcImport';
+import { importBuildingModel, randAusScan } from '../../src/lib/buildingModelImport';
+import { uebernimmBeheizung } from '../../src/lib/scanUebernahme';
 
 function wurzel(): string | undefined {
   let pfad = process.cwd();
@@ -510,4 +512,59 @@ export function pruefeAbgleich2026(check: CheckFn): void {
       check(`A2 · ${datei.split('/').pop()} übergibt powerByFixture`, quelle(datei).includes('powerByFixture: leistungJeVerbraucher(doc)'), true);
     }
   }
+
+  // -------------------------------------------------------------------------
+  // Schritt 2 · Scan-Import ohne Datenverlust (K2)
+  // -------------------------------------------------------------------------
+  {
+    const text = quelle('scripts/referenz/ravia-building-beispiel.json');
+    const modell = () => JSON.parse(text);
+
+    // K2 · rooms[].heated → isHeated
+    const m1 = modell();
+    m1.rooms[0].heated = false;
+    const r1 = importBuildingModel(m1);
+    check('K2 · heated kommt im Ergebnis an', r1.raumBeheizung.length === 1 && r1.raumBeheizung[0].heated === false, true);
+    check('K2 · ohne heated keine Angabe', importBuildingModel(modell()).raumBeheizung.length, 0);
+    const b = r1.raumBeheizung[0];
+    const raumDoc = {
+      rooms: {
+        a: { ...Object.values(doc.rooms)[0], id: 'a', levelId: b.levelId, isHeated: true,
+          polygon: [{ x: b.punkt.x - 1, y: b.punkt.y - 1 }, { x: b.punkt.x + 1, y: b.punkt.y - 1 }, { x: b.punkt.x + 1, y: b.punkt.y + 1 }, { x: b.punkt.x - 1, y: b.punkt.y + 1 }] },
+      },
+    };
+    check('K2 · Raum an der Stelle wird unbeheizt', uebernimmBeheizung(raumDoc, r1.raumBeheizung) === 1 && raumDoc.rooms.a.isHeated === false, true);
+
+    // K2 · walls[].boundary nach Festlegung F4
+    check('K2 · Außenwand „exterior" bleibt abgeleitet', randAusScan('exterior', 'exterior') ?? 'leer', 'leer');
+    check('K2 · Innenwand „adjacent-room" bleibt abgeleitet', randAusScan('adjacent-room', 'interior') ?? 'leer', 'leer');
+    check('K2 · unbekannter Wert wird nicht übernommen', randAusScan('garage', 'interior') ?? 'leer', 'leer');
+    const m2 = modell();
+    m2.walls.find((w: { id: string }) => w.id === 'w-001').boundary = 'neighbour';
+    m2.walls.find((w: { id: string }) => w.id === 'w-004').boundary = 'unheated';
+    const r2 = importBuildingModel(m2);
+    const rand = (id: string) => [...new Set(r2.walls.filter((w) => w.id === id || w.id.startsWith(`${id}-`)).map((w) => w.boundary ?? 'leer'))].join(',');
+    check('K2 · Außenwand zur fremden Nutzung: neighbour', rand('w-001'), 'neighbour');
+    check('K2 · Innenwand zum Unbeheizten: unheated', rand('w-004'), 'unheated');
+    check('K2 · übrige Wände ohne Übersteuerung', rand('w-002'), 'leer');
+
+    // K2 · neighbour im Export und im Überschlag mit eigener Temperatur
+    const raum = Object.values(doc.rooms).find((r) => r.name === 'Wohnen EG')!;
+    const i = raum.boundaries.findIndex((x) => x.boundary === 'exterior' && x.netArea > 1);
+    const mitNachbar = (meta: Partial<BimDocument['meta']>): BimDocument => ({
+      ...doc,
+      meta: { ...doc.meta, ...meta },
+      rooms: { ...doc.rooms, [raum.id]: { ...raum, boundaries: raum.boundaries.map((x, k) => (k === i ? { ...x, boundary: 'neighbour' as const } : x)) } },
+    });
+    const flaeche = (d: BimDocument) => buildRaviaExport(d).rooms.find((r) => r.id === raum.id)!.surfaces.find((f) => f.boundary === 'neighbour');
+    check('K2 · Export: boundary neighbour', flaeche(mitNachbar({}))?.boundary ?? 'fehlt', 'neighbour');
+    check('K2 · Export: θ Nachbar ohne Eintrag 15 °C', flaeche(mitNachbar({}))?.neighbourTemperature ?? NaN, 15);
+    check('K2 · Export: θ Nachbar eingetragen', flaeche(mitNachbar({ neighbourTemperature: 18 }))?.neighbourTemperature ?? NaN, 18);
+    check('K2 · Export: project.neighbourTemperature', buildRaviaExport(mitNachbar({})).project.neighbourTemperature ?? NaN, 15);
+    const t = (d: BimDocument) => estimateHeatLoad(d).rooms.find((r) => r.roomId === raum.id)!;
+    check('K2 · Überschlag: Wand zum Nachbarn verliert mit Δθ 5 K weniger als zur Außenluft',
+      t(mitNachbar({})).transmission < t(doc).transmission, true);
+
+  }
+
 }

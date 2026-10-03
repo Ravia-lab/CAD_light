@@ -153,3 +153,18 @@ export function migriereUnbeheizt(meta: BimDocument['meta']): BimDocument['meta'
   }
   return meta;
 }
+
+/**
+ * Temperatur hinter einer Wand zu fremder Nutzung oder zum Nachbargebäude,
+ * wenn nichts eingetragen ist [°C] (Randbedingung `neighbour`, seit 1.73.0).
+ * 15 °C ist der Ansatz für Räume fremder Nutzung bzw. benachbarte Gebäude
+ * aus der Praxis der DIN 4701/DIN EN 12831; den Wert bestätigt Manuel noch,
+ * RaVia kann ihn per Patch setzen.
+ */
+export const NACHBAR_TEMPERATUR_VORGABE = 15;
+
+/** θ hinter einer Wand mit Randbedingung `neighbour` [°C]. */
+export function nachbarTemperatur(meta: BimDocument['meta']): number {
+  const t = meta.neighbourTemperature;
+  return typeof t === 'number' && Number.isFinite(t) ? t : NACHBAR_TEMPERATUR_VORGABE;
+}

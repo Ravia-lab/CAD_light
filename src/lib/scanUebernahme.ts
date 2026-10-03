@@ -165,6 +165,34 @@ export function benenneRaeume(
 }
 
 /**
+ * Beheizt oder nicht aus dem Scan übernehmen (Brücke K2, Festlegung F4:
+ * `heated` im Scan bedeutet dasselbe wie `isHeated` hier).
+ *
+ * Zugeordnet wird über die Lage, wie beim Namen: Ein erkannter Raum, dessen
+ * Schwerpunkt in der Fläche eines Scanraums liegt — oder in dem der
+ * Mittelpunkt des Scanraums liegt —, übernimmt dessen Angabe.
+ *
+ * @returns Zahl der Räume, deren Angabe sich geändert hat.
+ */
+export function uebernimmBeheizung(
+  doc: { rooms: Record<string, Room> },
+  liste: readonly { levelId: string; punkt: Vec2; flaeche: Vec2[]; heated: boolean }[],
+): number {
+  let geaendert = 0;
+  for (const raum of Object.values(doc.rooms)) {
+    if (raum.polygon.length < 3) continue;
+    const s = schwerpunkt(raum.polygon);
+    const treffer = liste.find(
+      (b) => b.levelId === raum.levelId && (pointInPolygon(s, b.flaeche) || pointInPolygon(b.punkt, raum.polygon)),
+    );
+    if (!treffer || raum.isHeated === treffer.heated) continue;
+    doc.rooms[raum.id] = { ...raum, isHeated: treffer.heated };
+    geaendert++;
+  }
+  return geaendert;
+}
+
+/**
  * Prüfpunkte der App als Hinweisfahnen im Grundriss.
  *
  * Spitze am Ort, den die App nennt; Text 0,42 m schräg darüber, wie bei jeder

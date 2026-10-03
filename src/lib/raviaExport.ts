@@ -28,7 +28,7 @@
 
 import { leistungJeVerbraucher } from './verbraucherlast';
 import { heizleistung } from './normleistung';
-import { dachraumTemperatur, istUnbeheizterNachbar, unbeheiztEingetragen, unbeheizteTemperatur, unbeheizterRaumTemperatur } from './unbeheizt';
+import { dachraumTemperatur, istUnbeheizterNachbar, nachbarTemperatur, unbeheiztEingetragen, unbeheizteTemperatur, unbeheizterRaumTemperatur } from './unbeheizt';
 import type {
   ExportPlant,
   BimDocument,
@@ -372,7 +372,7 @@ export function buildRaviaExport(doc: BimDocument): RaviaExport {
       areas:
         'grossArea = Rohbaufläche des Bauteils, netArea = abzüglich aller Öffnungen. Raumflächen sind lichte Maße (Achsmaße abzüglich der halben Wandstärken).',
       boundaries:
-        'neighbourTemperature ist die Temperatur auf der raumabgewandten Seite: Norm-Außentemperatur bei exterior, Erdreichtemperatur bei ground, bei unheated project.unheatedTemperature (seit 1.73.0 θ_i − b_u · (θ_i − θ_e), sofern unheatedTemperatureSource nicht "eingabe" oder "ravia" ist; an einer Wand zu einem unbeheizten Raum mit b_u nach dessen Außenwänden) — an der obersten Decke zum unbeheizten Dachraum stattdessen project.atticTemperature —, die Solltemperatur des Nachbarraums bei adjacent-room. Grenzt eine Wand an einen Raum mit isHeated = false, ist sie unheated (mit neighbourRoomId) und nicht adjacent-room.',
+        'neighbourTemperature ist die Temperatur auf der raumabgewandten Seite: Norm-Außentemperatur bei exterior, Erdreichtemperatur bei ground, bei unheated project.unheatedTemperature (seit 1.73.0 θ_i − b_u · (θ_i − θ_e), sofern unheatedTemperatureSource nicht "eingabe" oder "ravia" ist; an einer Wand zu einem unbeheizten Raum mit b_u nach dessen Außenwänden) — an der obersten Decke zum unbeheizten Dachraum stattdessen project.atticTemperature —, die Solltemperatur des Nachbarraums bei adjacent-room, project.neighbourTemperature (ohne Eintrag 15 °C) bei neighbour — fremde Nutzungseinheit oder Nachbargebäude, seit 2.15.0. Grenzt eine Wand an einen Raum mit isHeated = false, ist sie unheated (mit neighbourRoomId) und nicht adjacent-room.',
       groundContact:
         'Was unter project.terrainElevation liegt, grenzt an Erdreich. Eine teilweise eingegrabene Wand erscheint deshalb als zwei Flächen: der Teil unter Gelände mit boundary "ground" und der ID <wandId>-ground, der Teil darüber mit boundary "exterior" und der ID der Wand. Ihre Flächen ergeben zusammen wieder die Wandfläche. groundContact.embedmentDepth ist die Tiefe der Bauteilunterkante unter Gelände; die Faktoren f_g1, f_g2 und G_w nach DIN EN 12831-1 werden hier bewusst nicht gebildet — geliefert werden nur ihre Eingangsgrößen. Fehlt project.terrainElevation, ist keine Geländeoberkante erfasst und nichts wird als erdberührt gerechnet. Die Beschaffenheit des Baugrunds — Bodenart und Grundwasserstand — steht in subsoil.',
       ventilation:
@@ -391,6 +391,8 @@ export function buildRaviaExport(doc: BimDocument): RaviaExport {
       // abgeleitet ist; unheatedTemperatureSource sagt, welcher Fall es ist.
       unheatedTemperature: unbeheizteTemperatur(doc.meta),
       unheatedTemperatureSource: unbeheiztEingetragen(doc.meta) ? (doc.meta.unheatedTemperatureSource ?? 'eingabe') : 'b_u',
+      // Seit 2.15.0 (Festlegung F4): θ hinter boundary "neighbour".
+      neighbourTemperature: nachbarTemperatur(doc.meta),
     },
     ...(subsoil ? { subsoil } : {}),
     levels: Object.values(doc.levels).sort((a, b) => a.order - b.order),
@@ -636,6 +638,9 @@ function neighbourTemperature(
       return doc.meta.groundTemperature;
     case 'unheated':
       return unbeheizterRaumTemperatur(doc, neighbourRoomId ? doc.rooms[neighbourRoomId] : undefined);
+    case 'neighbour':
+      // Fremde Nutzung oder Nachbargebäude (seit 2.15.0, Festlegung F4).
+      return nachbarTemperatur(doc.meta);
     case 'adjacent-room': {
       const neighbour = neighbourRoomId ? doc.rooms[neighbourRoomId] : undefined;
       // Ein unbeheizter Nachbarraum zählt mit θ_u, nicht mit seiner

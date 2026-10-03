@@ -67,6 +67,11 @@ export type BoundaryCondition =
   | 'exterior'
   | 'ground'
   | 'unheated'
+  /**
+   * Fremde Nutzungseinheit oder Nachbargebäude (seit 1.73.0, Festlegung F4,
+   * Scan-Brücke K2). Temperatur dahinter: `meta.neighbourTemperature`.
+   */
+  | 'neighbour'
   | 'adjacent-room'
   | 'adiabatic';
 
@@ -74,9 +79,20 @@ export const BOUNDARY_LABELS: Record<BoundaryCondition, string> = {
   exterior: 'Außenluft',
   ground: 'Erdreich',
   unheated: 'Unbeheizt',
+  neighbour: 'Fremde Nutzung / Nachbargebäude',
   'adjacent-room': 'Nachbarraum',
   adiabatic: 'Adiabat',
 };
+
+/** Die Randbedingungen nach Festlegung F4, in der Reihenfolge des Vertrags. */
+export const BOUNDARY_CONDITIONS: readonly BoundaryCondition[] = [
+  'exterior',
+  'ground',
+  'unheated',
+  'neighbour',
+  'adjacent-room',
+  'adiabatic',
+];
 
 // ===========================================================================
 // Bauteilkatalog
@@ -2835,6 +2851,12 @@ export interface ProjectMeta {
   unheatedTemperatureSource?: 'eingabe' | 'ravia' | 'b_u';
   /** Art des unbeheizten Bereichs ohne eigenen Raum — bestimmt b_u (seit 1.73.0). */
   unheatedKind?: UnbeheizteArt;
+  /**
+   * Temperatur hinter einer Wand zu fremder Nutzung oder zum Nachbargebäude
+   * (Randbedingung `neighbour`) [°C], seit 1.73.0. Ohne Eintrag
+   * `NACHBAR_TEMPERATUR_VORGABE`.
+   */
+  neighbourTemperature?: number;
   /**
    * Temperatur des unbeheizten Dachraums über der obersten Decke [°C]
    * (seit 1.72.0). Fehlt sie, gilt θ_i − 0,9 · (θ_i − θ_e), siehe

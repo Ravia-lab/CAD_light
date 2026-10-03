@@ -4,7 +4,7 @@
  * Gebäude-Kennwerte, die man beim Planen ständig im Blick haben will.
  */
 
-import { dachraumTemperatur, UNBEHEIZT_ART_LABELS, UNBEHEIZT_ART_VORGABE, unbeheiztEingetragen, unbeheizteTemperatur } from '../lib/unbeheizt';
+import { dachraumTemperatur, nachbarTemperatur, UNBEHEIZT_ART_LABELS, UNBEHEIZT_ART_VORGABE, unbeheiztEingetragen, unbeheizteTemperatur } from '../lib/unbeheizt';
 import RaumnameFeld from './RaumnameFeld';
 import type {
   UnbeheizteArt,
@@ -2764,6 +2764,14 @@ function BuildingSummary() {
               ))}
             </select>
           </label>
+          {/* Seit 1.73.0 (F4/K2): hinter Wänden zu fremder Nutzung oder zum
+              Nachbargebäude. */}
+          <NumberField
+            label="θ Nachbar [°C]"
+            value={nachbarTemperatur(doc.meta)}
+            step={1}
+            onChange={(v) => updateMeta({ neighbourTemperature: v })}
+          />
           {/* Seit 1.72.0: der Dachraum über der obersten Decke hat eine
               eigene Temperatur. Ohne Eintrag θi − 0,9 · (θi − θe). */}
           <NumberField
