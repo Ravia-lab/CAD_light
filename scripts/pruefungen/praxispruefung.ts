@@ -25,7 +25,7 @@
 
 import type { CheckFn } from './typ';
 import type { BimDocument } from '../../src/types/bim';
-import { dachraumTemperatur, DACHRAUM_FAKTOR } from '../../src/lib/unbeheizt';
+import { dachraumTemperatur, DACHRAUM_FAKTOR, unbeheizteTemperatur } from '../../src/lib/unbeheizt';
 import { buildRaviaExport } from '../../src/lib/raviaExport';
 import { fasseGeschossmeldungen } from '../../src/lib/gebaeudeNetz';
 import { erzeugerBilanz } from '../../src/lib/erzeugerHydraulik';
@@ -81,7 +81,7 @@ export function pruefePraxispruefung(check: CheckFn): void {
     check('Dachraum: eingetragener Wert geht vor', dachraumTemperatur({ ...meta, atticTemperature: 2 }), 2);
     check(
       'Dachraum: nicht mehr die Kellertemperatur',
-      dachraumTemperatur(meta) < meta.unheatedTemperature,
+      dachraumTemperatur(meta) < unbeheizteTemperatur(meta),
       true,
     );
     const exp = buildRaviaExport(ref);
@@ -121,7 +121,7 @@ export function pruefePraxispruefung(check: CheckFn): void {
       check(
         'Wand zum unbeheizten Nachbarn: θ_u statt Solltemperatur',
         f?.neighbourTemperature ?? NaN,
-        doc.meta.unheatedTemperature,
+        unbeheizteTemperatur(doc.meta),
         1e-9,
       );
       check('Wand zum unbeheizten Nachbarn: Nachbar bleibt benannt', f?.neighbourRoomId ?? '', paar.nachbar);

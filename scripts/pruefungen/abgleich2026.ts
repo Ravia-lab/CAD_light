@@ -23,6 +23,8 @@ import { buildPipeNetwork } from '../../src/lib/pipeNetwork';
 import { fluidProperties, freezePoint, waterDensity } from '../../src/lib/hydraulics';
 import { glycolMixture, waterDensity as waterDensitySicherheit } from '../../src/lib/safetyFittings';
 import { buildIfc, schichtenAusText } from '../../src/lib/ifcExport';
+import { migriereUnbeheizt, unbeheizteArtVonRaum, unbeheizteTemperatur, unbeheizterRaumTemperatur } from '../../src/lib/unbeheizt';
+import { buildRaviaExport } from '../../src/lib/raviaExport';
 import { importIfc, parseStep } from '../../src/lib/ifcImport';
 
 function wurzel(): string | undefined {
@@ -85,6 +87,61 @@ export function pruefeAbgleich2026(check: CheckFn): void {
     check('B2 · adiabate Wand: Transmission wie ohne die Wand', adiabat.transmission, ohne.transmission, 0.5);
     check('B2 · adiabate Wand: Öffnungen wie ohne die Wand', adiabat.openings, ohne.openings, 0.5);
     check('B2 · als Außenwand verliert sie dagegen etwas', mit.transmission > adiabat.transmission, true);
+  }
+
+  // -------------------------------------------------------------------------
+  // B1 · θ_u aus b_u und θ_e statt fest 10 °C
+  // -------------------------------------------------------------------------
+  // Vorher: θ_u = 10 °C, unabhängig vom Standort. Das ist bei θ_i = 20 °C und
+  // θ_e = −12 °C ein b_u von 0,31; die Tabellenwerte liegen bei 0,4 … 0,8.
+  // Jetzt θ_u = θ_i − b_u · (θ_i − θ_e), Vorgabe Keller ohne Fenster b_u 0,5:
+  //   θ_e = −12 °C → 20 − 0,5 · 32 = 4,0 °C
+  //   θ_e = −16 °C → 20 − 0,5 · 36 = 2,0 °C
+  //   Keller mit Fenster (0,8), θ_e = −12 °C → 20 − 0,8 · 32 = −5,6 °C
+  // Wohnen EG liegt über dem unbeheizten Keller (U 0,9, ausführliches
+  // Wärmebrückenverfahren, kein Zuschlag): die Kellerdecke verliert mit 4 °C
+  // dahinter A · 0,9 · 6 K mehr als mit 10 °C.
+  {
+    const ohneEintrag = (meta: Partial<BimDocument['meta']>): BimDocument => {
+      const { unheatedTemperature: _u, unheatedTemperatureSource: _q, ...rest } = doc.meta;
+      void _u;
+      void _q;
+      return { ...doc, meta: { ...rest, ...meta } };
+    };
+    const abgeleitet = ohneEintrag({});
+    check('B1 · θu ohne Eintrag bei θe −12 °C [°C]', unbeheizteTemperatur(abgeleitet.meta), 4.0, 1e-9);
+    check('B1 · θu geht mit θe −16 °C mit [°C]',
+      unbeheizteTemperatur(ohneEintrag({ designOutdoorTemperature: -16 }).meta), 2.0, 1e-9);
+    check('B1 · Keller mit Fenster b_u 0,8 [°C]',
+      unbeheizteTemperatur(ohneEintrag({ unheatedKind: 'keller-mit-oeffnung' }).meta), -5.6, 1e-9);
+    check('B1 · eingetragenes θu geht vor [°C]', unbeheizteTemperatur(doc.meta), 10);
+
+    const zeile = (d: BimDocument) => estimateHeatLoad(d).rooms.find((r) => r.name === 'Wohnen EG')!;
+    const raum = Object.values(doc.rooms).find((r) => r.name === 'Wohnen EG')!;
+    check('B1 · Kellerdecke mit θu aus b_u: + A · 0,9 · 6 K [W]',
+      zeile(abgeleitet).transmission - zeile(doc).transmission, raum.area * 0.9 * 6, 1);
+
+    // Unbeheizter Raum im Modell: Art aus Lage und Wänden.
+    const keller = Object.values(doc.rooms).find((r) => r.name === 'Keller')!;
+    const art = unbeheizteArtVonRaum(abgeleitet, keller);
+    check('B1 · Kellerraum unter Gelände ist ein Keller', art.startsWith('keller-'), true);
+    check('B1 · Kellerraum: θu nach seiner Art [°C]', unbeheizterRaumTemperatur(abgeleitet, keller),
+      art === 'keller-mit-oeffnung' ? -5.6 : 4.0, 1e-9);
+
+    // Export: θu steht immer da, mit Herkunft.
+    const proj = (d: BimDocument) => buildRaviaExport(d).project;
+    check('B1 · Export: abgeleitetes θu [°C]', proj(abgeleitet).unheatedTemperature ?? NaN, 4.0);
+    check('B1 · Export: Herkunft b_u', proj(abgeleitet).unheatedTemperatureSource ?? '', 'b_u');
+    check('B1 · Export: eingetragenes θu', proj(doc).unheatedTemperatureSource ?? '', 'eingabe');
+
+    // Laden: die alte Vorgabe 10 °C einer Datei bis 1.72.0 ist keine Eingabe.
+    const alt = proj(doc) as unknown as BimDocument['meta'];
+    delete alt.unheatedTemperatureSource;
+    check('B1 · alte Datei mit 10 °C: θu wird abgeleitet', migriereUnbeheizt(alt).unheatedTemperature ?? 'leer', 'leer');
+    check('B1 · alte Datei mit 7 °C: bleibt als Eingabe',
+      migriereUnbeheizt({ ...alt, unheatedTemperature: 7 }).unheatedTemperatureSource ?? 'leer', 'eingabe');
+    check('B1 · eigener Export (b_u) wird wieder abgeleitet',
+      migriereUnbeheizt(proj(abgeleitet) as unknown as BimDocument['meta']).unheatedTemperature ?? 'leer', 'leer');
   }
 
   // -------------------------------------------------------------------------

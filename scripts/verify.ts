@@ -4,6 +4,7 @@
  * Ausführen:  npm run verify
  */
 
+import { unbeheizteTemperatur } from '../src/lib/unbeheizt';
 import { pruefeRohrlaengen } from './pruefungen/rohrlaengen';
 import { pruefeAbgleich2026 } from './pruefungen/abgleich2026';
 import { pruefePraxispruefung } from './pruefungen/praxispruefung';
@@ -3748,7 +3749,7 @@ console.log('\n▸ Randbedingung von Boden und Decke');
   const unten = buildRaviaExport(ohneUnten).rooms.find((r) => r.level === 'EG');
   const untenBoden = unten?.surfaces.find((s) => s.kind === 'floor');
   check('Ohne Geschoss darunter wird daraus „unbeheizt“', untenBoden?.boundary ?? 'fehlt', 'unheated');
-  check('Mit der Temperatur unbeheizter Bereiche', untenBoden?.neighbourTemperature ?? 0, doc.meta.unheatedTemperature, 0.001);
+  check('Mit der Temperatur unbeheizter Bereiche', untenBoden?.neighbourTemperature ?? 0, unbeheizteTemperatur(doc.meta), 0.001);
 }
 
 console.log('\n▸ Geräteimport');

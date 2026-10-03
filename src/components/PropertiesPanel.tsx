@@ -4,9 +4,10 @@
  * Gebäude-Kennwerte, die man beim Planen ständig im Blick haben will.
  */
 
-import { dachraumTemperatur } from '../lib/unbeheizt';
+import { dachraumTemperatur, UNBEHEIZT_ART_LABELS, UNBEHEIZT_ART_VORGABE, unbeheiztEingetragen, unbeheizteTemperatur } from '../lib/unbeheizt';
 import RaumnameFeld from './RaumnameFeld';
 import type {
+  UnbeheizteArt,
   RatedPowerSource,
   Annotation,
   AnnotationAnchor,
@@ -2735,12 +2736,34 @@ function BuildingSummary() {
             step={1}
             onChange={(v) => updateMeta({ designOutdoorTemperature: v })}
           />
+          {/* Seit 1.73.0 (Befund B1): ohne Eintrag θi − b_u · (θi − θe),
+              b_u nach der Art des unbeheizten Bereichs. */}
           <NumberField
-            label="θu unbeheizt [°C]"
-            value={doc.meta.unheatedTemperature}
+            label={unbeheiztEingetragen(doc.meta) ? 'θu unbeheizt [°C]' : 'θu unbeheizt [°C] (aus b_u)'}
+            value={unbeheizteTemperatur(doc.meta)}
             step={1}
-            onChange={(v) => updateMeta({ unheatedTemperature: v })}
+            onChange={(v) => updateMeta({ unheatedTemperature: v, unheatedTemperatureSource: 'eingabe' })}
           />
+          <label className="col-span-2 flex flex-col gap-0.5 text-[10px] text-graphite-400">
+            Unbeheizter Bereich (b_u)
+            <select
+              className="rounded bg-graphite-800 px-1.5 py-1 text-[11px] text-graphite-100"
+              value={doc.meta.unheatedKind ?? UNBEHEIZT_ART_VORGABE}
+              onChange={(e) =>
+                updateMeta({
+                  unheatedKind: e.target.value as UnbeheizteArt,
+                  unheatedTemperature: undefined,
+                  unheatedTemperatureSource: undefined,
+                })
+              }
+            >
+              {(Object.keys(UNBEHEIZT_ART_LABELS) as UnbeheizteArt[]).map((k) => (
+                <option key={k} value={k}>
+                  {UNBEHEIZT_ART_LABELS[k]}
+                </option>
+              ))}
+            </select>
+          </label>
           {/* Seit 1.72.0: der Dachraum über der obersten Decke hat eine
               eigene Temperatur. Ohne Eintrag θi − 0,9 · (θi − θe). */}
           <NumberField

@@ -205,6 +205,15 @@ export interface Wall {
 
 export type OpeningKind = 'door' | 'window' | 'passage';
 
+/** Art eines unbeheizten Bereichs für den Temperaturkorrekturfaktor b_u (seit 1.73.0). */
+export type UnbeheizteArt =
+  | 'keller-ohne-oeffnung'
+  | 'keller-mit-oeffnung'
+  | 'aussenwand-1'
+  | 'aussenwaende-2'
+  | 'aussenwaende-2-tuer'
+  | 'aussenwaende-3';
+
 /**
  * Die Klartextnamen der Öffnungsarten.
  *
@@ -2815,8 +2824,17 @@ export interface ProjectMeta {
   n50: number;
   /** Abschirmungsklasse des Gebäudes (DIN EN 12831 Tab. B.5). */
   shielding: 'none' | 'moderate' | 'high';
-  /** Temperatur unbeheizter angrenzender Bereiche θ_u [°C] — Keller, Treppenhaus, Abstellraum. */
-  unheatedTemperature: number;
+  /**
+   * Temperatur unbeheizter angrenzender Bereiche θ_u [°C] — Keller,
+   * Treppenhaus, Abstellraum. Nur gesetzt, wenn eingetragen oder von RaVia
+   * übernommen; sonst θ_i − b_u · (θ_i − θ_e) (seit 1.73.0, Befund B1, siehe
+   * `lib/unbeheizt.ts`). Bis 1.72.0 fest 10 °C.
+   */
+  unheatedTemperature?: number;
+  /** Woher θ_u stammt (seit 1.73.0); "b_u" steht nur im Export für einen abgeleiteten Wert. */
+  unheatedTemperatureSource?: 'eingabe' | 'ravia' | 'b_u';
+  /** Art des unbeheizten Bereichs ohne eigenen Raum — bestimmt b_u (seit 1.73.0). */
+  unheatedKind?: UnbeheizteArt;
   /**
    * Temperatur des unbeheizten Dachraums über der obersten Decke [°C]
    * (seit 1.72.0). Fehlt sie, gilt θ_i − 0,9 · (θ_i − θ_e), siehe

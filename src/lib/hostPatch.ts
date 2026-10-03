@@ -450,6 +450,8 @@ export function applyHostPatch(doc: BimDocument, patch: HostPatch, now: string):
         continue;
       }
       (next as unknown as Record<string, unknown>)[key] = geprueft.value;
+      // Ein θ_u von RaVia geht der Ableitung aus b_u vor (Befund B1).
+      if (key === 'unheatedTemperature') next.unheatedTemperatureSource = 'ravia';
       touched = true;
       entries.push(applied(`meta.${key}`, feld.label, asPrintable(before), asPrintable(geprueft.value)));
     }

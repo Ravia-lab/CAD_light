@@ -128,6 +128,7 @@ import { ACCESSORY_LABELS } from '../lib/pipeAccessorySymbols';
 import { hoehenText } from '../lib/beschriftung3d';
 import { normleistungAusRaumlast, zieheHeizflaechenNach } from '../lib/heizflaechenAbgleich';
 import { heizleistung, migriereFixtures, mitLeistung } from '../lib/normleistung';
+import { migriereUnbeheizt } from '../lib/unbeheizt';
 import { rohrlaenge } from '../lib/rohrlaenge';
 import { istHeizflaeche } from '../lib/heizflaechenLeistung';
 import { hinweiseZuRaeumen, leseVerworfene, type RaumverlustHinweis } from '../lib/verworfeneRaeume';
@@ -301,7 +302,7 @@ function emptyDocument(): BimDocument {
       designIndoorTemperature: 20,
       n50: 3,
       shielding: 'moderate',
-      unheatedTemperature: 10,
+      // θ_u bleibt leer: dann gilt θ_i − b_u · (θ_i − θ_e), siehe lib/unbeheizt.ts (Befund B1).
       groundTemperature: 10,
       // 0,10 W/(m²·K) ist der Zuschlag ohne Nachweis nach DIN 4108 Beiblatt 2 —
       // die sichere Seite, solange niemand die Anschlüsse betrachtet hat.
@@ -6817,6 +6818,8 @@ export const useBimStore = create<BimState>()((set, get) => {
 
       const fresh = emptyDocument();
       fresh.meta = { ...fresh.meta, ...(raw.project as object), modifiedAt: new Date().toISOString() };
+      // Befund B1: die alte feste Vorgabe θ_u = 10 °C ist keine Eingabe.
+      fresh.meta = migriereUnbeheizt(fresh.meta);
       /*
        * Nutzungseinheiten (Export 2.10.0). Die Räume werden beim Öffnen neu
        * erkannt, die Einheiten nicht: Sie stehen als eigene Liste in der Datei
