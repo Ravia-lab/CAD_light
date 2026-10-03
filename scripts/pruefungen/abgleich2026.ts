@@ -76,4 +76,26 @@ export function pruefeAbgleich2026(check: CheckFn): void {
     check('B2 · adiabate Wand: Öffnungen wie ohne die Wand', adiabat.openings, ohne.openings, 0.5);
     check('B2 · als Außenwand verliert sie dagegen etwas', mit.transmission > adiabat.transmission, true);
   }
+
+  // -------------------------------------------------------------------------
+  // B3 · Überschlag rechnet die Dachflächen
+  // -------------------------------------------------------------------------
+  // Referenzhaus, Wohnen OG unter dem Satteldach (40°, U_Dach 0,18,
+  // ausführliches Wärmebrückenverfahren, also kein Zuschlag):
+  //   Dachfläche 57,41 m² · 0,18 · (20 − (−12)) = 330,7 W
+  // Vorher stand stattdessen die Grundfläche als Decke zum Dachraum:
+  //   43,98 m² · 0,20 · (20 − (−8,8))           = 253,3 W   (θ Dachraum
+  //   nach Recknagel 20 − 0,9 · 32 = −8,8 °C)
+  // Kehlbalkenlage gibt es keine (flatCeilingArea 0), also fällt die Decke weg.
+  // Erwartung: Transmission 595 − 253,3 + 330,7 = 672,4 → 672 W.
+  // Bad OG (24 °C): 37,48 · 0,18 · 36 = 242,9 W statt 28,71 · 0,2 · 32,8 = 188,3 W
+  // → 587 − 188,3 + 242,9 = 641,6 → 642 W.
+  {
+    const zeilen = estimateHeatLoad(doc).rooms;
+    const t = (name: string) => zeilen.find((r) => r.name === name)?.transmission ?? -1;
+    check('B3 · Wohnen OG mit Dachfläche statt Decke [W]', t('Wohnen OG'), 672, 1);
+    check('B3 · Bad OG mit Dachfläche statt Decke [W]', t('Bad OG'), 642, 1);
+    // Ein Geschoss ohne Dach bleibt unberührt.
+    check('B3 · Wohnen EG unverändert [W]', t('Wohnen EG'), 787, 0.5);
+  }
 }

@@ -51,7 +51,23 @@ import type {
   SchematicKind,
   SchematicLink,
 } from '../../src/types/bim';
-import { buildSchematic, designPlant } from '../../src/lib/plantDesign';
+import { buildSchematic, designPlant as designPlantRoh, type PlantDesignOptions } from '../../src/lib/plantDesign';
+import type { BimDocument as Dokument } from '../../src/types/bim';
+
+/**
+ * Die Gebäudeheizlast, mit der dieser Block rechnet [kW].
+ *
+ * Fest eingetragen seit 1.73.0. Dieser Block prüft das **Bild** — welche
+ * Bauteile wo stehen —, nicht die Heizlast. Mit dem Überschlag als Quelle hing
+ * das Bild an jeder Änderung des Überschlags: Als die Dachflächen dazukamen
+ * (Befund B3, 5,74 → 5,88 kW), wählte die Auslegung statt des 8-kW-Monoblocks
+ * eine 9-kW-Hydrosplit mit eingebauter Pumpe, und die Abschnitte zur externen
+ * Pumpe hatten nichts mehr zu prüfen. 5,74 kW ist der Überschlag des
+ * Referenzhauses bis 1.72.0; Gerät und Pumpe sind damit dieselben wie zuvor.
+ */
+const REFERENZ_HEIZLAST = 5.74;
+const designPlant = (doc: Dokument, options: PlantDesignOptions = {}) =>
+  designPlantRoh(doc, { heatLoad: REFERENZ_HEIZLAST, ...options });
 import { anlageAusAntworten } from '../../src/lib/anlagenFragen';
 import { uebersichtsschema } from '../../src/lib/schemaUebersicht';
 import { leitungsverlauf } from '../../src/lib/schemaLeitung';

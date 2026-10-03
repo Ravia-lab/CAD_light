@@ -39,10 +39,14 @@
 import { dachraumTemperatur, istUnbeheizterNachbar } from './unbeheizt';
 import type { BimDocument, Room, RoomBoundary, RoomHeatLoad as NormRoomHeatLoad } from '../types/bim';
 import { gradeSplit, isMassiveArea } from './roomDetection';
+import { dachUeberRaum } from './dachlandschaft';
+import { pointInPolygon } from './geometry';
+import { DACH_VORGABE } from '../types/bim';
 import {
   BAUTEIL_BEZEICHNUNG,
   istErfasst,
   uWertBoden,
+  uWertDach,
   uWertDecke,
   uWertWand,
   type UWertAuskunft,
@@ -384,9 +388,39 @@ function roomLoad(
       meldeLuecke(bodenU, room.area, 'Boden');
       transmission += room.area * (floorU + flat) * dtFloor;
     }
-    if (dtCeiling > 0) {
-      meldeLuecke(deckeU, room.area, 'Decke');
-      transmission += room.area * (ceilingU + flat) * dtCeiling;
+    /*
+     * B3 · Unter einem geneigten Dach ist die obere Begrenzung die
+     * Dachfläche (gegen Außenluft) und nur der Rest eine waagerechte Decke —
+     * dieselbe Aufteilung wie im Export (`room.roof`). Bis 1.72.0 rechnete
+     * der Überschlag hier die Grundfläche als Decke und ließ die Dachfläche,
+     * im Dachgeschoss den größten Verlustweg, ganz weg.
+     */
+    const dach = dachUeberRaum(level, room.id);
+    const schraege = dach && dach.kind !== 'flat' && room.roof && room.roof.slopedArea > 0.05 ? room.roof : undefined;
+    const deckenFlaeche = schraege ? schraege.flatCeilingArea : room.area;
+    if (dtCeiling > 0 && deckenFlaeche > 0.05) {
+      meldeLuecke(deckeU, deckenFlaeche, 'Decke');
+      transmission += deckenFlaeche * (ceilingU + flat) * dtCeiling;
+    }
+    if (dach && schraege) {
+      const dachU = uWertDach(dach, doc.constructions);
+      // Ohne erfassten Wert der Vorgabewert wie im Export — dort steht er als
+      // Annahme in der Fläche, hier darf er nicht fehlen, sonst stünde die
+      // größte Fläche des Dachgeschosses mit 0 W in der Bilanz.
+      const uDach = (dachU.wert ?? DACH_VORGABE.uValue) + flat;
+      const dtAussen = inside - doc.meta.designOutdoorTemperature;
+      const fenster = Object.values(doc.roofOpenings ?? {}).filter(
+        (o) =>
+          o.levelId === room.levelId &&
+          o.kind === 'skylight' &&
+          room.innerPolygon.length >= 3 &&
+          pointInPolygon(o.position, room.innerPolygon),
+      );
+      const fensterFlaeche = Math.min(schraege.slopedArea, fenster.reduce((sum, o) => sum + o.width * o.depth, 0));
+      if (dtAussen > 0) {
+        transmission += (schraege.slopedArea - fensterFlaeche) * uDach * dtAussen;
+        for (const o of fenster) openings += o.width * o.depth * ((o.uValue ?? DEFAULT_WINDOW_U) + flat) * dtAussen;
+      }
     }
   }
 
