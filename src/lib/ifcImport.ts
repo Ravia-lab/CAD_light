@@ -24,7 +24,7 @@
  */
 
 import type { BimNode, Opening, OpeningKind, Vec2, Wall, WallType } from '../types/bim';
-import { VORGABE_U } from './uwert';
+import { U_FENSTER_BESTAND, U_TUER_BESTAND, VORGABE_U } from './uwert';
 
 /*
  * U-Werte beim Import — **eine Quelle für die Wand, eine begründete Ausnahme
@@ -69,10 +69,6 @@ import { VORGABE_U } from './uwert';
  * Dass der Durchgang dort ausgenommen ist, ist eine Ausnahme mehr, auf die
  * sich niemand verlassen sollte.
  */
-/** U-Wert eines importierten Fensters [W/(m²·K)] — Zweischeiben-Bestand. */
-const U_FENSTER_BESTAND = 1.3;
-/** U-Wert einer importierten Tür [W/(m²·K)] — Innentür aus dem Aufbaukatalog. */
-const U_TUER_BESTAND = 1.8;
 
 // ---------------------------------------------------------------------------
 // STEP-Parser

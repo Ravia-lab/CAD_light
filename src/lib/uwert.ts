@@ -106,6 +106,31 @@ export const VORGABE_U = {
   passage: 0,
 } as const satisfies Record<WallType | OpeningKind, number>;
 
+/**
+ * Vorgabe-U-Werte für Öffnungen aus einem Aufmaß im Bestand [W/(m²·K)].
+ *
+ * Bewusst nicht `VORGABE_U` (0,95 / 1,6): Das sind Neubauwerte, und ein Scan
+ * oder Raumplan zeigt Bestand. 1,3 ist das Zweischeiben-Wärmeschutzfenster
+ * mittleren Alters, 1,8 die Innentür aus dem Aufbaukatalog. Beide zu senken
+ * hieße, die Heizlast nach unten zu schätzen, also in die Richtung, in der ein
+ * zu kleines Gerät herauskommt. Der Überschlag rechnet Öffnungen ohne U-Wert
+ * mit demselben Fensterwert.
+ *
+ * Seit 1.73.0 (Befund F2) stehen sie nur noch hier; vorher führten
+ * `ifcImport.ts`, `raumplanImport.ts` und `heatLoadEstimate.ts` je eine
+ * eigene Abschrift.
+ */
+export const U_FENSTER_BESTAND = 1.3;
+export const U_TUER_BESTAND = 1.8;
+
+/**
+ * Vorgaben für Boden und Decke eines Geschosses, das der Import neu anlegt
+ * [W/(m²·K)]: Sohle gegen Erdreich und Geschossdecke zwischen zwei beheizten
+ * Geschossen. Vorher als `SOHLE_U` / `DECKE_U` in `importgeschoss.ts`.
+ */
+export const U_SOHLE_NEUES_GESCHOSS = 0.35;
+export const U_GESCHOSSDECKE = 0.9;
+
 /** Klartext für die Bauteilart — für Meldungen und Lückenlisten. */
 export const BAUTEIL_BEZEICHNUNG: Record<WallType | OpeningKind, string> = {
   exterior: 'Außenwand',

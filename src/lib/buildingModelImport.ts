@@ -40,12 +40,10 @@
 
 import type { BimNode, Fixture, FixtureType, Opening, OpeningKind, RoofKind, RoomUsage, ScanDachHerkunft, Vec2, Wall, WallType } from '../types/bim';
 export type { ScanDachHerkunft } from '../types/bim';
-import { VORGABE_U } from './uwert';
+import { U_FENSTER_BESTAND, U_TUER_BESTAND, VORGABE_U } from './uwert';
 import {
   bauart,
   teileAnStoessen,
-  U_FENSTER_BESTAND,
-  U_TUER_BESTAND,
   type Annahme,
   type RaumHinweis,
   type RaumplanGeschoss,

@@ -159,4 +159,24 @@ export function pruefeAbgleich2026(check: CheckFn): void {
     check('F3 · Wärmepumpenblatt rechnet über leistungsbedarf()',
       quelle('src/components/HeatPumpPanel.tsx').includes('leistungsbedarf(doc'), true);
   }
+  // -------------------------------------------------------------------------
+  // F2 · U-Vorgaben stehen in einer Datei
+  // -------------------------------------------------------------------------
+  // Quellprobe: Keine andere Datei schreibt die Vorgaben noch als Zahl ab.
+  // Gegen eine Zahl im Code hilft nur der Blick in den Code.
+  {
+    const abschriften = [
+      ['src/lib/ifcImport.ts', /const U_(FENSTER|TUER)_BESTAND\s*=\s*\d/],
+      ['src/lib/raumplanImport.ts', /const U_(FENSTER|TUER)_BESTAND\s*=\s*\d/],
+      ['src/lib/heatLoadEstimate.ts', /DEFAULT_WINDOW_U\s*=\s*\d/],
+      ['src/lib/importgeschoss.ts', /(SOHLE|DECKE)_U\s*=\s*\d/],
+      ['src/store/useBimStore.ts', /wallDefaults:\s*\{[^}]*uValue:\s*\d/],
+    ] as const;
+    for (const [datei, muster] of abschriften) {
+      check(`F2 · ${datei.split('/').pop()} schreibt keine U-Vorgabe ab`, muster.test(quelle(datei)), false);
+    }
+    const uwert = quelle('src/lib/uwert.ts');
+    check('F2 · uwert.ts führt die Bestandswerte',
+      /U_FENSTER_BESTAND = 1\.3;/.test(uwert) && /U_TUER_BESTAND = 1\.8;/.test(uwert), true);
+  }
 }

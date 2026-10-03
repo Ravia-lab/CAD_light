@@ -37,7 +37,7 @@
  */
 
 import { vorzugsrichtung } from './geometry';
-import { VORGABE_U } from './uwert';
+import { U_FENSTER_BESTAND, U_TUER_BESTAND, VORGABE_U } from './uwert';
 import type {
   BimNode,
   Opening,
@@ -254,10 +254,6 @@ const BRUESTUNGS_HOEHE = 1.6;
  *     ihn selbst mit 0. Eine erfasste 0 am Bauteil ist seit 1.23.0 die
  *     Eingabe, die `validation.ts` als unplausibel meldet.
  */
-/** U-Wert eines importierten Fensters [W/(m²·K)] — Zweischeiben-Bestand. */
-export const U_FENSTER_BESTAND = 1.3;
-/** U-Wert einer importierten Tür [W/(m²·K)] — Innentür aus dem Aufbaukatalog. */
-export const U_TUER_BESTAND = 1.8;
 
 /**
  * Querabstand, bis zu dem ein Wandende als *auf* einer fremden Wand sitzend

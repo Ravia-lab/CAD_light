@@ -45,6 +45,7 @@ import { DACH_VORGABE } from '../types/bim';
 import {
   BAUTEIL_BEZEICHNUNG,
   istErfasst,
+  U_FENSTER_BESTAND,
   uWertBoden,
   uWertDach,
   uWertDecke,
@@ -456,7 +457,7 @@ function roomLoad(
  * systematisch zu niedrig liegt. Wer es genauer braucht, exportiert und lässt
  * RaVia rechnen: dort steht der U-Wert jeder einzelnen Öffnung.
  */
-export const DEFAULT_WINDOW_U = 1.3;
+export const DEFAULT_WINDOW_U = U_FENSTER_BESTAND;
 
 /**
  * Einordnung der spezifischen Heizlast.

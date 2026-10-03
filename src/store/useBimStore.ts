@@ -106,6 +106,7 @@ export function pipeLength(points: readonly Vec2[]): number {
 /** Voreinstellung für ein neues Dach — siehe `DACH_VORGABE` in den Typen. */
 const DEFAULT_ROOF: RoofDefinition = DACH_VORGABE;
 import { anlageAusAntworten } from '../lib/anlagenFragen';
+import { VORGABE_U } from '../lib/uwert';
 import { doppelteWaende, gespiegelt } from '../lib/doppelwaende';
 import { erkenneSkizze } from '../lib/skizze';
 import {
@@ -2306,7 +2307,7 @@ export const useBimStore = create<BimState>()((set, get) => {
     orthoLock: false,
     openingPreset: OPENING_PRESETS[2],
     activeFixture: 'radiator',
-    wallDefaults: { thickness: 0.24, height: 2.75, type: 'exterior', uValue: 0.24 },
+    wallDefaults: { thickness: 0.24, height: 2.75, type: 'exterior', uValue: VORGABE_U.exterior },
     openingDefaults: {
       doorWidth: 0.885,
       doorHeight: 2.01,

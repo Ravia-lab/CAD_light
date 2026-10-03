@@ -42,6 +42,7 @@
 
 import type { BoundaryCondition, Level } from '../types/bim';
 import { DEFAULT_SLAB, geschossName, istLagename } from './levelGeometry';
+import { U_GESCHOSSDECKE, U_SOHLE_NEUES_GESCHOSS } from './uwert';
 
 export interface GeschossZuordnung {
   levels: readonly Level[];
@@ -71,10 +72,10 @@ export interface GeschossZuordnungPlan {
   hinweis?: string;
 }
 
-/** Bodenaufbau eines neu erfundenen Geschosses gegen Erdreich. */
-const SOHLE_U = 0.35;
-/** Geschossdecke zwischen zwei beheizten Geschossen. */
-const DECKE_U = 0.9;
+/** Bodenaufbau eines neu erfundenen Geschosses gegen Erdreich — Vorgabe aus `uwert.ts`. */
+const SOHLE_U = U_SOHLE_NEUES_GESCHOSS;
+/** Geschossdecke zwischen zwei beheizten Geschossen — Vorgabe aus `uwert.ts`. */
+const DECKE_U = U_GESCHOSSDECKE;
 
 export function planeGeschosszuordnung(eingabe: GeschossZuordnung): GeschossZuordnungPlan {
   const { levels, quelleId, ordnung, uid } = eingabe;
