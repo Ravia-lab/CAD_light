@@ -441,7 +441,13 @@ export function buildRaviaExport(doc: BimDocument): RaviaExport {
     geometry: {
       nodes: Object.values(doc.nodes),
       walls: Object.values(doc.walls),
-      openings: Object.values(doc.openings),
+      // Ältere Importe (Scan, Raumplan, IFC) schrieben an jede Öffnung ein
+      // `layerId`, das der Typ nicht kennt — gespeicherte Projekte tragen es
+      // noch. Es fällt hier weg, sonst ist die Datei nicht schemagültig.
+      openings: Object.values(doc.openings).map((o) => {
+        const { layerId: _ebene, ...rest } = o as Opening & { layerId?: unknown };
+        return rest;
+      }),
       fixtures: Object.values(doc.fixtures),
       verticals: Object.values(doc.verticals ?? {}),
       solids: Object.values(doc.solids ?? {}),

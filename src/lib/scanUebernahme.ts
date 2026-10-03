@@ -20,7 +20,7 @@
 
 import type { Annotation, Level, Room, Vec2 } from '../types/bim';
 import { DACH_VORGABE } from '../types/bim';
-import { pointInPolygon } from './geometry';
+import { innererPunkt, pointInPolygon, polygonArea } from './geometry';
 import type { BuildingImportErgebnis } from './buildingModelImport';
 import type { RaumHinweis } from './raumplanImport';
 
@@ -169,8 +169,9 @@ export function benenneRaeume(
  * `heated` im Scan bedeutet dasselbe wie `isHeated` hier).
  *
  * Zugeordnet wird über die Lage, wie beim Namen: Ein erkannter Raum, dessen
- * Schwerpunkt in der Fläche eines Scanraums liegt — oder in dem der
- * Mittelpunkt des Scanraums liegt —, übernimmt dessen Angabe.
+ * innerer Punkt in der Fläche eines Scanraums liegt — bei mehreren in der
+ * kleinsten — oder in dem der Mittelpunkt des Scanraums liegt, übernimmt
+ * dessen Angabe.
  *
  * @returns Zahl der Räume, deren Angabe sich geändert hat.
  */
@@ -181,10 +182,19 @@ export function uebernimmBeheizung(
   let geaendert = 0;
   for (const raum of Object.values(doc.rooms)) {
     if (raum.polygon.length < 3) continue;
-    const s = schwerpunkt(raum.polygon);
-    const treffer = liste.find(
-      (b) => b.levelId === raum.levelId && (pointInPolygon(s, b.flaeche) || pointInPolygon(b.punkt, raum.polygon)),
-    );
+    /*
+     * Ein Punkt sicher im Raum (bei L-Formen liegt der Schwerpunkt außen),
+     * und unter den Scanräumen, die ihn enthalten, der **kleinste**: Ein
+     * Bereich über das ganze Geschoss darf die Angabe eines Einzelraums
+     * darin nicht überdecken (Feldscan-Abnahme 1.73.0). Erst wenn keine
+     * Fläche passt, gilt der Mittelpunkt des Scanraums im Raum.
+     */
+    const s = innererPunkt(raum.polygon);
+    const kandidaten = liste
+      .filter((b) => b.levelId === raum.levelId && pointInPolygon(s, b.flaeche))
+      .sort((x, y) => polygonArea(x.flaeche) - polygonArea(y.flaeche));
+    const treffer =
+      kandidaten[0] ?? liste.find((b) => b.levelId === raum.levelId && pointInPolygon(b.punkt, raum.polygon));
     if (!treffer || raum.isHeated === treffer.heated) continue;
     doc.rooms[raum.id] = { ...raum, isHeated: treffer.heated };
     geaendert++;

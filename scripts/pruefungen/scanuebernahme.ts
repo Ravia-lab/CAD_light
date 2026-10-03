@@ -38,13 +38,21 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import type { CheckFn } from './typ';
 import type { BimDocument, Level, Room } from '../../src/types/bim';
+import { DEFAULT_CONSTRUCTIONS } from '../../src/types/bim';
 import { importBuildingModel } from '../../src/lib/buildingModelImport';
 import { detectRooms } from '../../src/lib/roomDetection';
 import { baueDachlandschaft, dachteilAn, daecherVon, dachUeberRaum } from '../../src/lib/dachlandschaft';
-import { benenneRaeume, pruefpunkteAlsHinweise, scanDachZuordnen } from '../../src/lib/scanUebernahme';
+import { benenneRaeume, pruefpunkteAlsHinweise, scanDachZuordnen, uebernimmBeheizung } from '../../src/lib/scanUebernahme';
+import { buildRaviaExport } from '../../src/lib/raviaExport';
+import { pruefeGegenSchema, type Schema } from '../vertrag/pruefeSchema';
 import { validateModel } from '../../src/lib/validation';
-import { pointInPolygon } from '../../src/lib/geometry';
+import { pointInPolygon, polygonArea } from '../../src/lib/geometry';
 import { emptyPlant, emptySite } from '../../src/lib/plantDefaults';
+
+const SCHEMA = join(process.cwd(), 'ravia-vertrag', 'schema', 'ravia.bim.light-2.15.0.schema.json');
+const schema = (): Schema => JSON.parse(readFileSync(SCHEMA, 'utf8')) as Schema;
+/** Geprüft wird die Datei, wie sie geschrieben wird — `undefined` fällt dabei weg. */
+const alsDatei = (e: unknown): unknown => JSON.parse(JSON.stringify(e));
 
 const DATEI = join(process.cwd(), 'scripts', 'referenz', 'scan-wohnung-2026-10-02.json');
 
@@ -229,6 +237,72 @@ export function pruefeScanUebernahme(check: CheckFn): void {
     check('Prüfung · … am Flügel', befunde[0]?.target?.id ?? '', fluegel.id);
     check('Prüfung · … im Wortlaut des Auftrags', befunde[0]?.message.includes('Dach über diesem Gebäudeteil nicht erfasst — prüfen') ?? false, true);
     check('Prüfung · Warnung', befunde[0]?.severity ?? '', 'warning');
+  }
+
+  // --- Abnahme 1.73.0: beheizt/unbeheizt aus dem Scan, Export 2.15.0 --------
+  /*
+   * Der Feldscan selbst trägt kein `heated` (Schema 1.10.0) — die Abnahme
+   * „unbeheizte Räume kommen unbeheizt an" wird deshalb an zwei Abwandlungen
+   * derselben Datei gezeigt: (a) der Monteursbereich „Manu" unbeheizt, (b)
+   * „Manu" beheizt und ein zweiter Scanraum über dem Flügel unbeheizt. Bei
+   * (b) liegt der Flügel in beiden Flächen; die engere muss gewinnen, sonst
+   * überdeckt der Bereich jede Einzelangabe.
+   */
+  {
+    const dokument = (raeumeListe: Room[]): BimDocument =>
+      ({
+        // Projektdaten wie ein neues Projekt im Store (emptyDocument).
+        version: 1,
+        meta: {
+          name: 'Feldscan', createdAt: '2026-10-02T00:00:00.000Z', modifiedAt: '2026-10-02T00:00:00.000Z', northAngle: 0,
+          designOutdoorTemperature: -12, designIndoorTemperature: 20, n50: 3, shielding: 'moderate', groundTemperature: 10,
+          thermalBridgeSupplement: 0.1, thermalBridgeMethod: 'flat', thermalBridgeCategory: 'none', reheatFactor: 0,
+        },
+        levels, nodes, walls: Object.fromEntries(r.walls.map((w) => [w.id, w])),
+        openings: Object.fromEntries(r.openings.map((o) => [o.id, o])),
+        rooms: Object.fromEntries(raeumeListe.map((x) => [x.id, structuredClone(x)])),
+        fixtures: {}, verticals: {}, solids: {}, annotations: {}, pipes: {}, pipeAccessories: {}, durchbrueche: {},
+        roofOpenings: {}, constructions: Object.fromEntries(DEFAULT_CONSTRUCTIONS.map((c) => [c.id, c])), layers: {}, plant: emptyPlant(), site: emptySite(),
+        diagnostics: { openEnds: [], closure: [] }, activeLevelId: 'level-0',
+      }) as unknown as BimDocument;
+    const fl = zweite.find((x) => x.id === fluegel.id)!;
+
+    const ohne = dokument(zweite);
+    check('Abnahme · Feldscan ohne heated: keine Angabe übernommen', uebernimmBeheizung(ohne, r.raumBeheizung), 0);
+    const e0 = buildRaviaExport(ohne);
+    check('Abnahme · Export-Fassung 2.15.0', e0.version, '2.15.0');
+    check('Abnahme · Export des Feldscans schemagültig', pruefeGegenSchema(schema(), alsDatei(e0)).join(' | '), '');
+
+    {
+      // Gespeicherte Projekte aus älteren Importen tragen `layerId` an Öffnungen.
+      const alt = dokument(zweite);
+      const erste = Object.values(alt.openings)[0]!;
+      alt.openings[erste.id] = { ...erste, layerId: 'layer-openings' } as typeof erste;
+      check('Abnahme · Öffnung mit altem layerId: Export schemagültig', pruefeGegenSchema(schema(), alsDatei(buildRaviaExport(alt))).join(' | '), '');
+    }
+
+    const a = structuredClone(roh);
+    a.rooms[0].heated = false;
+    const ra = importBuildingModel(a);
+    const docA = dokument(zweite);
+    check('Abnahme (a) · Scan „Manu" unbeheizt → elf Räume unbeheizt', uebernimmBeheizung(docA, ra.raumBeheizung), 11);
+    const eA = buildRaviaExport(docA);
+    check('Abnahme (a) · im Export kein Raum beheizt', eA.rooms.filter((x) => x.isHeated).length, 0);
+    check('Abnahme (a) · Export schemagültig', pruefeGegenSchema(schema(), alsDatei(eA)).join(' | '), '');
+
+    const b = structuredClone(roh);
+    b.rooms[0].heated = true;
+    b.rooms.push({ ...structuredClone(roh.rooms[0]), id: 'r-002', name: 'Abstellraum', heated: false, polygon: fl.polygon, area: polygonArea(fl.polygon) });
+    const rb = importBuildingModel(b);
+    const docB = dokument(zweite);
+    uebernimmBeheizung(docB, rb.raumBeheizung);
+    check('Abnahme (b) · Flügel unbeheizt (engere Fläche gewinnt)', docB.rooms[fl.id].isHeated, false);
+    check('Abnahme (b) · die zehn übrigen beheizt', Object.values(docB.rooms).filter((x) => x.isHeated !== false).length, 10);
+    const eB = buildRaviaExport(docB);
+    const flExport = eB.rooms.find((x) => x.id === fl.id);
+    check('Abnahme (b) · Flügel im Export unbeheizt', flExport?.isHeated ?? 'fehlt', false);
+    check('Abnahme (b) · θu im Export aus b_u (kein fester Wert)', eB.project.unheatedTemperatureSource ?? 'fehlt', 'b_u');
+    check('Abnahme (b) · Export schemagültig', pruefeGegenSchema(schema(), alsDatei(eB)).join(' | '), '');
   }
 
   // --- Prüfpunkte als Fahnen -------------------------------------------------

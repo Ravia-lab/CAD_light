@@ -478,7 +478,6 @@ export function importBuildingModel(data: unknown): BuildingImportErgebnis {
       width: rund(o.width),
       height: rund(o.height),
       sillHeight: rund(kind === 'window' ? Math.max(0, o.sillHeight) : 0),
-      layerId: 'layer-openings',
       ...(kind === 'window' ? { uValue: U_FENSTER_BESTAND, gValue: 0.6 } : kind === 'door' ? { uValue: U_TUER_BESTAND } : {}),
       ...(zahl(o.confidence) ? { confidence: rund(o.confidence, 2) } : {}),
       ...bauart(kind, o.width, o.height, o.sillHeight),

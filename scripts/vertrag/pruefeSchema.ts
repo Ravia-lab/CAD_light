@@ -9,7 +9,7 @@
  * Schlüsselwort vor, meldet die Prüfung das, statt es zu übergehen.
  */
 
-type Schema = Record<string, unknown>;
+export type Schema = Record<string, unknown>;
 
 const BEKANNT = new Set([
   '$schema', '$id', '$ref', '$defs', 'title', 'description', 'type', 'const', 'enum', 'properties',

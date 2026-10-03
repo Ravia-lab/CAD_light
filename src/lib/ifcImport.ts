@@ -2028,7 +2028,6 @@ export function importIfc(text: string): IfcImportResult {
       width: Math.round(width * 1000) / 1000,
       height: Math.round(height * 1000) / 1000,
       sillHeight: Math.round(sill * 1000) / 1000,
-      layerId: 'layer-openings',
       ...(kind === 'window'
         ? { uValue: U_FENSTER_BESTAND }
         : kind === 'door'

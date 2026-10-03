@@ -791,7 +791,6 @@ export function importRaumplan(text: string): RaumplanImportErgebnis {
         width: rund(breite),
         height: rund(hoehe),
         sillHeight: rund(sill),
-        layerId: 'layer-openings',
         ...(kind === 'window'
           ? { uValue: U_FENSTER_BESTAND }
           : kind === 'door'
