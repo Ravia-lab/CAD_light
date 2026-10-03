@@ -36,6 +36,7 @@
  * 2,46 m je Rohr, 4,92 m für Vor- und Rücklauf.
  */
 
+import { raumlastAusLeistung } from './raumlast';
 import type { BimDocument, BimNode, Fixture, Level, Room, Wall } from '../../src/types/bim';
 import { detectRooms } from '../../src/lib/roomDetection';
 import { emptyPlant, emptySite } from '../../src/lib/plantDefaults';
@@ -139,7 +140,8 @@ export function baueHaus(optionen: { speicherGeschoss?: 'kg' | 'eg'; schacht?: b
     const raum = Object.values(doc.rooms).find((r) => r.levelId === f.levelId);
     if (raum) f.roomId = raum.id;
   }
-  return doc;
+  // Befund A2: Volumenströme folgen der Raumlast — siehe raumlast.ts.
+  return raumlastAusLeistung(doc);
 }
 
 export function pruefeSteigleitung(check: CheckFn): void {

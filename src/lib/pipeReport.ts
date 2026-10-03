@@ -29,6 +29,7 @@
  * gefährlicher als eines, das gar nicht rechnet.
  */
 
+import { leistungJeVerbraucher } from './verbraucherlast';
 import type {
   BimDocument,
   PipeAccessory,
@@ -445,6 +446,8 @@ export function buildPipeReport(doc: BimDocument, options: RohrnetzOptionen = {}
   const abgleich = balanceNetwork({
     network: netz,
     fixtures: doc.fixtures,
+    // Befund A2: Volumenstrom aus der Raumheizlast, nicht aus der Normleistung.
+    powerByFixture: leistungJeVerbraucher(doc),
     spread: spreizung,
     material: werkstoff,
     fluid,

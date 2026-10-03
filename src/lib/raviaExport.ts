@@ -26,6 +26,7 @@
  * Projektdatei taugt.
  */
 
+import { leistungJeVerbraucher } from './verbraucherlast';
 import { heizleistung } from './normleistung';
 import { dachraumTemperatur, istUnbeheizterNachbar } from './unbeheizt';
 import type {
@@ -274,6 +275,8 @@ export function buildRaviaExport(doc: BimDocument): RaviaExport {
       ? balanceNetwork({
             network: netz,
             fixtures: doc.fixtures,
+            // Befund A2: Volumenstrom aus der Raumheizlast.
+            powerByFixture: leistungJeVerbraucher(doc),
             ...(auslegung
               ? {
                   spread: Math.max(2, auslegung.flowTemperature - auslegung.returnTemperature),

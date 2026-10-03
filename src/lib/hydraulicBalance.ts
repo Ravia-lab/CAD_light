@@ -49,6 +49,7 @@
  *    `MIN_PRESET_PRESSURE` und `MAX_PRESET_PRESSURE`.
  */
 
+import { istEn442 } from './normleistung';
 import type {
   Fixture,
   PipeDimension,
@@ -271,7 +272,9 @@ export const HEATING_CONSUMER_TYPES: readonly string[] = [
  * im Bericht.
  */
 export const DEFAULT_POWER_BY_TYPE: Record<string, number> = Object.fromEntries(
-  FIXTURE_LIBRARY.filter((d) => d.params.powerW !== undefined).map((d) => [d.type, d.params.powerW ?? 0]),
+  // Heizkörper fehlen hier mit Absicht: Ihre Vorbelegung ist eine
+  // Normleistung bei 75/65/20 °C und keine Leistung im Auslegungsfall (A2).
+  FIXTURE_LIBRARY.filter((d) => !istEn442(d.type) && d.params.powerW !== undefined).map((d) => [d.type, d.params.powerW ?? 0]),
 );
 
 /**
@@ -379,7 +382,11 @@ export interface BalanceInput {
    * beides wird angenommen — der Store hält sie als Record, Exporte als Liste.
    */
   fixtures?: Record<string, Fixture> | readonly Fixture[];
-  /** Leistung je Verbraucher [W]; überschreibt `Fixture.params.powerW`. */
+  /**
+   * Leistung je Verbraucher im Auslegungsfall [W] — die Raumheizlast, siehe
+   * `leistungJeVerbraucher` in `verbraucherlast.ts` (Befund A2). Überschreibt
+   * `Fixture.params.powerW`.
+   */
   powerByFixture?: Record<string, number>;
   /** Spreizung Vorlauf minus Rücklauf [K]. Vorgabe `DEFAULT_SPREAD`. */
   spread?: number;
@@ -683,7 +690,9 @@ function consumerPower(
   const given = input.powerByFixture?.[path.fixtureId];
   if (given !== undefined && Number.isFinite(given) && given > 0) return { power: given, assumed: false };
 
-  const own = fixture?.params.powerW;
+  // Befund A2: Die Normleistung eines Heizkörpers ist keine Auslegungs-
+  // leistung. Ohne übergebene Raumlast gilt sie deshalb nicht als Angabe.
+  const own = fixture && !istEn442(fixture.type) ? fixture.params.powerW : undefined;
   if (own !== undefined && Number.isFinite(own) && own > 0) return { power: own, assumed: false };
 
   const byType = DEFAULT_POWER_BY_TYPE[path.fixtureType];

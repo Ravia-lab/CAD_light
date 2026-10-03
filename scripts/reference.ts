@@ -122,10 +122,11 @@ export function buildReferenceDocument(): BimDocument {
       return id;
     };
     fx('hk1', 'radiator', 'heating', { x: 3, y: 0.4 }, {
-      powerW: 1400, flowTemperature: 55, returnTemperature: 45,
+      // Normleistung 75/65/20 (Festlegung F2) — bis 1.72.0 powerW 1400 bei 55/45.
+      ratedPower: 2741, ratedPowerSource: 'datenblatt', flowTemperature: 55, returnTemperature: 45,
     });
     fx('hk2', 'radiator', 'heating', { x: 8, y: 0.4 }, {
-      powerW: 900, flowTemperature: 55, returnTemperature: 45,
+      ratedPower: 1762, ratedPowerSource: 'datenblatt', flowTemperature: 55, returnTemperature: 45,
     });
     fx('zu', 'air-supply', 'ventilation', { x: 3, y: 4 }, { airflow: 60 });
     fx('ab', 'air-exhaust', 'ventilation', { x: 8, y: 4 }, { airflow: 60 });

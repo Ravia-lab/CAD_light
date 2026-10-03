@@ -54,6 +54,7 @@
  * waagerechten erreicht er nicht — er endet vorher bei x = 3. Also 3.
  */
 
+import { raumlastAusLeistung } from './raumlast';
 import type { BimDocument, BimNode, Fixture, HeatPump, Level, Opening, Wall } from '../../src/types/bim';
 import { detectRooms } from '../../src/lib/roomDetection';
 import { emptyPlant, emptySite } from '../../src/lib/plantDefaults';
@@ -158,7 +159,8 @@ function baueHaus(optionen: { pumpe?: HeatPump['form']; speicher?: boolean } = {
     const raum = Object.values(doc.rooms).find((r) => pointInPolygon(f.position, r.innerPolygon));
     if (raum) f.roomId = raum.id;
   }
-  return doc;
+  // Befund A2: Volumenströme folgen der Raumlast — siehe raumlast.ts.
+  return raumlastAusLeistung(doc);
 }
 
 export function pruefeRingleitung(check: CheckFn): void {
@@ -380,6 +382,7 @@ export function pruefeRingleitung(check: CheckFn): void {
     // Das Prüfhaus mit 2 kW je Heizfläche: 10 kW am Ringanfang.
     const haus = baueHaus({ pumpe: 'monoblock-outdoor' });
     for (const f of Object.values(haus.fixtures)) f.params = { ...f.params, powerW: 2000 };
+    raumlastAusLeistung(haus);
     const stark = planPipeNetwork(haus, { mode: 'sanierung', levelId: 'eg', anordnung: 'ring' });
     const ringWeiten = [...new Set(stark.runs
       .filter((r) => (r.label ?? '').startsWith('Ringleitung'))

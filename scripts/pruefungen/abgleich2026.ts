@@ -17,6 +17,9 @@ import type { BimDocument } from '../../src/types/bim';
 import { NORM_TEMPERATUREN } from '../../src/lib/auslegungExport';
 import { NORM_UEBERTEMPERATUR } from '../../src/lib/heizflaechenLeistung';
 import { heizleistung, migriereParams } from '../../src/lib/normleistung';
+import { leistungImBetriebspunkt, leistungJeVerbraucher, verbraucherLasten } from '../../src/lib/verbraucherlast';
+import { balanceNetwork } from '../../src/lib/hydraulicBalance';
+import { buildPipeNetwork } from '../../src/lib/pipeNetwork';
 import { fluidProperties, freezePoint, waterDensity } from '../../src/lib/hydraulics';
 import { glycolMixture, waterDensity as waterDensitySicherheit } from '../../src/lib/safetyFittings';
 import { buildIfc, schichtenAusText } from '../../src/lib/ifcExport';
@@ -233,5 +236,50 @@ export function pruefeAbgleich2026(check: CheckFn): void {
     check('F7 · Prüfblock Heizfläche erwartet 49,8 K', hf.includes("r1(NORM_UEBERTEMPERATUR), 49.8)"), true);
     const panel = quelle('src/components/PropertiesPanel.tsx');
     check('A1 · Eingabefeld nennt den Bezugspunkt', panel.includes('Normleistung 75/65/20 °C [W]'), true);
+  }
+  // -------------------------------------------------------------------------
+  // A2 · Volumenstrom aus der Raumheizlast, nicht aus der Normleistung
+  // -------------------------------------------------------------------------
+  {
+    const ref = buildReferenceDocument();
+    const lasten = estimateHeatLoad(ref).rooms;
+    const lastJe = verbraucherLasten(ref);
+    const hk = Object.values(ref.fixtures).filter((f) => f.type === 'radiator' && f.roomId);
+    check('A2 · Referenzhaus hat Heizkörper in Räumen', hk.length > 0, true);
+    for (const f of hk.slice(0, 2)) {
+      const imRaum = hk.filter((x) => x.roomId === f.roomId).length;
+      const raum = lasten.find((r) => r.roomId === f.roomId)!;
+      if (imRaum === 1) {
+        check(`A2 · ${f.id} trägt die Raumlast seines Raums [W]`, lastJe.get(f.id)?.watt ?? -1, raum.total, 0.5);
+      }
+    }
+    // Gegenprobe: Eine größere Normleistung ändert den Volumenstrom nicht,
+    // solange die Raumlast dieselbe ist.
+    const gross = { ...ref, fixtures: Object.fromEntries(Object.entries(ref.fixtures).map(([k, f]) =>
+      [k, f.type === 'radiator' ? { ...f, params: { ...f.params, ratedPower: 9000 } } : f])) };
+    const a = leistungJeVerbraucher(ref);
+    const b = leistungJeVerbraucher(gross);
+    check('A2 · Normleistung ändert die Auslegungsleistung nicht',
+      hk.every((f) => imGleichenRaumAllein(f.id) ? Math.abs((a[f.id] ?? 0) - (b[f.id] ?? 0)) < 0.5 : true), true);
+    function imGleichenRaumAllein(id: string): boolean {
+      const f = ref.fixtures[id];
+      return hk.filter((x) => x.roomId === f.roomId).length === 1;
+    }
+    // Ohne Raum: Leistung im Betriebspunkt. 2000 W bei 75/65/20 an 50/40/20,
+    // n = 1,3: 2000 · (24,66/49,8)^1,3 = 802 W.
+    check('A2 · Heizkörper ohne Raum: Leistung im Betriebspunkt [W]',
+      leistungImBetriebspunkt({ type: 'radiator', params: { ratedPower: 2000 } }, 50, 40, 20) ?? -1, 802, 1);
+    // Der Abgleich nimmt diese Last.
+    const netz = buildPipeNetwork(ref);
+    const bericht = balanceNetwork({ network: netz, fixtures: ref.fixtures, powerByFixture: a });
+    const c = bericht.consumers.find((x) => hk.some((f) => f.id === x.fixtureId && imGleichenRaumAllein(f.id)));
+    check('A2 · Abgleich rechnet mit der Raumlast', c ? Math.abs(c.power - (a[c.fixtureId] ?? 0)) < 0.5 : false, true);
+    check('A2 · Heizkörper-Normleistung gilt im Abgleich nicht als Angabe',
+      balanceNetwork({ network: netz, fixtures: ref.fixtures }).consumers
+        .filter((x) => hk.some((f) => f.id === x.fixtureId)).every((x) => x.powerAssumed), true);
+    // Alle Aufrufer übergeben die Raumlast.
+    for (const datei of ['src/lib/pipeReport.ts', 'src/lib/raviaExport.ts', 'src/components/AnlagenPanel.tsx']) {
+      check(`A2 · ${datei.split('/').pop()} übergibt powerByFixture`, quelle(datei).includes('powerByFixture: leistungJeVerbraucher(doc)'), true);
+    }
   }
 }

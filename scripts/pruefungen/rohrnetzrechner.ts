@@ -66,6 +66,7 @@
  * Sollwert einträgt, den Fehler festschreibt statt ihn zu melden.
  */
 
+import { raumlastAusLeistung } from './raumlast';
 import type { CheckFn } from './typ';
 import type {
   BimDocument,
@@ -256,7 +257,8 @@ function baueHaus(): BimDocument {
     raum.setpointTemperature = 20;
     raum.isHeated = true;
   }
-  return doc;
+  // Befund A2: Volumenströme folgen der Raumlast — siehe raumlast.ts.
+  return raumlastAusLeistung(doc);
 }
 
 /** Das Prüfhaus mit ausgelegtem Rohrnetz — `doc.pipes` und `doc.pipeAccessories` gefüllt. */

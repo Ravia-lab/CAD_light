@@ -17,6 +17,7 @@
  * geplant" muss sichtbar bleiben.
  */
 
+import { leistungJeVerbraucher } from '../lib/verbraucherlast';
 import { Fragment, useCallback, useMemo, useRef, useState } from 'react';
 import type {
   AnlagenAntworten,
@@ -267,6 +268,8 @@ export default function AnlagenPanel() {
     return balanceNetwork({
       network,
       fixtures: doc.fixtures,
+      // Befund A2: Volumenstrom aus der Raumheizlast, nicht aus der Normleistung.
+      powerByFixture: leistungJeVerbraucher(doc),
       /*
        * Die Spreizung kommt aus `systemtemperaturVon` und **nicht** aus der
        * Differenz der beiden Eingabefelder.

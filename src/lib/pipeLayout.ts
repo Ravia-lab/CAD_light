@@ -30,6 +30,7 @@
  * an einer Stelle geraten hat, ist an keiner Stelle mehr nachvollziehbar.
  */
 
+import { traegtRaumlast, verbraucherLasten, type Verbraucherlast } from './verbraucherlast';
 import { planeRing } from './ringleitung';
 import { steigRuns } from './steigstrang';
 import { rohrlaenge, trassenlaenge } from './rohrlaenge';
@@ -430,13 +431,20 @@ function verbraucherStrom(
   rooms: Room[],
   loads: Map<string, number>,
   optionen: { flow: number; rueck: number },
+  auslegung?: Map<string, Verbraucherlast>,
 ): { flow: number; watt: number } | null {
   const spreizung = Math.max(2, (fixture.params.flowTemperature ?? optionen.flow) - (fixture.params.returnTemperature ?? optionen.rueck));
   const fluid = fluidProperties(
     ((fixture.params.flowTemperature ?? optionen.flow) + (fixture.params.returnTemperature ?? optionen.rueck)) / 2,
   );
 
-  if (fixture.params.powerW && fixture.params.powerW > 0) {
+  // Befund A2: Heizflächen tragen ihre Raumheizlast (bzw. die Leistung im
+  // Betriebspunkt), nicht ihre Normleistung.
+  const last = auslegung?.get(fixture.id);
+  if (last && last.watt > 0) {
+    return { flow: volumeFlow(last.watt / 1000, spreizung, fluid), watt: Math.round(last.watt) };
+  }
+  if (!traegtRaumlast(fixture) && fixture.params.powerW && fixture.params.powerW > 0) {
     return { flow: volumeFlow(fixture.params.powerW / 1000, spreizung, fluid), watt: fixture.params.powerW };
   }
 
@@ -854,6 +862,7 @@ export function planPipeNetwork(doc: BimDocument, options: PipeLayoutOptions): P
     const est = estimateHeatLoad(doc);
     for (const r of est.rooms) schaetzung.set(r.roomId, r.normHeatLoad ? r.normHeatLoad.total : r.total);
   }
+  const auslegungslasten = verbraucherLasten(doc, options.roomLoads ?? schaetzung);
   for (const room of rooms) {
     const flaeche = Object.values(doc.fixtures).some(
       (f) => f.type === 'underfloor' && f.params.roomCoverage === true && f.roomId === room.id,
@@ -892,7 +901,7 @@ export function planPipeNetwork(doc: BimDocument, options: PipeLayoutOptions): P
   const sammelt = (f: Fixture) => f.type === 'manifold' || f.type === 'storage';
   for (const ziel of ziele) {
     if (sammelt(ziel)) continue;
-    const strom = verbraucherStrom(ziel, [], lasten, { flow: vorlauf, rueck: ruecklauf });
+    const strom = verbraucherStrom(ziel, [], lasten, { flow: vorlauf, rueck: ruecklauf }, auslegungslasten);
     if (!strom || strom.flow <= 0) {
       ohneLeistung.push(ziel.label ?? ziel.type);
       continue;

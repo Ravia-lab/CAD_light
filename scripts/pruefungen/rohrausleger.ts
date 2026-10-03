@@ -29,6 +29,7 @@
  * Alle Sollwerte sind hergeleitet und im Kommentar nachgerechnet.
  */
 
+import { raumlastAusLeistung } from './raumlast';
 import type { CheckFn } from './typ';
 import type {
   BimDocument,
@@ -190,7 +191,8 @@ function baueHaus(): BimDocument {
     raum.setpointTemperature = 20;
     raum.isHeated = true;
   }
-  return doc;
+  // Befund A2: Volumenströme folgen der Raumlast — siehe raumlast.ts.
+  return raumlastAusLeistung(doc);
 }
 
 const r3 = (v: number): number => Math.round(v * 1000) / 1000;
@@ -600,16 +602,28 @@ export function pruefeRohrausleger(check: CheckFn): void {
   }
 
   // =========================================================================
-  // 8 · Nichts erfinden: ohne Leistungsangabe kein Volumenstrom
+  // 8 · Nichts erfinden: ohne Raumlast und ohne Leistung kein Volumenstrom
   // =========================================================================
   {
+    /*
+     * Seit Befund A2 trägt ein Heizkörper im Raum dessen Raumlast — auch
+     * ohne eigene Leistungsangabe. Erfunden wird nichts, wenn er weder in
+     * einem Raum steht noch eine Leistung trägt; dann fällt er heraus.
+     * (Bis 1.72.0 genügte es, die Leistung zu leeren.)
+     */
     const ohne: BimDocument = {
       ...doc,
       fixtures: {
         ...doc.fixtures,
-        'hk-2': { ...doc.fixtures['hk-2'], params: {} },
+        'hk-2': { ...doc.fixtures['hk-2'], roomId: undefined, params: {} },
       },
     };
+    const imRaum: BimDocument = {
+      ...doc,
+      fixtures: { ...doc.fixtures, 'hk-2': { ...doc.fixtures['hk-2'], params: {} } },
+    };
+    check('Im Raum trägt er auch ohne Leistung die Raumlast',
+      planPipeNetwork(imRaum, { mode: 'neubau', levelId: 'eg' }).served, 2);
     const r = planPipeNetwork(ohne, { mode: 'neubau', levelId: 'eg' });
     check('Ein Heizkörper ohne Leistungsangabe fällt heraus', r.served, 1);
     check('… und wird gemeldet', r.notes.some((n) => n.severity === 'warn' && n.text.includes('Leistungsangabe')), true);
@@ -635,14 +649,16 @@ export function pruefeRohrausleger(check: CheckFn): void {
     check('Die Schranke steht bei 20 mm Außendurchmesser', SOCKELLEISTE_MAX_AUSSEN, 20);
     // Im Prüfhaus bleibt alles darunter — die Gegenprobe ist ein Netz mit
     // hundertfacher Last, das den Kanal sprengen muss.
-    const gross: BimDocument = {
+    // Seit A2 kommt die Last aus dem Raum: hundertfache Raumlast.
+    const gross: BimDocument = raumlastAusLeistung({
       ...doc,
+      rooms: Object.fromEntries(Object.entries(doc.rooms).map(([k, r]) => [k, { ...r }])),
       fixtures: {
         ...doc.fixtures,
         'hk-1': { ...doc.fixtures['hk-1'], params: { powerW: 140000 } },
         'hk-2': { ...doc.fixtures['hk-2'], params: { powerW: 90000 } },
       },
-    };
+    });
     const r = planPipeNetwork(gross, { mode: 'sanierung', levelId: 'eg' });
     check('Zu große Rohre sprengen den Kanal und werden gemeldet',
       r.notes.some((n) => n.severity === 'error' && n.text.includes('Sockelleistenkanal')), true);
@@ -937,14 +953,15 @@ export function pruefeRohrausleger(check: CheckFn): void {
     });
     // Die Kreise sitzen dort, wo im Prüfhaus die Heizkörper standen:
     // fbh-1 bei (9,20 | 0,60) mit 1400 W, fbh-2 bei (9,20 | 3,40) mit 900 W.
-    const mitFbh: BimDocument = {
+    const mitFbh: BimDocument = raumlastAusLeistung({
       ...doc,
+      rooms: Object.fromEntries(Object.entries(doc.rooms).map(([k, r]) => [k, { ...r }])),
       fixtures: {
         'v-1': doc.fixtures['v-1'],
         'fbh-1': kreis(doc.fixtures['hk-1'], 'fbh-1', raumIds[0]),
         'fbh-2': kreis(doc.fixtures['hk-2'], 'fbh-2', raumIds[raumIds.length - 1]),
       },
-    };
+    });
 
     // --- Fall A: nur Verteiler und Kreise ---------------------------------
     const nurVerteiler = planPipeNetwork(mitFbh, { mode: 'neubau', levelId: 'eg' });
