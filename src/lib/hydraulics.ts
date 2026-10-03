@@ -346,15 +346,6 @@ export const GLYCOL_LABELS: Record<GlycolKind, string> = {
 export const WATER_TEMPERATURES = [0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100] as const;
 
 /**
- * Dichte von Wasser bei 1 bar [kg/m³], Stützstellen nach IAPWS-IF97.
- *
- * Das Dichtemaximum bei 4 °C liegt zwischen den Stützstellen und wird von der
- * linearen Interpolation nicht abgebildet. Für die Heizungshydraulik ist das
- * ohne Belang — der Fehler beträgt dort weniger als 0,02 %.
- */
-export const WATER_DENSITY = [999.84, 999.7, 998.21, 995.65, 992.22, 988.04, 983.2, 977.76, 971.79, 965.31, 958.35] as const;
-
-/**
  * Spezifische Wärmekapazität von Wasser [J/(kg·K)], Stützstellen nach IAPWS-IF97.
  *
  * Die Kurve hat ein flaches Minimum bei rund 35 °C. Über den ganzen für eine
@@ -376,9 +367,42 @@ export const WATER_KINEMATIC_VISCOSITY = [
   1.792e-6, 1.307e-6, 1.004e-6, 0.801e-6, 0.658e-6, 0.553e-6, 0.475e-6, 0.413e-6, 0.365e-6, 0.326e-6, 0.294e-6,
 ] as const;
 
-/** Dichte von reinem Wasser [kg/m³] bei ϑ [°C]; interpoliert, außerhalb 0…100 °C geklemmt. */
+/**
+ * Dichte von reinem, luftfreiem Wasser bei Umgebungsdruck [kg/m³].
+ *
+ * Zustandsgleichung von Kell (1975), eine rationale Funktion fünften Grades,
+ * die im Bereich 0–150 °C auf besser als 0,01 kg/m³ mit den Dampftafeln
+ * übereinstimmt:
+ *
+ *   ρ(ϑ) = (a₀ + a₁ϑ + a₂ϑ² + a₃ϑ³ + a₄ϑ⁴ + a₅ϑ⁵) / (1 + bϑ)
+ *
+ * Prüfpunkte: ρ(0) = 999,840, ρ(4) = 999,975 (Dichtemaximum),
+ * ρ(100) = 958,36 kg/m³. Als Formel geführt, damit `safetyFittings.ts` den
+ * Ausdehnungskoeffizienten *rechnet* und nicht abschreibt.
+ *
+ * Seit 1.73.0 (Befund F4/F5) die einzige Wasserdichte im Programm. Vorher
+ * rechnete die Hydraulik mit einer Stützstellentabelle (linear zwischen
+ * 10-K-Schritten) und die Sicherheitstechnik mit dieser Formel — zwei Werte
+ * für dasselbe Wasser, die um bis zu 0,02 % auseinanderlagen. Außerhalb
+ * 0…100 °C wird wie bei den übrigen Stoffwerten geklemmt.
+ *
+ * Der Druckeinfluss wird vernachlässigt: Wasser ist mit rund 5·10⁻⁵ 1/bar
+ * kompressibel, über die 3 bar einer Hausanlage sind das 1,5·10⁻⁴ — zwei
+ * Größenordnungen unter dem thermischen Effekt.
+ */
 export function waterDensity(temperature: number): number {
-  return interpolate(temperature, WATER_TEMPERATURES, WATER_DENSITY);
+  return kellDensity(clamp(temperature, 0, 150));
+}
+
+function kellDensity(t: number): number {
+  const numerator =
+    999.83952 +
+    16.945176 * t -
+    7.9870401e-3 * t * t -
+    46.170461e-6 * t * t * t +
+    105.56302e-9 * t * t * t * t -
+    280.54253e-12 * t * t * t * t * t;
+  return numerator / (1 + 16.87985e-3 * t);
 }
 
 /** Spezifische Wärmekapazität von reinem Wasser [J/(kg·K)] bei ϑ [°C]; interpoliert. */
@@ -392,33 +416,74 @@ export function waterKinematicViscosity(temperature: number): number {
 }
 
 /**
- * Gefrierpunkt über dem Volumenanteil Glykol.
+ * Gefrierpunkt über dem Volumenanteil Glykol: Stützstellen Volumenanteil [%]
+ * → Temperatur [°C].
  *
- * Stützstellen aus den frei veröffentlichten Datenblättern der Gemisch-
- * hersteller und dem ASHRAE Handbook Fundamentals, Kapitel „Secondary Coolants".
- * Zwischen den Stützstellen wird **linear interpoliert**; die reale Kurve ist
- * leicht konkav, der Interpolationsfehler bleibt unter 1 K.
+ * **Richtwerte aus Herstellerdatenblättern** von Fertiggemischen. Sie streuen
+ * zwischen den Produkten um 1–2 K, weil die Inhibitorpakete unterschiedlich
+ * sind. Für die Auslegung genügt das; für die Bestellung gilt das Datenblatt
+ * des tatsächlich eingesetzten Mittels. Zwischen den Stützstellen wird linear
+ * interpoliert.
  *
- * Über 60 Vol-% wird die Tabelle nicht fortgesetzt: dort steigt der
- * Gefrierpunkt wieder an (eutektischer Punkt bei rund 66 Vol-% Ethylenglykol),
- * und mehr Frostschutz macht die Sache schlechter statt besser. Wer mehr
- * einfüllt, bekommt hier den geklemmten Randwert und den Hinweis dazu.
+ * Über 60 Vol-% wird die Tabelle nicht fortgesetzt: dort liegt das
+ * Eutektikum, darüber steigt der Gefrierpunkt wieder an, und mehr Frostschutz
+ * macht die Sache schlechter statt besser.
+ *
+ * Seit 1.73.0 (Befund F4/F5) die einzige Gefrierpunkttabelle. Vorher führte
+ * die Hydraulik eine zweite in 10-%-Schritten, die bei 60 Vol-% Ethylenglykol
+ * −52,8 °C statt −48 °C angab — dasselbe Gemisch war im Solekreis also um fast
+ * 5 K frostsicherer als im Sicherheitsblatt.
  */
-export const FREEZE_POINT_TABLE: Record<GlycolKind, { fractions: readonly number[]; points: readonly number[] }> = {
-  ethylen: {
-    fractions: [0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6],
-    points: [0, -3.4, -8.9, -15.6, -24.4, -36.8, -52.8],
-  },
-  propylen: {
-    fractions: [0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6],
-    points: [0, -3.3, -7.8, -12.7, -20.6, -33.5, -51.1],
-  },
+export const GLYCOL_FREEZE_POINTS: Record<GlycolKind, readonly { fraction: number; temperature: number }[]> = {
+  ethylen: [
+    { fraction: 0, temperature: 0 },
+    { fraction: 20, temperature: -9 },
+    { fraction: 25, temperature: -12 },
+    { fraction: 30, temperature: -15 },
+    { fraction: 35, temperature: -19 },
+    { fraction: 40, temperature: -24 },
+    { fraction: 45, temperature: -29 },
+    { fraction: 50, temperature: -36 },
+    { fraction: 55, temperature: -41 },
+    { fraction: 60, temperature: -48 },
+  ],
+  propylen: [
+    { fraction: 0, temperature: 0 },
+    { fraction: 20, temperature: -7 },
+    { fraction: 25, temperature: -10 },
+    { fraction: 30, temperature: -13 },
+    { fraction: 35, temperature: -17 },
+    { fraction: 40, temperature: -21 },
+    { fraction: 45, temperature: -26 },
+    { fraction: 50, temperature: -33 },
+    { fraction: 55, temperature: -40 },
+    { fraction: 60, temperature: -48 },
+  ],
 };
+
+/**
+ * Gefrierpunkt [°C] eines Gemisches mit dem Volumenanteil `fractionPercent`
+ * [%], linear zwischen den Stützstellen. Über der letzten Stützstelle gilt
+ * deren Wert — eine Extrapolation über das Eutektikum wäre nicht ungenau,
+ * sondern gefährlich falsch.
+ */
+export function glycolFreezePoint(fractionPercent: number, kind: GlycolKind): number {
+  const points = GLYCOL_FREEZE_POINTS[kind];
+  const x = clamp(fractionPercent, 0, points[points.length - 1].fraction);
+  for (let i = 1; i < points.length; i += 1) {
+    if (x <= points[i].fraction) {
+      const a = points[i - 1];
+      const b = points[i];
+      const value = a.temperature + ((b.temperature - a.temperature) * (x - a.fraction)) / (b.fraction - a.fraction);
+      return Math.round(value * 10) / 10;
+    }
+  }
+  return points[points.length - 1].temperature;
+}
 
 /** Gefrierpunkt [°C] eines Gemisches mit dem Volumenanteil `fraction` [0…1]. */
 export function freezePoint(fraction: number, kind: GlycolKind = 'ethylen'): number {
-  const table = FREEZE_POINT_TABLE[kind];
-  return round(interpolate(clamp(fraction, 0, 0.6), table.fractions, table.points), 1);
+  return glycolFreezePoint(fraction * 100, kind);
 }
 
 /**
@@ -430,9 +495,8 @@ export function freezePoint(fraction: number, kind: GlycolKind = 'ethylen'): num
  * Eimer nichts Genaueres abgemessen wird.
  */
 export function glycolFractionForFreezePoint(target: number, kind: GlycolKind = 'ethylen'): number {
-  const table = FREEZE_POINT_TABLE[kind];
   for (let f = 0; f <= 0.6001; f += 0.01) {
-    if (interpolate(f, table.fractions, table.points) <= target) return round(f, 2);
+    if (glycolFreezePoint(f * 100, kind) <= target) return round(f, 2);
   }
   return 0.6;
 }

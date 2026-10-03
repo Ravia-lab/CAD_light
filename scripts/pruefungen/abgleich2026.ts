@@ -14,6 +14,8 @@ import { buildReferenceDocument } from '../reference';
 import { designPlant, gebaeudeHeizlast, leistungsbedarf } from '../../src/lib/plantDesign';
 import { estimateHeatLoad } from '../../src/lib/heatLoadEstimate';
 import type { BimDocument } from '../../src/types/bim';
+import { fluidProperties, freezePoint, waterDensity } from '../../src/lib/hydraulics';
+import { glycolMixture, waterDensity as waterDensitySicherheit } from '../../src/lib/safetyFittings';
 import { buildIfc, schichtenAusText } from '../../src/lib/ifcExport';
 import { importIfc, parseStep } from '../../src/lib/ifcImport';
 
@@ -178,5 +180,27 @@ export function pruefeAbgleich2026(check: CheckFn): void {
     const uwert = quelle('src/lib/uwert.ts');
     check('F2 · uwert.ts führt die Bestandswerte',
       /U_FENSTER_BESTAND = 1\.3;/.test(uwert) && /U_TUER_BESTAND = 1\.8;/.test(uwert), true);
+  }
+  // -------------------------------------------------------------------------
+  // F4/F5 · Wasserdichte, GlycolKind, Gefrierpunkt, Rohrdämmung je einmal
+  // -------------------------------------------------------------------------
+  // Sollwerte aus der Dampftafel (IAPWS-IF97, 1 bar): 45 °C → 990,21 kg/m³,
+  // 80 °C → 971,79 kg/m³. Gefrierpunkt 30 Vol-% Ethylenglykol nach Datenblatt −15 °C.
+  {
+    check('F4/F5 · Wasserdichte 45 °C [kg/m³]', waterDensity(45), 990.21, 0.02);
+    check('F4/F5 · Wasserdichte 80 °C [kg/m³]', waterDensity(80), 971.79, 0.02);
+    check('F4/F5 · Hydraulik und Sicherheitstechnik: dieselbe Dichte', waterDensity(63.7), waterDensitySicherheit(63.7), 0);
+    check('F4/F5 · Gefrierpunkt 30 % EG, Hydraulik [°C]', freezePoint(0.3, 'ethylen'), -15, 0);
+    check('F4/F5 · Gefrierpunkt 30 % EG, Sicherheitsblatt [°C]', glycolMixture(30, 'ethylen').freezePoint, -15, 0);
+    check('F4/F5 · Gefrierpunkt 60 % PG gleich in beiden Wegen',
+      fluidProperties(10, { glycolFraction: 0.6, glycolKind: 'propylen' }).freezePoint,
+      glycolMixture(60, 'propylen').freezePoint, 0);
+    const definitionen = (muster: RegExp) =>
+      ['src/lib/hydraulics.ts', 'src/lib/safetyFittings.ts', 'src/lib/domesticWater.ts', 'src/lib/pipeInsulation.ts']
+        .filter((d) => muster.test(quelle(d))).length;
+    check('F4/F5 · eine Definition von GlycolKind', definitionen(/export type GlycolKind\s*=/), 1);
+    check('F4/F5 · eine Funktion waterDensity', definitionen(/export function waterDensity\(/), 1);
+    check('F4/F5 · eine Gefrierpunkttabelle', definitionen(/temperature: -15 \}/), 1);
+    check('F4/F5 · eine Funktion insulationThickness', definitionen(/export function insulationThickness\(/), 1);
   }
 }

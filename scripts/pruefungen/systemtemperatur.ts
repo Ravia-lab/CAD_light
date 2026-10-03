@@ -358,12 +358,14 @@ export function pruefeSystemtemperatur(check: CheckFn): void {
    * Die Stoffwerte, die daran hängen.
    *
    * Gerechnet wird bei der mittleren Temperatur: (50+40)/2 = 45 °C statt
-   * (35+28)/2 = 31,5 °C. Die Dichte ändert sich von 995,14 auf 990,13 kg/m³ —
-   * unter einem Prozent. Die kinematische Zähigkeit fällt von 7,80·10⁻⁷ auf
+   * (35+28)/2 = 31,5 °C. Die Dichte ändert sich von 995,18 auf 990,21 kg/m³ —
+   * unter einem Prozent. (Bis 1.72.0 standen hier 995,14 und 990,13: Die
+   * Hydraulik interpolierte linear in einer 10-K-Tabelle. Seit Befund F4/F5
+   * gilt überall die Kell-Gleichung, die die Dampftafel trifft.) Die kinematische Zähigkeit fällt von 7,80·10⁻⁷ auf
    * 6,06·10⁻⁷ m²/s, also um 22 %. Sie steht im Nenner der Reynoldszahl und
    * entscheidet damit über λ und über jeden Druckverlust auf dem Blatt.
    */
-  check('Dichte bei 45 °C', r3(bericht.fluid.density), 990.13);
+  check('Dichte bei 45 °C', r3(bericht.fluid.density), 990.21);
   check('Kinematische Zähigkeit bei 45 °C', Math.round(bericht.fluid.kinematicViscosity * 1e9), 606);
   check('Die Bezugstemperatur ist das Mittel', bericht.fluid.temperature, 45);
 
@@ -413,7 +415,7 @@ export function pruefeSystemtemperatur(check: CheckFn): void {
   check('… 7 K Spreizung', fl.systemtemperatur.spreizung, 7);
   check('… und nichts wurde angehoben', fl.systemtemperatur.herkunft, 'anlagenblatt');
   check('Der Bericht folgt', buildPipeReport(flDoc).temperaturen.spreizung, 7);
-  check('… mit den Stoffwerten von 31,5 °C', r3(buildPipeReport(flDoc).fluid.density), 995.14);
+  check('… mit den Stoffwerten von 31,5 °C', r3(buildPipeReport(flDoc).fluid.density), 995.18);
 
   // --- Gemischtes System: der heißeste Kreis --------------------------------
   const gemDoc = baueHaus('gemischt');

@@ -31,40 +31,22 @@
  */
 
 import type { PipeDimension, SafetyDesign, SchematicKind } from '../types/bim';
+import {
+  GLYCOL_FREEZE_POINTS,
+  GLYCOL_LABELS,
+  GLYCOL_PROPERTIES,
+  glycolFreezePoint,
+  waterDensity,
+  type GlycolKind,
+} from './hydraulics';
 
 // ---------------------------------------------------------------------------
 // Dichte des Wassers und Ausdehnungskoeffizient
 // ---------------------------------------------------------------------------
 
-/**
- * Dichte von reinem, luftfreiem Wasser bei Umgebungsdruck [kg/m³].
- *
- * Verwendet wird die Zustandsgleichung von Kell (1975), eine rationale
- * Funktion fünften Grades, die im Bereich 0–150 °C auf besser als 0,01 kg/m³
- * mit den Dampftafeln übereinstimmt. Sie ist frei publiziert und wird hier
- * bewusst als Formel geführt, damit der Ausdehnungskoeffizient *gerechnet*
- * und nicht abgeschrieben wird:
- *
- *   ρ(ϑ) = (a₀ + a₁ϑ + a₂ϑ² + a₃ϑ³ + a₄ϑ⁴ + a₅ϑ⁵) / (1 + bϑ)
- *
- * Prüfpunkte: ρ(0) = 999,840, ρ(4) = 999,975 (Dichtemaximum),
- * ρ(100) = 958,36 kg/m³.
- *
- * Der Druckeinfluss wird vernachlässigt: Wasser ist mit rund 5·10⁻⁵ 1/bar
- * kompressibel, über die 3 bar einer Hausanlage sind das 1,5·10⁻⁴ — zwei
- * Größenordnungen unter dem thermischen Effekt.
- */
-export function waterDensity(temperature: number): number {
-  const t = temperature;
-  const numerator =
-    999.83952 +
-    16.945176 * t -
-    7.9870401e-3 * t * t -
-    46.170461e-6 * t * t * t +
-    105.56302e-9 * t * t * t * t -
-    280.54253e-12 * t * t * t * t * t;
-  return numerator / (1 + 16.87985e-3 * t);
-}
+// Die Wasserdichte (Kell 1975) steht seit 1.73.0 nur noch in `hydraulics.ts`
+// und wird hier für Bestandsaufrufer weitergereicht.
+export { waterDensity };
 
 /**
  * Bezugstemperatur des Ausdehnungskoeffizienten [°C].
@@ -88,8 +70,8 @@ export interface ExpansionPoint {
   percent: number;
 }
 
-/** Frostschutzmittel — die beiden im Heizungsbau gebräuchlichen Glykole. */
-export type GlycolKind = 'ethylen' | 'propylen';
+/** Frostschutzmittel — der Typ steht in `hydraulics.ts`, hier weitergereicht. */
+export type { GlycolKind };
 
 /**
  * Stoffwerte der reinen Glykole.
@@ -100,10 +82,9 @@ export type GlycolKind = 'ethylen' | 'propylen';
  * dehnen sich etwa doppelt so stark aus wie Wasser, was der eigentliche Grund
  * für das größere Gefäß ist.
  *
- * Die Gefrierpunkte sind **Richtwerte aus Herstellerdatenblättern** von
- * Fertiggemischen. Sie streuen zwischen den Produkten um 1–2 K, weil die
- * Inhibitorpakete unterschiedlich sind. Für die Auslegung genügt das; für die
- * Bestellung gilt das Datenblatt des tatsächlich eingesetzten Mittels.
+ * Bezeichnung, Reinstoffdichte und Gefrierpunkte kommen aus `hydraulics.ts`
+ * (`GLYCOL_LABELS`, `GLYCOL_PROPERTIES`, `GLYCOL_FREEZE_POINTS`), damit die
+ * Hydraulik und das Sicherheitsblatt mit demselben Glykol rechnen.
  */
 export interface GlycolProperties {
   label: string;
@@ -128,43 +109,21 @@ export interface GlycolProperties {
 
 export const GLYCOLS: Record<GlycolKind, GlycolProperties> = {
   ethylen: {
-    label: 'Ethylenglykol',
-    density20: 1113,
+    label: GLYCOL_LABELS.ethylen,
+    density20: GLYCOL_PROPERTIES.ethylen.density,
     cubicExpansion: 6.2e-4,
     heatCapacity: 2.42,
     viscosityExponent: 2.6,
-    freezePoints: [
-      { fraction: 0, temperature: 0 },
-      { fraction: 20, temperature: -9 },
-      { fraction: 25, temperature: -12 },
-      { fraction: 30, temperature: -15 },
-      { fraction: 35, temperature: -19 },
-      { fraction: 40, temperature: -24 },
-      { fraction: 45, temperature: -29 },
-      { fraction: 50, temperature: -36 },
-      { fraction: 55, temperature: -41 },
-      { fraction: 60, temperature: -48 },
-    ],
+    freezePoints: GLYCOL_FREEZE_POINTS.ethylen,
     note: 'Giftig. In Anlagen mit Verbindung zum Trinkwasser unzulässig; für Solekreise üblich.',
   },
   propylen: {
-    label: 'Propylenglykol',
-    density20: 1036,
+    label: GLYCOL_LABELS.propylen,
+    density20: GLYCOL_PROPERTIES.propylen.density,
     cubicExpansion: 7.3e-4,
     heatCapacity: 2.5,
     viscosityExponent: 3.4,
-    freezePoints: [
-      { fraction: 0, temperature: 0 },
-      { fraction: 20, temperature: -7 },
-      { fraction: 25, temperature: -10 },
-      { fraction: 30, temperature: -13 },
-      { fraction: 35, temperature: -17 },
-      { fraction: 40, temperature: -21 },
-      { fraction: 45, temperature: -26 },
-      { fraction: 50, temperature: -33 },
-      { fraction: 55, temperature: -40 },
-      { fraction: 60, temperature: -48 },
-    ],
+    freezePoints: GLYCOL_FREEZE_POINTS.propylen,
     note: 'Physiologisch unbedenklich, deshalb Standard in Wärmepumpen- und Solarkreisen. Zäher als Ethylenglykol.',
   },
 };
@@ -329,31 +288,8 @@ export function glycolMixture(fraction: number, kind: GlycolKind): GlycolMixture
   };
 }
 
-/**
- * Gefrierpunkt [°C], linear zwischen den Stützstellen des Datenblatts.
- *
- * **Gültigkeitsgrenze.** Die Stützstellen enden bei 60 Vol-%, und das mit
- * Absicht: dort liegt das Eutektikum. Darüber steigt der Gefrierpunkt wieder
- * an — reines Ethylenglykol erstarrt bei rund −13 °C, ist also schlechter als
- * jedes Gemisch. Eine Extrapolation wäre hier nicht ungenau, sondern
- * gefährlich falsch. Für Anteile über der letzten Stützstelle wird deshalb
- * deren Wert zurückgegeben; `designSafety` weist auf den verlassenen
- * Gültigkeitsbereich hin. Höhere Konzentrationen sind ohnehin unsinnig: sie
- * kosten Wärmekapazität und Pumpenleistung ohne Frostschutzgewinn.
- */
-export function glycolFreezePoint(fraction: number, kind: GlycolKind): number {
-  const points = GLYCOLS[kind].freezePoints;
-  const x = clamp(fraction, 0, points[points.length - 1].fraction);
-  for (let i = 1; i < points.length; i += 1) {
-    if (x <= points[i].fraction) {
-      const a = points[i - 1];
-      const b = points[i];
-      const value = a.temperature + ((b.temperature - a.temperature) * (x - a.fraction)) / (b.fraction - a.fraction);
-      return Math.round(value * 10) / 10;
-    }
-  }
-  return points[points.length - 1].temperature;
-}
+// `glycolFreezePoint` steht seit 1.73.0 in `hydraulics.ts`; hier weitergereicht.
+export { glycolFreezePoint };
 
 // ---------------------------------------------------------------------------
 // Dampfdruck — Grenze nach oben für den Vordruck
