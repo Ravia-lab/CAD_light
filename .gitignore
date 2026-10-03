@@ -2,3 +2,8 @@ node_modules/
 dist/
 dist-einzeldatei/
 *.tsbuildinfo
+
+# Erzeugt von Prüfläufen und Bauskripten, nicht von Hand gepflegt (seit 1.73.0)
+screenshots/
+patchliste-cad-light.html
+server/app/assets/
