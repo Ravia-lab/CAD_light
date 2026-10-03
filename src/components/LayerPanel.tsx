@@ -23,6 +23,7 @@ export default function LayerPanel() {
   const setSnap = useBimStore((s) => s.setSnap);
   const selection = useBimStore((s) => s.selection);
   const setSelection = useBimStore((s) => s.setSelection);
+  const updateRoom = useBimStore((s) => s.updateRoom);
   const notizenSichtbar = useBimStore((s) => s.notizenSichtbar);
   const setzeNotizenSichtbar = useBimStore((s) => s.setzeNotizenSichtbar);
   const layers = Object.values(doc.layers);
@@ -207,9 +208,11 @@ export default function LayerPanel() {
           <div className="space-y-0.5">
             {rooms.map((room) => {
               const active = selection?.kind === 'room' && selection.id === room.id;
+              // Seit 1.73.0: Der Scan kennt kein WC — ein „Bad" kann eins sein.
+              const badPruefen = room.usage === 'bath' && !room.nutzungGeprueft;
               return (
+                <div key={room.id}>
                 <button
-                  key={room.id}
                   onClick={() => setSelection({ kind: 'room', id: room.id })}
                   className={`flex w-full items-baseline justify-between rounded-md px-2 py-1.5 text-left transition-colors ${
                     active ? 'bg-accent/12' : 'hover:bg-white/[0.04]'
@@ -222,6 +225,26 @@ export default function LayerPanel() {
                     {room.area.toFixed(2)} m²
                   </span>
                 </button>
+                {badPruefen && (
+                  <div className="flex items-center gap-1 px-2 pb-1 text-[10px] text-amber-300/80">
+                    <span className="mr-auto">Bad/WC prüfen</span>
+                    <button
+                      className="chip bg-white/[0.04]"
+                      title="Ist ein Bad — so lassen"
+                      onClick={() => updateRoom(room.id, { nutzungGeprueft: true })}
+                    >
+                      Bad
+                    </button>
+                    <button
+                      className="chip bg-white/[0.04]"
+                      title="Ist ein WC — Nutzung umstellen"
+                      onClick={() => updateRoom(room.id, { usage: 'wc', nutzungGeprueft: true })}
+                    >
+                      WC
+                    </button>
+                  </div>
+                )}
+                </div>
               );
             })}
           </div>

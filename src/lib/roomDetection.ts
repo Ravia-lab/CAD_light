@@ -1368,6 +1368,8 @@ export function detectRooms(input: DetectRoomsInput): Room[] {
       // Neuerkennen — eine verschobene Wand ändert nicht, was auf dem
       // Boden liegt.
       floorCovering: inherited?.floorCovering,
+      // „Bad/WC geprüft" ist eine Angabe des Anwenders (seit 1.73.0).
+      ...(inherited?.nutzungGeprueft ? { nutzungGeprueft: true } : {}),
       // Eine von der Gegenstelle gerechnete Heizlast überlebt das Neuerkennen.
       // Sie geht dabei aber nicht als „aktuell" durch: sie trägt den
       // Modellstand mit, für den sie gerechnet wurde, und das Anlagenblatt

@@ -457,6 +457,13 @@ export interface Room {
   /** Beheizt? Unbeheizte Räume gehen als Nachbarbereich in die Rechnung ein. */
   isHeated: boolean;
   /**
+   * Hat jemand die Nutzung Bad/WC bestätigt? (seit 1.73.0) Der Scan kennt
+   * kein WC (RoomPlan unterscheidet es nicht); ein Raum, der als Bad
+   * ankommt, kann ein WC sein. Die Raumliste bietet „Bad/WC prüfen" an,
+   * bis das geschehen ist.
+   */
+  nutzungGeprueft?: boolean;
+  /**
    * Nutzungseinheit, zu der dieser Raum gehört — Wohnung, Gewerbeeinheit oder
    * Gemeinschaftsfläche (`BimDocument.units`).
    *

@@ -579,6 +579,15 @@ export function pruefeAbgleich2026(check: CheckFn): void {
     check('H1 · ohne Herkunft: datenblatt', p1.ratedPowerSource ?? '', 'datenblatt');
     const ohne = importBuildingModel(modell()).fixtures[0].params;
     check('H1 · ohne Angabe keine Leistung erfunden', ohne.ratedPower === undefined && ohne.exponentN === undefined, true);
+
+    // Bad/WC prüfen: RoomPlan kennt kein WC; die Raumliste bietet die
+    // Prüfung an, bis jemand sie bestätigt hat, und die Bestätigung
+    // überlebt das Neuerkennen.
+    check('Bad/WC · Raumliste bietet die Prüfung an',
+      /usage === 'bath' && !room\.nutzungGeprueft/.test(quelle('src/components/LayerPanel.tsx')) &&
+        quelle('src/components/LayerPanel.tsx').includes('Bad/WC prüfen'), true);
+    check('Bad/WC · Bestätigung überlebt das Neuerkennen',
+      quelle('src/lib/roomDetection.ts').includes('inherited?.nutzungGeprueft'), true);
   }
 
 }
