@@ -263,7 +263,7 @@ export function pruefeAbgleich2026(check: CheckFn): void {
     check('B8 · Referenzhaus hat Zu- und Abluftraeume', zu > 0 && ab > 0, true);
     check('B8 · Überschlag: Gebäudelüftung = max(Zu, Ab) [W]', e.ventilation, Math.max(zu, ab), 1);
     check('B8 · Überschlag: Gebäude kleiner als Σ Räume',
-      e.total < e.rooms.reduce((x, r) => x + r.total, 0) / 1000, true);
+      e.totalKw < e.rooms.reduce((x, r) => x + r.total, 0) / 1000, true);
 
     // Raumweise Norm-Heizlasten aus RaVia: mit Lüftungsanteil auf Gebäudeebene.
     const mitNorm = (mitAnteil: boolean): BimDocument => ({
@@ -278,11 +278,11 @@ export function pruefeAbgleich2026(check: CheckFn): void {
     const nSonst = beheizt.length - nZu - nAb;
     const soll = beheizt.length * 1000 - (nZu * 200 + nAb * 300 + nSonst * 200) + Math.max(nZu * 200, nAb * 300) + nSonst * 200;
     const c = normHeatLoadCoverage(mitNorm(true));
-    check('B8 · Raumlasten: Summe wie bisher [kW]', c.total, beheizt.length, 1e-9);
-    check('B8 · Raumlasten: Gebäude mit Lüftung auf Gebäudeebene [kW]', c.gebaeude, soll / 1000, 1e-9);
+    check('B8 · Raumlasten: Summe wie bisher [kW]', c.totalKw, beheizt.length, 1e-9);
+    check('B8 · Raumlasten: Gebäude mit Lüftung auf Gebäudeebene [kW]', c.gebaeudeKw, soll / 1000, 1e-9);
     check('B8 · Anlage rechnet mit dem Gebäudewert [kW]', gebaeudeHeizlast(mitNorm(true)).heatLoad, soll / 1000, 1e-9);
     const ohne = normHeatLoadCoverage(mitNorm(false));
-    check('B8 · ohne Lüftungsanteil: Summe, aber als solche erkannt', ohne.gebaeude === ohne.total && !ohne.lueftungGebaeude, true);
+    check('B8 · ohne Lüftungsanteil: Summe, aber als solche erkannt', ohne.gebaeudeKw === ohne.totalKw && !ohne.lueftungGebaeude, true);
     check('B8 · ohne Lüftungsanteil: Warnung im Anlagenblatt',
       designPlant(mitNorm(false)).notes.some((n) => n.severity === 'warn' && n.text.includes('Lüftungsanteil')), true);
   }

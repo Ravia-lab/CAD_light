@@ -227,7 +227,7 @@ export default function AnlagenPanel() {
    * Gegengeprüft wird genau das, was dieses Programm selbst behauptet.
    */
   const abgleich = useMemo(() => {
-    const ueberschlag = design.estimate?.total ?? 0;
+    const ueberschlag = design.estimate?.totalKw ?? 0;
     if (!(ueberschlag > 0)) return undefined;
     return verbrauchsabgleich(ueberschlag, [
       heizlastAusVerbrauch(doc.meta.verbrauch),
@@ -255,7 +255,7 @@ export default function AnlagenPanel() {
    * andere Zahl zeigt als die, mit der gerechnet wird, ist eine Falle.
    */
   const ohneVorgabe =
-    design.normCoverage.complete && design.normCoverage.total > 0 ? design.normCoverage.gebaeude : design.estimate?.total;
+    design.normCoverage.complete && design.normCoverage.totalKw > 0 ? design.normCoverage.gebaeudeKw : design.estimate?.totalKw;
 
   /**
    * Der hydraulische Abgleich hängt am *gezeichneten* Rohrnetz, nicht an der

@@ -1302,7 +1302,7 @@ export function validateModel(doc: BimDocument): ValidationReport {
          */
         {
           const schaetzung = estimateHeatLoad(doc);
-          const proben = verbrauchsabgleich(schaetzung.total, [
+          const proben = verbrauchsabgleich(schaetzung.totalKw, [
             heizlastAusVerbrauch(doc.meta.verbrauch),
             heizlastAusBaualter(doc.meta.baualter, schaetzung.heatedArea, doc.meta.verbrauch?.mitWarmwasser ?? true),
           ]);

@@ -2021,7 +2021,7 @@ function buildTotals(
   const bridgeEnvelope = envelopeArea(doc);
 
   const schaetzung = estimateHeatLoad(doc);
-  const gegenprobe = verbrauchsabgleich(schaetzung.total, [
+  const gegenprobe = verbrauchsabgleich(schaetzung.totalKw, [
     heizlastAusVerbrauch(doc.meta.verbrauch),
     heizlastAusBaualter(doc.meta.baualter, schaetzung.heatedArea, doc.meta.verbrauch?.mitWarmwasser ?? true),
   ]);

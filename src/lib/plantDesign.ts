@@ -593,15 +593,15 @@ export function designCircuit(
 export function gebaeudeHeizlast(doc: BimDocument, vorgabe?: number) {
   const estimate = estimateHeatLoad(doc);
   const normCoverage = normHeatLoadCoverage(doc);
-  const raumweiseTraegt = normCoverage.complete && normCoverage.total > 0;
+  const raumweiseTraegt = normCoverage.complete && normCoverage.totalKw > 0;
   const heatLoadProvenance: PlantDesignResult['heatLoadProvenance'] =
     vorgabe !== undefined ? 'vorgabe' : raumweiseTraegt ? 'raumweise' : 'überschlag';
   const heatLoad =
     heatLoadProvenance === 'vorgabe'
-      ? (vorgabe ?? estimate.total)
+      ? (vorgabe ?? estimate.totalKw)
       : heatLoadProvenance === 'raumweise'
-        ? normCoverage.gebaeude
-        : estimate.total;
+        ? normCoverage.gebaeudeKw
+        : estimate.totalKw;
   return { heatLoad, heatLoadProvenance, estimate, normCoverage };
 }
 
@@ -663,7 +663,7 @@ export function designPlant(doc: BimDocument, options: PlantDesignOptions = {}):
   if (heatLoadProvenance === 'raumweise') {
     notes.push({
       severity: 'info',
-      text: `Gerechnet wird mit ${heatLoad.toFixed(2)} kW aus den Norm-Heizlasten aller ${normCoverage.heatedRooms} beheizten Räume${herkunft(normCoverage)}${normCoverage.lueftungGebaeude && normCoverage.gebaeude < normCoverage.total ? `, Lüftung auf Gebäudeebene (Summe der Räume ${normCoverage.total.toFixed(2)} kW)` : ''}. Der eigene Überschlag käme auf ${estimate.total.toFixed(2)} kW; er wird nicht verwendet.`,
+      text: `Gerechnet wird mit ${heatLoad.toFixed(2)} kW aus den Norm-Heizlasten aller ${normCoverage.heatedRooms} beheizten Räume${herkunft(normCoverage)}${normCoverage.lueftungGebaeude && normCoverage.gebaeudeKw < normCoverage.totalKw ? `, Lüftung auf Gebäudeebene (Summe der Räume ${normCoverage.totalKw.toFixed(2)} kW)` : ''}. Der eigene Überschlag käme auf ${estimate.totalKw.toFixed(2)} kW; er wird nicht verwendet.`,
     });
     // Befund B8: ohne Lüftungsanteil je Raum ist die Summe eine obere
     // Schranke, die Lüftung steckt darin mehrfach.
@@ -693,11 +693,11 @@ export function designPlant(doc: BimDocument, options: PlantDesignOptions = {}):
     // Die Gegenprobe kostet nichts und fängt den häufigsten Fehler ab: eine
     // stehen gebliebene Vorgabe aus einem früheren Stand, während die
     // raumweisen Lasten längst neu gerechnet sind.
-    const abweichung = normCoverage.complete && heatLoad > 0 ? Math.abs(normCoverage.gebaeude - heatLoad) / heatLoad : 0;
+    const abweichung = normCoverage.complete && heatLoad > 0 ? Math.abs(normCoverage.gebaeudeKw - heatLoad) / heatLoad : 0;
     if (abweichung > 0.05) {
       notes.push({
         severity: 'warn',
-        text: `Die eingetragene Heizlast von ${heatLoad.toFixed(2)} kW steht gegen ${normCoverage.gebaeude.toFixed(2)} kW aus den gerechneten Raum-Heizlasten${herkunft(normCoverage)}. Gerechnet wird mit der Eintragung; welche der beiden Zahlen gilt, entscheidet nicht das Programm.`,
+        text: `Die eingetragene Heizlast von ${heatLoad.toFixed(2)} kW steht gegen ${normCoverage.gebaeudeKw.toFixed(2)} kW aus den gerechneten Raum-Heizlasten${herkunft(normCoverage)}. Gerechnet wird mit der Eintragung; welche der beiden Zahlen gilt, entscheidet nicht das Programm.`,
       });
     }
   }

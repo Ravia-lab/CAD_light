@@ -135,14 +135,14 @@ export interface NormHeatLoadCoverage {
   /** Davon für einen abweichenden Modellstand gerechnet. */
   outdated: number;
   /** Summe der gerechneten Lasten [kW] — nur aussagekräftig, wenn `complete`. */
-  total: number;
+  totalKw: number;
   /**
    * Gebäudeheizlast aus den Raumlasten [kW] (Befund B8): Σ(Last − Lüftung) +
    * Lüftung auf Gebäudeebene, wenn jede Raumlast ihren Lüftungsanteil
    * ausweist; sonst gleich `total`.
    */
-  gebaeude: number;
-  /** Ist in `gebaeude` die Lüftung auf Gebäudeebene gebildet? */
+  gebaeudeKw: number;
+  /** Ist in `gebaeudeKw` die Lüftung auf Gebäudeebene gebildet? */
   lueftungGebaeude: boolean;
   /** Tragen alle beheizten Räume eine gerechnete Last? */
   complete: boolean;
@@ -160,8 +160,11 @@ export interface HeatLoadEstimate {
   /** Immer `true` — die Zahl ist kein Normnachweis. */
   istUeberschlag: true;
   rooms: RoomHeatLoad[];
-  /** Gebäudeheizlast [kW]. */
-  total: number;
+  /**
+   * Gebäudeheizlast [kW]. Seit 1.73.0 mit Einheit im Namen (Festlegung F6):
+   * alle anderen Leistungen in diesem Objekt stehen in W.
+   */
+  totalKw: number;
   transmission: number;
   /** Lüftungswärmeverlust des Gebäudes [W] — nicht die Summe der Räume (Befund B8). */
   ventilation: number;
@@ -598,8 +601,8 @@ export function normHeatLoadCoverage(doc: BimDocument): NormHeatLoadCoverage {
     heatedRooms: heated.length,
     withNorm,
     outdated: outdatedRooms.length,
-    total: Math.round((watt / 1000) * 100) / 100,
-    gebaeude: Math.round(((mitAnteil && withNorm > 0 ? ohneLueftung + gebaeudeLueftung(lueftung) : watt) / 1000) * 100) / 100,
+    totalKw: Math.round((watt / 1000) * 100) / 100,
+    gebaeudeKw: Math.round(((mitAnteil && withNorm > 0 ? ohneLueftung + gebaeudeLueftung(lueftung) : watt) / 1000) * 100) / 100,
     lueftungGebaeude: mitAnteil && withNorm > 0,
     complete: heated.length > 0 && withNorm === heated.length,
     missing,
@@ -687,7 +690,7 @@ export function estimateHeatLoad(doc: BimDocument): HeatLoadEstimate {
   return {
     istUeberschlag: true,
     rooms,
-    total: Math.round((totalW / 1000) * 100) / 100,
+    totalKw: Math.round((totalW / 1000) * 100) / 100,
     transmission: Math.round(transmission),
     ventilation: Math.round(ventilation),
     ventilationRooms: Math.round(ventilationRooms),

@@ -590,8 +590,8 @@ export interface BalanceReport {
   sources: SourceBalance[];
   /** Summe der Volumenströme aller Verbraucher [m³/h]. */
   totalFlow: number;
-  /** Summe der angesetzten Leistungen [kW]. */
-  totalPower: number;
+  /** Summe der angesetzten Leistungen [kW] — Einheit im Namen, weil `consumers[].power` in W steht (Festlegung F6). */
+  totalPowerKw: number;
   /** Angesetzte Spreizung [K]. */
   spread: number;
   /** Angesetzte Stoffwerte. */
@@ -1182,7 +1182,7 @@ export function balanceNetwork(input: BalanceInput): BalanceReport {
     segments,
     sources,
     totalFlow: round(totalFlow, 4),
-    totalPower: round(totalPower, 3),
+    totalPowerKw: round(totalPower, 3),
     spread,
     fluid,
     material,

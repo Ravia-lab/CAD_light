@@ -52,7 +52,7 @@ export function pruefeHeizlastInEinemRutsch(check: CheckFn): void {
     const summeRaeume = ueberschlag.rooms.reduce((s, r) => s + r.total, 0);
     check('Räume − Raumlüftung + Gebäudelüftung = Gebäudeheizlast [kW]',
       Math.round((summeRaeume - ueberschlag.ventilationRooms + ueberschlag.ventilation) / 10) / 100,
-      Math.round(ueberschlag.total * 100) / 100, 0.02);
+      Math.round(ueberschlag.totalKw * 100) / 100, 0.02);
 
     // Jeder beheizte Raum bekommt eine Zahl größer null — sonst wäre der
     // Knopf in genau den Fällen wirkungslos, für die es ihn gibt.

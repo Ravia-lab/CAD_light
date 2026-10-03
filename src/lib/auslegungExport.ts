@@ -247,7 +247,7 @@ export function buildHydraulics(bericht: BalanceReport, erzeuger?: Erzeugerbilan
     },
     material: bericht.material,
     totalFlow: Math.round(bericht.totalFlow * 1000) / 1000,
-    totalPower: Math.round(bericht.totalPower * 100) / 100,
+    totalPower: Math.round(bericht.totalPowerKw * 100) / 100,
     consumers,
     ...(bericht.worst ? { worst: { fixtureId: bericht.worst.fixtureId, label: bericht.worst.label, lossPa: pa(bericht.worst.loss) } } : {}),
     ...(bericht.best ? { best: { fixtureId: bericht.best.fixtureId, label: bericht.best.label, lossPa: pa(bericht.best.loss) } } : {}),
