@@ -38,7 +38,7 @@
  * misst Geometrie und rechnet nichts; die Leistung ist Sache der Auslegung.
  */
 
-import type { BimNode, BoundaryCondition, Fixture, FixtureType, Opening, OpeningKind, RoofKind, RoomUsage, ScanDachHerkunft, Vec2, Wall, WallType } from '../types/bim';
+import type { BimNode, BoundaryCondition, Fixture, RatedPowerSource, FixtureType, Opening, OpeningKind, RoofKind, RoomUsage, ScanDachHerkunft, Vec2, Wall, WallType } from '../types/bim';
 import { BOUNDARY_CONDITIONS } from '../types/bim';
 export type { ScanDachHerkunft } from '../types/bim';
 import { U_FENSTER_BESTAND, U_TUER_BESTAND, VORGABE_U } from './uwert';
@@ -181,6 +181,14 @@ interface RbmEmitter {
   width: number; height: number; depth: number; bottomHeight: number;
   suggestion?: { panelType?: string | null; manufacturer?: string | null; model?: string | null; confirmed?: boolean } | null;
   photoIds?: string[];
+  /**
+   * Von RaVia beim `loadBuilding` mitgegeben (Brücke H1, Festlegung F2):
+   * Normleistung bei 75/65/20 °C [W], Exponent, Herkunft und Bauart.
+   */
+  ratedPower?: number;
+  exponentN?: number;
+  ratedPowerSource?: string;
+  panelType?: string | null;
 }
 interface Rbm {
   format?: string; schemaVersion?: string;
@@ -560,10 +568,27 @@ export function importBuildingModel(data: unknown): BuildingImportErgebnis {
         : e.kind === 'convector' ? 'convector'
           : e.kind === 'towel' ? 'towel-radiator'
             : 'radiator';
+    // Die Bauart von RaVia geht der Vermutung der App vor; eine Vermutung
+    // zählt erst, wenn der Monteur sie bestätigt hat.
+    const panelType =
+      typeof e.panelType === 'string' && e.panelType.trim() ? e.panelType.trim()
+        : bestaetigt && s?.panelType ? s.panelType : undefined;
     const bauartText =
       e.kind === 'towel' ? 'Badheizkörper'
         : e.kind === 'tube' ? 'Röhren'
-          : e.kind === 'panel' && bestaetigt && s?.panelType ? s.panelType : undefined;
+          : e.kind === 'panel' && panelType ? panelType : undefined;
+    // H1: Leistungsangaben nach Festlegung F2 übernehmen, nicht verwerfen.
+    const quellen: readonly RatedPowerSource[] = ['katalog', 'typenschild', 'datenblatt', 'schaetzung'];
+    const leistung =
+      zahl(e.ratedPower) && e.ratedPower! > 0
+        ? {
+            ratedPower: Math.round(e.ratedPower!),
+            ratedPowerSource: (quellen as readonly string[]).includes(e.ratedPowerSource ?? '')
+              ? (e.ratedPowerSource as RatedPowerSource)
+              : ('datenblatt' as const),
+          }
+        : {};
+    const exponent = zahl(e.exponentN) && e.exponentN! > 0 ? { exponentN: e.exponentN! } : {};
     const wand = e.wallId ? teilstueck(e.wallId, e.position) : null;
     const hersteller = [s?.manufacturer, s?.model].filter(Boolean).join(' ');
     const label =
@@ -585,6 +610,8 @@ export function importBuildingModel(data: unknown): BuildingImportErgebnis {
       params: {
         ...(bauartText ? { radiatorType: bauartText } : {}),
         radiatorHeight: rund(e.height),
+        ...leistung,
+        ...exponent,
       },
     });
   }

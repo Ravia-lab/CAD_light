@@ -514,7 +514,7 @@ export function pruefeAbgleich2026(check: CheckFn): void {
   }
 
   // -------------------------------------------------------------------------
-  // Schritt 2 · Scan-Import ohne Datenverlust (K2)
+  // Schritt 2 · Scan-Import ohne Datenverlust (K2, H1)
   // -------------------------------------------------------------------------
   {
     const text = quelle('scripts/referenz/ravia-building-beispiel.json');
@@ -565,6 +565,20 @@ export function pruefeAbgleich2026(check: CheckFn): void {
     check('K2 · Überschlag: Wand zum Nachbarn verliert mit Δθ 5 K weniger als zur Außenluft',
       t(mitNachbar({})).transmission < t(doc).transmission, true);
 
+    // H1 · Leistungsangaben von RaVia an den Heizkörpern
+    const m3 = modell();
+    Object.assign(m3.emitters[0], { ratedPower: 1520.4, exponentN: 1.33, ratedPowerSource: 'typenschild', panelType: '33' });
+    m3.emitters[1].ratedPower = 900;
+    const hk = importBuildingModel(m3).fixtures;
+    const p0 = hk.find((f) => f.id === `sc-${m3.emitters[0].id}`)!.params;
+    const p1 = hk.find((f) => f.id === `sc-${m3.emitters[1].id}`)!.params;
+    check('H1 · ratedPower übernommen [W]', p0.ratedPower ?? NaN, 1520);
+    check('H1 · exponentN übernommen', p0.exponentN ?? NaN, 1.33);
+    check('H1 · ratedPowerSource übernommen', p0.ratedPowerSource ?? '', 'typenschild');
+    check('H1 · panelType von RaVia geht vor', p0.radiatorType ?? '', '33');
+    check('H1 · ohne Herkunft: datenblatt', p1.ratedPowerSource ?? '', 'datenblatt');
+    const ohne = importBuildingModel(modell()).fixtures[0].params;
+    check('H1 · ohne Angabe keine Leistung erfunden', ohne.ratedPower === undefined && ohne.exponentN === undefined, true);
   }
 
 }
