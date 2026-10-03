@@ -185,7 +185,7 @@ export interface Wall {
   /** U-Wert [W/(m²·K)] — direkt für die Heizlast nach DIN EN 12831. */
   uValue?: number;
   material?: string;
-  /** Für den KI-Import: Vertrauensmaß 0..1 der Vision-Erkennung. */
+  /** Aus einem Scan: Vertrauensmaß 0..1 der Erkennung. */
   confidence?: number;
   locked?: boolean;
   /**
@@ -1416,114 +1416,18 @@ export interface FloorplanImage {
 export const pixelsPerMeter = (image: Pick<FloorplanImage, 'scale'>): number =>
   image.scale > 0 ? 1 / image.scale : 0;
 
-// ===========================================================================
-// KI-Erkennung (Vision-API-Vertrag)
-// ===========================================================================
-
 /**
- * Antwortformat, das der Vision-Proxy liefern MUSS. Alle Koordinaten in
- * *Bildpixeln* der Originalauflösung — die Umrechnung in Modellmeter
- * übernimmt der Client anhand von `FloorplanImage.scale` und `.origin`.
- * Dadurch bleibt die KI-Seite maßstabsagnostisch und damit robust.
+ * Zustand beim Einlesen eines Referenzbilds (PNG/JPG/PDF).
+ *
+ * Bis 1.72.0 trug dieser Zustand auch die KI-Grundrissanalyse. Sie ist mit
+ * 1.73.0 entfallen: Der Dienst dahinter (`/api/vision/floorplan`) existierte
+ * nicht, und der Rückfall war eine Simulation, deren Ergebnis wie eine echte
+ * Erkennung aussah.
  */
-export interface AiDetectedWall {
-  /** Achsen-Startpunkt in Bildpixeln. */
-  start: Vec2;
-  /** Achsen-Endpunkt in Bildpixeln. */
-  end: Vec2;
-  /** Erkannte Wandstärke in Bildpixeln. */
-  thicknessPx: number;
-  confidence: number;
-  type?: WallType;
-}
-
-export interface AiDetectedOpening {
-  kind: OpeningKind;
-  /** Mittelpunkt der Öffnung in Bildpixeln. */
-  center: Vec2;
-  /** Breite entlang der Wand in Bildpixeln. */
-  widthPx: number;
-  confidence: number;
-  /** Höhe / Brüstung in Metern, falls die KI sie aus Beschriftung ableitet. */
-  heightM?: number;
-  sillHeightM?: number;
-}
-
-export interface AiDetectedRoomLabel {
-  /** OCR-Text des Raumstempels, z. B. "Wohnen 24,80 m²". */
-  text: string;
-  /** Ankerpunkt in Bildpixeln. */
-  position: Vec2;
-  /** Aus dem Text geparste Fläche [m²], falls vorhanden. */
-  areaM2?: number;
-  confidence: number;
-}
-
-/** Von der KI erkannte Maßkette — Grundlage für die Auto-Kalibrierung. */
-export interface AiDetectedDimension {
-  from: Vec2;
-  to: Vec2;
-  /** Gelesener Maßtext in Metern, z. B. 5.0 für "5,00". */
-  valueM: number;
-  confidence: number;
-}
-
-export interface AiFloorplanAnalysis {
-  walls: AiDetectedWall[];
-  openings: AiDetectedOpening[];
-  roomLabels: AiDetectedRoomLabel[];
-  dimensions: AiDetectedDimension[];
-  /** Von der KI vorgeschlagener Maßstab [m/px] — aus `dimensions` abgeleitet. */
-  suggestedScale?: number;
-  /** Gesamtvertrauen 0..1. */
-  confidence: number;
-  /** Laufzeit des Vision-Calls [ms] — für die Statuszeile. */
-  durationMs: number;
-  modelId: string;
-}
-
 export type AiAnalysisState =
   | { status: 'idle' }
   | { status: 'uploading'; progress: number }
-  | { status: 'analyzing'; progress: number; stage: string }
-  | { status: 'done'; result: AiFloorplanAnalysis }
   | { status: 'error'; message: string };
-
-// ---------------------------------------------------------------------------
-// Auto-Trace-Vorschau
-// ---------------------------------------------------------------------------
-
-/**
- * Ein KI-Vorschlag, bereits in *Weltkoordinaten* umgerechnet, aber noch nicht
- * Teil des Dokuments. Die Vorschau lebt bewusst außerhalb von `BimDocument`:
- * Vorschläge sollen keine Undo-Schritte erzeugen und keine Raumerkennung
- * auslösen, solange sie nicht bestätigt sind.
- */
-export interface TraceWallCandidate {
-  id: string;
-  kind: 'wall';
-  start: Vec2;
-  end: Vec2;
-  /** Aus der Bildanalyse abgeleitete Wandstärke [m]. */
-  thickness: number;
-  confidence: number;
-  type: WallType;
-  /** Vom Nutzer verworfen — bleibt zur Nachvollziehbarkeit erhalten. */
-  rejected: boolean;
-}
-
-export interface TraceOpeningCandidate {
-  id: string;
-  kind: 'door' | 'window';
-  center: Vec2;
-  width: number;
-  height: number;
-  sillHeight: number;
-  confidence: number;
-  rejected: boolean;
-}
-
-export type TraceCandidate = TraceWallCandidate | TraceOpeningCandidate;
 
 /**
  * Ein Freihandstrich, wie er unter dem Stift entsteht.
@@ -1549,8 +1453,7 @@ export interface Freihandstrich {
 /**
  * Der Stand der Freihanderkennung — ein **Vorschlag**, kein Modellinhalt.
  *
- * Dieselbe Bauart wie `TraceState` bei der Bilderkennung, und aus demselben
- * Grund: Was eine Erkennung liefert, wird angezeigt, geprüft und erst dann
+ * Ein Vorschlag, kein Modellinhalt: Was eine Erkennung liefert, wird angezeigt, geprüft und erst dann
  * übernommen. Ein Strich, der ungefragt Wände anlegt, ist beim ersten
  * Fehlgriff nicht mehr zu bändigen — und ein Fehlgriff ist bei einer
  * Freihandskizze die Regel und nicht die Ausnahme.
@@ -1593,20 +1496,6 @@ export interface SkizzenVorschlag {
   art: WallType;
 }
 
-export interface TraceState {
-  /** Modell-ID / Provider, der die Vorschläge erzeugt hat. */
-  source: string;
-  createdAt: string;
-  walls: TraceWallCandidate[];
-  openings: TraceOpeningCandidate[];
-  roomLabels: AiDetectedRoomLabel[];
-  /** Vorschau-Ebene sichtbar? */
-  visible: boolean;
-  /** Vorschläge unterhalb dieser Konfidenz werden ausgeblendet. */
-  minConfidence: number;
-  overallConfidence: number;
-  durationMs: number;
-}
 
 // ===========================================================================
 // Werkzeuge & Editor-Zustand
@@ -2792,7 +2681,6 @@ export type SelectionKind =
   | 'wall'
   | 'opening'
   | 'room'
-  | 'trace'
   | 'image'
   | 'fixture'
   | 'vertical'

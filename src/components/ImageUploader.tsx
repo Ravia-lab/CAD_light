@@ -1,12 +1,14 @@
 /**
- * ImageUploader — Grundriss-Referenz: Upload, Overlay-Steuerung, KI-Analyse.
+ * ImageUploader — Grundriss-Referenz: Upload und Overlay-Steuerung.
  * ---------------------------------------------------------------------------
- * Der Einstiegspunkt des Hybrid-Workflows:
  *
  *   Upload (PNG/JPG/PDF)  →  Kalibrieren (2-Punkt-Maßband)
- *                         →  Auto-Trace (Vision-Provider)
- *                         →  Prüfen & Übernehmen (TraceReviewBar)
- *                         →  manuelles Nachzeichnen mit Smart Snapping
+ *                         →  Nachzeichnen mit Smart Snapping
+ *
+ * Bis 1.72.0 stand hier zusätzlich eine KI-Grundrissanalyse. Sie ist mit
+ * 1.73.0 entfallen: Der Dienst `/api/vision/floorplan` existierte in RaVia
+ * nicht, und der stille Rückfall war eine Simulation, deren Ergebnis wie
+ * eine echte Erkennung aussah.
  *
  * PDFs werden per `pdfjs-dist` gerastert — bewusst **lazy** importiert, damit
  * die rund 350 kB nur geladen werden, wenn tatsächlich ein PDF ankommt.
@@ -15,7 +17,6 @@
 import { useCallback, useRef, useState } from 'react';
 import type { FloorplanImage } from '../types/bim';
 import { pixelsPerMeter } from '../types/bim';
-import { getVisionProvider, VisionError, type VisionProgress } from '../services/aiVisionService';
 import { useBimStore } from '../store/useBimStore';
 import ScanUebernahme from './ScanUebernahme';
 
@@ -33,12 +34,9 @@ export default function ImageUploader() {
   const tool = useBimStore((s) => s.tool);
   const aiState = useBimStore((s) => s.aiState);
   const setAiState = useBimStore((s) => s.setAiState);
-  const buildTrace = useBimStore((s) => s.buildTrace);
-  const trace = useBimStore((s) => s.trace);
   const setStatus = useBimStore((s) => s.setStatus);
 
   const inputRef = useRef<HTMLInputElement>(null);
-  const abortRef = useRef<AbortController | null>(null);
   const [dragOver, setDragOver] = useState(false);
 
   // -------------------------------------------------------------- Einlesen
@@ -86,51 +84,6 @@ export default function ImageUploader() {
     setDragOver(false);
     const file = e.dataTransfer.files?.[0];
     if (file) void loadFile(file);
-  };
-
-  // ------------------------------------------------------------ KI-Analyse
-  const runAnalysis = async () => {
-    if (!image) return;
-    const provider = getVisionProvider();
-    const controller = new AbortController();
-    abortRef.current = controller;
-
-    setAiState({ status: 'analyzing', progress: 0.02, stage: 'Anfrage wird vorbereitet' });
-    try {
-      const result = await provider.analyze(
-        {
-          imageSrc: image.src,
-          imageName: image.name,
-          naturalWidth: image.naturalWidth,
-          naturalHeight: image.naturalHeight,
-          knownScale: image.scale,
-          minConfidence: 0.35,
-          signal: controller.signal,
-        },
-        (p: VisionProgress) => setAiState({ status: 'analyzing', progress: p.progress, stage: p.stage }),
-      );
-
-      setAiState({ status: 'done', result });
-      buildTrace(result);
-    } catch (error) {
-      const message =
-        error instanceof VisionError
-          ? error.message
-          : error instanceof Error
-            ? error.message
-            : 'Unbekannter Fehler';
-      setAiState({ status: 'error', message });
-      setStatus(`KI-Analyse fehlgeschlagen: ${message}`);
-    } finally {
-      abortRef.current = null;
-    }
-  };
-
-  /** Übernimmt den von der KI vorgeschlagenen Maßstab aus erkannten Maßketten. */
-  const applySuggestedScale = () => {
-    if (!image || aiState.status !== 'done' || !aiState.result.suggestedScale) return;
-    updateImage({ scale: aiState.result.suggestedScale });
-    setStatus(`Maßstab aus Maßkette übernommen: ${(1 / aiState.result.suggestedScale).toFixed(1)} px/m`);
   };
 
   // ------------------------------------------------------------------ View
@@ -201,10 +154,7 @@ export default function ImageUploader() {
         <button
           className="tool-btn h-7 w-7 text-slate-500 hover:text-rose-300"
           title="Referenz entfernen"
-          onClick={() => {
-            setImage(undefined);
-            useBimStore.getState().clearTrace();
-          }}
+          onClick={() => setImage(undefined)}
         >
           <svg viewBox="0 0 16 16" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="1.4">
             <path d="M3 3l10 10M13 3L3 13" strokeLinecap="round" />
@@ -278,82 +228,11 @@ export default function ImageUploader() {
         </div>
       )}
 
-      <div className="h-px bg-white/[0.06]" />
-
-      {/* KI-Analyse */}
-      <div>
-        <div className="mb-1.5">
-          <div className="label-xs">KI-Vorauswertung</div>
-          <div className="truncate font-mono text-[9px] text-slate-600" title={getVisionProvider().description}>
-            {getVisionProvider().label}
-          </div>
+      {aiState.status === 'error' && (
+        <div className="rounded-md bg-rose-500/10 px-2.5 py-1.5 text-[10px] text-rose-300">
+          {aiState.message}
         </div>
-
-        {aiState.status === 'analyzing' || aiState.status === 'uploading' ? (
-          <div className="space-y-2">
-            <div className="h-1 overflow-hidden rounded-full bg-graphite-700">
-              <div
-                className="h-full rounded-full bg-accent transition-all duration-300"
-                style={{ width: `${Math.round(aiState.progress * 100)}%` }}
-              />
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-[10px] text-slate-400">
-                {aiState.status === 'analyzing' ? aiState.stage : 'Bild wird gelesen'}
-              </span>
-              <button
-                className="text-[10px] text-slate-500 hover:text-rose-300"
-                onClick={() => abortRef.current?.abort()}
-              >
-                Abbrechen
-              </button>
-            </div>
-          </div>
-        ) : (
-          <button
-            className="w-full rounded-lg bg-gradient-to-r from-accent/20 to-accent-teal/15 px-3 py-2 text-[11px] font-medium text-accent transition-all hover:from-accent/30 hover:to-accent-teal/25"
-            onClick={() => void runAnalysis()}
-          >
-            {trace ? 'Analyse wiederholen' : 'Grundriss automatisch erkennen'}
-          </button>
-        )}
-
-        {aiState.status === 'done' && (
-          <div className="mt-2 space-y-1.5">
-            <div className="rounded-md bg-graphite-900/70 px-2.5 py-2">
-              <StatRow label="Wände" value={String(aiState.result.walls.length)} />
-              <StatRow label="Öffnungen" value={String(aiState.result.openings.length)} />
-              <StatRow label="Raumstempel" value={String(aiState.result.roomLabels.length)} />
-              <StatRow
-                label="Konfidenz"
-                value={`${Math.round(aiState.result.confidence * 100)} %`}
-                accent
-              />
-              <StatRow label="Laufzeit" value={`${aiState.result.durationMs} ms`} />
-            </div>
-            {aiState.result.suggestedScale && (
-              <button
-                className="w-full rounded-md bg-white/[0.05] px-2.5 py-1.5 text-[10px] text-slate-300 transition-colors hover:bg-white/[0.09]"
-                onClick={applySuggestedScale}
-              >
-                Maßstab aus erkannter Maßkette übernehmen (
-                {(1 / aiState.result.suggestedScale).toFixed(1)} px/m)
-              </button>
-            )}
-          </div>
-        )}
-
-        {aiState.status === 'error' && (
-          <div className="mt-2 rounded-md bg-rose-500/10 px-2.5 py-1.5 text-[10px] text-rose-300">
-            {aiState.message}
-          </div>
-        )}
-
-        <p className="mt-2 text-[9.5px] leading-relaxed text-slate-600">
-          Erkannte Vektoren erscheinen magenta gestrichelt über dem Plan. Prüfen, einzelne
-          Fehltreffer per Alt+Klick entfernen, dann übernehmen.
-        </p>
-      </div>
+      )}
     </div>
   );
 }
@@ -468,15 +347,6 @@ function NumberField({
         }}
       />
     </label>
-  );
-}
-
-function StatRow({ label, value, accent }: { label: string; value: string; accent?: boolean }) {
-  return (
-    <div className="flex items-baseline justify-between py-0.5">
-      <span className="text-[10px] text-slate-500">{label}</span>
-      <span className={`font-mono text-[10px] ${accent ? 'text-accent' : 'text-slate-300'}`}>{value}</span>
-    </div>
   );
 }
 

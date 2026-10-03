@@ -16,7 +16,6 @@
     "freigabe:paket": "node scripts/freigabe.mjs --paket",
     "verify": "tsc --noEmit -p tsconfig.pruefung.json && esbuild scripts/verify.ts --bundle --platform=node --format=esm --outfile=node_modules/.cache/verify.mjs --log-level=warning && node node_modules/.cache/verify.mjs",
     "smoke:ui": "node scripts/smoke-ui.mjs",
-    "smoke:ai": "node scripts/smoke-ai.mjs",
     "smoke:feat": "node scripts/smoke-features.mjs",
     "smoke:export": "node scripts/smoke-export.mjs",
     "smoke:round2": "node scripts/smoke-round2.mjs",

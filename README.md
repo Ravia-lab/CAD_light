@@ -55,15 +55,12 @@ src/
 │  ├─ planPrint.ts            Maßstäblicher Planausdruck als SVG in Millimetern
 │  ├─ planScaleBar.ts         Maßstabsleiste zum Nachmessen auf Papier
 │  └─ autosave.ts             Entprellte Sitzungssicherung im lokalen Speicher
-├─ services/
-│  └─ aiVisionService.ts      Provider-Interface für SAM 2 / YOLOv8 / Claude Vision + Mock
-├─ store/useBimStore.ts       Zustand-Store: Dokument, Historie, UI, Auto-Trace
+├─ store/useBimStore.ts       Zustand-Store: Dokument, Historie, UI
 └─ components/
    ├─ Editor2D.tsx            Canvas-2D-Editor (Zeichnen, Snapping, Bemaßung, Selektion)
    ├─ Viewer3D.tsx            Three.js-Clay-Renderer mit echten Wandaussparungen
-   ├─ ImageUploader.tsx       Grundriss-Upload, Overlay-Steuerung, KI-Analyse
+   ├─ ImageUploader.tsx       Grundriss-Upload, Overlay-Steuerung
    ├─ CalibrationOverlay.tsx  2-Punkt-Maßband → Pixels-per-Meter
-   ├─ TraceReviewBar.tsx      Prüfen & Übernehmen der KI-Vorschläge
    ├─ TgaPalette.tsx          Symbolbibliothek mit echter Zeichenvorschau
    ├─ Toolbar.tsx             Werkzeugleiste + Kopfzeile
    ├─ LevelBar.tsx            Geschossumschalter (anlegen, kopieren, löschen)
@@ -206,10 +203,10 @@ gerade gewählte Werkzeug bedient wird. „Bereit" sagt niemandem etwas.
 
 ---
 
-## Overlay- & Auto-Trace-Workflow
+## Overlay-Workflow
 
 ```
-Upload (PNG/JPG/PDF) → Kalibrieren (2-Punkt) → Auto-Trace → Prüfen → Übernehmen → Nachzeichnen
+Upload (PNG/JPG/PDF) → Kalibrieren (2-Punkt) → Nachzeichnen
 ```
 
 | Schritt | Verhalten |
@@ -217,33 +214,10 @@ Upload (PNG/JPG/PDF) → Kalibrieren (2-Punkt) → Auto-Trace → Prüfen → Ü
 | **Upload** | Bild liegt als unterste Ebene, Deckkraft 0–100 % stufenlos. PDFs werden über `pdfjs-dist` gerastert (lazy geladen). |
 | **Sperre** | Das Bild ist standardmäßig gesperrt. Entsperrt bekommt es einen gestrichelten Rahmen und lässt sich frei verschieben. |
 | **Kalibrierung** | Linie über eine bekannte Bemaßung ziehen, Reallänge eintragen. Das Panel zeigt Faktor sowie px/m vorher und nachher, bevor bestätigt wird. |
-| **Auto-Trace** | Vision-Provider liefert Wände, Öffnungen, Raumstempel und Maßketten. Vorschau in Magenta mit Konfidenz-Badge pro Vektor. |
-| **Prüfen** | Klick wählt einen Vektor, `Alt+Klick` oder `Entf` verwirft ihn, der Schieberegler blendet alles unter einer Konfidenzschwelle aus. |
-| **Übernehmen** | Endpunkte im 8-cm-Raster verschmelzen zu gemeinsamen Knoten, Öffnungen werden der nächstgelegenen Wand zugeordnet, OCR-Raumnamen übertragen. |
 
-### Vision-Provider anbinden
-
-Die Anwendung kennt nur das Interface `FloorplanVisionProvider`:
-
-```ts
-interface FloorplanVisionProvider {
-  readonly id: VisionModelId;
-  readonly label: string;
-  analyze(req: VisionAnalyzeRequest, onProgress?): Promise<AiFloorplanAnalysis>;
-}
-```
-
-Standard ist `auto`: erst der serverseitige Proxy `/api/vision/floorplan`, bei
-Nichterreichbarkeit die lokale Simulation (im Ergebnis als `(Fallback)`
-gekennzeichnet). Fest vorgeben lässt sich der Provider über
-`VITE_VISION_PROVIDER=mock|proxy|sam2|yolo`.
-
-**Koordinatenvertrag:** Provider liefern immer Bildpixel der Originalauflösung.
-Die Umrechnung in Meter macht der Client über den kalibrierten Maßstab — ein neu
-kalibriertes Bild braucht deshalb keinen neuen Vision-Call.
-
-API-Schlüssel gehören nicht in den Browser; `HttpVisionProvider` spricht
-ausschließlich den eigenen Proxy an.
+Die KI-Vorauswertung (Auto-Trace über `/api/vision/floorplan`) ist seit 1.73.0
+entfernt: Den Dienst gab es in RaVia nicht, und der Rückfall war eine
+Simulation, die wie eine echte Erkennung aussah.
 
 ---
 
@@ -2073,7 +2047,6 @@ Zusätzlich prüfen neun Playwright-Skripte die Anwendung im echten Browser:
 ```bash
 npm run build && npx vite preview --port 4177   # in einem zweiten Terminal
 npm run smoke:ui    # 2D, Split, 3D, Screenshots nach ./screenshots
-npm run smoke:ai    # Upload → Auto-Trace → Übernehmen → Kalibrierung
 npm run smoke:feat  # Durchgang, TGA-Platzierung, Ortho, Rechts-Drag, offene Enden
 npm run smoke:export # Exportinhalt, Hüllflächen-Vollständigkeit, Roundtrip
 npm run smoke:round2 # Geschosse, Raumbuch/CSV, Aufbauten, Planausdruck,

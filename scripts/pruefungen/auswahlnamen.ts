@@ -27,16 +27,16 @@ import { AUSWAHL_NAME, auswahlName, entfernenAufschrift } from '../../src/lib/au
  * und nicht aus `AUSWAHL_NAME` abgeleitet. Würde die Liste aus dem Prüfling
  * selbst stammen, prüfte sie sich gegen sich selbst und wäre immer grün.
  *
- * Abgezählt aus der Typdefinition: node, wall, opening, room, trace, image,
+ * Abgezählt aus der Typdefinition: node, wall, opening, room, image,
  * fixture, vertical, solid, durchbruch, pipe, accessory, annotation,
- * roofOpening, site, heatpump — das sind **16**.
+ * roofOpening, site, heatpump — das sind **15** (bis 1.72.0 mit dem
+ * Spurkandidaten der KI-Bilderkennung 16).
  */
 const ARTEN: readonly SelectionKind[] = [
   'node',
   'wall',
   'opening',
   'room',
-  'trace',
   'image',
   'fixture',
   'vertical',
@@ -55,8 +55,8 @@ export function pruefeAuswahlnamen(check: CheckFn): void {
   // 1 · Vollständigkeit
   // =========================================================================
   {
-    check('Auswahlnamen · 16 Arten in der Liste', ARTEN.length, 16);
-    check('Auswahlnamen · für jede Art ein Name', Object.keys(AUSWAHL_NAME).length, 16);
+    check('Auswahlnamen · 15 Arten in der Liste', ARTEN.length, 15);
+    check('Auswahlnamen · für jede Art ein Name', Object.keys(AUSWAHL_NAME).length, 15);
 
     // Kein leerer und kein fehlender Eintrag — in Einzahl wie in Mehrzahl.
     const ohneEinzahl = ARTEN.filter((k) => !AUSWAHL_NAME[k]).length;
@@ -135,7 +135,7 @@ export function pruefeAuswahlnamen(check: CheckFn): void {
     const ohneVerb = ARTEN.filter((k) => !entfernenAufschrift([k]).endsWith(' entfernen')).length;
     check('Auswahlnamen · jede Art endet auf „entfernen"', ohneVerb, 0);
 
-    // Und in der Mehrzahl ebenso — 16 Arten, jede mit zwei Einträgen.
+    // Und in der Mehrzahl ebenso — 15 Arten, jede mit zwei Einträgen.
     const ohneVerbMehr = ARTEN.filter((k) => !entfernenAufschrift([k, k]).endsWith(' entfernen')).length;
     check('Auswahlnamen · auch in der Mehrzahl', ohneVerbMehr, 0);
 

@@ -283,7 +283,7 @@ dazu in <a href="#k5">Kapitel 5</a>.</p>
     <tr><td><b>Wärmepumpe</b></td><td>Aufstellort, Schall am Nachbarfenster, Schutzbereich bei Propan, Abstandsflächen; dazu die Arten der Geländeobjekte.</td><td>ja</td><td><a href="#k10">10</a></td></tr>
     <tr><td><b>Anlage</b></td><td>Das Anlagenblatt: Heizlast, Geräteauswahl, Heizkreise, Puffer, Trinkwasser, Sicherheitsausrüstung, Schemavorschläge und Schemaprüfung, Anlagenbuch.</td><td>ja</td><td><a href="#k10">10</a>, <a href="#k12">12</a></td></tr>
     <tr><td><b>Prüfung</b></td><td>Der Prüfbericht vor der Übergabe — jeder Befund anklickbar und auf das Objekt springend. Darunter der Vergleich mit einer früheren Übergabe: was hat sich seitdem geändert.</td><td>ja</td><td><a href="#k14">14</a></td></tr>
-    <tr><td><b>Referenz</b></td><td>Der hinterlegte Grundriss: Bild oder PDF laden, Deckkraft, Sperre, Drehung, Kalibrierung, KI-Vorauswertung.</td><td>ja</td><td><a href="#k2-3">2.3</a></td></tr>
+    <tr><td><b>Referenz</b></td><td>Der hinterlegte Grundriss: Bild oder PDF laden, Deckkraft, Sperre, Drehung, Kalibrierung.</td><td>ja</td><td><a href="#k2-3">2.3</a></td></tr>
     <tr><td><b>Ebenen</b></td><td>Acht Ebenen zum Ein- und Ausblenden (Wände, Öffnungen, Räume, Maßketten, TGA Heizung, TGA Sanitär, TGA Lüftung, Referenzbild), darunter die Handnotizen mit ihrer Zahl, dazu die fünf Fangarten und die Raumliste.</td><td>nein</td><td><a href="#k3-10">3.10</a></td></tr>
   </tbody>
 </table>
@@ -311,7 +311,6 @@ Schema-Ansicht öffnet <b>Anlage</b>.</p>
     <tr><td>ganz links</td><td>Das <b>aktive Werkzeug</b> im Klartext, mit einem farbigen Punkt davor.</td></tr>
     <tr><td>daneben</td><td>Solange nichts zu melden ist, die <b>Kurzanleitung zum gewählten Werkzeug</b> — etwa beim Wand-Werkzeug: „Klick setzt einen Punkt, der nächste zieht die Wand · Länge eintippen geht auch · Esc beendet". Gibt es etwas zu melden — eine Länge, ein Ergebnis, eine Warnung —, tritt der Hinweis zurück und die <b>Meldung</b> steht dort.</td></tr>
     <tr><td>rechts, orange</td><td><b>Offene Wandenden</b> und <b>Lücken in der Umschließung</b>, getrennt gezählt. Es sind zwei verschiedene Befunde: dort endet eine Wand im Nichts, hier fehlt eine ganze Wand zwischen zwei sauberen Anschlüssen.</td></tr>
-    <tr><td>rechts, magenta</td><td><b>Auto-Trace aktiv</b> mit der Zahl der noch nicht verworfenen Vektoren.</td></tr>
     <tr><td>rechts, cyan</td><td>Hat die Gegenstelle in dieses Modell geschrieben, steht dort dauerhaft, wer wie viele Werte geschrieben hat und wie viele abgelehnt wurden. Bei Mausberührung Zusammenfassung und Zeitpunkt; <kbd>Strg</kbd> + <kbd>Z</kbd> nimmt den Vorgang zurück.</td></tr>
     <tr><td>rechts</td><td><b>Raster</b> mit Weite in Metern oder „aus" · <b>Winkel</b> mit Schrittweite in Grad oder „frei" · <b>Zoom</b> in Bildpunkten je Meter · Zahl der <b>Wände, Öffnungen und Räume</b> · die <b>Gesamtfläche</b> in Quadratmetern · bei vorhandenen TGA-Objekten deren <b>Zahl und die Summe der Heizleistung</b> in Watt.</td></tr>
   </tbody>
@@ -532,7 +531,6 @@ danach auseinander.</p>
   <thead><tr><th>Lage</th><th>Warum</th></tr></thead>
   <tbody>
     <tr><td>Kein Auswahl-Werkzeug aktiv</td><td>Beim Zeichnen gibt es keine Auswahl, auf die sie sich beziehen könnten.</td></tr>
-    <tr><td>Ein KI-Vorschlag steht zur Entscheidung</td><td>Dafür gibt es die Vorschlagsleiste mit ihren eigenen Wörtern (&bdquo;verwerfen&ldquo;, &bdquo;übernehmen&ldquo;). Ein zweites Verb daneben, das etwas anderes meint, wäre eine Falle.</td></tr>
     <tr><td>Eine Skizze wartet auf Übernahme</td><td>Aus demselben Grund.</td></tr>
     <tr><td>Nur das Referenzbild ist gefasst</td><td>Es ist kein Bauteil, sondern die Vorlage. Es verschwindet über den Reiter <b>Ebenen</b>; eine Wand ist in zehn Sekunden neu gezeichnet, ein eingepasstes Bild nicht.</td></tr>
   </tbody>
@@ -733,7 +731,7 @@ Mac wirkt die Befehlstaste wie <kbd>Strg</kbd>.</p>
     <tr><td><kbd>Strg</kbd> + <kbd>Umschalt</kbd> + <kbd>V</kbd></td><td>Auswahl senkrecht spiegeln</td></tr>
     <tr><td><kbd>Pfeiltasten</kbd></td><td>Auswahl um eine Rasterweite verschieben</td></tr>
     <tr><td><kbd>Umschalt</kbd> + <kbd>Pfeiltasten</kbd></td><td>Auswahl um die vierfache Rasterweite verschieben</td></tr>
-    <tr><td><kbd>Entf</kbd> oder <kbd>Rücktaste</kbd></td><td>Auswahl löschen. Ein gewählter KI-Vorschlag wird dabei nur verworfen und bleibt wiederherstellbar. Ohne Tastatur geht dasselbe über den Knopf rechts in der Statuszeile (<a href="#k3-9-5">Abschnitt 3.9.5</a>)</td></tr>
+    <tr><td><kbd>Entf</kbd> oder <kbd>Rücktaste</kbd></td><td>Auswahl löschen. Ohne Tastatur geht dasselbe über den Knopf rechts in der Statuszeile (<a href="#k3-9-5">Abschnitt 3.9.5</a>)</td></tr>
     <tr><td><kbd>Strg</kbd> + <kbd>Z</kbd></td><td>Rückgängig</td></tr>
     <tr><td><kbd>Strg</kbd> + <kbd>Umschalt</kbd> + <kbd>Z</kbd></td><td>Wiederherstellen</td></tr>
     <tr><td><kbd>Strg</kbd> + <kbd>Y</kbd></td><td>Wiederherstellen</td></tr>
@@ -753,7 +751,6 @@ Mac wirkt die Befehlstaste wie <kbd>Strg</kbd>.</p>
     <tr><td>Doppelklick</td><td>Zug abschließen</td></tr>
     <tr><td>Rahmen ziehen (Auswahl-Werkzeug)</td><td>Mehrfachauswahl</td></tr>
     <tr><td><kbd>Strg</kbd> oder <kbd>Umschalt</kbd> + Klick / Rahmen</td><td>Zur bestehenden Auswahl hinzufügen oder daraus entfernen</td></tr>
-    <tr><td><kbd>Alt</kbd> + Klick auf einen Auto-Trace-Vektor</td><td>Diesen Vektor verwerfen</td></tr>
     <tr><td><kbd>Alt</kbd> + Klick mit dem Fußbodenheizungs-Symbol</td><td>Ein Einzelsymbol setzen statt die ganze Raumfläche zu belegen</td></tr>
   </tbody>
 </table>

@@ -38,18 +38,17 @@ export default function EntfernenKnopf() {
   const selections = useBimStore((s) => s.selections);
   const selection = useBimStore((s) => s.selection);
   const doc = useBimStore((s) => s.doc);
-  const trace = useBimStore((s) => s.trace);
   const skizze = useBimStore((s) => s.skizze);
   const deleteSelection = useBimStore((s) => s.deleteSelection);
   const setSelection = useBimStore((s) => s.setSelection);
 
   /*
-   * Ein Vorschlag der Bilderkennung oder eine wartende Skizze hat Vorrang.
-   * Beide haben eine eigene Leiste mit eigenen Wörtern („verwerfen",
+   * Eine wartende Skizze hat Vorrang.
+   * Sie hat eine eigene Leiste mit eigenen Wörtern („verwerfen",
    * „übernehmen"); ein zweites Verb daneben, das etwas anderes meint, ist
    * eine Falle.
    */
-  if (trace || skizze) return null;
+  if (skizze) return null;
   // Auswahl gibt es nur mit dem Auswahlwerkzeug.
   if (tool !== 'select') return null;
 

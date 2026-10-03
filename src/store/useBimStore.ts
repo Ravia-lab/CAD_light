@@ -14,7 +14,6 @@ import { create } from 'zustand';
 import type {
   AnlagenAntworten,
   AiAnalysisState,
-  AiFloorplanAnalysis,
   AuswahlQuelle,
   BimDocument,
   BimNode,
@@ -62,11 +61,8 @@ import type {
   Selection,
   SnapSettings,
   ToolId,
-  TraceOpeningCandidate,
   Freihandstrich,
   SkizzenVorschlag,
-  TraceState,
-  TraceWallCandidate,
   Vec2,
   ViewMode,
   CameraMode,
@@ -571,8 +567,6 @@ interface BimState {
    * längst vergrößert ist.
    */
   verworfeneRaeume: Record<string, RaumverlustHinweis>;
-  /** Auto-Trace-Vorschau — bewusst außerhalb von `doc` (kein Undo-Rauschen). */
-  trace: TraceState | null;
   /**
    * Der Stand der Freihanderkennung. `null`, solange nichts skizziert wurde.
    *
@@ -1239,14 +1233,6 @@ interface BimState {
   moveImage: (delta: Vec2) => void;
   applyCalibration: (from: Vec2, to: Vec2, realLength: number) => void;
 
-  // --- Auto-Trace --------------------------------------------------------
-  buildTrace: (analysis: AiFloorplanAnalysis) => void;
-  setTraceVisible: (visible: boolean) => void;
-  setTraceMinConfidence: (value: number) => void;
-  rejectTraceCandidate: (id: string) => void;
-  restoreTraceCandidate: (id: string) => void;
-  acceptTrace: () => void;
-  clearTrace: () => void;
 
   // --- Freihand ----------------------------------------------------------
   /** Einen Freihandstrich auswerten und als Vorschlag zeigen. */
@@ -2331,7 +2317,6 @@ export const useBimStore = create<BimState>()((set, get) => {
     aiState: { status: 'idle' },
     statusMessage: 'Bereit',
     verworfeneRaeume: {},
-    trace: null,
     skizze: null,
     assistent: false,
     vollbildSkizze: false,
@@ -5951,7 +5936,7 @@ export const useBimStore = create<BimState>()((set, get) => {
             }
             zaehle(weg);
           } else {
-            // Raum, Bild, Spurkandidat: nichts zu löschen. Der Zähler
+            // Raum, Bild: nichts zu löschen. Der Zähler
             // merkt es sich, damit die Rückmeldung stimmt.
             geblieben += 1;
           }
@@ -5998,7 +5983,6 @@ export const useBimStore = create<BimState>()((set, get) => {
       set({
         selection: null,
         selections: [],
-        trace: null,
         statusMessage: bilanzSatz(bilanz),
       });
       return bilanz;
@@ -6742,7 +6726,6 @@ export const useBimStore = create<BimState>()((set, get) => {
         future: [],
         selection: null,
         selections: [],
-        trace: null,
         einpassenZaehler: get().einpassenZaehler + 1,
         statusMessage: `Neues Projekt „${frisch.meta.name}“ angelegt`,
       });
@@ -7039,7 +7022,6 @@ export const useBimStore = create<BimState>()((set, get) => {
         past: [],
         future: [],
         selection: null,
-        trace: null,
         // Eine Rückmeldung zum *vorigen* Modell gilt für dieses nicht mehr.
         verworfeneRaeume: {},
         einpassenZaehler: get().einpassenZaehler + 1,
@@ -7085,7 +7067,6 @@ export const useBimStore = create<BimState>()((set, get) => {
         future: [],
         selection: null,
         selections: [],
-        trace: null,
         einpassenZaehler: get().einpassenZaehler + 1,
         statusMessage: message ?? 'Dokument ersetzt',
       }),
@@ -7138,102 +7119,6 @@ export const useBimStore = create<BimState>()((set, get) => {
       set({ statusMessage: `Kalibriert auf ${realLength.toFixed(2)} m`, tool: 'select' });
     },
 
-    // ---------------------------------------------------------- Auto-Trace
-    /**
-     * Wandelt eine Vision-Antwort in eine *Vorschau* um. Es wird noch nichts
-     * ins Dokument geschrieben — der Nutzer prüft erst, verwirft einzelne
-     * Vektoren und bestätigt dann bewusst mit "Vorschlag übernehmen".
-     */
-    buildTrace: (analysis) => {
-      const image = get().doc.image;
-      if (!image) {
-        set({ statusMessage: 'Kein Referenzbild geladen' });
-        return;
-      }
-      const scale = image.scale;
-      // Bildkoordinaten laufen nach unten, Modellkoordinaten nach oben.
-      const toWorld = (p: Vec2): Vec2 => ({
-        x: image.origin.x + p.x * scale,
-        y: image.origin.y - p.y * scale,
-      });
-
-      const walls: TraceWallCandidate[] = analysis.walls.map((det) => {
-        const thickness = Math.max(0.06, roundMm(det.thicknessPx * scale));
-        return {
-          id: uid('tw'),
-          kind: 'wall',
-          start: toWorld(det.start),
-          end: toWorld(det.end),
-          thickness,
-          confidence: det.confidence,
-          type: det.type ?? (thickness >= 0.24 ? 'exterior' : 'interior'),
-          rejected: false,
-        };
-      });
-
-      const openings: TraceOpeningCandidate[] = analysis.openings.map((det) => ({
-        id: uid('to'),
-        // Die Vision-Erkennung liefert nur Tür/Fenster — Durchgänge lassen
-        // sich aus einem Grundriss-Bitmap nicht zuverlässig unterscheiden.
-        kind: det.kind === 'door' ? 'door' : 'window',
-        center: toWorld(det.center),
-        width: Math.max(0.5, roundMm(det.widthPx * scale)),
-        height: det.heightM ?? (det.kind === 'door' ? 2.01 : 1.385),
-        sillHeight: det.sillHeightM ?? (det.kind === 'door' ? 0 : 0.9),
-        confidence: det.confidence,
-        rejected: false,
-      }));
-
-      set({
-        trace: {
-          source: analysis.modelId,
-          createdAt: new Date().toISOString(),
-          walls,
-          openings,
-          roomLabels: analysis.roomLabels,
-          visible: true,
-          minConfidence: 0.4,
-          overallConfidence: analysis.confidence,
-          durationMs: analysis.durationMs,
-        },
-        statusMessage: `Auto-Trace: ${walls.length} Wände, ${openings.length} Öffnungen erkannt — bitte prüfen`,
-      });
-    },
-
-    setTraceVisible: (visible) => {
-      const trace = get().trace;
-      if (trace) set({ trace: { ...trace, visible } });
-    },
-
-    setTraceMinConfidence: (minConfidence) => {
-      const trace = get().trace;
-      if (trace) set({ trace: { ...trace, minConfidence } });
-    },
-
-    rejectTraceCandidate: (id) => {
-      const trace = get().trace;
-      if (!trace) return;
-      set({
-        trace: {
-          ...trace,
-          walls: trace.walls.map((w) => (w.id === id ? { ...w, rejected: true } : w)),
-          openings: trace.openings.map((o) => (o.id === id ? { ...o, rejected: true } : o)),
-        },
-        selection: null,
-      });
-    },
-
-    restoreTraceCandidate: (id) => {
-      const trace = get().trace;
-      if (!trace) return;
-      set({
-        trace: {
-          ...trace,
-          walls: trace.walls.map((w) => (w.id === id ? { ...w, rejected: false } : w)),
-          openings: trace.openings.map((o) => (o.id === id ? { ...o, rejected: false } : o)),
-        },
-      });
-    },
 
     /** Übernimmt alle nicht verworfenen Vorschläge als echte CAD-Objekte. */
     // --- Freihand ---------------------------------------------------------
@@ -7480,126 +7365,6 @@ export const useBimStore = create<BimState>()((set, get) => {
 
     setzeNotizenSichtbar: (sichtbar) => set({ notizenSichtbar: sichtbar }),
 
-    acceptTrace: () => {
-      const trace = get().trace;
-      if (!trace) return;
-      const threshold = trace.minConfidence;
-      const acceptedWalls = trace.walls.filter((w) => !w.rejected && w.confidence >= threshold);
-      const acceptedOpenings = trace.openings.filter((o) => !o.rejected && o.confidence >= threshold);
-
-      mutate((doc) => {
-        const level = doc.levels[doc.activeLevelId];
-        const createdIds: string[] = [];
-
-        for (const cand of acceptedWalls) {
-          // Toleranz 8 cm: erkannte Endpunkte streuen, sollen aber verschmelzen.
-          const a = nodeAt(doc, cand.start, 0.08);
-          const b = nodeAt(doc, cand.end, 0.08);
-          if (a.id === b.id) continue;
-          const exists = Object.values(doc.walls).some(
-            (w) => (w.a === a.id && w.b === b.id) || (w.a === b.id && w.b === a.id),
-          );
-          if (exists) continue;
-
-          const wall: Wall = {
-            id: uid('w'),
-            levelId: doc.activeLevelId,
-            a: a.id,
-            b: b.id,
-            thickness: cand.thickness,
-            height: level?.height ?? 2.75,
-            type: cand.type,
-            layerId: 'layer-walls',
-            uValue: cand.type === 'exterior' ? 0.24 : 1.2,
-            confidence: cand.confidence,
-          };
-          doc.walls[wall.id] = wall;
-          createdIds.push(wall.id);
-        }
-
-        // Öffnungen der jeweils nächstgelegenen übernommenen Wand zuordnen.
-        for (const cand of acceptedOpenings) {
-          let bestWallId = '';
-          let bestDist = 0.6;
-          let bestAlong = 0;
-          for (const id of createdIds) {
-            const wall = doc.walls[id];
-            if (!wall) continue;
-            const na = doc.nodes[wall.a];
-            const nb = doc.nodes[wall.b];
-            const dx = nb.x - na.x;
-            const dy = nb.y - na.y;
-            const lenSq = dx * dx + dy * dy;
-            if (lenSq < EPS) continue;
-            let t = ((cand.center.x - na.x) * dx + (cand.center.y - na.y) * dy) / lenSq;
-            t = Math.min(1, Math.max(0, t));
-            const d = Math.hypot(na.x + dx * t - cand.center.x, na.y + dy * t - cand.center.y);
-            if (d < bestDist) {
-              bestDist = d;
-              bestWallId = wall.id;
-              bestAlong = t * Math.sqrt(lenSq);
-            }
-          }
-          if (!bestWallId) continue;
-
-          const wall = doc.walls[bestWallId];
-          const wallLength = distance(doc.nodes[wall.a], doc.nodes[wall.b]);
-          const half = cand.width / 2;
-          if (wallLength < cand.width + 0.02) continue;
-          const clamped = Math.min(Math.max(bestAlong, half), wallLength - half);
-          const overlaps = Object.values(doc.openings).some(
-            (o) => o.wallId === bestWallId && Math.abs(o.distance - clamped) < (o.width + cand.width) / 2,
-          );
-          if (overlaps) continue;
-
-          const id = uid('o');
-          doc.openings[id] = {
-            id,
-            wallId: bestWallId,
-            kind: cand.kind,
-            distance: roundMm(clamped),
-            width: cand.width,
-            height: cand.height,
-            sillHeight: cand.sillHeight,
-            uValue: cand.kind === 'door' ? 1.6 : 0.95,
-            gValue: cand.kind === 'window' ? 0.6 : undefined,
-            confidence: cand.confidence,
-          };
-        }
-      });
-
-      // OCR-Raumstempel auf die neu erkannten Räume übertragen.
-      const rooms = Object.values(get().doc.rooms);
-      const image = get().doc.image;
-      if (image) {
-        for (const label of trace.roomLabels) {
-          const world = {
-            x: image.origin.x + label.position.x * image.scale,
-            y: image.origin.y - label.position.y * image.scale,
-          };
-          let best: Room | undefined;
-          let bestDist = Infinity;
-          for (const room of rooms) {
-            const d = distance(room.centroid, world);
-            if (d < bestDist) {
-              bestDist = d;
-              best = room;
-            }
-          }
-          if (best && bestDist < 3.5) {
-            const clean = label.text.replace(/[\d.,]+\s*m²/i, '').trim();
-            if (clean) get().updateRoom(best.id, { name: clean });
-          }
-        }
-      }
-
-      set({
-        trace: null,
-        statusMessage: `${acceptedWalls.length} Wände und ${acceptedOpenings.length} Öffnungen übernommen`,
-      });
-    },
-
-    clearTrace: () => set({ trace: null, statusMessage: 'Auto-Trace verworfen' }),
 
     // ----------------------------------------------------------- Historie
     beginGesture: () => {

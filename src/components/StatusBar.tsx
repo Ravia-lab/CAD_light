@@ -58,7 +58,6 @@ export default function StatusBar() {
   const snap = useBimStore((s) => s.snap);
   const viewport = useBimStore((s) => s.viewport);
   const doc = useBimStore((s) => s.doc);
-  const trace = useBimStore((s) => s.trace);
   const hostPatch = doc.meta.lastHostPatch;
 
   const rooms = Object.values(doc.rooms);
@@ -128,14 +127,6 @@ export default function StatusBar() {
         </>
       )}
 
-      {trace && (
-        <>
-          <span className="text-fuchsia-300">
-            Auto-Trace aktiv · {trace.walls.filter((w) => !w.rejected).length} Vektoren
-          </span>
-          <span className="text-slate-700">│</span>
-        </>
-      )}
 
       {/*
         Hat die Gegenstelle in dieses Modell geschrieben, muss das dauerhaft

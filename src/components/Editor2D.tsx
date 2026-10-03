@@ -31,7 +31,6 @@ import type {
   SnapResult,
   SolidKind,
   VerticalKind,
-  TraceState,
   Vec2,
   Wall,
 } from '../types/bim';
@@ -68,7 +67,6 @@ import {
   TO_DEG,
   clamp,
   distance,
-  distanceToSegment,
   innererPunkt,
   normalize,
   pointInPolygon,
@@ -120,7 +118,6 @@ import { stehtAufGeschoss } from '../lib/aufstellgeschoss';
 import { ROOM_TEMPLATES, ROOM_TEMPLATE_BY_KIND, ROOM_SIZE_PRESETS, polygonArea, templatePolygon } from '../lib/roomTemplates';
 import { acousticReport, protectionIssues, requiredDistance, ROOM_ANGLE, ratedSoundPower, IRRELEVANCE_MARGIN, IMMISSION_LIMITS } from '../lib/heatPump';
 import CalibrationOverlay from './CalibrationOverlay';
-import TraceReviewBar from './TraceReviewBar';
 import SkizzenLeiste from './SkizzenLeiste';
 import NotizLeiste from './NotizLeiste';
 
@@ -159,8 +156,6 @@ const C = {
   dimText: '#94A3B8',
   draft: '#38BDF8',
   snap: '#2DD4BF',
-  trace: '#E879F9',
-  traceSel: '#F0ABFC',
   text: '#E2E8F0',
   textDim: '#94A3B8',
 };
@@ -347,7 +342,6 @@ export default function Editor2D({ className = '' }: { className?: string }) {
 
   // --- Store ---------------------------------------------------------------
   const doc = useBimStore((s) => s.doc);
-  const trace = useBimStore((s) => s.trace);
   const skizze = useBimStore((s) => s.skizze);
   const radiergummi = useBimStore((s) => s.radiergummi);
   const notizenSichtbar = useBimStore((s) => s.notizenSichtbar);
@@ -840,23 +834,6 @@ export default function Editor2D({ className = '' }: { className?: string }) {
         istSichtbar(doc, art, id) && !istGesperrt(doc, art, id);
 
 
-      // Auto-Trace-Vorschläge liegen ganz oben: ein Klick soll eine
-      // Fehlerkennung sofort erreichbar machen, nicht die Wand darunter.
-      if (trace?.visible) {
-        for (const cand of trace.walls) {
-          if (cand.rejected || cand.confidence < trace.minConfidence) continue;
-          if (distanceToSegment(world, cand.start, cand.end) < Math.max(tol, cand.thickness / 2)) {
-            return { kind: 'trace' as const, id: cand.id };
-          }
-        }
-        for (const cand of trace.openings) {
-          if (cand.rejected || cand.confidence < trace.minConfidence) continue;
-          if (distance(cand.center, world) < Math.max(tol, cand.width / 2)) {
-            return { kind: 'trace' as const, id: cand.id };
-          }
-        }
-      }
-
       if (roofFrame) {
         for (const o of roofOpenings) {
           if (hitTestRoofOpening(roofFrame, o, world)) {
@@ -1037,7 +1014,7 @@ export default function Editor2D({ className = '' }: { className?: string }) {
     // `useMemo`-Ableitungen aus `doc`. Wer sie einzeln aufzählt, vergisst
     // früher oder später eine — und dann greift ein Klick auf genau das
     // Objekt nicht mehr, das in der vergessenen Liste steht.
-    [doc, snap.pixelTolerance, trace, viewport.zoom],
+    [doc, snap.pixelTolerance, viewport.zoom],
   );
 
   // -------------------------------------------------------------------------
@@ -2011,11 +1988,6 @@ export default function Editor2D({ className = '' }: { className?: string }) {
       }
     }
 
-    // -------------------------------------------------- Auto-Trace-Vorschau
-    if (trace?.visible) {
-      drawTraceLayer(ctx, trace, sx, sy, zoom, selection?.kind === 'trace' ? selection.id : null);
-    }
-
     // ------------------------------------------------------- Snap-Indikator
     /*
      * Der Fangmarker steht nur dort, wo der Fang auch wirkt.
@@ -2099,7 +2071,6 @@ export default function Editor2D({ className = '' }: { className?: string }) {
     snap.gridSize,
     store,
     tool,
-    trace,
     skizze,
     notizenSichtbar,
     viewport,
@@ -2832,12 +2803,6 @@ export default function Editor2D({ className = '' }: { className?: string }) {
           }
         }
         const hit = pickAt(ptr.world);
-        // Alt+Klick auf einen KI-Vorschlag verwirft ihn direkt.
-        if (hit?.kind === 'trace' && (e.altKey || e.ctrlKey || e.metaKey)) {
-          s.rejectTraceCandidate(hit.id);
-          break;
-        }
-
         const additive = e.ctrlKey || e.metaKey || e.shiftKey;
 
         if (!hit) {
@@ -3469,10 +3434,7 @@ export default function Editor2D({ className = '' }: { className?: string }) {
             scheduleRender();
             break;
           }
-          // Ein selektierter KI-Vorschlag wird verworfen, nicht gelöscht —
-          // er bleibt in der Trace-Liste wiederherstellbar.
-          if (s.selection?.kind === 'trace') s.rejectTraceCandidate(s.selection.id);
-          else s.deleteSelection();
+          s.deleteSelection();
           break;
         }
         case 'v':
@@ -3856,8 +3818,6 @@ export default function Editor2D({ className = '' }: { className?: string }) {
       {/* Eigene Ereignisebene für das 2-Punkt-Maßband — nur im Kalibriermodus aktiv */}
       <CalibrationOverlay />
 
-      {/* Kontrollleiste der Auto-Trace-Vorschau */}
-      <TraceReviewBar />
       <SkizzenLeiste />
       <NotizLeiste />
     </div>
@@ -4432,91 +4392,6 @@ function drawCursorHud(
   ctx.fillText(lines[0], x + 8, y + 12);
   ctx.fillStyle = C.textDim;
   ctx.fillText(lines[1], x + 8, y + 25);
-  ctx.restore();
-}
-
-/**
- * Auto-Trace-Ebene: KI-Vorschläge als gestrichelte Magenta-Vektoren über dem
- * Referenzbild. Bewusst in einer klar "fremden" Farbe — sie darf nie mit
- * echter, editierbarer CAD-Geometrie verwechselbar sein.
- */
-function drawTraceLayer(
-  ctx: CanvasRenderingContext2D,
-  trace: TraceState,
-  sx: Sx,
-  sy: Sy,
-  zoom: number,
-  selectedId: string | null,
-): void {
-  ctx.save();
-  ctx.lineCap = 'round';
-
-  for (const cand of trace.walls) {
-    if (cand.rejected || cand.confidence < trace.minConfidence) continue;
-    const selected = cand.id === selectedId;
-    const a = toScreenLocal(cand.start, sx, sy);
-    const b = toScreenLocal(cand.end, sx, sy);
-
-    // Wandstärke als transparentes Band — man sieht sofort, was übernommen wird.
-    ctx.save();
-    ctx.globalAlpha = selected ? 0.32 : 0.16;
-    ctx.strokeStyle = C.trace;
-    ctx.lineWidth = Math.max(2, cand.thickness * zoom);
-    ctx.beginPath();
-    ctx.moveTo(a.x, a.y);
-    ctx.lineTo(b.x, b.y);
-    ctx.stroke();
-    ctx.restore();
-
-    // Achse gestrichelt
-    ctx.setLineDash(selected ? [3, 3] : [8, 5]);
-    ctx.strokeStyle = selected ? C.traceSel : C.trace;
-    ctx.lineWidth = selected ? 2.25 : 1.5;
-    // Niedrige Konfidenz wird transparenter dargestellt — visuelle Priorisierung.
-    ctx.globalAlpha = 0.45 + 0.55 * cand.confidence;
-    ctx.beginPath();
-    ctx.moveTo(a.x, a.y);
-    ctx.lineTo(b.x, b.y);
-    ctx.stroke();
-    ctx.setLineDash([]);
-    ctx.globalAlpha = 1;
-
-    if (selected || zoom > 45) {
-      const mx = (a.x + b.x) / 2;
-      const my = (a.y + b.y) / 2;
-      ctx.font = '500 9.5px JetBrains Mono, ui-monospace, monospace';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      const label = `${Math.round(cand.confidence * 100)}%`;
-      const w = ctx.measureText(label).width + 8;
-      ctx.fillStyle = 'rgba(11,17,32,0.85)';
-      roundRect(ctx, mx - w / 2, my - 7, w, 14, 4);
-      ctx.fill();
-      ctx.fillStyle = selected ? C.traceSel : C.trace;
-      ctx.fillText(label, mx, my);
-    }
-  }
-
-  for (const cand of trace.openings) {
-    if (cand.rejected || cand.confidence < trace.minConfidence) continue;
-    const selected = cand.id === selectedId;
-    const p = toScreenLocal(cand.center, sx, sy);
-    const r = Math.max(5, (cand.width / 2) * zoom);
-    ctx.beginPath();
-    ctx.setLineDash([4, 3]);
-    ctx.strokeStyle = selected ? C.traceSel : C.trace;
-    ctx.lineWidth = selected ? 2 : 1.3;
-    ctx.globalAlpha = 0.45 + 0.55 * cand.confidence;
-    if (cand.kind === 'door') {
-      ctx.arc(p.x, p.y, r, 0, Math.PI * 2);
-    } else {
-      ctx.rect(p.x - r, p.y - 5, r * 2, 10);
-    }
-    ctx.stroke();
-    ctx.setLineDash([]);
-    ctx.globalAlpha = 1;
-  }
-
   ctx.restore();
 }
 

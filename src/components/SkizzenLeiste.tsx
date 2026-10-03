@@ -2,12 +2,10 @@
  * SkizzenLeiste — was aus dem Freihandstrich geworden ist, und was damit
  * geschehen soll.
  *
- * **Dieselbe Regel wie bei der Bilderkennung: das Programm schlägt vor, der
- * Planer entscheidet.** Ein Strich mit dem Stift ist in einer halben Sekunde
+ * **Das Programm schlägt vor, der Planer entscheidet.** Ein Strich mit dem Stift ist in einer halben Sekunde
  * gezogen; eine Erkennung, die daraus ungefragt Wände anlegt, hätte nach
  * drei Strichen ein Modell erzeugt, das niemand gezeichnet hat. Deshalb
- * dieselbe Leiste an derselben Stelle wie beim Auto-Trace — wer beides
- * benutzt, muss nichts Neues lernen.
+ * eine eigene Leiste zum Prüfen und Übernehmen.
  *
  * Die Leiste sagt drei Dinge, und zwar in dieser Reihenfolge: **was erkannt
  * wurde**, **womit es angelegt würde** (Stärke und Art lassen sich hier noch

@@ -323,17 +323,6 @@ const ZUORDNUNG: Record<SelectionKind, { id: string; ebene: LayerId | typeof OHN
   fixture: { id: 'fx-sani', ebene: EBENE_SANITAER },
   pipe: { id: 'p-cold-water', ebene: EBENE_SANITAER },
   accessory: { id: 'ac-lueft', ebene: EBENE_LUEFTUNG },
-  /*
-   * Die einzige Art ohne Ebene — und das mit Absicht.
-   *
-   * Der Spurkandidat ist das, was die Bilderkennung in einem hochgeladenen
-   * Grundriss *vermutet*: ein Vorschlag, den man annimmt oder wegwirft. Er
-   * ist kein Bauteil, steht auf keinem Blatt und gehört keinem Gewerk. Ihn
-   * sperrbar zu machen hieße, einen Vorschlag gegen Annahme zu schützen; ihn
-   * ausblendbar zu machen hieße, ihn übersehen zu können, obwohl er genau
-   * dafür da ist, gesehen und entschieden zu werden.
-   */
-  trace: { id: 'tr1', ebene: OHNE },
 };
 
 /**
@@ -387,12 +376,13 @@ export function pruefeEbenen(check: CheckFn): void {
 
   // === A — Die Zuordnung ist vollständig ==================================
   //
-  // Sechzehn Auswahlarten stehen in `src/types/bim.ts`: node, wall, opening,
-  // room, trace, image, fixture, vertical, solid, durchbruch, pipe,
-  // accessory, annotation, roofOpening, site, heatpump. Die Zahl steht hier
+  // Fünfzehn Auswahlarten stehen in `src/types/bim.ts`: node, wall, opening,
+  // room, image, fixture, vertical, solid, durchbruch, pipe, accessory,
+  // annotation, roofOpening, site, heatpump. (Bis 1.72.0 sechzehn — der
+  // Spurkandidat der KI-Bilderkennung ist mit ihr entfallen.) Die Zahl steht hier
   // von Hand, damit eine neue Art nicht nur die Tafel oben erweitert, sondern
   // auch hier eine Entscheidung erzwingt.
-  check('Es gibt sechzehn Auswahlarten', ALLE_AUSWAHLARTEN.length, 16);
+  check('Es gibt fünfzehn Auswahlarten', ALLE_AUSWAHLARTEN.length, 15);
 
   // Jede einzeln — der Kern des Blocks. Eine Zeile je Art, damit im Protokoll
   // steht, welche danebenliegt, und nicht nur, dass eine danebenliegt.
@@ -402,18 +392,13 @@ export function pruefeEbenen(check: CheckFn): void {
   }
 
   /*
-   * Und die Gegenrichtung als eine Zahl: Genau **eine** Art darf ohne Ebene
-   * herauskommen. Die Zeile ist die Zusage, um die es in Abschnitt A
-   * eigentlich geht — nicht „trace hat keine Ebene" (das steht schon oben),
-   * sondern „sonst niemand".
-   *
-   * Der Name steht daneben, weil eine bloße Anzahl den Fall durchließe, in
-   * dem eine neue Art durchfällt und `trace` gleichzeitig eine Ebene bekommt:
-   * Zwei Fehler, die sich in der Summe aufheben.
+   * Und die Gegenrichtung: **keine** Art kommt ohne Ebene heraus. Bis 1.72.0
+   * war es genau eine, der Spurkandidat der KI-Bilderkennung; mit ihr ist
+   * diese Ausnahme entfallen. Der Name steht daneben, damit im Protokoll
+   * steht, welche Art durchgefallen ist.
    */
   const ohneEbene = ALLE_AUSWAHLARTEN.filter((k) => ebeneFuerAuswahl(doc, k, ZUORDNUNG[k].id) === undefined);
-  check('Genau eine Auswahlart liefert keine Ebene', ohneEbene.length, 1);
-  check('… und das ist der Spurkandidat', ohneEbene.join(', ') || 'keine', 'trace');
+  check('Keine Auswahlart liefert keine Ebene', ohneEbene.join(', ') || 'keine', 'keine');
 
   // === B — Jede gelieferte Ebenenkennung existiert wirklich ===============
   //
@@ -572,14 +557,6 @@ export function pruefeEbenen(check: CheckFn): void {
   check('Die fertige Auswahl wird genauso beurteilt', auswahlGesperrt(gemischt, { kind: 'room', id: 'r1' }), true);
   check('… und die offene Wand bleibt offen', auswahlGesperrt(gemischt, { kind: 'wall', id: 'w1' }), false);
 
-  /*
-   * Eine Auswahlart ohne Ebene ist immer sichtbar und nie gesperrt. Beim
-   * Spurkandidaten ist das die einzig brauchbare Antwort: Ein Vorschlag, den
-   * niemand mehr sehen kann, ist verloren, und einer, den man nicht annehmen
-   * darf, ist zwecklos.
-   */
-  check('Ohne Ebene ist immer sichtbar', istSichtbar(gemischt, 'trace', 'tr1'), true);
-  check('… und nie gesperrt', istGesperrt(gemischt, 'trace', 'tr1'), false);
 
   /*
    * **Warum „unbekannt" nicht wie „aus" behandelt werden darf.**

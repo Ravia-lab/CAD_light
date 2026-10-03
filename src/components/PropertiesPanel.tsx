@@ -153,15 +153,6 @@ export default function PropertiesPanel() {
       const o = doc.roofOpenings?.[selection.id];
       return o ? <RoofOpeningProperties opening={o} /> : <BuildingSummary />;
     }
-    case 'trace':
-      return (
-        <Section title="KI-Vorschlag">
-          <p className="text-[11px] leading-relaxed text-slate-400">
-            Ausgewählter Auto-Trace-Vektor. Über die Leiste am unteren Rand lässt er sich
-            verwerfen oder wiederherstellen — übernommen wird er erst mit „Vorschlag übernehmen“.
-          </p>
-        </Section>
-      );
     case 'image':
       return (
         <Section title="Referenzbild">

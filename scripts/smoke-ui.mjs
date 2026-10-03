@@ -51,7 +51,7 @@ await page.getByRole('button', { name: '3D', exact: true }).click();
 await page.waitForTimeout(2000);
 await page.screenshot({ path: './screenshots/ui-3d.png', timeout: 90000 });
 
-// Referenz-Tab + Auto-Trace ohne Bild (soll sauber bleiben)
+// Referenz-Tab ohne Bild (soll sauber bleiben)
 await page.getByRole('button', { name: '2D', exact: true }).click();
 await page.getByRole('button', { name: 'Referenz' }).click();
 await page.waitForTimeout(400);

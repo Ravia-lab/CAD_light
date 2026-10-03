@@ -129,8 +129,8 @@ export const EBENEN_KATALOG: readonly Layer[] = [
  * Auf welcher Ebene liegt das, was hier ausgewählt ist?
  *
  * `undefined` heißt: auf keiner — und damit weder ausblendbar noch sperrbar.
- * Das betrifft heute nur den Spurkandidaten der Bilderkennung, der ohnehin
- * ein Vorschlag und kein Bauteil ist.
+ * Heute liefert jede Auswahlart eine Ebene; bis 1.72.0 war der
+ * Spurkandidat der KI-Bilderkennung die Ausnahme.
  */
 export function ebeneFuerAuswahl(doc: BimDocument, kind: SelectionKind, id: string): LayerId | undefined {
   switch (kind) {
@@ -166,14 +166,6 @@ export function ebeneFuerAuswahl(doc: BimDocument, kind: SelectionKind, id: stri
       const r = a?.runId ? doc.pipes[a.runId] : undefined;
       return r ? ebeneFuerMedium(r.service) : EBENE_HEIZUNG;
     }
-    /*
-     * Der Spurkandidat der Bilderkennung liegt auf **keiner** Ebene, und das
-     * ist eine Entscheidung und kein Durchfall: Er ist ein Vorschlag, den man
-     * annimmt oder verwirft, kein Bauteil. Ihn sperrbar zu machen hieße, ihn
-     * für ein Bauteil zu halten.
-     */
-    case 'trace':
-      return undefined;
   }
 }
 

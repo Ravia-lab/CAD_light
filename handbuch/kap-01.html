@@ -369,16 +369,11 @@ anderem, dass sie keinen Verweis ins Netz enthält — die Prüfung schlägt feh
 und der Bau bricht ab, wenn doch einer darin steht. Schriften, Symbole und
 Beispieldaten liegen in der Datei selbst.</p>
 
-<p>Eine Einschränkung gehört dazu, damit die Aussage sauber bleibt: die
-<b>KI-Vorauswertung eines eingelesenen Grundrissbilds</b> (Auto-Trace) kann
-einen Server ansprechen. Das Programm spricht dafür nie einen fremden Dienst
-direkt an, sondern einen Vermittler unter der eigenen Adresse
-(<code>/api/vision/floorplan</code>) — Zugangsschlüssel gehören nach dem
-Grundsatz dieses Programms nicht in den Browser. Aus der Einzeldatei heraus gibt
-es diesen Vermittler nicht; das Programm merkt das, meldet „Vermittler nicht
-erreichbar" und schaltet auf die eingebaute örtliche Simulation um. Deren
-Ergebnisse sind ausdrücklich als solche gekennzeichnet, damit niemand sie für
-eine echte Erkennung hält. Mehr dazu in <a href="#k2-3">Abschnitt 2.3</a>.</p>
+<p>Bis Fassung 1.72.0 gab es eine Ausnahme: die KI-Vorauswertung eines
+eingelesenen Grundrissbilds, die einen Vermittler unter
+<code>/api/vision/floorplan</code> ansprach. Diesen Vermittler gab es nie, und
+das Programm zeigte stattdessen eine Simulation. Seit 1.73.0 ist die
+Vorauswertung entfernt; das Programm spricht keinen Server mehr an.</p>
 
 <h3 id="k1-9">1.9 Wo die Daten liegen</h3>
 
