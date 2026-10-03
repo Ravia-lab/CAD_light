@@ -14,6 +14,8 @@ import { buildReferenceDocument } from '../reference';
 import { designPlant, gebaeudeHeizlast } from '../../src/lib/plantDesign';
 import { estimateHeatLoad } from '../../src/lib/heatLoadEstimate';
 import type { BimDocument } from '../../src/types/bim';
+import { buildIfc, schichtenAusText } from '../../src/lib/ifcExport';
+import { importIfc, parseStep } from '../../src/lib/ifcImport';
 
 function wurzel(): string | undefined {
   let pfad = process.cwd();
@@ -97,5 +99,50 @@ export function pruefeAbgleich2026(check: CheckFn): void {
     check('B3 · Bad OG mit Dachfläche statt Decke [W]', t('Bad OG'), 642, 1);
     // Ein Geschoss ohne Dach bleibt unberührt.
     check('B3 · Wohnen EG unverändert [W]', t('Wohnen EG'), 787, 0.5);
+  }
+
+  // -------------------------------------------------------------------------
+  // B7 · IFC: Räume über IfcRelAggregates, Wände mit Schichten und U-Wert
+  // -------------------------------------------------------------------------
+  {
+    const ifc = buildIfc(doc, { timestamp: '2026-01-01T00:00:00.000Z' });
+    const ents = [...parseStep(ifc).values()];
+    const vom = (typ: string) => ents.filter((e) => e.type === typ);
+    const refsIn = (v: unknown): number[] =>
+      Array.isArray(v) ? v.flatMap(refsIn) : v && typeof v === 'object' && 'ref' in v ? [(v as { ref: number }).ref] : [];
+    const raeume = new Set(vom('IFCSPACE').map((e) => e.id));
+    const geschosse = new Set(vom('IFCBUILDINGSTOREY').map((e) => e.id));
+    const enthalten = new Set(vom('IFCRELCONTAINEDINSPATIALSTRUCTURE').flatMap((e) => refsIn(e.attributes[4])));
+    const aggregiert = new Set(
+      vom('IFCRELAGGREGATES')
+        .filter((e) => refsIn(e.attributes[4]).some((r) => geschosse.has(r)))
+        .flatMap((e) => refsIn(e.attributes[5])),
+    );
+    check('B7 · jeder Raum hängt per IfcRelAggregates am Geschoss',
+      [...raeume].every((r) => aggregiert.has(r)), true);
+    check('B7 · kein Raum steht bei den enthaltenen Bauteilen',
+      [...raeume].some((r) => enthalten.has(r)), false);
+    check('B7 · Räume im Referenzhaus', raeume.size, Object.keys(doc.rooms).length);
+
+    const waende = vom('IFCWALLSTANDARDCASE').map((e) => e.id);
+    const mitMaterial = new Set(vom('IFCRELASSOCIATESMATERIAL').flatMap((e) => refsIn(e.attributes[4])));
+    check('B7 · jede Wand hat einen Schichtaufbau', waende.every((id) => mitMaterial.has(id)), true);
+    check('B7 · Schichtaufbau als IfcMaterialLayerSetUsage',
+      vom('IFCMATERIALLAYERSETUSAGE').length, waende.length);
+    check('B7 · je Wand ein Pset_WallCommon', vom('IFCPROPERTYSET').filter((e) => e.attributes[2] === 'Pset_WallCommon').length, waende.length);
+    check('B7 · U-Wert als ThermalTransmittance', ifc.includes("'ThermalTransmittance'"), true);
+    check('B7 · Einheit W/(m²·K) ist erklärt', ifc.includes('.THERMALTRANSMITTANCEUNIT.'), true);
+
+    // Rückweg: der eigene Import findet die Räume weiter in ihren Geschossen.
+    const zurueck = importIfc(ifc);
+    check('B7 · Import liest alle Räume zurück', zurueck.spaces.length, raeume.size);
+
+    // Schichten aus dem Freitext: nur wenn die Summe zur Wanddicke passt.
+    const zwei = schichtenAusText('24 MW + 14 WDVS', 0.38);
+    check('B7 · „24 MW + 14 WDVS" ergibt zwei Schichten', zwei?.length ?? 0, 2);
+    check('B7 · … die zweite ist 14 cm WDVS', `${zwei?.[1]?.name} ${zwei?.[1]?.dicke}`, 'WDVS 0.14');
+    check('B7 · „36,5 Ziegel + 14 cm WDVS" mit Komma und „cm"', schichtenAusText('36,5 Ziegel + 14 cm WDVS', 0.505)?.length ?? 0, 2);
+    check('B7 · Summe passt nicht zur Wand: keine Aufteilung', schichtenAusText('24 MW + 14 WDVS', 0.24) === undefined, true);
+    check('B7 · Text ohne Dicken: keine Aufteilung', schichtenAusText('Vollziegel verputzt', 0.24) === undefined, true);
   }
 }

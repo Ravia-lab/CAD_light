@@ -221,7 +221,7 @@
     "codes": "opening.below-grade,project.reheat-factor,roof.wall-height,ventilation.no-ahu"
   },
   "ifc": {
-    "lines": 607,
+    "lines": 805,
     "walls": 21,
     "windows": 8,
     "doors": 3,

@@ -12,9 +12,13 @@
  * dreihundert Zeilen passt. Erzeugt werden:
  *
  *   IfcProject → IfcSite → IfcBuilding → IfcBuildingStorey
- *     ├─ IfcWallStandardCase   (Extrusion des Wandrechtecks)
+ *     ├─ IfcWallStandardCase   (Extrusion des Wandrechtecks, Schichtaufbau
+ *     │                         über IfcMaterialLayerSetUsage, U-Wert und
+ *     │                         IsExternal in Pset_WallCommon)
  *     ├─ IfcWindow / IfcDoor   (mit IfcOpeningElement und Voiding)
- *     ├─ IfcSpace              (Raumpolygon, Fläche, Volumen)
+ *     ├─ IfcSpace              (Raumpolygon, Fläche, Volumen — über
+ *     │                         IfcRelAggregates am Geschoss, nicht als
+ *     │                         enthaltenes Bauteil)
  *     ├─ IfcSlab               (Bodenplatte je Raum)
  *     ├─ IfcRoof               (Dachfläche, sofern definiert)
  *     └─ IfcStair / IfcShaft   (Treppen und Schächte)
@@ -32,6 +36,30 @@ import { getWallGeometry, openingSpan, indexOpeningsByWall, openingsOf } from '.
 import { ERZEUGER, FASSUNG } from './fassung';
 import { pointInPolygon } from './geometry';
 import { daecherVon, dachUeberRaum } from './dachlandschaft';
+import { uWertWand } from './uwert';
+
+/**
+ * Die Schichten eines Aufbaus aus seiner Freitextbeschreibung.
+ *
+ * `Construction.layers` ist Freitext wie „24 MW + 14 WDVS" oder
+ * „36,5 Ziegel + 14 cm WDVS": Dicke in Zentimetern vorn, Baustoff dahinter,
+ * Schichten mit „+" getrennt. Gelesen wird das nur, wenn **jede** Schicht so
+ * aussieht und die Summe zur Wanddicke passt (± 1 cm). Sonst bleibt es bei
+ * einer Schicht über die ganze Dicke, mit dem Text als Beschreibung — eine
+ * erfundene Aufteilung wäre schlimmer als keine.
+ */
+export function schichtenAusText(text: string | undefined, dicke: number): { name: string; dicke: number }[] | undefined {
+  if (!text) return undefined;
+  const teile = text.split('+').map((t) => t.trim()).filter(Boolean);
+  const schichten: { name: string; dicke: number }[] = [];
+  for (const t of teile) {
+    const m = /^(\d+(?:[.,]\d+)?)\s*(?:cm\s+)?(.+)$/.exec(t);
+    if (!m) return undefined;
+    schichten.push({ name: m[2].trim(), dicke: Number(m[1].replace(',', '.')) / 100 });
+  }
+  const summe = schichten.reduce((a, b) => a + b.dicke, 0);
+  return schichten.length && Math.abs(summe - dicke) <= 0.01 ? schichten : undefined;
+}
 
 /** Schreibt STEP-Zeilen und vergibt fortlaufende Entity-IDs. */
 class StepWriter {
@@ -180,7 +208,19 @@ export function buildIfc(doc: BimDocument, options: IfcExportOptions = {}): stri
   const squareMetre = w.add("IFCSIUNIT(*,.AREAUNIT.,$,.SQUARE_METRE.)");
   const cubicMetre = w.add("IFCSIUNIT(*,.VOLUMEUNIT.,$,.CUBIC_METRE.)");
   const radian = w.add("IFCSIUNIT(*,.PLANEANGLEUNIT.,$,.RADIAN.)");
-  const units = w.add(`IFCUNITASSIGNMENT((${[metre, squareMetre, cubicMetre, radian].join(',')}))`);
+  // Für den U-Wert in Pset_WallCommon: W/(m²·K) als abgeleitete Einheit.
+  const watt = w.add("IFCSIUNIT(*,.POWERUNIT.,$,.WATT.)");
+  const kelvin = w.add("IFCSIUNIT(*,.THERMODYNAMICTEMPERATUREUNIT.,$,.KELVIN.)");
+  const uEinheit = w.add(
+    `IFCDERIVEDUNIT((${[
+      w.add(`IFCDERIVEDUNITELEMENT(${watt},1)`),
+      w.add(`IFCDERIVEDUNITELEMENT(${metre},-2)`),
+      w.add(`IFCDERIVEDUNITELEMENT(${kelvin},-1)`),
+    ].join(',')}),.THERMALTRANSMITTANCEUNIT.,$)`,
+  );
+  const units = w.add(
+    `IFCUNITASSIGNMENT((${[metre, squareMetre, cubicMetre, radian, watt, kelvin, uEinheit].join(',')}))`,
+  );
 
   const origin = w.add('IFCCARTESIANPOINT((0.,0.,0.))');
   const dirZ = w.add('IFCDIRECTION((0.,0.,1.))');
@@ -238,6 +278,11 @@ export function buildIfc(doc: BimDocument, options: IfcExportOptions = {}): stri
     storeyRefs.push(storey);
 
     const products: string[] = [];
+    // Räume gehören dem Geschoss über IfcRelAggregates (räumliche
+    // Zerlegung), nicht über IfcRelContainedInSpatialStructure — das ist
+    // für Bauteile. Bis 1.72.0 standen sie bei den Bauteilen; manche
+    // Programme fanden sie dann nicht als Räume des Geschosses.
+    const spaces: string[] = [];
 
     // --- Wände ---------------------------------------------------------------
     //
@@ -261,6 +306,34 @@ export function buildIfc(doc: BimDocument, options: IfcExportOptions = {}): stri
       );
       products.push(wallEntity);
       wallEntities.set(wall.id, wallEntity);
+
+      // --- Schichtaufbau und Kennwerte -----------------------------------------
+      const aufbau = wall.constructionId ? (doc.constructions ?? {})[wall.constructionId] : undefined;
+      const schichten = schichtenAusText(aufbau?.layers, wall.thickness) ?? [
+        { name: aufbau?.name ?? wallName(wall), dicke: wall.thickness },
+      ];
+      const layerRefs = schichten.map((sch, i) =>
+        w.add(
+          `IFCMATERIALLAYER(${w.add(`IFCMATERIAL(${s(sch.name)},$,$)`)},${n(sch.dicke)},$,${s(`Schicht ${i + 1}`)},${schichten.length === 1 ? s(aufbau?.layers) : '$'},$,$)`,
+        ),
+      );
+      const layerSet = w.add(`IFCMATERIALLAYERSET((${layerRefs.join(',')}),${s(aufbau?.name ?? wallName(wall))},$)`);
+      // Die Schichten liegen symmetrisch zur Wandachse: Versatz −d/2 entlang
+      // der positiven Querachse (AXIS2), so wie das Wandrechteck gezeichnet ist.
+      const usage = w.add(`IFCMATERIALLAYERSETUSAGE(${layerSet},.AXIS2.,.POSITIVE.,${n(-wall.thickness / 2)},$)`);
+      w.add(`IFCRELASSOCIATESMATERIAL(${own(`mat-${wall.id}`)},$,$,(${wallEntity}),${usage})`);
+
+      const u = uWertWand(wall, doc.constructions);
+      const merkmale = [
+        w.add(`IFCPROPERTYSINGLEVALUE('IsExternal',$,IFCBOOLEAN(${wall.type === 'exterior' ? '.T.' : '.F.'}),$)`),
+      ];
+      if (u.wert !== undefined) {
+        merkmale.push(
+          w.add(`IFCPROPERTYSINGLEVALUE('ThermalTransmittance',$,IFCTHERMALTRANSMITTANCEMEASURE(${n(u.wert)}),${uEinheit})`),
+        );
+      }
+      const pset = w.add(`IFCPROPERTYSET(${own(`pset-${wall.id}`)},'Pset_WallCommon',$,(${merkmale.join(',')}))`);
+      w.add(`IFCRELDEFINESBYPROPERTIES(${own(`psetrel-${wall.id}`)},$,$,(${wallEntity}),${pset})`);
 
       // --- Öffnungen ---------------------------------------------------------
       for (const op of openingsOf(openingIndex, wall.id)) {
@@ -318,7 +391,7 @@ export function buildIfc(doc: BimDocument, options: IfcExportOptions = {}): stri
       const space = w.add(
         `IFCSPACE(${own(`space-${room.id}`)},${s(room.name)},$,$,${lplace},${spaceProduct},${s(room.name)},.ELEMENT.,.INTERNAL.,${n(level.elevation)})`,
       );
-      products.push(space);
+      spaces.push(space);
 
       // Fläche und Volumen als Mengen — das ist es, was eine Gegenstelle
       // aus einem IfcSpace tatsächlich ausliest.
@@ -525,6 +598,9 @@ export function buildIfc(doc: BimDocument, options: IfcExportOptions = {}): stri
       w.add(
         `IFCRELCONTAINEDINSPATIALSTRUCTURE(${own(`contain-${level.id}`)},$,$,(${products.join(',')}),${storey})`,
       );
+    }
+    if (spaces.length) {
+      w.add(`IFCRELAGGREGATES(${own(`agg-storey-${level.id}`)},$,$,${storey},(${spaces.join(',')}))`);
     }
   }
 
