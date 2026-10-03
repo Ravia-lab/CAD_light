@@ -26,6 +26,7 @@
  * Projektdatei taugt.
  */
 
+import { dachraumTemperatur, istUnbeheizterNachbar } from './unbeheizt';
 import type {
   ExportPlant,
   BimDocument,
@@ -325,7 +326,10 @@ export function buildRaviaExport(doc: BimDocument): RaviaExport {
     //        Reiner Zuwachs; ändert keinen Wert, sondern sagt, welcher nicht
     //        gemessen ist. Die vollständige Fassungsgeschichte steht an
     //        `RaviaExport` in `src/types/bim.ts`.
-    version: '2.13.0',
+    // 2.14.0: `project.atticTemperature` — der Dachraum über der obersten
+    //         Decke hat eine eigene Temperatur; Wände zu unbeheizten Räumen
+    //         sind `unheated` mit θ_u statt `adjacent-room` mit deren Soll.
+    version: '2.14.0',
     generator: GENERATOR,
     exportedAt: new Date().toISOString(),
     units: {
@@ -346,7 +350,7 @@ export function buildRaviaExport(doc: BimDocument): RaviaExport {
       areas:
         'grossArea = Rohbaufläche des Bauteils, netArea = abzüglich aller Öffnungen. Raumflächen sind lichte Maße (Achsmaße abzüglich der halben Wandstärken).',
       boundaries:
-        'neighbourTemperature ist die Temperatur auf der raumabgewandten Seite: Norm-Außentemperatur bei exterior, Erdreichtemperatur bei ground, project.unheatedTemperature bei unheated, die Solltemperatur des Nachbarraums bei adjacent-room.',
+        'neighbourTemperature ist die Temperatur auf der raumabgewandten Seite: Norm-Außentemperatur bei exterior, Erdreichtemperatur bei ground, bei unheated project.unheatedTemperature — an der obersten Decke zum unbeheizten Dachraum stattdessen project.atticTemperature —, die Solltemperatur des Nachbarraums bei adjacent-room. Grenzt eine Wand an einen Raum mit isHeated = false, ist sie unheated (mit neighbourRoomId) und nicht adjacent-room.',
       groundContact:
         'Was unter project.terrainElevation liegt, grenzt an Erdreich. Eine teilweise eingegrabene Wand erscheint deshalb als zwei Flächen: der Teil unter Gelände mit boundary "ground" und der ID <wandId>-ground, der Teil darüber mit boundary "exterior" und der ID der Wand. Ihre Flächen ergeben zusammen wieder die Wandfläche. groundContact.embedmentDepth ist die Tiefe der Bauteilunterkante unter Gelände; die Faktoren f_g1, f_g2 und G_w nach DIN EN 12831-1 werden hier bewusst nicht gebildet — geliefert werden nur ihre Eingangsgrößen. Fehlt project.terrainElevation, ist keine Geländeoberkante erfasst und nichts wird als erdberührt gerechnet. Die Beschaffenheit des Baugrunds — Bodenart und Grundwasserstand — steht in subsoil.',
       ventilation:
@@ -358,7 +362,7 @@ export function buildRaviaExport(doc: BimDocument): RaviaExport {
       solids:
         'solids sind massive Bauteile ohne Raumfunktion — Kamin, Pfeiler, Wandversatz, Installationsblock. Ihre Grundfläche ist aus der Raumfläche und aus dem Luftvolumen herausgerechnet (rooms[].floorOpeningArea enthält sie, rooms[].solidArea nennt ihren Anteil); die Deckenfläche des Raums bleibt ungeschmälert, weil dort Mauerwerk und kein Luftraum steht. thermalBridge liefert nur Eingangsgrößen: atExteriorWall und die Berührungslänge contactLength [m]. Ein ψ-Wert wird hier nicht gebildet — er hängt an Aufbau, Zug und Dämmung des Bauteils und steht in keiner frei zitierbaren Tabelle.',
     },
-    project: { ...doc.meta },
+    project: { ...doc.meta, atticTemperature: dachraumTemperatur(doc.meta) },
     ...(subsoil ? { subsoil } : {}),
     levels: Object.values(doc.levels).sort((a, b) => a.order - b.order),
     // Nutzungseinheiten — seit 2.10.0, nur wenn welche erfasst sind.
@@ -605,6 +609,9 @@ function neighbourTemperature(
       return doc.meta.unheatedTemperature;
     case 'adjacent-room': {
       const neighbour = neighbourRoomId ? doc.rooms[neighbourRoomId] : undefined;
+      // Ein unbeheizter Nachbarraum zählt mit θ_u, nicht mit seiner
+      // Solltemperatur (seit 1.72.0, siehe `lib/unbeheizt.ts`).
+      if (istUnbeheizterNachbar(neighbour)) return doc.meta.unheatedTemperature;
       return neighbour?.setpointTemperature ?? doc.meta.unheatedTemperature;
     }
     case 'adiabatic':
@@ -644,6 +651,17 @@ function heatedTemperatureByLevel(doc: BimDocument): Map<string, number> {
   const out = new Map<string, number>();
   for (const [levelId, { sum, count }] of sums) out.set(levelId, sum / count);
   return out;
+}
+
+/**
+ * Randbedingung einer Wandfläche: An einen **unbeheizten** Nachbarraum
+ * grenzt die Wand an „unbeheizt", nicht an „Nachbarraum" (seit 1.72.0). Die
+ * Raumkennung bleibt am Datensatz, damit die Gegenstelle weiß, welcher Raum
+ * es ist.
+ */
+function wandRand(doc: BimDocument, rand: BoundaryCondition, nachbarId: string | undefined): BoundaryCondition {
+  if (rand === 'adjacent-room' && istUnbeheizterNachbar(nachbarId ? doc.rooms[nachbarId] : undefined)) return 'unheated';
+  return rand;
 }
 
 function slabBoundary(
@@ -690,7 +708,10 @@ function slabBoundary(
   if (boundary === 'adjacent-room') {
     const avg = neighbourLevel ? heatedByLevel.get(neighbourLevel.id) : undefined;
     if (avg === undefined) {
-      return { boundary: 'unheated', temperature: doc.meta.unheatedTemperature };
+      return {
+        boundary: 'unheated',
+        temperature: which === 'ceiling' && !neighbourLevel ? dachraumTemperatur(doc.meta) : doc.meta.unheatedTemperature,
+      };
     }
     const sameTemperature = Math.abs(avg - room.setpointTemperature) < 0.5;
     return {
@@ -699,6 +720,10 @@ function slabBoundary(
     };
   }
 
+  // Über der obersten Decke liegt der Dachraum (seit 1.72.0).
+  if (boundary === 'unheated' && which === 'ceiling' && !neighbourLevel) {
+    return { boundary, temperature: dachraumTemperatur(doc.meta) };
+  }
   return {
     boundary,
     temperature: neighbourTemperature(doc, boundary, undefined, room.setpointTemperature),
@@ -1280,7 +1305,7 @@ function buildRoom(
         construction: wallConstruction?.name,
         constructionId: wall.constructionId,
         thermalBridgeSupplement: wallTb,
-        boundary: boundary.boundary,
+        boundary: wandRand(doc, boundary.boundary, boundary.neighbourRoomId),
         ...erklaerteErdberuehrung,
         neighbourRoomId: boundary.neighbourRoomId,
         neighbourTemperature: neighbourTemperature(
@@ -1396,7 +1421,7 @@ function buildRoom(
         construction: gableConstruction?.name,
         constructionId: roof?.gableConstructionId,
         thermalBridgeSupplement: detailedBridges ? 0 : (wall.thermalBridgeSupplement ?? defaultTb),
-        boundary: boundary.boundary,
+        boundary: wandRand(doc, boundary.boundary, boundary.neighbourRoomId),
         neighbourRoomId: boundary.neighbourRoomId,
         neighbourTemperature: neighbourTemperature(
           doc,

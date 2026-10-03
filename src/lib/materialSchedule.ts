@@ -77,12 +77,16 @@ import { SCHEMATIC_LEGEND } from './schematicSymbols';
 // 1 — Typen
 // ===========================================================================
 
+/** Herkunftszeile der Pflichtarmaturen — die Projektmappe verweist darauf. */
+export const PFLICHTARMATUR_HERKUNFT = 'Sicherheitsauslegung der Anlage (Pflichtarmatur)';
+
 /**
  * Gewerk im Sinne der Bestellung, nicht im Sinne der Handwerksordnung.
  * Getrennt wird danach, wer die Position bestellt und wo sie herkommt: Rohr
  * und Dämmung gehen an denselben Großhändler, die Flächenheizung kommt als
  * Systempaket, Bauteile werden gar nicht bestellt.
  */
+
 export type MaterialTrade =
   | 'rohr'
   | 'fbh'
@@ -913,7 +917,7 @@ function collectFloorHeating(
       sheet.add({
         trade: 'fbh',
         name: `Heizkreisverteiler bis ${size} Abgänge`,
-        spec: `${source.loops} Abgänge im Kreis „${source.label}"`,
+        spec: `${source.loops} Abgänge`,
         quantity: 1,
         unit: 'Stk',
         origin: source.origin,
@@ -1294,7 +1298,7 @@ function collectFittings(
         spec: fitting.spec,
         quantity: 1,
         unit: 'Stk',
-        origin: 'Sicherheitsauslegung der Anlage (Pflichtarmatur)',
+        origin: PFLICHTARMATUR_HERKUNFT,
         remark: `Grundlage: ${fitting.norm}`,
       });
     }
@@ -1652,7 +1656,12 @@ function collectBuildingParts(doc: BimDocument, sheet: Sheet, notes: MaterialNot
       trade: 'bauteil',
       name: construction ? construction.name : `${WALL_TYPE_LABELS[wall.type] ?? 'Wand'}, Aufbau nicht zugewiesen`,
       spec: joinSpec(
-        positive(wall.thickness) ? `${num(wall.thickness * 100, 1)} cm dick` : 'Wandstärke nicht angegeben',
+        // Ohne Aufbau stammt die Stärke meist aus Aufmaß oder Scan; Millimeter
+        // dort sind Messrauschen und zerlegten dieselbe Wand in viele
+        // Positionen. Gerundet wird deshalb auf ganze Zentimeter (seit 1.72.0).
+        positive(wall.thickness)
+          ? `${num(wall.thickness * 100, construction ? 1 : 0)} cm dick`
+          : 'Wandstärke nicht angegeben',
         construction?.layers,
         uWertAngabe(uWertWand(wall, aufbauten)),
       ),
@@ -1717,6 +1726,15 @@ function collectBuildingParts(doc: BimDocument, sheet: Sheet, notes: MaterialNot
 // ===========================================================================
 
 /**
+ * Die Herkunft ohne ihre Stückzahl am Ende: „Rohrnetz im Grundriss, 6
+ * Abschnitte" → „Rohrnetz im Grundriss". Die Zahl gehört zur Position, die
+ * Herkunft zur Folge.
+ */
+export function herkunftsBasis(origin: string): string {
+  return origin.replace(/, \d+ [^,]+$/, '');
+}
+
+/**
  * Gruppen bilden, sortieren, durchnummerieren.
  *
  * Sortiert wird nach Gewerk in der Reihenfolge des Bauablaufs, innerhalb des
@@ -1728,10 +1746,33 @@ function assemble(drafts: readonly Draft[]): { groups: MaterialGroup[]; items: M
   const items: MaterialItem[] = [];
   const groups: MaterialGroup[] = [];
 
+  /*
+   * Innerhalb des Gewerks zuerst nach Herkunft, in der Reihenfolge, in der
+   * sie entsteht (seit 1.72.0): Wände vor Öffnungen, Rohre vor Dämmung vor
+   * Formteilen. Alphabetisch nach Bezeichnung allein wechselten sich
+   * „Außenwand", „Fenster", „Innenwand", „Tür" ab — und mit ihnen die
+   * Herkunft, die die Projektmappe einmal je Folge druckt.
+   */
+  const rang = new Map<string, number>();
+  const bemerkungsRang = new Map<string, number>();
+  for (const d of drafts) {
+    const basis = herkunftsBasis(d.origin);
+    if (!rang.has(basis)) rang.set(basis, rang.size);
+    // Gleiche Herkunft, gleiche Bemerkung bleiben beieinander — sonst
+    // wechselten sich Vor- und Rücklauf mit ihren Bemerkungen ab und die
+    // Mappe druckte dieselbe Herkunftszeile zweimal untereinander.
+    if (!bemerkungsRang.has(d.remark ?? '')) bemerkungsRang.set(d.remark ?? '', bemerkungsRang.size);
+  }
   for (const trade of TRADE_ORDER) {
     const rows = drafts
       .filter((d) => d.trade === trade)
-      .sort((a, b) => a.name.localeCompare(b.name, 'de') || a.spec.localeCompare(b.spec, 'de'));
+      .sort(
+        (a, b) =>
+          (rang.get(herkunftsBasis(a.origin)) ?? 0) - (rang.get(herkunftsBasis(b.origin)) ?? 0) ||
+          (bemerkungsRang.get(a.remark ?? '') ?? 0) - (bemerkungsRang.get(b.remark ?? '') ?? 0) ||
+          a.name.localeCompare(b.name, 'de') ||
+          a.spec.localeCompare(b.spec, 'de'),
+      );
     if (!rows.length) continue;
 
     const groupItems: MaterialItem[] = [];

@@ -32,7 +32,7 @@
 
 import { planeRing } from './ringleitung';
 import { steigRuns } from './steigstrang';
-import { rohrlaenge } from './rohrlaenge';
+import { rohrlaenge, trassenlaenge } from './rohrlaenge';
 import { fuehrtEinAufGeschoss } from './aufstellgeschoss';
 import { hauseinfuehrung } from './hauseinfuehrung';
 import type {
@@ -982,6 +982,8 @@ export function planPipeNetwork(doc: BimDocument, options: PipeLayoutOptions): P
   const mindestDn = options.anschlussDn ?? anschluss?.dn;
   const anhebungGilt = erzeuger !== undefined && mindestDn !== undefined && mindestDn > 0;
   let angehoben: { von: number; auf: number } | undefined;
+  /** Anschlussmaß, das im Sockelleistenkanal am Gerät reduziert wird. */
+  let amGeraetReduziert: { anschluss: number; auf: number } | undefined;
 
   const hoehe = options.mode === 'sanierung' ? HOEHE.sanierung : HOEHE.neubau;
   const runs: PipeRun[] = [];
@@ -1200,7 +1202,7 @@ export function planPipeNetwork(doc: BimDocument, options: PipeLayoutOptions): P
       (Math.hypot(seg.from.x - gruppe.quelle.position.x, seg.from.y - gruppe.quelle.position.y) <= ERZEUGER_TOLERANZ ||
         Math.hypot(seg.to.x - gruppe.quelle.position.x, seg.to.y - gruppe.quelle.position.y) <= ERZEUGER_TOLERANZ);
 
-    const dim = sizePipe(strom, {
+    let dim = sizePipe(strom, {
       material,
       maxVelocity: grenze.maxVelocity,
       maxGradient: options.maxGradient ?? SIZING_LIMITS.maxGradient,
@@ -1234,7 +1236,26 @@ export function planPipeNetwork(doc: BimDocument, options: PipeLayoutOptions): P
       });
       // Gehen mehrere Stränge unmittelbar vom Erzeuger ab, zählt der
       // stärkste Eingriff: Er ist der, den der Leser am wenigsten erwartet.
-      if (ohneVorgabe.dimension.dn < dim.dimension.dn && (!angehoben || ohneVorgabe.dimension.dn < angehoben.von)) {
+      /*
+       * **Im Sockelleistenkanal hat das Anschlussmaß keinen Platz** (seit
+       * 1.72.0). Der Kanal nimmt Rohre bis 20 mm Außendurchmesser auf; ein
+       * Gerät mit DN-20-Anschluss machte daraus Cu 22 auf den ersten Metern —
+       * und die Auslegung meldete ihren eigenen Vorschlag als Fehler
+       * („überschreitet den Sockelleistenkanal"). Im Bestand wird am
+       * Gerät reduziert, wie es auf der Baustelle geschieht: Die Leitung
+       * bekommt das Maß, das die Hydraulik verlangt, und der Hinweis nennt
+       * die Reduzierung am Geräteanschluss. Passt auch dieses Maß nicht in
+       * den Kanal, meldet das die Kanalprüfung darunter — mit dem Maß, das
+       * wirklich gebraucht wird, nicht mit dem Anschlussmaß.
+       */
+      if (
+        options.mode === 'sanierung' &&
+        dim.dimension.outer > SOCKELLEISTE_MAX_AUSSEN &&
+        ohneVorgabe.dimension.dn < dim.dimension.dn
+      ) {
+        amGeraetReduziert = { anschluss: dim.dimension.dn, auf: ohneVorgabe.dimension.dn };
+        dim = ohneVorgabe;
+      } else if (ohneVorgabe.dimension.dn < dim.dimension.dn && (!angehoben || ohneVorgabe.dimension.dn < angehoben.von)) {
         angehoben = { von: ohneVorgabe.dimension.dn, auf: dim.dimension.dn };
       }
     }
@@ -1342,6 +1363,16 @@ export function planPipeNetwork(doc: BimDocument, options: PipeLayoutOptions): P
     }
   }
 
+  if (amGeraetReduziert) {
+    notes.push({
+      severity: 'info',
+      text:
+        `Der Geräteanschluss DN ${amGeraetReduziert.anschluss} wird unmittelbar am Erzeuger auf DN ${amGeraetReduziert.auf} ` +
+        `reduziert: Im Sockelleistenkanal (Rohre bis ${SOCKELLEISTE_MAX_AUSSEN} mm Außendurchmesser) wird nicht im ` +
+        `Anschlussmaß weitergeführt, und hydraulisch reicht DN ${amGeraetReduziert.auf}. Das Reduzierstück gehört zum Geräteanschluss.`,
+    });
+  }
+
   if (zuGross > 0) {
     /*
      * Bei der Ringleitung ist ein Ring in Cu 22 der Regelfall und kein
@@ -1358,7 +1389,7 @@ export function planPipeNetwork(doc: BimDocument, options: PipeLayoutOptions): P
         : {
             severity: 'error',
             text:
-              `${zuGross} Abschnitt${zuGross === 1 ? '' : 'e'} überschreitet den Sockelleistenkanal: er trägt Rohre bis ` +
+              `${zuGross} Abschnitt${zuGross === 1 ? ' überschreitet' : 'e überschreiten'} den Sockelleistenkanal: er trägt Rohre bis ` +
               `${SOCKELLEISTE_MAX_AUSSEN} mm Außendurchmesser (Kanal 40 × 105 mm), gebraucht werden bis zu ` +
               `${Math.round(zuGrossAussen)} mm. Für diese Abschnitte einen größeren Aufputzkanal wählen — oder die ` +
               `Trasse im Boden führen.`,
@@ -1582,6 +1613,39 @@ export function planPipeNetwork(doc: BimDocument, options: PipeLayoutOptions): P
         'Die Deckendurchführung ist eine Kernbohrung und vor Ort festzulegen.' +
         (strang.warnung ? ` ${strang.warnung}` : ''),
     });
+  }
+
+  /*
+   * **Keine Leitung zweimal** (seit 1.72.0). An einem Heizkörper im Flur
+   * eines echten Grundrisses (Swiss Dwellings, Bestand) legte der Ausleger
+   * dieselbe Anbindung zweimal — gleicher Anfang, gleiches Ende, gleiche
+   * Höhe. Die Modellprüfung meldete `pipes.duplicate` an Leitungen, die
+   * niemand gezeichnet hatte, und der Massenauszug zählte das Stück doppelt.
+   * Was deckungsgleich ein zweites Mal entsteht, fällt hier heraus, samt
+   * seinem Anteil an der Trassenlänge.
+   */
+  {
+    const mm = (v: number) => Math.round(v * 1000);
+    const schluessel = (r: PipeRun): string => {
+      const enden = [r.points[0], r.points[r.points.length - 1]]
+        .map((p) => `${mm(p.x)},${mm(p.y)}`)
+        .sort()
+        .join('|');
+      return `${r.levelId}|${r.service}|${mm(r.elevation ?? 0)}|${mm(r.elevationTo ?? r.elevation ?? 0)}|${r.points.length}|${enden}`;
+    };
+    const gesehen = new Set<string>();
+    const doppelt = new Set<string>();
+    for (const r of runs) {
+      const k = schluessel(r);
+      if (gesehen.has(k)) doppelt.add(r.id);
+      else gesehen.add(k);
+    }
+    if (doppelt.size) {
+      for (const r of runs) {
+        if (doppelt.has(r.id) && r.service === 'heating-flow') routeLength -= trassenlaenge(r.points);
+      }
+      for (let i = runs.length - 1; i >= 0; i--) if (doppelt.has(runs[i].id)) runs.splice(i, 1);
+    }
   }
 
   // Die verlegte Länge zählt den Höhenversatz mit — ein Strang liegt

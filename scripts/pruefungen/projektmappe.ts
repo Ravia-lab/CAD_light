@@ -239,10 +239,15 @@ export function pruefeProjektmappe(check: CheckFn): void {
     format: 'A4',
     orientation: 'landscape',
     grundriss: false,
+    // Seit 1.72.0 eingebettet: ohne eigenen Kopf, Fuß und Quellenteil — die
+    // Mappe hat beides schon. Das Hinweisblatt ist gefiltert (was im Kapitel
+    // Pumpenauslegung steht, steht dort nicht noch einmal) und deshalb hier
+    // ausgenommen.
+    eingebettet: true,
   });
   check(
     'Alle Blätter aus buildPipeReportSheets stehen unverändert in der Mappe',
-    berichtsblaetter.sheets.every((s) => mappe.html.includes(s)),
+    berichtsblaetter.sheets.filter((s) => !s.includes('>Hinweise<')).every((s) => mappe.html.includes(s)),
     true,
   );
   check(

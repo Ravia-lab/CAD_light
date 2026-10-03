@@ -36,6 +36,7 @@
  * Anlagenauslegung.
  */
 
+import { dachraumTemperatur, istUnbeheizterNachbar } from './unbeheizt';
 import type { BimDocument, Room, RoomBoundary, RoomHeatLoad as NormRoomHeatLoad } from '../types/bim';
 import { gradeSplit, isMassiveArea } from './roomDetection';
 import {
@@ -192,6 +193,8 @@ function neighbourTemperature(doc: BimDocument, boundary: RoomBoundary): number 
       return doc.meta.unheatedTemperature;
     case 'adjacent-room': {
       const other = boundary.neighbourRoomId ? doc.rooms[boundary.neighbourRoomId] : undefined;
+      // Ein unbeheizter Nachbarraum zählt mit θ_u, nicht mit seiner Solltemperatur.
+      if (istUnbeheizterNachbar(other)) return doc.meta.unheatedTemperature;
       return other?.setpointTemperature ?? doc.meta.designIndoorTemperature;
     }
     default:
@@ -358,12 +361,14 @@ function roomLoad(
     const levelIndex = levelsSorted.findIndex((l) => l.id === level.id);
     const temperatureOf = (kind: string, which: 'floor' | 'ceiling') => {
       if (kind === 'ground') return doc.meta.groundTemperature;
-      if (kind === 'unheated') return doc.meta.unheatedTemperature;
+      // Über der obersten Decke liegt der Dachraum, nicht der Keller.
+      const oberste = which === 'ceiling' && levelIndex === levelsSorted.length - 1;
+      if (kind === 'unheated') return oberste ? dachraumTemperatur(doc.meta) : doc.meta.unheatedTemperature;
       if (kind === 'exterior') return doc.meta.designOutdoorTemperature;
       if (kind === 'adjacent-room') {
         const neighbour = levelsSorted[which === 'floor' ? levelIndex - 1 : levelIndex + 1];
         const heated = neighbour ? heatedByLevel.get(neighbour.id) : undefined;
-        return heated !== undefined ? inside : doc.meta.unheatedTemperature;
+        return heated !== undefined ? inside : oberste ? dachraumTemperatur(doc.meta) : doc.meta.unheatedTemperature;
       }
       return inside;
     };

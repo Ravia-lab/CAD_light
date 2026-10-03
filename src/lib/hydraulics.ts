@@ -1505,7 +1505,10 @@ export function designPump(
   if (head > 6) {
     notes.push({
       severity: 'warn',
-      text: `Erforderliche Förderhöhe ${de(round(head, 1))} m. Das ist für ein Einfamilienhaus viel — Dimensionen und Armaturen prüfen, bevor eine größere Pumpe gewählt wird.`,
+      // Bis 1.71.0 hieß es „für ein Einfamilienhaus viel" — auch am
+      // Mehrfamilienhaus. Die Schranke von 6 m gilt für Wohngebäude
+      // allgemein; das Haus kennt diese Rechnung nicht.
+      text: `Erforderliche Förderhöhe ${de(round(head, 1))} m. Das ist für eine Wohnanlage viel — Dimensionen und Armaturen prüfen, bevor eine größere Pumpe gewählt wird.`,
     });
   }
 

@@ -4,6 +4,7 @@
  * Gebäude-Kennwerte, die man beim Planen ständig im Blick haben will.
  */
 
+import { dachraumTemperatur } from '../lib/unbeheizt';
 import RaumnameFeld from './RaumnameFeld';
 import type {
   Annotation,
@@ -2721,6 +2722,14 @@ function BuildingSummary() {
             value={doc.meta.unheatedTemperature}
             step={1}
             onChange={(v) => updateMeta({ unheatedTemperature: v })}
+          />
+          {/* Seit 1.72.0: der Dachraum über der obersten Decke hat eine
+              eigene Temperatur. Ohne Eintrag θi − 0,9 · (θi − θe). */}
+          <NumberField
+            label="θ Dachraum [°C]"
+            value={dachraumTemperatur(doc.meta)}
+            step={1}
+            onChange={(v) => updateMeta({ atticTemperature: v })}
           />
           <NumberField
             label="θ Erdreich [°C]"

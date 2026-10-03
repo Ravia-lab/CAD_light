@@ -2926,8 +2926,14 @@ export interface ProjectMeta {
   n50: number;
   /** Abschirmungsklasse des Gebäudes (DIN EN 12831 Tab. B.5). */
   shielding: 'none' | 'moderate' | 'high';
-  /** Temperatur unbeheizter angrenzender Bereiche θ_u [°C]. */
+  /** Temperatur unbeheizter angrenzender Bereiche θ_u [°C] — Keller, Treppenhaus, Abstellraum. */
   unheatedTemperature: number;
+  /**
+   * Temperatur des unbeheizten Dachraums über der obersten Decke [°C]
+   * (seit 1.72.0). Fehlt sie, gilt θ_i − 0,9 · (θ_i − θ_e), siehe
+   * `lib/unbeheizt.ts`.
+   */
+  atticTemperature?: number;
   /** Erdreichtemperatur bzw. Jahresmittel der Außentemperatur [°C]. */
   groundTemperature: number;
   /**
@@ -4435,7 +4441,7 @@ export interface RaviaExport {
    * nichts; wer prüfen will, ob Boden, Decke und Dach angekommen sind, hat
    * jetzt eine Zahl statt einer Liste (Punkt 13).
    */
-  version: '2.13.0';
+  version: '2.14.0';
   generator: string;
   exportedAt: string;
   /** Einheiten explizit im Dokument — keine Konvention, die verloren gehen kann. */

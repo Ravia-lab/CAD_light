@@ -1,6 +1,6 @@
 {
   "schema": "ravia.bim.light",
-  "version": "2.13.0",
+  "version": "2.14.0",
   "rooms": [
     {
       "id": "room-eg-0",
@@ -203,8 +203,8 @@
     "exhaustAirflow": 120,
     "effectiveSupplyAirflow": 24,
     "ventilationBalance": 0,
-    "setbackTimeConstant": 68.55,
-    "setbackTemperatureDrop": 3.53
+    "setbackTimeConstant": 59.52,
+    "setbackTemperatureDrop": 4.02
   },
   "pipes": {
     "schedule": 1,

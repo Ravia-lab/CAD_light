@@ -115,7 +115,66 @@ function eindeutig(
   };
 }
 
+/**
+ * Gleichlautende Meldungen mehrerer Geschosse zu einer zusammenfassen
+ * (seit 1.72.0).
+ *
+ * Jedes Geschoss wird für sich ausgelegt und meldet für sich — mit dem
+ * Geschossnamen davor. Die Begründungen sind dabei Wort für Wort dieselben:
+ * „EG: 27 Abschnitte: Die 6 mm nach GEG …", „OG: 22 Abschnitte: Die 6 mm
+ * nach GEG …". Im Protokoll und in der Projektmappe stand derselbe Absatz so
+ * oft, wie das Haus Geschosse hat. Jetzt steht er einmal, mit den Geschossen
+ * und ihren Zahlen vorn: „EG 27, OG 22 Abschnitte: Die 6 mm nach GEG …".
+ */
+export function fasseGeschossmeldungen(
+  notes: readonly PlanningNote[],
+  geschossnamen: readonly string[],
+): PlanningNote[] {
+  type Teil = { name: string; zahl?: string };
+  const gruppen = new Map<string, { note: PlanningNote; einheit?: string; rest: string; teile: Teil[] }>();
+  const raus: (PlanningNote | string)[] = [];
+  const namen = [...geschossnamen].sort((a, b) => b.length - a.length);
+  for (const n of notes) {
+    const name = namen.find((l) => n.text.startsWith(`${l}: `));
+    if (!name) {
+      raus.push(n);
+      continue;
+    }
+    const koerper = n.text.slice(name.length + 2);
+    const gezaehlt = /^(\d+) ([^:]{1,40}): ([\s\S]*)$/.exec(koerper);
+    const einheit = gezaehlt?.[2];
+    const rest = gezaehlt ? gezaehlt[3] : koerper;
+    const key = `${n.severity}|${einheit ?? ''}|${rest}`;
+    const g = gruppen.get(key);
+    if (g) g.teile.push({ name, zahl: gezaehlt?.[1] });
+    else {
+      gruppen.set(key, { note: n, einheit, rest, teile: [{ name, zahl: gezaehlt?.[1] }] });
+      raus.push(key);
+    }
+  }
+  return raus.map((x) => {
+    if (typeof x !== 'string') return x;
+    const g = gruppen.get(x)!;
+    if (g.teile.length === 1) return g.note;
+    const kopf = g.einheit
+      ? `${g.teile.map((t) => `${t.name} ${t.zahl}`).join(', ')} ${g.einheit}`
+      : g.teile.map((t) => t.name).join(', ');
+    return { severity: g.note.severity, text: `${kopf}: ${g.rest}` };
+  });
+}
+
 export function planeGebaeudeNetz(
+  doc: BimDocument,
+  options: Omit<PipeLayoutOptions, 'levelId'> & { levelId: string },
+): GebaeudeNetzErgebnis {
+  const roh = planeGebaeudeNetzRoh(doc, options);
+  return {
+    ...roh,
+    notes: fasseGeschossmeldungen(roh.notes, Object.values(doc.levels).map((l) => l.name)),
+  };
+}
+
+function planeGebaeudeNetzRoh(
   doc: BimDocument,
   options: Omit<PipeLayoutOptions, 'levelId'> & { levelId: string },
 ): GebaeudeNetzErgebnis {

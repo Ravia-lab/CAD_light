@@ -77,7 +77,8 @@ export interface Inbetriebnahmeblatt {
   luecken: string[];
 }
 
-const QUELLE_62 = 'Infoblatt Nr. 62, BDH/BWP, März 2019';
+export const QUELLE_INFOBLATT_62 = 'Infoblatt Nr. 62, BDH/BWP, März 2019';
+const QUELLE_62 = QUELLE_INFOBLATT_62;
 
 /**
  * Der Einstiegswert der Heizkurve.

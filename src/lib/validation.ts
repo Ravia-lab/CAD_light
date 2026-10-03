@@ -951,7 +951,14 @@ export function validateModel(doc: BimDocument): ValidationReport {
         { kind: 'fixture', id: miss.fixtureId },
       );
     }
-    const idle = network.sources.filter((s) => s.consumers === 0);
+    /*
+     * Ein Erzeuger, der nur einen Verteiler speist, ist nicht leer (seit
+     * 1.72.0): Die Verbraucher hängen am Verteiler, der Erzeuger an dessen
+     * Zuleitung (`PipePath.feed`). Vorher meldete ein Neubau mit
+     * Fußbodenheizung „Wärmeerzeuger versorgt keinen einzigen Verbraucher".
+     */
+    const speist = new Set(network.paths.map((p) => p.feed?.sourceFixtureId).filter(Boolean));
+    const idle = network.sources.filter((s) => s.consumers === 0 && !speist.has(s.fixtureId));
     for (const s of idle) {
       add('info', 'pipes.idle-source', `${s.label} versorgt keinen einzigen Verbraucher.`, {
         kind: 'fixture',
@@ -1268,7 +1275,14 @@ export function validateModel(doc: BimDocument): ValidationReport {
             add(
               'warning',
               'plant.no-generator',
-              'Es ist eine Anlage geplant, aber kein Wärmeerzeuger gewählt. Ohne Gerät sind Puffer, Rohrnetz und Sicherheitstechnik nicht belastbar.',
+              /*
+               * Seit 1.72.0 ehrlicher formuliert: Die Auslegung rechnet in
+               * diesem Fall sehr wohl mit einem Gerät — dem ersten
+               * Vorschlag ihrer Liste, einer Typklasse. „Kein Wärmeerzeuger"
+               * las sich neben einem Anlagenblatt, das ein Gerät nennt, wie
+               * ein Widerspruch.
+               */
+              'Es ist noch kein Gerät aus dem Katalog gewählt. Gerechnet wird mit dem Vorschlag der Auslegung, einer Typklasse — Puffer, Rohrnetz und Sicherheitstechnik sind damit erst belastbar, wenn das tatsächliche Gerät eingetragen ist.',
             );
           }
         }

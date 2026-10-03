@@ -1984,25 +1984,30 @@ function befunde(
         else proTuer.set(id, [leg.targetId]);
       }
     }
-    for (const [openingId, unsortiert] of proTuer) {
-      const ziele = [...unsortiert].sort();
-      const band = baender.find((b) => b.opening.id === openingId);
-      const istTuer = band?.opening.kind === 'door';
-      const breite = band ? band.bis - band.von : 0;
+    /*
+     * **Eine Meldung für alle Durchgänge** (seit 1.72.0). Bis 1.71.0 stand
+     * für jede Tür derselbe Absatz mit Begründung da — am Mehrfamilienhaus
+     * mit drei Geschossen 36 gleichlautende Warnungen, im Protokoll wie in
+     * der Projektmappe. Die Begründung gilt für alle gleich; was sich
+     * unterscheidet, ist die Liste.
+     */
+    if (proTuer.size) {
+      const zeilen = [...proTuer].map(([openingId, ziele]) => {
+        const band = baender.find((b) => b.opening.id === openingId);
+        const art = band?.opening.kind === 'door' ? 'Tür' : 'Wandöffnung';
+        const breite = band ? band.bis - band.von : 0;
+        return `${art} „${openingId}" (${de(breite)} m, ${new Set(ziele).size} Verbraucher)`;
+      });
       notes.push({
         severity: 'warn',
         text:
-          (istTuer
-            ? 'Türdurchgang — Bodendurchführung oder Zargenumfahrung vor Ort entscheiden. '
-            : 'Wanddurchgang ohne Tür — Bodendurchführung oder Umfahrung vor Ort entscheiden. ') +
-          `Öffnung „${openingId}" (lichte Breite ${de(breite)} m), betrifft ${ziele.length} ` +
-          `Verbraucher (${ziele.join(', ')}). Der Sockelleistenkanal kann die Öffnung nicht ` +
-          'durchlaufen. Hierzu gibt es keine Fachregel: die Wahl hängt an Bodenaufbau, Zarge ' +
-          'und Optik und ist ausdrücklich eine Anwenderentscheidung. Die Trassierung hat den ' +
-          `Durchgang mit einem Ersatzweg von ${de(TUER_ZUSCHLAG)} m bewertet — das ist mehr ` +
-          'als der übliche Umweg um einen Raum — und ihn nur gewählt, weil jeder Umweg noch ' +
-          'teurer gewesen wäre. Die Trasse durchstößt die Öffnung quer auf kürzestem Weg; ' +
-          'längs in der Öffnung, also in Schwelle oder Zarge, liegt kein Rohr.',
+          `${proTuer.size === 1 ? 'Ein Durchgang' : `${proTuer.size} Durchgänge`} — Bodendurchführung oder ` +
+          `Zargenumfahrung vor Ort entscheiden: ${zeilen.join('; ')}. Der Sockelleistenkanal kann eine ` +
+          'Öffnung nicht durchlaufen. Hierzu gibt es keine Fachregel: die Wahl hängt an Bodenaufbau, Zarge ' +
+          'und Optik und ist ausdrücklich eine Anwenderentscheidung. Die Trassierung hat jeden Durchgang ' +
+          `mit einem Ersatzweg von ${de(TUER_ZUSCHLAG)} m bewertet — mehr als der übliche Umweg um einen ` +
+          'Raum — und ihn nur gewählt, weil jeder Umweg noch teurer gewesen wäre. Die Trasse durchstößt die ' +
+          'Öffnung quer auf kürzestem Weg; längs in der Öffnung, also in Schwelle oder Zarge, liegt kein Rohr.',
       });
     }
   } else {

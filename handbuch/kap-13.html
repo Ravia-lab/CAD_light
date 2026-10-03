@@ -309,7 +309,8 @@ pauschal ohne Nachweis: 0,10 × 109,44 = 10,94 W/K</p>
 <tbody>
 <tr><td>Außenluft</td><td>Norm-Außentemperatur des Projekts, z. B. −12 °C</td></tr>
 <tr><td>Erdreich</td><td>Erdreichtemperatur des Projekts, üblich 10 °C</td></tr>
-<tr><td>Unbeheizt</td><td>Temperatur unbeheizter Bereiche des Projekts, üblich 10 °C</td></tr>
+<tr><td>Unbeheizt</td><td>Temperatur unbeheizter Bereiche des Projekts, üblich 10 °C — auch für die Wand zu einem Nachbarraum, der als unbeheizt geführt ist (Treppenhaus, Schacht, Abstellraum)</td></tr>
+<tr><td>Dachraum</td><td>Oberste Decke gegen unbeheizten Dachraum: θ = θ<sub>i</sub> − 0,9 · (θ<sub>i</sub> − θ<sub>e</sub>), bei 20/−12 °C also −8,8 °C; im Eigenschaftenfeld „θ Dachraum" überschreibbar (seit 1.72.0)</td></tr>
 <tr><td>Nachbarraum</td><td>Solltemperatur des angrenzenden Raums; ist keiner zugeordnet, die Raum-Solltemperatur des Projekts</td></tr>
 </tbody>
 </table>
@@ -317,6 +318,8 @@ pauschal ohne Nachweis: 0,10 × 109,44 = 10,94 W/K</p>
 <p>Zwei Feinheiten, die im Bestand über die halbe Heizlast entscheiden:</p>
 
 <p><b>Die Geländeoberkante teilt die Wand.</b> Eine Kellerwand steht nicht ganz im Erdreich und nicht ganz in der Luft. Das Programm bestimmt aus der Höhenlage des Geschosses und der Geländeoberkante, welcher Teil der Außenwand gegen Erdreich grenzt, und rechnet die beiden Teile getrennt. Das ist kein Feinschliff: Bei −12 °C außen, 10 °C im Erdreich und 20 °C innen steht über dem freien Teil ein Unterschied von 32 K, über dem eingegrabenen einer von 10 K — nicht einmal ein Drittel. Ohne diese Unterscheidung zeigt das Anlagenblatt bei einem Keller das Dreifache.</p>
+
+<p><b>Der Dachraum ist kein Keller</b> (seit 1.72.0). Bis 1.71.0 rechnete die oberste Decke zum unbeheizten Dach mit derselben Temperatur wie der Keller, üblich 10 °C. Ein Dachboden liegt aber nicht im Erdreich: Für einen geschlossenen, undichten Dachraum nennt Recknagel (Jagnow/Wolff, Tafel 0-6) einen Temperatur-Korrekturfaktor b = 0,8 bis 0,9, für einen offenen 1,0. Gerechnet wird mit 0,9; an einem Bungalow von 1965 stieg der Überschlag damit von 9,3 auf 11,2 kW. Wer den Dachraum kennt — gedämmt, dicht —, trägt den Wert im Feld „θ Dachraum" ein. Und eine <b>Wand zu einem Nachbarraum, der als unbeheizt geführt ist</b>, verliert jetzt Wärme mit der Temperatur unbeheizter Bereiche; vorher stand der Nachbar mit seiner Solltemperatur in der Rechnung, und die Wand zum Treppenhaus eines Mehrfamilienhauses war verlustfrei.</p>
 
 <p><b>Ein unbeheizter Keller unter beheiztem Erdgeschoss wird als solcher erkannt.</b> Eine Decke „an Nachbarraum“ gilt zwischen zwei beheizten Geschossen als verlustfrei — richtig so. Wird im angrenzenden Geschoss aber gar nicht geheizt, oder fehlt das Geschoss ganz, dann setzt das Programm die Temperatur unbeheizter Bereiche an. Sonst stünde die Kellerdecke, das am stärksten belastete Bauteil des Erdgeschosses, mit 0 W in der Bilanz.</p>
 

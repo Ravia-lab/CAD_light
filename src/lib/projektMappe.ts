@@ -55,12 +55,12 @@ import { buildPipeReportSheets } from './pipeReportPrint';
 import { buildPlanSvg } from './planPrint';
 import { buildSchematicSvg } from './schematicPrint';
 import { buildPlantBook } from './plantBook';
-import { buildMaterialSchedule, type MaterialItem } from './materialSchedule';
+import { buildMaterialSchedule, herkunftsBasis, PFLICHTARMATUR_HERKUNFT, type MaterialItem } from './materialSchedule';
 import { plantOf } from './plantDefaults';
 import { GENERATOR, buildRaviaExport } from './raviaExport';
 import { BELASTBARKEIT_LABELS, KORPUS_LABELS, type KorpusId, type WissensEintrag } from './wissensbasis';
 import { druckeDokument } from './druckFenster';
-import { inbetriebnahmeblatt, type Quellenart } from './inbetriebnahme';
+import { inbetriebnahmeblatt, QUELLE_INFOBLATT_62, type Quellenart } from './inbetriebnahme';
 import { aufnahmestand, type Aufnahmezeile } from './objektaufnahme';
 
 // ---------------------------------------------------------------------------
@@ -513,9 +513,21 @@ export function buildProjektMappe(doc: BimDocument, optionen: ProjektMappeOption
     schemaBlaetter(doc, format, projektName, anlagenName, bearbeiter, optionen.datum, entwuerfe, hinweise, kopf);
   }
 
+  /*
+   * **Jeder Hinweis an genau einer Stelle** (seit 1.72.0). Die Hinweise der
+   * Erzeugerbilanz stehen im Kapitel „Pumpenauslegung und Erzeugerkreis",
+   * die übrigen des Rohrnetzes auf seinem Hinweisblatt; das Anlagenbuch
+   * führt nur noch, was keines der beiden schon nennt. Bis 1.71.0 stand
+   * „Die Anlage ist unzulässig" dreimal in derselben Mappe.
+   */
+  const gedruckt = new Set<string>();
+  if (!omit.has('pumpe')) for (const h of bericht.erzeuger.hinweise) gedruckt.add(h.text);
+
   // --- Kapitel 5 und 6: Rohrnetzbericht und Einstellwerte -------------------
   if (!omit.has('rohrnetz')) {
-    rohrnetzBlaetter(doc, bericht, format, entwuerfe, hinweise, kopf);
+    rohrnetzBlaetter(doc, bericht, format, entwuerfe, hinweise, kopf, gedruckt);
+    // Das Hinweisblatt des Berichts fasst höchstens 14 Hinweise.
+    for (const h of bericht.hinweise.filter((x) => !gedruckt.has(x.text)).slice(0, 14)) gedruckt.add(h.text);
   }
 
   // --- Kapitel 7: Pumpenauslegung und Erzeugerkreis -------------------------
@@ -542,7 +554,13 @@ export function buildProjektMappe(doc: BimDocument, optionen: ProjektMappeOption
   // --- Kapitel 9: Anlagenbuch ----------------------------------------------
   let buchStil = '';
   if (!omit.has('anlagenbuch')) {
-    buchStil = anlagenbuchBlaetter(doc, bericht, format, projektName, anlagenName, bearbeiter, optionen.datum, entwuerfe, kopf);
+    buchStil = anlagenbuchBlaetter(
+      doc, bericht, format, projektName, anlagenName, bearbeiter, optionen.datum, entwuerfe, kopf,
+      {
+        ohneHinweise: gedruckt,
+        armaturenVerweis: omit.has('massenauszug') ? undefined : armaturenVerweis(doc, auslegung),
+      },
+    );
   }
 
   // --- Kapitel 10: Inbetriebnahme und Optimierung ---------------------------
@@ -908,7 +926,7 @@ const BERICHTSMARKEN: readonly { marke: string; titel: string; kapitel: MappeKap
   { marke: '>Teilstrecken (Fortsetzung)<', titel: 'Teilstreckentabelle (Fortsetzung)', kapitel: 'rohrnetz' },
   { marke: '>Fließwege<', titel: 'Fließwege und Schlechtpunkt', kapitel: 'rohrnetz' },
   { marke: '>Rohrnetzberechnung<', titel: 'Anlagendaten und Nachweis', kapitel: 'rohrnetz' },
-  { marke: '>Hinweise<', titel: 'Hinweise und Quellen des Berichts', kapitel: 'rohrnetz' },
+  { marke: '>Hinweise<', titel: 'Hinweise des Rohrnetzberichts', kapitel: 'rohrnetz' },
 ];
 
 function rohrnetzBlaetter(
@@ -918,12 +936,17 @@ function rohrnetzBlaetter(
   entwuerfe: BlattEntwurf[],
   hinweise: string[],
   kopf: (id: MappeKapitelId, titel: string, inhalt: boolean, grund?: string) => void,
+  schonGedruckt: ReadonlySet<string>,
 ): void {
-  // Der Grundriss ist Kapitel 3 und wird hier nicht ein zweites Mal gedruckt.
+  // Der Grundriss ist Kapitel 3 und wird hier nicht ein zweites Mal gedruckt;
+  // Kopf, Fuß, Erzeugerblatt, Quellenliste und Nachweisantworten hat die Mappe
+  // selbst (siehe `eingebettet`).
   const druck = buildPipeReportSheets(doc, bericht, {
     format,
     orientation: 'landscape',
     grundriss: false,
+    eingebettet: true,
+    ohneHinweise: schonGedruckt,
   });
   for (const n of druck.notes) hinweise.push(`Rohrnetzbericht: ${n}`);
 
@@ -1160,9 +1183,11 @@ function massenauszugBlaetter(
   kopf: (id: MappeKapitelId, titel: string, inhalt: boolean, grund?: string) => void,
 ): void {
   const liste = buildMaterialSchedule(doc, auslegung);
-  // Eine Position trägt Bezeichnung und Herkunft übereinander; gemessen sind
-  // das gut 13 mm. Abgezogen werden Überschrift, Vorspann und Tabellenkopf.
-  const proBlatt = zeilenBudget(blattmass, 46, 13);
+  // Seit 1.72.0 trägt eine Position nur noch ihre Bezeichnung; die Herkunft
+  // steht als eigene Zeile über der Folge. Die längste technische Angabe
+  // bricht in der 62-mm-Spalte auf drei Zeilen um — 10 mm je Zeile lässt
+  // dafür Luft. Abgezogen werden Überschrift, Vorspann und Tabellenkopf.
+  const proBlatt = zeilenBudget(blattmass, 46, 10);
 
   if (!liste.items.length) {
     kopf('massenauszug', 'Massenauszug', false, 'Im Modell steht nichts, was sich in Mengen fassen ließe.');
@@ -1188,11 +1213,69 @@ function massenauszugBlaetter(
     { titel: 'Einheit', breite: '18mm' },
   ];
 
-  const zeileVon = (item: MaterialItem): string =>
+  /*
+   * **Herkunft und Bemerkung einmal je Folge** (seit 1.72.0). Bis 1.71.0
+   * trug jede Zeile beide unter der Bezeichnung — bei zwölf Fenstern
+   * zwölfmal „Öffnungen im Grundriss, nach Rohbaumaß gruppiert" und
+   * „Nachweismenge für das Leistungsverzeichnis, keine Bestellposition".
+   * Jetzt steht über einer Folge von Positionen mit derselben Herkunft eine
+   * graue Zeile, und die Positionen darunter tragen nur noch, was sie
+   * unterscheidet.
+   */
+  // Was die Herkunft je Position zählt („6 Abschnitte"), gehört zur Position.
+  const herkunftsZahl = (item: MaterialItem): string => item.origin.slice(herkunftsBasis(item.origin).length + 2);
+  /**
+   * Eine Folge von Positionen mit derselben Herkunft. Was **alle** ihre
+   * Positionen gemeinsam haben — Zahl oder Bemerkung —, steht einmal in der
+   * Kopfzeile der Folge; was nur einzelne betrifft, an der Position.
+   */
+  interface Folge {
+    basis: string;
+    items: MaterialItem[];
+    zahl?: string;
+    bemerkung?: string;
+  }
+  const herkunftsKopf = (origin: string): string => herkunftsBasis(origin).split(' — ')[0];
+  const herkunftsSchwanz = (origin: string): string => herkunftsBasis(origin).split(' — ').slice(1).join(' — ');
+  const folgenVon = (items: readonly MaterialItem[]): Folge[] => {
+    // Wie oft kommt jede Bemerkung vor? Eine Bemerkung, die nur eine Position
+    // trägt, ist deren Eigenschaft und bricht keine Folge auf.
+    const anzahl = new Map<string, number>();
+    for (const i of items) anzahl.set(i.remark ?? '', (anzahl.get(i.remark ?? '') ?? 0) + 1);
+    const folgen: Folge[] = [];
+    for (const item of items) {
+      // Verglichen wird der Kopf vor „ — "; was danach steht, beschreibt die
+      // einzelne Position und steht in deren Zeile.
+      const basis = herkunftsKopf(item.origin);
+      const bemerkung = item.remark ?? '';
+      const letzte = folgen[folgen.length - 1];
+      const passt =
+        letzte !== undefined &&
+        letzte.basis === basis &&
+        (letzte.bemerkung === bemerkung || (anzahl.get(bemerkung) ?? 0) === 1);
+      if (passt) letzte.items.push(item);
+      else folgen.push({ basis, items: [item], bemerkung });
+    }
+    for (const f of folgen) {
+      const zahlen = new Set(f.items.map(herkunftsZahl));
+      if (zahlen.size === 1) f.zahl = [...zahlen][0];
+      const voll = new Set(f.items.map((i) => herkunftsBasis(i.origin)));
+      if (voll.size === 1) f.basis = [...voll][0];
+    }
+    return folgen;
+  };
+  const herkunftszeile = (f: Folge): string =>
+    `<tr class="herkunft"><td></td><td class="l" colspan="4"><div class="fussnote">${escapeHtml(
+      [f.basis + (f.zahl ? `, ${f.zahl}` : ''), f.bemerkung].filter(Boolean).join(' — '),
+    )}</div></td></tr>`;
+  const zeileVon = (item: MaterialItem, f: Folge): string =>
     `<tr><td class="r">${item.position}</td>` +
     `<td class="l"><strong>${escapeHtml(item.name)}</strong>` +
-    `<div class="fussnote">${escapeHtml(item.origin)}</div>` +
-    (item.remark ? `<div class="fussnote">${escapeHtml(item.remark)}</div>` : '') +
+    (herkunftsBasis(item.origin) !== f.basis && herkunftsSchwanz(item.origin)
+      ? `<div class="fussnote">${escapeHtml(herkunftsSchwanz(item.origin))}</div>`
+      : '') +
+    (f.zahl === undefined && herkunftsZahl(item) ? `<div class="fussnote">${escapeHtml(herkunftsZahl(item))}</div>` : '') +
+    (item.remark && item.remark !== f.bemerkung ? `<div class="fussnote">${escapeHtml(item.remark)}</div>` : '') +
     `</td>` +
     `<td class="l">${escapeHtml(item.spec || '—')}</td>` +
     `<td class="r">${de(item.quantity, item.unit === 'Stk' || item.unit === 'l' ? 0 : item.unit === 'kW' ? 1 : 2)}</td>` +
@@ -1222,10 +1305,10 @@ function massenauszugBlaetter(
       (erstes
         ? h2('Massenauszug') +
           p(
-            `${liste.positionCount} Positionen aus dem Modell, nach Gewerken geordnet. Die Zeile unter der ` +
-              'Bezeichnung nennt, aus welchem Teil des Modells die Menge stammt — sie ist der Grund, warum ' +
-              'diese Liste prüfbar ist. Zuschläge für Verschnitt, Kleinteile und Befestigung sind nicht ' +
-              'enthalten.',
+            `${liste.positionCount} Positionen aus dem Modell, nach Gewerken geordnet. Die graue Zeile über ` +
+              'einer Folge von Positionen nennt, aus welchem Teil des Modells ihre Mengen stammen — sie ist der ' +
+              'Grund, warum diese Liste prüfbar ist. Zuschläge für Verschnitt, Kleinteile und Befestigung sind ' +
+              'nicht enthalten.',
           )
         : h2('Massenauszug (Fortsetzung)')) +
       `<table class="daten"><thead><tr>` +
@@ -1251,18 +1334,25 @@ function massenauszugBlaetter(
 
   for (const gruppe of liste.groups) {
     // Eine Gewerksüberschrift allein am Blattende ist eine verwaiste Zeile.
-    if (belegt > 0 && belegt + 2 > proBlatt) blattSetzen();
+    if (belegt > 0 && belegt + 3 > proBlatt) blattSetzen();
     laufendesGewerk = gruppe.label;
     zeilen.push(gewerkszeile(gruppe.label, gruppe.summary));
     belegt += 1;
-    for (const item of gruppe.items) {
-      if (belegt >= proBlatt) {
-        blattSetzen();
-        zeilen.push(gewerkszeile(gruppe.label, 'Fortsetzung'));
+    for (const f of folgenVon(gruppe.items)) {
+      f.items.forEach((item, i) => {
+        // Kopfzeile der Folge und erste Position stehen auf demselben Blatt.
+        if (belegt + (i === 0 ? 2 : 1) > proBlatt) {
+          blattSetzen();
+          zeilen.push(gewerkszeile(gruppe.label, 'Fortsetzung'));
+          belegt += 1;
+        }
+        if (i === 0) {
+          zeilen.push(herkunftszeile(f));
+          belegt += 1;
+        }
+        zeilen.push(zeileVon(item, f));
         belegt += 1;
-      }
-      zeilen.push(zeileVon(item));
-      belegt += 1;
+      });
     }
   }
   blattSetzen();
@@ -1288,6 +1378,21 @@ function massenauszugBlaetter(
   }
 
   kopf('massenauszug', `Massenauszug (${liste.positionCount} Positionen)`, true);
+}
+
+/**
+ * Wo die Pflichtarmaturen im Massenauszug stehen — „Massenauszug, Pos. 47
+ * bis 64". Dieselbe Liste, dieselbe Nummerierung wie das Kapitel davor; ohne
+ * Pflichtarmaturen `undefined`, dann druckt das Anlagenbuch seine Tabelle.
+ */
+function armaturenVerweis(doc: BimDocument, auslegung: RohrnetzBericht['auslegung']): string | undefined {
+  const positionen = buildMaterialSchedule(doc, auslegung)
+    .items.filter((i) => i.origin === PFLICHTARMATUR_HERKUNFT)
+    .map((i) => i.position);
+  if (!positionen.length) return undefined;
+  const von = Math.min(...positionen);
+  const bis = Math.max(...positionen);
+  return von === bis ? `Massenauszug, Pos. ${von}` : `Massenauszug, Pos. ${von} bis ${bis}`;
 }
 
 // ---------------------------------------------------------------------------
@@ -1318,6 +1423,7 @@ function anlagenbuchBlaetter(
   datum: string,
   entwuerfe: BlattEntwurf[],
   kopf: (id: MappeKapitelId, titel: string, inhalt: boolean, grund?: string) => void,
+  verweise: { ohneHinweise: ReadonlySet<string>; armaturenVerweis?: string },
 ): string {
   const auszug = buildRaviaExport(doc);
   const buch = buildPlantBook({
@@ -1332,6 +1438,9 @@ function anlagenbuchBlaetter(
     raviaExport: auszug,
     format,
     omit: ['deckblatt'],
+    ohneHinweise: verweise.ohneHinweise,
+    hinweiseAnderswo: 'Kapitel „Pumpenauslegung und Erzeugerkreis" bzw. auf dem Hinweisblatt des Rohrnetzberichts',
+    armaturenVerweis: verweise.armaturenVerweis,
   });
 
   const stil = skopiereStil(innerHtml(buch.html, 'style'), '.anlagenbuch');
@@ -1442,9 +1551,6 @@ function quellenBlaetter(
   const ohneThema = bericht.quellen.filter(
     (q) => ![...belege.values()].some((e) => e.titel === q.titel),
   );
-  // Was der Bericht bereits zitiert, steht schon in seinen eigenen Blättern —
-  // hier wird es zusammengeführt, damit ein Titel nicht zweimal erscheint.
-  const berichtsTitel = new Set(bericht.quellen.map((q) => q.titel));
   const eintraege = [...belege.values()].sort((a, b) => a.titel.localeCompare(b.titel, 'de'));
 
   const spalten: Spalte[] = [
@@ -1453,24 +1559,65 @@ function quellenBlaetter(
     { titel: 'Belastbarkeit', breite: '46mm' },
     { titel: 'Sammlung', breite: '38mm' },
   ];
-  const zeilen = [
-    ...eintraege.map((e) => [
-      `<strong>${escapeHtml(e.titel)}</strong>` +
-        (berichtsTitel.has(e.titel) ? '<div class="fussnote">auch im Rohrnetzbericht zitiert</div>' : '') +
-        (e.url ? `<div class="fussnote">${escapeHtml(e.url)}</div>` : ''),
-      escapeHtml(e.quelle),
-      escapeHtml(BELASTBARKEIT_LABELS[e.belastbarkeit]),
-      escapeHtml(KORPUS_LABELS[e.korpus]),
-    ]),
-    ...ohneThema.map((q) => [
-      `<strong>${escapeHtml(q.titel)}</strong>` +
-        '<div class="fussnote">im Rohrnetzbericht zitiert</div>' +
-        (q.url ? `<div class="fussnote">${escapeHtml(q.url)}</div>` : ''),
-      escapeHtml(q.quelle),
-      '—',
-      '—',
-    ]),
+  /*
+   * **Ein Dokument, eine Adresse** (seit 1.72.0). Viele Belege zitieren
+   * dieselbe Schrift an verschiedenen Stellen — der BWP-Leitfaden Hydraulik
+   * stand zwölfmal mit derselben Adresse im Verzeichnis. Jetzt steht die
+   * Adresse einmal als Zeile über ihren Belegen; ein Beleg mit eigener
+   * Adresse trägt sie wie bisher unter dem Titel.
+   */
+  type Beleg = { titel: string; zusatz: string; url?: string; quelle: string; belastbarkeit: string; sammlung: string };
+  const alle: Beleg[] = [
+    ...eintraege.map((e) => ({
+      titel: e.titel,
+      zusatz: '',
+      url: e.url,
+      quelle: e.quelle,
+      belastbarkeit: BELASTBARKEIT_LABELS[e.belastbarkeit],
+      sammlung: KORPUS_LABELS[e.korpus],
+    })),
+    ...ohneThema.map((q) => ({
+      titel: q.titel,
+      zusatz: '',
+      url: q.url,
+      quelle: q.quelle,
+      belastbarkeit: '—',
+      sammlung: '—',
+    })),
   ];
+  // Belege mit derselben Adresse **und** derselben Fundstelle sind eine
+  // Zeile mit mehreren Titeln — sonst stünde „S. 6 bis 7" zweimal da.
+  const zusammen = new Map<string, Beleg>();
+  for (const b of alle) {
+    const k = `${b.url ?? ''}|${b.quelle}|${b.belastbarkeit}|${b.sammlung}`;
+    const da = zusammen.get(k);
+    if (da && b.url) {
+      da.titel = `${da.titel}\n${b.titel}`;
+      if (b.zusatz && !da.zusatz) da.zusatz = b.zusatz;
+    } else zusammen.set(da ? `${k}|${b.titel}` : k, { ...b });
+  }
+  const jeUrl = new Map<string, Beleg[]>();
+  for (const b of zusammen.values()) {
+    const k = b.url ?? `ohne:${b.titel}`;
+    jeUrl.set(k, [...(jeUrl.get(k) ?? []), b]);
+  }
+  const zelle = (b: Beleg, mitUrl: boolean): string =>
+    `<tr><td class="l">${b.titel.split('\n').map((t) => `<strong>${escapeHtml(t)}</strong>`).join('<br>')}` +
+    (b.zusatz ? `<div class="fussnote">${escapeHtml(b.zusatz)}</div>` : '') +
+    (mitUrl && b.url ? `<div class="fussnote">${escapeHtml(b.url)}</div>` : '') +
+    `</td><td class="l">${escapeHtml(b.quelle)}</td><td class="l">${escapeHtml(b.belastbarkeit)}</td>` +
+    `<td class="l">${escapeHtml(b.sammlung)}</td></tr>`;
+  // Eine Zeile ist ein Beleg oder eine Adresszeile über mehreren.
+  const zeilen: string[] = [];
+  for (const [k, gruppe] of [...jeUrl].sort((a, b) => a[1][0].titel.localeCompare(b[1][0].titel, 'de'))) {
+    if (gruppe.length > 1 && !k.startsWith('ohne:')) {
+      zeilen.push(`<tr class="herkunft"><td class="l" colspan="4"><div class="fussnote">${escapeHtml(k)}</div></td></tr>`);
+      for (const b of gruppe) zeilen.push(zelle(b, false));
+    } else {
+      for (const b of gruppe) zeilen.push(zelle(b, true));
+    }
+  }
+  const belegZahl = alle.length;
 
   // Ein Eintrag trägt Titel, Fußnote und meist einen Verweis — rund 17 mm.
   const proBlatt = zeilenBudget(blattmass, 60, 17);
@@ -1480,6 +1627,10 @@ function quellenBlaetter(
     .map((k: KorpusId) => `${KORPUS_LABELS[k]}: ${basis.umfang(k)}`)
     .join(' · ');
 
+  const kopfzeile =
+    `<thead><tr>${spalten
+      .map((sp) => `<th class="l"${sp.breite ? ` style="width:${sp.breite}"` : ''}>${escapeHtml(sp.titel)}</th>`)
+      .join('')}</tr></thead>`;
   for (let i = 0; i < Math.max(1, zeilen.length); i += proBlatt) {
     const teil = zeilen.slice(i, i + proBlatt);
     const inhalt =
@@ -1489,11 +1640,14 @@ function quellenBlaetter(
             'Jede Zahl dieser Mappe kommt aus einem der folgenden Belege oder aus dem Modell selbst. Die Spalte ' +
               '„Belastbarkeit" ist der Kern des Verzeichnisses: eine Primärquelle wurde im Volltext nachgelesen, ' +
               'eine Sekundärquelle aus Fachliteratur übernommen, und eine Annahme hat dieses Programm gesetzt, ' +
-              'weil eine Zahl gebraucht wurde. Wer den Unterschied verwischt, verkauft eine Annahme als Norm.',
+              'weil eine Zahl gebraucht wurde. Wer den Unterschied verwischt, verkauft eine Annahme als Norm. ' +
+              'Zitieren mehrere Belege dasselbe Dokument, steht seine Adresse einmal darüber.',
           ) +
           p(`Die Wissensbasis führt ${basis.umfang()} Einträge in getrennten Sammlungen — ${umfang}.`)
         : h2('Quellenverzeichnis (Fortsetzung)')) +
-      (teil.length ? tabelle(spalten, teil) : p('Zu den Themen dieser Mappe ist kein Beleg hinterlegt.'));
+      (teil.length
+        ? `<table class="daten">${kopfzeile}<tbody>${teil.join('')}</tbody></table>`
+        : p('Zu den Themen dieser Mappe ist kein Beleg hinterlegt.'));
     entwuerfe.push({
       kapitel: 'quellen',
       titel: i === 0 ? 'Quellenverzeichnis' : 'Quellenverzeichnis (Fortsetzung)',
@@ -1504,9 +1658,9 @@ function quellenBlaetter(
 
   kopf(
     'quellen',
-    `Quellenverzeichnis (${zeilen.length} Belege)`,
-    zeilen.length > 0,
-    zeilen.length ? undefined : 'Kein Beleg zu den Themen dieser Mappe.',
+    `Quellenverzeichnis (${belegZahl} Belege)`,
+    belegZahl > 0,
+    belegZahl ? undefined : 'Kein Beleg zu den Themen dieser Mappe.',
   );
 }
 
@@ -1642,13 +1796,15 @@ function inbetriebnahmeBlatt(doc: BimDocument): string {
         { titel: 'Größe', breite: '42mm' },
         { titel: 'Wert', breite: '34mm' },
         { titel: 'Woraus das folgt' },
-        { titel: 'Quelle', breite: '46mm' },
+        // Die Grundschrift steht im Einleitungssatz; die Spalte nennt nur,
+        // was davon abweicht — sonst stünde sie in jeder Zeile (1.72.0).
+        { titel: 'Andere Quelle', breite: '46mm' },
       ],
       blatt.einstellwerte.map((e) => [
         `<strong>${escapeHtml(e.was)}</strong>`,
         `<strong>${escapeHtml(e.wert)}</strong>`,
         escapeHtml(e.herleitung),
-        escapeHtml(e.quelle),
+        e.quelle === QUELLE_INFOBLATT_62 ? '' : escapeHtml(e.quelle),
       ]),
     ) +
     h3('Anfahren und Optimieren — in dieser Reihenfolge') +
@@ -1975,6 +2131,7 @@ function stilblatt(blatt: { w: number; h: number }): string {
     'table.kennwerte th{width:52mm;font-weight:600}',
     'table.kennwerte{font-size:9pt;max-width:210mm}',
     'tr.gruppe td{font-weight:600;background:#F1F5F9;border-bottom:.5pt solid #94A3B8}',
+    'tr.herkunft td{background:#F8FAFC;padding-top:1.2mm;padding-bottom:.6mm;border-bottom:none}',
     '.fussnote{font-size:7.5pt;color:#475569;margin-top:.4mm}',
     // Deckblatt
     '.deckblatt{padding-top:0}',

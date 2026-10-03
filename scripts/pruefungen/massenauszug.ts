@@ -25,6 +25,7 @@ import {
   type MaterialSchedule,
   type MaterialTrade,
   type MaterialUnit,
+  herkunftsBasis,
 } from '../../src/lib/materialSchedule';
 import { designPlant, type CircuitDesign } from '../../src/lib/plantDesign';
 import { SCHEMATIC_LEGEND } from '../../src/lib/schematicSymbols';
@@ -337,9 +338,30 @@ export function pruefeMassenauszug(check: CheckFn): void {
     mit.groups.map((g) => g.trade).join(','),
     GEWERKE.filter((t) => mit.groups.some((g) => g.trade === t)).join(','),
   );
+  /*
+   * Seit 1.72.0 innerhalb des Gewerks zuerst nach Herkunft (zusammenhängend,
+   * damit die Projektmappe sie einmal je Folge druckt), dann nach Bemerkung,
+   * dann nach Bezeichnung.
+   */
   check(
-    'Innerhalb eines Gewerks ist nach Bezeichnung sortiert',
-    mit.groups.filter((g) => g.items.some((i, n) => n > 0 && g.items[n - 1].name.localeCompare(i.name, 'de') > 0)).length,
+    'Innerhalb eines Gewerks steht jede Herkunft zusammenhängend',
+    mit.groups.filter((g) => {
+      const folge = g.items.map((i) => herkunftsBasis(i.origin)).filter((b, n, a) => n === 0 || a[n - 1] !== b);
+      return new Set(folge).size !== folge.length;
+    }).length,
+    0,
+  );
+  check(
+    'Bei gleicher Herkunft und Bemerkung ist nach Bezeichnung sortiert',
+    mit.groups.filter((g) =>
+      g.items.some(
+        (i, n) =>
+          n > 0 &&
+          herkunftsBasis(g.items[n - 1].origin) === herkunftsBasis(i.origin) &&
+          (g.items[n - 1].remark ?? '') === (i.remark ?? '') &&
+          g.items[n - 1].name.localeCompare(i.name, 'de') > 0,
+      ),
+    ).length,
     0,
   );
   check(

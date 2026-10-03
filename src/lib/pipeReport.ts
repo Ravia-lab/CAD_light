@@ -437,6 +437,9 @@ export function buildPipeReport(doc: BimDocument, options: RohrnetzOptionen = {}
     umschaltung: trinkwasserUeberErzeuger && !modell?.contains?.diverter,
     waermezaehler: armaturen.some((f) => f.kind === 'heat-meter'),
     abscheiderVorhanden: armaturen.some((f) => f.kind === 'dirt-separator') && !modell?.contains?.dirtSeparator,
+    mindestGesichert:
+      armaturen.some((f) => f.kind === 'overflow-valve') ||
+      (auslegung.buffer?.selected !== undefined && auslegung.buffer.selected.kind !== 'buffer-series'),
   });
 
   const abgleich = balanceNetwork({

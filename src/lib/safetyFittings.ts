@@ -1202,10 +1202,16 @@ export function designSafety(input: SafetyDesignInput): SafetyDesign {
     });
   }
 
+  /*
+   * Die Armatur steht oben bereits in der Liste. Bis 1.71.0 lautete der Satz
+   * „Ohne Überströmventil … geht der Erzeuger auf Störung" und stand als
+   * Warnung da — neben dem Überströmventil, das dieselbe Auslegung gesetzt
+   * hatte. Er sagt jetzt, warum es da ist.
+   */
   if (overflowNeeded && lowestFlow !== undefined) {
     notes.push({
-      severity: 'warn',
-      text: `Im ungünstigsten Betriebsfall fließen nur ${num(lowestFlow, 2)} m³/h, gefordert sind ${num(minFlow, 2)} m³/h. Ohne Überströmventil oder Differenzdruckregler geht der Erzeuger auf Störung.`,
+      severity: 'info',
+      text: `Im ungünstigsten Betriebsfall fließen nur ${num(lowestFlow, 2)} m³/h, das Gerät verlangt ${num(minFlow, 2)} m³/h. Deshalb ist ein Überströmventil oder Differenzdruckregler vorgesehen — ohne ihn ginge der Erzeuger auf Störung.`,
     });
   }
 

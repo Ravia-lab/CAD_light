@@ -657,7 +657,7 @@ export function pruefeRohrausleger(check: CheckFn): void {
     const gebraucht = Number(/gebraucht werden bis zu (\d+) mm/.exec(kanalmeldung)?.[1] ?? 0);
     check('Die Meldung nennt den gebrauchten Außendurchmesser', gebraucht > SOCKELLEISTE_MAX_AUSSEN, true);
     check('Im Prüfhaus passt dagegen alles in den Kanal',
-      sanierung.notes.some((n) => n.text.includes('überschreitet den Sockelleistenkanal')), false);
+      sanierung.notes.some((n) => /überschreite[nt]? den Sockelleistenkanal/.test(n.text)), false);
   }
 
   // =========================================================================
@@ -898,7 +898,7 @@ export function pruefeRohrausleger(check: CheckFn): void {
       grob.legs[0].doorCrossings.length, 0);
     check('Mit der Vorbelegung geht sie durch die Tür', fein.legs[0].doorCrossings.length, 1);
     check('Und wird als Durchgang gemeldet',
-      fein.notes.some((n) => n.severity === 'warn' && n.text.includes('Türdurchgang')), true);
+      fein.notes.some((n) => n.severity === 'warn' && /Durchgang — Bodendurchführung/.test(n.text) && n.text.includes('Tür „')), true);
   }
 
   // =========================================================================

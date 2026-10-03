@@ -46,6 +46,7 @@ import type {
 } from '../types/bim';
 import { DURCHBRUCH_PRESETS } from '../types/bim';
 import { segmentIntersection } from './geometry';
+import { getWallGeometry } from './wallGeometry';
 import { hoeheAnPunkt } from './rohrlaenge';
 
 /** Zwei Querungen gelten als dieselbe Stelle, wenn sie so nah beieinander liegen [m]. */
@@ -349,6 +350,26 @@ export function durchbruecheFuerTrassen(
     if (!probe) {
       ohneRegelmass += 1;
       continue;
+    }
+    /*
+     * **Innerhalb der Wand bleiben** (seit 1.72.0). Quert eine Leitung nahe
+     * an einem Wandende — am Stoß zweier Wände, wo die Trasse um die Ecke
+     * geht —, stand der Durchbruch mittig auf der Querung und ragte um ein,
+     * zwei Zentimeter über das Wandende. Die Modellprüfung meldete dann
+     * einen Fehler an einem Bauteil, das das Programm selbst gesetzt hatte
+     * (gefunden an einem Neubau aus Swiss Dwellings). Der Durchbruch rückt
+     * deshalb so weit ins Wandinnere, dass er ganz in der Wand liegt; die
+     * Leitungen bleiben darin, weil ringsum Luft eingerechnet ist.
+     */
+    const wand = doc.walls[stelle.wallId];
+    const geo = wand ? getWallGeometry(wand, doc.nodes) : undefined;
+    const breite = probe.form === 'rund' ? (probe.diameter ?? 0) : (probe.width ?? 0);
+    if (geo && breite > 0 && breite <= geo.length) {
+      const lage = Math.min(Math.max(probe.distance ?? 0, breite / 2), geo.length - breite / 2);
+      // Auf Millimeter gerundet, ohne dabei wieder über das Ende zu rutschen.
+      const unten = Math.ceil((breite / 2) * 1000) / 1000;
+      const oben = Math.floor((geo.length - breite / 2) * 1000) / 1000;
+      probe.distance = Math.min(Math.max(Math.round(lage * 1000) / 1000, unten), oben);
     }
     durchbrueche.push({ ...probe, id: uid() });
   }

@@ -126,6 +126,21 @@ export interface PlantBookOptions {
   format?: PlantBookPaperFormat;
   /** Kapitel weglassen — etwa die Checkliste, wenn nur der Nachweis gebraucht wird. */
   omit?: readonly PlantBookChapterId[];
+  /**
+   * **In der Projektmappe** (seit 1.72.0): Hinweise, die dort schon auf einem
+   * anderen Blatt stehen. Sie fallen aus dem Hinweiskapitel heraus, und ein
+   * Satz sagt, wo sie stehen.
+   */
+  ohneHinweise?: ReadonlySet<string>;
+  /** Wo diese Hinweise stattdessen stehen, z. B. „Kapitel Pumpenauslegung". */
+  hinweiseAnderswo?: string;
+  /**
+   * **In der Projektmappe**: Die Pflichtarmaturen stehen mit technischer
+   * Angabe und Regelwerk im Massenauszug. Ist dieser Verweis gesetzt — etwa
+   * „Massenauszug, Pos. 47 bis 64" —, ersetzt er die Armaturentabelle des
+   * Sicherheitskapitels, statt sie ein zweites Mal zu drucken.
+   */
+  armaturenVerweis?: string;
 }
 
 export interface PlantBookResult {
@@ -1390,12 +1405,42 @@ function chapterDistribution(design: PlantDesignResult): string {
     ),
   );
 
+  // Die Erklärung zur Oberflächentemperatur steht beim ersten Verteiler —
+  // bei jedem weiteren wäre sie derselbe Satz noch einmal (seit 1.72.0).
+  let erklaert = false;
+  const flaechenKennwerte: { schluessel: string; label: string }[] = [];
+  const flaechenSchluessel = (c: (typeof design.circuits)[number]): string => {
+    const f = c.floor!;
+    return [
+      c.circuit.flowTemperature,
+      c.circuit.returnTemperature,
+      f.spread,
+      f.logMeanOverTemperature,
+      f.dimension.material,
+      f.dimension.label,
+      f.totalLength,
+      f.fieldLength,
+      f.waterContent,
+      f.surfaceTemperature,
+      f.maxSurfaceTemperature,
+      f.maxSpecificOutput,
+      f.loopPressureMbar,
+      f.velocity,
+    ]
+      .map((x) => (typeof x === 'number' ? x.toFixed(2) : String(x)))
+      .join('|');
+  };
   for (const circuit of design.circuits) {
     const table = manifoldTable(circuit);
     if (!table) continue;
     const floor = circuit.floor;
     parts.push(heading(`Verteiler ${quoted(circuit.circuit.label)}`));
-    if (floor) {
+    const zwilling = floor ? flaechenKennwerte.find((k) => k.schluessel === flaechenSchluessel(circuit)) : undefined;
+    if (floor && zwilling) {
+      // Gleiche Fläche, gleiche Kennwerte: die Tabelle stünde zweimal da.
+      parts.push(hint(`Auslegungswerte der Fläche wie beim Verteiler ${quoted(zwilling.label)}.`));
+    } else if (floor) {
+      flaechenKennwerte.push({ schluessel: flaechenSchluessel(circuit), label: circuit.circuit.label });
       parts.push(
         factTable([
           {
@@ -1414,8 +1459,8 @@ function chapterDistribution(design: PlantDesignResult): string {
             value: `${de(floor.surfaceTemperature, 1)} °C`,
             note:
               `Grenze ${de(floor.maxSurfaceTemperature, 1)} °C, daraus höchstens ` +
-              `${de(floor.maxSpecificOutput, 0)} W/m². Der Wert ist ein Mittel über die Fläche; über dem Rohr ` +
-              'liegt die Temperatur höher.',
+              `${de(floor.maxSpecificOutput, 0)} W/m².` +
+              (erklaert ? '' : ' Der Wert ist ein Mittel über die Fläche; über dem Rohr liegt die Temperatur höher.'),
           },
           {
             label: 'Ungünstigster Kreis',
@@ -1425,6 +1470,7 @@ function chapterDistribution(design: PlantDesignResult): string {
         ]),
       );
     }
+    if (floor) erklaert = true;
     parts.push(table);
   }
 
@@ -1757,7 +1803,7 @@ function pressureChain(safety: SafetyDesign): string {
   );
 }
 
-function chapterSafety(design: PlantDesignResult): string {
+function chapterSafety(design: PlantDesignResult, armaturenVerweis?: string): string {
   const safety = design.safety;
   if (!safety) {
     return paragraph(
@@ -1833,7 +1879,14 @@ function chapterSafety(design: PlantDesignResult): string {
     ),
   );
 
-  if (safety.fittings.length > 0) {
+  if (safety.fittings.length > 0 && armaturenVerweis) {
+    parts.push(
+      heading('Armaturen'),
+      paragraph(
+        `${safety.fittings.length} Pflichtarmaturen nach DIN EN 12828 — Nennweite, technische Angabe und Regelwerk stehen im ${armaturenVerweis}.`,
+      ),
+    );
+  } else if (safety.fittings.length > 0) {
     parts.push(
       heading('Armaturen'),
       dataTable(
@@ -2100,7 +2153,9 @@ export function buildPlantBook(options: PlantBookOptions): PlantBookResult {
   const omit = new Set(options.omit ?? []);
   const design = options.design;
   const rooms = collectRooms(options);
-  const notes = collectNotes(design);
+  const alleHinweise = collectNotes(design);
+  const notes = options.ohneHinweise ? alleHinweise.filter((n) => !options.ohneHinweise!.has(n.text)) : alleHinweise;
+  const anderswo = alleHinweise.length - notes.length;
   const title = `Anlagenbuch ${options.plantName} — ${options.projectName}`;
 
   const allPlans: ChapterPlan[] = [
@@ -2142,14 +2197,21 @@ export function buildPlantBook(options: PlantBookOptions): PlantBookResult {
     {
       id: 'sicherheit',
       title: 'Sicherheitstechnik',
-      body: chapterSafety(design),
+      body: chapterSafety(design, options.armaturenVerweis),
       hasContent: design.safety !== undefined,
       emptyReason: design.safety ? undefined : 'Sicherheitsausrüstung nicht ausgelegt.',
     },
     {
       id: 'hinweise',
       title: 'Hinweise',
-      body: chapterNotes(notes),
+      body:
+        anderswo > 0 && options.hinweiseAnderswo
+          ? (notes.length ? chapterNotes(notes) : '') +
+            paragraph(
+              `${anderswo} ${notes.length ? 'weitere ' : ''}Hinweis${anderswo === 1 ? '' : 'e'} der Auslegung ` +
+                `${anderswo === 1 ? 'steht' : 'stehen'} im ${options.hinweiseAnderswo} und ${anderswo === 1 ? 'wird' : 'werden'} hier nicht wiederholt.`,
+            )
+          : chapterNotes(notes),
       hasContent: notes.length > 0,
       emptyReason: notes.length > 0 ? undefined : 'Keine Hinweise gemeldet.',
     },

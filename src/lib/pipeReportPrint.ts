@@ -139,19 +139,24 @@ function masse(format: PaperFormat, ausrichtung: PaperOrientation): Blattmasse {
 }
 
 function blatt(m: Blattmasse, inhalt: string, kopf: string, fuss: string): string {
+  // Leerer Kopf bzw. Fuß: eingebettet — die Mappe setzt ihre eigenen.
   return (
     `<svg xmlns="http://www.w3.org/2000/svg" width="${m.sheet.w}mm" height="${m.sheet.h}mm" ` +
     `viewBox="0 0 ${m.sheet.w} ${m.sheet.h}">` +
     `<rect width="${m.sheet.w}" height="${m.sheet.h}" fill="#FFFFFF"/>` +
-    `<text x="${n(m.feld.x)}" y="${n(RAND.top - 5)}" font-size="${n(FONT_KLEIN)}" fill="${BLASS}" ` +
-    `font-family="Inter, Segoe UI, Arial, sans-serif">${escapeXml(kopf)}</text>` +
-    `<line x1="${n(m.feld.x)}" y1="${n(RAND.top - 3)}" x2="${n(m.feld.x + m.feld.w)}" y2="${n(RAND.top - 3)}" ` +
-    `stroke="${LINIE}" stroke-width="0.25"/>` +
+    (kopf
+      ? `<text x="${n(m.feld.x)}" y="${n(RAND.top - 5)}" font-size="${n(FONT_KLEIN)}" fill="${BLASS}" ` +
+        `font-family="Inter, Segoe UI, Arial, sans-serif">${escapeXml(kopf)}</text>` +
+        `<line x1="${n(m.feld.x)}" y1="${n(RAND.top - 3)}" x2="${n(m.feld.x + m.feld.w)}" y2="${n(RAND.top - 3)}" ` +
+        `stroke="${LINIE}" stroke-width="0.25"/>`
+      : '') +
     `<g font-family="Inter, Segoe UI, Arial, sans-serif">${inhalt}</g>` +
-    `<line x1="${n(m.feld.x)}" y1="${n(m.sheet.h - RAND.bottom + 4)}" x2="${n(m.feld.x + m.feld.w)}" ` +
-    `y2="${n(m.sheet.h - RAND.bottom + 4)}" stroke="${LINIE}" stroke-width="0.25"/>` +
-    `<text x="${n(m.feld.x)}" y="${n(m.sheet.h - RAND.bottom + 9)}" font-size="${n(FONT_KLEIN)}" fill="${BLASS}" ` +
-    `font-family="Inter, Segoe UI, Arial, sans-serif">${escapeXml(fuss)}</text>` +
+    (fuss
+      ? `<line x1="${n(m.feld.x)}" y1="${n(m.sheet.h - RAND.bottom + 4)}" x2="${n(m.feld.x + m.feld.w)}" ` +
+        `y2="${n(m.sheet.h - RAND.bottom + 4)}" stroke="${LINIE}" stroke-width="0.25"/>` +
+        `<text x="${n(m.feld.x)}" y="${n(m.sheet.h - RAND.bottom + 9)}" font-size="${n(FONT_KLEIN)}" fill="${BLASS}" ` +
+        `font-family="Inter, Segoe UI, Arial, sans-serif">${escapeXml(fuss)}</text>`
+      : '') +
     `</svg>`
   );
 }
@@ -315,6 +320,19 @@ export interface RohrnetzDruckOptionen {
   planScale?: number;
   /** Ausrichtung des Grundrissblatts. */
   planOrientation?: PaperOrientation;
+  /**
+   * **In der Projektmappe** (seit 1.72.0). Die Mappe hat eigene Kopf- und
+   * Fußzeilen mit eigener Blattnummer, ein eigenes Kapitel „Pumpenauslegung
+   * und Erzeugerkreis", ein Quellenverzeichnis und einen Nachweiskatalog.
+   * Bis 1.71.0 stand all das zweimal darin: „Blatt 3/9" unter „Blatt 7 von
+   * 48", die Erzeugerbilanz als Zeichnung und als Text, dieselben Quellen
+   * auf zwei Blättern. Eingebettet entfallen deshalb Kopf und Fuß, das
+   * Erzeugerblatt, die Quellenliste und die Antworten des Nachweiskatalogs
+   * (die Liste der sieben Punkte bleibt, mit Verweis).
+   */
+  eingebettet?: boolean;
+  /** Hinweise, die anderswo schon stehen und hier nicht wiederholt werden. */
+  ohneHinweise?: ReadonlySet<string>;
 }
 
 export interface RohrnetzDruckErgebnis {
@@ -454,13 +472,16 @@ export function buildPipeReportSheets(
     4 +
     Math.max(1, Math.ceil(bericht.teilstrecken.length / proBlatt)) +
     Math.max(1, Math.ceil(bericht.heizflaechen.length / proBlatt));
-  const kopf = `${bericht.titel} · Rohrnetzberechnung · ${bericht.erstellt}`;
+  const eingebettet = optionen.eingebettet === true;
+  const kopf = eingebettet ? '' : `${bericht.titel} · Rohrnetzberechnung · ${bericht.erstellt}`;
   const fuss = (i: number) =>
-    `Blatt ${i}/${gesamtVorschau} · RaVia CAD Light · Berechnung nach anerkannten Regeln der Technik, ` +
-    'kein Ersatz für die Prüfung durch den Fachplaner';
+    eingebettet
+      ? ''
+      : `Blatt ${i}/${gesamtVorschau} · RaVia CAD Light · Berechnung nach anerkannten Regeln der Technik, ` +
+        'kein Ersatz für die Prüfung durch den Fachplaner';
 
   // --- Blatt 2: Anlagendaten und Nachweis ----------------------------------
-  sheets.push(blatt(m, deckblatt(m, bericht), kopf, fuss(sheets.length + 1)));
+  sheets.push(blatt(m, deckblatt(m, bericht, eingebettet), kopf, fuss(sheets.length + 1)));
 
   // --- Teilstreckenblätter --------------------------------------------------
   for (let i = 0; i < bericht.teilstrecken.length; i += proBlatt) {
@@ -486,7 +507,7 @@ export function buildPipeReportSheets(
    * besteht — Posten für Posten, jeder mit seiner Grundlage und seiner
    * Quelle. Eine Summe allein ist wieder nur eine Behauptung.
    */
-  sheets.push(blatt(m, erzeugerBlatt(m, bericht), kopf, fuss(sheets.length + 1)));
+  if (!eingebettet) sheets.push(blatt(m, erzeugerBlatt(m, bericht), kopf, fuss(sheets.length + 1)));
 
   // --- Einstellwerte --------------------------------------------------------
   for (let i = 0; i < Math.max(1, bericht.heizflaechen.length); i += proBlatt) {
@@ -497,7 +518,10 @@ export function buildPipeReportSheets(
   }
 
   // --- Quellen und Hinweise -------------------------------------------------
-  sheets.push(blatt(m, quellenBlatt(m, bericht), kopf, fuss(sheets.length + 1)));
+  const hinweise = bericht.hinweise.filter((h) => !optionen.ohneHinweise?.has(h.text));
+  if (!eingebettet || hinweise.length) {
+    sheets.push(blatt(m, quellenBlatt(m, { ...bericht, hinweise }, !eingebettet), kopf, fuss(sheets.length + 1)));
+  }
 
   return { sheets, sheet: m.sheet, planSheet, planFits, planSuggestedScale, planZuGross, planGeschosse, notes };
 }
@@ -506,7 +530,7 @@ export function buildPipeReportSheets(
 // Die einzelnen Blätter
 // ---------------------------------------------------------------------------
 
-function deckblatt(m: Blattmasse, b: RohrnetzBericht): string {
+function deckblatt(m: Blattmasse, b: RohrnetzBericht, eingebettet = false): string {
   const teile: string[] = [];
   let y = m.feld.y + 6;
   teile.push(zeile(m.feld.x, y, 'Rohrnetzberechnung', { size: FONT_TITEL, bold: true }));
@@ -619,9 +643,21 @@ function deckblatt(m: Blattmasse, b: RohrnetzBericht): string {
     }),
   );
   y += 5;
+  // Eingebettet: die Antworten stehen im Nachweiskatalog der Mappe — hier
+  // nur Punkt und Erfüllung, mit dem Verweis.
+  if (eingebettet) {
+    teile.push(
+      zeile(m.feld.x, y, 'Begründung je Punkt: Kapitel „Nachweiskatalog" dieser Mappe.', { size: FONT_KLEIN, fill: GRAU }),
+    );
+    y += ZEILE;
+  }
   for (const p of b.nachweis) {
     teile.push(zeile(m.feld.x, y, p.erfuellt ? '✓' : '○', { bold: true, fill: p.erfuellt ? '#15803D' : '#B45309' }));
     teile.push(zeile(m.feld.x + 5, y, `${p.nr}. ${p.forderung}`, { bold: true }));
+    if (eingebettet) {
+      y += ZEILE;
+      continue;
+    }
     const zeilen = umbrich(p.antwort, m.feld.w - 62, FONT_KLEIN);
     zeilen.forEach((z, i) => {
       teile.push(zeile(m.feld.x + 60, y + i * 3.1, z, { size: FONT_KLEIN, fill: GRAU }));
@@ -976,7 +1012,7 @@ function erzeugerBlatt(m: Blattmasse, b: RohrnetzBericht): string {
   return teile.join('');
 }
 
-function quellenBlatt(m: Blattmasse, b: RohrnetzBericht): string {
+function quellenBlatt(m: Blattmasse, b: RohrnetzBericht, mitQuellen = true): string {
   const teile: string[] = [];
   let y = m.feld.y + 5;
   teile.push(zeile(m.feld.x, y, 'Hinweise', { size: FONT_ABSCHNITT, bold: true }));
@@ -995,6 +1031,8 @@ function quellenBlatt(m: Blattmasse, b: RohrnetzBericht): string {
     if (y > m.feld.y + m.feld.h - 40) break;
   }
 
+  // Eingebettet steht die Quellenliste im Quellenverzeichnis der Mappe.
+  if (!mitQuellen) return teile.join('');
   y += 5;
   teile.push(zeile(m.feld.x, y, 'Quellen', { size: FONT_ABSCHNITT, bold: true }));
   y += 5;

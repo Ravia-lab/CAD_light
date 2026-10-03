@@ -1089,6 +1089,10 @@ export function designPlant(doc: BimDocument, options: PlantDesignOptions = {}):
     umschaltung: Boolean(dhwStorage) && !selected?.model.contains?.diverter,
     waermezaehler: true,
     abscheiderVorhanden: !selected?.model.contains?.dirtSeparator,
+    // Die Auslegung sichert den Mindestvolumenstrom immer selbst: mit
+    // Trennpuffer über die Gerätepumpe, ohne über das Überströmventil, das
+    // `designSafety` setzt, sobald der Kreisstrom darunter fallen kann.
+    mindestGesichert: true,
   });
   for (const n of erzeuger.hinweise) notes.push(n);
 

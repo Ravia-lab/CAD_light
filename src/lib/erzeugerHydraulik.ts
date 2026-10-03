@@ -811,6 +811,13 @@ export interface BilanzEingabe {
   waermezaehler: boolean;
   /** Ist ein Schlamm-/Magnetitabscheider vorgesehen? */
   abscheiderVorhanden: boolean;
+  /**
+   * Hält die Anlage den Mindestvolumenstrom des Geräts selbst ein —
+   * über ein Überströmventil, einen Differenzdruckregler oder einen
+   * Trennpuffer? Dann fließt durch den Erzeugerkreis mindestens dieser
+   * Strom, und gerechnet wird mit ihm (seit 1.72.0).
+   */
+  mindestGesichert?: boolean;
 }
 
 /**
@@ -823,7 +830,6 @@ export interface BilanzEingabe {
  * die Lehre aus drei Fehlern dieses Projekts.
  */
 export function erzeugerBilanz(e: BilanzEingabe): Erzeugerbilanz {
-  const flow = Math.max(0, e.flow);
   const posten: FliesswegPosten[] = [];
   const hinweise: Erzeugerbilanz['hinweise'] = [];
 
@@ -836,6 +842,28 @@ export function erzeugerBilanz(e: BilanzEingabe): Erzeugerbilanz {
           form: e.model.form,
         })
       : undefined);
+
+  /*
+   * **Der Strom durch das Gerät ist nicht der Strom der Kreise**, sobald die
+   * Anlage den Mindestvolumenstrom selbst sichert. Bis 1.71.0 wurde der
+   * Erzeugerkreis mit dem Kreisstrom gerechnet, und die Bilanz nannte die
+   * Anlage „unzulässig" — obwohl dieselbe Auslegung das Überströmventil
+   * bzw. den Trennpuffer vorsah, der genau das verhindert (gefunden an
+   * einem Bungalow 1965: 0,81 m³/h im Kreis, 1,51 m³/h verlangt).
+   */
+  const kreisstrom = Math.max(0, e.flow);
+  const vMin = h?.vMin ?? e.model?.minVolumeFlow;
+  const angehoben = Boolean(e.mindestGesichert && vMin !== undefined && kreisstrom < vMin);
+  const flow = angehoben ? vMin! : kreisstrom;
+  if (angehoben) {
+    hinweise.push({
+      severity: 'info',
+      text:
+        `Die Kreise führen ${m3h(kreisstrom)} m³/h, das Gerät verlangt mindestens ${m3h(flow)} m³/h. Den Rest hält ` +
+        'das Überströmventil bzw. der Trennpuffer der Auslegung; der Erzeugerkreis ist deshalb mit ' +
+        `${m3h(flow)} m³/h gerechnet.`,
+    });
+  }
 
   let verfuegbar: number | undefined;
   if (h && h.angabe === 'druckverlust') {
