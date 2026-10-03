@@ -13,6 +13,7 @@
 import { create } from 'zustand';
 import type {
   AnlagenAntworten,
+  RatedPowerSource,
   AiAnalysisState,
   AuswahlQuelle,
   BimDocument,
@@ -125,7 +126,8 @@ import { getroffene } from '../lib/notizen';
 import { vorzugsrichtung, EPS, closestPointOnSegment, distance, distanceToSegment, pointInPolygon, roundMm } from '../lib/geometry';
 import { ACCESSORY_LABELS } from '../lib/pipeAccessorySymbols';
 import { hoehenText } from '../lib/beschriftung3d';
-import { zieheHeizflaechenNach } from '../lib/heizflaechenAbgleich';
+import { normleistungAusRaumlast, zieheHeizflaechenNach } from '../lib/heizflaechenAbgleich';
+import { heizleistung, migriereFixtures, mitLeistung } from '../lib/normleistung';
 import { rohrlaenge } from '../lib/rohrlaenge';
 import { istHeizflaeche } from '../lib/heizflaechenLeistung';
 import { hinweiseZuRaeumen, leseVerworfene, type RaumverlustHinweis } from '../lib/verworfeneRaeume';
@@ -719,7 +721,11 @@ interface BimState {
    * keinen Heizkörper — was im Plan steht, verschwindet nicht über eine
    * Tabellenzelle.
    */
-  setzeRaumHeizleistung: (roomId: string, watt: number | undefined) => { ok: boolean; message: string };
+  setzeRaumHeizleistung: (
+    roomId: string,
+    watt: number | undefined,
+    quelle?: RatedPowerSource,
+  ) => { ok: boolean; message: string };
   /**
    * Die überschlägige Heizlast für **alle** Räume auf einmal eintragen.
    *
@@ -2966,7 +2972,7 @@ export const useBimStore = create<BimState>()((set, get) => {
              * hatte; und die Prüfung „Heizfläche ohne Leistung" konnte nie
              * zutreffen. Ein Feld mehr, und alle drei stimmen wieder.
              */
-            params: { ...def.params, ...(def.params.powerW !== undefined ? { powerSource: 'katalog' as const } : {}) },
+            params: { ...def.params, ...(heizleistung(def) !== undefined ? { powerSource: 'katalog' as const } : {}) },
             ...options,
           };
           // Raumzuordnung sofort setzen, damit der Export ohne weitere
@@ -3001,7 +3007,7 @@ export const useBimStore = create<BimState>()((set, get) => {
       return created;
     },
 
-    setzeRaumHeizleistung: (roomId, watt) => {
+    setzeRaumHeizleistung: (roomId, watt, quelle) => {
       const d0 = get().doc;
       const room = d0.rooms[roomId];
       if (!room) return { ok: false, message: 'Raum nicht gefunden' };
@@ -3025,7 +3031,7 @@ export const useBimStore = create<BimState>()((set, get) => {
 
       if (heizflaechen.length === 1) {
         const f = heizflaechen[0];
-        get().updateFixture(f.id, { params: { ...f.params, powerW: watt } });
+        get().updateFixture(f.id, { params: mitLeistung(f.type, f.params, watt, quelle ?? 'datenblatt') });
         return {
           ok: true,
           message:
@@ -3051,7 +3057,10 @@ export const useBimStore = create<BimState>()((set, get) => {
         // lässt sich die Heizlast eines Raums setzen, der nicht im
         // aktiven Geschoss liegt.
         levelId: room.levelId,
-        params: { ...def.params, powerW: watt, powerSource: 'datenblatt' },
+        params: {
+          ...mitLeistung(typ, def.params, watt, quelle ?? 'datenblatt'),
+          powerSource: quelle === 'schaetzung' ? 'heizlast' : 'datenblatt',
+        },
       });
       if (!erstellt) return { ok: false, message: 'Heizkörper konnte nicht angelegt werden' };
       return {
@@ -3206,7 +3215,8 @@ export const useBimStore = create<BimState>()((set, get) => {
            * einen **anderen** Wert als den, der schon dastand.
            */
           const leistungGeaendert =
-            patch.params?.powerW !== undefined && patch.params.powerW !== fixture.params.powerW;
+            (patch.params?.powerW !== undefined && patch.params.powerW !== fixture.params.powerW) ||
+            (patch.params?.ratedPower !== undefined && patch.params.ratedPower !== fixture.params.ratedPower);
           const herkunftAusdruecklich =
             patch.params?.powerSource !== undefined &&
             patch.params.powerSource !== fixture.params.powerSource;
@@ -3236,15 +3246,17 @@ export const useBimStore = create<BimState>()((set, get) => {
         // Steht schon eine Leistung im Raum? Dann bleibt sie stehen.
         if (nurLeere) {
           const vorhanden = Object.values(get().doc.fixtures)
-            .some((f) => f.roomId === raum.id && istHeizflaeche(f.type)
-              && typeof f.params.powerW === 'number' && f.params.powerW > 0);
+            .some((f) => f.roomId === raum.id && istHeizflaeche(f.type) && (heizleistung(f) ?? 0) > 0);
           if (vorhanden) { uebersprungen++; continue; }
         }
 
-        // Auf 50 W runden: Der Überschlag gibt keine Watt-Genauigkeit her,
-        // und eine krumme Zahl täuscht eine vor.
-        const watt = Math.round(last.total / 50) * 50;
-        const antwort = get().setzeRaumHeizleistung(raum.id, watt);
+        // Die Raumheizlast gilt im Betriebspunkt der Anlage; am Heizkörper
+        // steht die Normleistung 75/65/20 (Befund A1). Umgerechnet und auf
+        // 50 W gerundet: Der Überschlag gibt keine Watt-Genauigkeit her.
+        const typ = raum.usage === 'bath' ? 'towel-radiator' : 'radiator';
+        const watt = normleistungAusRaumlast(get().doc, last.setpoint, last.total, typ);
+        if (watt === undefined) { uebersprungen++; continue; }
+        const antwort = get().setzeRaumHeizleistung(raum.id, watt, 'schaetzung');
         if (antwort.ok) { gesetzt++; summeW += watt; } else uebersprungen++;
       }
 
@@ -6094,10 +6106,10 @@ export const useBimStore = create<BimState>()((set, get) => {
           };
         };
 
-        place('radiator', 3, 0.28, 0, { powerW: 1400 });
-        place('radiator', 0.28, 3.7, 90, { powerW: 1100 });
-        place('radiator', 2.1, 7.22, 180, { powerW: 900 });
-        place('radiator', 9.72, 2.1, 270, { powerW: 700 });
+        place('radiator', 3, 0.28, 0, { ratedPower: 2740, ratedPowerSource: 'datenblatt' });
+        place('radiator', 0.28, 3.7, 90, { ratedPower: 2150, ratedPowerSource: 'datenblatt' });
+        place('radiator', 2.1, 7.22, 180, { ratedPower: 1760, ratedPowerSource: 'datenblatt' });
+        place('radiator', 9.72, 2.1, 270, { ratedPower: 1370, ratedPowerSource: 'datenblatt' });
         place('wc', 8.6, 6.6, 180);
         place('washbasin', 9.4, 6.9, 180);
         place('shower', 7.2, 6.6, 0);
@@ -6876,8 +6888,12 @@ export const useBimStore = create<BimState>()((set, get) => {
         geometry.walls.map((w) => [w.id, { ...w, levelId: w.levelId ?? fallbackLevel }]),
       );
       fresh.openings = Object.fromEntries((geometry.openings ?? []).map((o) => [o.id, o]));
-      fresh.fixtures = Object.fromEntries(
-        (geometry.fixtures ?? []).map((f) => [f.id, { ...f, levelId: f.levelId ?? fallbackLevel }]),
+      // Festlegung F2: Heizkörper aus Dateien bis 1.72.0 tragen `powerW` bei
+      // 55/45/20 — beim Laden auf `ratedPower` 75/65/20 umgerechnet.
+      fresh.fixtures = migriereFixtures(
+        Object.fromEntries(
+          (geometry.fixtures ?? []).map((f) => [f.id, { ...f, levelId: f.levelId ?? fallbackLevel }]),
+        ),
       );
       fresh.verticals = Object.fromEntries(
         (geometry.verticals ?? []).map((v) => [v.id, { ...v, levelId: v.levelId ?? fallbackLevel }]),
@@ -7063,7 +7079,8 @@ export const useBimStore = create<BimState>()((set, get) => {
 
     replaceDocument: (next, message) =>
       set({
-        doc: next,
+        // Auch ein Autosave aus 1.72.0 trägt noch `powerW` (Festlegung F2).
+        doc: { ...next, fixtures: migriereFixtures(next.fixtures ?? {}) },
         past: [],
         future: [],
         selection: null,

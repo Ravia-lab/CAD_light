@@ -3,9 +3,9 @@
  * ---------------------------------------------------------------------------
  * **Warum es diese Datei gibt.** Eine Lückenanalyse vor der Übergabe an RaVia
  * hat einen einzigen harten Blocker gefunden, und er steckte nicht in der
- * Geometrie, sondern in einer fehlenden Zahl: `FixtureParams.powerW` ist die
- * **Normwärmeleistung bei 55/45/20 °C**. Eine Wärmepumpe fährt 35/28 oder
- * 45/38. Die Umrechnung zwischen beiden lautet nach DIN EN 442-2
+ * Geometrie, sondern in einer fehlenden Zahl: `FixtureParams.ratedPower` ist
+ * die **Normwärmeleistung bei 75/65/20 °C** (bis 1.73.0 als `powerW` bei
+ * 55/45/20). Eine Wärmepumpe fährt 35/28 oder 45/38. Die Umrechnung zwischen beiden lautet nach DIN EN 442-2
  *
  *     Q = Q_norm · (Δθ / Δθ_norm)^n
  *
@@ -41,6 +41,7 @@ import type {
 } from '../types/bim';
 import type { BalanceReport } from './hydraulicBalance';
 import type { Erzeugerbilanz } from './erzeugerHydraulik';
+import { EXPONENT_RICHTWERT, heizleistung, NORMPUNKT_EN442 } from './normleistung';
 
 // ---------------------------------------------------------------------------
 // Richtwerte, die als Annahme gekennzeichnet werden
@@ -58,19 +59,14 @@ import type { Erzeugerbilanz } from './erzeugerHydraulik';
  * Die Spreizung ist klein, aber nicht folgenlos: zwischen n = 1,30 und
  * n = 1,40 liegen bei 35/28 gegenüber 55/45 rund 4 % Leistung.
  */
-export const EMITTER_EXPONENT_ANNAHME: Partial<Record<FixtureType, number>> = {
-  radiator: 1.3,
-  // Röhrenradiator und Badheizkörper liegen in derselben Größenordnung wie
-  // der Plattenheizkörper — auch das ist eine Annahme bis zum Datenblatt.
-  // Bis 1.38.0 fehlten beide hier, und ihr Exponent ging als Lücke hinaus.
-  'radiator-tube': 1.3,
-  'towel-radiator': 1.3,
-  convector: 1.4,
-  underfloor: 1.1,
-};
+export const EMITTER_EXPONENT_ANNAHME = EXPONENT_RICHTWERT;
 
-/** Bei welchen Temperaturen die Normleistung gilt (DIN EN 442-2). */
-export const NORM_TEMPERATUREN = { vorlauf: 55, ruecklauf: 45, raum: 20 } as const;
+/**
+ * Bei welchen Temperaturen die Normleistung gilt: DIN EN 442-2, 75/65/20 °C.
+ * Bis 1.72.0 stand hier 55/45/20 (Befund A1) — ein zulässiger Betriebspunkt,
+ * aber nicht der Normpunkt.
+ */
+export const NORM_TEMPERATUREN = NORMPUNKT_EN442;
 
 /** Welche Norm die Leistung dieser Bauart beschreibt. */
 function regelFuer(type: FixtureType): ExportEmitter['rule'] {
@@ -114,8 +110,8 @@ function einEmitter(f: Fixture, rule: ExportEmitter['rule'], doc: BimDocument): 
 
   // --- Der Exponent: die Zahl, an der die Übergabe hing ---------------------
   let exponent: Auslegungswert | undefined;
-  if (typeof p.radiatorExponent === 'number' && p.radiatorExponent > 0) {
-    exponent = { wert: p.radiatorExponent, herkunft: 'eingegeben' };
+  if (typeof p.exponentN === 'number' && p.exponentN > 0) {
+    exponent = { wert: p.exponentN, herkunft: 'eingegeben' };
   } else {
     const richtwert = EMITTER_EXPONENT_ANNAHME[f.type];
     if (richtwert !== undefined) {
@@ -132,8 +128,9 @@ function einEmitter(f: Fixture, rule: ExportEmitter['rule'], doc: BimDocument): 
   }
 
   // --- Leistung und Betriebspunkt ------------------------------------------
-  const leistung = wert(p.powerW, 'eingegeben');
-  if (!leistung) fehlt.push('Normwärmeleistung');
+  // EN 442: Normleistung 75/65/20. EN 1264: die Auslegungsleistung des Kreises.
+  const leistung = wert(heizleistung(f), 'eingegeben');
+  if (!leistung) fehlt.push(rule === 'EN 442' ? 'Normwärmeleistung 75/65/20 °C' : 'Auslegungsleistung des Heizkreises');
 
   const vorlauf = wert(p.flowTemperature, 'eingegeben');
   const ruecklauf = wert(p.returnTemperature, 'eingegeben');
@@ -147,9 +144,15 @@ function einEmitter(f: Fixture, rule: ExportEmitter['rule'], doc: BimDocument): 
     type: f.type,
     rule,
     ...(leistung ? { nominalPower: leistung } : {}),
-    nominalFlowTemperature: NORM_TEMPERATUREN.vorlauf,
-    nominalReturnTemperature: NORM_TEMPERATUREN.ruecklauf,
-    nominalRoomTemperature: NORM_TEMPERATUREN.raum,
+    // Ein Normpunkt nach EN 442 gibt es nur für Heizkörper; ein Fußboden-
+    // heizkreis bekam bis 1.72.0 dieselben 55/45/20 angeheftet.
+    ...(rule === 'EN 442'
+      ? {
+          nominalFlowTemperature: NORM_TEMPERATUREN.vorlauf,
+          nominalReturnTemperature: NORM_TEMPERATUREN.ruecklauf,
+          nominalRoomTemperature: NORM_TEMPERATUREN.raum,
+        }
+      : {}),
     ...(vorlauf ? { designFlowTemperature: vorlauf } : {}),
     ...(ruecklauf ? { designReturnTemperature: ruecklauf } : {}),
     ...(exponent ? { exponent } : {}),

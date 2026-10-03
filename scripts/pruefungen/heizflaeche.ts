@@ -1,8 +1,8 @@
 /**
  * Prüfblock „Heizfläche" — von der Raumheizlast zur Normleistung.
  *
- * **Worum es geht.** `params.powerW` einer Heizfläche ist die
- * Normwärmeleistung nach DIN EN 442-2, also die Leistung bei 55/45/20 °C. Die
+ * **Worum es geht.** `params.ratedPower` einer Heizfläche ist die
+ * Normwärmeleistung nach DIN EN 442-2, also die Leistung bei 75/65/20 °C. Die
  * Raumheizlast ist die Leistung im Auslegungsbetriebspunkt der Anlage. Beides
  * sind Watt, und beides ist nicht dieselbe Zahl. Wer die Heizlast unverändert
  * ins Feld schreibt, legt den Heizkörper zu klein aus — bei einer Wärmepumpe
@@ -10,8 +10,14 @@
  *
  * **Die Sollwerte stehen von Hand da, und sie sind zugleich die Gegenprobe
  * zum Modulkopf.** Im Kommentar von `heizflaechenLeistung.ts` stehen drei
- * Beispiele (1600 W Raumheizlast, n = 1,3 → 2040 / 2470 / 5730 W). Sie sind
- * einmal falsch dort gestanden. Diese Prüfung hält sie fest: Wer die Zahlen
+ * Beispiele (1600 W Raumheizlast, n = 1,3 → 3990 / 4830 / 11220 W). Sie sind
+ * einmal falsch dort gestanden.
+ *
+ * **Korrigiert in 1.73.0 (Befund A1/F7, Festlegung F2).** Bis 1.72.0 rechnete
+ * dieser Block auf den Normpunkt 55/45/20 °C (2040 / 2470 / 5730 W) und
+ * schrieb damit den Fehler fest, den er hätte finden sollen: Der Normpunkt
+ * nach DIN EN 442-2 ist 75/65/20 °C. Die Sollwerte sind neu von Hand
+ * gerechnet, die Prüfungen sind dieselben. Diese Prüfung hält sie fest: Wer die Zahlen
  * im Modulkopf ändert, muss hier nachziehen, und wer sie hier ändert, dort.
  * Eine Prüfung, die ihren Sollwert aus `normleistungFuerHeizlast` selbst
  * holte, könnte das nicht leisten — sie bestätigte nur, dass die Funktion
@@ -66,30 +72,30 @@ const HEIZLAST = 1600;
  * Die Normleistung, die 1600 W Raumheizlast bei 50/40/20 °C und n = 1,3
  * verlangen [W].
  *
- * Nachgerechnet: Δϑ_norm = (35 − 25)/ln(35/25) = 29,72 K,
- * Δϑ = (30 − 20)/ln(30/20) = 24,66 K, Faktor = (29,72/24,66)^1,3 = 1,2744,
- * 1600 W × 1,2744 = 2039 W, auf 10 W gerundet 2040 W. Das sind +28 %.
+ * Nachgerechnet: Δϑ_norm = (55 − 45)/ln(55/45) = 49,83 K,
+ * Δϑ = (30 − 20)/ln(30/20) = 24,66 K, Faktor = (49,83/24,66)^1,3 = 2,4952,
+ * 1600 W × 2,4952 = 3992 W, auf 10 W gerundet 3990 W.
  */
-const NORM_50_40 = 2040;
+const NORM_50_40 = 3990;
 
 /**
  * Dasselbe bei 45/38/20 [W].
  *
- * Δϑ = (25 − 18)/ln(25/18) = 21,31 K, Faktor = (29,72/21,31)^1,3 = 1,5412,
- * 1600 W × 1,5412 = 2466 W → 2470 W. Das sind +54 %.
+ * Δϑ = (25 − 18)/ln(25/18) = 21,31 K, Faktor = (49,83/21,31)^1,3 = 3,0175,
+ * 1600 W × 3,0175 = 4828 W → 4830 W.
  */
-const NORM_45_38 = 2470;
+const NORM_45_38 = 4830;
 
 /**
  * Und bei 35/28/20 [W] — der Fall, um den es geht.
  *
- * Δϑ = (15 − 8)/ln(15/8) = 11,14 K, Faktor = (29,72/11,14)^1,3 = 3,5829,
- * 1600 W × 3,5829 = 5733 W → 5730 W. Das sind +258 %, und das ist die
+ * Δϑ = (15 − 8)/ln(15/8) = 11,14 K, Faktor = (49,83/11,14)^1,3 = 7,0152,
+ * 1600 W × 7,0152 = 11224 W → 11220 W. Gegenüber 50/40 fast das Dreifache, und das ist die
  * Antwort auf die Frage, warum ein Altbauheizkörper an einer Wärmepumpe oft
  * nicht reicht: Nicht der Heizkörper ist schlechter geworden, die
  * Übertemperatur ist kleiner.
  */
-const NORM_35_28 = 5730;
+const NORM_35_28 = 11220;
 
 // ---------------------------------------------------------------------------
 // Das Prüfhaus
@@ -181,10 +187,10 @@ function baueHaus(): BimDocument {
     // beantwortet `systemtemperaturVon` und nicht ein Feld am Symbol.
     kessel: objekt('kessel', 'boiler', 0.6, {}),
     // Westraum: zwei Heizkörper, beide aus der Symbolbibliothek vorbelegt.
-    hkW1: objekt('hkW1', 'radiator', 2, { powerW: 1000, powerSource: 'katalog' }),
-    hkW2: objekt('hkW2', 'radiator', 4, { powerW: 1000, powerSource: 'katalog' }),
+    hkW1: objekt('hkW1', 'radiator', 2, { ratedPower: 2000, powerSource: 'katalog' }),
+    hkW2: objekt('hkW2', 'radiator', 4, { ratedPower: 2000, powerSource: 'katalog' }),
     // Ostraum: ein Heizkörper, dessen Leistung aus einem Datenblatt stammt.
-    hkO: objekt('hkO', 'radiator', 8, { powerW: 1000, powerSource: 'datenblatt' }),
+    hkO: objekt('hkO', 'radiator', 8, { ratedPower: 2000, powerSource: 'datenblatt' }),
   };
 
   const doc: BimDocument = {
@@ -270,12 +276,12 @@ function baueHaus(): BimDocument {
  * zugeschoben — die Prüfung prüfte dann etwas anderes, als sie behauptet.
  */
 function hausMitOstwert(
-  powerW: number | undefined,
+  ratedPower: number | undefined,
   powerSource: LeistungHerkunft | undefined,
 ): BimDocument {
   const doc = baueHaus();
   const f = doc.fixtures.hkO;
-  doc.fixtures.hkO = { ...f, params: { ...f.params, powerW, powerSource } };
+  doc.fixtures.hkO = { ...f, params: { ...f.params, ratedPower, powerSource } };
   return doc;
 }
 
@@ -292,23 +298,24 @@ const norm = (vorlauf: number, ruecklauf: number, raum = 20) =>
 export function pruefeHeizflaeche(check: CheckFn): void {
   // === A — Der Normpunkt ==================================================
   //
-  // Δϑ_norm = (55 − 20 − (45 − 20)) / ln((55 − 20)/(45 − 20))
-  //         = 10 / ln(1,4) = 29,72 K.
+  // Δϑ_norm = (75 − 20 − (65 − 20)) / ln((75 − 20)/(65 − 20))
+  //         = 10 / ln(55/45) = 49,83 K  (DIN EN 442-2, Festlegung F2).
+  // Bis 1.72.0 stand hier 29,7 K für 55/45/20 — der Fehler A1.
   // Diese Zahl ist der Nenner jeder Umrechnung; läuft sie weg, wandert jede
   // abgeleitete Leistung mit, und zwar gleichsinnig und damit unauffällig.
-  check('Die Normübertemperatur bei 55/45/20 liegt bei 29,7 K', r1(NORM_UEBERTEMPERATUR), 29.7);
+  check('Die Normübertemperatur bei 75/65/20 liegt bei 49,8 K', r1(NORM_UEBERTEMPERATUR), 49.8);
 
   // === B — Die drei Beispiele aus dem Modulkopf ===========================
   //
   // 1600 W Raumheizlast, Heizkörper, n = 1,3 als Richtwert für die Bauart.
-  check('1600 W bei 50/40/20 verlangen 2040 W Normleistung', norm(50, 40)?.watt ?? -1, NORM_50_40);
-  check('… bei 45/38/20 sind es 2470 W', norm(45, 38)?.watt ?? -1, NORM_45_38);
-  check('… und bei 35/28/20 schon 5730 W', norm(35, 28)?.watt ?? -1, NORM_35_28);
+  check('1600 W bei 50/40/20 verlangen 3990 W Normleistung 75/65', norm(50, 40)?.watt ?? -1, NORM_50_40);
+  check('… bei 45/38/20 sind es 4830 W', norm(45, 38)?.watt ?? -1, NORM_45_38);
+  check('… und bei 35/28/20 schon 11220 W', norm(35, 28)?.watt ?? -1, NORM_35_28);
 
   // Die Zwischengrößen, die neben der Zahl stehen und sie begründen:
-  // Δϑ = (30 − 20)/ln(30/20) = 24,66 K, Faktor = (29,72/24,66)^1,3 = 1,274.
+  // Δϑ = (30 − 20)/ln(30/20) = 24,66 K, Faktor = (49,83/24,66)^1,3 = 2,495.
   check('Die Übertemperatur bei 50/40/20 ist 24,7 K', norm(50, 40)?.uebertemperatur ?? -1, 24.7);
-  check('Der Faktor auf den Normpunkt ist 1,274', norm(50, 40)?.faktor ?? -1, 1.274, 0.0005);
+  check('Der Faktor auf den Normpunkt ist 2,495', norm(50, 40)?.faktor ?? -1, 2.495, 0.0005);
 
   /*
    * Der Exponent: Ohne Angabe am Objekt gilt der Richtwert der Bauart, und
@@ -332,12 +339,12 @@ export function pruefeHeizflaeche(check: CheckFn): void {
   /*
    * Eine andere Bauart hat einen anderen Richtwert: Der Konvektor rechnet mit
    * n = 1,4 und braucht deshalb mehr.
-   * Faktor = (29,72/24,66)^1,4 = 1,2984, 1600 W × 1,2984 = 2077 W → 2080 W.
+   * Faktor = (49,83/24,66)^1,4 = 2,6771, 1600 W × 2,6771 = 4283 W → 4280 W.
    */
   check(
-    'Ein Konvektor rechnet mit n = 1,4 und braucht 2080 W',
+    'Ein Konvektor rechnet mit n = 1,4 und braucht 4280 W',
     normleistungFuerHeizlast({ heizlast: HEIZLAST, vorlauf: 50, ruecklauf: 40, raum: 20, type: 'convector' })?.watt ?? -1,
-    2080,
+    4280,
   );
   check('Heizkörper und Konvektor gelten als Heizfläche', istHeizflaeche('radiator') && istHeizflaeche('convector'), true);
   check('Ein Kessel nicht', istHeizflaeche('boiler'), false);
@@ -435,7 +442,7 @@ export function pruefeHeizflaeche(check: CheckFn): void {
    * auf mindestens 50/40 °C angehoben. Nur diese angehobene Temperatur fährt
    * die Anlage wirklich.
    *
-   * Rechnete der Abgleich mit 35/28, verlangte er 5730 W statt 2040 W — den
+   * Rechnete der Abgleich mit 35/28, verlangte er 11220 W statt 3990 W — den
    * 2,8-fachen Wert. Das Programm meldete dann reihenweise „Heizkörper zu
    * klein" für Flächen, die reichen, und erzeugte Austauschbedarf, den es
    * nicht gibt. Das ist die gefährliche Richtung: Ein zu kleiner Vorschlag
@@ -448,19 +455,19 @@ export function pruefeHeizflaeche(check: CheckFn): void {
 
   const ostbefund = heizflaechenBefunde(doc).find((b) => b.fixtureId === 'hkO');
   check('Für den Ostheizkörper gibt es einen Befund', ostbefund !== undefined, true);
-  check('Er verlangt die 2040 W der angehobenen Temperatur', ostbefund?.soll ?? -1, NORM_50_40);
-  check('… und nicht die 5730 W aus dem Anlagenblatt', ostbefund?.soll === NORM_35_28, false);
+  check('Er verlangt die 3990 W der angehobenen Temperatur', ostbefund?.soll ?? -1, NORM_50_40);
+  check('… und nicht die 11220 W aus dem Anlagenblatt', ostbefund?.soll === NORM_35_28, false);
   check('Die Begründung nennt die Übertemperatur von 24,7 K', (ostbefund?.begruendung ?? '').includes('24,7 K'), true);
-  check('… und den Normpunkt, auf den gerechnet wird', (ostbefund?.begruendung ?? '').includes('55/45/20'), true);
-  check('Er nennt die Leistung, die am Objekt steht', ostbefund?.ist ?? -1, 1000);
+  check('… und den Normpunkt, auf den gerechnet wird', (ostbefund?.begruendung ?? '').includes('75/65/20'), true);
+  check('Er nennt die Leistung, die am Objekt steht', ostbefund?.ist ?? -1, 2000);
   check('Er nennt den Raum', ostbefund?.roomName ?? 'fehlt', 'Raum 2');
 
   // Die Teilung im Westraum: 3200 W auf zwei Heizkörper, je 1600 W Anteil —
-  // und damit dieselben 2040 W wie im Ostraum, nur aus der doppelten Last.
+  // und damit dieselben 3990 W wie im Ostraum, nur aus der doppelten Last.
   const westbefunde = heizflaechenBefunde(doc).filter((b) => b.fixtureId.startsWith('hkW'));
   check('Beide Westheizkörper bekommen einen Befund', westbefunde.length, 2);
   check('Der Befund weist die Zahl der Heizflächen aus', westbefunde[0]?.anzahl ?? -1, 2);
-  check('Beide verlangen dieselben 2040 W', westbefunde.every((b) => b.soll === NORM_50_40), true);
+  check('Beide verlangen dieselben 3990 W', westbefunde.every((b) => b.soll === NORM_50_40), true);
   check(
     'Die Begründung nennt die Teilung',
     (westbefunde[0]?.begruendung ?? '').includes('2 Heizflächen, Last gleichmäßig geteilt'),
@@ -477,7 +484,7 @@ export function pruefeHeizflaeche(check: CheckFn): void {
    * Fall wie oben, aber diesmal über den ganzen Weg durch den Abgleich statt
    * an `leistungNachziehbar` allein.
    */
-  const alt = heizflaechenbefundFuer(hausMitOstwert(1000, undefined), 'hkO');
+  const alt = heizflaechenbefundFuer(hausMitOstwert(2000, undefined), 'hkO');
   check('Eine Leistung ohne Herkunftsfeld bleibt stehen', alt?.nachziehbar ?? true, false);
 
   /*
@@ -488,9 +495,9 @@ export function pruefeHeizflaeche(check: CheckFn): void {
    */
   const docZiehen = baueHaus();
   check('Nachgezogen werden nur die beiden Katalogwerte', zieheHeizflaechenNach(docZiehen), 2);
-  check('Der Westheizkörper trägt jetzt 2040 W', docZiehen.fixtures.hkW1.params.powerW ?? -1, NORM_50_40);
+  check('Der Westheizkörper trägt jetzt 3990 W', docZiehen.fixtures.hkW1.params.ratedPower ?? -1, NORM_50_40);
   check('… und die Herkunft „aus der Heizlast"', docZiehen.fixtures.hkW1.params.powerSource ?? 'fehlt', 'heizlast');
-  check('Der Datenblattwert steht unverändert bei 1000 W', docZiehen.fixtures.hkO.params.powerW ?? -1, 1000);
+  check('Der Datenblattwert steht unverändert bei 2000 W', docZiehen.fixtures.hkO.params.ratedPower ?? -1, 2000);
   check('… mit unveränderter Herkunft', docZiehen.fixtures.hkO.params.powerSource ?? 'fehlt', 'datenblatt');
   // Ein zweiter Lauf ändert nichts mehr — sonst schriebe jeder Aufruf einen
   // weiteren Schritt in die Historie.
@@ -505,16 +512,16 @@ export function pruefeHeizflaeche(check: CheckFn): void {
    * Heizlast eine neue Leistung an jeden Heizkörper — und damit bei jeder
    * Eingabe einen neuen Schritt in die Historie.
    *
-   * Zwei Prozent von 2040 W sind 40,8 W. 2000 W weichen um 40 W ab (1,96 %)
-   * und bleiben unbehelligt; 1999 W weichen um 41 W ab (2,01 %) und werden
+   * Zwei Prozent von 3990 W sind 79,8 W. 3911 W weichen um 79 W ab (1,98 %)
+   * und bleiben unbehelligt; 3910 W weichen um 80 W ab (2,01 %) und werden
    * gemeldet. Ein Watt Unterschied an der Eingabe, ein Befund Unterschied am
    * Ergebnis — genauer lässt sich eine Schwelle nicht einfassen.
    */
-  const knappDrin = heizflaechenBefunde(hausMitOstwert(2000, 'katalog')).filter((b) => b.fixtureId === 'hkO');
-  check('1,96 % Abweichung bleiben unter der Totzone', knappDrin.length, 0);
-  const knappDraussen = heizflaechenBefunde(hausMitOstwert(1999, 'katalog')).filter((b) => b.fixtureId === 'hkO');
+  const knappDrin = heizflaechenBefunde(hausMitOstwert(3911, 'katalog')).filter((b) => b.fixtureId === 'hkO');
+  check('1,98 % Abweichung bleiben unter der Totzone', knappDrin.length, 0);
+  const knappDraussen = heizflaechenBefunde(hausMitOstwert(3910, 'katalog')).filter((b) => b.fixtureId === 'hkO');
   check('2,01 % Abweichung werden gemeldet', knappDraussen.length, 1);
-  check('… mit denselben 2040 W als Soll', knappDraussen[0]?.soll ?? -1, NORM_50_40);
+  check('… mit denselben 3990 W als Soll', knappDraussen[0]?.soll ?? -1, NORM_50_40);
   // Eine Heizfläche ganz ohne erfasste Leistung ist immer ein Befund: Es gibt
   // nichts, wovon sie um weniger als zwei Prozent abweichen könnte.
   const ohneLeistung = heizflaechenBefunde(hausMitOstwert(undefined, 'katalog')).filter((b) => b.fixtureId === 'hkO');
@@ -529,7 +536,7 @@ export function pruefeHeizflaeche(check: CheckFn): void {
   // ohne Totzone.
   const inspektor = heizflaechenbefundFuer(hausMitOstwert(2000, 'katalog'), 'hkO');
   check('Der Inspektor kennt die Totzone nicht', inspektor !== undefined, true);
-  check('… und nennt dieselben 2040 W', inspektor?.soll ?? -1, NORM_50_40);
+  check('… und nennt dieselben 3990 W', inspektor?.soll ?? -1, NORM_50_40);
   check('… neben der Zahl, die am Objekt steht', inspektor?.ist ?? -1, 2000);
   check('Für ein Bauteil ohne Heizfläche gibt es nichts', heizflaechenbefundFuer(doc, 'kessel') === undefined, true);
   check('Für eine unbekannte Kennung ebenso', heizflaechenbefundFuer(doc, 'gibt-es-nicht') === undefined, true);
@@ -540,13 +547,13 @@ export function pruefeHeizflaeche(check: CheckFn): void {
    * wenn sie gebraucht wird
    * =====================================================================
    *
-   * **Eingabe.** Das Prüfhaus mit `hkO` auf genau 2040 W und der Herkunft
+   * **Eingabe.** Das Prüfhaus mit `hkO` auf genau 3990 W und der Herkunft
    * `katalog` — also eine Heizfläche, deren Leistung exakt der geforderten
    * Normleistung entspricht. Das ist der Zustand unmittelbar nach
    * `zieheHeizflaechenNach`, und damit der Normalfall im Inspektor.
    *
    * **Erwartet.** `heizflaechenbefundFuer(doc, 'hkO')` liefert einen Befund
-   * mit soll = 2040 W, ist = 2040 W und der Begründung, aus der hervorgeht,
+   * mit soll = 3990 W, ist = 3990 W und der Begründung, aus der hervorgeht,
    * woher die Zahl stammt. Der Modulkopf von `heizflaechenAbgleich.ts` sagt
    * das ausdrücklich: „Für eine gerade nachgezogene Leistung ist die
    * Abweichung null — und genau dann fehlte die Begründung, die den
@@ -578,12 +585,12 @@ export function pruefeHeizflaeche(check: CheckFn): void {
     nullAbweichung !== undefined,
     true,
   );
-  check('… mit soll = 2040 W', nullAbweichung?.soll ?? -1, NORM_50_40);
+  check('… mit soll = 3990 W', nullAbweichung?.soll ?? -1, NORM_50_40);
   check('… und derselben Begründung wie sonst', (nullAbweichung?.begruendung ?? '').includes('Raumheizlast'), true);
   // Die Gegenprobe, die zeigt, dass es allein an der Abweichung null liegt und
   // nicht an der Kennung: ein Watt daneben, und der Befund ist da.
   const fastNull = heizflaechenbefundFuer(hausMitOstwert(NORM_50_40 - 1, 'katalog'), 'hkO');
   check('… ein Watt daneben liefert er ihn', fastNull !== undefined, true);
-  check('… mit soll = 2040 W (was auch im Nullfall stünde)', fastNull?.soll ?? -1, NORM_50_40);
-  check('… und ist = 2039 W', fastNull?.ist ?? -1, NORM_50_40 - 1);
+  check('… mit soll = 3990 W (was auch im Nullfall stünde)', fastNull?.soll ?? -1, NORM_50_40);
+  check('… und ist = 3989 W', fastNull?.ist ?? -1, NORM_50_40 - 1);
 }

@@ -10,6 +10,7 @@
  * Excel in deutscher Einstellung die Datei ohne Import-Dialog.
  */
 
+import { heizleistung } from '../lib/normleistung';
 import RaumnameFeld from './RaumnameFeld';
 import { useEffect, useMemo, useState } from 'react';
 import type { Room, RoomUsage } from '../types/bim';
@@ -92,7 +93,7 @@ export default function RoomBook() {
   const rows = useMemo(() => {
     const power: Record<string, number> = {};
     for (const f of Object.values(doc.fixtures)) {
-      if (f.category === 'heating' && f.roomId) power[f.roomId] = (power[f.roomId] ?? 0) + (f.params.powerW ?? 0);
+      if (f.category === 'heating' && f.roomId) power[f.roomId] = (power[f.roomId] ?? 0) + (heizleistung(f) ?? 0);
     }
 
     const list = Object.values(doc.rooms)
@@ -484,9 +485,12 @@ function Ausfuellzeile({
             onKeyDown={(e) => {
               if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
             }}
-            aria-label={`Heizleistung von ${room.name} in Watt`}
+            aria-label={`Normleistung 75/65/20 °C des Heizkörpers in ${room.name}, in Watt`}
+            title="Normleistung des Heizkörpers bei 75/65/20 °C (DIN EN 442-2), wie auf Typenschild oder Datenblatt"
           />
-          <span className="font-mono text-[10px] text-slate-500">W</span>
+          <span className="font-mono text-[10px] text-slate-500" title="Normleistung bei 75/65/20 °C">
+            W<sub>75/65</sub>
+          </span>
         </div>
       </div>
     </div>

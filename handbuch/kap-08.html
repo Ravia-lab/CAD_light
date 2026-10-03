@@ -40,9 +40,9 @@
 <caption>Die zehn Heizungsobjekte</caption>
 <thead><tr><th>Objekt</th><th>Vorgabe L × T [m]</th><th>Montagehöhe [m]</th><th>An der Wand</th><th>Kennwerte</th></tr></thead>
 <tbody>
-<tr><td>Heizkörper</td><td>1,00 × 0,10</td><td>0,15</td><td>ja</td><td>1200 W · Typ 22 · 55/45 °C</td></tr>
+<tr><td>Heizkörper</td><td>1,00 × 0,10</td><td>0,15</td><td>ja</td><td>2350 W Normleistung 75/65/20 · Typ 22</td></tr>
 <tr><td>Röhrenradiator</td><td>0,60 × 0,12</td><td>0,15</td><td>ja</td><td>700 W · Bauart „Röhren“</td></tr>
-<tr><td>Badheizkörper</td><td>0,50 × 0,06</td><td>0,20</td><td>ja</td><td>500 W · Bauart „Bad“ · 55/45 °C</td></tr>
+<tr><td>Badheizkörper</td><td>0,50 × 0,06</td><td>0,20</td><td>ja</td><td>980 W Normleistung 75/65/20 · Bauart „Bad“</td></tr>
 <tr><td>Unterflurkonvektor</td><td>1,40 × 0,20</td><td>0,00</td><td>ja</td><td>900 W</td></tr>
 <tr><td>FBH-Heizkreis</td><td>0,90 × 0,90</td><td>0,00</td><td>nein</td><td>800 W · 35/28 °C</td></tr>
 <tr><td>Heizkreisverteiler</td><td>0,60 × 0,15</td><td>0,50</td><td>ja</td><td>keine</td></tr>
@@ -53,7 +53,7 @@
 </tbody>
 </table>
 
-<p><b>Heizkörper.</b> Das wichtigste Objekt des ganzen Katalogs, weil an ihm die Zahl hängt, die alles Weitere trägt: die <b>Normwärmeleistung</b> in Watt. Sie gilt bei den Temperaturen, die daneben stehen — voreingestellt 55 °C Vorlauf, 45 °C Rücklauf, 20 °C Raum. Das ist keine Nebensache: derselbe Heizkörper gibt bei 75/65 °C fast doppelt so viel ab wie bei 55/45 °C. Wer die Leistung vom Typenschild abschreibt, muss deshalb auch abschreiben, für welche Temperaturen sie gilt.</p>
+<p><b>Heizkörper.</b> Das wichtigste Objekt des ganzen Katalogs, weil an ihm die Zahl hängt, die alles Weitere trägt: die <b>Normwärmeleistung</b> in Watt, und zwar immer bei <b>75/65/20 °C</b> nach DIN EN 442-2 — so steht es am Eingabefeld. Das ist keine Nebensache: derselbe Heizkörper gibt bei 75/65 °C fast doppelt so viel ab wie bei 55/45 °C. Tragen Sie die Zahl aus Katalog, Typenschild oder Datenblatt für 75/65/20 ein und wählen Sie darunter, woher sie stammt. Die Leistung im Betriebspunkt Ihrer Anlage rechnet das Programm selbst aus. Projekte bis Fassung 1.72.0 führten hier die Leistung bei 55/45/20; sie werden beim Öffnen umgerechnet.</p>
 
 <p>Die Bauart („22“ für Typ 22, also zwei Platten und zwei Konvektorbleche) geht als Freitext in den Export. Gerechnet wird mit ihr nicht — sie ist die Angabe, mit der die Gegenstelle den Heizkörper im Herstellerkatalog wiederfindet.</p>
 
@@ -61,7 +61,7 @@
 
 <div class="warnung"><b>Achtung</b><p>Ein Heizkörper ohne Leistungsangabe fällt aus dem Rohrausleger heraus — für ihn wird keine Trasse gelegt und kein Volumenstrom gerechnet. Das Programm meldet ihn namentlich, es erfindet keine Zahl. Der Grund steht in <a href="#k9-4">Abschnitt 9.4</a>: ein Netz, das an einer Stelle geraten hat, ist an keiner Stelle mehr nachvollziehbar.</p></div>
 
-<p><b>Badheizkörper.</b> Der Handtuchheizkörper im Bad. Rechnerisch ist er ein Heizkörper wie jeder andere — er wird nach DIN EN 442 beschrieben und mit demselben Heizkörperexponenten von 1,3 umgerechnet wie Platten- und Röhrenheizkörper. Was ihn unterscheidet, sind Maß, Symbol und Leistung: 0,50 m breit und 1,20 m hoch ist die gängige Größe, 500 W bei 55/45 °C liegen dafür im üblichen Bereich. Beides ist ausdrücklich eine <b>Vorbelegung</b>; die tatsächliche Normleistung trägt der Planer ein. Die Montagehöhe 0,20 m ist die Unterkante über Fertigfußboden.</p>
+<p><b>Badheizkörper.</b> Der Handtuchheizkörper im Bad. Rechnerisch ist er ein Heizkörper wie jeder andere — er wird nach DIN EN 442 beschrieben und mit demselben Heizkörperexponenten von 1,3 umgerechnet wie Platten- und Röhrenheizkörper. Was ihn unterscheidet, sind Maß, Symbol und Leistung: 0,50 m breit und 1,20 m hoch ist die gängige Größe, 980 W bei 75/65/20 °C (rund 500 W bei 55/45 °C) liegen dafür im üblichen Bereich. Beides ist ausdrücklich eine <b>Vorbelegung</b>; die tatsächliche Normleistung trägt der Planer ein. Die Montagehöhe 0,20 m ist die Unterkante über Fertigfußboden.</p>
 
 <div class="baustelle"><b>Auf der Baustelle heißt das</b><p>Tragen Sie im Raumbuch eine Heizlast für ein Bad ein, setzt das Programm dort von sich aus einen Badheizkörper statt eines Plattenheizkörpers — das ist in neun von zehn Bädern das, was hinterher hängt. Ist es hier anders, tauschen Sie das Objekt aus; die Leistung bleibt dabei stehen.</p></div>
 

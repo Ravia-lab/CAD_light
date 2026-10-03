@@ -14,6 +14,9 @@ import { buildReferenceDocument } from '../reference';
 import { designPlant, gebaeudeHeizlast, leistungsbedarf } from '../../src/lib/plantDesign';
 import { estimateHeatLoad } from '../../src/lib/heatLoadEstimate';
 import type { BimDocument } from '../../src/types/bim';
+import { NORM_TEMPERATUREN } from '../../src/lib/auslegungExport';
+import { NORM_UEBERTEMPERATUR } from '../../src/lib/heizflaechenLeistung';
+import { heizleistung, migriereParams } from '../../src/lib/normleistung';
 import { fluidProperties, freezePoint, waterDensity } from '../../src/lib/hydraulics';
 import { glycolMixture, waterDensity as waterDensitySicherheit } from '../../src/lib/safetyFittings';
 import { buildIfc, schichtenAusText } from '../../src/lib/ifcExport';
@@ -202,5 +205,33 @@ export function pruefeAbgleich2026(check: CheckFn): void {
     check('F4/F5 · eine Funktion waterDensity', definitionen(/export function waterDensity\(/), 1);
     check('F4/F5 · eine Gefrierpunkttabelle', definitionen(/temperature: -15 \}/), 1);
     check('F4/F5 · eine Funktion insulationThickness', definitionen(/export function insulationThickness\(/), 1);
+  }
+  // -------------------------------------------------------------------------
+  // A1/K6/F7 · Normleistung bei 75/65/20 °C im Feld ratedPower (Festlegung F2)
+  // -------------------------------------------------------------------------
+  // Sollwerte von Hand: Δθ_ln(75/65/20) = 10/ln(55/45) = 49,83 K.
+  // Übergang: ratedPower = powerW · (49,8/29,7)^n; 1000 W, n = 1,3 → 1958 W,
+  // n = 1,4 (Konvektor) → 2062 W.
+  {
+    check('A1 · Normpunkt 75/65/20 °C', `${NORM_TEMPERATUREN.vorlauf}/${NORM_TEMPERATUREN.ruecklauf}/${NORM_TEMPERATUREN.raum}`, '75/65/20');
+    check('A1 · Norm-Übertemperatur [K]', NORM_UEBERTEMPERATUR, 49.83, 0.01);
+    const alt = migriereParams('radiator', { powerW: 1000, powerSource: 'katalog' });
+    check('A1 · alte 55/45-Leistung wird umgerechnet [W]', alt.ratedPower ?? 0, 1958);
+    check('A1 · … und das alte Feld entfällt', alt.powerW === undefined, true);
+    check('A1 · … Herkunft Katalog bleibt Katalog', alt.ratedPowerSource ?? '', 'katalog');
+    check('A1 · Konvektor mit n = 1,4 [W]', migriereParams('convector', { powerW: 1000 }).ratedPower ?? 0, 2062);
+    const mitN = migriereParams('radiator', { powerW: 1000, radiatorExponent: 1.2 } as never);
+    check('A1 · alter Exponent wird exponentN', mitN.exponentN ?? 0, 1.2);
+    check('A1 · … und rechnet mit ihm: 1000 · 1,6768^1,2 [W]', mitN.ratedPower ?? 0, 1859);
+    check('A1 · Fußbodenheizkreis behält powerW', migriereParams('underfloor', { powerW: 800 }).powerW ?? 0, 800);
+    const schon = { ratedPower: 2000, powerW: 1000 };
+    check('A1 · vorhandenes ratedPower gewinnt', migriereParams('radiator', schon).ratedPower ?? 0, 2000);
+    check('A1 · heizleistung liest Altdatei umgerechnet [W]',
+      heizleistung({ type: 'radiator', params: { powerW: 1000 } }) ?? 0, 1958);
+    // F7: Der Prüfblock „Heizfläche" rechnet auf 75/65/20 und nicht mehr auf 55/45.
+    const hf = quelle('scripts/pruefungen/heizflaeche.ts');
+    check('F7 · Prüfblock Heizfläche erwartet 49,8 K', hf.includes("r1(NORM_UEBERTEMPERATUR), 49.8)"), true);
+    const panel = quelle('src/components/PropertiesPanel.tsx');
+    check('A1 · Eingabefeld nennt den Bezugspunkt', panel.includes('Normleistung 75/65/20 °C [W]'), true);
   }
 }

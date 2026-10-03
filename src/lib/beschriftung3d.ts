@@ -21,6 +21,7 @@
  * Schichtgrenze: nur Typen, keine Zustandshaltung, keine Komponenten.
  */
 
+import { heizleistung, istEn442 } from './normleistung';
 import type {
   Annotation,
   AnnotationAnchor,
@@ -83,8 +84,13 @@ export function beschriftungsVorschlaege(
     const f: Fixture | undefined = doc.fixtures[anchor.id];
     if (!f) return aus;
     const p = f.params;
-    if (p.powerW !== undefined) {
-      aus.push({ quelle: 'leistung', text: `${Math.round(p.powerW)} W`, hinweis: 'Normwärmeleistung' });
+    const leistung = heizleistung(f);
+    if (leistung !== undefined) {
+      aus.push({
+        quelle: 'leistung',
+        text: `${Math.round(leistung)} W`,
+        hinweis: istEn442(f.type) ? 'Normleistung 75/65/20 °C' : 'Leistung',
+      });
     }
     if (p.airflow !== undefined) {
       aus.push({ quelle: 'leistung', text: `${Math.round(p.airflow)} m³/h`, hinweis: 'Volumenstrom' });

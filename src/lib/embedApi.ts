@@ -22,6 +22,7 @@
  * ausliefern, das zufällig zuhört.
  */
 
+import { heizleistung } from './normleistung';
 import type { BimDocument, RaviaExport, ValidationReport } from '../types/bim';
 import { buildRaviaExport } from './raviaExport';
 import { buildIfc } from './ifcExport';
@@ -236,7 +237,7 @@ export function buildSummary(doc: BimDocument): RaviaSummary {
     ),
     netVolume: round2(rooms.reduce((sum, r) => sum + r.volume, 0)),
     installedHeatingPower: Object.values(doc.fixtures).reduce(
-      (sum, f) => sum + (f.category === 'heating' ? (f.params.powerW ?? 0) : 0),
+      (sum, f) => sum + (f.category === 'heating' ? (heizleistung(f) ?? 0) : 0),
       0,
     ),
     ready: report.ready,

@@ -43,6 +43,7 @@
  */
 
 import type {
+  RatedPowerSource,
   BimDocument,
   Construction,
   ConstructionCategory,
@@ -55,6 +56,7 @@ import type {
   RoomHeatLoad,
 } from '../types/bim';
 import { RADIATOR_CONNECTION_LABELS } from '../types/bim';
+import { exponentFuer, istEn442, migriereParams, RATED_POWER_SOURCE_LABELS, ratedPowerAusAlt } from './normleistung';
 
 // ===========================================================================
 // Vertrag
@@ -99,11 +101,21 @@ export interface RoomPatch {
 export interface FixturePatch {
   /** Kennung des Objekts, so wie sie in `emitters[].fixtureId` steht. */
   id: string;
-  /** Normwärmeleistung [W] bei 55/45/20 °C. */
+  /** Heizkörper: Normwärmeleistung [W] bei 75/65/20 °C (Festlegung F2). */
+  ratedPower?: number;
+  /** Heizkörper: Herkunft der Normleistung. */
+  ratedPowerSource?: RatedPowerSource;
+  /** Heizkörperexponent n [-] aus dem Datenblatt des gewählten Geräts. */
+  exponentN?: number;
+  /**
+   * Veraltet: Leistung [W]. An einem Heizkörper die alte 55/45/20-Leistung —
+   * sie wird eine Fassung lang angenommen und nach `ratedPower` umgerechnet.
+   * Am Fußbodenheizkreis die Auslegungsleistung.
+   */
   powerW?: number;
   /** Bauart/Typ, z. B. „22". */
   radiatorType?: string;
-  /** Heizkörperexponent n [-] aus dem Datenblatt des gewählten Geräts. */
+  /** Veraltet: alter Name von `exponentN`, eine Fassung lang angenommen. */
   radiatorExponent?: number;
   /** Bauhöhe [m]. */
   radiatorHeight?: number;
@@ -719,11 +731,21 @@ export function applyHostPatch(doc: BimDocument, patch: HostPatch, now: string):
     let params: FixtureParams = bestand.params;
     let laenge = bestand.length;
     let beruehrt = false;
-    for (const [key, value] of Object.entries(eintrag)) {
-      if (key === 'id') continue;
+    // Festlegung F2: alte Feldnamen eine Fassung lang annehmen. Der Exponent
+    // zuerst, weil die Umrechnung der alten Leistung ihn braucht.
+    const reihenfolge = Object.entries(eintrag).sort(([a], [b]) => rangVon(a) - rangVon(b));
+    for (const [rohKey, rohWert] of reihenfolge) {
+      if (rohKey === 'id') continue;
+      let key = rohKey;
+      let value: unknown = rohWert;
+      if (key === 'radiatorExponent') key = 'exponentN';
+      if (key === 'powerW' && istEn442(bestand.type) && typeof value === 'number' && Number.isFinite(value)) {
+        key = 'ratedPower';
+        value = ratedPowerAusAlt(value, exponentFuer(bestand.type, params));
+      }
       const feld = FIXTURE_FIELDS[key as keyof Omit<FixturePatch, 'id'>];
       if (!feld) {
-        entries.push(rejected(`fixtures.${id}.${key}`, key, unknownField(key)));
+        entries.push(rejected(`fixtures.${id}.${rohKey}`, rohKey, unknownField(rohKey)));
         continue;
       }
       const pfad = `fixtures.${id}.${key}`;
@@ -743,6 +765,8 @@ export function applyHostPatch(doc: BimDocument, patch: HostPatch, now: string):
       entries.push(applied(pfad, feld.label, asPrintable(before), asPrintable(geprueft.value)));
     }
     if (beruehrt) {
+      // Festlegung F2: Am Heizkörper steht danach nur noch `ratedPower`.
+      params = migriereParams(bestand.type, params);
       fixtures = { ...fixtures, [id]: { ...bestand, length: laenge, params } };
       changed = true;
     }
@@ -843,8 +867,15 @@ interface Feld {
  * Schnittstelle weist solche Werte ab und sagt warum, statt sie ins Modell zu
  * lassen und später unerklärliche Zahlen zu erzeugen.
  */
+/** Exponent vor Leistung, damit die Umrechnung alter Leistungen den neuen Exponenten nimmt. */
+function rangVon(key: string): number {
+  return key === 'exponentN' || key === 'radiatorExponent' ? 0 : 1;
+}
+
 const FIXTURE_RANGES = {
   powerW: [0, 20000] as const,
+  /** 75/65/20 liegt rund beim Doppelten der alten 55/45-Grenze. */
+  ratedPower: [0, 40000] as const,
   /** DIN EN 442-2: die Exponenten liegen bei Raumheizkörpern zwischen 1,1 und 1,5. */
   exponent: [1.0, 1.6] as const,
   height: [0.1, 3.0] as const,
@@ -861,7 +892,23 @@ const FIXTURE_RANGES = {
 };
 
 const FIXTURE_FIELDS: Record<keyof Omit<FixturePatch, 'id'>, Feld> = {
-  powerW: { label: 'Normwärmeleistung', unit: 'W', range: FIXTURE_RANGES.powerW, check: (v) => checkNumber(v, FIXTURE_RANGES.powerW, 'W') },
+  ratedPower: {
+    label: 'Normleistung 75/65/20 °C',
+    unit: 'W',
+    range: FIXTURE_RANGES.ratedPower,
+    check: (v) => checkNumber(v, FIXTURE_RANGES.ratedPower, 'W'),
+  },
+  ratedPowerSource: {
+    label: 'Herkunft der Normleistung',
+    values: Object.keys(RATED_POWER_SOURCE_LABELS) as RatedPowerSource[],
+    check: (v) => checkEnum(v, Object.keys(RATED_POWER_SOURCE_LABELS)),
+  },
+  exponentN: {
+    label: 'Heizkörperexponent n',
+    range: FIXTURE_RANGES.exponent,
+    check: (v) => checkNumber(v, FIXTURE_RANGES.exponent, '-'),
+  },
+  powerW: { label: 'Leistung (veraltet)', unit: 'W', range: FIXTURE_RANGES.powerW, check: (v) => checkNumber(v, FIXTURE_RANGES.powerW, 'W') },
   radiatorType: { label: 'Bauart/Typ', check: (v) => checkText(v) },
   radiatorExponent: {
     label: 'Heizkörperexponent n',

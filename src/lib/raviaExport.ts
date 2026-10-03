@@ -26,6 +26,7 @@
  * Projektdatei taugt.
  */
 
+import { heizleistung } from './normleistung';
 import { dachraumTemperatur, istUnbeheizterNachbar } from './unbeheizt';
 import type {
   ExportPlant,
@@ -1742,7 +1743,7 @@ function buildRoom(
   let exhaustAirflow = 0;
   let transferAirflow = 0;
   for (const f of fixtures) {
-    if (f.category === 'heating') installedHeatingPower += f.params.powerW ?? 0;
+    if (f.category === 'heating') installedHeatingPower += heizleistung(f) ?? 0;
     if (f.type === 'air-supply') supplyAirflow += f.params.airflow ?? 0;
     if (f.type === 'air-exhaust') exhaustAirflow += f.params.airflow ?? 0;
     if (f.type === 'air-transfer') transferAirflow += f.params.airflow ?? 0;

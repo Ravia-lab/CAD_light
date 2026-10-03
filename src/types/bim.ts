@@ -701,11 +701,33 @@ export function leistungNachziehbar(h: LeistungHerkunft | undefined): boolean {
   return h === 'katalog' || h === 'heizlast';
 }
 
+/** Woher die Normleistung eines Heizkörpers stammt (Festlegung F2). */
+export type RatedPowerSource = 'katalog' | 'typenschild' | 'datenblatt' | 'schaetzung';
+
 export interface FixtureParams {
-  /** Heizung: Normwärmeleistung [W] bei 55/45/20 °C. */
+  /**
+   * Heizkörper (DIN EN 442): **Normwärmeleistung bei 75/65/20 °C** [W]
+   * (Festlegung F2). Die Leistung im Betriebspunkt wird daraus gerechnet,
+   * nie gespeichert. Lesen über `heizleistung` in `lib/normleistung.ts`.
+   */
+  ratedPower?: number;
+  /** Heizkörper: Heizkörperexponent n aus dem Datenblatt [-] (Festlegung F2). */
+  exponentN?: number;
+  /** Heizkörper: Herkunft von `ratedPower`. */
+  ratedPowerSource?: RatedPowerSource;
+  /**
+   * Leistung [W] von Fußbodenheizkreis (Auslegungsleistung), Wärmeerzeuger
+   * und Warmwasserbereiter.
+   *
+   * An einem **Heizkörper** ist das Feld veraltet: Bis 1.72.0 stand hier die
+   * Leistung bei 55/45/20 °C. Es bleibt eine Fassung lang lesbar und wird beim
+   * Laden nach `ratedPower` umgerechnet (`migriereParams`).
+   */
   powerW?: number;
   /**
-   * Woher `powerW` stammt.
+   * Woher die Leistung (`ratedPower` bzw. `powerW`) stammt — steuert, ob sie
+   * automatisch nachgezogen werden darf. Für den Austausch gilt
+   * `ratedPowerSource`.
    *
    * Fehlt die Angabe, gilt die Leistung als **eingetragen** (`datenblatt`) —
    * nicht als Katalogwert. Grund: Projekte aus älteren Fassungen tragen das
@@ -719,28 +741,6 @@ export interface FixtureParams {
   /** Heizung: Vor-/Rücklauftemperatur [°C]. */
   flowTemperature?: number;
   returnTemperature?: number;
-  /**
-   * Heizung: **Heizkörperexponent n** aus dem Datenblatt [-].
-   *
-   * **Warum dieses Feld die wichtigste Ergänzung für den Rechenkern ist.**
-   * `powerW` ist die Normleistung bei genau 55/45/20 °C. Eine Wärmepumpe
-   * fährt aber 35/28 oder 45/38 — und eine Normleistung lässt sich ohne den
-   * Exponenten **nicht** auf eine andere Übertemperatur umrechnen. Die
-   * Beziehung lautet (EN 442-2):
-   *
-   *     Q = Q_norm · (Δθ / Δθ_norm)^n
-   *
-   * mit Δθ als logarithmischer Übertemperatur. Ohne n fehlt dem Rechenkern
-   * der Exponent dieser Potenz; er kann dann entweder nichts rechnen oder
-   * muss selbst etwas annehmen — und eine Annahme, die zweimal unabhängig
-   * getroffen wird, ist zweimal anders.
-   *
-   * Der Wert steht im Datenblatt des Herstellers. Ohne Angabe bleibt das Feld
-   * **leer**; der Export nennt dann den branchenüblichen Richtwert
-   * ausdrücklich als Annahme (siehe `EMITTER_EXPONENT_ANNAHME`), statt ihn
-   * als Messwert auszugeben.
-   */
-  radiatorExponent?: number;
   /** Heizung: Bauhöhe des Heizkörpers [m] — Datenblattmaß, nicht geschätzt. */
   radiatorHeight?: number;
   /** Heizung: Zahl der Glieder bzw. Elemente [-]; bei Plattenheizkörpern leer. */
@@ -874,8 +874,8 @@ export interface FixtureDefinition {
 /** Die Symbolbibliothek als Daten — erweiterbar ohne Eingriff in den Renderer. */
 export const FIXTURE_LIBRARY: FixtureDefinition[] = [
   // --- Heizung ---
-  { type: 'radiator', category: 'heating', label: 'Heizkörper', length: 1.0, depth: 0.1, elevation: 0.15, wallMounted: true, params: { powerW: 1200, radiatorType: '22', flowTemperature: 55, returnTemperature: 45 } },
-  { type: 'radiator-tube', category: 'heating', label: 'Röhrenradiator', length: 0.6, depth: 0.12, elevation: 0.15, wallMounted: true, params: { powerW: 700, radiatorType: 'Röhren' } },
+  { type: 'radiator', category: 'heating', label: 'Heizkörper', length: 1.0, depth: 0.1, elevation: 0.15, wallMounted: true, params: { ratedPower: 2350, ratedPowerSource: 'katalog', radiatorType: '22', flowTemperature: 55, returnTemperature: 45 } },
+  { type: 'radiator-tube', category: 'heating', label: 'Röhrenradiator', length: 0.6, depth: 0.12, elevation: 0.15, wallMounted: true, params: { ratedPower: 1370, ratedPowerSource: 'katalog', radiatorType: 'Röhren' } },
   /*
    * Der Badheizkörper — senkrecht, schmal, mit Querrohren.
    *
@@ -886,15 +886,16 @@ export const FIXTURE_LIBRARY: FixtureDefinition[] = [
    * erkannte die Bauart sogar (`kind: 'towel'`) und musste sie auf den
    * Kompaktheizkörper abbilden.
    *
-   * Vorgaben: 0,50 m breit und 1,20 m hoch sind die gängige Größe, 500 W bei
-   * 55/45 °C liegen für diese Größe im üblichen Bereich — ausdrücklich eine
+   * Vorgaben: 0,50 m breit und 1,20 m hoch sind die gängige Größe, 980 W bei
+   * 75/65/20 °C (rund 500 W bei 55/45) liegen für diese Größe im üblichen
+   * Bereich — ausdrücklich eine
    * Vorbelegung, die tatsächliche Normleistung trägt der Planer ein. Die
    * Montagehöhe 0,20 m ist Unterkante über Fertigfußboden. Rechnerisch ist
    * er ein Heizkörper wie jeder andere (DIN EN 442); was ihn unterscheidet,
    * sind Maß, Symbol und Leistung.
    */
-  { type: 'towel-radiator', category: 'heating', label: 'Badheizkörper', length: 0.5, depth: 0.06, elevation: 0.2, wallMounted: true, params: { powerW: 500, radiatorType: 'Bad', flowTemperature: 55, returnTemperature: 45 } },
-  { type: 'convector', category: 'heating', label: 'Unterflurkonvektor', length: 1.4, depth: 0.2, elevation: 0, wallMounted: true, params: { powerW: 900 } },
+  { type: 'towel-radiator', category: 'heating', label: 'Badheizkörper', length: 0.5, depth: 0.06, elevation: 0.2, wallMounted: true, params: { ratedPower: 980, ratedPowerSource: 'katalog', radiatorType: 'Bad', flowTemperature: 55, returnTemperature: 45 } },
+  { type: 'convector', category: 'heating', label: 'Unterflurkonvektor', length: 1.4, depth: 0.2, elevation: 0, wallMounted: true, params: { ratedPower: 1860, ratedPowerSource: 'katalog' } },
   { type: 'underfloor', category: 'heating', label: 'FBH-Heizkreis', length: 0.9, depth: 0.9, elevation: 0, wallMounted: false, params: { powerW: 800, flowTemperature: 35, returnTemperature: 28 } },
   { type: 'manifold', category: 'heating', label: 'Heizkreisverteiler', length: 0.6, depth: 0.15, elevation: 0.5, wallMounted: true, params: {} },
   { type: 'boiler', category: 'heating', label: 'Wärmeerzeuger', length: 0.6, depth: 0.45, elevation: 0.6, wallMounted: true, params: { powerW: 15000 } },
@@ -4548,9 +4549,9 @@ export interface Auslegungswert {
  * Eine Heizfläche als Rechenfall.
  *
  * **Warum es diesen Typ gibt.** Die Übergabe war an genau einer Stelle
- * blockiert: `powerW` ist die Normleistung bei 55/45/20 °C, und ohne den
- * Heizkörperexponenten lässt sie sich auf keine andere Übertemperatur
- * umrechnen. Eine Wärmepumpe fährt aber nie 55/45. Der Rechenkern bekam also
+ * blockiert: Die Normleistung eines Heizkörpers (seit 1.73.0 `ratedPower`
+ * bei 75/65/20 °C) lässt sich ohne den Heizkörperexponenten auf keine andere
+ * Übertemperatur umrechnen. Eine Wärmepumpe fährt aber nie am Normpunkt. Der Rechenkern bekam also
  * eine Zahl, mit der er nichts anfangen konnte, und musste den Exponenten
  * selbst annehmen — eine Annahme, die an zwei Stellen unabhängig getroffen
  * wird, ist an zwei Stellen anders.

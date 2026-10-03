@@ -2180,7 +2180,9 @@ console.log('\n▸ Einbettungs-Kurzfassung');
   check('Vier Wände', summary.walls, 4);
   check('Nutzfläche = Raumfläche', summary.netFloorArea, detectedS[0].area, 0.02);
   check('Volumen', summary.netVolume, detectedS[0].volume, 0.02);
-  check('Heizleistung aufsummiert', summary.installedHeatingPower, 1200);
+  // Der Heizkörper trägt noch das alte `powerW` 1200 W (55/45/20). Gelesen
+  // wird es als Normleistung 75/65/20: 1200 · (49,8/29,7)^1,3 = 2350 W (A1/F2).
+  check('Heizleistung aufsummiert', summary.installedHeatingPower, 2350);
   check('Rechenfähig', summary.ready, true);
   check('Keine Fehler', summary.errors, 0);
 }
@@ -3060,7 +3062,10 @@ console.log('\n▸ Verständlichkeit');
 
   const noPower = buildReferenceDocument();
   for (const f of Object.values(noPower.fixtures)) {
-    if (f.type === 'radiator') delete (f.params as { powerW?: number }).powerW;
+    if (f.type === 'radiator') {
+      delete (f.params as { powerW?: number }).powerW;
+      delete f.params.ratedPower;
+    }
   }
   collect(noPower);
 

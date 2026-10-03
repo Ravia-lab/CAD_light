@@ -334,7 +334,8 @@ export function pruefeRingleitung(check: CheckFn): void {
     check('Der Badheizkörper steht im Katalog', def?.label ?? 'fehlt', 'Badheizkörper');
     check('… als Heizung', def?.category ?? 'fehlt', 'heating');
     check('… an der Wand', def?.wallMounted ?? false, true);
-    check('… mit 500 W Vorbelegung', def?.params.powerW ?? 0, 500);
+    // 980 W bei 75/65/20 entsprechen den 500 W bei 55/45/20 bis 1.72.0 (A1).
+    check('… mit 980 W Normleistung 75/65/20 als Vorbelegung', def?.params.ratedPower ?? 0, 980);
   }
 
   // =========================================================================

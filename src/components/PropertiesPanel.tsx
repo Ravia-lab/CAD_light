@@ -7,6 +7,7 @@
 import { dachraumTemperatur } from '../lib/unbeheizt';
 import RaumnameFeld from './RaumnameFeld';
 import type {
+  RatedPowerSource,
   Annotation,
   AnnotationAnchor,
   BimDocument,
@@ -80,6 +81,7 @@ import { useBimStore } from '../store/useBimStore';
 import Erklaerung from './Erklaerung';
 import { buildRaviaExport } from '../lib/raviaExport';
 import { heizflaechenbefundFuer, type Heizflaechenbefund } from '../lib/heizflaechenAbgleich';
+import { exponentFuer, heizleistung, istEn442, mitLeistung, RATED_POWER_SOURCE_LABELS } from '../lib/normleistung';
 import { uWertOeffnung, uWertWand, type UWertAuskunft } from '../lib/uwert';
 
 const USAGE_LABELS: Record<RoomUsage, string> = {
@@ -1000,7 +1002,7 @@ const HEIZFLAECHEN_TYPEN: readonly FixtureType[] = [
  * nicht „falsche Eingabe".
  */
 function LeistungBefund({ fixture, befund }: { fixture: Fixture; befund?: Heizflaechenbefund }) {
-  const leistung = fixture.params.powerW;
+  const leistung = heizleistung(fixture);
   /*
    * Fehlt die Herkunft, gilt die Leistung als **eingetragen** — nicht als
    * Katalogwert. Dieselbe Festlegung wie in `FixtureParams.powerSource`:
@@ -1212,18 +1214,24 @@ function FixtureProperties({ fixture }: { fixture: Fixture }) {
            * Jetzt: leer heißt leer. Geleert wird zu `undefined`, und die
            * Herkunft geht mit — eine Herkunft ohne Wert beschriebe nichts.
            */}
+          {/*
+           * Befund A1 / Festlegung F2: Am Heizkörper steht die Normleistung
+           * bei 75/65/20 °C — und das steht am Feld selbst, nicht nur in der
+           * Doku. Bis 1.72.0 hieß das Feld „Leistung [W]" und meinte 55/45/20;
+           * eine Katalogzahl hineinzuschreiben ergab Heizkörper halber Größe.
+           */}
           <NumberField
-            label="Leistung [W]"
-            value={fixture.params.powerW}
+            label={istEn442(fixture.type) ? 'Normleistung 75/65/20 °C [W]' : 'Auslegungsleistung [W]'}
+            value={heizleistung(fixture)}
             step={50}
             platzhalter={
-              befund && fixture.params.powerW === undefined
+              befund && heizleistung(fixture) === undefined
                 ? `aus der Raumheizlast: ${watt(befund.soll)}`
                 : 'nicht erfasst'
             }
             onLeeren={() =>
               updateFixture(fixture.id, {
-                params: { ...fixture.params, powerW: undefined, powerSource: undefined },
+                params: { ...mitLeistung(fixture.type, fixture.params, undefined), powerSource: undefined },
               })
             }
             /*
@@ -1237,11 +1245,30 @@ function FixtureProperties({ fixture }: { fixture: Fixture }) {
               updateFixture(fixture.id, {
                 params:
                   v > 0
-                    ? { ...fixture.params, powerW: v }
-                    : { ...fixture.params, powerW: undefined, powerSource: undefined },
+                    ? mitLeistung(fixture.type, fixture.params, v, fixture.params.ratedPowerSource ?? 'datenblatt')
+                    : { ...mitLeistung(fixture.type, fixture.params, undefined), powerSource: undefined },
               })
             }
           />
+          {istEn442(fixture.type) && heizleistung(fixture) !== undefined && (
+            <Field label="Leistung laut">
+              <select
+                className="field"
+                value={fixture.params.ratedPowerSource ?? 'datenblatt'}
+                onChange={(e) =>
+                  updateFixture(fixture.id, {
+                    params: { ...fixture.params, ratedPowerSource: e.target.value as RatedPowerSource },
+                  })
+                }
+              >
+                {(Object.keys(RATED_POWER_SOURCE_LABELS) as RatedPowerSource[]).map((q) => (
+                  <option key={q} value={q}>
+                    {RATED_POWER_SOURCE_LABELS[q]}
+                  </option>
+                ))}
+              </select>
+            </Field>
+          )}
 
           <LeistungBefund fixture={fixture} befund={befund} />
 
@@ -1313,7 +1340,7 @@ function FixtureProperties({ fixture }: { fixture: Fixture }) {
       {/*
        * Die Angaben, ohne die der Rechenkern nicht auslegen kann.
        *
-       * `powerW` oben ist die Normleistung bei 55/45/20 °C. Eine Wärmepumpe
+       * Die Leistung oben ist die Normleistung bei 75/65/20 °C. Eine Wärmepumpe
        * fährt 35/28 — und ohne den **Exponenten n** aus dem Datenblatt lässt
        * sich die eine Zahl nicht in die andere umrechnen (DIN EN 442-2). Das
        * war der eine harte Blocker der Übergabe an RaVia; deshalb steht das
@@ -1332,11 +1359,11 @@ function FixtureProperties({ fixture }: { fixture: Fixture }) {
           <div className="grid grid-cols-2 gap-2">
             <NumberField
               label="Exponent n [-]"
-              value={fixture.params.radiatorExponent ?? 1.3}
+              value={fixture.params.exponentN ?? exponentFuer(fixture.type, fixture.params)}
               step={0.01}
               onChange={(v) =>
                 updateFixture(fixture.id, {
-                  params: { ...fixture.params, radiatorExponent: Math.min(1.6, Math.max(1, v)) },
+                  params: { ...fixture.params, exponentN: Math.min(1.6, Math.max(1, v)) },
                 })
               }
             />
@@ -1415,7 +1442,7 @@ function FixtureProperties({ fixture }: { fixture: Fixture }) {
           </p>
 
           <p className="text-[10px] leading-relaxed text-slate-600">
-            {fixture.params.radiatorExponent === undefined ? (
+            {fixture.params.exponentN === undefined ? (
               <>
                 Solange n nicht eingetragen ist, geht der Richtwert{' '}
                 {fixture.type === 'convector' ? '1,40' : '1,30'} in den Export — ausdrücklich als Annahme. Der
@@ -1423,7 +1450,7 @@ function FixtureProperties({ fixture }: { fixture: Fixture }) {
               </>
             ) : (
               <>
-                n aus dem Datenblatt. Damit rechnet der Rechenkern die Normleistung (55/45/20&nbsp;°C) auf den
+                n aus dem Datenblatt. Damit rechnet der Rechenkern die Normleistung (75/65/20&nbsp;°C) auf den
                 Betriebspunkt der Wärmepumpe um.
               </>
             )}

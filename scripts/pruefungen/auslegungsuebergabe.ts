@@ -3,7 +3,8 @@
  *
  * **Der Anlass.** Eine Lückenanalyse vor der Übergabe an RaVia hat einen
  * einzigen harten Blocker gefunden, und er war eine fehlende Zahl:
- * `powerW` ist die Normwärmeleistung bei **55/45/20 °C**. Eine Wärmepumpe
+ * die Normwärmeleistung eines Heizkörpers (seit 1.73.0 `ratedPower` bei
+ * **75/65/20 °C**, Festlegung F2; vorher `powerW` bei 55/45/20). Eine Wärmepumpe
  * fährt 35/28. Die Umrechnung zwischen beiden Betriebspunkten lautet nach
  * DIN EN 442-2 `Q = Q_norm · (Δθ/Δθ_norm)^n` — und der Exponent n stand
  * nirgends im Export. Der Rechenkern bekam also eine Zahl, die für seinen
@@ -97,7 +98,7 @@ export function pruefeAuslegungsuebergabe(check: CheckFn): void {
     check('Jeder Rechenfall nennt einen Exponenten', emitter.every((e) => e.exponent !== undefined), true);
     // Ohne Eingabe ist er angenommen — und sagt das, samt Begründung. Ein
     // Richtwert, der sich als Messwert ausgibt, ist der teurere Fehler.
-    const ohneEingabe = emitter.filter((e) => doc.fixtures[e.fixtureId].params.radiatorExponent === undefined);
+    const ohneEingabe = emitter.filter((e) => doc.fixtures[e.fixtureId].params.exponentN === undefined);
     check('Ohne Datenblattwert gilt er als angenommen', ohneEingabe.every((e) => e.exponent?.herkunft === 'angenommen'), true);
     check('… und die Annahme ist begründet', ohneEingabe.every((e) => (e.exponent?.begruendung ?? '').length > 40), true);
     check(
@@ -112,7 +113,7 @@ export function pruefeAuslegungsuebergabe(check: CheckFn): void {
     const eine = heizflaechen.find((f) => f.type === 'radiator') as Fixture;
     const mitWert: BimDocument = {
       ...doc,
-      fixtures: { ...doc.fixtures, [eine.id]: { ...eine, params: { ...eine.params, radiatorExponent: 1.27 } } },
+      fixtures: { ...doc.fixtures, [eine.id]: { ...eine, params: { ...eine.params, exponentN: 1.27 } } },
     };
     const e2 = buildEmitters(mitWert).find((e) => e.fixtureId === eine.id);
     check('Ein eingegebener Exponent gilt', e2?.exponent?.wert ?? 0, 1.27, 1e-9);
@@ -127,9 +128,16 @@ export function pruefeAuslegungsuebergabe(check: CheckFn): void {
     const emitter = buildEmitters(doc);
     // Ohne beides ist die Umrechnung sinnlos: der Exponent allein sagt nicht,
     // *worauf* umgerechnet werden soll.
-    check('Der Normpunkt steht an jedem Rechenfall', emitter.every((e) => e.nominalFlowTemperature === 55), true);
-    check('… mit Rücklauf 45 °C', emitter.every((e) => e.nominalReturnTemperature === 45), true);
-    check('… und Raumtemperatur 20 °C', emitter.every((e) => e.nominalRoomTemperature === 20), true);
+    // Befund A1: Der Normpunkt nach DIN EN 442-2 ist 75/65/20 °C. Bis 1.72.0
+    // prüfte diese Zeile auf 55/45 und schrieb damit den Fehler fest (F7).
+    const en442 = emitter.filter((e) => e.rule === 'EN 442');
+    check('Es gibt Heizkörper-Rechenfälle', en442.length > 0, true);
+    check('Der Normpunkt steht an jedem Heizkörper', en442.every((e) => e.nominalFlowTemperature === 75), true);
+    check('… mit Rücklauf 65 °C', en442.every((e) => e.nominalReturnTemperature === 65), true);
+    check('… und Raumtemperatur 20 °C', en442.every((e) => e.nominalRoomTemperature === 20), true);
+    // Ein Fußbodenheizkreis hat keinen Normpunkt nach EN 442.
+    check('Ein Fußbodenheizkreis trägt keinen EN-442-Normpunkt',
+      emitter.filter((e) => e.rule === 'EN 1264').every((e) => e.nominalFlowTemperature === undefined), true);
   }
 
   // =========================================================================
@@ -228,14 +236,27 @@ export function pruefeAuslegungsuebergabe(check: CheckFn): void {
       {
         source: 'RaVia',
         fixtures: [
-          { id: hk.id, powerW: 1450, radiatorExponent: 1.28, radiatorHeight: 0.6, radiatorConnection: 'mitte', note: 'Kermi therm-x2 Plan-V 22' },
+          { id: hk.id, ratedPower: 2840, ratedPowerSource: 'katalog', exponentN: 1.28, radiatorHeight: 0.6, radiatorConnection: 'mitte', note: 'Kermi therm-x2 Plan-V 22' },
         ],
       },
       jetzt,
     );
     check('Das Auslegungsergebnis wird übernommen', gut.report.ok, true);
-    check('Die Leistung steht am Objekt', gut.doc.fixtures[hk.id].params.powerW ?? 0, 1450);
-    check('Der Exponent steht am Objekt', gut.doc.fixtures[hk.id].params.radiatorExponent ?? 0, 1.28, 1e-9);
+    check('Die Normleistung steht am Objekt', gut.doc.fixtures[hk.id].params.ratedPower ?? 0, 2840);
+    check('… mit Herkunft', gut.doc.fixtures[hk.id].params.ratedPowerSource ?? '', 'katalog');
+    check('… und ohne alte Leistung daneben', gut.doc.fixtures[hk.id].params.powerW === undefined, true);
+
+    // Festlegung F2: Eine RaVia-Fassung, die noch `powerW` (55/45/20) schickt,
+    // wird eine Fassung lang angenommen und umgerechnet:
+    // 1450 W · (49,8/29,7)^1,28 = 1450 · 1,9379 = 2810 W.
+    const alt = applyHostPatch(
+      doc,
+      { source: 'RaVia', fixtures: [{ id: hk.id, exponentN: 1.28, powerW: 1450 }] },
+      jetzt,
+    );
+    check('Alte Leistung von RaVia wird angenommen', alt.report.ok, true);
+    check('… und als Normleistung 75/65/20 abgelegt [W]', alt.doc.fixtures[hk.id].params.ratedPower ?? 0, 2810, 1);
+    check('Der Exponent steht am Objekt', gut.doc.fixtures[hk.id].params.exponentN ?? 0, 1.28, 1e-9);
     check('Die Anschlussart steht am Objekt', gut.doc.fixtures[hk.id].params.radiatorConnection ?? '', 'mitte');
     check('Das Fabrikat steht am Objekt', (gut.doc.fixtures[hk.id].params.note ?? '').includes('Kermi'), true);
     check('Die Spur nennt den Absender', gut.doc.meta.lastHostPatch?.source ?? '', 'RaVia');
@@ -247,7 +268,7 @@ export function pruefeAuslegungsuebergabe(check: CheckFn): void {
     // Was nicht durchgeht: Unsinn, fremde Objekte, Geometrie.
     const schlecht = applyHostPatch(
       doc,
-      { source: 'RaVia', fixtures: [{ id: hk.id, powerW: 50000, radiatorExponent: 3 }] },
+      { source: 'RaVia', fixtures: [{ id: hk.id, powerW: 50000, exponentN: 3 }] },
       jetzt,
     );
     check('Eine 50-kW-Heizfläche wird abgewiesen', schlecht.report.rejected, 2);
@@ -265,7 +286,7 @@ export function pruefeAuslegungsuebergabe(check: CheckFn): void {
 
     // Die Position gehört dem Zeichner und steht in keiner Feldtabelle.
     const felder = writableFields().map((f) => f.path);
-    check('Die Heizflächenfelder sind auskunftsfähig', felder.some((p) => p === 'fixtures[].radiatorExponent'), true);
+    check('Die Heizflächenfelder sind auskunftsfähig', felder.some((p) => p === 'fixtures[].exponentN'), true);
     check('Die Position ist nicht schreibbar', felder.some((p) => p.startsWith('fixtures[].position')), false);
     check('Die Drehung ist nicht schreibbar', felder.some((p) => p.startsWith('fixtures[].rotation')), false);
     check('Die Wandbindung ist nicht schreibbar', felder.some((p) => p.startsWith('fixtures[].wallId')), false);

@@ -32,6 +32,7 @@
  * das Quoting mit aus.
  */
 
+import { heizleistung } from './normleistung';
 import type {
   BimDocument,
   Construction,
@@ -984,7 +985,7 @@ function collectRadiators(doc: BimDocument, sheet: Sheet, notes: MaterialNote[])
 
   let withoutPower = 0;
   for (const f of radiators) {
-    const power = f.params?.powerW ?? 0;
+    const power = heizleistung(f) ?? 0;
     if (!positive(power)) withoutPower += 1;
     sheet.add({
       trade: 'heizflaeche',
@@ -1416,7 +1417,7 @@ function fixtureSpec(f: Fixture): string {
   return joinSpec(
     f.params?.connection,
     positive(f.params?.airflow) ? `${num(f.params.airflow, 0)} m³/h` : undefined,
-    positive(f.params?.powerW) ? `${num(f.params.powerW, 0)} W` : undefined,
+    positive(heizleistung(f)) ? `${num(heizleistung(f) ?? 0, 0)} W` : undefined,
     f.params?.hotWater ? 'mit Warmwasseranschluss' : undefined,
   );
 }

@@ -26,6 +26,7 @@
  * nachkommen kann, ist schlimmer als gar keine.
  */
 
+import { heizleistung } from '../lib/normleistung';
 import { useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { glossaryList } from '../lib/glossar';
@@ -162,8 +163,8 @@ export default function GuidePanel({ onOpenTab }: { onOpenTab: (tab: string) => 
         doc.nodes,
       ).bewegt,
       missingU: report.issues.filter((i) => i.code.includes('u-value') || i.code.includes('missing-u')).length,
-      heaters: fixtures.filter((f) => f.category === 'heating' && f.params.powerW).length,
-      heatingPower: fixtures.reduce((sum, f) => sum + (f.params.powerW ?? 0), 0),
+      heaters: fixtures.filter((f) => f.category === 'heating' && heizleistung(f)).length,
+      heatingPower: fixtures.reduce((sum, f) => sum + (heizleistung(f) ?? 0), 0),
       generator: doc.plant?.generatorModelId,
       schematic: Object.keys(doc.plant?.schematic.components ?? {}).length,
 

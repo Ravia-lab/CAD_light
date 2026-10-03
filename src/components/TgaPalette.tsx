@@ -7,6 +7,7 @@
  * automatisch, sobald sie in `FIXTURE_LIBRARY` stehen.
  */
 
+import { heizleistung } from '../lib/normleistung';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { Fixture, FixtureCategory, FixtureDefinition, PipeService } from '../types/bim';
 import {
@@ -45,7 +46,7 @@ export default function TgaPalette() {
     () =>
       Object.values(fixtures)
         .filter((f) => f.category === 'heating')
-        .reduce((sum, f) => sum + (f.params.powerW ?? 0), 0),
+        .reduce((sum, f) => sum + (heizleistung(f) ?? 0), 0),
     [fixtures],
   );
 
@@ -470,7 +471,7 @@ function PaletteItem({
   return (
     <button
       onClick={onClick}
-      title={`${def.label}${def.params.powerW ? ` · ${def.params.powerW} W` : ''}${
+      title={`${def.label}${heizleistung(def) ? ` · ${heizleistung(def)} W` : ''}${
         def.params.airflow ? ` · ${def.params.airflow} m³/h` : ''
       }`}
       className={`flex flex-col items-center gap-1 rounded-lg px-1 py-1.5 transition-all ${

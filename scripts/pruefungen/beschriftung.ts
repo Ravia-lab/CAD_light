@@ -62,7 +62,7 @@ import {
 const MINUS = '−';
 
 /** Der Heizkörper des Prüfmodells — vollständig ausgefüllt. */
-function heizkoerper(powerW: number | undefined): Fixture {
+function heizkoerper(ratedPower: number | undefined): Fixture {
   return {
     id: 'hk',
     type: 'radiator',
@@ -75,7 +75,7 @@ function heizkoerper(powerW: number | undefined): Fixture {
     elevation: 0.85,
     wallId: 'w-s',
     params: {
-      powerW,
+      ratedPower,
       radiatorType: '22',
       radiatorConnection: 'mitte',
       valveSide: 'links',
@@ -124,7 +124,7 @@ function bohrung(): Durchbruch {
  * Ein vollständiges Prüfhaus wäre hier kein zusätzlicher Nachweis, sondern
  * nur mehr Text zwischen Prüfung und Sollwert.
  *
- * `powerW` hat bewusst **keinen** Vorgabewert. Mit einem schriebe man
+ * `ratedPower` hat bewusst **keinen** Vorgabewert. Mit einem schriebe man
  * `baueModell(undefined)`, um den Heizkörper ohne Leistung zu bekommen — und
  * bekäme die 1200 W des Vorgabewerts zurück, weil ein ausdrücklich
  * übergebenes `undefined` auf ihn zurückfällt. Genau diese Falle hat hier
@@ -132,9 +132,9 @@ function bohrung(): Durchbruch {
  * behauptet, ein leeres Feld erzeuge keinen Vorschlag, während in Wahrheit
  * nie ein leeres Feld geprüft wurde.
  */
-function baueModell(powerW: number | undefined): BimDocument {
+function baueModell(ratedPower: number | undefined): BimDocument {
   return {
-    fixtures: { hk: heizkoerper(powerW) },
+    fixtures: { hk: heizkoerper(ratedPower) },
     pipes: { rl: leitung() },
     durchbrueche: { db: bohrung() },
   } as unknown as BimDocument;
@@ -201,7 +201,7 @@ export function pruefeBeschriftung3d(check: CheckFn): void {
      */
     check('Die Leistung steht obenan', vorschlaege[0]?.text ?? 'keiner', '1200 W');
     check('… und sie ist als Leistung ausgewiesen', vorschlaege[0]?.quelle ?? 'keine', 'leistung');
-    check('… mit einem Hinweis, was sie bedeutet', vorschlaege[0]?.hinweis ?? 'keiner', 'Normwärmeleistung');
+    check('… mit einem Hinweis, was sie bedeutet', vorschlaege[0]?.hinweis ?? 'keiner', 'Normleistung 75/65/20 °C');
 
     check('Die Bauart wird angeboten', vorschlag(doc, anker, 'typ'), 'Typ 22');
     // Anschlussart und Ventilseite stehen zusammen: Auf der Baustelle sind es

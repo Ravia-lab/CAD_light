@@ -17,6 +17,7 @@
  * worauf sie sich verlassen kann.
  */
 
+import { heizleistung } from './normleistung';
 import type { BimDocument, ValidationIssue, ValidationReport, Vec2 } from '../types/bim';
 import { distance } from './geometry';
 import { durchbruchPasst } from './durchbruchSymbols';
@@ -665,7 +666,7 @@ export function validateModel(doc: BimDocument): ValidationReport {
     // Nur Wärmeübergeber brauchen eine Leistung. Ein Verteiler, ein
     // Steigstrang oder ein Thermostat hat keine — sie hier anzumahnen wäre
     // ein Befund, den niemand abstellen kann.
-    if (HEAT_EMITTERS.has(f.type) && !f.params.powerW) {
+    if (HEAT_EMITTERS.has(f.type) && !heizleistung(f)) {
       add('info', 'fixture.missing-power', `${f.label ?? f.type} ohne Leistungsangabe.`, {
         kind: 'fixture',
         id: f.id,

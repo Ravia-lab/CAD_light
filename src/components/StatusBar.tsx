@@ -3,6 +3,7 @@
  * aktives Werkzeug, Live-Maße, Fangstatus, Zoom und Modellumfang.
  */
 
+import { heizleistung } from '../lib/normleistung';
 import { useBimStore } from '../store/useBimStore';
 import EntfernenKnopf from './EntfernenKnopf';
 
@@ -69,7 +70,7 @@ export default function StatusBar() {
   // einer Zahl liest, sucht die Hälfte davon am falschen Ort.
   const gaps = (doc.diagnostics.closure ?? []).filter((c) => c.kind === 'gap').length;
   const fixtureCount = Object.keys(doc.fixtures).length;
-  const heatingPower = Object.values(doc.fixtures).reduce((sum, f) => sum + (f.params.powerW ?? 0), 0);
+  const heatingPower = Object.values(doc.fixtures).reduce((sum, f) => sum + (heizleistung(f) ?? 0), 0);
 
   /*
       * Dieselbe Regel wie in der Kopfzeile: lieber wischen als abschneiden.

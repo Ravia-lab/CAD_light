@@ -20,6 +20,7 @@
  * Schichtgrenze: nur Typen und andere lib-Bausteine.
  */
 
+import { heizleistung, mitLeistung } from './normleistung';
 import type { BimDocument, Fixture } from '../types/bim';
 import { leistungNachziehbar } from '../types/bim';
 import { estimateHeatLoad } from './heatLoadEstimate';
@@ -98,6 +99,32 @@ export function heizflaechenBefunde(doc: BimDocument): Heizflaechenbefund[] {
 }
 
 /**
+ * Normleistung 75/65/20 °C, die ein Heizkörper braucht, um `heizlast` [W] in
+ * diesem Raum bei den Systemtemperaturen der Anlage zu decken. Gerundet auf
+ * 50 W; `undefined`, wenn sich nichts rechnen lässt.
+ *
+ * Für den Knopf „Überschlag als Heizleistung übernehmen": Bis 1.72.0 schrieb
+ * er die Raumheizlast unverändert als Heizkörperleistung — eine Leistung im
+ * Betriebspunkt in ein Feld, das den Normpunkt meint (Befund A1).
+ */
+export function normleistungAusRaumlast(
+  doc: BimDocument,
+  raumtemperatur: number,
+  heizlast: number,
+  type: Fixture['type'] = 'radiator',
+): number | undefined {
+  const temps = systemtemperaturen(doc);
+  const n = normleistungFuerHeizlast({
+    heizlast,
+    vorlauf: temps.vorlauf,
+    ruecklauf: temps.ruecklauf,
+    raum: raumtemperatur,
+    type,
+  });
+  return n ? Math.round(n.watt / 50) * 50 : undefined;
+}
+
+/**
  * Der gemeinsame Kern beider Abfragen.
  *
  * `nurFixture` grenzt auf ein Bauteil ein — der Inspektor fragt nach einem
@@ -165,10 +192,10 @@ function befunde(
         ruecklauf: temps.ruecklauf,
         raum: last.setpoint,
         type: f.type,
-        exponent: f.params.radiatorExponent,
+        exponent: f.params.exponentN,
       });
       if (!n) continue;
-      const ist = f.params.powerW;
+      const ist = heizleistung(f);
       if (opt.nurFixture !== undefined && f.id !== opt.nurFixture) continue;
       const abweichung = ist === undefined ? Infinity : Math.abs(n.watt - ist) / Math.max(1, n.watt);
       /*
@@ -229,7 +256,7 @@ export function zieheHeizflaechenNach(doc: BimDocument): number {
     if (!f) continue;
     doc.fixtures[b.fixtureId] = {
       ...f,
-      params: { ...f.params, powerW: b.soll, powerSource: 'heizlast' },
+      params: { ...mitLeistung(f.type, f.params, b.soll, 'schaetzung'), powerSource: 'heizlast' },
     };
     zahl += 1;
   }

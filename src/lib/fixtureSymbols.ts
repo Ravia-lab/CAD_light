@@ -14,6 +14,7 @@
  * überladen.
  */
 
+import { heizleistung } from './normleistung';
 import type { Fixture, FixtureCategory, FixtureType, Vec2 } from '../types/bim';
 import type { FloorLoopLayout } from './floorLoopLayout';
 
@@ -28,8 +29,8 @@ export function fixtureBadge(fixture: Fixture): string | null {
   if (fixture.type === 'storage' && fixture.params.volumeL) {
     return `${fixture.params.volumeL} l`;
   }
-  if (fixture.category === 'heating' && fixture.params.powerW) {
-    return `${fixture.params.powerW} W`;
+  if (fixture.category === 'heating' && heizleistung(fixture)) {
+    return `${heizleistung(fixture)} W`;
   }
   if (fixture.category === 'ventilation' && fixture.params.airflow) {
     return `${fixture.params.airflow} m³/h`;

@@ -6,8 +6,10 @@
  * Fachlich richtig — die Heizfläche eines Raums muss dessen Heizlast decken.
  * Nur ist „annehmen" nicht „abschreiben".
  *
- * **Warum man die Zahl nicht einfach übernehmen darf.** `params.powerW` ist
- * die **Normwärmeleistung nach DIN EN 442-2**, also die Leistung bei 55/45/20 °C.
+ * **Warum man die Zahl nicht einfach übernehmen darf.** `params.ratedPower`
+ * ist die **Normwärmeleistung nach DIN EN 442-2**, also die Leistung bei
+ * 75/65/20 °C (Festlegung F2; bis 1.72.0 rechnete dieses Modul fälschlich
+ * auf 55/45/20, Befund A1).
  * Die Raumheizlast ist die Leistung, die im **Auslegungsbetriebspunkt** der
  * Anlage gebraucht wird — bei einer Wärmepumpe mit ertüchtigten Heizkörpern
  * etwa 50/40, bei einer Flächenheizung 35/28. Beides sind Leistungen, aber
@@ -16,9 +18,9 @@
  * Schreibt man die Heizlast unverändert ins Feld, ist der Heizkörper zu
  * klein — und zwar umso deutlicher, je niedriger die Anlage fährt:
  *
- *     1600 W Raumheizlast bei 50/40/20  →  2040 W Normleistung  (+28 %)
- *     1600 W Raumheizlast bei 45/38/20  →  2470 W Normleistung  (+54 %)
- *     1600 W Raumheizlast bei 35/28/20  →  5730 W Normleistung  (+258 %)
+ *     1600 W Raumheizlast bei 50/40/20  →   3990 W Normleistung 75/65/20
+ *     1600 W Raumheizlast bei 45/38/20  →   4830 W Normleistung 75/65/20
+ *     1600 W Raumheizlast bei 35/28/20  →  11220 W Normleistung 75/65/20
  *
  * (Nachgerechnet mit diesem Modul, n = 1,3; die Zahlen stehen so auch im
  * Prüfblock. Wer sie hier ändert, muss dort nachziehen — und umgekehrt.)
@@ -43,10 +45,11 @@
 import type { FixtureType } from '../types/bim';
 import { EMITTER_EXPONENT_ANNAHME, NORM_TEMPERATUREN } from './auslegungExport';
 import { logMeanOverTemperature } from './hydraulics';
+import { EN442_TYPEN } from './normleistung';
 
 /** Das Ergebnis einer Umrechnung — mit allem, was zur Beurteilung nötig ist. */
 export interface Normleistung {
-  /** Die gesuchte Normleistung bei 55/45/20 °C [W]. */
+  /** Die gesuchte Normleistung bei 75/65/20 °C [W]. */
   watt: number;
   /** Übertemperatur im Betriebspunkt [K]. */
   uebertemperatur: number;
@@ -58,7 +61,7 @@ export interface Normleistung {
   faktor: number;
 }
 
-/** Die Übertemperatur am Normpunkt 55/45/20 °C — rund 29,7 K. */
+/** Die Übertemperatur am Normpunkt 75/65/20 °C — rund 49,8 K. */
 export const NORM_UEBERTEMPERATUR = logMeanOverTemperature(
   NORM_TEMPERATUREN.vorlauf,
   NORM_TEMPERATUREN.ruecklauf,
@@ -136,7 +139,7 @@ export function anteilJeHeizflaeche(heizlast: number, anzahl: number): number {
 }
 
 /** Die Bauarten, die als Heizfläche im Sinne dieser Umrechnung gelten. */
-export const HEIZFLAECHEN_BAUARTEN: readonly FixtureType[] = ['radiator', 'radiator-tube', 'towel-radiator', 'convector'];
+export const HEIZFLAECHEN_BAUARTEN: readonly FixtureType[] = [...EN442_TYPEN];
 
 export function istHeizflaeche(type: FixtureType): boolean {
   return HEIZFLAECHEN_BAUARTEN.includes(type);
@@ -159,6 +162,6 @@ export function leistungsBegruendung(n: Normleistung, anzahl: number, heizlast: 
     `Aus ${Math.round(heizlast)} W Raumheizlast${teil} bei Δϑ = ${n.uebertemperatur
       .toFixed(1)
       .replace('.', ',')} K;` +
-    ` Faktor ${n.faktor.toFixed(3).replace('.', ',')} auf 55/45/20,${exp}.`
+    ` Faktor ${n.faktor.toFixed(3).replace('.', ',')} auf 75/65/20,${exp}.`
   );
 }
