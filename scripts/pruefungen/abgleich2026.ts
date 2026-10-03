@@ -29,6 +29,7 @@ import { envelopeArea, roomBridgeHeatLoss, roomEnvelopeArea, roomThermalBridges 
 import { importIfc, parseStep } from '../../src/lib/ifcImport';
 import { importBuildingModel, randAusScan } from '../../src/lib/buildingModelImport';
 import { uebernimmBeheizung } from '../../src/lib/scanUebernahme';
+import { usageDefaults } from '../../src/lib/roomDetection';
 
 function wurzel(): string | undefined {
   let pfad = process.cwd();
@@ -52,6 +53,27 @@ function quelle(rel: string): string {
 
 export function pruefeAbgleich2026(check: CheckFn): void {
   console.log('\n▸ Abgleich 2026-10 — Befunde aus dem Abgleich RaVia Scan ↔ CAD Light');
+
+  // -------------------------------------------------------------------------
+  // F3 · n_min nach der gemeinsamen Nutzungstabelle
+  // -------------------------------------------------------------------------
+  // Vorher: Küche, Bad und WC mit 1,5 1/h vorbelegt (alte DIN EN 12831
+  // Beiblatt 1). Die Festlegung F3 (DIN/TS 12831-1) nennt für alle Wohn-
+  // nutzungen 0,5 1/h; Manuel hat die Zahlen bestätigt. Temperatur und
+  // Lüftungsrolle bleiben, wie sie in F3 stehen.
+  {
+    const f3: [Parameters<typeof usageDefaults>[0], number, string][] = [
+      ['living', 20, 'supply'], ['bedroom', 20, 'supply'], ['kitchen', 20, 'exhaust'],
+      ['bath', 24, 'exhaust'], ['wc', 20, 'exhaust'], ['hallway', 15, 'transfer'],
+      ['office', 20, 'supply'], ['storage', 15, 'transfer'], ['technical', 15, 'none'],
+    ];
+    for (const [nutzung, temp, rolle] of f3) {
+      const v = usageDefaults(nutzung);
+      check(`F3 ${nutzung}: n_min = 0,5 1/h`, v.ach, 0.5, 1e-9);
+      check(`F3 ${nutzung}: θint`, v.temp, temp, 1e-9);
+      check(`F3 ${nutzung}: Lüftungsrolle`, v.air, rolle);
+    }
+  }
 
   // -------------------------------------------------------------------------
   // A3 · Wärmepumpenblatt nimmt dieselbe Gebäudeheizlast wie die Anlage

@@ -34,7 +34,7 @@
  *    Begründung wiedererwartet, nicht als Zeichenkette eingetippt).
  *  - Begründungen geschützter Felder wörtlich aus `PROTECTED_FIELDS`.
  *  - Ausgangswerte aus dem Referenzhaus: „Wohnen EG" ist ein Wohnraum
- *    (20 °C, 0,5 1/h), „Bad EG" ein Bad (24 °C, 1,5 1/h), beide beheizt,
+ *    (20 °C, 0,5 1/h), „Bad EG" ein Bad (24 °C, 0,5 1/h), beide beheizt,
  *    beide ohne eigene U-Werte für Boden und Decke. Ein gesetzter Wert muss
  *    davon abweichen, sonst prüft die Zeile nur, dass nichts geschieht.
  *  - Die Toleranz der Heizlast-Aufteilung: `max(1 W, 1 % von total)`. Bei

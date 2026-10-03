@@ -172,7 +172,7 @@ const QUANT = 2000;
 const keyOf = (p: Vec2): string =>
   `${Math.round(p.x * QUANT)}|${Math.round(p.y * QUANT)}`;
 
-/** Normwerte nach DIN EN 12831 Beiblatt / VDI 2078 (Innentemperatur, Luftwechsel). */
+/** Vorbelegung nach der gemeinsamen Nutzungstabelle F3 (DIN/TS 12831-1): n_min einheitlich 0,5 1/h. */
 /**
  * Voreinstellungen je Nutzung. `air` ist die Rolle im Lüftungskonzept:
  * Aufenthaltsräume bekommen Zuluft, Feuchte- und Geruchsräume sind
@@ -183,9 +183,9 @@ const keyOf = (p: Vec2): string =>
 const USAGE_DEFAULTS: Record<RoomUsage, { temp: number; ach: number; air: VentilationRole }> = {
   living: { temp: 20, ach: 0.5, air: 'supply' },
   bedroom: { temp: 20, ach: 0.5, air: 'supply' },
-  kitchen: { temp: 20, ach: 1.5, air: 'exhaust' },
-  bath: { temp: 24, ach: 1.5, air: 'exhaust' },
-  wc: { temp: 20, ach: 1.5, air: 'exhaust' },
+  kitchen: { temp: 20, ach: 0.5, air: 'exhaust' },
+  bath: { temp: 24, ach: 0.5, air: 'exhaust' },
+  wc: { temp: 20, ach: 0.5, air: 'exhaust' },
   hallway: { temp: 15, ach: 0.5, air: 'transfer' },
   office: { temp: 20, ach: 0.5, air: 'supply' },
   storage: { temp: 15, ach: 0.5, air: 'transfer' },
