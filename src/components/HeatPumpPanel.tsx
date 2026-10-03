@@ -39,6 +39,7 @@ import { KAELTEMITTEL, KLASSENTEXT, dichtheitspflicht, kaeltemittel } from '../l
 import { anschlussVonGeraet, nennweiteAusText, NENNWEITE_GEWINDE } from '../lib/anschlussgroesse';
 import { primaerauslegung } from '../lib/primaerkreis';
 import { findModel } from '../lib/deviceCatalog';
+import { gebaeudeHeizlast } from '../lib/plantDesign';
 import { useBimStore } from '../store/useBimStore';
 import Erklaerung from './Erklaerung';
 
@@ -97,12 +98,14 @@ export default function HeatPumpPanel() {
     () => (pump ? waterProtectionVerdict(site.waterProtection, pump.source) : undefined),
     [site.waterProtection, pump],
   );
-  const heatLoad = useMemo(() => {
-    // Grobe Gebäudeheizlast als Anhalt: 
-    // Hüllfläche × mittlerem U-Wert wäre genauer, kommt aber aus dem Export.
-    // Hier genügt die installierte Leistung als Vergleichswert.
-    return Object.values(doc.fixtures).reduce((sum, f) => sum + (f.params.powerW ?? 0), 0) / 1000;
-  }, [doc.fixtures]);
+  /*
+   * Dieselbe Gebäudeheizlast wie in der Anlagenauslegung (Vorgabe, sonst
+   * Summe der Norm-Heizlasten, sonst Überschlag). Die Summe der installierten
+   * Heizflächenleistung ist keine Heizlast: sie hängt an der Auslegung der
+   * Heizkörper, nicht am Gebäude.
+   */
+  const heatLoadInfo = useMemo(() => gebaeudeHeizlast(doc, doc.plant?.heatLoadOverride), [doc]);
+  const heatLoad = heatLoadInfo.heatLoad;
 
   const elements = useMemo(() => Object.values(site.elements), [site.elements]);
   const hasBoundary = elements.some((e) => e.kind === 'boundary');
@@ -369,6 +372,7 @@ export default function HeatPumpPanel() {
               <span className="text-slate-600">
                 {' '}
                 — Heizlast {fmt(heatLoad, 1)} kW
+                {heatLoadInfo.heatLoadProvenance === 'überschlag' ? ' (Überschlag)' : heatLoadInfo.heatLoadProvenance === 'raumweise' ? ' (Norm, raumweise)' : ' (Vorgabe)'}
                 {pump.domesticHotWater ? ` + ${fmt(0.2 * pump.occupants, 1)} kW Warmwasser` : ''}
                 {pump.gridRegime === 'evu-3x2h' ? ' × Sperrzeitfaktor' : ''}
               </span>

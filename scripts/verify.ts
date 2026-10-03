@@ -5,6 +5,7 @@
  */
 
 import { pruefeRohrlaengen } from './pruefungen/rohrlaengen';
+import { pruefeAbgleich2026 } from './pruefungen/abgleich2026';
 import { pruefePraxispruefung } from './pruefungen/praxispruefung';
 import type { BimDocument, BimNode, HeatPump, Opening, Wall } from '../src/types/bim';
 import { applyVerticalDeductions, detectRooms, findOpenEnds } from '../src/lib/roomDetection';
@@ -4040,6 +4041,7 @@ console.log('\n▸ Handbuchstand — beschreibt das ausgelieferte Handbuch diese
 pruefeHandbuchstand(check);
 pruefeSchichtgrenze(check);
 pruefeRohrlaengen(check);
+pruefeAbgleich2026(check);
 pruefePraxispruefung(check);
 
 console.log(

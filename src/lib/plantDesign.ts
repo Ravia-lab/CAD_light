@@ -583,6 +583,28 @@ export function designCircuit(
 // Die Anlage als Ganzes
 // ---------------------------------------------------------------------------
 
+/**
+ * Die Gebäudeheizlast [kW], nach derselben Rangfolge wie in `designPlant`:
+ * Vorgabe, dann Summe der gerechneten Raum-Heizlasten (nur bei voller
+ * Deckung), sonst der eigene Überschlag. Eigene Funktion, damit jede Stelle,
+ * die eine Gebäudeheizlast braucht (etwa das Wärmepumpenblatt), dieselbe Zahl
+ * zeigt wie die Anlagenauslegung.
+ */
+export function gebaeudeHeizlast(doc: BimDocument, vorgabe?: number) {
+  const estimate = estimateHeatLoad(doc);
+  const normCoverage = normHeatLoadCoverage(doc);
+  const raumweiseTraegt = normCoverage.complete && normCoverage.total > 0;
+  const heatLoadProvenance: PlantDesignResult['heatLoadProvenance'] =
+    vorgabe !== undefined ? 'vorgabe' : raumweiseTraegt ? 'raumweise' : 'überschlag';
+  const heatLoad =
+    heatLoadProvenance === 'vorgabe'
+      ? (vorgabe ?? estimate.total)
+      : heatLoadProvenance === 'raumweise'
+        ? normCoverage.total
+        : estimate.total;
+  return { heatLoad, heatLoadProvenance, estimate, normCoverage };
+}
+
 export function designPlant(doc: BimDocument, options: PlantDesignOptions = {}): PlantDesignResult {
   const notes: PlanningNote[] = [];
   const plant = plantOf(doc);
@@ -609,17 +631,7 @@ export function designPlant(doc: BimDocument, options: PlantDesignOptions = {}):
   // maßgebend: dort steht sie für ihren Raum allein und mischt sich mit
   // nichts. Der Hinweis unten nennt Zahl und Namen der fehlenden Räume, damit
   // der Weg zur vollen Deckung kurz ist.
-  const estimate = estimateHeatLoad(doc);
-  const normCoverage = normHeatLoadCoverage(doc);
-  const raumweiseTraegt = normCoverage.complete && normCoverage.total > 0;
-  const heatLoadProvenance: PlantDesignResult['heatLoadProvenance'] =
-    options.heatLoad !== undefined ? 'vorgabe' : raumweiseTraegt ? 'raumweise' : 'überschlag';
-  const heatLoad =
-    heatLoadProvenance === 'vorgabe'
-      ? (options.heatLoad ?? estimate.total)
-      : heatLoadProvenance === 'raumweise'
-        ? normCoverage.total
-        : estimate.total;
+  const { heatLoad, heatLoadProvenance, estimate, normCoverage } = gebaeudeHeizlast(doc, options.heatLoad);
   const heatLoadSource: 'norm' | 'überschlag' = heatLoadProvenance === 'überschlag' ? 'überschlag' : 'norm';
 
   if (heatLoadProvenance === 'raumweise') {
