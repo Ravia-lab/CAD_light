@@ -143,19 +143,18 @@ export function mitLeistung(
   quelle?: RatedPowerSource,
 ): FixtureParams {
   if (istEn442(type)) {
-    const { powerW: _alt, ...rest } = params;
-    void _alt;
+    const rest: FixtureParams = { ...params };
+    delete rest.powerW;
     if (watt === undefined) {
-      const { ratedPower: _r, ratedPowerSource: _q, ...ohne } = rest;
-      void _r;
-      void _q;
-      return ohne;
+      delete rest.ratedPower;
+      delete rest.ratedPowerSource;
+      return rest;
     }
     return { ...rest, ratedPower: watt, ...(quelle ? { ratedPowerSource: quelle } : {}) };
   }
   if (watt === undefined) {
-    const { powerW: _p, ...ohne } = params;
-    void _p;
+    const ohne: FixtureParams = { ...params };
+    delete ohne.powerW;
     return ohne;
   }
   return { ...params, powerW: watt };

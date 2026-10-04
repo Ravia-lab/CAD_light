@@ -143,9 +143,9 @@ export function unbeheizterRaumTemperatur(doc: BimDocument, raum: Room | undefin
 export function migriereUnbeheizt(meta: BimDocument['meta']): BimDocument['meta'] {
   const quelle = meta.unheatedTemperatureSource;
   if (quelle === 'b_u' || (quelle === undefined && meta.unheatedTemperature === 10)) {
-    const { unheatedTemperature: _u, unheatedTemperatureSource: _q, ...rest } = meta;
-    void _u;
-    void _q;
+    const rest = { ...meta };
+    delete rest.unheatedTemperature;
+    delete rest.unheatedTemperatureSource;
     return rest;
   }
   if (typeof meta.unheatedTemperature === 'number' && quelle === undefined) {

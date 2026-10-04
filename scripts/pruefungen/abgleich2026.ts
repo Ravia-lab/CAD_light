@@ -140,9 +140,9 @@ export function pruefeAbgleich2026(check: CheckFn): void {
   // dahinter A · 0,9 · 6 K mehr als mit 10 °C.
   {
     const ohneEintrag = (meta: Partial<BimDocument['meta']>): BimDocument => {
-      const { unheatedTemperature: _u, unheatedTemperatureSource: _q, ...rest } = doc.meta;
-      void _u;
-      void _q;
+      const rest = { ...doc.meta };
+      delete rest.unheatedTemperature;
+      delete rest.unheatedTemperatureSource;
       return { ...doc, meta: { ...rest, ...meta } };
     };
     const abgeleitet = ohneEintrag({});

@@ -116,7 +116,7 @@ export function pruefeScan112(check: CheckFn): void {
     const ost = structuredClone(roh);
     ost.levels[0].roof.footprint = [{ x: -6, y: 0.253 }, { x: -6, y: -7.2 }, { x: 0.9, y: -7.2 }, { x: 0.9, y: 0.253 }];
     const u = uebernimm(ost);
-    const westen = u.raeume.filter((x) => innererPunkt(x.polygon).x < -6.2).map((x) => x.id).sort();
+    const westen = u.raeume.filter((x) => innererPunkt(x.polygon).x < -6.2).map((x) => x.id).sort((a, b) => a.localeCompare(b));
     check('H3 · Umriss Osthälfte: Westräume ohne Dach', westen.every((id) => u.z.ohneDach.includes(id)), true);
     check('H3 · … und es sind welche', westen.length >= 3, true);
     check('H3 · … Ostteil unter dem Dach', u.z.unterDach.every((id) => innererPunkt(u.raeume.find((x) => x.id === id)!.polygon).x >= -6), true);
