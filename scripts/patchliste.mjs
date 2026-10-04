@@ -28,6 +28,7 @@ const ZIEL = process.argv[2] ?? 'patchliste-cad-light.html';
 
 // --- Von Hand: Überschrift je Zehnerblock ----------------------------------
 const BLOeCKE = {
+  70: 'Dachschnitt, Rohrlängen, Praxisprüfung, Abgleich mit RaVia und RaVia Scan',
   60: 'Verbrauchsabgleich, Baugrube, Scan als Datei, Aufnahme ohne Zeichnen, Fußbodenheizung',
   50: 'Anlagenschema, Normsymbole, Mehrgeschossigkeit, Schutzbereich',
   40: 'Steigleitung, Hüllflächenbilanz, Freigabelauf, Übersichtsschema',
@@ -49,6 +50,7 @@ const SCHNITT = [
   ['1.60.0', 'Export 2.7.0', '<code>project.verbrauch</code>, <code>project.baualter</code>, <code>totals.heatLoadCrosscheck</code> — die Gegenprobe zur Heizlast'],
   ['1.64.0', 'Export 2.8.0', '<code>project.annahmen</code> — was angenommen wurde, weil nichts vorlag'],
   ['1.65.0', 'Export 2.9.0', '<code>pipeGraph</code> — das Rohrnetz als Netz mit Knoten, Vorgängern und Verzweigungen, dazu die Flächenheizkreise und die gemischt beheizten Räume'],
+  ['1.73.0', 'Export 2.15.0', '<code>raviaRoomId</code>, Randbedingung <code>neighbour</code>, Heizkörper mit <code>ratedPower</code> bei 75/65/20 °C, <code>levels[].order</code>; dazu ein JSON-Schema, gegen das jeder Export geprüft wird'],
 ];
 
 // --- Die Fassungen aus dem Handbuch ---------------------------------------
