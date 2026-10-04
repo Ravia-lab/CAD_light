@@ -211,7 +211,7 @@ console.log('\n▸ Das Raumbuch nimmt an, was es zeigt');
   expect('Der Name wandert ins Modell', await zustand(() => Object.values(window.__ravia.getState().doc.rooms).some((r) => r.name === 'Duschbad')), true);
   expect('Das Feld wählt den Raum aus', await auswahl(), 'room');
 
-  const watt = p.locator('aside input[aria-label="Heizleistung von Duschbad in Watt"]');
+  const watt = p.locator('aside input[aria-label="Normleistung 75/65/20 °C des Heizkörpers in Duschbad, in Watt"]');
   expect('Und ein Leistungsfeld', await watt.count(), 1);
   const vorher = (await zahlen()).objekte;
   await watt.click();
@@ -227,7 +227,9 @@ console.log('\n▸ Das Raumbuch nimmt an, was es zeigt');
     const raum = Object.values(d.rooms).find((r) => r.name === 'Duschbad');
     const f = Object.values(d.fixtures).filter((x) => x.roomId === raum?.id && x.type === 'towel-radiator');
     const neu = f[f.length - 1];
-    return { watt: neu?.params.powerW ?? 0, herkunft: neu?.params.powerSource ?? '', anWand: Boolean(neu?.wallId) };
+    // Seit 1.73.0 trägt ein Heizkörper die Normleistung 75/65/20 °C als
+    // `ratedPower`; `powerW` gibt es nur noch für Flächenheizungen.
+    return { watt: neu?.params.ratedPower ?? 0, herkunft: neu?.params.powerSource ?? '', anWand: Boolean(neu?.wallId) };
   });
   expect('Mit der eingetragenen Leistung', hk.watt, 850);
   expect('Als Angabe, nicht als Vorbelegung', hk.herkunft, 'datenblatt');
@@ -303,8 +305,8 @@ console.log('\n▸ Heizlast in einem Rutsch');
     const raum = Object.values(d.rooms).find((r) => r.name === 'Duschbad');
     for (const f of Object.values(d.fixtures)) {
       if (f.roomId === raum?.id) continue;
-      if (typeof f.params.powerW !== 'number') continue;
-      s.updateFixture(f.id, { params: { ...f.params, powerW: undefined } });
+      if (typeof (f.params.ratedPower ?? f.params.powerW) !== 'number') continue;
+      s.updateFixture(f.id, { params: { ...f.params, powerW: undefined, ratedPower: undefined } });
     }
     const jetzt = window.__ravia.getState().doc;
     // Der Badheizkörper aus dem Schritt davor — an seiner Kennung, nicht am Raum:
@@ -314,9 +316,9 @@ console.log('\n▸ Heizlast in einem Rutsch');
     return {
       raeume: Object.values(jetzt.rooms).filter((r) => r.isHeated).length,
       hkId: hk?.id ?? '',
-      duschbadW: hk?.params.powerW ?? 0,
+      duschbadW: hk?.params.ratedPower ?? 0,
       mitLeistung: Object.values(jetzt.fixtures)
-        .filter((f) => typeof f.params.powerW === 'number' && f.params.powerW > 0).length,
+        .filter((f) => (f.params.ratedPower ?? f.params.powerW ?? 0) > 0).length,
     };
   });
   expect('Zum Prüfen geleert: nur das Duschbad trägt noch eine Zahl', vorher.mitLeistung, 1);
@@ -329,12 +331,12 @@ console.log('\n▸ Heizlast in einem Rutsch');
   const nachher = await zustand((hkId) => {
     const d = window.__ravia.getState().doc;
     const hk = d.fixtures[hkId];
-    const mit = Object.values(d.fixtures)
-      .filter((f) => typeof f.params.powerW === 'number' && f.params.powerW > 0);
+    const w = (f) => f.params.ratedPower ?? f.params.powerW ?? 0;
+    const mit = Object.values(d.fixtures).filter((f) => w(f) > 0);
     return {
-      duschbadW: hk?.params.powerW ?? 0,
+      duschbadW: hk?.params.ratedPower ?? 0,
       mitLeistung: mit.length,
-      alleAuf50: mit.every((f) => f.params.powerW % 50 === 0),
+      alleAuf50: mit.every((f) => w(f) % 50 === 0),
       status: window.__ravia.getState().statusMessage,
     };
   }, vorher.hkId);
