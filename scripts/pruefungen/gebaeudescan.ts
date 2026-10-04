@@ -152,7 +152,10 @@ export function pruefeGebaeudescan(check: CheckFn): void {
    * 66,5° + 113,5° = 180°.
    */
   check('Azimut der Dachfläche im Plan [°] (Kompass 66,5 + Nord 113,5)', dach?.azimuth ?? 0, 180, 0.01);
-  check('Keine Kehlbalkenlage in voller Geschosshöhe', dach?.collarHeight === undefined, true);
+  // Bis 1.73.0 hieß es hier „keine Kehlbalkenlage in voller Geschosshöhe".
+  // Ohne sie läuft die Schräge aber bis zum First durch. Die Kehlbalkenlage
+  // auf Geschosshöhe *ist* die Decke des Dachgeschosses.
+  check('Kehlbalkenlage auf Geschosshöhe begrenzt, nicht verworfen [m]', dach?.collarHeight ?? -1, r.levels[0].height, 0.001);
 
   // --- Räume ----------------------------------------------------------------
   const raeume = detectRooms({

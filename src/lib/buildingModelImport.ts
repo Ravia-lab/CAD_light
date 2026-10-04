@@ -331,7 +331,16 @@ export function importBuildingModel(data: unknown): BuildingImportErgebnis {
           ? normGrad((Math.atan2(fall.x, fall.y) * 180) / Math.PI)
           : zahl(r.slopeAzimuthsDeg?.[0]) ? zumPlan(r.slopeAzimuthsDeg![0]) : 90,
         ...(umriss ? { umriss } : {}),
-        ...(zahl(r.collarHeight) && r.collarHeight < l.height - 0.05 ? { collarHeight: rund(r.collarHeight, 2) } : {}),
+        // Kehlbalkenlage: Liegt sie auf Geschosshöhe (bis 0,30 m darüber, so
+        // weit streut die Schätzung aus den Wandumrissen), ist sie die
+        // waagerechte Decke des Dachgeschosses und wird auf die Geschosshöhe
+        // begrenzt. Bis 1.73.0 fiel sie dann weg, und die Räume rechneten bis
+        // unter den First: im Feldscan vom 02.10.2026 (2,43 m bei 2,41 m
+        // Geschosshöhe) mittlere Raumhöhen von 4,7–5,8 m statt rund 2,2 m.
+        // Deutlich höher (Galerie, offener Dachraum) bleibt sie, wie gemessen.
+        ...(zahl(r.collarHeight) && r.collarHeight > 0.5
+          ? { collarHeight: rund(r.collarHeight <= l.height + 0.3 ? Math.min(r.collarHeight, l.height) : r.collarHeight, 2) }
+          : {}),
         scan: {
           herkunft: r.source === 'user' ? 'gemessen' : r.source === 'scan' ? 'geschaetzt' : 'unbekannt',
           ...(zahl(r.ridgeHeight) ? { firsthoehe: rund(r.ridgeHeight, 2) } : {}),

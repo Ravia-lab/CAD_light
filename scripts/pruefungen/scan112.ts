@@ -30,6 +30,7 @@ import type { Level, Room } from '../../src/types/bim';
 import { importBuildingModel } from '../../src/lib/buildingModelImport';
 import { detectRooms } from '../../src/lib/roomDetection';
 import { baueDachlandschaft } from '../../src/lib/dachlandschaft';
+import { measureRoomUnderRoof } from '../../src/lib/roofGeometry';
 import { scanDachZuordnen } from '../../src/lib/scanUebernahme';
 import { innererPunkt, pointInPolygon } from '../../src/lib/geometry';
 import { pruefeGegenSchema, type Schema } from '../vertrag/pruefeSchema';
@@ -131,6 +132,30 @@ export function pruefeScan112(check: CheckFn): void {
     const kaputt = structuredClone(roh);
     kaputt.levels[0].roof.footprint = kaputt.levels[0].roof.footprint.slice(0, 2);
     check('H3 · Umriss mit 2 Punkten wird verworfen', importBuildingModel(kaputt).daecher['level-0']?.umriss === undefined, true);
+  }
+
+  // --- Kehlbalkenlage ---------------------------------------------------------
+  {
+    /*
+     * Der Feldscan meldet die Kehlbalkenlage bei 2,43 m, das Geschoss ist
+     * 2,41 m hoch: Die waagerechte Decke des Dachgeschosses liegt auf
+     * Geschosshöhe. Bis 1.73.0 fiel sie weg, weil sie nicht 5 cm *unter* der
+     * Geschosshöhe lag, und die Räume unter dem Dach rechneten bis unter den
+     * First (Punkt 3 aus dem Scan-Patch zu 1.70.0, nie eingespielt).
+     */
+    check('Kehlbalken · Feldscan: auf Geschosshöhe 2,41 m begrenzt, nicht verworfen', dach?.collarHeight ?? -1, 2.41, 1e-9);
+    const rahmen = baueDachlandschaft({ level: levels['level-0'], walls: r.walls, nodes: Object.fromEntries(r.nodes.map((n) => [n.id, n])), rooms: raeume })
+      .map((t) => t.frame).filter((f): f is NonNullable<typeof f> => f !== null);
+    const hoehen = z.unterDach.map((id) => measureRoomUnderRoof(rahmen[0], raeume.find((x) => x.id === id)!.polygon).averageHeight);
+    check('Kehlbalken · ein Dachrahmen', rahmen.length, 1);
+    check('Kehlbalken · kein Raum unter dem Dach über 2,41 m mittlerer Höhe', Math.max(...hoehen) <= 2.41 + 1e-6, true);
+    // Liegt die Kehlbalkenlage deutlich höher (Galerie, offener Dachraum), ist sie echt und bleibt.
+    const hoch = structuredClone(roh);
+    hoch.levels[0].roof.collarHeight = 3.2;
+    check('Kehlbalken · 0,8 m über Geschosshöhe bleibt sie, wie gemessen', importBuildingModel(hoch).daecher['level-0']?.collarHeight ?? -1, 3.2, 1e-9);
+    const tief = structuredClone(roh);
+    tief.levels[0].roof.collarHeight = 2.1;
+    check('Kehlbalken · unter Geschosshöhe wie bisher übernommen', importBuildingModel(tief).daecher['level-0']?.collarHeight ?? -1, 2.1, 1e-9);
   }
 
   // --- Randbedingungen aus 1.12.0 ---------------------------------------------
