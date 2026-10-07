@@ -216,6 +216,11 @@ export function pruefeMappenhygiene(check: CheckFn): void {
       !abgeglichen,
     );
     check('Nachweiskatalog: Heizlast ohne Rohwert in Klammern', /kW \((?:überschlag|raumweise|vorgabe)\)/.test(html), false);
+    // Eine Förderhöhe je Mappe: das Pumpenkapitel (Rohrnetz) — nicht daneben
+    // der Überschlag des Anlagenbuchs (bis 1.74.0: 4,04 m und 5,11 m).
+    const text = entity(html.replace(/<[^>]*>/g, ' ')).replace(/\s+/g, ' ');
+    const hoehen = new Set([...text.matchAll(/Förderhöhe (\d+,\d+) m/g)].map((m) => m[1]));
+    check(`Eine Förderhöhe in der ganzen Mappe (${[...hoehen].join(', ')})`, hoehen.size <= 1, true);
   }
 
   // =========================================================================

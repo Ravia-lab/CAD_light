@@ -518,6 +518,10 @@ export function buildProjektMappe(doc: BimDocument, optionen: ProjektMappeOption
   if (bericht.temperaturen.herkunft !== 'anlagenblatt') gedruckt.add(bericht.temperaturen.begruendung);
   // Dass die Heizlast ein Überschlag ist, sagt das Deckblatt.
   if (auslegung.heatLoadProvenance === 'überschlag') gedruckt.add(UEBERSCHLAG_HINWEIS);
+  // Mit Rohrnetz gilt dessen Pumpe; die Hinweise des Überschlags über die
+  // Anbindeleitungen („Erforderliche Förderhöhe 7,5 m …") nennen eine andere
+  // Zahl als das Pumpenkapitel und entfallen.
+  if (bericht.pumpe) for (const n of auslegung.pump?.notes ?? []) gedruckt.add(n.text);
 
   // --- Kapitel 5 und 6: Rohrnetzbericht und Einstellwerte -------------------
   if (!omit.has('rohrnetz')) {

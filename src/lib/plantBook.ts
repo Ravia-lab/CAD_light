@@ -1347,7 +1347,7 @@ function manifoldTable(circuit: CircuitDesign): string {
   );
 }
 
-function chapterDistribution(design: PlantDesignResult): string {
+function chapterDistribution(design: PlantDesignResult, inMappe = false): string {
   if (design.circuits.length === 0) {
     return paragraph(
       'Im Modell ist kein Heizkreis angelegt. Ohne Kreise gibt es weder Volumenströme noch Rohrdimensionen, ' +
@@ -1486,9 +1486,27 @@ function chapterDistribution(design: PlantDesignResult): string {
   }
 
   const pump = design.pump;
-  if (pump) {
+  if (pump && inMappe) {
+    /*
+     * In der Mappe rechnet das Kapitel „Pumpenauslegung und Erzeugerkreis"
+     * die Pumpe über das gezeichnete Rohrnetz. Die Zahlen hier sind ein
+     * Überschlag über die Anbindeleitungen — bis 1.74.0 standen beide in
+     * derselben Mappe nebeneinander (Förderhöhe 4,04 m und 5,11 m).
+     */
     parts.push(
       heading('Umwälzpumpe'),
+      paragraph(
+        'Förderstrom und Förderhöhe stehen im Kapitel „Pumpenauslegung und Erzeugerkreis" — gerechnet über das ' +
+          'gezeichnete Rohrnetz und nicht, wie hier ohne Rohrnetz, über die Anbindeleitungen.',
+      ),
+    );
+  } else if (pump) {
+    parts.push(
+      heading('Umwälzpumpe'),
+      paragraph(
+        'Überschlag über die Anbindeleitungen der Kreise. Ist ein Rohrnetz gezeichnet, gilt die Förderhöhe der ' +
+          'Rohrnetzberechnung — sie kennt jede Teilstrecke.',
+      ),
       factTable([
         { label: 'Förderstrom', value: `${de(pump.flow, 3)} m³/h` },
         {
@@ -1499,7 +1517,7 @@ function chapterDistribution(design: PlantDesignResult): string {
         {
           label: 'Ungünstigster Strang',
           value: `${de(pump.worstPathLoss, 0)} Pa`,
-          note: `Zuschlag ${de(pump.safetyFactor, 2)}; Erzeuger und Kesselgruppe ${de(pump.generatorLoss, 0)} Pa.`,
+          note: `Zuschlag ${de(pump.safetyFactor, 2)}; Erzeugerkreis ${de(pump.generatorLoss, 0)} Pa.`,
         },
         {
           label: 'Abzudrosseln',
@@ -2209,7 +2227,7 @@ export function buildPlantBook(options: PlantBookOptions): PlantBookResult {
     {
       id: 'verteilung',
       title: 'Wärmeverteilung',
-      body: chapterDistribution(design),
+      body: chapterDistribution(design, options.inMappe),
       hasContent: design.circuits.length > 0,
       emptyReason: design.circuits.length > 0 ? undefined : 'Kein Heizkreis angelegt.',
     },
