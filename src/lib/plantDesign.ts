@@ -34,6 +34,7 @@
  * den der Schritt danach hinzugefügt hat.
  */
 
+import { dez, wie } from './zahl';
 import type {
   AnlagenAntworten,
   BimDocument,
@@ -68,6 +69,7 @@ import {
 import {
   DEFAULT_FLUID,
   PIPE_TABLES,
+  REYNOLDS_TURBULENT,
   designFloorHeating,
   designPump,
   fluidProperties,
@@ -87,6 +89,7 @@ import {
 import { connectionDiameter, designSafety, systemVolume, type SystemVolumeInput } from './safetyFittings';
 import { erzeugerBilanz, type Erzeugerbilanz } from './erzeugerHydraulik';
 import { plantOf } from './plantDefaults';
+import { einheitenAusRaumnamen, einheitenstand } from './nutzungseinheiten';
 import { antwortenDes, hatHeizstab, hatInneneinheit, heizstabImSpeicher } from './anlagenFragen';
 import { ANTWORTEN_VORGABE } from '../types/bim';
 import {
@@ -170,6 +173,12 @@ export interface CircuitDesign {
   rooms?: RoomLoopDesign[];
   /** Zahl der Heizkreise am Verteiler — Summe über die Räume. */
   loops?: number;
+  /**
+   * Räume, deren Kreis nicht sicher turbulent läuft — „Bad (Re = 2965)".
+   * Die Auslegung fasst sie über alle Kreise zu **einem** Hinweis zusammen;
+   * die Erklärung ist für jeden Raum dieselbe.
+   */
+  laminar?: string[];
   notes: PlanningNote[];
 }
 
@@ -505,6 +514,7 @@ export function designCircuit(
 
   let floor: FloorHeatingDesign | undefined;
   let roomDesigns: RoomLoopDesign[] | undefined;
+  let laminarRaeume: string[] | undefined;
   if (circuit.kind === 'floor') {
     // Raumweise auslegen. Ein Bad mit 90 W/m² und ein Schlafzimmer mit 45
     // brauchen unterschiedliche Verlegeabstände; über das Geschoss gemittelt
@@ -535,7 +545,21 @@ export function designCircuit(
         notes: roomNotes,
       };
     });
-    for (const r of roomDesigns) notes.push(...r.notes);
+    /*
+     * **Laminare Kreise in einem Hinweis** (seit 1.75.0). Die Erklärung zum
+     * Wärmeübergang ist für jeden Raum dieselbe; bis 1.74.0 stand sie je Raum
+     * einmal in der Hinweisliste — in der Referenz viermal. Die Räume gehen
+     * als `laminar` an `designPlant`, das über alle Kreise eine Zeile setzt.
+     */
+    const laminar: string[] = [];
+    for (const r of roomDesigns) {
+      for (const n of r.notes) {
+        const re = /^[^:]+: Re = (\d+): der Kreis läuft nicht sicher turbulent\./.exec(n.text);
+        if (re) laminar.push(`${r.name} (Re = ${re[1]})`);
+        else notes.push(n);
+      }
+    }
+    laminarRaeume = laminar;
 
     // Die Kreissumme dient dem Überblick und der Massenermittlung; gebaut
     // wird nach der Raumtabelle.
@@ -575,6 +599,7 @@ export function designCircuit(
     floor,
     rooms: roomDesigns,
     loops,
+    laminar: laminarRaeume?.length ? laminarRaeume : undefined,
     notes,
   };
 }
@@ -663,7 +688,7 @@ export function designPlant(doc: BimDocument, options: PlantDesignOptions = {}):
   if (heatLoadProvenance === 'raumweise') {
     notes.push({
       severity: 'info',
-      text: `Gerechnet wird mit ${heatLoad.toFixed(2)} kW aus den Norm-Heizlasten aller ${normCoverage.heatedRooms} beheizten Räume${herkunft(normCoverage)}${normCoverage.lueftungGebaeude && normCoverage.gebaeudeKw < normCoverage.totalKw ? `, Lüftung auf Gebäudeebene (Summe der Räume ${normCoverage.totalKw.toFixed(2)} kW)` : ''}. Der eigene Überschlag käme auf ${estimate.totalKw.toFixed(2)} kW; er wird nicht verwendet.`,
+      text: `Gerechnet wird mit ${dez(heatLoad, 2)} kW aus den Norm-Heizlasten aller ${normCoverage.heatedRooms} beheizten Räume${herkunft(normCoverage)}${normCoverage.lueftungGebaeude && normCoverage.gebaeudeKw < normCoverage.totalKw ? `, Lüftung auf Gebäudeebene (Summe der Räume ${dez(normCoverage.totalKw, 2)} kW)` : ''}. Der eigene Überschlag käme auf ${dez(estimate.totalKw, 2)} kW; er wird nicht verwendet.`,
     });
     // Befund B8: ohne Lüftungsanteil je Raum ist die Summe eine obere
     // Schranke, die Lüftung steckt darin mehrfach.
@@ -677,7 +702,7 @@ export function designPlant(doc: BimDocument, options: PlantDesignOptions = {}):
   if (heatLoadProvenance === 'überschlag') {
     notes.push({
       severity: 'info',
-      text: `Gerechnet wird mit ${heatLoad.toFixed(2)} kW aus dem Überschlag (${estimate.klassifizierung}). Sobald die Norm-Heizlast aus RaVia vorliegt, sie hier eintragen — alle Folgegrößen rechnen sich neu.`,
+      text: `Gerechnet wird mit ${dez(heatLoad, 2)} kW aus dem Überschlag (${dez(estimate.specific, 0)} W/m²). Sobald die Norm-Heizlast aus RaVia vorliegt, sie hier eintragen — alle Folgegrößen rechnen sich neu.`,
     });
     if (normCoverage.withNorm > 0) {
       notes.push({
@@ -697,7 +722,7 @@ export function designPlant(doc: BimDocument, options: PlantDesignOptions = {}):
     if (abweichung > 0.05) {
       notes.push({
         severity: 'warn',
-        text: `Die eingetragene Heizlast von ${heatLoad.toFixed(2)} kW steht gegen ${normCoverage.gebaeudeKw.toFixed(2)} kW aus den gerechneten Raum-Heizlasten${herkunft(normCoverage)}. Gerechnet wird mit der Eintragung; welche der beiden Zahlen gilt, entscheidet nicht das Programm.`,
+        text: `Die eingetragene Heizlast von ${dez(heatLoad, 2)} kW steht gegen ${dez(normCoverage.gebaeudeKw, 2)} kW aus den gerechneten Raum-Heizlasten${herkunft(normCoverage)}. Gerechnet wird mit der Eintragung; welche der beiden Zahlen gilt, entscheidet nicht das Programm.`,
       });
     }
   }
@@ -759,7 +784,7 @@ export function designPlant(doc: BimDocument, options: PlantDesignOptions = {}):
   if (blocking > 1) {
     notes.push({
       severity: 'info',
-      text: `Sperrzeit ${pump?.blockedHours ?? 0} h/Tag: die Leistung wächst um den Faktor ${blocking.toFixed(2)} auf ${requiredCapacity.toFixed(2)} kW. Seit § 14a EnWG ist statt der Sperrung meist eine Leistungsreduzierung auf 4,2 kW vorgesehen — dann entfällt dieser Faktor.`,
+      text: `Sperrzeit ${pump?.blockedHours ?? 0} h/Tag: die Leistung wächst um den Faktor ${dez(blocking, 2)} auf ${dez(requiredCapacity, 2)} kW. Seit § 14a EnWG ist statt der Sperrung meist eine Leistungsreduzierung auf 4,2 kW vorgesehen — dann entfällt dieser Faktor.`,
     });
   }
 
@@ -887,6 +912,18 @@ export function designPlant(doc: BimDocument, options: PlantDesignOptions = {}):
     }),
   );
   for (const d of designs) notes.push(...d.notes);
+  {
+    const laminar = designs.flatMap((d) => d.laminar ?? []);
+    if (laminar.length) {
+      notes.push({
+        severity: 'info',
+        text:
+          `Nicht sicher turbulent (Re unter ${REYNOLDS_TURBULENT}): ${laminar.join(', ')}. Der Wärmeübergang vom ` +
+          'Wasser an das Rohr fällt dabei ab; bei kleinen Kreisen mit geringer Last ist das normal und wird durch ' +
+          'die große Fläche ausgeglichen.',
+      });
+    }
+  }
   const totalFlow = Math.round(designs.reduce((s, d) => s + d.flow, 0) * 1000) / 1000;
 
   // 5 — Wasserinhalt und Puffer.
@@ -1007,6 +1044,29 @@ export function designPlant(doc: BimDocument, options: PlantDesignOptions = {}):
     (s) => s.kind === 'dhw-cylinder' || s.kind === 'combi',
   );
   if (warmwasser) {
+    /*
+     * **Ein- oder Zweifamilienhaus — nur, wenn nichts dagegen spricht.** Das
+     * Anlagenblatt belegt eine Wohneinheit vor. Bis 1.74.0 hieß das für ein
+     * Mehrfamilienhaus mit Räumen „WE 1" bis „WE 6", dessen Einheitenzahl
+     * niemand eingetragen hatte: Kleinanlage kraft Ein-/Zweifamilienhaus.
+     * Die Erleichterung wird jetzt nur gewährt, wenn weder die zugeordneten
+     * Einheiten noch die Raumnamen auf mehr als zwei Wohnungen deuten; die
+     * Bedarfsrechnung bleibt bei der eingetragenen Zahl, der Hinweis sagt,
+     * wo sie zu prüfen ist.
+     */
+    const zugeordnet = einheitenstand(doc).selbstaendig;
+    const ausNamen = einheitenAusRaumnamen(doc).zahl;
+    const indiz = Math.max(zugeordnet, ausNamen);
+    if (ausNamen > plant.dhw.units && zugeordnet === 0) {
+      notes.push({
+        severity: 'warn',
+        text:
+          `Die Raumnamen deuten auf ${ausNamen} Wohnungen, das Anlagenblatt nennt ${plant.dhw.units}. ` +
+          'Warmwasserbedarf und Speicher rechnen mit der Zahl im Anlagenblatt; die Erleichterung für Ein- und ' +
+          'Zweifamilienhäuser nach DVGW W 551 wird nicht angesetzt. Zahl der Wohneinheiten im Anlagenblatt eintragen ' +
+          'oder die Räume Nutzungseinheiten zuordnen.',
+      });
+    }
     dhw = designDomesticHotWater({
       units: plant.dhw.units,
       occupantsPerUnit: plant.dhw.occupantsPerUnit,
@@ -1018,7 +1078,7 @@ export function designPlant(doc: BimDocument, options: PlantDesignOptions = {}):
       longestBranchContent: plant.dhw.longestBranchContent,
       storageVolume: dhwStorage?.volume,
       generatorCapacity: capacity,
-      singleOrTwoFamilyHouse: plant.dhw.units <= 2,
+      singleOrTwoFamilyHouse: plant.dhw.units <= 2 && indiz <= 2,
     });
     for (const n of dhw.notes) notes.push(n);
     /*
@@ -1749,7 +1809,7 @@ export function buildSchematic(result: PlantDesignResult): {
       COL.outdoor,
       ROW.flow,
       model
-        ? `${result.selected?.capacityAtDesign ?? model.nominalCapacity} kW bei ${result.selected ? 'Auslegung' : model.nominalPoint} · ${model.refrigerant}`
+        ? `${wie(result.selected?.capacityAtDesign ?? model.nominalCapacity)} kW bei ${result.selected ? 'Auslegung' : model.nominalPoint} · ${model.refrigerant}`
         : undefined,
     );
 
@@ -1880,7 +1940,7 @@ export function buildSchematic(result: PlantDesignResult): {
       'Elektro-Heizstab',
       COL.heater,
       ROW.flow,
-      heizstabKw > 0 ? `${heizstabKw.toFixed(1)} kW` : 'Leistung nach Bivalenzpunkt',
+      heizstabKw > 0 ? `${dez(heizstabKw, 1)} kW` : 'Leistung nach Bivalenzpunkt',
     );
     link(vorlauf.c, vorlauf.port, stab, 'in', 'heating-flow');
     vorlauf = { c: stab, port: 'out' };
@@ -1906,7 +1966,7 @@ export function buildSchematic(result: PlantDesignResult): {
      */
     notes.push({
       severity: 'info',
-      text: `„${model.label}“ führt einen Heizstab mit ${heizstabKw.toFixed(1)} kW, eingetragen ist „ohne Heizstab“. Er wird nicht gezeichnet. Ohne ihn deckt das Gerät den Bivalenzpunkt allein ab, und das geforderte Mindestwasservolumen bleibt der volle Wert.`,
+      text: `„${model.label}“ führt einen Heizstab mit ${dez(heizstabKw, 1)} kW, eingetragen ist „ohne Heizstab“. Er wird nicht gezeichnet. Ohne ihn deckt das Gerät den Bivalenzpunkt allein ab, und das geforderte Mindestwasservolumen bleibt der volle Wert.`,
     });
   } else if (!heizstabGewollt && model) {
     notes.push({
@@ -1988,7 +2048,7 @@ export function buildSchematic(result: PlantDesignResult): {
       'Umwälzpumpe',
       COL.heater + 4,
       ROW.flow,
-      `erf. ${result.pump.flow.toFixed(2)} m³/h · ${result.pump.head.toFixed(1)} m`,
+      `erf. ${dez(result.pump.flow, 2)} m³/h · ${dez(result.pump.head, 1)} m`,
     );
     link(vorlauf.c, vorlauf.port, umwaelz, 'in', 'heating-flow');
     vorlauf = { c: umwaelz, port: 'out' };
@@ -2062,16 +2122,16 @@ export function buildSchematic(result: PlantDesignResult): {
       'Sicherheitsventil',
       COL.vlNode - 3,
       ROW.safety,
-      `DN ${result.safety.safetyValve.dn} · ${result.safety.safetyPressure.toFixed(1)} bar`,
+      `DN ${result.safety.safetyValve.dn} · ${dez(result.safety.safetyPressure, 1)} bar`,
     );
     const mag = put(
       'expansion-vessel',
       'Ausdehnungsgefäß',
       COL.vlNode + 1,
       ROW.safety,
-      `${result.safety.selectedVessel} l · p₀ ${result.safety.prePressure.toFixed(1)} bar`,
+      `${result.safety.selectedVessel} l · p₀ ${dez(result.safety.prePressure, 1)} bar`,
     );
-    const gauge = put('pressure-gauge', 'Manometer', COL.vlNode + 5, ROW.safety, `${result.safety.fillPressure.toFixed(1)} bar Fülldruck`);
+    const gauge = put('pressure-gauge', 'Manometer', COL.vlNode + 5, ROW.safety, `${dez(result.safety.fillPressure, 1)} bar Fülldruck`);
     link(vlKnoten, 'north', sv, 'in', 'heating-flow');
     link(vlKnoten, 'north', mag, 'in', 'heating-flow', `Ausdehnungsleitung DN ${result.safety.expansionLine}`);
     link(vlKnoten, 'north', gauge, 'in', 'heating-flow');
@@ -2233,7 +2293,7 @@ export function buildSchematic(result: PlantDesignResult): {
         'Elektro-Heizstab',
         wirt.x + 2,
         wirt.y + 2,
-        heizstabKw > 0 ? `${heizstabKw.toFixed(1)} kW · ${wo}` : wo,
+        heizstabKw > 0 ? `${dez(heizstabKw, 1)} kW · ${wo}` : wo,
       );
     }
   }
@@ -2409,13 +2469,13 @@ export function buildSchematic(result: PlantDesignResult): {
       // Die Beimischung kommt aus dem Anlagenrücklauf — mit Balken von dort,
       // ohne Balken unmittelbar aus der Rücklaufleitung.
       link(rlAn.c, rlAn.port, mix, 'cold', 'heating-return', 'Beimischung');
-      const kp = put('pump', 'Kreispumpe', COL.cpump, row, `${c.flow.toFixed(2)} m³/h`);
+      const kp = put('pump', 'Kreispumpe', COL.cpump, row, `${dez(c.flow, 2)} m³/h`);
       link(mix, 'mixed', kp, 'in', 'heating-flow');
       ab = { c: kp, port: 'out' };
     } else if (getrennt) {
       // Hinter der hydraulischen Trennung braucht auch der ungemischte Kreis
       // seine eigene Pumpe — die Primärpumpe fördert nur bis zum Puffer.
-      const kp = put('pump', 'Kreispumpe', COL.cpump, row, `${c.flow.toFixed(2)} m³/h`);
+      const kp = put('pump', 'Kreispumpe', COL.cpump, row, `${dez(c.flow, 2)} m³/h`);
       link(vlAb.c, vlAb.port, kp, 'in', 'heating-flow', c.pipe.dimension.label);
       ab = { c: kp, port: 'out' };
     }
@@ -2463,7 +2523,7 @@ export function buildSchematic(result: PlantDesignResult): {
         'Verteiler',
         COL.manifold,
         row,
-        `${kreis.loops ?? c.floor?.loops ?? '—'} Kreise · ${kreis.flowTemperature}/${kreis.returnTemperature} °C · ${c.flow.toFixed(2)} m³/h`,
+        `${kreis.loops ?? c.floor?.loops ?? '—'} Kreise · ${kreis.flowTemperature}/${kreis.returnTemperature} °C · ${dez(c.flow, 2)} m³/h`,
       );
       const flaeche = put('floor-loop', kreis.label, COL.terminal, row, c.floor ? `${Math.round(c.floor.totalLength)} m Rohr` : undefined);
       link(absperr, 'out', verteiler, 'flow', 'heating-flow');
@@ -2484,7 +2544,7 @@ export function buildSchematic(result: PlantDesignResult): {
           'Regulierventil',
           COL.mArm,
           row + RUECKLAUF_VERSATZ,
-          `${c.flow.toFixed(2)} m³/h`,
+          `${dez(c.flow, 2)} m³/h`,
         );
         link(verteiler, 'return', regel, 'in', 'heating-return');
         link(regel, 'out', rlAn.c, rlAn.port, 'heating-return', c.pipe.dimension.label);
@@ -2517,7 +2577,7 @@ export function buildSchematic(result: PlantDesignResult): {
       );
       link(ab.c, ab.port, thermostat, 'in', 'heating-flow', anbindung);
 
-      const hk = put('radiator', kreis.label, COL.terminal, row, `${c.load.toFixed(1)} kW · ${kreis.flowTemperature}/${kreis.returnTemperature} °C`);
+      const hk = put('radiator', kreis.label, COL.terminal, row, `${dez(c.load, 1)} kW · ${kreis.flowTemperature}/${kreis.returnTemperature} °C`);
       link(thermostat, 'out', hk, 'flow', 'heating-flow');
 
       const verschraubung = put(

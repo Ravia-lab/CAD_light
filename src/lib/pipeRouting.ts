@@ -470,7 +470,7 @@ const LAIBUNGSABSTAND = 0.04;
 const WURZEL2 = Math.SQRT2;
 
 function de(value: number, digits = 2): string {
-  return value.toFixed(digits).replace('.', ',');
+  return value.toFixed(digits).replace('.', ',').replace(/^-/, '−');
 }
 
 function round(value: number, digits: number): number {

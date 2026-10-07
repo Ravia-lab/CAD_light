@@ -872,7 +872,11 @@ export function erzeugerBilanz(e: BilanzEingabe): Erzeugerbilanz {
       art: 'generator',
       label: e.model?.label ?? 'Wärmeerzeuger',
       druck,
-      grundlage: `${kpa(h.wert)} kPa bei ${m3h(h.bezugsvolumenstrom)} m³/h, skaliert auf ${m3h(flow)} m³/h mit n = ${h.exponent.toLocaleString('de-DE')}`,
+      // Liegt der Auslegungspunkt auf dem Bezugspunkt, gibt es nichts zu skalieren.
+      grundlage:
+        m3h(h.bezugsvolumenstrom) === m3h(flow)
+          ? `${kpa(h.wert)} kPa bei ${m3h(h.bezugsvolumenstrom)} m³/h, am Auslegungspunkt übernommen`
+          : `${kpa(h.wert)} kPa bei ${m3h(h.bezugsvolumenstrom)} m³/h, skaliert auf ${m3h(flow)} m³/h mit n = ${h.exponent.toLocaleString('de-DE')}`,
       herkunft: h.herkunft,
       quelle: `${h.herstellerbegriff} — ${h.quelle}`,
     });

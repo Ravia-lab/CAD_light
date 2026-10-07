@@ -164,8 +164,10 @@ export interface HeatLoadEstimate {
   specific: number;
   /** Norm-Außentemperatur, mit der gerechnet wurde [°C]. */
   designOutdoor: number;
-  /** Einordnung der Kennzahl in bekannte Baualtersklassen. */
+  /** Einordnung der Kennzahl in bekannte Baualtersklassen, mit der Kennzahl vorn („109 W/m² — unsaniert. …"). */
   klassifizierung: string;
+  /** Dieselbe Einordnung ohne die Kennzahl — für Stellen, an denen die Zahl schon daneben steht. */
+  einordnung: string;
   /**
    * Namen der Räume, in denen mindestens ein Bauteil ohne U-Wert steckt.
    *
@@ -467,6 +469,7 @@ export function estimateHeatLoad(doc: BimDocument): HeatLoadEstimate {
     specific,
     designOutdoor: doc.meta.designOutdoorTemperature,
     klassifizierung: classify(specific, unvollstaendigeRaeume.length === 0),
+    einordnung: classify(specific, unvollstaendigeRaeume.length === 0).replace(/^\S+ W\/m² — /, ''),
     unvollstaendigeRaeume,
     vollstaendig: unvollstaendigeRaeume.length === 0,
   };

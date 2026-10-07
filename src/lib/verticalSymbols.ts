@@ -15,6 +15,7 @@
  * dicht schraffiert.
  */
 
+import { dez } from './zahl';
 import type {
   BimDocument,
   PipeAccessory,
@@ -706,7 +707,7 @@ export function drawRoofOpening(
   if (zoom > 26) {
     const label = isSkylight
       ? `${(opening.width * 100).toFixed(0)}×${(opening.depth * 100).toFixed(0)}`
-      : `${(opening.frontHeight ?? 0).toFixed(2)} m`;
+      : `${dez((opening.frontHeight ?? 0), 2)} m`;
     ctx.font = '9px ui-monospace, monospace';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';

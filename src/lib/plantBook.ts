@@ -543,15 +543,8 @@ function chapterLimits(options: PlantBookOptions): string {
           'hydraulischen Abgleich Verfahren B und für eine Gewährleistungszusage reicht er nicht.',
       ),
     );
-    if (design.estimate) {
-      parts.push(
-        paragraph(
-          `Zur Einordnung: ${de(design.estimate.specific, 0)} W/m² bezogen auf ${de(design.estimate.heatedArea, 1)} m² ` +
-            `beheizte Fläche — ${design.estimate.klassifizierung}. Weicht diese Kennzahl vom Baujahr des ` +
-            'Gebäudes deutlich ab, stimmt eine Eingangsgröße nicht.',
-        ),
-      );
-    }
+    // Die Einordnung der spezifischen Heizlast steht in der Kennwerttabelle
+    // darunter (seit 1.75.0 nur dort; vorher zusätzlich als Absatz hier).
   }
 
   parts.push(heading('Gerätekatalog'));
@@ -958,7 +951,9 @@ function chapterBuilding(options: PlantBookOptions, rows: readonly RoomRow[]): s
       ? {
           label: 'Spezifische Heizlast',
           value: `${de(design.estimate.specific, 1)} W/m²`,
-          note: design.estimate.klassifizierung,
+          note:
+            `Bezogen auf ${de(design.estimate.heatedArea, 1)} m² beheizte Fläche: ${design.estimate.einordnung} ` +
+            'Weicht die Kennzahl deutlich vom Baujahr ab, stimmt eine Eingangsgröße nicht.',
         }
       : undefined,
     design.estimate
@@ -1037,7 +1032,7 @@ function generatorFacts(design: PlantDesignResult, model: HeatPumpModel, capacit
       note:
         model.provenance === 'hersteller'
           ? 'Werte aus dem Datenblatt; zwischen den Punkten wird interpoliert.'
-          : 'Bereichswerte marktüblicher Geräte. Zum Vordimensionieren, nicht zum Bestellen.',
+          : 'Bereichswerte marktüblicher Geräte, kein Datenblatt — was daraus folgt, steht in Kapitel 1.',
     },
     {
       label: 'Nennheizleistung',
@@ -1936,8 +1931,13 @@ function collectNotes(design: PlantDesignResult): CollectedNote[] {
   push('Auslegung', design.notes);
   for (const circuit of design.circuits) {
     push(`Heizkreis ${circuit.circuit.label}`, circuit.notes);
-    push(`Heizkreis ${circuit.circuit.label}`, circuit.floor?.notes);
-    for (const room of circuit.rooms ?? []) push(`Raum ${room.name}`, room.notes);
+    /*
+     * Raumweise ausgelegte Kreise: Die Hinweise der Räume stehen schon in
+     * denen des Kreises (mit dem Raumnamen vorn, gleichartige seit 1.75.0
+     * zusammengefasst). Die Kreissumme `floor` dient nur dem Überblick —
+     * ihre Hinweise beschreiben einen Kreis, der so nicht gebaut wird.
+     */
+    if (!circuit.rooms?.length) push(`Heizkreis ${circuit.circuit.label}`, circuit.floor?.notes);
   }
   push('Pumpe', design.pump?.notes);
   push('Trinkwasser', design.dhw?.notes);
@@ -2083,7 +2083,11 @@ function checklistItems(design: PlantDesignResult): ChecklistItem[] {
       {
         task: 'Speichertemperatur und Legionellenschaltung eingestellt',
         field: `ϑ = ______ °C`,
-        note: `Maßgebend ${de(design.dhw.legionella.requiredStorageTemperature, 0)} °C — ${design.dhw.legionellaReason}`,
+        // Die Begründung der Einstufung steht im Kapitel Trinkwasser; die
+        // Checkliste nennt nur, was am Regler einzustellen ist.
+        note: `Maßgebend ${de(design.dhw.legionella.requiredStorageTemperature, 0)} °C (${
+          design.dhw.legionella.regime === 'großanlage' ? 'Großanlage' : 'Kleinanlage'
+        } nach DVGW W 551, Begründung im Kapitel „Speicher und Trinkwasser")`,
       },
     );
   }

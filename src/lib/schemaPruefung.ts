@@ -39,6 +39,7 @@
  * auszugeben wäre der schlimmere Fehler.
  */
 
+import { dez } from './zahl';
 import type {
   PipeService,
   PlantDefinition,
@@ -315,7 +316,7 @@ export function pruefeSchema(eingabe: SchemaPruefEingabe): SchemaBefund[] {
         `Ein Überströmventil sichert den Mindestvolumenstrom, es schafft kein Anlagenvolumen: beim Abtauen ` +
         `entnimmt die Wärmepumpe die Energie dem Wasserinhalt, und der ist hier nicht vorhanden. ` +
         `Richtig ist eines von beiden — Anlagenvolumen über einen Reihenpuffer im Rücklauf nachweisen ` +
-        `(Richtwert 3–5 l/kW, hier rund ${Math.round(leistung * 3)}–${Math.round(leistung * 5)} l bei ${leistung.toFixed(1)} kW) ` +
+        `(Richtwert 3–5 l/kW, hier rund ${Math.round(leistung * 3)}–${Math.round(leistung * 5)} l bei ${dez(leistung, 1)} kW) ` +
         `oder hydraulisch trennen. Das Ventil bleibt dann als Sicherung des Mindestvolumenstroms, nicht als Ersatz für den Inhalt.`,
       beleg: QUELLE.vdz.text,
       url: QUELLE.vdz.url,
@@ -395,7 +396,7 @@ export function pruefeSchema(eingabe: SchemaPruefEingabe): SchemaBefund[] {
         `${Math.round(mindestVolumen)} l` +
         (mindestNachDatenblatt > mindestNachFaustregel
           ? ` nach Gerätedatenblatt (${Math.round(mindestNachDatenblatt)} l)`
-          : ` nach der Faustregel 3 l/kW bei ${leistung.toFixed(1)} kW`) +
+          : ` nach der Faustregel 3 l/kW bei ${dez(leistung, 1)} kW`) +
         `. Es fehlen ${fehlend} l. ` +
         (speicherVorhanden
           ? `Der vorhandene Speicher reicht nicht aus — Volumen vergrößern.`
@@ -695,7 +696,7 @@ export function pruefeSchema(eingabe: SchemaPruefEingabe): SchemaBefund[] {
         `Luft. Richtig: Gefäß an der Ausdehnungsleitung, davor eine gegen unbeabsichtigtes Schließen gesicherte ` +
         `Absperrung (Kappenventil) mit Entleerung — zwischen Erzeuger und Gefäß darf keine absperrbare Armatur liegen.` +
         (auslegung.safety
-          ? ` Die Auslegung nennt ${auslegung.safety.selectedVessel} l mit ${auslegung.safety.prePressure.toFixed(1)} bar Vordruck.`
+          ? ` Die Auslegung nennt ${auslegung.safety.selectedVessel} l mit ${dez(auslegung.safety.prePressure, 1)} bar Vordruck.`
           : ''),
       beleg: QUELLE.din12828.text,
       url: QUELLE.din12828.url,

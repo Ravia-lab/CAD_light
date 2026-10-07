@@ -13,6 +13,7 @@ import { EXPORT_FASSUNG } from '../src/lib/raviaExport';
 import { pruefeRohrlaengen } from './pruefungen/rohrlaengen';
 import { pruefeAbgleich2026 } from './pruefungen/abgleich2026';
 import { pruefePraxispruefung } from './pruefungen/praxispruefung';
+import { pruefeMappenhygiene } from './pruefungen/mappenhygiene';
 import { pruefeScandienst } from './pruefungen/scandienst';
 import type { BimDocument, BimNode, HeatPump, Opening, Wall } from '../src/types/bim';
 import { applyVerticalDeductions, detectRooms, findOpenEnds } from '../src/lib/roomDetection';
@@ -4076,6 +4077,8 @@ pruefeSchichtgrenze(check);
 pruefeRohrlaengen(check);
 pruefeAbgleich2026(check);
 pruefePraxispruefung(check);
+console.log('\n▸ Mappenhygiene — Sätze, Zahlen, Einheiten (1.75.0)');
+pruefeMappenhygiene(check);
 
 console.log('\n▸ Exportvertrag — jeder gebaute Export gegen ravia-vertrag/schema (Festlegung F6)');
 {

@@ -17,6 +17,7 @@
  * worauf sie sich verlassen kann.
  */
 
+import { dez, wie } from './zahl';
 import { heizleistung } from './normleistung';
 import type { BimDocument, ValidationIssue, ValidationReport, Vec2 } from '../types/bim';
 import { distance } from './geometry';
@@ -380,7 +381,7 @@ export function validateModel(doc: BimDocument): ValidationReport {
     }
     const length = distance(a, b);
     if (length < 0.05) {
-      add('error', 'wall.degenerate', `Wand ist nur ${(length * 100).toFixed(1)} cm lang.`, {
+      add('error', 'wall.degenerate', `Wand ist nur ${dez((length * 100), 1)} cm lang.`, {
         kind: 'wall',
         id: wall.id,
       });
@@ -445,7 +446,7 @@ export function validateModel(doc: BimDocument): ValidationReport {
     //     für eine Wand. Genau hier lohnt das Hinsehen.
     //   · über der Obergrenze: wie bisher.
     if (wall.height < MINDEST_BAUTEILHOEHE) {
-      add('warning', 'wall.implausible-height', `Wandhöhe ${wall.height.toFixed(2)} m ist zu gering für ein Bauteil.`, {
+      add('warning', 'wall.implausible-height', `Wandhöhe ${dez(wall.height, 2)} m ist zu gering für ein Bauteil.`, {
         kind: 'wall',
         id: wall.id,
       });
@@ -453,11 +454,11 @@ export function validateModel(doc: BimDocument): ValidationReport {
       add(
         'warning',
         'wall.implausible-height',
-        `Wandhöhe ${wall.height.toFixed(2)} m liegt zwischen Brüstung und Wand.`,
+        `Wandhöhe ${dez(wall.height, 2)} m liegt zwischen Brüstung und Wand.`,
         { kind: 'wall', id: wall.id },
       );
     } else if (wall.height > LIMITS.maxRoomHeight) {
-      add('warning', 'wall.implausible-height', `Wandhöhe ${wall.height.toFixed(2)} m ist unplausibel.`, {
+      add('warning', 'wall.implausible-height', `Wandhöhe ${dez(wall.height, 2)} m ist unplausibel.`, {
         kind: 'wall',
         id: wall.id,
       });
@@ -479,7 +480,7 @@ export function validateModel(doc: BimDocument): ValidationReport {
       add(
         'error',
         'opening.too-wide',
-        `Öffnung ist mit ${op.width.toFixed(2)} m breiter als die ${wallLength.toFixed(2)} m lange Wand.`,
+        `Öffnung ist mit ${dez(op.width, 2)} m breiter als die ${dez(wallLength, 2)} m lange Wand.`,
         { kind: 'opening', id: op.id },
       );
     }
@@ -487,7 +488,7 @@ export function validateModel(doc: BimDocument): ValidationReport {
       add(
         'error',
         'opening.too-tall',
-        `Öffnung reicht mit ${(op.sillHeight + op.height).toFixed(2)} m über die Wandhöhe von ${wall.height.toFixed(2)} m hinaus.`,
+        `Öffnung reicht mit ${dez((op.sillHeight + op.height), 2)} m über die Wandhöhe von ${dez(wall.height, 2)} m hinaus.`,
         { kind: 'opening', id: op.id },
       );
     }
@@ -579,7 +580,7 @@ export function validateModel(doc: BimDocument): ValidationReport {
         add(
           'warning',
           'durchbruch.oversize',
-          `${db.name} nimmt mit ${breite.toFixed(2)} m mehr als ein Viertel der ${wandLaenge.toFixed(2)} m langen Wand ein.`,
+          `${db.name} nimmt mit ${dez(breite, 2)} m mehr als ein Viertel der ${dez(wandLaenge, 2)} m langen Wand ein.`,
           { kind: 'durchbruch', id: db.id },
         );
       }
@@ -613,7 +614,7 @@ export function validateModel(doc: BimDocument): ValidationReport {
   // --- Räume --------------------------------------------------------------
   for (const room of rooms) {
     if (room.area < LIMITS.minRoomArea) {
-      add('warning', 'room.tiny', `Raum „${room.name}" hat nur ${room.area.toFixed(2)} m².`, {
+      add('warning', 'room.tiny', `Raum „${room.name}" hat nur ${dez(room.area, 2)} m².`, {
         kind: 'room',
         id: room.id,
       });
@@ -627,7 +628,7 @@ export function validateModel(doc: BimDocument): ValidationReport {
       );
     }
     if (room.height < LIMITS.minRoomHeight || room.height > LIMITS.maxRoomHeight) {
-      add('warning', 'room.implausible-height', `Raumhöhe ${room.height.toFixed(2)} m ist unplausibel.`, {
+      add('warning', 'room.implausible-height', `Raumhöhe ${dez(room.height, 2)} m ist unplausibel.`, {
         kind: 'room',
         id: room.id,
       });
@@ -686,7 +687,7 @@ export function validateModel(doc: BimDocument): ValidationReport {
     add(
       'warning',
       'project.outdoor-temperature',
-      `Norm-Außentemperatur ${meta.designOutdoorTemperature} °C — in Deutschland liegt sie zwischen −10 und −16 °C.`,
+      `Norm-Außentemperatur ${wie(meta.designOutdoorTemperature)} °C — in Deutschland liegt sie zwischen −10 und −16 °C.`,
     );
   }
   if (meta.n50 <= 0 || meta.n50 > LIMITS.maxN50) {
@@ -741,8 +742,8 @@ export function validateModel(doc: BimDocument): ValidationReport {
         'warning',
         'level.below-grade-no-ground',
         terrain === undefined
-          ? `${level.name} liegt bei ${level.elevation.toFixed(2)} m und damit unter dem Bezugsniveau, aber im Projekt ist keine Geländeoberkante erfasst. Alle Wände dieses Geschosses werden gegen Außenluft gerechnet.`
-          : `${level.name} liegt bei ${level.elevation.toFixed(2)} m, die Geländeoberkante bei ${terrain.toFixed(2)} m — keine einzige Wand dieses Geschosses berührt damit Erdreich.`,
+          ? `${level.name} liegt bei ${dez(level.elevation, 2)} m und damit unter dem Bezugsniveau, aber im Projekt ist keine Geländeoberkante erfasst. Alle Wände dieses Geschosses werden gegen Außenluft gerechnet.`
+          : `${level.name} liegt bei ${dez(level.elevation, 2)} m, die Geländeoberkante bei ${dez(terrain, 2)} m — keine einzige Wand dieses Geschosses berührt damit Erdreich.`,
       );
     }
 
@@ -754,7 +755,7 @@ export function validateModel(doc: BimDocument): ValidationReport {
         add(
           'warning',
           'level.embedment-exceeds-height',
-          `Einbindetiefe von ${level.name} ist ${embedment.toFixed(2)} m und damit größer als die Geschosshöhe (${level.height.toFixed(2)} m).`,
+          `Einbindetiefe von ${level.name} ist ${dez(embedment, 2)} m und damit größer als die Geschosshöhe (${dez(level.height, 2)} m).`,
         );
       }
     }
@@ -794,7 +795,7 @@ export function validateModel(doc: BimDocument): ValidationReport {
         add(
           'info',
           'opening.below-grade',
-          `Fensterbrüstung liegt ${(terrain - sill).toFixed(2)} m unter Gelände — das setzt einen Lichtschacht voraus.`,
+          `Fensterbrüstung liegt ${dez((terrain - sill), 2)} m unter Gelände — das setzt einen Lichtschacht voraus.`,
           { kind: 'opening', id: op.id },
         );
       }
@@ -826,7 +827,7 @@ export function validateModel(doc: BimDocument): ValidationReport {
       add(
         'info',
         'project.thermal-bridges-low',
-        `Die Wärmebrückenbilanz entspricht ΔU_WB = ${(detailed / area).toFixed(3)} W/(m²·K) und liegt damit unter Kategorie B — bitte die ψ-Werte gegenprüfen.`,
+        `Die Wärmebrückenbilanz entspricht ΔU_WB = ${dez((detailed / area), 3)} W/(m²·K) und liegt damit unter Kategorie B — bitte die ψ-Werte gegenprüfen.`,
       );
     }
   }
@@ -853,7 +854,7 @@ export function validateModel(doc: BimDocument): ValidationReport {
         add(
           'error',
           'ventilation.recovery-range',
-          `Wärmerückgewinnungsgrad ${(system.heatRecovery * 100).toFixed(0)} % ist nicht erreichbar — Geräte liegen bei 70 bis 90 %.`,
+          `Wärmerückgewinnungsgrad ${dez((system.heatRecovery * 100), 0)} % ist nicht erreichbar — Geräte liegen bei 70 bis 90 %.`,
         );
       }
 
@@ -1030,14 +1031,14 @@ export function validateModel(doc: BimDocument): ValidationReport {
           add(
             'error',
             'heatpump.noise-exceeded',
-            `${pump.label}: am Immissionsort „${point.label}" werden nachts ${point.level.toFixed(1)} dB(A) erreicht, zulässig sind ${point.limit}. Nötig wären ${report.limitDistance.toFixed(1)} m Abstand.`,
+            `${pump.label}: am Immissionsort „${point.label}" werden nachts ${dez(point.level, 1)} dB(A) erreicht, zulässig sind ${point.limit}. Nötig wären ${dez(report.limitDistance, 1)} m Abstand.`,
             { kind: 'heatpump', id: pump.id },
           );
         } else if (point.verdict === 'tight') {
           add(
             'warning',
             'heatpump.noise-tight',
-            `${pump.label}: der Richtwert ist am Immissionsort „${point.label}" eingehalten, aber ohne die üblichen 6 dB Reserve (${point.level.toFixed(1)} von ${point.limit} dB(A)).`,
+            `${pump.label}: der Richtwert ist am Immissionsort „${point.label}" eingehalten, aber ohne die üblichen 6 dB Reserve (${dez(point.level, 1)} von ${point.limit} dB(A)).`,
             { kind: 'heatpump', id: pump.id },
           );
         }
@@ -1073,11 +1074,11 @@ export function validateModel(doc: BimDocument): ValidationReport {
             : issue.kind === 'ignition'
               ? 'heatpump.protection-zone-ignition'
               : 'heatpump.protection-zone';
-        const hoehe = issue.hoehe === undefined ? '' : `, Unterkante ${issue.hoehe.toFixed(2)} m über ±0,00`;
+        const hoehe = issue.hoehe === undefined ? '' : `, Unterkante ${dez(issue.hoehe, 2)} m über ±0,00`;
         add(
           'error',
           code,
-          `${pump.label}: ${issue.label} liegt mit ${issue.distance.toFixed(2)} m im Schutzbereich (${issue.required.toFixed(2)} m) des brennbaren Kältemittels${hoehe}.`,
+          `${pump.label}: ${issue.label} liegt mit ${dez(issue.distance, 2)} m im Schutzbereich (${dez(issue.required, 2)} m) des brennbaren Kältemittels${hoehe}.`,
           { kind: 'heatpump', id: pump.id },
         );
       }
@@ -1126,7 +1127,7 @@ export function validateModel(doc: BimDocument): ValidationReport {
         add(
           'warning',
           'heatpump.source-short',
-          `${pump.label}: die gezeichnete Wärmequelle deckt den Bedarf noch nicht (${demand.extraction.toFixed(1)} kW Entzugsleistung).`,
+          `${pump.label}: die gezeichnete Wärmequelle deckt den Bedarf noch nicht (${dez(demand.extraction, 1)} kW Entzugsleistung).`,
           { kind: 'heatpump', id: pump.id },
         );
       }
@@ -1165,7 +1166,7 @@ export function validateModel(doc: BimDocument): ValidationReport {
       add(
         'warning',
         'site.well-distance',
-        `Förder- und Schluckbrunnen liegen nur ${distance.toFixed(1)} m auseinander — üblich sind mindestens 15 m in Grundwasserfließrichtung, sonst kühlt sich die Quelle selbst aus.`,
+        `Förder- und Schluckbrunnen liegen nur ${dez(distance, 1)} m auseinander — üblich sind mindestens 15 m in Grundwasserfließrichtung, sonst kühlt sich die Quelle selbst aus.`,
         { kind: 'site', id: injection.id },
       );
     }
@@ -1311,9 +1312,9 @@ export function validateModel(doc: BimDocument): ValidationReport {
             add(
               z.urteil === 'passt-nicht' ? 'warning' : 'info',
               'plant.load-crosscheck',
-              `Die Heizlast ${z.probe.bezeichnung} liegt bei ${z.probe.wert.toFixed(2)} kW — ` +
-                `${z.abweichung > 0 ? '+' : ''}${z.abweichung.toFixed(1)} % gegenüber dem Überschlag aus der ` +
-                `Gebäudehülle (${proben.ueberschlag.toFixed(2)} kW). ${z.probe.rechenweg}`,
+              `Die Heizlast ${z.probe.bezeichnung} liegt bei ${dez(z.probe.wert, 2)} kW — ` +
+                `${z.abweichung > 0 ? '+' : ''}${dez(z.abweichung, 1)} % gegenüber dem Überschlag aus der ` +
+                `Gebäudehülle (${dez(proben.ueberschlag, 2)} kW). ${z.probe.rechenweg}`,
             );
           }
         }
@@ -1363,7 +1364,7 @@ export function validateModel(doc: BimDocument): ValidationReport {
           add(
             'error',
             'plant.static-height',
-            `Bei ${plant.safety.staticHeight.toFixed(1)} m statischer Höhe bleibt zwischen Vordruck und Enddruck kein Raum für das Ausdehnungsvolumen. Ansprechdruck erhöhen oder das Gefäß tiefer setzen.`,
+            `Bei ${dez(plant.safety.staticHeight, 1)} m statischer Höhe bleibt zwischen Vordruck und Enddruck kein Raum für das Ausdehnungsvolumen. Ansprechdruck erhöhen oder das Gefäß tiefer setzen.`,
           );
         }
         /*
@@ -1397,7 +1398,7 @@ export function validateModel(doc: BimDocument): ValidationReport {
             add(
               'error',
               'plant.bivalence-shortfall',
-              `Der zweite Wärmeerzeuger ist zu klein: Am Auslegungspunkt muss er ${b.ergebnis.leistungZweiterzeuger.toFixed(2)} kW tragen, eingetragen sind ${b.ergebnis.leistungVorhanden.toFixed(2)} kW — es fehlen ${b.ergebnis.leistungFehlt.toFixed(2)} kW.` +
+              `Der zweite Wärmeerzeuger ist zu klein: Am Auslegungspunkt muss er ${dez(b.ergebnis.leistungZweiterzeuger, 2)} kW tragen, eingetragen sind ${dez(b.ergebnis.leistungVorhanden, 2)} kW — es fehlen ${dez(b.ergebnis.leistungFehlt, 2)} kW.` +
                 (b.ergebnis.betrieb === 'bivalent-alternativ' || b.ergebnis.betrieb === 'bivalent-teilparallel'
                   ? ' Bei dieser Fahrweise trägt er unter dem Abschaltpunkt die ganze Norm-Heizlast und nicht nur die Spitze.'
                   : ''),
@@ -1567,7 +1568,7 @@ export function validateModel(doc: BimDocument): ValidationReport {
       add(
         'error',
         'roof.collar',
-        `Kehlbalken über ${level.name} liegt bei ${roof.collarHeight.toFixed(2)} m und damit nicht über dem Kniestock (${roof.kneeHeight.toFixed(2)} m).`,
+        `Kehlbalken über ${level.name} liegt bei ${dez(roof.collarHeight, 2)} m und damit nicht über dem Kniestock (${dez(roof.kneeHeight, 2)} m).`,
       );
     }
 
@@ -1648,7 +1649,7 @@ export function validateModel(doc: BimDocument): ValidationReport {
       add(
         'info',
         'roof.low-room',
-        `${r.name}: nach WoFlV zählen nur ${r.roof!.livingArea.toFixed(2)} von ${r.area.toFixed(2)} m² — der Raum liegt überwiegend unter 2,00 m.`,
+        `${r.name}: nach WoFlV zählen nur ${dez(r.roof!.livingArea, 2)} von ${dez(r.area, 2)} m² — der Raum liegt überwiegend unter 2,00 m.`,
         { kind: 'room', id: r.id },
       );
     }

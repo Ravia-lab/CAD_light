@@ -26,6 +26,7 @@
  * Stelle. Siehe den Abschnitt „Diagnose" am Dateiende.
  */
 
+import { dez } from './zahl';
 import type {
   BimNode,
   BoundaryCondition,
@@ -1904,7 +1905,7 @@ function findGaps(cycle: Vec2[], segments: HealedSegment[]): ClosureIssue[] {
       ),
       message:
         `Zwischen den Wandenden bei ${fmt(p.x)} / ${fmt(p.y)} und ${fmt(q.x)} / ${fmt(q.y)} klafft eine ` +
-        `Lücke von ${c.distance.toFixed(2)} m. Die Fläche dahinter (${c.area.toFixed(2)} m²) steht damit mit ` +
+        `Lücke von ${dez(c.distance, 2)} m. Die Fläche dahinter (${dez(c.area, 2)} m²) steht damit mit ` +
         `dem Außenbereich in Verbindung und wird nicht als Raum geführt.`,
     });
   }
@@ -1982,7 +1983,7 @@ function findOverlaps(segments: HealedSegment[]): ClosureIssue[] {
         measure: overlap,
         wallIds: [si.wall.id, sj.wall.id],
         message:
-          `Zwei Wände liegen bei ${fmt(mid.x)} / ${fmt(mid.y)} auf ${overlap.toFixed(2)} m Länge übereinander. ` +
+          `Zwei Wände liegen bei ${fmt(mid.x)} / ${fmt(mid.y)} auf ${dez(overlap, 2)} m Länge übereinander. ` +
           `Aufmaß und Hüllfläche zählen diese Länge doppelt.`,
       });
     }
@@ -1995,7 +1996,7 @@ const perpendicularOffset = (p: Vec2, origin: Vec2, dir: Vec2): number =>
   (p.x - origin.x) * dir.y - (p.y - origin.y) * dir.x;
 
 /** Koordinate für die Meldung — zwei Nachkommastellen reichen zum Wiederfinden. */
-const fmt = (n: number): string => n.toFixed(2);
+const fmt = (n: number): string => dez(n, 2);
 
 /**
  * Kleine Maße in Millimeter, große in Zentimeter.
@@ -2004,4 +2005,4 @@ const fmt = (n: number): string => n.toFixed(2);
  * geht es bei einer nicht geschlossenen Fuge aber meistens.
  */
 const cm = (m: number): string =>
-  m < 0.01 ? `${(m * 1000).toFixed(0)} mm` : m < 1 ? `${(m * 100).toFixed(1)} cm` : `${m.toFixed(2)} m`;
+  m < 0.01 ? `${dez((m * 1000), 0)} mm` : m < 1 ? `${dez((m * 100), 1)} cm` : `${dez(m, 2)} m`;

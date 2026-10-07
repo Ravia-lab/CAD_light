@@ -336,8 +336,8 @@ export function pruefeRaumerkennung(check: CheckFn): void {
   check('… und der Fläche dahinter, Achsmaß', flaecheVon(befundeOffen), 4.1265 + 9.46275, 0.001);
   check(
     'Die Meldung nennt Ort und Folge im Klartext',
-    meldung(befundeOffen, 'gap').includes('3.50 / 5.75') &&
-      meldung(befundeOffen, 'gap').includes('1.50 m') &&
+    meldung(befundeOffen, 'gap').includes('3,50 / 5,75') &&
+      meldung(befundeOffen, 'gap').includes('1,50 m') &&
       meldung(befundeOffen, 'gap').includes('nicht als Raum'),
     true,
   );
@@ -392,7 +392,7 @@ export function pruefeRaumerkennung(check: CheckFn): void {
   check('8 cm Spalt: kein Raum mehr', raeume(spalt).length, 0);
   const befundeSpalt = diagnoseClosure({ walls: spalt.walls, nodes: spalt.nodes });
   check('8 cm Spalt: zwei offene Wandenden', nurArt(befundeSpalt, 'open-end').length, 2);
-  check('… beide Meldungen nennen den Abstand zur nächsten Wand', inJederMeldung(befundeSpalt, 'open-end', '8.0 cm'), true);
+  check('… beide Meldungen nennen den Abstand zur nächsten Wand', inJederMeldung(befundeSpalt, 'open-end', '8,0 cm'), true);
 
   // -- 4. T-Stoß ohne Teilung ----------------------------------------------
   //

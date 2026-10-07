@@ -3,6 +3,8 @@
  * Sie ist das, was einen Ausdruck überprüfbar macht: wer nachmisst, sieht
  * sofort, ob der Drucker skaliert hat.
  */
+import { dez } from './zahl';
+
 export function drawableScaleBar(x: number, y: number, scale: number): string {
   // Segmentlänge in Metern so wählen, dass die Leiste rund 40 mm lang wird.
   const target = (40 * scale) / 1000;
@@ -17,15 +19,11 @@ export function drawableScaleBar(x: number, y: number, scale: number): string {
         `fill="${i % 2 ? '#FFFFFF' : '#0F172A'}" stroke="#0F172A" stroke-width="0.15"/>`,
     );
     parts.push(
-      `<text x="${(x + i * mm).toFixed(2)}" y="${(y + 5).toFixed(2)}" font-size="2.2" text-anchor="middle" fill="#475569">${(
-        i * step
-      ).toFixed(step < 1 ? 1 : 0)}</text>`,
+      `<text x="${(x + i * mm).toFixed(2)}" y="${(y + 5).toFixed(2)}" font-size="2.2" text-anchor="middle" fill="#475569">${dez(i * step, step < 1 ? 1 : 0)}</text>`,
     );
   }
   parts.push(
-    `<text x="${(x + 4 * mm).toFixed(2)}" y="${(y + 5).toFixed(2)}" font-size="2.2" text-anchor="middle" fill="#475569">${(
-      4 * step
-    ).toFixed(step < 1 ? 1 : 0)} m</text>`,
+    `<text x="${(x + 4 * mm).toFixed(2)}" y="${(y + 5).toFixed(2)}" font-size="2.2" text-anchor="middle" fill="#475569">${dez(4 * step, step < 1 ? 1 : 0)} m</text>`,
   );
   return `<g>${parts.join('')}</g>`;
 }

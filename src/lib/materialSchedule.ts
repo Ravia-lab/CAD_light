@@ -1579,12 +1579,21 @@ function collectDurchbrueche(doc: BimDocument, sheet: Sheet, notes: MaterialNote
   notes.push({
     severity: 'info',
     text:
-      `${durchbrueche.length} Durchbrüche im Modell, davon ${geschottet} mit Brandschutzanforderung. ` +
+      `${durchbrueche.length} Durchbrüche im Modell` +
+      (geschottet > 0 ? `, davon ${geschottet} mit Brandschutzanforderung. ` : '. ') +
       'Die Maße sind lichte Maße. Ob die angegebene Bohrkrone reicht, hängt an der Dämmstärke der ' +
       'durchgeführten Leitung — bei Vollmaßdämmung ist die nächstgrößere anzusetzen. Eine Kernbohrung ' +
       'in einer tragenden Wand ist nachweispflichtig; dieser Auszug erbringt den Nachweis nicht.',
   });
 }
+
+/**
+ * Der Satz, der jeder Liste mitgegeben wird. Exportiert, weil die
+ * Projektmappe dasselbe schon im Vorspann des Kapitels sagt und den Hinweis
+ * dort weglässt.
+ */
+export const MENGEN_STATT_PREISE =
+  'Die Liste führt Mengen, keine Preise. Verschnitt, Befestigung, Kleinteile und Montagezeit sind nicht enthalten und in der Kalkulation zuzuschlagen.';
 
 function collectBuildingParts(doc: BimDocument, sheet: Sheet, notes: MaterialNote[]): void {
   const constructions = constructionIndex(doc);
@@ -1930,7 +1939,7 @@ export function buildMaterialSchedule(doc: BimDocument, plan?: PlantDesignResult
 
   notes.push({
     severity: 'info',
-    text: 'Die Liste führt Mengen, keine Preise. Verschnitt, Befestigung, Kleinteile und Montagezeit sind nicht enthalten und in der Kalkulation zuzuschlagen.',
+    text: MENGEN_STATT_PREISE,
   });
 
   return {

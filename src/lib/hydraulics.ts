@@ -47,7 +47,7 @@ export const GRAVITY = 9.80665;
 
 /** Deutsche Zahlschreibweise für Beschriftungen: Dezimalkomma statt Punkt. */
 function de(value: number): string {
-  return String(value).replace('.', ',');
+  return String(value).replace('.', ',').replace(/^-/, '−');
 }
 
 function round(value: number, digits: number): number {

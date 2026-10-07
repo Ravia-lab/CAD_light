@@ -28,6 +28,7 @@
  *  • VO (EU) 2024/573 — GWP-Werte (AR4/AR5-Basis je nach Anhang)
  */
 
+import { dez, wie } from './zahl';
 import type {
   DeviceRatingPoint,
   HeatPumpModel,
@@ -868,12 +869,10 @@ export function matchModels(
       reason =
         coverage > 1.45
           ? `Deckt ${Math.round(coverage * 100)} % der Heizlast — taktet im Teillastbetrieb.`
-          : `Deckt ${Math.round(coverage * 100)} % der Heizlast bei ${designTemperature} °C.`;
+          : `Deckt ${Math.round(coverage * 100)} % der Heizlast bei ${wie(designTemperature)} °C.`;
     } else if (coverage >= 0.75 && allowBackup) {
       verdict = 'knapp';
-      reason = `Deckt ${Math.round(coverage * 100)} %; die Restleistung von ${
-        Math.round((heatLoad - capacityAtDesign) * 10) / 10
-      } kW muss der Heizstab liefern.`;
+      reason = `Deckt ${Math.round(coverage * 100)} %; die Restleistung von ${dez(heatLoad - capacityAtDesign, 1)} kW muss der Heizstab liefern.`;
     } else {
       verdict = 'zu klein';
       reason = `Deckt nur ${Math.round(coverage * 100)} % der Heizlast.`;

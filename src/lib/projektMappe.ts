@@ -55,13 +55,14 @@ import { buildPipeReportSheets } from './pipeReportPrint';
 import { buildPlanSvg } from './planPrint';
 import { buildSchematicSvg } from './schematicPrint';
 import { buildPlantBook } from './plantBook';
-import { buildMaterialSchedule, herkunftsBasis, PFLICHTARMATUR_HERKUNFT, type MaterialItem } from './materialSchedule';
+import { buildMaterialSchedule, herkunftsBasis, MENGEN_STATT_PREISE, PFLICHTARMATUR_HERKUNFT, type MaterialItem } from './materialSchedule';
 import { plantOf } from './plantDefaults';
 import { GENERATOR, buildRaviaExport } from './raviaExport';
 import { BELASTBARKEIT_LABELS, KORPUS_LABELS, type KorpusId, type WissensEintrag } from './wissensbasis';
 import { druckeDokument } from './druckFenster';
 import { inbetriebnahmeblatt, QUELLE_INFOBLATT_62, type Quellenart } from './inbetriebnahme';
 import { aufnahmestand, type Aufnahmezeile } from './objektaufnahme';
+import { umbrechen } from './mappenUmbruch';
 
 // ---------------------------------------------------------------------------
 // Öffentliche Typen
@@ -192,6 +193,10 @@ const PAPIER: Record<MappeFormat, { w: number; h: number }> = {
  * hinschreiben, ohne einer der vorhandenen Zeichnungen ins Bild zu fahren.
  */
 const RAND = { oben: 13, rechts: 14, unten: 15, links: 22 };
+/** Höhe der Kopfzeile eines Textblatts samt Abstand darunter [mm]. */
+const KOPFZEILE_MM = 10.5;
+/** Anteil des Satzspiegels, den der Umbruch füllen darf — die Schätzung ist vorsichtig, aber eine Schätzung. */
+const UMBRUCH_RESERVE = 0.94;
 
 /** Breite des Heftrands [mm] — schmaler als die 12 mm, die überall frei sind. */
 const HEFTRAND = 11;
@@ -522,6 +527,9 @@ export function buildProjektMappe(doc: BimDocument, optionen: ProjektMappeOption
    */
   const gedruckt = new Set<string>();
   if (!omit.has('pumpe')) for (const h of bericht.erzeuger.hinweise) gedruckt.add(h.text);
+  // Die Begründung einer angehobenen Auslegungstemperatur steht auf dem
+  // Deckblatt (seit 1.75.0 nur dort); das Anlagenbuch wiederholt sie nicht.
+  if (bericht.temperaturen.herkunft !== 'anlagenblatt') gedruckt.add(bericht.temperaturen.begruendung);
 
   // --- Kapitel 5 und 6: Rohrnetzbericht und Einstellwerte -------------------
   if (!omit.has('rohrnetz')) {
@@ -607,6 +615,38 @@ export function buildProjektMappe(doc: BimDocument, optionen: ProjektMappeOption
       inhalt: aufnahmeBlatt(doc),
     });
     kopf('aufnahme', 'Anlage: Objektaufnahme', true);
+  }
+
+  // --- Umbruch der Textblätter ----------------------------------------------
+  /*
+   * **Ein Blatt ist eine Druckseite** (seit 1.75.0). Bis 1.74.0 durfte ein
+   * Textblatt über mehrere Seiten laufen; die Fortsetzung stand ohne
+   * Kopfzeile da, und „Blatt 27 von 46" stand in einer Mappe, die gedruckt
+   * 61 Seiten hatte. Jetzt wird jedes Textblatt vor der Nummerierung auf
+   * Seiten verteilt (`mappenUmbruch`); jede Seite ist ein Blatt.
+   */
+  {
+    const mass = {
+      // Satzspiegel abzüglich Kopfzeile (7,5 pt, 1,5 mm Abstand, Linie, 5 mm)
+      // und eines Sicherheitsabstands — siehe Kopf von `mappenUmbruch`.
+      hoehe: (blattmass.h - RAND.oben - RAND.unten - KOPFZEILE_MM) * UMBRUCH_RESERVE,
+      breite: blattmass.w - RAND.links - RAND.rechts,
+    };
+    const umbrochen: BlattEntwurf[] = [];
+    for (const e of entwuerfe) {
+      if (e.art !== 'text') {
+        umbrochen.push(e);
+        continue;
+      }
+      umbrechen(e.inhalt, mass).forEach((inhalt, i) =>
+        umbrochen.push({
+          ...e,
+          inhalt,
+          titel: i === 0 || /Fortsetzung/.test(e.titel) ? e.titel : `${e.titel} (Fortsetzung)`,
+        }),
+      );
+    }
+    entwuerfe.splice(0, entwuerfe.length, ...umbrochen);
   }
 
   // --- Nummerierung ---------------------------------------------------------
@@ -1131,7 +1171,9 @@ function pumpenBlatt(bericht: RohrnetzBericht): string {
               fussnote: 'Obergrenze für Rohrnetz und Armaturen zusammen.',
             }
           : undefined,
-        e.hydraulik
+        // Steht das Gerät schon als Posten in der Tabelle darüber — mit
+        // Grundlage, Herkunft und Quelle —, wiederholt die Zeile nur sie.
+        e.hydraulik && !e.posten.some((x) => x.art === 'generator')
           ? {
               label: 'Kennwert des Geräts',
               wert: `${de(e.hydraulik.wert / 1000, 2)} kPa bei ${de(e.hydraulik.bezugsvolumenstrom, 2)} m³/h`,
@@ -1264,9 +1306,26 @@ function massenauszugBlaetter(
     }
     return folgen;
   };
+  /*
+   * **Erläuternde Sätze einmal je Kapitel** (seit 1.75.0). Dieselbe
+   * Bemerkung hängt an jeder Folge gleicher Art — „Die Systemwahl steht nicht
+   * im Modell …" je Heizkreis, „Im Plan nachgemessen ergibt sich nur die
+   * Trasse …" je Rohrfolge. Ein längerer Satz, der im Massenauszug schon
+   * stand, entfällt bei der Wiederholung; bleibt von einer Bemerkung nichts
+   * übrig, steht „wie oben". Kurze Sätze bleiben: sie sind Angaben, keine
+   * Erläuterungen.
+   */
+  const schonErlaeutert = new Set<string>();
+  const einmal = (text: string | undefined): string => {
+    if (!text) return '';
+    const saetze = text.split(/(?<=[.!?])\s+(?=[A-ZÄÖÜ„])/);
+    const neu = saetze.filter((z) => z.length < 40 || !schonErlaeutert.has(z));
+    for (const z of saetze) if (z.length >= 40) schonErlaeutert.add(z);
+    return neu.length ? neu.join(' ') : 'wie oben';
+  };
   const herkunftszeile = (f: Folge): string =>
     `<tr class="herkunft"><td></td><td class="l" colspan="4"><div class="fussnote">${escapeHtml(
-      [f.basis + (f.zahl ? `, ${f.zahl}` : ''), f.bemerkung].filter(Boolean).join(' — '),
+      [einmal(f.basis + (f.zahl ? `, ${f.zahl}` : '')), einmal(f.bemerkung)].filter(Boolean).join(' — '),
     )}</div></td></tr>`;
   const zeileVon = (item: MaterialItem, f: Folge): string =>
     `<tr><td class="r">${item.position}</td>` +
@@ -1275,7 +1334,7 @@ function massenauszugBlaetter(
       ? `<div class="fussnote">${escapeHtml(herkunftsSchwanz(item.origin))}</div>`
       : '') +
     (f.zahl === undefined && herkunftsZahl(item) ? `<div class="fussnote">${escapeHtml(herkunftsZahl(item))}</div>` : '') +
-    (item.remark && item.remark !== f.bemerkung ? `<div class="fussnote">${escapeHtml(item.remark)}</div>` : '') +
+    (item.remark && item.remark !== f.bemerkung ? `<div class="fussnote">${escapeHtml(einmal(item.remark))}</div>` : '') +
     `</td>` +
     `<td class="l">${escapeHtml(item.spec || '—')}</td>` +
     `<td class="r">${de(item.quantity, item.unit === 'Stk' || item.unit === 'l' ? 0 : item.unit === 'kW' ? 1 : 2)}</td>` +
@@ -1357,7 +1416,14 @@ function massenauszugBlaetter(
   }
   blattSetzen();
 
-  if (liste.notes.length) {
+  /*
+   * Der Satz „Mengen, keine Preise" steht schon im Vorspann; die Spalte
+   * „Schwere" nur, wenn es etwas anderes als Hinweise gibt — eine Spalte,
+   * in der in jeder Zeile dasselbe Wort steht, sagt nichts.
+   */
+  const massenHinweise = liste.notes.filter((n) => n.text !== MENGEN_STATT_PREISE);
+  if (massenHinweise.length) {
+    const mitSchwere = massenHinweise.some((n) => n.severity !== 'info');
     entwuerfe.push({
       kapitel: 'massenauszug',
       titel: 'Massenauszug · Hinweise',
@@ -1365,12 +1431,11 @@ function massenauszugBlaetter(
       inhalt:
         h2('Massenauszug — Hinweise') +
         tabelle(
-          [
-            { titel: 'Schwere', breite: '22mm' },
-            { titel: 'Hinweis' },
-          ],
-          liste.notes.map((n) => [
-            escapeHtml(n.severity === 'error' ? 'Fehler' : n.severity === 'warn' ? 'Warnung' : 'Hinweis'),
+          mitSchwere ? [{ titel: 'Schwere', breite: '22mm' }, { titel: 'Hinweis' }] : [{ titel: 'Hinweis' }],
+          massenHinweise.map((n) => [
+            ...(mitSchwere
+              ? [escapeHtml(n.severity === 'error' ? 'Fehler' : n.severity === 'warn' ? 'Warnung' : 'Hinweis')]
+              : []),
             escapeHtml(n.text),
           ]),
         ),
@@ -1542,7 +1607,24 @@ function quellenBlaetter(
 
   // Belege der Wissensbasis, ohne Doppelung und in stabiler Reihenfolge.
   const belege = new Map<string, WissensEintrag>();
-  for (const thema of MAPPEN_THEMEN) {
+  /*
+   * **Nur Themen, die in dieser Anlage vorkommen** (seit 1.75.0). Bis 1.74.0
+   * führte jede Mappe die Belege zu Fußbodenheizung, Heizkörpern, Mischer,
+   * Puffer und Trinkwasser — auch ohne Fußbodenheizung, ohne Puffer, ohne
+   * Speicher. Ein Quellenverzeichnis, das ein Viertel der Mappe füllt und zur
+   * Hälfte nichts belegt, was in ihr steht, ist Ballast.
+   */
+  const a = bericht.auslegung;
+  const arten = new Set(a.circuits.map((c) => c.circuit.kind));
+  const vorhanden: Record<string, boolean> = {
+    fussbodenheizung: arten.has('floor') || arten.has('wall'),
+    heizkoerper: arten.has('radiator') || arten.has('fancoil'),
+    mischer: a.circuits.some((c) => c.circuit.mixed),
+    puffer: a.buffer.selected !== undefined,
+    trinkwasser: a.dhw !== undefined,
+    waermepumpe: a.selected !== undefined,
+  };
+  for (const thema of MAPPEN_THEMEN.filter((t) => vorhanden[t] !== false)) {
     for (const e of basis.belege(thema).slice(0, BELEGE_JE_THEMA)) if (!belege.has(e.id)) belege.set(e.id, e);
   }
   // Was der Rohrnetzbericht zitiert, gehört auch dann ins Verzeichnis, wenn
@@ -1707,6 +1789,14 @@ function aufnahmeBlatt(doc: BimDocument): string {
     aufnahme: 'bei der Aufnahme erfasst',
     anlage: 'aus dem Anlagenblatt',
   };
+  // Für eine offene Position sagt die Spalte, wo sie einzutragen wäre — „bei
+  // der Aufnahme erfasst" neben „nicht erfasst" widerspräche sich selbst.
+  const offenBei: Record<Aufnahmezeile['herkunft'], string> = {
+    modell: 'im Modell zu zeichnen',
+    projekt: 'am Projekt einzutragen',
+    aufnahme: 'bei der Aufnahme einzutragen',
+    anlage: 'im Anlagenblatt einzutragen',
+  };
 
   return (
     h2('Anlage: Objektaufnahme') +
@@ -1720,7 +1810,9 @@ function aufnahmeBlatt(doc: BimDocument): string {
     kasten(
       `${stand.belegt} von ${stand.gesamt} Positionen sind belegt.` +
         (stand.offen.length
-          ? ` Offen: ${stand.offen.join('; ')}.`
+          ? ` Die ${stand.offen.length === 1 ? 'offene steht' : `${stand.offen.length} offenen stehen`} in den ` +
+            'Tabellen als „nicht erfasst", mit der Stelle, an der sie einzutragen ' +
+            (stand.offen.length === 1 ? 'ist.' : 'sind.')
           : ' Der Bogen ist vollständig.'),
     ) +
     stand.gruppen
@@ -1733,7 +1825,11 @@ function aufnahmeBlatt(doc: BimDocument): string {
               { titel: 'Angabe', breite: '58mm' },
               { titel: 'Herkunft' },
             ],
-            g.zeilen.map((z) => [z.frage, z.wert ?? 'nicht erfasst', herkunft[z.herkunft]]),
+            g.zeilen.map((z) =>
+              [z.frage, z.wert ?? 'nicht erfasst', z.wert === undefined ? offenBei[z.herkunft] : herkunft[z.herkunft]].map(
+                escapeHtml,
+              ),
+            ),
           ),
       )
       .join('') +
@@ -1820,6 +1916,17 @@ function inbetriebnahmeBlatt(doc: BimDocument): string {
 function nachweisBlatt(bericht: RohrnetzBericht): string {
   const offen = bericht.nachweis.filter((n) => !n.erfuellt);
   const urteil = berichtsUrteil(bericht);
+  /*
+   * Die Begründung einer angehobenen oder vorbelegten Auslegungstemperatur
+   * steht in der Mappe auf dem Deckblatt. Der Katalog nennt hier die Werte
+   * und verweist auf Blatt 1, statt denselben Absatz ein zweites Mal zu
+   * drucken; der eigenständige Rohrnetzbericht behält den vollen Satz.
+   */
+  const begruendung = bericht.temperaturen.herkunft !== 'anlagenblatt' ? bericht.temperaturen.begruendung : '';
+  const antwortInDerMappe = (antwort: string): string =>
+    begruendung && antwort.endsWith(begruendung)
+      ? `${antwort.slice(0, -begruendung.length).trimEnd()} Begründung auf dem Deckblatt (Blatt 1).`
+      : antwort;
 
   return (
     h2('Nachweiskatalog nach § 60c Abs. 4 GModG (vormals GEG)') +
@@ -1848,7 +1955,7 @@ function nachweisBlatt(bericht: RohrnetzBericht): string {
         String(n.nr),
         `<strong>${escapeHtml(n.forderung)}</strong>`,
         n.erfuellt ? '<strong>liegt vor</strong>' : '<strong>fehlt, weil …</strong>',
-        escapeHtml(n.antwort),
+        escapeHtml(antwortInDerMappe(n.antwort)),
         escapeHtml(n.herkunft),
       ]),
     )
@@ -1915,10 +2022,10 @@ function deckblatt(bericht: RohrnetzBericht, d: DeckblattDaten): string {
    *
    * Der Vermerk in der Kachel ist die Warnlampe, der Satz darunter die
    * Erklärung; `systemtemperatur.begruendung` nennt beide Temperaturpaare
-   * und den Kreis, der den Ton angibt. Der Nachweiskatalog am Ende der Mappe
-   * führt dieselbe Begründung noch einmal — dort, weil § 60c Abs. 4 GModG
-   * die Auslegungstemperatur zu den schriftlich mitzuteilenden Angaben
-   * zählt. Steht die Zahl unverändert im Anlagenblatt, entfallen Vermerk und
+   * und den Kreis, der den Ton angibt. Seit 1.75.0 steht sie in der Mappe nur
+   * hier: Nachweiskatalog (Nr. 5) und Anlagenbuch verweisen bzw. lassen den
+   * gleichlautenden Hinweis weg — drei gleiche Absätze in einem Dokument
+   * lesen sich wie Füllstoff. Steht die Zahl unverändert im Anlagenblatt, entfallen Vermerk und
    * Satz: Ein Hinweis ohne Anlass entwertet die Hinweise mit Anlass.
    */
   const temperaturVermerk =
@@ -1955,8 +2062,9 @@ function deckblatt(bericht: RohrnetzBericht, d: DeckblattDaten): string {
     d.urteil.nachweisfaehig
       ? 'Alle sieben Pflichtangaben nach § 60c Abs. 4 GModG liegen vor; der Nachweiskatalog am Ende der Mappe ' +
           'führt sie einzeln auf.'
-      : `Nicht nachweisfähig. Offen: ${d.urteil.offen.join('; ')}. Der Nachweiskatalog am Ende der Mappe sagt bei ` +
-          'jeder Angabe, warum sie fehlt.',
+      : `Nicht nachweisfähig: ${d.urteil.offen.length === 1 ? 'eine' : d.urteil.offen.length} der sieben ` +
+          'Pflichtangaben nach § 60c Abs. 4 GModG fehlt' + (d.urteil.offen.length === 1 ? '' : 'en') +
+          '. Welche und warum, sagt der Nachweiskatalog am Ende der Mappe.',
   );
   vorbehalt.push(
     'Was die Mappe nicht ist: Ausführungsplanung, Elektro-, Statik- oder Kälteplanung, Genehmigungsunterlage ' +
@@ -1983,8 +2091,7 @@ function deckblatt(bericht: RohrnetzBericht, d: DeckblattDaten): string {
         label: 'Umfang',
         wert: `${d.blattzahl} Blätter · ${d.format} quer · Grundrisse M 1:${d.planMassstab}`,
         fussnote:
-          'Blätter, nicht Druckseiten: ein Zeichnungsblatt belegt genau eine Seite, ein Textkapitel darf auf ' +
-          'eine Folgeseite überlaufen.',
+          'Jedes Blatt ist eine Druckseite.',
       },
     ]) +
     `<div class="zahlen">` +
@@ -2124,6 +2231,11 @@ function stilblatt(blatt: { w: number; h: number }): string {
     // Tabellen
     'table{border-collapse:collapse;width:100%;margin:0 0 4mm;font-size:8pt;font-variant-numeric:tabular-nums}',
     'thead{display:table-header-group}',
+    // Jedes Textblatt ist genau eine Seite; ein wiederholter Tabellenfuß hat
+    // nichts zu wiederholen. Als Fußgruppe schob Chromium ihn auf eine eigene
+    // Folgeseite (gemessen am Anlagenbuch „Wärmeverteilung", 07.10.2026).
+    'tfoot{display:table-row-group}',
+    '.blatt .anlagenbuch tfoot{display:table-row-group}',
     'tr,td,th{break-inside:avoid;page-break-inside:avoid}',
     'th,td{padding:1mm 2mm;border-bottom:.3pt solid #CBD5E1;vertical-align:top}',
     'thead th{border-bottom:.7pt solid #334155;font-weight:600;text-align:left;white-space:nowrap}',
@@ -2135,10 +2247,10 @@ function stilblatt(blatt: { w: number; h: number }): string {
     '.fussnote{font-size:7.5pt;color:#475569;margin-top:.4mm}',
     // Deckblatt
     '.deckblatt{padding-top:0}',
-    '.deckblatt .marke{font-size:8pt;letter-spacing:.18em;text-transform:uppercase;color:#64748B;margin-bottom:5mm}',
-    '.deckblatt .anlage{font-size:12pt;color:#334155;margin:0 0 4mm}',
-    '.deckblatt hr{border:none;border-top:.8pt solid #334155;margin:0 0 4mm}',
-    '.zahlen{display:flex;gap:5mm;margin:4mm 0 5mm;flex-wrap:wrap}',
+    '.deckblatt .marke{font-size:8pt;letter-spacing:.18em;text-transform:uppercase;color:#64748B;margin-bottom:3.5mm}',
+    '.deckblatt .anlage{font-size:12pt;color:#334155;margin:0 0 3mm}',
+    '.deckblatt hr{border:none;border-top:.8pt solid #334155;margin:0 0 3mm}',
+    '.zahlen{display:flex;gap:5mm;margin:3mm 0 3.5mm;flex-wrap:wrap}',
     '.zahl{flex:1 1 52mm;border:.5pt solid #94A3B8;padding:3mm 3.5mm}',
     '.zahl .k{font-size:7.5pt;text-transform:uppercase;letter-spacing:.1em;color:#64748B}',
     '.zahl .v{font-size:13pt;font-weight:600;margin-top:1.2mm;line-height:1.15}',

@@ -164,7 +164,7 @@ export interface InsulationResult {
 
 /** Deutsche Zahlschreibweise für Berichtstexte. */
 function de(value: number, digits = 1): string {
-  return value.toFixed(digits).replace('.', ',');
+  return value.toFixed(digits).replace('.', ',').replace(/^-/, '−');
 }
 
 /**

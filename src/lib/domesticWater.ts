@@ -47,7 +47,7 @@ export type PlanningNote = { severity: 'info' | 'warn' | 'error'; text: string }
 
 /** Deutsche Zahlschreibweise für Beschriftungen und Rechenschritte. */
 function de(value: number, digits = 2): string {
-  return value.toFixed(digits).replace('.', ',');
+  return value.toFixed(digits).replace('.', ',').replace(/^-/, '−');
 }
 
 function round(value: number, digits: number): number {
@@ -602,8 +602,7 @@ export function sizeStorage(input: StorageSizingInput): StorageSizingResult {
           severity: 'info',
           text:
             `Die Nachheizung könnte rechnerisch ${Math.round(covered)} l der Spitze decken, angerechnet sind nur ${Math.round(credited)} l: ` +
-            `die größte einzelne Entnahme von ${Math.round(largestSingleDraw)} l läuft in wenigen Minuten ab und muss bevorratet sein. ` +
-            'Wer die Entnahme über die volle Spitzendauer als gleichmäßig ansehen will, gibt die Spitze über `peak` selbst vor.',
+            `die größte einzelne Entnahme von ${Math.round(largestSingleDraw)} l läuft in wenigen Minuten ab und muss bevorratet sein.`,
         });
       }
     }
@@ -1086,7 +1085,7 @@ export function assessCirculation(input: CirculationInput): CirculationAssessmen
   if (!required) {
     notes.push({
       severity: 'info',
-      text: 'Ohne Zirkulation entfallen Verlust, Pumpe und Regelung. Dafür gilt: die Leitung muss regelmäßig durchströmt werden — eine selten benutzte Entnahmestelle wird zur Stagnationsstelle.',
+      text: 'Ohne Zirkulation entfallen Verlust, Pumpe und Regelung; umso mehr hängt die Hygiene am regelmäßigen Wasseraustausch an jeder Entnahmestelle.',
     });
     return result;
   }
@@ -1153,32 +1152,22 @@ export function assessCirculation(input: CirculationInput): CirculationAssessmen
  * Nachbesserung dagegen alles. Sie stehen deshalb als feste Liste im Ergebnis.
  */
 export function hygieneNotes(context: { circulationRequired: boolean; regime: 'kleinanlage' | 'großanlage'; freshWaterStation?: boolean } ): PlanningNote[] {
+  /*
+   * **Eine Regel, ein Hinweis** (seit 1.75.0). Bis 1.74.0 standen hier fünf
+   * getrennte Einträge — Stagnation, Totleitungen, Kaltwasser, Dämmung,
+   * Rohrweiten —, die in jeder Mappe fünf Zeilen der Hinweistabelle füllten,
+   * ohne etwas über die geplante Anlage zu sagen. Sie gelten für jede
+   * Trinkwasserinstallation und stehen deshalb gemeinsam in einem Eintrag.
+   */
   const notes: PlanningNote[] = [
     {
       severity: 'info',
       text:
-        'Stagnation: der bestimmungsgemäße Betrieb verlangt einen vollständigen Wasseraustausch in allen Leitungsteilen spätestens alle 72 Stunden. ' +
-        'Selten genutzte Entnahmestellen (Gästebad, Waschküche) brauchen eine Spülung von Hand oder eine automatische Spüleinrichtung.',
-    },
-    {
-      severity: 'info',
-      text:
-        'Totleitungen: nicht mehr genutzte Leitungen sind bis zur durchströmten Leitung zurückzubauen, nicht nur abzusperren. Eine abgesperrte ' +
-        'Stichleitung bleibt ein Wasservolumen auf Umgebungstemperatur — der klassische Ausgangspunkt einer Kontamination.',
-    },
-    {
-      severity: 'info',
-      text:
-        'Kaltwasser unter 25 °C halten: getrennte Schächte oder ausreichender Abstand zu Warmwasser-, Zirkulations- und Heizleitungen, keine ' +
-        'gemeinsame Führung im Fußbodenaufbau über der Heizung, Kaltwasserleitungen nicht in unbelüfteten warmen Vorwandinstallationen bündeln.',
-    },
-    {
-      severity: 'info',
-      text: 'Dämmung nach GEG Anlage 8 für die Warmwasser- und Zirkulationsleitungen; für Kaltwasser die Dämmung gegen Erwärmung nach DIN 1988-200.',
-    },
-    {
-      severity: 'info',
-      text: 'Rohrweiten so klein wie zulässig wählen: kleinere Querschnitte bedeuten kürzere Austauschzeiten und weniger stehendes Wasser. Großzügige Dimensionierung ist hier ein Hygienefehler, kein Sicherheitszuschlag.',
+        'Trinkwasserhygiene nach DIN 1988-200 und VDI 6023: Wasseraustausch in allen Leitungsteilen spätestens alle ' +
+        '72 Stunden, selten genutzte Entnahmestellen von Hand oder automatisch spülen; Totleitungen zurückbauen, nicht ' +
+        'nur absperren; Kaltwasser unter 25 °C halten — Abstand zu warmgehenden Leitungen, keine Führung im ' +
+        'Fußbodenaufbau über der Heizung; Warmwasser- und Zirkulationsleitungen nach GEG Anlage 8, Kaltwasser gegen ' +
+        'Erwärmung dämmen; Rohrweiten so klein wie zulässig — Übermaß ist hier ein Hygienefehler, kein Zuschlag.',
     },
   ];
 
@@ -1311,7 +1300,7 @@ export function designDomesticHotWater(input: DomesticWaterInput): DomesticWater
       text:
         `Für ${input.units} Wohneinheiten wird keine Bedarfsspitze vorbelegt — die Gleichzeitigkeit im Geschosswohnungsbau ist keine ` +
         `Annahme, die das Programm treffen darf. Maßgebend ist hier der Vergleich der Bedarfskennzahl N = ${de(demand.demandIndex, 2)} mit ` +
-        'der Leistungskennzahl N_L des Speichers aus dem Herstellerdatenblatt. Eine eigene Spitze kann über `peak` angegeben werden.',
+        'der Leistungskennzahl N_L des Speichers aus dem Herstellerdatenblatt.',
     });
   }
   const sizeAt = (temperature: number): StorageSizingResult =>

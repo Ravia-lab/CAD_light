@@ -196,6 +196,28 @@ export function einheitenstand(doc: BimDocument): Einheitenstand {
 }
 
 /**
+ * Wie viele Wohnungen die **Raumnamen** nahelegen — „WE 1 Bad", „Whg. 3
+ * Küche", „Wohnung 6 Flur".
+ *
+ * Das ist ausdrücklich keine Zuordnung und wird nirgends als Einheitenzahl
+ * verwendet (siehe Kopfkommentar: es wird keine Einheit geraten). Es ist ein
+ * **Indiz gegen** die stillschweigende Annahme „eine Wohnung", die das
+ * Anlagenblatt vorbelegt: Ein Haus mit Räumen „WE 1" bis „WE 6" ist kein
+ * Einfamilienhaus, und die Erleichterungen, die DVGW W 551 Ein- und
+ * Zweifamilienhäusern gewährt, dürfen dann nicht still angesetzt werden.
+ */
+export function einheitenAusRaumnamen(doc: BimDocument): { zahl: number; nummern: number[] } {
+  const muster = /^(?:WE|Whg\.?|Wohnung|NE)\s*[-.]?\s*(\d{1,3})(?!\d)/i;
+  const nummern = new Set<number>();
+  for (const r of Object.values(doc.rooms)) {
+    const m = muster.exec((r.name ?? '').trim());
+    if (m) nummern.add(Number(m[1]));
+  }
+  const liste = [...nummern].sort((a, b) => a - b);
+  return { zahl: liste.length, nummern: liste };
+}
+
+/**
  * Stimmt die im Anlagenblatt eingetragene Zahl der Wohneinheiten mit dem
  * Modell überein?
  *

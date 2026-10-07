@@ -452,7 +452,7 @@ export function buildRaviaExport(doc: BimDocument): RaviaExport {
       verticals: Object.values(doc.verticals ?? {}),
       solids: Object.values(doc.solids ?? {}),
       durchbrueche: Object.values(doc.durchbrueche ?? {}),
-      pipes: Object.values(doc.pipes ?? {}),
+      pipes: Object.values(doc.pipes ?? {}).map((run) => ({ ...run, points: ohneRauschen(run.points) })),
       annotations: Object.values(doc.annotations ?? {}),
       roofOpenings: Object.values(doc.roofOpenings ?? {}),
       /*
@@ -1089,6 +1089,17 @@ function buildDurchbrueche(doc: BimDocument): ExportDurchbruch[] {
   });
 }
 
+/**
+ * Gleitkomma-Rauschen aus Koordinaten nehmen — „2.5749999999999997" wird
+ * „2.575". Gerundet wird auf den Mikrometer: Das entfernt nur die Reste der
+ * Binärdarstellung und ändert keine Lage, auch nicht für das Zurücklesen.
+ * Bis 1.74.0 trugen die Rohrpunkte im Export bis zu 16 Nachkommastellen.
+ */
+function ohneRauschen(punkte: readonly Vec2[]): Vec2[] {
+  const r = (v: number): number => Math.round(v * 1e6) / 1e6;
+  return punkte.map((p) => ({ ...p, x: r(p.x), y: r(p.y) }));
+}
+
 function buildPipes(doc: BimDocument): ExportPipe[] {
   return Object.values(doc.pipes ?? {}).map((run: PipeRun) => ({
     id: run.id,
@@ -1100,7 +1111,7 @@ function buildPipes(doc: BimDocument): ExportPipe[] {
     // Wahre Länge, Trasse und Höhenversatz zusammen — siehe `rohrlaenge`.
     length: roundCm2(rohrlaenge(run)),
     elevationTo: run.elevationTo === undefined ? undefined : roundMm(run.elevationTo),
-    points: run.points,
+    points: ohneRauschen(run.points),
     fromFixtureId: run.fromFixtureId,
     toFixtureId: run.toFixtureId,
     label: run.label,

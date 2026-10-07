@@ -69,7 +69,7 @@ function escapeXml(s: string): string {
 /** Deutsche Zahlschreibweise. */
 function de(v: number, d = 1): string {
   if (!Number.isFinite(v)) return '—';
-  return v.toFixed(d).replace('.', ',');
+  return v.toFixed(d).replace('.', ',').replace(/^-/, '−');
 }
 
 /**
@@ -473,7 +473,9 @@ export function buildPipeReportSheets(
     Math.max(1, Math.ceil(bericht.teilstrecken.length / proBlatt)) +
     Math.max(1, Math.ceil(bericht.heizflaechen.length / proBlatt));
   const eingebettet = optionen.eingebettet === true;
-  const kopf = eingebettet ? '' : `${bericht.titel} · Rohrnetzberechnung · ${bericht.erstellt}`;
+  // `erstellt` ist ISO (Datenfeld); auf dem Blatt steht das deutsche Datum.
+  const datum = bericht.erstellt.replace(/^(\d{4})-(\d{2})-(\d{2})$/, '$3.$2.$1');
+  const kopf = eingebettet ? '' : `${bericht.titel} · Rohrnetzberechnung · ${datum}`;
   const fuss = (i: number) =>
     eingebettet
       ? ''
@@ -518,7 +520,10 @@ export function buildPipeReportSheets(
   }
 
   // --- Quellen und Hinweise -------------------------------------------------
-  const hinweise = bericht.hinweise.filter((h) => !optionen.ohneHinweise?.has(h.text));
+  // Allein gedruckt stehen die Hinweise der Erzeugerbilanz schon auf dem
+  // Blatt „Erzeugerkreis und Pumpe" und werden hier nicht wiederholt.
+  const amErzeuger = new Set(eingebettet ? [] : bericht.erzeuger.hinweise.map((h) => h.text));
+  const hinweise = bericht.hinweise.filter((h) => !optionen.ohneHinweise?.has(h.text) && !amErzeuger.has(h.text));
   if (!eingebettet || hinweise.length) {
     sheets.push(blatt(m, quellenBlatt(m, { ...bericht, hinweise }, !eingebettet), kopf, fuss(sheets.length + 1)));
   }
@@ -548,7 +553,13 @@ function deckblatt(m: Blattmasse, b: RohrnetzBericht, eingebettet = false): stri
   );
   y += 4.5;
   if (!urteil.nachweisfaehig) {
-    for (const z of umbrich(`Offen: ${urteil.offen.join('; ')}.`, m.feld.w, FONT)) {
+    // Welche Angaben fehlen, zeigt der Katalog unten mit ○ — hier nur die Zahl.
+    const n = urteil.offen.length;
+    for (const z of umbrich(
+      `${n === 1 ? 'Eine' : n} der sieben Pflichtangaben ${n === 1 ? 'fehlt' : 'fehlen'}; sie ${n === 1 ? 'ist' : 'sind'} unten mit ○ markiert.`,
+      m.feld.w,
+      FONT,
+    )) {
       teile.push(zeile(m.feld.x, y, z, { fill: GRAU }));
       y += ZEILE;
     }
@@ -658,7 +669,13 @@ function deckblatt(m: Blattmasse, b: RohrnetzBericht, eingebettet = false): stri
       y += ZEILE;
       continue;
     }
-    const zeilen = umbrich(p.antwort, m.feld.w - 62, FONT_KLEIN);
+    // Die Begründung einer angehobenen Temperatur steht schon unter den
+    // Anlagendaten dieses Blatts.
+    const antwort =
+      temperaturVermerk && p.antwort.endsWith(b.temperaturen.begruendung)
+        ? `${p.antwort.slice(0, -b.temperaturen.begruendung.length).trimEnd()} Begründung unter „Anlagendaten".`
+        : p.antwort;
+    const zeilen = umbrich(antwort, m.feld.w - 62, FONT_KLEIN);
     zeilen.forEach((z, i) => {
       teile.push(zeile(m.feld.x + 60, y + i * 3.1, z, { size: FONT_KLEIN, fill: GRAU }));
     });

@@ -70,6 +70,11 @@ function nurText(html: string): string {
 }
 
 /** Ein Blatt aus dem Dokument herausschneiden, Rahmen inbegriffen. */
+/** Alle Blätter eines Kapitels — seit 1.75.0 läuft ein langes Kapitel über mehrere. */
+function kapitelHtml(html: string, nummern: readonly number[]): string {
+  return nummern.map((nr) => blattHtml(html, nr)).join('');
+}
+
 function blattHtml(html: string, nr: number): string {
   const auf = html.indexOf(`id="blatt-${nr}"`);
   if (auf < 0) return '';
@@ -363,7 +368,7 @@ export function pruefeProjektmappe(check: CheckFn): void {
   check('Der Nachweiskatalog steht vor der Anlage',
     (nachweisKapitel?.blaetter ?? [0])[0] < (aufnahmeKapitel?.blaetter ?? [0])[0], true);
   check('Die Objektaufnahme schließt die Mappe ab',
-    (aufnahmeKapitel?.blaetter ?? [0])[0], mappe.blaetter.length);
+    (aufnahmeKapitel?.blaetter ?? [0]).slice(-1)[0], mappe.blaetter.length);
 
   /*
    * --- Die Anlage zeigt auch, was fehlt -----------------------------------
@@ -373,7 +378,7 @@ export function pruefeProjektmappe(check: CheckFn): void {
    * nichts bei der Aufnahme eingetragen — also müssen dort „nicht erfasst"
    * und die Zahl der belegten Positionen stehen.
    */
-  const anlage = nurText(blattHtml(mappe.html, (aufnahmeKapitel?.blaetter ?? [0])[0]));
+  const anlage = nurText(kapitelHtml(mappe.html, aufnahmeKapitel?.blaetter ?? []));
   check('Die Anlage nennt die Checkliste als Quelle', anlage.includes('Praxisratgeber'), true);
   check('Sie zählt die belegten Positionen', /\d+ von \d+ Positionen/.test(anlage), true);
   check('Und sie sagt, was nicht erfasst ist', anlage.includes('nicht erfasst'), true);
@@ -404,7 +409,7 @@ export function pruefeProjektmappe(check: CheckFn): void {
   check('Der Katalog zitiert § 60c Abs. 4 GModG', nachweisText.includes('§ 60c Abs. 4 GModG'), true);
 
   // --- Erzeugerbilanz ------------------------------------------------------
-  const pumpe = blattHtml(mappe.html, mappe.kapitel[6].blaetter[0]);
+  const pumpe = kapitelHtml(mappe.html, mappe.kapitel[6].blaetter);
   const pumpeText = nurText(pumpe);
   check('Das Referenzhaus hat Posten im Erzeugerkreis', bericht.erzeuger.posten.length > 0, true);
   check(

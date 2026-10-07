@@ -30,6 +30,7 @@
  * an einer Stelle geraten hat, ist an keiner Stelle mehr nachvollziehbar.
  */
 
+import { dez } from './zahl';
 import { traegtRaumlast, verbraucherLasten, type Verbraucherlast } from './verbraucherlast';
 import { planeRing } from './ringleitung';
 import { steigRuns } from './steigstrang';
@@ -1563,7 +1564,7 @@ export function planPipeNetwork(doc: BimDocument, options: PipeLayoutOptions): P
       mitte,
       hoehe,
       'Festpunkt',
-      `${laenge.toFixed(1)} m gerade Strecke`,
+      `${dez(laenge, 1)} m gerade Strecke`,
       'Über zehn Meter ohne Richtungswechsel: Dehnungsausgleich nötig. Der Biegeschenkel wird hier nicht bemessen — die Materialkonstante ist herstellerspezifisch.',
     );
   }

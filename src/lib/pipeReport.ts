@@ -29,6 +29,7 @@
  * gefährlicher als eines, das gar nicht rechnet.
  */
 
+import { wie } from './zahl';
 import { leistungJeVerbraucher } from './verbraucherlast';
 import type {
   BimDocument,
@@ -570,7 +571,8 @@ export function buildPipeReport(doc: BimDocument, options: RohrnetzOptionen = {}
   return {
     titel: doc.meta.name || 'Rohrnetzberechnung',
     levelId: options.levelId ?? doc.activeLevelId,
-    erstellt: new Date().toISOString().slice(0, 10),
+    // Ortszeit, nicht UTC: kurz nach Mitternacht trüge der Bericht sonst das Datum von gestern.
+    erstellt: ((d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`)(new Date()),
     temperaturen: {
       vorlauf,
       ruecklauf,
@@ -755,7 +757,7 @@ function nachweisPunkte(
       // eine andere.
       antwort:
         `Vorlauf ${temperaturen.vorlauf} °C, Rücklauf ${temperaturen.ruecklauf} °C ` +
-        `(Spreizung ${temperaturen.spreizung} K), Norm-Außentemperatur ${doc.meta.designOutdoorTemperature} °C. ` +
+        `(Spreizung ${temperaturen.spreizung} K), Norm-Außentemperatur ${wie(doc.meta.designOutdoorTemperature)} °C. ` +
         temperaturen.begruendung,
       erfuellt: true,
       herkunft:

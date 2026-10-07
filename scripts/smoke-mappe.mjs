@@ -143,9 +143,12 @@ console.log('\n▸ Die Vorschau zeigt das gedruckte Dokument');
       titel: d.title,
       inhalt: d.querySelector('#blatt-2')?.innerText ?? '',
       // Seit 1.69.0 schließt die Objektaufnahme als Anlage die Mappe ab —
-      // der Nachweiskatalog ist damit das vorletzte Blatt.
-      nachweis: [...d.querySelectorAll('.blatt')].slice(-2, -1)[0]?.innerText ?? '',
-      anlage: d.querySelector('.blatt:last-child')?.innerText ?? '',
+      // der Nachweiskatalog steht davor. Seit 1.75.0 kann die Objektaufnahme
+      // über mehrere Blätter laufen; gesucht wird nach der Blattkennung.
+      nachweis: alle.find((e) => /· Nachweiskatalog/.test(e.querySelector('.blattkopf')?.textContent ?? ''))?.innerText ?? '',
+      anlage: alle.find((e) => /· Anlage: Objektaufnahme$/.test(e.querySelector('.blattkopf')?.textContent ?? ''))?.innerText ?? '',
+      reihenfolge: alle.map((e) => (e.querySelector('.blattkopf, .heftrand')?.textContent ?? '').replace(/.*Blatt \d+ von \d+ · /, '')),
+      html: d.documentElement.outerHTML,
     };
   });
 
@@ -163,11 +166,30 @@ console.log('\n▸ Die Vorschau zeigt das gedruckte Dokument');
 
   expect('Blatt 2 ist das Inhaltsverzeichnis', rahmenDaten.inhalt.includes('Inhaltsverzeichnis'), true);
   expect('Das Inhaltsverzeichnis nennt die Blattzahl', /\d+ Blätter/.test(rahmenDaten.inhalt), true);
+  const nachweisAn = rahmenDaten.reihenfolge.findIndex((t) => t.startsWith('Nachweiskatalog'));
+  const aufnahmeAn = rahmenDaten.reihenfolge.findIndex((t) => t.startsWith('Anlage: Objektaufnahme'));
+  expect('Nachweiskatalog steht vor der Objektaufnahme', nachweisAn >= 0 && nachweisAn < aufnahmeAn, true);
   expect(
-    'Das vorletzte Blatt ist der Nachweiskatalog',
-    rahmenDaten.nachweis.includes('§ 60c Abs. 4 GModG'),
+    'Die Mappe endet mit der Objektaufnahme',
+    rahmenDaten.reihenfolge.slice(aufnahmeAn).every((t) => t.startsWith('Anlage: Objektaufnahme')),
     true,
   );
+  expect('Der Nachweiskatalog nennt § 60c Abs. 4', rahmenDaten.nachweis.includes('§ 60c Abs. 4 GModG'), true);
+
+  /*
+   * **Ein Blatt ist eine Druckseite** (seit 1.75.0). Bis 1.74.0 nannte die
+   * Mappe „Blatt n von 46" und druckte 61 Seiten: lange Textkapitel liefen
+   * ohne Kopfzeile auf Folgeseiten über. Geprüft wird am echten Druck —
+   * dieselbe Datei als PDF, Seiten gezählt.
+   */
+  {
+    const druck = await b.newPage();
+    await druck.setContent(rahmenDaten.html, { waitUntil: 'load' });
+    const pdf = await druck.pdf({ preferCSSPageSize: true, printBackground: true });
+    const seiten = (pdf.toString('latin1').match(/\/Type\s*\/Page[^s]/g) ?? []).length;
+    expect('Gedruckt: Seitenzahl = Blattzahl', seiten, rahmenDaten.anzahl);
+    await druck.close();
+  }
   /*
    * Und das letzte ist die Objektaufnahme — die Anlage, die belegt, worauf
    * alles davor beruht. Sie nennt ihre Quelle und zählt die offenen

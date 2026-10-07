@@ -11,6 +11,7 @@
  * erlaubt dem Nutzer, Blattformat und Ausrichtung im Dialog zu korrigieren.
  */
 
+import { dez } from './zahl';
 import type { Annotation, BimDocument, Opening, Room, SolidElement, Vec2 } from '../types/bim';
 import {
   DURCHBRUCH_LABELS,
@@ -108,7 +109,7 @@ function raumstempelFelder(
     if (massiveShare(room, solids) >= 0.8) continue;
     const x = X(room.centroid.x);
     const y = Y(room.centroid.y);
-    const flaeche = kurz ? '' : `${room.area.toFixed(2)} m²`;
+    const flaeche = kurz ? '' : `${dez(room.area, 2)} m²`;
     const breite = Math.max(
       room.name.length * STEMPEL.name,
       flaeche.length * STEMPEL.flaeche,
@@ -585,7 +586,7 @@ export function buildPlanSvg(doc: BimDocument, options: PlanPrintOptions): PlanF
 
     for (const line of roofContourLines(roofFrame, 1)) drawRoofLine(line, '1.2 1.2', 0.12, '1,00 m');
     for (const line of roofContourLines(roofFrame, 2)) drawRoofLine(line, '1.2 1.2', 0.12, '2,00 m');
-    drawRoofLine(ridgeLine(roofFrame), '3 1 0.6 1', 0.18, `First ${roofFrame.ridgeHeight.toFixed(2)} m`);
+    drawRoofLine(ridgeLine(roofFrame), '3 1 0.6 1', 0.18, `First ${dez(roofFrame.ridgeHeight, 2)} m`);
 
     // Gauben und Dachflächenfenster: der Kasten mit betonter Frontkante,
     // das Fenster mit den Diagonalen — dieselbe Sprache wie im Editor.
@@ -1146,7 +1147,7 @@ function buildTitleBlock(
     )}</text>` +
     `<text x="${MARGIN.left}" y="${y + 11}" font-size="2.6" fill="#475569">Grundriss ${escapeXml(
       levelName,
-    )} · ${rooms.length} Räume · ${area.toFixed(2)} m² Nutzfläche</text>` +
+    )} · ${rooms.length} Räume · ${dez(area, 2)} m² Nutzfläche</text>` +
     `<text x="${right}" y="${y + 6}" font-size="4" font-weight="600" text-anchor="end" fill="#0F172A">M 1:${options.scale}</text>` +
     `<text x="${right}" y="${y + 11}" font-size="2.6" text-anchor="end" fill="#475569">${date} · RaVia CAD Light</text>` +
     `</g>`
