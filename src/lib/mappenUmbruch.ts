@@ -15,9 +15,10 @@
  * Kopfzeile und Nummer; Tabellen tragen auf der Fortsetzung ihren Kopf
  * wieder. Eine Überschrift bleibt bei dem, was sie überschreibt.
  *
- * **Warum geschätzt und nicht gemessen.** Aus demselben Grund wie in
- * `zeilenBudget`: Die Blattnummern stehen im Inhaltsverzeichnis und müssen
- * beim Bau der Mappe feststehen; der Kern hat kein DOM. Geschätzt wird
+ * **Warum geschätzt und nicht gemessen.** Die Blattnummern stehen im
+ * Inhaltsverzeichnis und müssen beim Bau der Mappe feststehen; der Kern hat
+ * kein DOM. (Bis 1.74.0 schätzte `zeilenBudget` eine feste Zeilenzahl je
+ * Blatt; die Schätzung hier ersetzt es.) Geschätzt wird
  * **vorsichtig** — mit der Zeichenbreite einer breiten Ersatzschrift und
  * einem Sicherheitsabstand. Eine Seite, die etwas leerer bleibt als nötig,
  * ist der kleinere Fehler; eine, die überläuft, ist genau der, um den es
@@ -143,7 +144,7 @@ interface Tabelle {
   breiten: (number | undefined)[]; // Spaltenbreiten [mm], undefined = frei
 }
 
-function zerlegeTabelle(html: string): Tabelle {
+export function zerlegeTabelle(html: string): Tabelle {
   const oeffnung = /^<table\b[^>]*>/.exec(html)?.[0] ?? '<table>';
   const kopf = /<thead\b[\s\S]*?<\/thead>/.exec(html)?.[0] ?? '';
   const rumpf = /<tbody\b[^>]*>([\s\S]*?)<\/tbody>/.exec(html)?.[1] ?? html.replace(/^<table\b[^>]*>|<\/table>$/g, '').replace(kopf, '');
@@ -186,28 +187,51 @@ const zellenVon = (tr: string): RegExpMatchArray[] => [...tr.matchAll(/<(td|th)\
  * zur längsten Zeile ihres Inhalts, mindestens 14 mm. Gleich verteilt hieße,
  * einer Spalte „Nr." dieselbe Breite zu geben wie dem Hinweistext daneben.
  */
-function verteileBreiten(t: Tabelle, gesamt: number): number[] {
+export function verteileBreiten(t: Tabelle, gesamt: number, pt = 8): number[] {
   const spalten = Math.max(t.breiten.length, ...t.zeilen.map((tr) => zellenVon(tr).length), 1);
   const laenge = new Array<number>(spalten).fill(1);
-  for (const tr of t.zeilen) {
+  // Längstes Wort je Spalte: schmaler wird keine Spalte (min-content).
+  const wort = new Array<number>(spalten).fill(1);
+  for (const tr of [t.kopf, ...t.zeilen]) {
     const zellen = zellenVon(tr);
     if (zellen.some((z) => /colspan=/.test(z[2]))) continue;
     zellen.forEach((z, i) => {
+      const text = reinerText(z[3]);
+      wort[i] = Math.max(wort[i], ...text.split(' ').map((w) => w.length));
+      if (tr === t.kopf) return;
       laenge[i] = Math.max(laenge[i], ...z[3].split(/<br\s*\/?>|<div\b/).map((teil) => reinerText(teil).length));
     });
   }
+  const mindest = (i: number): number => Math.max(14, wort[i] * zeichenbreite(pt) * 1.08 + 4);
   const fest = t.breiten.reduce<number>((s, b) => s + (b ?? 0), 0);
   const frei = [...Array(spalten).keys()].filter((i) => t.breiten[i] === undefined);
   const rest = Math.max(14 * frei.length, gesamt - fest);
-  const summe = frei.reduce((s, i) => s + laenge[i], 0) || 1;
-  return [...Array(spalten).keys()].map((i) =>
-    t.breiten[i] !== undefined ? t.breiten[i]! : Math.max(14, (rest * laenge[i]) / summe),
-  );
+  // Wie das automatische Tabellenlayout: Eine Spalte, deren längster Eintrag
+  // schmaler ist als ihr Anteil, bekommt genau so viel, wie er braucht; der
+  // Rest geht anteilig an die Spalten mit langem Text.
+  const bedarf = (i: number): number => Math.max(mindest(i), laenge[i] * zeichenbreite(pt) + 4);
+  const breite = new Map<number, number>();
+  let offen = [...frei];
+  let verfuegbar = rest;
+  for (;;) {
+    const summe = offen.reduce((s, i) => s + laenge[i], 0) || 1;
+    const schmal = offen.filter((i) => bedarf(i) <= (verfuegbar * laenge[i]) / summe);
+    if (!schmal.length || schmal.length === offen.length) {
+      for (const i of offen) breite.set(i, Math.max(mindest(i), schmal.length === offen.length ? bedarf(i) : (verfuegbar * laenge[i]) / summe));
+      break;
+    }
+    for (const i of schmal) {
+      breite.set(i, bedarf(i));
+      verfuegbar -= bedarf(i);
+    }
+    offen = offen.filter((i) => !schmal.includes(i));
+  }
+  return [...Array(spalten).keys()].map((i) => t.breiten[i] ?? breite.get(i) ?? 14);
 }
 
 function zeilenhoeheTabelle(tr: string, t: Tabelle, gesamt: number, pt: number, rand: number, breiten?: number[]): number {
   const zellen = zellenVon(tr);
-  const b = breiten ?? verteileBreiten(t, gesamt);
+  const b = breiten ?? verteileBreiten(t, gesamt, pt);
   let spalte = 0;
   let h = 0;
   for (const z of zellen) {
@@ -258,7 +282,7 @@ export function blockhoehe(block: string, breite: number, satz: Satzmass): numbe
       const rand = klasse.includes('check') ? 5.2 : satz.zellenrand;
       const gesamt = kennwerte ? Math.min(210, breite) : breite;
       if (kennwerte && !t.breiten.length) t.breiten = [52, undefined];
-      const breiten = verteileBreiten(t, gesamt);
+      const breiten = verteileBreiten(t, gesamt, pt);
       let h = 4 + (t.kopf ? zeilenhoehe(pt) + satz.zellenrand + 0.7 : 0);
       for (const tr of t.zeilen) h += zeilenhoeheTabelle(tr, t, gesamt, pt, rand, breiten);
       return h;
@@ -329,12 +353,13 @@ export function umbrechen(inhalt: string, mass: Umbruchmass): string[] {
       if (kennwerte && !t.breiten.length) t.breiten = [52, undefined];
       const kopfHoehe = t.kopf ? zeilenhoehe(pt) + satz.zellenrand + 0.7 : 0;
       const id = tabellenNr++;
-      const breiten = verteileBreiten(t, breite);
+      const breiten = verteileBreiten(t, breite, pt);
       t.zeilen.forEach((tr, i) => {
         stuecke.push({
           html: tr,
           hoehe: zeilenhoeheTabelle(tr, t, breite, pt, rand, breiten) + (i === 0 ? kopfHoehe + 4 : 0),
-          kopf: false,
+          // Gruppen- und Herkunftszeilen überschreiben die Zeilen darunter.
+          kopf: /^<tr\b[^>]*class="(?:gruppe|herkunft)"/.test(tr),
           tabelle: { oeffnung: t.oeffnung, kopf: t.kopf, kopfHoehe: kopfHoehe + 4, id },
         });
       });
@@ -399,4 +424,15 @@ export function umbrechen(inhalt: string, mass: Umbruchmass): string[] {
       return auf + out + zu;
     });
   return html.length ? html : [inhalt];
+}
+
+/**
+ * Höhe, die eine Tabellenzeile unter dem gegebenen Tabellenkopf belegt [mm] —
+ * für Kapitel, die selbst paginieren (Massenauszug), damit sie mit derselben
+ * Schätzung rechnen wie der Umbruch.
+ */
+export function zeilenMass(oeffnung: string, kopf: string, zeile: string, breite: number, satz: Satzmass = MAPPE_SATZ): number {
+  const mit = blockhoehe(`${oeffnung}${kopf}<tbody>${zeile}</tbody></table>`, breite, satz);
+  const ohne = blockhoehe(`${oeffnung}${kopf}<tbody></tbody></table>`, breite, satz);
+  return mit - ohne;
 }

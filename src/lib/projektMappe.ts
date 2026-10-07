@@ -62,7 +62,7 @@ import { BELASTBARKEIT_LABELS, KORPUS_LABELS, type KorpusId, type WissensEintrag
 import { druckeDokument } from './druckFenster';
 import { inbetriebnahmeblatt, QUELLE_INFOBLATT_62, type Quellenart } from './inbetriebnahme';
 import { aufnahmestand, type Aufnahmezeile } from './objektaufnahme';
-import { umbrechen } from './mappenUmbruch';
+import { bloecke, blockhoehe, MAPPE_SATZ, umbrechen, zeilenMass } from './mappenUmbruch';
 
 // ---------------------------------------------------------------------------
 // Öffentliche Typen
@@ -193,6 +193,11 @@ const PAPIER: Record<MappeFormat, { w: number; h: number }> = {
  * hinschreiben, ohne einer der vorhandenen Zeichnungen ins Bild zu fahren.
  */
 const RAND = { oben: 13, rechts: 14, unten: 15, links: 22 };
+/** Höhe, die der Umbruch auf einem Textblatt füllen darf [mm]. */
+function textSatzhoehe(blattmass: { w: number; h: number }): number {
+  return (blattmass.h - RAND.oben - RAND.unten - KOPFZEILE_MM) * UMBRUCH_RESERVE;
+}
+
 /** Höhe der Kopfzeile eines Textblatts samt Abstand darunter [mm]. */
 const KOPFZEILE_MM = 10.5;
 /** Anteil des Satzspiegels, den der Umbruch füllen darf — die Schätzung ist vorsichtig, aber eine Schätzung. */
@@ -250,25 +255,6 @@ const HERKUNFT_LABELS: Record<WertHerkunft, string> = {
   abgeleitet: 'aus anderen Angaben abgeleitet',
   annahme: 'Annahme dieses Programms',
 };
-
-/**
- * Wie viele Tabellenzeilen auf ein Textblatt passen.
- *
- * **Warum überhaupt gerechnet und nicht dem Browser überlassen.** Ein
- * Inhaltsverzeichnis nennt Blattnummern, und die stimmen nur, wenn beim Bau
- * der Mappe feststeht, wo umbrochen wird. Der Browser weiß das erst beim
- * Drucken; dieses Modul hat kein DOM und kann nicht messen. Also wird
- * gerechnet — dieselbe Rechnung wie in `pipeReportPrint`: nutzbare Höhe durch
- * Zeilenhöhe. Die Zeilenhöhen sind an gedruckten Blättern abgenommen, nicht
- * geschätzt; sie stehen an der Aufrufstelle, weil eine Zeile mit Fußnote
- * anders hoch ist als eine ohne.
- *
- * @param vorspann Höhe von Überschrift, Einleitung und Tabellenkopf [mm]
- * @param zeile    Höhe einer Datenzeile [mm]
- */
-function zeilenBudget(blatt: { w: number; h: number }, vorspann: number, zeile: number): number {
-  return Math.max(6, Math.floor((blatt.h - RAND.oben - RAND.unten - vorspann) / zeile));
-}
 
 /**
  * Blattnummern zu einer lesbaren Angabe zusammenfassen.
@@ -584,7 +570,7 @@ export function buildProjektMappe(doc: BimDocument, optionen: ProjektMappeOption
 
   // --- Kapitel 11: Quellenverzeichnis --------------------------------------
   if (!omit.has('quellen')) {
-    quellenBlaetter(bericht, blattmass, entwuerfe, kopf);
+    quellenBlaetter(doc, bericht, entwuerfe, kopf);
   }
 
   // --- Kapitel 12: Nachweiskatalog -----------------------------------------
@@ -629,7 +615,7 @@ export function buildProjektMappe(doc: BimDocument, optionen: ProjektMappeOption
     const mass = {
       // Satzspiegel abzüglich Kopfzeile (7,5 pt, 1,5 mm Abstand, Linie, 5 mm)
       // und eines Sicherheitsabstands — siehe Kopf von `mappenUmbruch`.
-      hoehe: (blattmass.h - RAND.oben - RAND.unten - KOPFZEILE_MM) * UMBRUCH_RESERVE,
+      hoehe: textSatzhoehe(blattmass),
       breite: blattmass.w - RAND.links - RAND.rechts,
     };
     const umbrochen: BlattEntwurf[] = [];
@@ -1225,11 +1211,11 @@ function massenauszugBlaetter(
   kopf: (id: MappeKapitelId, titel: string, inhalt: boolean, grund?: string) => void,
 ): void {
   const liste = buildMaterialSchedule(doc, auslegung);
-  // Seit 1.72.0 trägt eine Position nur noch ihre Bezeichnung; die Herkunft
-  // steht als eigene Zeile über der Folge. Die längste technische Angabe
-  // bricht in der 62-mm-Spalte auf drei Zeilen um — 10 mm je Zeile lässt
-  // dafür Luft. Abgezogen werden Überschrift, Vorspann und Tabellenkopf.
-  const proBlatt = zeilenBudget(blattmass, 46, 10);
+  // Seit 1.75.0 wird in Millimetern gezählt, mit derselben Schätzung wie der
+  // Umbruch der Textblätter (`mappenUmbruch`) — vorher zehn Millimeter je
+  // Zeile, was bei umbrechenden technischen Angaben ein Blatt überlaufen ließ.
+  const satzbreite = blattmass.w - RAND.links - RAND.rechts;
+  const satzhoehe = textSatzhoehe(blattmass);
 
   if (!liste.items.length) {
     kopf('massenauszug', 'Massenauszug', false, 'Im Modell steht nichts, was sich in Mengen fassen ließe.');
@@ -1354,32 +1340,41 @@ function massenauszugBlaetter(
     (zusatz ? ` <span class="fussnote">· ${escapeHtml(zusatz)}</span>` : '') +
     `</td></tr>`;
 
+  const vorspannErst =
+    h2('Massenauszug') +
+    p(
+      `${liste.positionCount} Positionen aus dem Modell, nach Gewerken geordnet. Die graue Zeile über ` +
+        'einer Folge von Positionen nennt, aus welchem Teil des Modells ihre Mengen stammen — sie ist der ' +
+        'Grund, warum diese Liste prüfbar ist. Zuschläge für Verschnitt, Kleinteile und Befestigung sind ' +
+        'nicht enthalten.',
+    );
+  const vorspannFolge = h2('Massenauszug (Fortsetzung)');
+  const tabellenkopf =
+    `<thead><tr>` +
+    spalten
+      .map(
+        (s) =>
+          `<th class="${s.rechts ? 'r' : 'l'}"${s.breite ? ` style="width:${s.breite}"` : ''}>${escapeHtml(s.titel)}</th>`,
+      )
+      .join('') +
+    `</tr></thead>`;
+  const leereTabelle = `<table class="daten">${tabellenkopf}<tbody></tbody></table>`;
+  const hoeheVon = (zeile: string): number => zeilenMass('<table class="daten">', tabellenkopf, zeile, satzbreite);
+  const grund = (erst: boolean): number =>
+    [...bloecke(erst ? vorspannErst : vorspannFolge), leereTabelle].reduce(
+      (summe, b) => summe + blockhoehe(b, satzbreite, MAPPE_SATZ),
+      0,
+    );
+
   let zeilen: string[] = [];
-  let belegt = 0;
   let erstes = true;
+  let belegt = grund(true);
   let laufendesGewerk = '';
   const blattSetzen = (): void => {
     if (!zeilen.length) return;
     const inhalt =
-      (erstes
-        ? h2('Massenauszug') +
-          p(
-            `${liste.positionCount} Positionen aus dem Modell, nach Gewerken geordnet. Die graue Zeile über ` +
-              'einer Folge von Positionen nennt, aus welchem Teil des Modells ihre Mengen stammen — sie ist der ' +
-              'Grund, warum diese Liste prüfbar ist. Zuschläge für Verschnitt, Kleinteile und Befestigung sind ' +
-              'nicht enthalten.',
-          )
-        : h2('Massenauszug (Fortsetzung)')) +
-      `<table class="daten"><thead><tr>` +
-      spalten
-        .map(
-          (s) =>
-            `<th class="${s.rechts ? 'r' : 'l'}"${s.breite ? ` style="width:${s.breite}"` : ''}>${escapeHtml(
-              s.titel,
-            )}</th>`,
-        )
-        .join('') +
-      `</tr></thead><tbody>${zeilen.join('')}</tbody></table>`;
+      (erstes ? vorspannErst : vorspannFolge) +
+      `<table class="daten">${tabellenkopf}<tbody>${zeilen.join('')}</tbody></table>`;
     entwuerfe.push({
       kapitel: 'massenauszug',
       titel: erstes ? 'Massenauszug' : `Massenauszug · ${laufendesGewerk}`,
@@ -1387,30 +1382,37 @@ function massenauszugBlaetter(
       inhalt,
     });
     zeilen = [];
-    belegt = 0;
     erstes = false;
+    belegt = grund(false);
+  };
+  const setze = (zeile: string, h = hoeheVon(zeile)): void => {
+    zeilen.push(zeile);
+    belegt += h;
   };
 
   for (const gruppe of liste.groups) {
-    // Eine Gewerksüberschrift allein am Blattende ist eine verwaiste Zeile.
-    if (belegt > 0 && belegt + 3 > proBlatt) blattSetzen();
     laufendesGewerk = gruppe.label;
-    zeilen.push(gewerkszeile(gruppe.label, gruppe.summary));
-    belegt += 1;
+    const kopfzeile = gewerkszeile(gruppe.label, gruppe.summary);
+    let gewerkOffen = true;
     for (const f of folgenVon(gruppe.items)) {
       f.items.forEach((item, i) => {
-        // Kopfzeile der Folge und erste Position stehen auf demselben Blatt.
-        if (belegt + (i === 0 ? 2 : 1) > proBlatt) {
+        // Herkunftszeile, Position und — am Gewerksanfang — die Gewerkszeile
+        // stehen zusammen auf einem Blatt; eine Überschrift allein am
+        // Blattende ist eine verwaiste Zeile.
+        const herkunft = i === 0 ? herkunftszeile(f) : '';
+        const position = zeileVon(item, f);
+        const bedarf =
+          (gewerkOffen ? hoeheVon(kopfzeile) : 0) + (herkunft ? hoeheVon(herkunft) : 0) + hoeheVon(position);
+        if (zeilen.length && belegt + bedarf > satzhoehe) {
           blattSetzen();
-          zeilen.push(gewerkszeile(gruppe.label, 'Fortsetzung'));
-          belegt += 1;
+          if (!gewerkOffen) setze(gewerkszeile(gruppe.label, 'Fortsetzung'));
         }
-        if (i === 0) {
-          zeilen.push(herkunftszeile(f));
-          belegt += 1;
+        if (gewerkOffen) {
+          setze(kopfzeile);
+          gewerkOffen = false;
         }
-        zeilen.push(zeileVon(item, f));
-        belegt += 1;
+        if (herkunft) setze(herkunft);
+        setze(position);
       });
     }
   }
@@ -1424,22 +1426,21 @@ function massenauszugBlaetter(
   const massenHinweise = liste.notes.filter((n) => n.text !== MENGEN_STATT_PREISE);
   if (massenHinweise.length) {
     const mitSchwere = massenHinweise.some((n) => n.severity !== 'info');
-    entwuerfe.push({
-      kapitel: 'massenauszug',
-      titel: 'Massenauszug · Hinweise',
-      art: 'text',
-      inhalt:
-        h2('Massenauszug — Hinweise') +
-        tabelle(
-          mitSchwere ? [{ titel: 'Schwere', breite: '22mm' }, { titel: 'Hinweis' }] : [{ titel: 'Hinweis' }],
-          massenHinweise.map((n) => [
-            ...(mitSchwere
-              ? [escapeHtml(n.severity === 'error' ? 'Fehler' : n.severity === 'warn' ? 'Warnung' : 'Hinweis')]
-              : []),
-            escapeHtml(n.text),
-          ]),
-        ),
-    });
+    // Die Hinweise stehen unter der letzten Tabelle; reicht der Platz dort
+    // nicht, setzt der Umbruch sie auf ein eigenes Blatt (seit 1.75.0 — vorher
+    // immer ein eigenes Blatt, meist zu einem Drittel gefüllt).
+    const letztes = entwuerfe[entwuerfe.length - 1];
+    letztes.inhalt +=
+      h3('Hinweise zum Massenauszug') +
+      tabelle(
+        mitSchwere ? [{ titel: 'Schwere', breite: '22mm' }, { titel: 'Hinweis' }] : [{ titel: 'Hinweis' }],
+        massenHinweise.map((n) => [
+          ...(mitSchwere
+            ? [escapeHtml(n.severity === 'error' ? 'Fehler' : n.severity === 'warn' ? 'Warnung' : 'Hinweis')]
+            : []),
+          escapeHtml(n.text),
+        ]),
+      );
   }
 
   kopf('massenauszug', `Massenauszug (${liste.positionCount} Positionen)`, true);
@@ -1555,12 +1556,13 @@ function anlagenbuchBlaetter(
  * Die Wissensbasis führt zu manchen Themen zwei Dutzend Einträge; alle zu
  * drucken hieße, einer Mappe von fünfzig Blättern zwanzig Blätter
  * Literaturverzeichnis beizulegen — das liest niemand, und es verdeckt die
- * Belege, auf die es ankommt. Genommen werden die drei belastbarsten je
- * Thema; `belege` sortiert dafür bereits Primärquellen nach vorn und liefert
- * eine stabile Reihenfolge, damit zwei Ausdrucke gleich aussehen. Dieselbe
- * Entscheidung trifft `pipeReport` für sein eigenes Quellenblatt.
+ * Belege, auf die es ankommt. Genommen werden die zwei belastbarsten
+ * **passenden** je Thema (bis 1.74.0 drei, ohne Prüfung, ob sie zur Anlage
+ * gehören — acht Blätter Verzeichnis in einer Mappe von 46); `belege`
+ * sortiert dafür bereits Primärquellen nach vorn und liefert eine stabile
+ * Reihenfolge, damit zwei Ausdrucke gleich aussehen.
  */
-const BELEGE_JE_THEMA = 3;
+const BELEGE_JE_THEMA = 2;
 
 const MAPPEN_THEMEN: readonly string[] = [
   // Was der Rohrnetzbericht selbst zitiert
@@ -1598,8 +1600,8 @@ const MAPPEN_THEMEN: readonly string[] = [
 ];
 
 function quellenBlaetter(
+  doc: BimDocument,
   bericht: RohrnetzBericht,
-  blattmass: { w: number; h: number },
   entwuerfe: BlattEntwurf[],
   kopf: (id: MappeKapitelId, titel: string, inhalt: boolean, grund?: string) => void,
 ): void {
@@ -1624,14 +1626,63 @@ function quellenBlaetter(
     trinkwasser: a.dhw !== undefined,
     waermepumpe: a.selected !== undefined,
   };
+  /*
+   * Und nur Belege, die zu **dieser** Anlage passen. Die Wissensbasis führt
+   * Fabrikate, Bauformen und Betriebsweisen, die hier nicht vorkommen — das
+   * Datenblatt einer Daikin-Hydraulikstation belegt in der Mappe einer
+   * Typklasse ohne Fabrikat nichts, ein Bivalenzschema nichts in einer
+   * monovalenten Anlage. Ein unpassender Beleg wird übersprungen, und der
+   * nächstbelastbare des Themas rückt nach.
+   */
+  const plant = doc.plant;
+  const form = a.selected?.model.form;
+  const pufferArt = a.buffer.selected?.kind;
+  const werkstoffe = new Set<string>([
+    ...a.circuits.map((c) => c.circuit.material),
+    ...Object.values(doc.pipes ?? {}).map((r) => (r as { material?: string }).material ?? ''),
+  ]);
+  const hersteller = (a.selected?.model.manufacturer ?? '').toLowerCase();
+  const passt = (e: WissensEintrag): boolean => {
+    const id = e.id.toLowerCase();
+    const titel = e.titel.toLowerCase();
+    const wort = `${id} ${titel}`;
+    if (/bivalen|festbrennstoff|bwp-h-0[67]/.test(wort) && !('ergebnis' in a.bivalenz)) return false;
+    if (/kaskade/.test(wort) && !plant?.cascade) return false;
+    if (/kuehl|kühl|bwp-h-08/.test(wort) && (plant?.cooling ?? 'keine') === 'keine') return false;
+    if (/\bfbh\b|fbh-|fussboden|fußboden/.test(wort) && !vorhanden.fussbodenheizung) return false;
+    if (/hydrosplit/.test(wort) && form !== 'hydrosplit') return false;
+    if (/bauform-split|\bsplit —/.test(wort) && form !== 'split') return false;
+    if (/monoblock/.test(wort) && form !== undefined && !String(form).startsWith('monoblock')) return false;
+    if (/turmger|bauform-turm/.test(wort) && form !== 'tower') return false;
+    // Fabrikatbezogene Bauform- und Frostschutzbelege nur zum Fabrikat.
+    for (const marke of ['daikin', 'vaillant', 'viessmann', 'stiebel', 'bosch', 'lg ', 'lg-', 'panasonic', 'mitsubishi', 'wolf']) {
+      if (wort.includes(marke) && /^(bauform|frostschutz)/.test(id) && !hersteller.includes(marke.replace(/[ -]$/, ''))) {
+        return false;
+      }
+    }
+    if (/innengeraet|innengerät/.test(wort) && form !== 'split' && form !== 'hydrosplit') return false;
+    // Schemata: nur das Pufferprinzip, das gebaut wird.
+    if (/kessel|bwp-h-05/.test(wort) && !('ergebnis' in a.bivalenz)) return false;
+    if (/schwimmbad|bwp-h-10/.test(wort) && plant?.additionalConsumer !== 'schwimmbad') return false;
+    if (/parallelpuffer|bwp-h-03|bwp-bauteilstrang/.test(wort) && pufferArt !== 'buffer-parallel') return false;
+    if (/reihenpuffer|bwp-h-02/.test(wort) && pufferArt !== 'buffer-series') return false;
+    if (/bwp-h-01|ohne pufferspeicher|ohne puffer/.test(wort) && pufferArt !== undefined) return false;
+    // Rohrsysteme: nur Werkstoffe, die verlegt sind.
+    if (/c-stahl/.test(wort) && !werkstoffe.has('stahl')) return false;
+    if (/edelstahl|sanpress/.test(wort) && !werkstoffe.has('edelstahl')) return false;
+    if (/mehrschichtverbund|uponor|rautitan/.test(wort) && !werkstoffe.has('verbund') && !werkstoffe.has('pex')) return false;
+    return true;
+  };
   for (const thema of MAPPEN_THEMEN.filter((t) => vorhanden[t] !== false)) {
-    for (const e of basis.belege(thema).slice(0, BELEGE_JE_THEMA)) if (!belege.has(e.id)) belege.set(e.id, e);
+    for (const e of basis.belege(thema).filter(passt).slice(0, BELEGE_JE_THEMA)) if (!belege.has(e.id)) belege.set(e.id, e);
   }
   // Was der Rohrnetzbericht zitiert, gehört auch dann ins Verzeichnis, wenn
   // es über kein Thema dieser Liste hereinkam — sonst führte die Mappe eine
   // Quelle, die auf einem ihrer eigenen Blätter steht, nicht auf.
   const ohneThema = bericht.quellen.filter(
-    (q) => ![...belege.values()].some((e) => e.titel === q.titel),
+    (q) =>
+      ![...belege.values()].some((e) => e.titel === q.titel) &&
+      passt({ id: '', titel: q.titel } as WissensEintrag),
   );
   const eintraege = [...belege.values()].sort((a, b) => a.titel.localeCompare(b.titel, 'de'));
 
@@ -1702,8 +1753,6 @@ function quellenBlaetter(
   const belegZahl = alle.length;
 
   // Ein Eintrag trägt Titel, Fußnote und meist einen Verweis — rund 17 mm.
-  const proBlatt = zeilenBudget(blattmass, 60, 17);
-
   const umfang = basis
     .korpora()
     .map((k: KorpusId) => `${KORPUS_LABELS[k]}: ${basis.umfang(k)}`)
@@ -1713,30 +1762,27 @@ function quellenBlaetter(
     `<thead><tr>${spalten
       .map((sp) => `<th class="l"${sp.breite ? ` style="width:${sp.breite}"` : ''}>${escapeHtml(sp.titel)}</th>`)
       .join('')}</tr></thead>`;
-  for (let i = 0; i < Math.max(1, zeilen.length); i += proBlatt) {
-    const teil = zeilen.slice(i, i + proBlatt);
-    const inhalt =
-      (i === 0
-        ? h2('Quellenverzeichnis') +
-          p(
-            'Jede Zahl dieser Mappe kommt aus einem der folgenden Belege oder aus dem Modell selbst. Die Spalte ' +
-              '„Belastbarkeit" ist der Kern des Verzeichnisses: eine Primärquelle wurde im Volltext nachgelesen, ' +
-              'eine Sekundärquelle aus Fachliteratur übernommen, und eine Annahme hat dieses Programm gesetzt, ' +
-              'weil eine Zahl gebraucht wurde. Wer den Unterschied verwischt, verkauft eine Annahme als Norm. ' +
-              'Zitieren mehrere Belege dasselbe Dokument, steht seine Adresse einmal darüber.',
-          ) +
-          p(`Die Wissensbasis führt ${basis.umfang()} Einträge in getrennten Sammlungen — ${umfang}.`)
-        : h2('Quellenverzeichnis (Fortsetzung)')) +
-      (teil.length
-        ? `<table class="daten">${kopfzeile}<tbody>${teil.join('')}</tbody></table>`
-        : p('Zu den Themen dieser Mappe ist kein Beleg hinterlegt.'));
-    entwuerfe.push({
-      kapitel: 'quellen',
-      titel: i === 0 ? 'Quellenverzeichnis' : 'Quellenverzeichnis (Fortsetzung)',
-      art: 'text',
-      inhalt,
-    });
-  }
+  // Ein Blatt; auf Seiten verteilt wird es mit allen anderen Textblättern
+  // (`mappenUmbruch`) — seit 1.75.0, vorher mit einer festen Zeilenzahl, die
+  // Seiten zwischen halb und übervoll füllte.
+  entwuerfe.push({
+    kapitel: 'quellen',
+    titel: 'Quellenverzeichnis',
+    art: 'text',
+    inhalt:
+      h2('Quellenverzeichnis') +
+      p(
+        'Jede Zahl dieser Mappe kommt aus einem der folgenden Belege oder aus dem Modell selbst. Die Spalte ' +
+          '„Belastbarkeit" ist der Kern des Verzeichnisses: eine Primärquelle wurde im Volltext nachgelesen, ' +
+          'eine Sekundärquelle aus Fachliteratur übernommen, und eine Annahme hat dieses Programm gesetzt, ' +
+          'weil eine Zahl gebraucht wurde. Wer den Unterschied verwischt, verkauft eine Annahme als Norm. ' +
+          'Zitieren mehrere Belege dasselbe Dokument, steht seine Adresse einmal darüber.',
+      ) +
+      p(`Die Wissensbasis führt ${basis.umfang()} Einträge in getrennten Sammlungen — ${umfang}.`) +
+      (zeilen.length
+        ? `<table class="daten">${kopfzeile}<tbody>${zeilen.join('')}</tbody></table>`
+        : p('Zu den Themen dieser Mappe ist kein Beleg hinterlegt.')),
+  });
 
   kopf(
     'quellen',
@@ -2238,6 +2284,9 @@ function stilblatt(blatt: { w: number; h: number }): string {
     '.blatt .anlagenbuch tfoot{display:table-row-group}',
     'tr,td,th{break-inside:avoid;page-break-inside:avoid}',
     'th,td{padding:1mm 2mm;border-bottom:.3pt solid #CBD5E1;vertical-align:top}',
+    // Lange Adressen ohne Leerzeichen dürfen umbrechen — sonst verbreitern sie
+    // ihre Spalte, und die Zeilenhöhen stimmen mit keiner Schätzung mehr.
+    'td{overflow-wrap:anywhere}',
     'thead th{border-bottom:.7pt solid #334155;font-weight:600;text-align:left;white-space:nowrap}',
     'td.r,th.r{text-align:right}td.l,th.l{text-align:left}',
     'table.kennwerte th{width:52mm;font-weight:600}',
