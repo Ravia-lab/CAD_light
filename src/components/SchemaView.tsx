@@ -15,6 +15,7 @@
  * einem Schema falsch — ein Fließbild liest man an den Ecken.
  */
 
+import { deDatum } from '../lib/zahl';
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { PipeService, SchematicComponent, SchematicKind, SchematicLink, Vec2 } from '../types/bim';
 import { PIPE_SERVICE_COLORS, PIPE_SERVICE_LABELS } from '../types/bim';
@@ -982,7 +983,7 @@ function SchematicPrintDialog({
   onClose: () => void;
 }) {
   // Das Datum kommt von hier, nicht aus dem Rechenmodul — dort ist keine Uhr.
-  const today = new Date().toLocaleDateString('de-DE');
+  const today = deDatum();
 
   // Die Beschriftungsart bleibt beim Dialog: sie gehört zu diesem Ausdruck,
   // nicht zum Modell. Vorgabe ist die Messung („automatisch"), weil sie in

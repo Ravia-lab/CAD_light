@@ -20,6 +20,7 @@
  * lässt.
  */
 
+import { deDatum } from '../lib/zahl';
 import { useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { buildPipeReport, berichtsUrteil } from '../lib/pipeReport';
@@ -44,7 +45,7 @@ export default function MappeDialog({ onClose }: { onClose: () => void }) {
    * Der Aufbau liest keine Uhr — sonst trüge eine Mappe, die man zweimal
    * druckt, zwei Daten, und niemand könnte sagen, welche die aktuelle ist.
    */
-  const datum = useMemo(() => new Date().toLocaleDateString('de-DE'), []);
+  const datum = useMemo(() => deDatum(), []);
 
   /*
    * Der Rohrnetzbericht wird hier gebaut und hineingereicht, nicht in der

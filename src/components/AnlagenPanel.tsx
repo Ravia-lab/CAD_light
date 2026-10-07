@@ -17,7 +17,7 @@
  * geplant" muss sichtbar bleiben.
  */
 
-import { dez } from '../lib/zahl';
+import { deDatum, dez } from '../lib/zahl';
 import { leistungJeVerbraucher } from '../lib/verbraucherlast';
 import { Fragment, useCallback, useMemo, useRef, useState } from 'react';
 import type {
@@ -1912,7 +1912,7 @@ export default function AnlagenPanel() {
                 projectName: doc.meta.name,
                 plantName: 'Wärmepumpenanlage',
                 author: 'RaVia CAD Light',
-                date: new Date().toLocaleDateString('de-DE'),
+                date: deDatum(),
                 rooms: buildRaviaExport(doc).rooms,
               });
               printPlantBook(book.html, book.title);

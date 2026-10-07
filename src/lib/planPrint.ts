@@ -11,7 +11,7 @@
  * erlaubt dem Nutzer, Blattformat und Ausrichtung im Dialog zu korrigieren.
  */
 
-import { dez } from './zahl';
+import { deDatum, dez } from './zahl';
 import type { Annotation, BimDocument, Opening, Room, SolidElement, Vec2 } from '../types/bim';
 import {
   DURCHBRUCH_LABELS,
@@ -1136,15 +1136,18 @@ function buildTitleBlock(
 ): string {
   const y = sheet.h - MARGIN.bottom + 4;
   const area = rooms.reduce((sum, r) => sum + r.area, 0);
-  const date = new Date().toLocaleDateString('de-DE');
+  const date = deDatum();
   const right = sheet.w - MARGIN.right;
+  // Der Titel darf nicht in die Maßstabsangabe rechts laufen: bei 4 mm
+  // Schrifthöhe rund 2,3 mm je Zeichen (fett), dahinter 30 mm für „M 1:…".
+  const titelVoll = options.title ?? doc.meta.name;
+  const titelZeichen = Math.max(12, Math.floor((right - MARGIN.left - 30) / 2.3));
+  const titel = titelVoll.length > titelZeichen ? `${titelVoll.slice(0, titelZeichen - 1).trimEnd()}…` : titelVoll;
 
   return (
     `<g>` +
     `<line x1="${MARGIN.left}" y1="${y}" x2="${right}" y2="${y}" stroke="#0F172A" stroke-width="0.3"/>` +
-    `<text x="${MARGIN.left}" y="${y + 6}" font-size="4" font-weight="600" fill="#0F172A">${escapeXml(
-      options.title ?? doc.meta.name,
-    )}</text>` +
+    `<text x="${MARGIN.left}" y="${y + 6}" font-size="4" font-weight="600" fill="#0F172A">${escapeXml(titel)}</text>` +
     `<text x="${MARGIN.left}" y="${y + 11}" font-size="2.6" fill="#475569">Grundriss ${escapeXml(
       levelName,
     )} · ${rooms.length} Räume · ${dez(area, 2)} m² Nutzfläche</text>` +

@@ -662,7 +662,7 @@ export function buildProjektMappe(doc: BimDocument, optionen: ProjektMappeOption
   });
 
   // --- Blätter setzen -------------------------------------------------------
-  const deckblattHtml = deckblatt(bericht, {
+  const deckblattVoll = deckblatt(bericht, {
     projektName,
     adresse: doc.meta.address,
     bauherr: doc.meta.client,
@@ -675,6 +675,22 @@ export function buildProjektMappe(doc: BimDocument, optionen: ProjektMappeOption
     blattzahl: gesamt,
     urteil,
   });
+  /*
+   * Das Deckblatt ist genau ein Blatt — es wird nicht umbrochen. Ein langer
+   * Projektname und eine lange Anschrift brachten es bis 1.74.0 über die
+   * Seite (die letzte Zeile des Vorbehalts stand dann allein auf Seite 2).
+   * Schätzt der Umbruch es zu hoch, wird es dichter gesetzt: kleinerer
+   * Titel, engere Abstände. Die Schwelle ist am Druck abgenommen — die
+   * Schätzung liegt beim Deckblatt rund 20 mm über dem gedruckten Maß.
+   */
+  const deckblattHoehe = bloecke(deckblattVoll.replace(/^<div class="deckblatt">|<\/div>$/g, '')).reduce(
+    (summe, b) => summe + blockhoehe(b, blattmass.w - RAND.links - RAND.rechts, MAPPE_SATZ),
+    0,
+  );
+  const deckblattHtml =
+    deckblattHoehe > textSatzhoehe(blattmass) / UMBRUCH_RESERVE + 25
+      ? deckblattVoll.replace('<div class="deckblatt">', '<div class="deckblatt dicht">')
+      : deckblattVoll;
   const inhaltHtml = inhaltsverzeichnis(kapitel, gesamt, hinweise);
 
   /*
@@ -2329,6 +2345,11 @@ function stilblatt(blatt: { w: number; h: number }): string {
     '.zahl .v{font-size:13pt;font-weight:600;margin-top:1.2mm;line-height:1.15}',
     '.deckblatt h3{margin-top:2mm}',
     '.zahl .z{font-size:7.5pt;color:#475569;margin-top:1mm}',
+    // Dichter Satz für ein Deckblatt mit langem Namen oder langer Anschrift.
+    '.deckblatt.dicht h1{font-size:15pt;margin-bottom:1mm}',
+    '.deckblatt.dicht .marke{margin-bottom:2mm}.deckblatt.dicht .anlage{margin-bottom:2mm}',
+    '.deckblatt.dicht .zahlen{margin:2mm 0 2.5mm}.deckblatt.dicht .zahl{padding:2mm 3mm}',
+    '.deckblatt.dicht p{margin-bottom:1.5mm}.deckblatt.dicht table{margin-bottom:2.5mm}',
     // Bildschirmvorschau: die Blätter als weiße Karten auf dunklem Grund —
     // dasselbe Bild wie in den Einzelfenstern dieses Programms.
     // Bildschirmvorschau: die Blätter als weiße Karten auf dunklem Grund —

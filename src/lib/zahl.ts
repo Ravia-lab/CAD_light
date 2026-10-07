@@ -21,3 +21,12 @@ export function dez(wert: number, stellen = 2): string {
 export function wie(wert: number): string {
   return String(wert).replace('.', ',').replace(/^-/, '−');
 }
+
+/**
+ * Datum für Ausdrucke: „08.10.2026" — zweistellig, wie in Schriftfeldern
+ * üblich. `toLocaleDateString('de-DE')` allein liefert „8.10.2026", und zwei
+ * Blätter derselben Mappe trugen bis 1.74.0 beide Schreibweisen.
+ */
+export function deDatum(d: Date = new Date()): string {
+  return d.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' });
+}
