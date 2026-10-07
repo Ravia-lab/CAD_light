@@ -1366,6 +1366,14 @@ export function designPlant(doc: BimDocument, options: PlantDesignOptions = {}):
         spread: temperatur.spreizung,
       })
     : undefined;
+  /*
+   * Zu wenig Volumenstrom erklärt die Erzeugerbilanz schon („Die Kreise
+   * führen …, das Gerät verlangt mindestens …"). Die Sicherheitstechnik sagt
+   * dasselbe mit anderen Worten — in jedem Ausdruck stand es zweimal.
+   */
+  if (safety && erzeuger.hinweise.some((h) => h.text.includes('das Gerät verlangt mindestens'))) {
+    safety.notes = safety.notes.filter((n) => !n.text.startsWith('Im ungünstigsten Betriebsfall fließen nur'));
+  }
   for (const n of safety?.notes ?? []) notes.push(n);
 
   /*

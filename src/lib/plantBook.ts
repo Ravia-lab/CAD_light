@@ -143,9 +143,9 @@ export interface PlantBookOptions {
   armaturenVerweis?: string;
   /**
    * **In der Projektmappe** (seit 1.75.0): Deren Deckblatt sagt schon, was
-   * die Mappe ist und dass die Heizlast ein Überschlag ist. Kapitel 1 lässt
-   * dann seinen Einleitungssatz weg und nennt zur Heizlast nur, was das
-   * Deckblatt nicht sagt.
+   * die Mappe ist und dass die Heizlast ein Überschlag ist. Das Kapitel „Was
+   * hier steht und was nicht“ lässt dann seinen Einleitungssatz weg und nennt
+   * zur Heizlast nur, was das Deckblatt nicht sagt.
    */
   inMappe?: boolean;
 }
@@ -1044,7 +1044,7 @@ function generatorFacts(design: PlantDesignResult, model: HeatPumpModel, capacit
       note:
         model.provenance === 'hersteller'
           ? 'Werte aus dem Datenblatt; zwischen den Punkten wird interpoliert.'
-          : 'Bereichswerte marktüblicher Geräte, kein Datenblatt — was daraus folgt, steht in Kapitel 1.',
+          : 'Bereichswerte marktüblicher Geräte, kein Datenblatt — was daraus folgt, steht im Kapitel „Was hier steht und was nicht“.',
     },
     {
       label: 'Nennheizleistung',
@@ -1125,7 +1125,7 @@ function generatorFacts(design: PlantDesignResult, model: HeatPumpModel, capacit
     {
       label: 'Mindestwasserinhalt',
       value: `${de(model.minSystemVolume, 0)} l`,
-      note: 'Maßgebend für die Puffergröße; siehe Kapitel Speicher.',
+      note: 'Maßgebend für die Puffergröße; siehe Kapitel „Speicher und Trinkwasser“.',
     },
     { label: 'Heizungsanschluss', value: model.hydraulicConnection },
     model.refrigerantLines
@@ -1717,7 +1717,7 @@ function chapterStorage(design: PlantDesignResult): string {
         // auch die Aufstellung steht — ohne Sicherheitsauslegung zeigt er ins
         // Leere, und ein Querverweis auf eine leere Seite ist schlimmer als
         // keiner.
-        note: design.safety
+        note: design.safety && design.safety.volumeParts.length > 1
           ? 'Summe aus Erzeuger, Speicher, Verteilleitungen und Heizflächen. Die Aufstellung steht im Kapitel ' +
             'Sicherheitstechnik, weil sie dort in die Gefäßgröße eingeht.'
           : 'Summe aus Erzeuger, Speicher, Verteilleitungen und Heizflächen. Die Aufstellung nach Anteilen ' +
@@ -1881,14 +1881,18 @@ function chapterSafety(design: PlantDesignResult, armaturenVerweis?: string): st
     ]),
   );
 
-  parts.push(
-    heading('Wasserinhalt der Anlage'),
-    dataTable(
-      [{ label: 'Anteil' }, { label: 'Inhalt', unit: 'l', align: 'right' }],
-      safety.volumeParts.map((part) => [part.label, de(part.volume, 1)]),
-      ['Summe', de(safety.systemVolume, 1)],
-    ),
-  );
+  // Eine Aufstellung aus einem einzigen Posten wiederholt nur die Summe
+  // (bis 1.74.0: „Anlagenwasserinhalt 324,1 — Summe 324,1").
+  if (safety.volumeParts.length > 1) {
+    parts.push(
+      heading('Wasserinhalt der Anlage'),
+      dataTable(
+        [{ label: 'Anteil' }, { label: 'Inhalt', unit: 'l', align: 'right' }],
+        safety.volumeParts.map((part) => [part.label, de(part.volume, 1)]),
+        ['Summe', de(safety.systemVolume, 1)],
+      ),
+    );
+  }
 
   if (safety.fittings.length > 0 && armaturenVerweis) {
     parts.push(
@@ -2066,7 +2070,9 @@ function checklistItems(design: PlantDesignResult): ChecklistItem[] {
       // Verweise gehen über den Kapitelnamen, nicht über die Nummer: die
       // Nummer verschiebt sich, sobald ein Kapitel weggelassen wird, und ein
       // falscher Querverweis ist schlimmer als gar keiner.
-      note: 'Durchflussmesser und Ventile nach der Verteilertabelle im Kapitel Wärmeverteilung.',
+      note: design.circuits.some((c) => c.rooms?.length)
+        ? 'Durchflussmesser und Ventile nach der Verteilertabelle im Kapitel Wärmeverteilung.'
+        : 'Thermostatventile nach den Einstellwerten je Heizfläche aus der Rohrnetzberechnung.',
     },
     {
       task: 'Heizkurve eingestellt',
