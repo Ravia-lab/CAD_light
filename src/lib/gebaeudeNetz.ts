@@ -32,6 +32,7 @@
  * Geschoss steht.
  */
 
+import { dez } from './zahl';
 import type { BimDocument, Fixture, Level, PipeAccessory, PipeRun, Vec2 } from '../types/bim';
 import { planPipeNetwork, type PipeLayoutOptions, type PipeLayoutResult } from './pipeLayout';
 import { steigpunkt, type SteigGrund } from './steigstrang';
@@ -439,7 +440,7 @@ function planeGebaeudeNetzRoh(
     severity: 'info',
     text:
       `Gebäudenetz: ${geschosse.length} Geschosse ab „${quellGeschoss.name}", ` +
-      `${straenge.length} Strangabschnitt(e), zusammen ${Math.round(pipeLength * 10) / 10} m Rohr.`,
+      `${straenge.length} Strangabschnitt(e), zusammen ${dez(pipeLength, 1)} m Rohr.`,
   });
 
   return {

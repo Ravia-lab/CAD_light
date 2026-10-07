@@ -2019,9 +2019,8 @@ function befunde(
         'damit kein Rohr in der Randfuge liegt — DIN EN 1264-4 nennt diesen Wert für ' +
         'Flächenheizrohre gegenüber senkrechten Bauteilen; für Anbindeleitungen ist er der ' +
         'nächstliegende belegbare Anhalt, kein unmittelbar einschlägiger Wert. Türöffnungen ' +
-        'sind hier unkritisch — die Leitung läuft unter der Schwelle durch; sie werden quer ' +
-        'durchstoßen und sind in `doorCrossings` aufgeführt, weil dort die Aufbauhöhe und die ' +
-        'Estrich-Bewegungsfuge zu prüfen sind.',
+        'sind hier unkritisch — die Leitung läuft unter der Schwelle durch und durchstößt sie quer; ' +
+        'an jeder Querung sind Aufbauhöhe und Estrich-Bewegungsfuge zu prüfen.',
     });
   }
 

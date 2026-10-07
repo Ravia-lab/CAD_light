@@ -10,6 +10,7 @@
  * letzte Wand zu entfernen.
  */
 
+import { dez } from '../lib/zahl';
 import { create } from 'zustand';
 import type {
   AnlagenAntworten,
@@ -2819,7 +2820,7 @@ export const useBimStore = create<BimState>()((set, get) => {
 
       const area = polygonArea(polygon);
       set({
-        statusMessage: `${ROOM_TEMPLATE_BY_KIND[kind].label} mit ${count} Wänden angelegt · ${area.toFixed(2)} m² Achsfläche`,
+        statusMessage: `${ROOM_TEMPLATE_BY_KIND[kind].label} mit ${count} Wänden angelegt · ${dez(area, 2)} m² Achsfläche`,
       });
       return { walls: count, area };
     },
@@ -4798,8 +4799,8 @@ export const useBimStore = create<BimState>()((set, get) => {
       set({
         statusMessage: schwer
           ? schwer.text
-          : `Rohrnetz ausgelegt — ${ergebnis.served} Verbraucher, ${ergebnis.routeLength.toFixed(1)} m Trasse, ` +
-            `${ergebnis.pipeLength.toFixed(1)} m Rohr, ${ergebnis.accessories.length} Armaturen, ` +
+          : `Rohrnetz ausgelegt — ${ergebnis.served} Verbraucher, ${dez(ergebnis.routeLength, 1)} m Trasse, ` +
+            `${dez(ergebnis.pipeLength, 1)} m Rohr, ${ergebnis.accessories.length} Armaturen, ` +
             `${ft['bogen-90']} Bögen, ${ft['t-stueck']} T-Stücke, ${ft.reduzierung} Reduzierungen, ` +
             `${anzahlDurchbrueche} ${anzahlDurchbrueche === 1 ? 'Durchbruch' : 'Durchbrüche'}` +
             (ergebnis.geschosse.length > 1
@@ -5460,7 +5461,7 @@ export const useBimStore = create<BimState>()((set, get) => {
         selections: [{ kind: 'annotation', id: note.id }],
         statusMessage:
           kind === 'dimension'
-            ? `Maßkette ${Math.hypot(points[1].x - points[0].x, points[1].y - points[0].y).toFixed(3)} m`
+            ? `Maßkette ${dez(Math.hypot(points[1].x - points[0].x, points[1].y - points[0].y), 3)} m`
             : 'Beschriftung gesetzt — Text im Inspektor eingeben',
       });
       return note;
@@ -5724,7 +5725,7 @@ export const useBimStore = create<BimState>()((set, get) => {
       const roof = get().doc.levels[levelId]?.roof;
       set({
         statusMessage: roof
-          ? `Dach: ${ROOF_KIND_LABELS[roof.kind]} · ${roof.pitch.toFixed(0)}° · Kniestock ${roof.kneeHeight.toFixed(2)} m`
+          ? `Dach: ${ROOF_KIND_LABELS[roof.kind]} · ${dez(roof.pitch, 0)}° · Kniestock ${dez(roof.kneeHeight, 2)} m`
           : 'Dach entfernt — Decke wieder waagerecht',
       });
     },
@@ -7127,7 +7128,7 @@ export const useBimStore = create<BimState>()((set, get) => {
         },
         { skipRooms: true },
       );
-      set({ statusMessage: `Kalibriert auf ${realLength.toFixed(2)} m`, tool: 'select' });
+      set({ statusMessage: `Kalibriert auf ${dez(realLength, 2)} m`, tool: 'select' });
     },
 
     /** Übernimmt alle nicht verworfenen Vorschläge als echte CAD-Objekte. */

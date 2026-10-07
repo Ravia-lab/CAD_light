@@ -321,7 +321,7 @@
 
 <h4 id="k14-4-4">14.4.4 Blatt 2 — Anlagendaten und Nachweis</h4>
 
-<p>Ganz oben das Urteil in einem Wort, grün oder orange: <b>Nachweisfähig</b> oder <b>Nicht nachweisfähig</b>. Ist es nicht nachweisfähig, folgt die Zeile „Offen: …" mit der Aufzählung dessen, was fehlt.</p>
+<p>Ganz oben das Urteil in einem Wort, grün oder orange: <b>Nachweisfähig</b> oder <b>Nicht nachweisfähig</b>. Ist es nicht nachweisfähig, sagt die Zeile darunter, wie viele der sieben Pflichtangaben fehlen; welche, steht im Katalog darunter — dort sind sie mit ○ markiert. Bis 1.74.0 stand die Liste zweimal auf demselben Blatt.</p>
 
 <p>Darunter der Block <b>Anlagendaten</b>:</p>
 
@@ -676,13 +676,13 @@ Verordnung, und das steht auf dem Blatt.</p>
 <tr><td>3</td><td><b>Grundriss je Geschoss</b></td><td>Für jedes Geschoss mit Wänden ein Blatt, gebaut von derselben Funktion wie der Plandruck.</td></tr>
 <tr><td>4</td><td><b>Anlagenschema</b></td><td>Das Schemablatt, gegebenenfalls mit eigenem Legendenblatt.</td></tr>
 <tr><td>5</td><td><b>Rohrnetzbericht</b></td><td>Anlagendaten und Nachweis, Teilstreckentabelle, Fließwege, Hinweise und Quellen des Berichts.</td></tr>
-<tr><td>6</td><td><b>Einstellwerte</b></td><td>Das Blatt für die Montage. Es liegt mitten in der Blattfolge des Rohrnetzberichts und ist deshalb ein eigenes Kapitel mit eigenen, nicht zusammenhängenden Blattnummern.</td></tr>
+<tr><td>6</td><td><b>Einstellwerte</b></td><td>Das Blatt für die Montage, als eigenes Kapitel direkt hinter dem Rohrnetzbericht. Bis 1.74.0 lag es mitten in dessen Blattfolge, und das Inhaltsverzeichnis nannte für den Bericht Blattnummern mit Lücke.</td></tr>
 <tr><td>7</td><td><b>Pumpenauslegung und Erzeugerkreis</b></td><td>Die Postentabelle, der Gerätekennwert und die Förderhöhe — dieselben Angaben wie im Bericht, hier als Textblatt gesetzt.</td></tr>
-<tr><td>8</td><td><b>Massenauszug</b></td><td>Die Positionsliste als Blattfolge, dazu ein eigenes Blatt mit den Hinweisen.</td></tr>
+<tr><td>8</td><td><b>Massenauszug</b></td><td>Die Positionsliste als Blattfolge; die Hinweise stehen unter der letzten Tabelle und bekommen nur dann ein eigenes Blatt, wenn sie dort nicht mehr passen.</td></tr>
 <tr><td>9</td><td><b>Anlagenbuch</b></td><td>Die neun Kapitel aus <a href="#k14-5">Abschnitt 14.5</a>, in die Mappe eingebettet. Das Stilblatt des Anlagenbuchs wird dabei übernommen, aber auf diesen Bereich eingeschränkt — nachgebaut würde es still auseinanderlaufen.</td></tr>
-<tr><td>10</td><td><b>Quellenverzeichnis</b></td><td>Alle Belege der Wissensbasis, die für die Mappe gezogen wurden, mit Titel, Quelle, <b>Belastbarkeit</b> und Sammlung. Was der Rohrnetzbericht bereits zitiert, ist als solches gekennzeichnet und steht nur einmal da.</td></tr>
-<tr><td>11</td><td><b>Nachweiskatalog § 60c Abs. 4 GModG</b></td><td>Der Gesetzeswortlaut, das Urteil, und die sieben Angaben in einer Tabelle mit Nummer, Forderung, Zustand („liegt vor" oder „fehlt, weil …"), Angabe und Herkunft.</td></tr>
-<tr><td>12</td><td><b>Inbetriebnahme, Optimierung und Wartung</b></td><td>Die Einstellwerte aus dieser Auslegung, die Vorbedingungen und die Wartungsliste zur Bauart der Wärmequelle — seit 1.65.0.</td></tr>
+<tr><td>10</td><td><b>Inbetriebnahme, Optimierung und Wartung</b></td><td>Die Einstellwerte aus dieser Auslegung, die Vorbedingungen und die Wartungsliste zur Bauart der Wärmequelle — seit 1.65.0.</td></tr>
+<tr><td>11</td><td><b>Quellenverzeichnis</b></td><td>Die Belege der Wissensbasis, die für die Mappe gezogen wurden, mit Titel, Quelle, <b>Belastbarkeit</b> und Sammlung — je Thema die zwei belastbarsten, die <b>zu dieser Anlage passen</b> (seit 1.75.0): keine Kessel- oder Schwimmbadschemata ohne Kessel oder Schwimmbad, keine Hydrosplit- oder Fabrikatbelege bei einer anderen Bauform, keine Pufferschemata eines anderen Pufferprinzips, keine Rohrsysteme, die nicht verlegt sind. Was der Rohrnetzbericht zitiert, steht einmal und mit seiner Belastbarkeit da.</td></tr>
+<tr><td>12</td><td><b>Nachweiskatalog § 60c Abs. 4 GModG</b></td><td>Der Gesetzeswortlaut, das Urteil, und die sieben Angaben in einer Tabelle mit Nummer, Forderung, Zustand („liegt vor" oder „fehlt, weil …"), Angabe und Herkunft.</td></tr>
 <tr><td>13</td><td><b>Anlage: Objektaufnahme</b></td><td>Die Checkliste des Praxisratgebers in fünf Gruppen (Gebäude, Hülle, Nutzung, bestehende Anlage, Wärmeverteilung), jede Position mit Angabe und <b>Herkunft</b>. Auch die unbeantworteten — ein Bogen, der nur das Ausgefüllte zeigt, sieht immer vollständig aus. Seit 1.69.0.</td></tr>
 </tbody>
 </table>
@@ -700,6 +700,17 @@ Verordnung, und das steht auf dem Blatt.</p>
 <li>In den Einstellwerten zur Inbetriebnahme nennt die Quellenspalte nur, was nicht aus dem Infoblatt Nr. 62 stammt — das steht einmal im Einleitungssatz.</li>
 </ul>
 <p>Eine Prüfung baut bei jedem Lauf die Mappe des Referenzhauses und zählt jeden Textbaustein ab 45 Zeichen außerhalb der Zeichnungen; kein Satz darf zweimal vorkommen. Ausgenommen sind kurze Messwerte („Spreizung 7,0 K"), die zwei gleich ausgelegte Bauteile beide haben, und die Gewerksüberschrift „Fortsetzung" auf Folgeblättern.</p>
+
+<h4 id="k14-7-2c">14.7.2c Kein Satz zweimal, jede Zahl deutsch, jedes Blatt eine Seite — seit 1.75.0</h4>
+
+<p>Die Prüfung von 1.72.0 verglich ganze Absätze. Zehn Prüfrunden an den fünf Gebäuden der Praxisprüfung haben gezeigt, was sie nicht sah:</p>
+<ul>
+<li><b>Sätze doppelt in verschiedenen Absätzen.</b> Die Begründung einer angehobenen Auslegungstemperatur stand dreimal (Deckblatt, Anlagenbuch, Nachweiskatalog), „die Heizlast ist ein Überschlag“ viermal, die Einstufung nach DVGW W 551 zweimal. Jetzt steht so ein Satz einmal; die anderen Stellen verweisen darauf oder lassen ihn weg.</li>
+<li><b>Zahlen mit Punkt.</b> „12.37 kW“ im Hinweis, „9.47 m²“ im Raumstempel des Grundrisses, „8.2 kW“ im Schema, „-12 °C“ mit Bindestrich. Alle Ausgaben nehmen jetzt Komma und echtes Minuszeichen.</li>
+<li><b>Spalten ohne Aussage.</b> Eine Spalte, in der in jeder Zeile dasselbe steht („Hinweis“, „nein“, leer), entfällt; was sie sagen würde, steht einmal als Satz.</li>
+<li><b>Ein Blatt ist eine Druckseite.</b> Bis 1.74.0 durfte ein langes Textkapitel im Browser auf Folgeseiten überlaufen — ohne Kopfzeile, ohne Blattnummer. Die Mappe des Bungalows nannte „46 Blätter“ und druckte 61 Seiten. Jetzt verteilt die Mappe jedes Textkapitel schon beim Bau auf Blätter; jedes trägt Kopfzeile und Nummer, Tabellen wiederholen ihren Kopf, eine Überschrift bleibt bei ihrem Text, und ein Blatt mit drei Restzeilen wird vermieden. Der Rauchtest druckt die Mappe als PDF und vergleicht die Seitenzahl mit der Blattzahl.</li>
+</ul>
+<p>Die Prüfung „Mappenhygiene“ baut bei jedem Lauf die Mappe des Referenzhauses (auch bei −14 °C) und zählt jeden Satz ab 50 Zeichen; dazu Dezimalpunkte vor Einheiten, Bindestrich-Minus, Code-Bezeichner und Rohwerte — auch in den Zeichnungen.</p>
 
 <h4 id="k14-7-3">14.7.3 Die durchgehende Blattzählung am Heftrand</h4>
 

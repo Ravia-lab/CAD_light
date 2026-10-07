@@ -1695,7 +1695,7 @@ export function planPipeNetwork(doc: BimDocument, options: PipeLayoutOptions): P
     severity: 'info',
     text:
       `${options.mode === 'sanierung' ? 'Sanierung: Sockelleistenkanal an der Wand' : 'Neubau: auf der Rohdecke im Fußbodenaufbau'} · ` +
-      `${Math.round(routeLength * 10) / 10} m Trasse, ${Math.round(pipeLength * 10) / 10} m Rohr (Vor- und Rücklauf), ` +
+      `${dez(routeLength, 1)} m Trasse, ${dez(pipeLength, 1)} m Rohr (Vor- und Rücklauf), ` +
       `${versorgteZiele.length} Verbraucher, ${accessories.length} Armaturen.`,
   });
 
