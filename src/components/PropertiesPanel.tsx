@@ -4,6 +4,7 @@
  * Gebäude-Kennwerte, die man beim Planen ständig im Blick haben will.
  */
 
+import { dez } from '../lib/zahl';
 import { dachraumTemperatur, nachbarTemperatur, UNBEHEIZT_ART_LABELS, UNBEHEIZT_ART_VORGABE, unbeheiztEingetragen, unbeheizteTemperatur } from '../lib/unbeheizt';
 import RaumnameFeld from './RaumnameFeld';
 import type {
@@ -322,8 +323,8 @@ function WallProperties({ wall }: { wall: Wall }) {
 
   return (
     <Section title="Wand">
-      <Readout label="Länge" value={`${length.toFixed(3)} m`} />
-      <Readout label="Ansichtsfläche" value={`${area.toFixed(2)} m²`} />
+      <Readout label="Länge" value={`${dez(length, 3)} m`} />
+      <Readout label="Ansichtsfläche" value={`${dez(area, 2)} m²`} />
 
       <Field label="Wandstärke">
         <div className="flex gap-0.5 rounded-lg bg-graphite-900/60 p-0.5">
@@ -335,7 +336,7 @@ function WallProperties({ wall }: { wall: Wall }) {
               }`}
               onClick={() => updateWall(wall.id, { thickness: t })}
             >
-              {(t * 100).toFixed(1)}
+              {dez(t * 100, 1)}
             </button>
           ))}
         </div>
@@ -458,7 +459,7 @@ function OpeningProperties({ opening }: { opening: Opening }) {
 
   return (
     <Section title={title}>
-      <Readout label="Rohbauöffnung" value={`${(opening.width * opening.height).toFixed(2)} m²`} />
+      <Readout label="Rohbauöffnung" value={`${dez(opening.width * opening.height, 2)} m²`} />
 
       {/* Bauart — steuert Symbol im Plan und Ausbildung im Modell */}
       {opening.kind === 'window' && (
@@ -799,11 +800,11 @@ function RoomProperties({ room }: { room: Room }) {
       )}
 
       <div className="grid grid-cols-2 gap-x-3 gap-y-1 rounded-lg bg-graphite-900/60 px-2.5 py-2">
-        <Readout label="Fläche" value={`${room.area.toFixed(2)} m²`} accent />
-        <Readout label="Volumen" value={`${room.volume.toFixed(2)} m³`} />
-        <Readout label="Umfang" value={`${room.perimeter.toFixed(2)} m`} />
-        <Readout label="Höhe" value={`${room.height.toFixed(2)} m`} />
-        <Readout label="Öffnungen" value={`${windowArea.toFixed(2)} m²`} />
+        <Readout label="Fläche" value={`${dez(room.area, 2)} m²`} accent />
+        <Readout label="Volumen" value={`${dez(room.volume, 2)} m³`} />
+        <Readout label="Umfang" value={`${dez(room.perimeter, 2)} m`} />
+        <Readout label="Höhe" value={`${dez(room.height, 2)} m`} />
+        <Readout label="Öffnungen" value={`${dez(windowArea, 2)} m²`} />
         <Readout label="Wände" value={String(room.boundaries.length)} />
       </div>
 
@@ -903,18 +904,18 @@ function RoomProperties({ room }: { room: Room }) {
 
       {/* Abgeleitete Kennwerte, die direkt in die Norm eingehen */}
       <div className="grid grid-cols-2 gap-x-3 gap-y-1 rounded-lg bg-graphite-900/60 px-2.5 py-2">
-        <Readout term="b-strich" label="Erdkontakt-Umfang" value={`${room.groundContactPerimeter.toFixed(2)} m`} />
+        <Readout term="b-strich" label="Erdkontakt-Umfang" value={`${dez(room.groundContactPerimeter, 2)} m`} />
         <Readout
           label="B′"
           term="b-strich"
           value={
             room.groundContactPerimeter > 0
-              ? `${(room.area / (0.5 * room.groundContactPerimeter)).toFixed(2)} m`
+              ? `${dez((room.area / (0.5 * room.groundContactPerimeter)), 2)} m`
               : '—'
           }
         />
         <Readout label="Außenfassaden" value={String(room.exposedFacadeCount)} />
-        <Readout label="Mindestluftstrom" value={`${(room.volume * room.airChangeRate).toFixed(0)} m³/h`} />
+        <Readout label="Mindestluftstrom" value={`${dez(room.volume * room.airChangeRate, 0)} m³/h`} />
       </div>
 
       {/* Orientierungen — die für die Heizlast entscheidende Information */}
@@ -929,10 +930,10 @@ function RoomProperties({ room }: { room: Room }) {
               <span className="w-16 truncate text-slate-500" title={BOUNDARY_LABELS[b.boundary]}>
                 {BOUNDARY_LABELS[b.boundary]}
               </span>
-              <span className="flex-1 text-right font-mono text-slate-400">{b.length.toFixed(2)} m</span>
-              <span className="font-mono text-slate-500">{b.netArea.toFixed(2)} m²</span>
+              <span className="flex-1 text-right font-mono text-slate-400">{dez(b.length, 2)} m</span>
+              <span className="font-mono text-slate-500">{dez(b.netArea, 2)} m²</span>
               {b.openingArea > 0 && (
-                <span className="font-mono text-accent-teal">−{b.openingArea.toFixed(2)}</span>
+                <span className="font-mono text-accent-teal">−{dez(b.openingArea, 2)}</span>
               )}
             </div>
           ))}
@@ -1602,7 +1603,7 @@ function FixtureProperties({ fixture }: { fixture: Fixture }) {
         <Readout label="Wandgebunden" value={fixture.wallId ? 'ja' : 'frei stehend'} />
         <Readout
           label="Position"
-          value={`${fixture.position.x.toFixed(2)} / ${fixture.position.y.toFixed(2)}`}
+          value={`${dez(fixture.position.x, 2)} / ${dez(fixture.position.y, 2)}`}
         />
       </div>
 
@@ -1760,9 +1761,9 @@ function SolidProperties({ element }: { element: SolidElement }) {
       </Section>
 
       <Section title="Ergibt sich daraus">
-        <Readout label="Grundfläche" value={`${area.toFixed(2)} m²`} accent />
-        <Readout label="Umfang" value={`${polygonPerimeter(outline).toFixed(2)} m`} />
-        <Readout label="Bauvolumen" value={`${(area * height).toFixed(2)} m³`} />
+        <Readout label="Grundfläche" value={`${dez(area, 2)} m²`} accent />
+        <Readout label="Umfang" value={`${dez(polygonPerimeter(outline), 2)} m`} />
+        <Readout label="Bauvolumen" value={`${dez(area * height, 2)} m³`} />
         <Readout label="Im Raum" value={room?.name ?? '—'} />
         <Readout label="An Außenwand" value={anAussenwand ? 'ja' : 'nein'} />
       </Section>
@@ -1974,10 +1975,10 @@ function DurchbruchProperties({ element }: { element: Durchbruch }) {
       </Section>
 
       <Section title="Ergibt sich daraus">
-        <Readout label="Lichter Querschnitt" value={`${(querschnitt * 10000).toFixed(0)} cm²`} accent />
+        <Readout label="Lichter Querschnitt" value={`${dez(querschnitt * 10000, 0)} cm²`} accent />
         <Readout
           label="Lage"
-          value={mitte ? `${mitte.x.toFixed(2)} | ${mitte.y.toFixed(2)}` : '—'}
+          value={mitte ? `${dez(mitte.x, 2)} | ${dez(mitte.y, 2)}` : '—'}
         />
         <Readout label="Geschoss" value={level?.name ?? '—'} />
         {wirt === 'wand' && (
@@ -1985,9 +1986,9 @@ function DurchbruchProperties({ element }: { element: Durchbruch }) {
             <Readout label="In Wand" value={wand ? (wand.type === 'exterior' ? 'Außenwand' : 'Innenwand') : '—'} />
             <Readout
               label="Wandlänge"
-              value={geometrie ? `${geometrie.length.toFixed(2)} m` : '—'}
+              value={geometrie ? `${dez(geometrie.length, 2)} m` : '—'}
             />
-            <Readout label="Wanddicke" value={wand ? `${(wand.thickness * 100).toFixed(0)} cm` : '—'} />
+            <Readout label="Wanddicke" value={wand ? `${dez(wand.thickness * 100, 0)} cm` : '—'} />
           </>
         )}
       </Section>
@@ -2185,13 +2186,13 @@ function VerticalProperties({ element }: { element: VerticalElement }) {
       </Section>
 
       <Section title="Ergibt sich daraus">
-        <Readout label="Grundfläche" value={`${area.toFixed(2)} m²`} accent />
+        <Readout label="Grundfläche" value={`${dez(area, 2)} m²`} accent />
         {isStair && rise > 0 && (
           <>
-            <Readout label="Lauflinie" value={`${runLength.toFixed(2)} m`} />
-            <Readout label="Steigungshöhe" value={`${(rise * 100).toFixed(1)} cm`} />
-            <Readout label="Auftritt" value={`${(going * 100).toFixed(1)} cm`} />
-            <Readout label="Schrittmaß 2s+a" value={`${(2 * rise * 100 + going * 100).toFixed(1)} cm`} />
+            <Readout label="Lauflinie" value={`${dez(runLength, 2)} m`} />
+            <Readout label="Steigungshöhe" value={`${dez(rise * 100, 1)} cm`} />
+            <Readout label="Auftritt" value={`${dez(going * 100, 1)} cm`} />
+            <Readout label="Schrittmaß 2s+a" value={`${dez(2 * rise * 100 + going * 100, 1)} cm`} />
             {/*
               Die Stelle, ab der die Decke offen sein muss — das Maß, das den
               Treppenaufgang überhaupt erst begehbar macht. DIN 18065 fordert
@@ -2199,7 +2200,7 @@ function VerticalProperties({ element }: { element: VerticalElement }) {
             */}
             <Readout
               label="Decke offen ab"
-              value={`${(oeffnungAb(masse!, Math.max(0, geschosshoehe - DEFAULT_SLAB)) * 100).toFixed(0)} cm Lauflänge`}
+              value={`${dez((oeffnungAb(masse!, Math.max(0, geschosshoehe - DEFAULT_SLAB)) * 100), 0)} cm Lauflänge`}
             />
           </>
         )}
@@ -2208,13 +2209,13 @@ function VerticalProperties({ element }: { element: VerticalElement }) {
 
       {isStair && rise > 0 && (rise > 0.2 || rise < 0.14) && (
         <p className="rounded-lg bg-orange-500/10 px-2.5 py-2 text-[10px] leading-relaxed text-orange-300">
-          Steigungshöhe {(rise * 100).toFixed(1)} cm liegt außerhalb von 14–20 cm (DIN 18065).
+          Steigungshöhe {dez(rise * 100, 1)} cm liegt außerhalb von 14–20 cm (DIN 18065).
           Zahl der Steigungen anpassen.
         </p>
       )}
       {isStair && going > 0 && (going < 0.23 || going > 0.37) && (
         <p className="rounded-lg bg-orange-500/10 px-2.5 py-2 text-[10px] leading-relaxed text-orange-300">
-          Auftritt {(going * 100).toFixed(1)} cm liegt außerhalb von 23–37 cm (DIN 18065). Lauflänge
+          Auftritt {dez(going * 100, 1)} cm liegt außerhalb von 23–37 cm (DIN 18065). Lauflänge
           oder Stufenzahl anpassen — bei gewendelten Treppen zählt die Lauflinie, nicht die
           Bauteiltiefe.
         </p>
@@ -2283,7 +2284,7 @@ function PipeProperties({ run }: { run: PipeRun }) {
       </Section>
 
       <Section title="Ergibt sich daraus">
-        <Readout label="Trassenlänge" value={`${length.toFixed(2)} m`} accent />
+        <Readout label="Trassenlänge" value={`${dez(length, 2)} m`} accent />
         <Readout label="Stützpunkte" value={String(run.points.length)} />
         <Readout label="Gedämmt" value={run.insulation > 0 ? `${run.insulation} mm` : 'nein'} />
       </Section>
@@ -2334,7 +2335,7 @@ function AccessoryProperties({ armatur }: { armatur: PipeAccessory }) {
           <Readout label="Geschoss" value={level?.name ?? '—'} />
           <Readout
             label="Lage"
-            value={`${armatur.position.x.toFixed(2)} | ${armatur.position.y.toFixed(2)}`}
+            value={`${dez(armatur.position.x, 2)} | ${dez(armatur.position.y, 2)}`}
           />
         </div>
 
@@ -2472,8 +2473,8 @@ function RoofOpeningProperties({ opening }: { opening: RoofOpening }) {
       <Section title="Wirkung auf die Hülle">
         {isSkylight ? (
           <>
-            <Readout label="Glasfläche" value={`${area.toFixed(2)} m²`} accent />
-            <Readout label="Neigung" value={roof ? `${roof.pitch.toFixed(0)}°` : '—'} />
+            <Readout label="Glasfläche" value={`${dez(area, 2)} m²`} accent />
+            <Readout label="Neigung" value={roof ? `${dez(roof.pitch, 0)}°` : '—'} />
             <p className="pt-1 text-[9.5px] leading-relaxed text-slate-600">
               Die Fläche wird von der Dachfläche <em>abgezogen</em>, nicht addiert. Neigung und
               Himmelsrichtung übernimmt das Fenster von der Dachfläche, auf der es sitzt — das ist
@@ -2482,11 +2483,11 @@ function RoofOpeningProperties({ opening }: { opening: RoofOpening }) {
           </>
         ) : (
           <>
-            <Readout label="Grundfläche" value={`${area.toFixed(2)} m²`} />
+            <Readout label="Grundfläche" value={`${dez(area, 2)} m²`} />
             {opening.kind === 'dormer-gable' && (
               <Readout
                 label="Giebeldreieck"
-                value={`${(0.5 * opening.width * defaultGableRise(opening)).toFixed(2)} m²`}
+                value={`${dez((0.5 * opening.width * defaultGableRise(opening)), 2)} m²`}
               />
             )}
             <p className="pt-1 text-[9.5px] leading-relaxed text-slate-600">
@@ -2656,8 +2657,8 @@ function AnnotationProperties({ note }: { note: Annotation }) {
 
       {note.kind === 'dimension' && (
         <Section title="Gemessen">
-          <Readout label="Länge" value={`${measured.toFixed(3)} m`} accent />
-          <Readout label="in cm" value={`${(measured * 100).toFixed(1)} cm`} />
+          <Readout label="Länge" value={`${dez(measured, 3)} m`} accent />
+          <Readout label="in cm" value={`${dez(measured * 100, 1)} cm`} />
           {note.text && (
             <p className="pt-1 text-[9.5px] leading-relaxed text-orange-300/80">
               Der eingetragene Text überschreibt das gemessene Maß. Im Plan steht dann nicht mehr,
@@ -2691,12 +2692,12 @@ function BuildingSummary() {
       <div className="grid grid-cols-2 gap-x-3 gap-y-1 rounded-lg bg-graphite-900/60 px-2.5 py-2">
         <Readout label="Räume" value={String(totals.roomCount)} />
         <Readout label="Wände" value={String(wallCount)} />
-        <Readout label="Nutzfläche" value={`${totals.netFloorArea.toFixed(2)} m²`} accent />
-        <Readout label="Volumen" value={`${totals.netVolume.toFixed(2)} m³`} />
-        <Readout label="Außenwand" value={`${totals.exteriorWallArea.toFixed(2)} m²`} />
-        <Readout label="Fenster" value={`${totals.windowArea.toFixed(2)} m²`} />
+        <Readout label="Nutzfläche" value={`${dez(totals.netFloorArea, 2)} m²`} accent />
+        <Readout label="Volumen" value={`${dez(totals.netVolume, 2)} m³`} />
+        <Readout label="Außenwand" value={`${dez(totals.exteriorWallArea, 2)} m²`} />
+        <Readout label="Fenster" value={`${dez(totals.windowArea, 2)} m²`} />
         <Readout label="Öffnungen" value={String(openingCount)} />
-        <Readout label="A/V" value={`${totals.compactness.toFixed(3)} 1/m`} />
+        <Readout label="A/V" value={`${dez(totals.compactness, 3)} 1/m`} />
       </div>
 
       <div className="grid grid-cols-2 gap-x-3 gap-y-1 rounded-lg bg-graphite-900/60 px-2.5 py-2">

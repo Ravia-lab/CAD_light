@@ -581,39 +581,6 @@ export function sourceDemand(doc: BimDocument, pump: HeatPump): SourceDemand | u
 // Abstandsregeln der Wärmequelle
 // ---------------------------------------------------------------------------
 
-export interface DistanceRule {
-  id: string;
-  /** Was geprüft wird. */
-  label: string;
-  /** Mindestabstand [m]. */
-  minimum: number;
-  /** Woher der Wert kommt — für die Anzeige im Programm. */
-  source: string;
-  /** Wie verbindlich: Gesetz, Norm, Leitfaden, Faustwert. */
-  binding: 'gesetz' | 'norm' | 'leitfaden' | 'faustwert';
-}
-
-/**
- * Abstandsregeln für erdgekoppelte Quellen.
- *
- * Wichtig und im Programm ausdrücklich vermerkt: **keine dieser Zahlen ist
- * ein Bundesgesetz.** Verbindlich ist der Bescheid der unteren Wasserbehörde;
- * die Länderleitfäden weichen voneinander ab (Grenzabstand einer Sonde: 3 m
- * nach VDI, 4 m in Hessen ab 8 kW, 5 m nach LAWA und in Hamburg). Deshalb
- * sind die Werte Vorgaben, keine Grenzen — und jede trägt ihre Herkunft mit.
- */
-export const DISTANCE_RULES: DistanceRule[] = [
-  { id: 'borehole-borehole', label: 'Sonde ↔ Sonde', minimum: 6, source: 'VDI 4640 Blatt 2', binding: 'norm' },
-  { id: 'borehole-boundary', label: 'Sonde ↔ Grundstücksgrenze', minimum: 3, source: 'VDI 4640 (LAWA/Hamburg: 5 m)', binding: 'norm' },
-  { id: 'borehole-building', label: 'Sonde ↔ Gebäude', minimum: 2, source: 'Länderleitfäden (Standsicherheit)', binding: 'leitfaden' },
-  { id: 'borehole-utility', label: 'Sonde ↔ Leitung', minimum: 0.7, source: 'VDI 4640 Blatt 2', binding: 'norm' },
-  { id: 'collector-boundary', label: 'Kollektor ↔ Grundstücksgrenze', minimum: 1, source: 'BWP-Infoblatt 43', binding: 'leitfaden' },
-  { id: 'collector-building', label: 'Kollektor ↔ Gebäude', minimum: 1.2, source: 'Länderleitfäden (Frosthebung)', binding: 'leitfaden' },
-  { id: 'collector-tree', label: 'Kollektor ↔ Baum', minimum: 2, source: 'Praxiswert (Wurzelschutz)', binding: 'faustwert' },
-  { id: 'collector-water', label: 'Kollektor ↔ Wasserleitung', minimum: 1.5, source: 'Praxiswert (Frostschutz)', binding: 'faustwert' },
-  { id: 'well-well', label: 'Förder- ↔ Schluckbrunnen', minimum: 15, source: 'Praxiswert, Fließrichtung beachten', binding: 'faustwert' },
-];
-
 const round1 = (v: number): number => Math.round(v * 10) / 10;
 const round2 = (v: number): number => Math.round(v * 100) / 100;
 

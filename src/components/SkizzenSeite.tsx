@@ -31,6 +31,7 @@
  * Plan, mit derselben Leiste wie beim Skizzenblatt. Das Blatt bleibt Papier.
  */
 
+import { dez } from '../lib/zahl';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useBimStore } from '../store/useBimStore';
 import {
@@ -256,14 +257,14 @@ export default function SkizzenSeite() {
         setMessen(false);
         male();
         window.alert(
-          `Die Messstrecke ist nur ${papier.toFixed(0)} mm lang. Unter ${MESSSTRECKE_MIN} mm wird jeder ` +
+          `Die Messstrecke ist nur ${dez(papier, 0)} mm lang. Unter ${MESSSTRECKE_MIN} mm wird jeder ` +
             'Zeichenfehler zu groß umgelegt — ziehen Sie sie über eine längere Strecke, deren Maß Sie kennen.',
         );
         return;
       }
       const eingabe = window.prompt(
         `Wie lang ist diese Strecke in Wirklichkeit? Angabe in Metern.\n` +
-          `Auf dem Papier sind es ${papier.toFixed(0)} mm.`,
+          `Auf dem Papier sind es ${dez(papier, 0)} mm.`,
         seite.massstab ? seite.massstab.laenge.toString().replace('.', ',') : '',
       );
       setMessen(false);

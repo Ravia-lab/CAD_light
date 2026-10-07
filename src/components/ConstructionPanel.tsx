@@ -7,6 +7,7 @@
  * nachvollziehbar bleibt, woher der Wert stammt.
  */
 
+import { dez } from '../lib/zahl';
 import { useMemo, useState } from 'react';
 import type { Construction, ConstructionCategory } from '../types/bim';
 import { useBimStore } from '../store/useBimStore';
@@ -145,7 +146,7 @@ function ConstructionRow({
           <div className="truncate text-[11px] text-slate-200">{construction.name}</div>
           <div className="font-mono text-[9.5px] text-slate-500">
             U {construction.uValue.toFixed(2)}
-            {construction.thickness ? ` · ${(construction.thickness * 100).toFixed(1)} cm` : ''}
+            {construction.thickness ? ` · ${dez(construction.thickness * 100, 1)} cm` : ''}
             {usageCount > 0 ? ` · ${usageCount}×` : ''}
           </div>
         </button>

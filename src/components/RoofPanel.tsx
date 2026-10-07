@@ -7,6 +7,7 @@
  * diese vier Zahlen prüfen können, ohne sie irgendwo einzutippen.
  */
 
+import { dez } from '../lib/zahl';
 import { useMemo, useState } from 'react';
 import type { RoofDefinition, RoofKind, RoofOpeningKind } from '../types/bim';
 import { ROOF_KIND_LABELS, ROOF_OPENING_LABELS } from '../types/bim';
@@ -452,7 +453,7 @@ export default function RoofPanel() {
                   {ROOF_OPENING_LABELS[o.kind]}
                 </span>
                 <span className="shrink-0 font-mono text-[10px] text-slate-300">
-                  {(o.width * 100).toFixed(0)}×{(o.depth * 100).toFixed(0)}
+                  {dez(o.width * 100, 0)}×{dez(o.depth * 100, 0)}
                 </span>
               </button>
             ))}
@@ -468,25 +469,25 @@ export default function RoofPanel() {
           {/* Abgeleitetes */}
           <div className="space-y-1 rounded-lg bg-accent/[0.07] p-2.5">
             <div className="label-xs">Ergibt sich daraus</div>
-            <Readout label="Firsthöhe" value={frame ? `${frame.ridgeHeight.toFixed(2)} m` : '—'} />
-            <Readout label="Dachfläche" value={`${totals.sloped.toFixed(2)} m²`} />
+            <Readout label="Firsthöhe" value={frame ? `${dez(frame.ridgeHeight, 2)} m` : '—'} />
+            <Readout label="Dachfläche" value={`${dez(totals.sloped, 2)} m²`} />
             {totals.flat > 0.01 && (
-              <Readout label="davon waagerecht" value={`${totals.flat.toFixed(2)} m²`} />
+              <Readout label="davon waagerecht" value={`${dez(totals.flat, 2)} m²`} />
             )}
-            <Readout label="Grundfläche" value={`${totals.area.toFixed(2)} m²`} />
-            <Readout label="Wohnfläche WoFlV" value={`${totals.living.toFixed(2)} m²`} />
+            <Readout label="Grundfläche" value={`${dez(totals.area, 2)} m²`} />
+            <Readout label="Wohnfläche WoFlV" value={`${dez(totals.living, 2)} m²`} />
             {totals.below1 > 0.01 && (
-              <Readout label="unter 1,00 m" value={`${totals.below1.toFixed(2)} m²`} />
+              <Readout label="unter 1,00 m" value={`${dez(totals.below1, 2)} m²`} />
             )}
             {totals.skylight > 0.01 && (
-              <Readout label="Dachfenster" value={`${totals.skylight.toFixed(2)} m²`} />
+              <Readout label="Dachfenster" value={`${dez(totals.skylight, 2)} m²`} />
             )}
             {totals.dormerFront > 0.01 && (
-              <Readout label="Gaubenfronten" value={`${totals.dormerFront.toFixed(2)} m²`} />
+              <Readout label="Gaubenfronten" value={`${dez(totals.dormerFront, 2)} m²`} />
             )}
-            <Readout label="Luftvolumen" value={`${totals.volume.toFixed(2)} m³`} />
+            <Readout label="Luftvolumen" value={`${dez(totals.volume, 2)} m³`} />
             {totals.dormerVolume > 0.01 && (
-              <Readout label="davon durch Gauben" value={`${totals.dormerVolume.toFixed(2)} m³`} />
+              <Readout label="davon durch Gauben" value={`${dez(totals.dormerVolume, 2)} m³`} />
             )}
           </div>
 
@@ -530,7 +531,7 @@ function Field({
           {term && <Erklaerung term={term} />}
         </span>
         <span className="text-[11px] tabular-nums text-slate-200">
-          {step < 1 ? value.toFixed(2) : value.toFixed(0)} {unit}
+          {dez(value, step < 1 ? 2 : 0)} {unit}
         </span>
       </div>
       <input

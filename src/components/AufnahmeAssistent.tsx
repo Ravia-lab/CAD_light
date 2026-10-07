@@ -21,6 +21,7 @@
  * abbricht, verliert die laufende Frage und sonst nichts.
  */
 
+import { dez } from '../lib/zahl';
 import { useState } from 'react';
 import {
   ANBAU_LABELS,
@@ -457,7 +458,7 @@ export default function AufnahmeAssistent({ onFertig }: { onFertig: () => void }
     inhalt = (
       <>
         <h2 className="assi-frage">
-          {zahl} {zahl === 1 ? 'Raum' : 'Räume'} · {flaeche.toFixed(0)} m²
+          {zahl} {zahl === 1 ? 'Raum' : 'Räume'} · {dez(flaeche, 0)} m²
         </h2>
         <p className="assi-unter">
           Alles Weitere steht jetzt im Plan — jede Wand einzeln anzufassen. Die Prüfung sagt, was noch fehlt.

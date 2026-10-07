@@ -10,6 +10,7 @@
  * Excel in deutscher Einstellung die Datei ohne Import-Dialog.
  */
 
+import { dez } from '../lib/zahl';
 import { heizleistung } from '../lib/normleistung';
 import RaumnameFeld from './RaumnameFeld';
 import { useEffect, useMemo, useState } from 'react';
@@ -339,12 +340,12 @@ export default function RoomBook() {
                     {r.room.name}
                   </span>
                   <span className="block truncate font-mono text-[9px] text-slate-500">
-                    {r.level} · {USAGE_LABELS[r.room.usage]} · {r.room.setpointTemperature.toFixed(0)} °C
+                    {r.level} · {USAGE_LABELS[r.room.usage]} · {dez(r.room.setpointTemperature, 0)} °C
                     {!r.room.isHeated && ' · unbeheizt'}
                     {r.rohrmeter > 0.05 && ` · ${r.rohrmeter.toFixed(1).replace('.', ',')} m Rohr`}
                   </span>
                 </span>
-                <span className="self-center font-mono text-[10.5px] text-slate-300">{r.room.area.toFixed(2)}</span>
+                <span className="self-center font-mono text-[10.5px] text-slate-300">{dez(r.room.area, 2)}</span>
                 <span
                   className={`self-center font-mono text-[10.5px] ${r.power > 0 ? 'text-accent' : 'text-slate-600'}`}
                 >
@@ -358,15 +359,15 @@ export default function RoomBook() {
         {rows.length > 0 && (
           <div className="grid grid-cols-[1fr_auto_auto] gap-x-2 border-t border-white/[0.06] px-1.5 pt-1.5">
             <span className="text-[10px] text-slate-500">Summe</span>
-            <span className="font-mono text-[10.5px] text-slate-200">{totals.area.toFixed(2)}</span>
+            <span className="font-mono text-[10.5px] text-slate-200">{dez(totals.area, 2)}</span>
             <span className="font-mono text-[10.5px] text-accent">{Math.round(totals.power)}</span>
           </div>
         )}
       </div>
 
       <div className="grid grid-cols-2 gap-x-3 gap-y-1 rounded-lg bg-graphite-900/60 px-2.5 py-2">
-        <Readout label="Volumen" value={`${totals.volume.toFixed(2)} m³`} />
-        <Readout label="Öffnungen" value={`${totals.window.toFixed(2)} m²`} />
+        <Readout label="Volumen" value={`${dez(totals.volume, 2)} m³`} />
+        <Readout label="Öffnungen" value={`${dez(totals.window, 2)} m²`} />
         {totals.rohr > 0.05 && (
           <Readout label="Rohr in Räumen" value={`${totals.rohr.toFixed(1).replace('.', ',')} m`} />
         )}
@@ -469,7 +470,7 @@ function Ausfuellzeile({
           ))}
         </select>
         <span className="shrink-0 font-mono text-[10.5px] text-slate-400">
-          {room.area.toFixed(2)} m²
+          {dez(room.area, 2)} m²
         </span>
         <div className="flex shrink-0 items-center gap-1">
           <input

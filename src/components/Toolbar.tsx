@@ -4,6 +4,7 @@
  * keine Beschriftung im Normalzustand. Erklärung liefert das Tooltip.
  */
 
+import { dez } from '../lib/zahl';
 import type { ReactNode } from 'react';
 import type {
   AnnotationKind,
@@ -535,7 +536,7 @@ export function TopBar({ onProjekte }: { onProjekte: () => void }) {
     const umfang =
       jeGeschoss.size === 0
         ? 'kein Geschoss mit geschlossenen Räumen'
-        : `${aufzaehlung} · ${data.rooms.length} Räume · ${data.totals.netFloorArea.toFixed(2)} m² · ${data.totals.installedHeatingPower} W installiert`;
+        : `${aufzaehlung} · ${data.rooms.length} Räume · ${dez(data.totals.netFloorArea, 2)} m² · ${data.totals.installedHeatingPower} W installiert`;
     /*
      * Der Umfang steht **auch dann** da, wenn die Prüfung Fehler meldet. Bis
      * 1.57.0 verdrängte die Fehlermeldung ihn — also genau in dem Fall, in dem
@@ -1024,8 +1025,8 @@ function OpeningTypeBar({
           <button
             key={preset.id}
             onClick={() => onSelect(preset)}
-            title={`${preset.label} · ${(preset.width * 100).toFixed(1)} × ${(preset.height * 100).toFixed(1)} cm${
-              preset.sillHeight ? ` · Brüstung ${(preset.sillHeight * 100).toFixed(0)} cm` : ''
+            title={`${preset.label} · ${dez(preset.width * 100, 1)} × ${dez(preset.height * 100, 1)} cm${
+              preset.sillHeight ? ` · Brüstung ${dez(preset.sillHeight * 100, 0)} cm` : ''
             }`}
             className={`chip whitespace-nowrap ${
               activeId === preset.id ? 'bg-accent/15 text-accent' : 'text-slate-500 hover:text-slate-300'
@@ -1058,7 +1059,7 @@ function WallDefaultsBar() {
                   : 'text-slate-500 hover:text-slate-300'
               }`}
               onClick={() => setWallDefaults({ thickness: t })}
-              title={`${(t * 100).toFixed(1)} cm`}
+              title={`${dez(t * 100, 1)} cm`}
             >
               {(t * 100).toFixed(1)}
             </button>

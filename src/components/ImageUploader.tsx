@@ -14,6 +14,7 @@
  * die rund 350 kB nur geladen werden, wenn tatsächlich ein PDF ankommt.
  */
 
+import { dez } from '../lib/zahl';
 import { useCallback, useRef, useState } from 'react';
 import type { FloorplanImage } from '../types/bim';
 import { pixelsPerMeter } from '../types/bim';
@@ -224,7 +225,7 @@ export default function ImageUploader() {
       </button>
       {image.calibration && (
         <div className="rounded-md bg-graphite-900/70 px-2.5 py-1.5 font-mono text-[9.5px] text-slate-500">
-          kalibriert auf {image.calibration.realLength.toFixed(2)} m
+          kalibriert auf {dez(image.calibration.realLength, 2)} m
         </div>
       )}
 

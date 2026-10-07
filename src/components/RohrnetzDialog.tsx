@@ -15,6 +15,7 @@
  *    die Frage „woher kommt das?" immer beim Lesen des Berichts aufkommt.
  */
 
+import { dez } from '../lib/zahl';
 import { useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { buildPipeReport, berichtsUrteil, wissensbasis } from '../lib/pipeReport';
@@ -155,24 +156,24 @@ export default function RohrnetzDialog({ onClose }: { onClose: () => void }) {
                 <div className="space-y-1 rounded-lg bg-white/[0.03] px-2.5 py-2">
                   <Kennzahl
                     label="Rohr (VL + RL)"
-                    wert={`${bericht.rohrlaenge.toFixed(1)} m`}
+                    wert={`${dez(bericht.rohrlaenge, 1)} m`}
                     zusatz={druck.planGeschosse.length > 1 ? `${druck.planGeschosse.length} Geschosse` : undefined}
                   />
                   <Kennzahl
                     label="Formteile"
                     wert={`${formteilZahl['bogen-90']} B · ${formteilZahl['t-stueck']} T · ${formteilZahl.reduzierung} R`}
                   />
-                  <Kennzahl label="Heizlast" wert={`${bericht.heizlast.wert.toFixed(1)} kW`} zusatz={bericht.heizlast.herkunft} />
-                  <Kennzahl label="Volumenstrom" wert={`${bericht.volumenstrom.toFixed(3)} m³/h`} />
+                  <Kennzahl label="Heizlast" wert={`${dez(bericht.heizlast.wert, 1)} kW`} zusatz={bericht.heizlast.herkunft} />
+                  <Kennzahl label="Volumenstrom" wert={`${dez(bericht.volumenstrom, 3)} m³/h`} />
                   <Kennzahl
                     label="Schlechtpunkt"
-                    wert={bericht.schlechtpunkt ? `${(bericht.schlechtpunkt.gesamt / 1000).toFixed(1)} kPa` : '—'}
+                    wert={bericht.schlechtpunkt ? `${dez(bericht.schlechtpunkt.gesamt / 1000, 1)} kPa` : '—'}
                     zusatz={bericht.schlechtpunkt?.bezeichnung}
                   />
                   <Kennzahl
                     label="Pumpe"
-                    wert={bericht.pumpe ? `${bericht.pumpe.head.toFixed(2)} m` : '—'}
-                    zusatz={bericht.pumpe ? `${bericht.pumpe.flow.toFixed(2)} m³/h` : undefined}
+                    wert={bericht.pumpe ? `${dez(bericht.pumpe.head, 2)} m` : '—'}
+                    zusatz={bericht.pumpe ? `${dez(bericht.pumpe.flow, 2)} m³/h` : undefined}
                   />
                 </div>
 

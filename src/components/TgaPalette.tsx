@@ -7,6 +7,7 @@
  * automatisch, sobald sie in `FIXTURE_LIBRARY` stehen.
  */
 
+import { dez } from '../lib/zahl';
 import { heizleistung } from '../lib/normleistung';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { Fixture, FixtureCategory, FixtureDefinition, PipeService } from '../types/bim';
@@ -328,14 +329,14 @@ function PipeSchedule() {
             {PIPE_SERVICE_LABELS[r.service]} · DN {r.dn}
             {r.insulation > 0 ? ` · ${r.insulation} mm` : ''}
           </span>
-          <span className="shrink-0 font-mono text-[10.5px] text-slate-300">{r.length.toFixed(2)} m</span>
+          <span className="shrink-0 font-mono text-[10.5px] text-slate-300">{dez(r.length, 2)} m</span>
         </button>
       ))}
 
       {rows.length > 0 && (
         <div className="flex items-baseline justify-between border-t border-white/[0.07] pt-1">
           <span className="text-[10px] text-slate-500">Gesamt</span>
-          <span className="font-mono text-[11px] text-accent">{total.toFixed(2)} m</span>
+          <span className="font-mono text-[11px] text-accent">{dez(total, 2)} m</span>
         </div>
       )}
     </div>
@@ -386,7 +387,7 @@ function PipeStrands() {
           <span className="min-w-0 flex-1 truncate text-[10px] text-slate-400">{path.label}</span>
           <span className="shrink-0 text-[9px] text-slate-600">DN {path.minimumDiameter}</span>
           <span className="shrink-0 font-mono text-[10.5px] text-slate-300">
-            {path.circuitLength.toFixed(1)} m
+            {dez(path.circuitLength, 1)} m
           </span>
         </button>
       ))}

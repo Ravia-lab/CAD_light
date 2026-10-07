@@ -1536,7 +1536,6 @@ export interface SkizzenVorschlag {
   art: WallType;
 }
 
-
 // ===========================================================================
 // Werkzeuge & Editor-Zustand
 // ===========================================================================
@@ -2206,7 +2205,6 @@ export interface PipeNetworkReport {
   /** Verbundene Geschosse über Steigstränge. */
   risers: number;
 }
-
 
 // ===========================================================================
 // Außenanlage und Wärmepumpe
@@ -5823,11 +5821,6 @@ export const INNENEINHEIT_LABELS: Record<Inneneinheit, string> = {
 };
 
 export type HeizkreisArt = 'ungemischt' | 'gemischt';
-
-export const HEIZKREIS_ART_LABELS: Record<HeizkreisArt, string> = {
-  ungemischt: 'ungemischt',
-  gemischt: 'gemischt (eigener Mischer und eigene Pumpe)',
-};
 
 /**
  * Womit das Feld aufgeht, solange nichts beantwortet ist.

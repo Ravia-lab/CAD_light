@@ -16,6 +16,7 @@
  * weil damit jede Bild→Welt-Umrechnung eine einzige Multiplikation ist.
  */
 
+import { dez } from '../lib/zahl';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { Vec2 } from '../types/bim';
 import { pixelsPerMeter } from '../types/bim';
@@ -217,7 +218,7 @@ export default function CalibrationOverlay() {
                   fontFamily="JetBrains Mono, ui-monospace, monospace"
                   fontSize="11"
                 >
-                  {drawnLength.toFixed(3)} m
+                  {dez(drawnLength, 3)} m
                 </text>
               </g>
             </>
@@ -245,7 +246,7 @@ export default function CalibrationOverlay() {
 
             <div className="mb-3 flex items-baseline justify-between">
               <span className="text-[11px] text-slate-500">Gezogene Strecke</span>
-              <span className="font-mono text-xs text-accent-teal">{drawnLength.toFixed(3)} m</span>
+              <span className="font-mono text-xs text-accent-teal">{dez(drawnLength, 3)} m</span>
             </div>
 
             <label className="label-xs mb-1 block">Reale Länge</label>

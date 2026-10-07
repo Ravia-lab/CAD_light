@@ -17,6 +17,7 @@
  * geplant" muss sichtbar bleiben.
  */
 
+import { dez } from '../lib/zahl';
 import { leistungJeVerbraucher } from '../lib/verbraucherlast';
 import { Fragment, useCallback, useMemo, useRef, useState } from 'react';
 import type {
@@ -1858,9 +1859,9 @@ export default function AnlagenPanel() {
               <span>Verbraucher</span>
               <span className="text-right font-mono">{rohrbericht.served}</span>
               <span>Trasse</span>
-              <span className="text-right font-mono">{rohrbericht.routeLength.toFixed(1)} m</span>
+              <span className="text-right font-mono">{dez(rohrbericht.routeLength, 1)} m</span>
               <span>Rohr (VL + RL)</span>
-              <span className="text-right font-mono">{rohrbericht.pipeLength.toFixed(1)} m</span>
+              <span className="text-right font-mono">{dez(rohrbericht.pipeLength, 1)} m</span>
               <span>Armaturen</span>
               <span className="text-right font-mono">{rohrbericht.accessories.length}</span>
               {/* Seit 1.71.0: Steigleitung, Formteile und je Geschoss —
@@ -1868,7 +1869,7 @@ export default function AnlagenPanel() {
               {netzZahlen.steig > 0 && (
                 <>
                   <span>davon Steigleitung</span>
-                  <span className="text-right font-mono">{netzZahlen.steig.toFixed(1)} m</span>
+                  <span className="text-right font-mono">{dez(netzZahlen.steig, 1)} m</span>
                 </>
               )}
               <span>Formteile</span>
@@ -1882,7 +1883,7 @@ export default function AnlagenPanel() {
                   <Fragment key={g.levelId}>
                     <span>{g.name}</span>
                     <span className="text-right font-mono">
-                      {g.served} Verbr. · {g.pipeLength.toFixed(1)} m
+                      {g.served} Verbr. · {dez(g.pipeLength, 1)} m
                     </span>
                   </Fragment>
                 ))}

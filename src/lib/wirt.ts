@@ -27,10 +27,6 @@ export function setzeWirtFaehigkeiten(f: unknown): WirtFaehigkeiten {
   return { ...faehigkeiten };
 }
 
-export function wirtFaehigkeiten(): WirtFaehigkeiten {
-  return { ...faehigkeiten };
-}
-
 /** Die Einbettung hinterlegt hier, wie sie an die Wirte sendet (gibt die Zahl der Empfänger zurück). */
 export function registriereWirtMelder(fn: ((type: string, payload: unknown) => number) | null): void {
   melder = fn;

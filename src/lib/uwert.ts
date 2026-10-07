@@ -53,7 +53,7 @@
  * Schichtgrenze: nur Typen, keine Abhängigkeit auf Store oder Ansicht.
  */
 
-import type { Construction, Level, OpeningKind, Room, RoofDefinition, WallType } from '../types/bim';
+import type { Construction, Level, OpeningKind, Room, WallType } from '../types/bim';
 
 /**
  * Woher der U-Wert stammt.
@@ -259,38 +259,6 @@ export function uWertBoden(
     undefined,
     aufbauten,
   );
-}
-
-/** Der U-Wert der Decke eines Raums — dieselbe Rangfolge wie beim Boden. */
-export function uWertDecke(
-  room: Pick<Room, 'ceilingUValue'> | undefined,
-  level: Pick<Level, 'ceilingUValue' | 'ceilingConstructionId'> | undefined,
-  aufbauten?: Record<string, Construction>,
-): UWertAuskunft {
-  if (!level) return FEHLT;
-  return bestimme(
-    level.ceilingConstructionId,
-    room?.ceilingUValue ?? level.ceilingUValue,
-    undefined,
-    aufbauten,
-  );
-}
-
-/**
- * Der U-Wert einer Dachfläche.
- *
- * Auch hier ohne Vorgabewert: Zwischen einem gedämmten Steildach (0,18) und
- * einer ungedämmten Altbaudecke liegt mehr als eine Größenordnung. Ein
- * Flachdach im Sinne von `kind: 'flat'` ist keine geneigte Hüllfläche — dort
- * rechnet die Decke des Geschosses, und diese Funktion wird gar nicht
- * gefragt.
- */
-export function uWertDach(
-  roof: Pick<RoofDefinition, 'uValue' | 'constructionId'> | undefined,
-  aufbauten?: Record<string, Construction>,
-): UWertAuskunft {
-  if (!roof) return FEHLT;
-  return bestimme(roof.constructionId, roof.uValue, undefined, aufbauten);
 }
 
 /**

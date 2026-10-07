@@ -20,6 +20,7 @@
  *    Wechsel in den reinen 2D-Modus wird der Loop gestoppt.
  */
 
+import { dez } from '../lib/zahl';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
@@ -3726,7 +3727,7 @@ export default function Viewer3D({ className = '' }: { className?: string }) {
         const op = s2.doc.openings[treffer.openingId];
         if (op) {
           s2.setStatus(
-            `${OPENING_LABELS[op.kind] ?? 'Öffnung'} · ${(op.width * 100).toFixed(0)} × ${(op.height * 100).toFixed(0)} cm` +
+            `${OPENING_LABELS[op.kind] ?? 'Öffnung'} · ${dez(op.width * 100, 0)} × ${dez(op.height * 100, 0)} cm` +
               ` — Maß am Griff ändern oder antippen und eintippen`,
           );
         }

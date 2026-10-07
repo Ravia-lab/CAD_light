@@ -7,6 +7,7 @@
  * ständig zwischen ihnen, und man muss jederzeit sehen, wo man ist.
  */
 
+import { dez } from '../lib/zahl';
 import { useMemo } from 'react';
 import { aussenwaendeVon, uebernahmeSinnvoll } from '../lib/aussenwand';
 import { useBimStore } from '../store/useBimStore';
@@ -89,7 +90,7 @@ export default function LevelBar() {
             <div key={level.id} className="flex items-center">
               <button
                 onClick={() => setActiveLevel(level.id)}
-                title={`${level.name} · OK FFB ${level.elevation.toFixed(2)} m · ${wallsPerLevel[level.id] ?? 0} Wände`}
+                title={`${level.name} · OK FFB ${dez(level.elevation, 2)} m · ${wallsPerLevel[level.id] ?? 0} Wände`}
                 className={`chip whitespace-nowrap ${
                   aktiv ? 'bg-accent/15 text-accent' : 'text-slate-500 hover:text-slate-300'
                 } ${!gezeigt && !aktiv ? 'opacity-50' : ''}`}

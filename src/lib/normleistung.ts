@@ -44,9 +44,6 @@ export const NORM_UEBERTEMPERATUR_EN442 = 49.8;
 /** Übertemperatur des alten CAD-Bezugspunkts 55/45/20 °C [K] — nur für den Übergang. */
 export const ALT_UEBERTEMPERATUR_55_45 = 29.7;
 
-/** Kurztext für jedes Eingabefeld und jede Beschriftung. */
-export const NORMPUNKT_TEXT = 'Normleistung 75/65/20 °C (DIN EN 442-2)';
-
 /**
  * Branchenüblicher Heizkörperexponent je Bauart [-] — Annahme bis zum
  * Datenblatt. Steht hier, weil Umrechnung und Export denselben Wert brauchen.

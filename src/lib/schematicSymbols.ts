@@ -124,15 +124,6 @@ export interface SymbolOptions {
   angeschlossen?: readonly string[];
 }
 
-/** Signatur aller Einzelsymbole. */
-export type SymbolRenderer = (
-  ctx: Ctx,
-  x: number,
-  y: number,
-  size: number,
-  options: SymbolOptions,
-) => void;
-
 // ---------------------------------------------------------------------------
 // Zeichenhilfen — alle in Einheitskoordinaten
 // ---------------------------------------------------------------------------
@@ -2119,51 +2110,6 @@ export function drawSymbol(
   drawSymbolLabels(ctx, kind, x, y, size, opt);
 }
 
-/** Erzeugt die Einzelfunktion zu einem Symbol. */
-const renderer =
-  (kind: SchematicKind): SymbolRenderer =>
-  (ctx, x, y, size, options) =>
-    drawSymbol(ctx, kind, x, y, size, options);
-
-export const drawHeatPumpOutdoorSymbol = renderer('heatpump-outdoor');
-export const drawHeatPumpIndoorSymbol = renderer('heatpump-indoor');
-export const drawHydraulicStationSymbol = renderer('hydraulic-station');
-export const drawCylinderSymbol = renderer('cylinder');
-export const drawBufferSymbol = renderer('buffer');
-export const drawBufferSeriesSymbol = renderer('buffer-series');
-export const drawSeparatorSymbol = renderer('separator');
-export const drawFreshWaterSymbol = renderer('freshwater');
-export const drawPumpSymbol = renderer('pump');
-export const drawValve2WaySymbol = renderer('valve-2way');
-export const drawValve3WaySymbol = renderer('valve-3way');
-export const drawDiverterValveSymbol = renderer('valve-diverter');
-export const drawCheckValveSymbol = renderer('check-valve');
-export const drawShutoffSymbol = renderer('shutoff');
-export const drawBalancingValveSymbol = renderer('balancing-valve');
-export const drawOverflowValveSymbol = renderer('overflow-valve');
-export const drawSafetyValveSymbol = renderer('safety-valve');
-export const drawExpansionVesselSymbol = renderer('expansion-vessel');
-export const drawPressureGaugeSymbol = renderer('pressure-gauge');
-export const drawThermometerSymbol = renderer('thermometer');
-export const drawSensorSymbol = renderer('sensor');
-export const drawFlowSwitchSymbol = renderer('flow-switch');
-export const drawTemperatureLimiterSymbol = renderer('temperature-limiter');
-export const drawStrainerSymbol = renderer('strainer');
-export const drawAirSeparatorSymbol = renderer('air-separator');
-export const drawDirtSeparatorSymbol = renderer('dirt-separator');
-export const drawFillingValveSymbol = renderer('filling-valve');
-export const drawBackflowPreventerSymbol = renderer('backflow-preventer');
-export const drawWaterMeterSymbol = renderer('water-meter');
-export const drawHeatMeterSymbol = renderer('heat-meter');
-export const drawManifoldSymbol = renderer('manifold');
-export const drawRadiatorSymbol = renderer('radiator');
-export const drawFloorLoopSymbol = renderer('floor-loop');
-export const drawBoilerSymbol = renderer('boiler');
-export const drawElectricHeaterSymbol = renderer('electric-heater');
-export const drawSolarSymbol = renderer('solar');
-export const drawMixingValveDhwSymbol = renderer('mixing-valve-dhw');
-export const drawCirculationPumpSymbol = renderer('circulation-pump');
-export const drawNodeSymbol = renderer('node');
 
 // ---------------------------------------------------------------------------
 // Trefferprüfung

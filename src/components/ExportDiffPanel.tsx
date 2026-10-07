@@ -10,6 +10,7 @@
  * Stände ohne das aktuelle Modell zu vergleichen.
  */
 
+import { dez } from '../lib/zahl';
 import { useMemo, useRef, useState } from 'react';
 import type { RaviaExport } from '../types/bim';
 import type { ChangeKind, ExportDiff, RoomDiff } from '../lib/exportDiff';
@@ -240,7 +241,7 @@ function ChangeRow({ change }: { change: { label: string; before: number | strin
       {typeof change.delta === 'number' && Number.isFinite(change.delta) && (
         <span className={`tabular-nums ${up ? 'text-emerald-400' : down ? 'text-rose-400' : 'text-slate-600'}`}>
           {up ? '+' : ''}
-          {change.delta.toFixed(1)}%
+          {dez(change.delta, 1)}%
         </span>
       )}
     </div>

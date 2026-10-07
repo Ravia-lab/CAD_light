@@ -3,6 +3,7 @@
  * aktives Werkzeug, Live-Maße, Fangstatus, Zoom und Modellumfang.
  */
 
+import { dez } from '../lib/zahl';
 import { heizleistung } from '../lib/normleistung';
 import { useBimStore } from '../store/useBimStore';
 import EntfernenKnopf from './EntfernenKnopf';
@@ -149,7 +150,7 @@ export default function StatusBar() {
       )}
 
       <span>
-        Raster {snap.grid ? `${snap.gridSize.toFixed(3)} m` : 'aus'}
+        Raster {snap.grid ? `${dez(snap.gridSize, 3)} m` : 'aus'}
       </span>
       <span className="text-slate-700">│</span>
       <span>Winkel {snap.angle ? `${snap.angleStep}°` : 'frei'}</span>
@@ -161,7 +162,7 @@ export default function StatusBar() {
         {rooms.length} Räume
       </span>
       <span className="text-slate-700">│</span>
-      <span className="text-accent">{totalArea.toFixed(2)} m²</span>
+      <span className="text-accent">{dez(totalArea, 2)} m²</span>
       {fixtureCount > 0 && (
         <>
           <span className="text-slate-700">│</span>

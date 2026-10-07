@@ -56,7 +56,6 @@ import type {
   VerticalKind,
   Construction,
   Fixture,
-  FixtureCategory,
   FixtureType,
   OpeningTypePreset,
   Selection,
@@ -245,13 +244,6 @@ export function ergaenzeEbenen(doc: BimDocument): void {
     if (!doc.layers[l.id]) doc.layers[l.id] = { ...l };
   }
 }
-
-/** Jedes Gewerk hat seine eigene Ebene — Pläne lassen sich gewerkeweise leeren. */
-export const LAYER_BY_CATEGORY: Record<FixtureCategory, string> = {
-  heating: 'layer-heating',
-  sanitary: 'layer-sanitary',
-  ventilation: 'layer-ventilation',
-};
 
 const DEFAULT_LEVEL: Level = {
   id: 'level-0',
@@ -1240,7 +1232,6 @@ interface BimState {
   moveImage: (delta: Vec2) => void;
   applyCalibration: (from: Vec2, to: Vec2, realLength: number) => void;
 
-
   // --- Freihand ----------------------------------------------------------
   /** Einen Freihandstrich auswerten und als Vorschlag zeigen. */
   skizziere: (punkte: Vec2[]) => { ok: boolean; message: string };
@@ -1738,7 +1729,6 @@ function dokumentAusScan(
   return { fresh, benannt, doppelt, bereiche };
 }
 
-
 /**
  * Die Dachkennwerte eines Raums vergleichen.
  *
@@ -2123,7 +2113,6 @@ function belegeRaum(get: () => BimState, roomId: string): FloorLoopBatchResult |
   };
 }
 
-
 /**
  * Das Dachgerüst eines Geschosses — oder `null`, wenn dort kein Dach sitzt.
  *
@@ -2143,7 +2132,6 @@ function dachGeruest(doc: BimDocument, level: Level): ReturnType<typeof buildRoo
     roofOpenings: Object.values(doc.roofOpenings ?? {}).filter((o) => o.levelId === level.id),
   }).map((t) => t.frame);
 }
-
 
 /** Wo die Sprachwahl im Browser liegt. */
 const SPRACH_SCHLUESSEL = 'ravia-cad-light.sprache.v1';
@@ -7142,7 +7130,6 @@ export const useBimStore = create<BimState>()((set, get) => {
       set({ statusMessage: `Kalibriert auf ${realLength.toFixed(2)} m`, tool: 'select' });
     },
 
-
     /** Übernimmt alle nicht verworfenen Vorschläge als echte CAD-Objekte. */
     // --- Freihand ---------------------------------------------------------
 
@@ -7388,7 +7375,6 @@ export const useBimStore = create<BimState>()((set, get) => {
 
     setzeNotizenSichtbar: (sichtbar) => set({ notizenSichtbar: sichtbar }),
 
-
     // ----------------------------------------------------------- Historie
     beginGesture: () => {
       gestureActive = true;
@@ -7454,7 +7440,3 @@ export const useBimStore = create<BimState>()((set, get) => {
 // Selektoren — verhindern unnötige Re-Renders in den Panels
 // ---------------------------------------------------------------------------
 
-export const selectWalls = (s: BimState): Wall[] => Object.values(s.doc.walls);
-export const selectOpenings = (s: BimState): Opening[] => Object.values(s.doc.openings);
-export const selectRooms = (s: BimState): Room[] => Object.values(s.doc.rooms);
-export const selectNodes = (s: BimState): BimNode[] => Object.values(s.doc.nodes);

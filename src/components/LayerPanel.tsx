@@ -10,6 +10,7 @@
  * zweiten Hälfte ist jede Wandbewegung ein Unfall, den man nicht bemerkt.
  */
 
+import { dez } from '../lib/zahl';
 import { BESTANDS_EBENEN, GEWERKESAETZE } from '../lib/ebenen';
 import { useBimStore } from '../store/useBimStore';
 
@@ -222,7 +223,7 @@ export default function LayerPanel() {
                     {room.name}
                   </span>
                   <span className="ml-2 shrink-0 font-mono text-[10px] text-slate-500">
-                    {room.area.toFixed(2)} m²
+                    {dez(room.area, 2)} m²
                   </span>
                 </button>
                 {badPruefen && (

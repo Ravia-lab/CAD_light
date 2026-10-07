@@ -7,6 +7,7 @@
  * bevor Papier verbraucht ist.
  */
 
+import { dez } from '../lib/zahl';
 import { useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import type { PaperFormat, PaperOrientation } from '../lib/planPrint';
@@ -112,7 +113,7 @@ export default function PlanPrintDialog({ onClose }: { onClose: () => void }) {
           <div>
             <div className="text-[13px] font-semibold text-slate-100">Plan drucken</div>
             <div className="text-[10.5px] text-slate-500">
-              Maßstäbliche Ausgabe — 1 m wird bei 1:{scale} zu {(1000 / scale).toFixed(1)} mm auf dem Papier
+              Maßstäbliche Ausgabe — 1 m wird bei 1:{scale} zu {dez(1000 / scale, 1)} mm auf dem Papier
             </div>
           </div>
           <button className="tool-btn" onClick={onClose} title="Schließen">

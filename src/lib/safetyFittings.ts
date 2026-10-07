@@ -58,18 +58,6 @@ export { waterDensity };
  */
 export const EXPANSION_REFERENCE_TEMPERATURE = 10;
 
-/** Ein Stützpunkt der Ausdehnungskurve. */
-export interface ExpansionPoint {
-  /** Temperatur [°C]. */
-  temperature: number;
-  /** Dichte des Mediums [kg/m³]. */
-  density: number;
-  /** Ausdehnungskoeffizient n = ρ(10)/ρ(ϑ) − 1 [-]. */
-  n: number;
-  /** Dasselbe in Prozent — so steht es in den Herstellerunterlagen. */
-  percent: number;
-}
-
 /** Frostschutzmittel — der Typ steht in `hydraulics.ts`, hier weitergereicht. */
 export type { GlycolKind };
 
@@ -183,28 +171,6 @@ export function expansionCoefficient(temperature: number, glycol?: { fraction: n
       ? mixtureDensity(temperature, glycol.fraction, glycol.kind)
       : waterDensity(temperature);
   return reference / actual - 1;
-}
-
-/**
- * Stützstellen der Ausdehnungskurve von 10 bis 110 °C in 5-K-Schritten.
- *
- * Gedacht für Anzeige und Nachvollziehbarkeit — gerechnet wird in
- * `membraneVessel` immer mit der stetigen Funktion, nicht mit Interpolation
- * zwischen diesen Punkten.
- */
-export function expansionTable(glycol?: { fraction: number; kind: GlycolKind }): ExpansionPoint[] {
-  const points: ExpansionPoint[] = [];
-  for (let t = EXPANSION_REFERENCE_TEMPERATURE; t <= 110; t += 5) {
-    const density = glycol && glycol.fraction > 0 ? mixtureDensity(t, glycol.fraction, glycol.kind) : waterDensity(t);
-    const n = expansionCoefficient(t, glycol);
-    points.push({
-      temperature: t,
-      density: Math.round(density * 1000) / 1000,
-      n: Math.round(n * 100000) / 100000,
-      percent: Math.round(n * 10000) / 100,
-    });
-  }
-  return points;
 }
 
 /**
