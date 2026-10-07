@@ -50,7 +50,7 @@
 import type { BimDocument, WertHerkunft } from '../types/bim';
 import { PIPE_MATERIAL_LABELS } from '../types/bim';
 import type { RohrnetzBericht } from './pipeReport';
-import { berichtsUrteil, buildPipeReport, wissensbasis } from './pipeReport';
+import { berichtsUrteil, buildPipeReport, UEBERSCHLAG_HINWEIS, wissensbasis } from './pipeReport';
 import { buildPipeReportSheets } from './pipeReportPrint';
 import { buildPlanSvg } from './planPrint';
 import { buildSchematicSvg } from './schematicPrint';
@@ -516,6 +516,8 @@ export function buildProjektMappe(doc: BimDocument, optionen: ProjektMappeOption
   // Die Begründung einer angehobenen Auslegungstemperatur steht auf dem
   // Deckblatt (seit 1.75.0 nur dort); das Anlagenbuch wiederholt sie nicht.
   if (bericht.temperaturen.herkunft !== 'anlagenblatt') gedruckt.add(bericht.temperaturen.begruendung);
+  // Dass die Heizlast ein Überschlag ist, sagt das Deckblatt.
+  if (auslegung.heatLoadProvenance === 'überschlag') gedruckt.add(UEBERSCHLAG_HINWEIS);
 
   // --- Kapitel 5 und 6: Rohrnetzbericht und Einstellwerte -------------------
   if (!omit.has('rohrnetz')) {
@@ -977,16 +979,23 @@ function rohrnetzBlaetter(
   for (const n of druck.notes) hinweise.push(`Rohrnetzbericht: ${n}`);
 
   let unbenannt = 0;
-  druck.sheets.forEach((svg, i) => {
+  const blaetter: BlattEntwurf[] = druck.sheets.map((svg, i) => {
     const marke = BERICHTSMARKEN.find((m) => svg.includes(m.marke));
     if (!marke) unbenannt++;
-    entwuerfe.push({
+    return {
       kapitel: marke?.kapitel ?? 'rohrnetz',
       titel: marke ? marke.titel : `Rohrnetzbericht ${i + 1}/${druck.sheets.length}`,
       art: 'zeichnung',
       inhalt: svg,
-    });
+    };
   });
+  // Der Bericht setzt sein Hinweisblatt hinter die Einstellwerte. In der
+  // Mappe ist es Teil des Kapitels „Rohrnetzbericht" und gehört davor —
+  // sonst stand im Inhaltsverzeichnis „Blatt 9–28, 30" (bis 1.74.0).
+  entwuerfe.push(
+    ...blaetter.filter((b) => b.kapitel !== 'einstellwerte'),
+    ...blaetter.filter((b) => b.kapitel === 'einstellwerte'),
+  );
   if (unbenannt > 0) {
     hinweise.push(
       `${unbenannt} Blätter des Rohrnetzberichts tragen keine bekannte Abschnittsüberschrift und stehen im ` +
@@ -1172,16 +1181,21 @@ function pumpenBlatt(bericht: RohrnetzBericht): string {
     );
   }
 
-  if (e.hinweise.length) {
+  // Bei eingebauter Pumpe erklärt der Kasten oben, dass geprüft und nicht
+  // ausgelegt wird; der gleichlautende Hinweis der Bilanz entfällt hier.
+  const erzeugerHinweise = e.hinweise.filter(
+    (h) => !(e.angabe === 'restfoerderhoehe' && h.text.startsWith('Das Gerät hat eine eingebaute Umwälzpumpe.')),
+  );
+  if (erzeugerHinweise.length) {
+    const mitSchwere = erzeugerHinweise.some((h) => h.severity !== 'info');
     teile.push(h3('Hinweise zur Erzeugerbilanz'));
     teile.push(
       tabelle(
-        [
-          { titel: 'Schwere', breite: '22mm' },
-          { titel: 'Hinweis' },
-        ],
-        e.hinweise.map((h) => [
-          escapeHtml(h.severity === 'error' ? 'Fehler' : h.severity === 'warn' ? 'Warnung' : 'Hinweis'),
+        mitSchwere ? [{ titel: 'Schwere', breite: '22mm' }, { titel: 'Hinweis' }] : [{ titel: 'Hinweis' }],
+        erzeugerHinweise.map((h) => [
+          ...(mitSchwere
+            ? [escapeHtml(h.severity === 'error' ? 'Fehler' : h.severity === 'warn' ? 'Warnung' : 'Hinweis')]
+            : []),
           escapeHtml(h.text),
         ]),
       ),
@@ -1507,6 +1521,7 @@ function anlagenbuchBlaetter(
     ohneHinweise: verweise.ohneHinweise,
     hinweiseAnderswo: 'Kapitel „Pumpenauslegung und Erzeugerkreis" bzw. auf dem Hinweisblatt des Rohrnetzberichts',
     armaturenVerweis: verweise.armaturenVerweis,
+    inMappe: true,
   });
 
   const stil = skopiereStil(innerHtml(buch.html, 'style'), '.anlagenbuch');
@@ -1653,7 +1668,7 @@ function quellenBlaetter(
     if (/hydrosplit/.test(wort) && form !== 'hydrosplit') return false;
     if (/bauform-split|\bsplit —/.test(wort) && form !== 'split') return false;
     if (/monoblock/.test(wort) && form !== undefined && !String(form).startsWith('monoblock')) return false;
-    if (/turmger|bauform-turm/.test(wort) && form !== 'tower') return false;
+    if (/turmger|turmspeicher|bauform-turm/.test(wort) && form !== 'tower') return false;
     // Fabrikatbezogene Bauform- und Frostschutzbelege nur zum Fabrikat.
     for (const marke of ['daikin', 'vaillant', 'viessmann', 'stiebel', 'bosch', 'lg ', 'lg-', 'panasonic', 'mitsubishi', 'wolf']) {
       if (wort.includes(marke) && /^(bauform|frostschutz)/.test(id) && !hersteller.includes(marke.replace(/[ -]$/, ''))) {
@@ -1679,8 +1694,15 @@ function quellenBlaetter(
   // Was der Rohrnetzbericht zitiert, gehört auch dann ins Verzeichnis, wenn
   // es über kein Thema dieser Liste hereinkam — sonst führte die Mappe eine
   // Quelle, die auf einem ihrer eigenen Blätter steht, nicht auf.
+  // Belege, die der Rohrnetzbericht zitiert, kommen mit ihrem vollen Eintrag
+  // (Belastbarkeit, Sammlung) dazu — vorher standen sie mit „—" darin.
+  for (const q of bericht.quellen) {
+    const e = q.id ? basis.eintrag(q.id) : undefined;
+    if (e && passt(e) && !belege.has(e.id)) belege.set(e.id, e);
+  }
   const ohneThema = bericht.quellen.filter(
     (q) =>
+      !(q.id && basis.eintrag(q.id)) &&
       ![...belege.values()].some((e) => e.titel === q.titel) &&
       passt({ id: '', titel: q.titel } as WissensEintrag),
   );
@@ -1919,6 +1941,7 @@ function inbetriebnahmeBlatt(doc: BimDocument): string {
     // Einstellwerte gerechnet heißt: Der Abgleich liegt vor.
     abgeglichen: Object.keys(plant.circuits ?? {}).length > 0,
   });
+  const andereQuelle = blatt.einstellwerte.some((e) => e.quelle !== QUELLE_INFOBLATT_62);
 
   return (
     h2('Inbetriebnahme, Optimierung und Wartung') +
@@ -1940,13 +1963,14 @@ function inbetriebnahmeBlatt(doc: BimDocument): string {
         { titel: 'Woraus das folgt' },
         // Die Grundschrift steht im Einleitungssatz; die Spalte nennt nur,
         // was davon abweicht — sonst stünde sie in jeder Zeile (1.72.0).
-        { titel: 'Andere Quelle', breite: '46mm' },
+        // Weicht nichts ab, entfällt sie ganz (1.75.0).
+        ...(andereQuelle ? [{ titel: 'Andere Quelle', breite: '46mm' }] : []),
       ],
       blatt.einstellwerte.map((e) => [
         `<strong>${escapeHtml(e.was)}</strong>`,
         `<strong>${escapeHtml(e.wert)}</strong>`,
         escapeHtml(e.herleitung),
-        e.quelle === QUELLE_INFOBLATT_62 ? '' : escapeHtml(e.quelle),
+        ...(andereQuelle ? [e.quelle === QUELLE_INFOBLATT_62 ? '' : escapeHtml(e.quelle)] : []),
       ]),
     ) +
     h3('Anfahren und Optimieren — in dieser Reihenfolge') +

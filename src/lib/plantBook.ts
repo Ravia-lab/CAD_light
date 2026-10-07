@@ -141,6 +141,13 @@ export interface PlantBookOptions {
    * Sicherheitskapitels, statt sie ein zweites Mal zu drucken.
    */
   armaturenVerweis?: string;
+  /**
+   * **In der Projektmappe** (seit 1.75.0): Deren Deckblatt sagt schon, was
+   * die Mappe ist und dass die Heizlast ein Überschlag ist. Kapitel 1 lässt
+   * dann seinen Einleitungssatz weg und nennt zur Heizlast nur, was das
+   * Deckblatt nicht sagt.
+   */
+  inMappe?: boolean;
 }
 
 export interface PlantBookResult {
@@ -516,13 +523,15 @@ function chapterLimits(options: PlantBookOptions): string {
   const { design } = options;
   const parts: string[] = [];
 
-  parts.push(
-    paragraph(
-      'Dieses Heft fasst zusammen, was das Programm gerechnet hat. Es ersetzt weder die Ausführungsplanung ' +
-        'noch die Abnahme durch das ausführende Unternehmen. Die folgenden Punkte benennen, worauf die Zahlen ' +
-        'beruhen und wo sie enden.',
-    ),
-  );
+  if (!options.inMappe) {
+    parts.push(
+      paragraph(
+        'Dieses Heft fasst zusammen, was das Programm gerechnet hat. Es ersetzt weder die Ausführungsplanung ' +
+          'noch die Abnahme durch das ausführende Unternehmen. Die folgenden Punkte benennen, worauf die Zahlen ' +
+          'beruhen und wo sie enden.',
+      ),
+    );
+  }
 
   parts.push(heading('Heizlast'));
   if (design.heatLoadSource === 'norm') {
@@ -536,8 +545,11 @@ function chapterLimits(options: PlantBookOptions): string {
   } else {
     parts.push(
       paragraph(
-        `Die Gebäudeheizlast von ${de(design.heatLoad, 1)} kW ist ein Überschlag aus der Gebäudegeometrie, den ` +
-          'U-Werten und dem Mindestluftwechsel — kein Nachweis nach DIN EN 12831-1. Der Überschlag kennt weder ' +
+        (options.inMappe
+          ? ''
+          : `Die Gebäudeheizlast von ${de(design.heatLoad, 1)} kW ist ein Überschlag aus der Gebäudegeometrie, den ` +
+            'U-Werten und dem Mindestluftwechsel — kein Nachweis nach DIN EN 12831-1. ') +
+          'Der Überschlag kennt weder ' +
           'die raumweise Aufheizleistung noch Sonderfälle wie hohe Räume, Wintergärten oder Zwischenwerte der ' +
           'Luftdichtheit aus einer Messung. Für die Auslegung eines Geräts reicht er; für die Förderung, den ' +
           'hydraulischen Abgleich Verfahren B und für eine Gewährleistungszusage reicht er nicht.',
@@ -1344,6 +1356,7 @@ function chapterDistribution(design: PlantDesignResult): string {
   }
 
   const parts: string[] = [];
+  const gemischt = design.circuits.some((c) => c.circuit.mixed);
 
   parts.push(
     heading('Heizkreise'),
@@ -1358,7 +1371,9 @@ function chapterDistribution(design: PlantDesignResult): string {
         { label: 'Anbindeleitung' },
         { label: 'v', unit: 'm/s', align: 'right' },
         { label: 'R', unit: 'Pa/m', align: 'right' },
-        { label: 'Mischer' },
+        // Gibt es keinen gemischten Kreis, sagt das der Satz darunter einmal
+        // statt „nein" in jeder Zeile (1.75.0).
+        ...(gemischt ? [{ label: 'Mischer' }] : []),
       ],
       design.circuits.map((c) => [
         c.circuit.label,
@@ -1370,7 +1385,7 @@ function chapterDistribution(design: PlantDesignResult): string {
         `${PIPE_MATERIAL_LABELS[c.pipe.dimension.material]} ${c.pipe.dimension.label}`,
         de(c.pipe.velocity, 2),
         de(c.pipe.gradient, 0),
-        c.circuit.mixed ? 'ja' : 'nein',
+        ...(gemischt ? [c.circuit.mixed ? 'ja' : 'nein'] : []),
       ]),
       [
         plural(design.circuits.length, 'Kreis', 'Kreise'),
@@ -1385,7 +1400,7 @@ function chapterDistribution(design: PlantDesignResult): string {
         '',
         '',
         '',
-        '',
+        ...(gemischt ? [''] : []),
       ],
     ),
   );
@@ -1395,6 +1410,7 @@ function chapterDistribution(design: PlantDesignResult): string {
   ];
   parts.push(
     hint(
+      (gemischt ? '' : `${design.circuits.length === 1 ? 'Der Kreis ist' : 'Alle Kreise sind'} ungemischt. `) +
       `Maßgebend für die Rohrwahl: ${reasons.join(', ')}. Die Dimension folgt aus Volumenstrom, zulässiger ` +
         'Fließgeschwindigkeit und zulässigem Druckgefälle — nicht aus der Anschlussgröße des Verteilers.',
     ),

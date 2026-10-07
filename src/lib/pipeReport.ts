@@ -66,6 +66,12 @@ import { WISSEN_KORPUS } from './wissenKorpus';
 /** Die Wissensbasis wird einmal gebaut und im Modul gehalten. */
 let basisCache: Wissensbasis | undefined;
 
+/** Der Vorbehalt bei überschlagener Heizlast — exportiert, damit die Projektmappe ihn nicht neben ihrem Deckblatt wiederholt. */
+export const UEBERSCHLAG_HINWEIS =
+  'Die Heizlast ist ein Überschlag dieses Programms, keine Berechnung nach DIN EN 12831-1. ' +
+  '§ 60c Abs. 2 GModG verlangt für den Abgleich eine raumweise Heizlastberechnung; ' +
+  'mit dieser Zahl ist der Bericht eine Vorbemessung, kein Nachweis.';
+
 /** Zugriff auf die Wissensbasis — für Belege im Bericht und für die Suche. */
 export function wissensbasis(): Wissensbasis {
   if (!basisCache) basisCache = new Wissensbasis(WISSEN_KORPUS);
@@ -243,7 +249,7 @@ export interface RohrnetzBericht {
   schlechtpunkt?: { id: string; bezeichnung: string; gesamt: number };
   nachweis: NachweisPunkt[];
   /** Quellenangaben, die auf dem Blatt erscheinen. */
-  quellen: { titel: string; quelle: string; url?: string }[];
+  quellen: { titel: string; quelle: string; url?: string; /** Kennung in der Wissensbasis. */ id?: string }[];
   /** Der zugrundeliegende Abgleich — für alles, was der Bericht nicht selbst führt. */
   abgleich: BalanceReport;
   auslegung: PlantDesignResult;
@@ -529,10 +535,7 @@ export function buildPipeReport(doc: BimDocument, options: RohrnetzOptionen = {}
   if (auslegung.heatLoadProvenance === 'überschlag') {
     hinweise.unshift({
       severity: 'warn',
-      text:
-        'Die Heizlast ist ein Überschlag dieses Programms, keine Berechnung nach DIN EN 12831-1. ' +
-        '§ 60c Abs. 2 GModG verlangt für den Abgleich eine raumweise Heizlastberechnung; ' +
-        'mit dieser Zahl ist der Bericht eine Vorbemessung, kein Nachweis.',
+      text: UEBERSCHLAG_HINWEIS,
     });
   }
 
@@ -564,7 +567,7 @@ export function buildPipeReport(doc: BimDocument, options: RohrnetzOptionen = {}
   for (const thema of ['dokumentation', 'abgleich-recht', 'ventilautoritaet', 'druckverlust', 'rohrdaemmung']) {
     for (const e of basis.belege(thema).slice(0, 3)) {
       if (quellen.some((q) => q.titel === e.titel)) continue;
-      quellen.push({ titel: e.titel, quelle: e.quelle, url: e.url });
+      quellen.push({ titel: e.titel, quelle: e.quelle, url: e.url, id: e.id });
     }
   }
 

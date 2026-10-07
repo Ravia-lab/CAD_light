@@ -397,6 +397,24 @@ export function umbrechen(inhalt: string, mass: Umbruchmass): string[] {
     belegt += s.hoehe;
   }
 
+  /*
+   * Kein Schusterjunge von Blatt: Bleiben für die letzte Seite nur wenige
+   * Zeilen, und passt alles noch auf die vorletzte, wenn man deren Reserve
+   * angreift, kommt es dorthin. Die Reserve (siehe `UMBRUCH_RESERVE` der
+   * Mappe) ist für die Unsicherheit der Schätzung da; ein Blatt mit drei
+   * Zeilen ist der sicherere Ärger.
+   */
+  const hoeheVon = (seite: Stueck[]): number =>
+    seite.reduce((summe, st) => summe + st.hoehe, 0);
+  if (seiten.length >= 2) {
+    const letzte = seiten[seiten.length - 1];
+    const vorletzte = seiten[seiten.length - 2];
+    if (hoeheVon(letzte) <= mass.hoehe * 0.2 && hoeheVon(vorletzte) + hoeheVon(letzte) <= mass.hoehe * 1.05) {
+      vorletzte.push(...letzte);
+      seiten.pop();
+    }
+  }
+
   // Wieder zu HTML: aufeinanderfolgende Zeilen derselben Tabelle werden eine
   // Tabelle mit Kopf.
   const html = seiten
