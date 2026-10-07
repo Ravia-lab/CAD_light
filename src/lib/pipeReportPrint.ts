@@ -700,7 +700,7 @@ function teilstreckenBlatt(
       zeile(
         m.feld.x,
         y,
-        'Δp = R·l + Σζ·ρ/2·w². λ nach Colebrook-White, iterativ. Längen sind Vor- und Rücklauf zusammen.',
+        'Δp = R·l + Σζ·ρ/2·w². λ nach Colebrook-White, iterativ. Längen sind Vor- und Rücklauf zusammen. VL/RL = Heizung Vorlauf/Rücklauf.',
         { size: FONT_KLEIN, fill: GRAU },
       ),
     );
@@ -728,7 +728,9 @@ function teilstreckenBlatt(
         SPALTEN_TEILSTRECKE,
         [
           String(t.nr),
-          `${strangName.get(t.strangId) ?? ''} · ${t.bezeichnung}`,
+          // „Heizung Vorlauf DN 16" passt nicht neben einen Raumnamen in die
+          // 44-mm-Spalte; die Kurzform steht in der Kopfzeile erklärt.
+          `${strangName.get(t.strangId) ?? ''} · ${t.bezeichnung.replace(/^Heizung Vorlauf\b/, 'VL').replace(/^Heizung Rücklauf\b/, 'RL')}`,
           de(t.volumenstrom, 3),
           de(t.laenge, 2),
           PIPE_MATERIAL_LABELS[t.werkstoff],
