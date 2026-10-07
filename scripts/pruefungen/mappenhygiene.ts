@@ -183,6 +183,42 @@ export function pruefeMappenhygiene(check: CheckFn): void {
   }
 
   // =========================================================================
+  // 2b · Die Inbetriebnahme rechnet mit denselben Zahlen wie die Mappe
+  // =========================================================================
+  {
+    // Anlagenblatt 35/28 °C, aber ein Heizkörperkreis mit 55/45 °C: Die
+    // Auslegung hebt an. Bis 1.74.0 empfahl das Inbetriebnahmeblatt trotzdem
+    // einen Einstieg „aus der Auslegung 35/28 °C".
+    const doc = klon(ref);
+    if (doc.plant) {
+      doc.plant.design.flowTemperature = 35;
+      doc.plant.design.returnTemperature = 28;
+      for (const k of Object.values(doc.plant.circuits ?? {})) {
+        if (k.kind === 'radiator') {
+          k.flowTemperature = 55;
+          k.returnTemperature = 45;
+        }
+      }
+    }
+    const fertig = mitSchema(doc);
+    const bericht = buildPipeReport(fertig);
+    const html = buildProjektMappe(fertig, { datum: '01.01.2026', bericht }).html;
+    const t = bericht.temperaturen;
+    check(
+      `Inbetriebnahme nennt die gerechnete Auslegung ${t.vorlauf}/${t.ruecklauf} °C`,
+      html.includes(`Auslegung ${t.vorlauf}/${t.ruecklauf} °C`),
+      true,
+    );
+    const abgeglichen = bericht.heizflaechen.some((h) => h.voreinstellung !== undefined);
+    check(
+      'Inbetriebnahme: „Abgleich liegt nicht vor" nur ohne Einstellwerte',
+      html.includes('liegt noch nicht vor'),
+      !abgeglichen,
+    );
+    check('Nachweiskatalog: Heizlast ohne Rohwert in Klammern', /kW \((?:überschlag|raumweise|vorgabe)\)/.test(html), false);
+  }
+
+  // =========================================================================
   // 3 · Mehrfamilienhaus, dessen Einheiten niemand eingetragen hat
   // =========================================================================
   {

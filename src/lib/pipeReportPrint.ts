@@ -31,7 +31,7 @@
 
 import type { BimDocument } from '../types/bim';
 import type { RohrnetzBericht, TeilstreckenZeile } from './pipeReport';
-import { berichtsUrteil } from './pipeReport';
+import { berichtsUrteil, heizlastHerkunftText } from './pipeReport';
 import { buildPlanSvg, type PaperFormat, type PaperOrientation } from './planPrint';
 import { druckeDokument } from './druckFenster';
 import { PIPE_MATERIAL_LABELS } from '../types/bim';
@@ -601,7 +601,10 @@ function deckblatt(m: Blattmasse, b: RohrnetzBericht, eingebettet = false): stri
     ],
     ['Stoffwerte', `ρ = ${de(b.fluid.density, 1)} kg/m³, ν = ${b.fluid.kinematicViscosity.toExponential(2)} m²/s bei ${de(b.fluid.temperature, 0)} °C`],
     ['Vorherrschender Werkstoff', PIPE_MATERIAL_LABELS[b.werkstoff]],
-    ['Gebäudeheizlast', `${de(b.heizlast.wert, 1)} kW (${b.heizlast.herkunft})`],
+    [
+      'Gebäudeheizlast',
+      `${de(b.heizlast.wert, 1)} kW (${heizlastHerkunftText(b.heizlast.herkunft)})`,
+    ],
     ['Gesamtvolumenstrom', `${de(b.volumenstrom, 3)} m³/h`],
     /*
      * „m Trasse" war seit `rohrlaenge.ts` falsch.

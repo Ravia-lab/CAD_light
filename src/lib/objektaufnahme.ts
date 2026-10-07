@@ -257,7 +257,9 @@ export function aufnahmestand(doc: BimDocument): Aufnahmestand {
           id: 'einheiten',
           frage: 'Wohnungen bzw. Nutzungseinheiten',
           wert: einheiten(doc),
-          herkunft: 'modell',
+          // Ohne zugeordnete Einheiten stammt die Zahl aus dem Anlagenblatt —
+          // „aus dem Modell" daneben widersprach dem eigenen Zusatz.
+          herkunft: Object.keys(doc.units ?? {}).length > 0 ? 'modell' : 'anlage',
         },
       ],
     },
@@ -365,7 +367,7 @@ function einheiten(doc: BimDocument): string | undefined {
   const erfasst = Object.keys(doc.units ?? {}).length;
   if (erfasst > 0) return `${erfasst} erfasst`;
   const getippt = doc.plant?.dhw.units;
-  return getippt && getippt > 0 ? `${getippt} (Angabe im Anlagenblatt)` : undefined;
+  return getippt && getippt > 0 ? `${getippt}` : undefined;
 }
 
 function verbrauch(doc: BimDocument): string | undefined {

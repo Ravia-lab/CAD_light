@@ -565,7 +565,7 @@ export function buildProjektMappe(doc: BimDocument, optionen: ProjektMappeOption
       kapitel: 'inbetriebnahme',
       titel: 'Inbetriebnahme, Optimierung, Wartung',
       art: 'text',
-      inhalt: inbetriebnahmeBlatt(doc),
+      inhalt: inbetriebnahmeBlatt(doc, bericht),
     });
     kopf('inbetriebnahme', 'Inbetriebnahme, Optimierung und Wartung', true);
   }
@@ -1930,9 +1930,21 @@ function aufnahmeBlatt(doc: BimDocument): string {
   );
 }
 
-function inbetriebnahmeBlatt(doc: BimDocument): string {
+function inbetriebnahmeBlatt(doc: BimDocument, bericht: RohrnetzBericht): string {
   const plant = plantOf(doc);
-  const kreise = Object.values(plant.circuits ?? {});
+  /*
+   * **Dieselben Zahlen wie der Rest der Mappe** (seit 1.75.0). Bis 1.74.0
+   * nahm dieses Blatt die Temperaturen aus dem Anlagenblatt und die Kreise
+   * aus dem Modell — und empfahl im Bungalow A01 einen Heizkurven-Einstieg
+   * von 30 °C „aus der Auslegung 35/28 °C", während Deckblatt, Rohrnetz und
+   * Anlagenbuch mit 50/40 °C rechneten, weil der Heizkörperkreis das
+   * verlangt. Und es meldete „Abgleich liegt nicht vor" neben einem
+   * Einstellwerteblatt für alle neun Heizflächen. Jetzt gilt, was gerechnet
+   * wurde: Systemtemperatur, ausgelegte Kreise, vorhandene Einstellwerte.
+   */
+  const kreise = bericht.auslegung.circuits.length
+    ? bericht.auslegung.circuits.map((c) => c.circuit)
+    : Object.values(plant.circuits ?? {});
   const flaeche = kreise.some((k) => k.kind === 'floor');
   const radiator = kreise.some((k) => k.kind === 'radiator' || k.kind === 'wall' || k.kind === 'fancoil');
   const fbhImPlan = Object.values(doc.fixtures).some((f) => f.type === 'underfloor');
@@ -1944,8 +1956,8 @@ function inbetriebnahmeBlatt(doc: BimDocument): string {
     pumpe?.source === 'groundwater' ? 'wasser' : pumpe?.source === 'air' || !pumpe ? 'luft' : 'sole';
 
   const blatt = inbetriebnahmeblatt({
-    vorlauf: plant.design.flowTemperature,
-    ruecklauf: plant.design.returnTemperature,
+    vorlauf: bericht.temperaturen.vorlauf,
+    ruecklauf: bericht.temperaturen.ruecklauf,
     uebergabe:
       (flaeche || fbhImPlan) && radiator ? 'gemischt' : flaeche || fbhImPlan ? 'flaeche' : 'radiator',
     // Eine raumfüllende Flächenheizung in diesem Programm liegt im Estrich —
@@ -1955,7 +1967,7 @@ function inbetriebnahmeBlatt(doc: BimDocument): string {
     ...(plant.design.heatingLimit !== undefined ? { heizgrenze: plant.design.heatingLimit } : {}),
     ...(ladekreis ? { ladekreisSpreizung: ladekreis.flowTemperature - ladekreis.returnTemperature } : {}),
     // Einstellwerte gerechnet heißt: Der Abgleich liegt vor.
-    abgeglichen: Object.keys(plant.circuits ?? {}).length > 0,
+    abgeglichen: bericht.heizflaechen.some((h) => h.voreinstellung !== undefined),
   });
   const andereQuelle = blatt.einstellwerte.some((e) => e.quelle !== QUELLE_INFOBLATT_62);
 

@@ -18,7 +18,7 @@
 import { dez } from '../lib/zahl';
 import { useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { buildPipeReport, berichtsUrteil, wissensbasis } from '../lib/pipeReport';
+import { buildPipeReport, berichtsUrteil, heizlastHerkunftText, wissensbasis } from '../lib/pipeReport';
 import { buildPipeReportSheets, printPipeReport } from '../lib/pipeReportPrint';
 import type { PaperFormat } from '../lib/planPrint';
 import type { PipeRoutingMode } from '../types/bim';
@@ -163,7 +163,7 @@ export default function RohrnetzDialog({ onClose }: { onClose: () => void }) {
                     label="Formteile"
                     wert={`${formteilZahl['bogen-90']} B · ${formteilZahl['t-stueck']} T · ${formteilZahl.reduzierung} R`}
                   />
-                  <Kennzahl label="Heizlast" wert={`${dez(bericht.heizlast.wert, 1)} kW`} zusatz={bericht.heizlast.herkunft} />
+                  <Kennzahl label="Heizlast" wert={`${dez(bericht.heizlast.wert, 1)} kW`} zusatz={heizlastHerkunftText(bericht.heizlast.herkunft)} />
                   <Kennzahl label="Volumenstrom" wert={`${dez(bericht.volumenstrom, 3)} m³/h`} />
                   <Kennzahl
                     label="Schlechtpunkt"

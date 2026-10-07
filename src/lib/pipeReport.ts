@@ -66,6 +66,11 @@ import { WISSEN_KORPUS } from './wissenKorpus';
 /** Die Wissensbasis wird einmal gebaut und im Modul gehalten. */
 let basisCache: Wissensbasis | undefined;
 
+/** Die Herkunft der Gebäudeheizlast in Worten — für Blatt und Oberfläche, nie als Rohwert. */
+export function heizlastHerkunftText(herkunft: 'vorgabe' | 'raumweise' | 'überschlag'): string {
+  return herkunft === 'raumweise' ? 'raumweise berechnet' : herkunft === 'vorgabe' ? 'Norm-Heizlast, übergeben' : 'Überschlag';
+}
+
 /** Der Vorbehalt bei überschlagener Heizlast — exportiert, damit die Projektmappe ihn nicht neben ihrem Deckblatt wiederholt. */
 export const UEBERSCHLAG_HINWEIS =
   'Die Heizlast ist ein Überschlag dieses Programms, keine Berechnung nach DIN EN 12831-1. ' +
@@ -728,15 +733,25 @@ function nachweisPunkte(
     {
       nr: 2,
       forderung: 'Heizlast des Gebäudes',
-      antwort: `${de(auslegung.heatLoad)} kW (${auslegung.heatLoadProvenance}).`,
+      // Die Herkunft steht in ihrer Spalte — bis 1.74.0 stand sie zusätzlich
+      // als Rohwert in der Antwort („12,4 kW (überschlag).").
+      antwort: `${de(auslegung.heatLoad)} kW.`,
       erfuellt: auslegung.heatLoad > 0,
-      herkunft: raumweise ? 'raumweise Berechnung im Modell' : 'Überschlag dieses Programms',
+      herkunft:
+        auslegung.heatLoadProvenance === 'vorgabe'
+          ? 'als Norm-Heizlast übergeben, nicht nachgerechnet'
+          : raumweise
+            ? 'raumweise Berechnung im Modell'
+            : 'Überschlag dieses Programms',
     },
     {
       nr: 3,
       forderung: 'Eingestellte Leistung der Wärmeerzeuger',
       antwort: auslegung.selected
-        ? `${auslegung.selected.model.label} (${auslegung.selected.model.series}), ` +
+        ? `${auslegung.selected.model.label}` +
+          (auslegung.selected.model.label.startsWith(auslegung.selected.model.series)
+            ? ', '
+            : ` (${auslegung.selected.model.series}), `) +
           `${de(auslegung.selected.capacityAtDesign)} kW im Auslegungspunkt.`
         : 'Kein Wärmeerzeuger gewählt.',
       erfuellt: Boolean(auslegung.selected),
