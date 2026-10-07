@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Handbuch RaVia CAD Light 1.74.0</title>
-<meta name="description" content="Vollständiges Handbuch zu RaVia CAD Light 1.74.0: Bedienung, Symbolik, Rechenwege, Berichte, Nachweise.">
+<title>Handbuch RaVia CAD Light 1.75.0</title>
+<meta name="description" content="Vollständiges Handbuch zu RaVia CAD Light 1.75.0: Bedienung, Symbolik, Rechenwege, Berichte, Nachweise.">
 <style>/* Handbuch RaVia CAD Light — Stilblatt.
    Gesetzt wie ein technisches Handbuch: ruhige Farben, eine Spalte für den
    Text, feste Breite für die Lesbarkeit, und ein Druckbild, das ohne den
@@ -218,7 +218,7 @@ td:first-child,th:first-child{padding-left:0}
 <a class="sprung" href="#inhalt">Zum Inhalt</a>
 <header class="kopf">
   <button class="menue" id="menue" aria-label="Inhaltsverzeichnis ein- und ausblenden">☰</button>
-  <div class="kopf-titel"><b>Handbuch</b> RaVia CAD Light <span class="fassung">1.74.0</span></div>
+  <div class="kopf-titel"><b>Handbuch</b> RaVia CAD Light <span class="fassung">1.75.0</span></div>
   <div class="suche"><input id="suchfeld" type="search" placeholder="Im Inhalt suchen …" autocomplete="off" aria-label="Im Inhaltsverzeichnis suchen"><span id="treffer" class="treffer"></span></div>
 </header>
 <div class="rahmen">
@@ -235,7 +235,7 @@ td:first-child,th:first-child{padding-left:0}
 <p class="unter">Grundriss, Anlagentechnik und Rohrnetz erfassen — vollständig erklärt,
 für den Betrieb geschrieben.</p>
 
-<p>Dieses Handbuch beschreibt <b>Fassung 1.74.0</b>. Es erklärt jeden Knopf, jedes Symbol
+<p>Dieses Handbuch beschreibt <b>Fassung 1.75.0</b>. Es erklärt jeden Knopf, jedes Symbol
 und jeden Rechenweg des Programms. Geschrieben ist es für den Heizungsbauer und den
 Monteur, nicht für den Ingenieur: <b>jede Formel steht zuerst in einem Satz auf Deutsch
 da</b>, dann als Rechnung, dann mit einem Zahlenbeispiel, das Sie nachrechnen können,
@@ -254,7 +254,7 @@ Rechtsklick nach einem Schwenk), <b>4</b> (Raumzuordnung beim Öffnen),
 <b>5</b> (Wärmepumpe je Geschoss, Baugrube), <b>6</b> (Dach ohne Aufbau),
 <b>7</b> (Raumnamen, Heizsymbol, Heizlast für alle Räume, kleine Räume),
 <b>8</b> (Badheizkörper, Speicher), <b>9</b> (Steigleitung, Ringleitung, Stich),
-<b>10</b> (Erzeuger-Assistent), <b>11</b> (Übersichtsschema, Pumpenherkunft, Baugruppen), <b>17</b> (Export 2.14.0, Dachraum und unbeheizte Nachbarn, Weglängen und Formteile je Verbraucher, Hüllflächenbilanz, Scan als Datei und per QR-Code,
+<b>10</b> (Erzeuger-Assistent, Kleinanlage im Mehrfamilienhaus), <b>11</b> (Übersichtsschema, Pumpenherkunft, Baugruppen), <b>14</b> (Projektmappe: kein Satz zweimal, jede Zahl deutsch, ein Blatt je Druckseite), <b>17</b> (Export 2.14.0, Dachraum und unbeheizte Nachbarn, Weglängen und Formteile je Verbraucher, Hüllflächenbilanz, Scan als Datei und per QR-Code,
 Schnittstelle 1.9.0, Gebäudescan, verworfene Räume) und die Fassungsgeschichte
 in <b>18.6</b>.</p>
 <p>Die übrigen Kapitel — <b>12</b> bis <b>16</b> — beschreiben Rechenwege,
@@ -265,8 +265,8 @@ gemeldet.</p></div>
 <div class="zahlen">
   <div><b>18</b><span>Kapitel</span></div>
   <div><b>105</b><span>erklärte Symbole</span></div>
-  <div><b>1.74.0</b><span>Programmstand</span></div>
-  <div><b>7.864</b><span>Prüfungen hinter den Zahlen</span></div>
+  <div><b>1.75.0</b><span>Programmstand</span></div>
+  <div><b>7.868</b><span>Prüfungen hinter den Zahlen</span></div>
 </div>
 
 <div class="merke"><b>Der wichtigste Satz vorweg</b>
@@ -11137,11 +11137,11 @@ der Rechnung, sondern erst an der Verdichterlaufzeit.</p></div>
 <thead><tr><th>Urteil</th><th>Bedeutung</th></tr></thead>
 <tbody>
 <tr><td>einstellbar</td><td>Alles in Ordnung — die genannte Stufe einstellen.</td></tr>
-<tr><td>ungünstigster Strang — bleibt offen</td><td>Dieser Strang ist das Maß für alle anderen. Sein Ventil wird nicht gedrosselt.</td></tr>
+<tr><td>Schlechtpunkt — offen</td><td>Dieser Strang ist das Maß für alle anderen. Sein Ventil wird nicht gedrosselt.</td></tr>
 <tr><td>Ventil zu klein</td><td>Der erforderliche k_v liegt über der größten Stufe. Selbst voll offen lässt das Ventil zu wenig durch — eine Nennweite größer wählen.</td></tr>
 <tr><td>drosselt nicht genug</td><td>Der erforderliche k_v liegt unter der kleinsten Stufe. Das Ventil kann nicht so weit drosseln; es hilft nur ein Ventil mit kleinerem Grund-k_v oder eine zusätzliche Drosselstelle.</td></tr>
 <tr><td>Ventilautorität zu klein</td><td>a_V unter 0,3. Der Regelkreis wird instabil: der Raum pendelt zwischen zu warm und zu kalt.</td></tr>
-<tr><td>Geräuschgrenze überschritten</td><td>Über 15 kPa am Ventil. Der VdZ-Leitfaden nennt diesen Wert als Grenze gegen Strömungsgeräusche — hier gehört ein Strangregulierventil oder ein Differenzdruckregler davor.</td></tr>
+<tr><td>über Geräuschgrenze</td><td>Über 15 kPa am Ventil. Der VdZ-Leitfaden nennt diesen Wert als Grenze gegen Strömungsgeräusche — hier gehört ein Strangregulierventil oder ein Differenzdruckregler davor.</td></tr>
 </tbody>
 </table>
 
@@ -11627,7 +11627,7 @@ Verordnung, und das steht auf dem Blatt.</p>
 <thead><tr><th>Nr.</th><th>Bedingung</th><th>Was sie prüft</th><th>Woran sie scheitert</th></tr></thead>
 <tbody>
 <tr><td>1</td><td>Alle sieben Pflichtangaben nach § 60c Abs. 4 sind erfüllt.</td><td>Vollständigkeit des Dokuments</td><td>Angabe 6 ist dauerhaft offen (siehe <a href="#k15-2-6">15.2.6</a>); typischerweise fehlt außerdem Angabe 4, wenn die Heizlast ein Überschlag ist.</td></tr>
-<tr><td>2</td><td>Keine Heizfläche trägt ein anderes Urteil als „einstellbar" oder „ungünstigster Strang — bleibt offen".</td><td>ob jeder Verbraucher wirklich einstellbar ist</td><td>„Ventil zu klein", „drosselt nicht genug", „Ventilautorität zu klein", „Geräuschgrenze überschritten". Der Bericht meldet dann „<em>n</em> Heizflächen ohne darstellbare Einstellung".</td></tr>
+<tr><td>2</td><td>Keine Heizfläche trägt ein anderes Urteil als „einstellbar" oder „Schlechtpunkt — offen".</td><td>ob jeder Verbraucher wirklich einstellbar ist</td><td>„Ventil zu klein", „drosselt nicht genug", „Ventilautorität zu klein", „über Geräuschgrenze". Der Bericht meldet dann „<em>n</em> Heizflächen ohne darstellbare Einstellung".</td></tr>
 <tr><td>3</td><td>Kein Ventil hat eine Autorität unter 0,3.</td><td>ob die Ventile den Raum überhaupt noch regeln können</td><td>Meldung „<em>n</em> Ventile mit zu kleiner Autorität". Ursache ist fast immer ein zu großer Ventildruck-Ansatz oder ein sehr kurzer Strang.</td></tr>
 </tbody>
 </table>
@@ -13512,6 +13512,7 @@ Verordnung, und das steht auf dem Blatt.</p>
 <tr><td>1.54.0</td><td>Gefragt wird, wo man hinsieht</td><td>Die Angaben zur Anlage standen nur im Anlagenblatt — einem Reiter unter vierzehn, obwohl sie die Voraussetzung dafür sind, dass überhaupt ein Schema entsteht. Gemeldet aus der Benutzung: Sie gehen dort unter. Wer die Schema-Ansicht öffnete, bekam bis dahin den Satz <span class="zeichen">Im Reiter „Anlage“ das Gerät wählen</span> — das Programm wusste, was ihm fehlt, und schickte den Anwender weg. Jetzt geht dort der <b>Anlagendialog</b> auf: dieselben Felder, auf einem Blatt, mit dem Erzeugen-Knopf darunter. Von selbst kommt er nur, solange kein Schema da ist, und dann einmal; zurück führt <span class="zeichen">Angaben ändern</span> am Bild. Das Anlagenblatt bleibt — beide zeigen dieselben Felder aus derselben Quelle. Dazu die <b>siebte Frage</b>: die Inneneinheit samt Einbauort des Heizstabs, an Stelle des Kästchens „Heizstab als Zusatzheizer“. Ob eine Inneneinheit im Haus steht, war bis dahin gar nicht erfragt — das Schema zeichnete sie immer —, und der Stab entstand allein aus dem Datenblatt des Geräts: Wer „ohne Heizstab“ meinte, bekam ihn trotzdem ins Bild. Die vier Antworten sind abgezählt aus der Legende des BWP-Leitfadens, die zwei Einbauorte führt. Siehe <a href="#k10-0-4">Abschnitt 10.0.4</a> und <a href="#k11-0-7">Abschnitt 11.0.7</a>. Beim Einchecken fiel außerdem auf, dass das <b>im Paket mitgelieferte Handbuch</b> die neuen Abschnitte nicht trug: Der Paketlauf baut die Anwendung neu und lässt das Handbuch ausdrücklich stehen — wer <code>npm run handbuch</code> vergisst, bekommt ein grünes „freigabefähig" und ein Paket mit einem Handbuch von gestern. Genau so stand im 1.49.0-Paket eines auf 1.36.2. Der Prüflauf fragt jetzt danach: Das Deckblatt muss die laufende Fassung nennen, und jede Sprungmarke der Kapitelquellen muss im erzeugten Blatt stehen.</td></tr>
 <tr><td>1.55.0</td><td>Die Zeichen stimmen</td><td>Vier Symbole waren falsch oder mehrdeutig — gemeldet hat sie kein Prüflauf, sondern ein Fachmann am Bild. Die <b>Umwälzpumpe</b> trug ihr Dreieck als Umriss; das ist in derselben Formensprache das Zeichen für das Rückschlagorgan. Sie ist jetzt <b>ausgefüllt</b>. Beim <b>3-Wegeumschaltventil</b> hieß die geschwärzte Fläche „angesteuerter Weg" — eine eigene Lesart, die im Fachgebrauch das Gegenteil bedeutet; sie heißt jetzt <b>gesperrt</b>. Der <b>Dreiwegemischer</b> trug dasselbe Zeichen wie das Umschaltventil, obwohl die Legenden beide getrennt führen: Er hat jetzt drei Dreiecke ohne Füllung — er regelt stufenlos und hat keinen gesperrten Weg — und einen Stellmotor statt eines Kreises. Das <b>Membran-Ausdehnungsgefäß</b> ist von einem Kreis zur <b>Kapsel</b> geworden; der Kreis ist für Messgeräte belegt. Und der <b>Reihenpuffer</b> hat ein eigenes Zeichen mit <b>zwei</b> Anschlüssen statt der vier des Parallelpuffers: Angeschlossen waren immer nur zwei, die anderen beiden standen als Leitungsstummel im Bild und endeten im Nichts. Dazu das <b>helle Blatt am Bildschirm</b>: Die Ansicht zeichnete hell auf dunkel, der Druck dunkel auf hell — zwei Bilder derselben Anlage, die nicht gleich aussahen. Neu ist außerdem ein Prüfblock, der die Formensprache maschinell festhält: Ein Aufzeichner nimmt die Zeichenbefehle entgegen und zählt Dreiecke, Füllungen und die Richtung der Pumpenspitze. Siehe <a href="#k11-3-1">Abschnitt 11.3.1</a> und <a href="#k11-3-2">Abschnitt 11.3.2</a>.</td></tr>
 <tr><td>1.74.0</td><td>Mit RaVia Scan scannen</td><td>Gemeldet am 07.10.2026: „Funktion einbauen, wo man direkt zum RaVia Scan kommt und diesen per QR öffnen kann und auch dann zurück bekommt vom Scan." Neuer Knopf im Reiter <i>Referenz</i> und in der Einführung. Am Rechner erscheint ein QR-Code mit Kopplungscode, am iPhone/iPad „In RaVia Scan öffnen" mit Rücksprung auf diese Seite. Der Dialog fragt den Stand ab und lädt den Scan von selbst, auch nach dem Rücksprung (<code>?scan=</code>, Lesetoken im Browser). Vorher fragt er „ersetzen oder als Geschoss dazu". Das Programm spricht dafür nur mit dem eigenen Server (<code>scan-dienst/</code>); der reicht an die RaVia-Testumgebung weiter. Eingebettet übernimmt RaVias eigener Dialog (Schnittstelle <b>1.9.0</b>, <code>setHostCapabilities</code>). <b>Beim Bauen gefunden:</b> Ein Fenster, das sich zweimal an der Nachrichtenbrücke anmeldete, bekam jedes Ereignis doppelt. Siehe <a href="#k17-4-9">17.4.9</a>.</td></tr>
+<tr><td>1.75.0</td><td>Zehn Prüfrunden: Projektmappe ohne Wiederholungen</td><td>Gemeldet am 07.10.2026: „Prüfrunden komplett von vorne bis hinten, wichtig ist, dass im Projektbuch keine unnötigen Daten sind und sauber gearbeitet ist." Zehn Runden an den fünf Gebäuden der Praxisprüfung, nach jeder Runde nachgebessert. <b>Gefunden und behoben:</b> Die Mappe nannte „46 Blätter" und druckte 61 Seiten — jedes Blatt ist jetzt eine Druckseite (<a href="#k14-7-2c">14.7.2c</a>). Sätze standen bis zu viermal da (Auslegungstemperatur, Überschlag-Vorbehalt, fehlende Pflichtangaben, Kleinanlage, Laminarströmung je Raum). Zahlen mit Punkt und Bindestrich-Minus in Plänen, Schema, Hinweisen und Oberfläche. Das Inbetriebnahmeblatt empfahl einen Heizkurven-Einstieg aus der Anlagenblatt-Temperatur statt aus der gerechneten und meldete einen fehlenden Abgleich neben vollständigen Einstellwerten. Pumpenkapitel und Anlagenbuch nannten verschiedene Förderhöhen. Ein Mehrfamilienhaus mit Räumen „WE 1" bis „WE 6" bekam die Kleinanlagen-Erleichterung des Einfamilienhauses. Das Quellenverzeichnis führte Belege zu Kessel, Schwimmbad, Kühlung und fremden Bauformen. Eingaben der Objektaufnahme wurden ungeschützt ins Dokument gesetzt. Dazu 46 nie benutzte Funktionen entfernt. Neue Dauerprüfung „Mappenhygiene"; der Rauchtest zählt die Seiten der gedruckten Mappe.</td></tr>
 <tr><td>1.72.0</td><td>Fünf Gebäude, vier Blickwinkel</td><td>Am 03.10.2026 wurden fünf Exporte — Bungalow 1965, EFH-Neubau 2018, MFH 1990 mit sechs Wohnungen, zwei Schweizer Häuser — aus Sicht von Installateur, Meister, Energieberater und Ingenieur nachgerechnet. <b>Energieberater:</b> Die oberste Decke zum unbeheizten Dachraum rechnete mit 10 °C wie ein Keller; jetzt θ<sub>i</sub> − 0,9 · (θ<sub>i</sub> − θ<sub>e</sub>) nach Recknagel, überschreibbar (Bungalow: Überschlag 9,3 → 11,2 kW). Wände zu unbeheizten Nachbarräumen (Treppenhaus, Schacht) waren verlustfrei; jetzt mit θ<sub>u</sub> (MFH: 19,5 → 23,0 kW). Export <b>2.14.0</b> mit <code>project.atticTemperature</code>. <b>Ingenieur:</b> Die Erzeugerbilanz nannte die Anlage „unzulässig" wegen Mindestvolumenstrom, obwohl Überströmventil bzw. Trennpuffer vorgesehen waren — jetzt wird mit dem gesicherten Strom gerechnet; der Pumpenhinweis sprach beim Mehrfamilienhaus vom Einfamilienhaus. <b>Installateur und Meister:</b> eine doppelt erzeugte Anbindung, Wanddurchbrüche über das Wandende hinaus, ein Erzeuger als „ungenutzt" gemeldet, obwohl er einen Verteiler speist, und im Bestand eine Anschlussanhebung, die Cu 22/35 in den Sockelleistenkanal zwang — jetzt wird am Gerät reduziert. Türmeldungen und gleiche Meldungen je Geschoss stehen zusammengefasst einmal da. <b>Projektmappe:</b> keine Wiederholungen mehr (siehe <a href="#k14-7-2b">14.7.2b</a>). Siehe auch <a href="#k13">Kapitel 13</a> und <a href="#k17-1">17.1</a>.</td></tr>
 <tr><td>1.73.0</td><td>Abgleich mit RaVia</td><td>Am 03.10.2026 wurde CAD Light gegen den Befund des Abgleichs mit RaVia nachgezogen. <b>Unbeheizte Räume:</b> θ<sub>u</sub> kommt aus dem Korrekturfaktor b<sub>u</sub> der Raumart (Keller mit oder ohne Öffnung, Zahl der Außenwände) und θ<sub>e</sub> statt fest 10 °C; ein eingetragener Wert behält seine Herkunft. <b>Nachbargebäude</b> als eigene Randbedingung mit 15 °C. <b>Wärmebrücken</b> werden nur auf Hüllflächen beheizter Räume angesetzt, und der Überschlag rechnet mit denselben Bauteilflächen wie der Export. <b>Lüftung</b> als Gebäudewert aus Zu- und Abluft statt Summe der Räume. Der LiDAR-Scan bringt beheizt/unbeheizt und Randbedingungen mit, Heizkörper aus RaVia ihre Normleistung. Ab Scan-Schema 1.12.0 liegt das Dach nach dem gemessenen Umriss (<code>roof.footprint</code>) und fällt nach <code>roof.fallDirection</code>; ältere Scans ordnen es weiter über Kniestock- und Profilwände zu. Der Mindestluftwechsel für Küche, Bad und WC ist auf 0,5 1/h vorbelegt (gemeinsame Nutzungstabelle). Eine gescannte Kehlbalkenlage knapp über der Geschosshöhe wird auf diese begrenzt statt verworfen, sonst rechneten die Dachräume bis unter den First. Die nie aufgerufene Trinkwasser-Rohrbemessung nach DIN 1988-300 ist entfernt; CAD Light bemisst Trinkwasserleitungen nicht. Export <b>2.15.0</b> mit JSON-Schema (siehe <a href="#k17-1">17.1</a>).</td></tr>
 <tr><td>1.71.0</td><td>Längen, Formteile, alle Geschosse</td><td>Gemeldet am 02.10.2026: An der Rohrverlegung standen keine Längen, Formteile wurden nicht gezählt, Steigstränge auch nicht; das Protokoll stand offen und las sich wie eine Fehlerliste; die Rohrnetzberechnung ging nur über ein Geschoss. Jetzt nennt jede Leitungsbeschriftung ihre Länge. <b>Bögen, T-Stücke und Reduzierungen</b> werden aus der Geometrie gezählt — Steigleitungen mit je zwei Bögen —, stehen in Statuszeile, Anlagenblatt und Massenauszug und gehen als <code>pipeFittings</code> an RaVia. Der Fließweg geht über die Steigleitung bis zum Erzeuger im anderen Geschoss; je Verbraucher stehen Weg-, Zuleitungs-, Kreis- und Steigleitungslänge und die Formteile im Weg im Export <b>2.13.0</b>. Ohne Erzeuger wird jedes Geschoss ab seinem Verteiler ausgelegt statt nur das sichtbare. Die Protokolle sind eingeklappt, mit einer Zeile, die Einträge und Fehler zählt. <b>Am Übersichtsschema</b> (BWP-H-03) zwei Meldungen: Eine externe Pumpe stand vor der Absperrung und förderte im Bild rückwärts, und mit Trennpuffer wurde sie gezeichnet, obwohl die Gerätepumpe als Pufferladepumpe genügt — sie war am ungünstigsten Heizkreis gemessen worden, den die Heizkreispumpen fördern. Und der Trinkwasserspeicher hatte nur die Heizung angebunden: Jetzt kommt Kaltwasser unten in den Speicher und in den Verbrühschutz, Warmwasser oben heraus in den Mischer. <b>Beim Bauen gefunden:</b> Zwei Leitungen, die vom selben Punkt in dieselbe Richtung loslaufen, wurden als Bogen um 180° gezählt; dort wird jetzt nichts gezählt. Siehe <a href="#k9-13">Abschnitt 9.13</a>, <a href="#k11-0-2b">11.0.2b</a> und <a href="#k17-1">17.1</a>.</td></tr>
@@ -13582,8 +13583,8 @@ Verordnung, und das steht auf dem Blatt.</p>
 </section>
 
 <footer class="fuss">
-  <p>RaVia CAD Light 1.74.0 · Handbuchstand 24.09.2026</p>
-  <p>Dieses Handbuch beschreibt den Programmstand 1.74.0. Jede Formel darin ist die, die im Programm läuft; jede Zahl trägt ihre Herkunft. Wo eine Angabe nicht belegt werden konnte, steht das ausdrücklich dabei.</p>
+  <p>RaVia CAD Light 1.75.0 · Handbuchstand 24.09.2026</p>
+  <p>Dieses Handbuch beschreibt den Programmstand 1.75.0. Jede Formel darin ist die, die im Programm läuft; jede Zahl trägt ihre Herkunft. Wo eine Angabe nicht belegt werden konnte, steht das ausdrücklich dabei.</p>
 </footer>
 </main>
 </div>
