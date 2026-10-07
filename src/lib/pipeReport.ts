@@ -662,11 +662,13 @@ function teilstreckenVon(
 function heizflaecheVon(c: ConsumerBalance, doc: BimDocument, fluid: FluidProperties): HeizflaechenZeile {
   const hinweise = c.notes.map((n) => n.text);
   let urteil = 'einstellbar';
-  if (c.worst) urteil = 'ungünstigster Strang — bleibt offen';
+  // Kurz genug für die 30-mm-Spalte des Blatts; bis 1.74.0 stand dort
+  // „ungünstigster Strang — bl…“ und „Geräuschgrenze überschrit…“.
+  if (c.worst) urteil = 'Schlechtpunkt — offen';
   else if (c.presetSelection?.fit === 'ueber-bereich') urteil = 'Ventil zu klein';
   else if (c.presetSelection?.fit === 'unter-bereich') urteil = 'drosselt nicht genug';
   else if (c.authorityNote === 'zu klein') urteil = 'Ventilautorität zu klein';
-  else if ((c.valvePressure ?? 0) > MAX_THERMOSTAT_PRESSURE) urteil = 'Geräuschgrenze überschritten';
+  else if ((c.valvePressure ?? 0) > MAX_THERMOSTAT_PRESSURE) urteil = 'über Geräuschgrenze';
 
   return {
     id: c.fixtureId,
@@ -808,7 +810,7 @@ export function berichtsUrteil(bericht: RohrnetzBericht): {
     if (!p.erfuellt) offen.push(p.forderung);
   }
   const kritisch = bericht.heizflaechen.filter(
-    (h) => h.urteil !== 'einstellbar' && h.urteil !== 'ungünstigster Strang — bleibt offen',
+    (h) => h.urteil !== 'einstellbar' && h.urteil !== 'Schlechtpunkt — offen',
   );
   if (kritisch.length) offen.push(`${kritisch.length} Heizflächen ohne darstellbare Einstellung`);
   const schwach = bericht.heizflaechen.filter(

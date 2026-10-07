@@ -1552,9 +1552,13 @@ function positionsListeSheets(
       // in der halben Breite.
       const ohnePraefix = (t: string): string =>
         t.length > row.name.length + 1 && t.startsWith(`${row.name} `) ? t.slice(row.name.length + 1) : t;
+      // Was nach dem Abschneiden schon in der technischen Angabe steht
+      // („Trinkwasserspeicher 150 l" → „150 l" neben „150 l · 55 °C"), fällt
+      // ebenfalls weg (1.75.0).
       const kennzeichen = [...new Set(row.labels)]
         .filter((t) => t !== bezeichnung && t !== row.name)
-        .map(ohnePraefix);
+        .map(ohnePraefix)
+        .filter((t) => !(row.spec ?? '').includes(t));
       const zweite = [row.spec, kennzeichen.join(', ')].filter(Boolean).join('  ·  ');
       if (zweite) {
         parts.push(
