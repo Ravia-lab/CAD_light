@@ -13,6 +13,7 @@ import { EXPORT_FASSUNG } from '../src/lib/raviaExport';
 import { pruefeRohrlaengen } from './pruefungen/rohrlaengen';
 import { pruefeAbgleich2026 } from './pruefungen/abgleich2026';
 import { pruefePraxispruefung } from './pruefungen/praxispruefung';
+import { pruefeScandienst } from './pruefungen/scandienst';
 import type { BimDocument, BimNode, HeatPump, Opening, Wall } from '../src/types/bim';
 import { applyVerticalDeductions, detectRooms, findOpenEnds } from '../src/lib/roomDetection';
 import { buildRaviaExport } from '../src/lib/raviaExport';
@@ -4105,6 +4106,9 @@ console.log('\n▸ Exportvertrag — jeder gebaute Export gegen ravia-vertrag/sc
   check('Prüfläufe haben Exporte gebaut', gebauteExporte.length > 20, true);
   check(`Alle ${gebauteExporte.length} Exporte schemagültig`, ungueltig, 0);
 }
+
+console.log('\n▸ Mit RaVia Scan scannen — QR-Code, Abfrage, Rücksprung');
+await pruefeScandienst(check);
 
 console.log(
   `\n${failures === 0 ? '✓ ALLE TESTS BESTANDEN' : `✗ ${failures} FEHLER`} — ${checks - failures}/${checks}\n`,

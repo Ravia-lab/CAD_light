@@ -70,14 +70,15 @@ await p.addInitScript(() => {
   // 1.1.0: der Rückweg ist dazugekommen, die lesenden Befehle sind
   // unverändert geblieben.
   // 1.3.0: `loadBuilding` (Gebäudemodell aus RaVia Scan) — reiner Zuwachs.
-  // 1.8.0: `getDeviceProfile` — reiner Zuwachs.
-  expect('Version gemeldet', api.version, '1.8.0');
+  // 1.8.0: `getDeviceProfile`; 1.9.0: `setHostCapabilities` — reiner Zuwachs.
+  expect('Version gemeldet', api.version, '1.9.0');
   expect(
     'Alle Methoden da',
     api.methods,
     [
       'applyPatch', 'getDeviceProfile', 'getDocument', 'getExport', 'getIfc', 'getSummary', 'getWritableFields',
-      'loadBuilding', 'loadIfc', 'loadProject', 'onChange', 'onNetzGelegt', 'reportDiscardedRooms', 'validate', 'version',
+      'loadBuilding', 'loadIfc', 'loadProject', 'onChange', 'onNetzGelegt', 'onScanRequested', 'reportDiscardedRooms',
+      'setHostCapabilities', 'validate', 'version',
     ],
   );
 
@@ -197,7 +198,7 @@ console.log('\n▸ Nachrichtenbrücke (postMessage aus dem umgebenden Fenster)')
 
   const status = await p.locator('#status').innerText();
   expect('Verbindung steht', status, 'verbunden');
-  expect('Version angezeigt', await p.locator('#version').innerText(), '1.8.0');
+  expect('Version angezeigt', await p.locator('#version').innerText(), '1.9.0');
 
   const panel = await p.locator('#summary').innerText();
   expect('Kurzfassung angekommen', /Räume/.test(panel), true);
@@ -576,6 +577,50 @@ console.log('\n▸ Die Raumkennung überlebt das Öffnen (Rückweg mit alter Ken
   expect('Die Ablehnung sagt, was hier bekannt ist', lauf.fremdGrund.includes('Räume'), true);
 }
 
+console.log('\n▸ Scan beim Wirt anfordern (setHostCapabilities, Embed-API 1.9.0)');
+{
+  /*
+   * RaVia hat Anmeldung und Projekt und einen eigenen Dialog „Gebäude
+   * scannen". Meldet der Wirt die Fähigkeit, öffnet der Knopf in CAD Light
+   * **seinen** Dialog: CAD Light schickt `scanRequested` und zeigt nur einen
+   * Hinweis. Ohne Meldung kommt der eigene Dialog (smoke:scandienst).
+   */
+  const antwort = await p.evaluate(async () => {
+    const cad = document.getElementById('cad').contentWindow;
+    window.__scanAngefordert = 0;
+    window.addEventListener('message', (e) => {
+      if (e.data?.channel === 'ravia-cad' && e.data.type === 'scanRequested') window.__scanAngefordert++;
+    });
+    const frage = (type, payload, id) =>
+      new Promise((resolve) => {
+        const hoer = (e) => {
+          if (e.data?.channel === 'ravia-cad' && e.data.id === id) {
+            window.removeEventListener('message', hoer);
+            resolve(e.data);
+          }
+        };
+        window.addEventListener('message', hoer);
+        cad.postMessage({ channel: 'ravia-cad', type, id, payload }, '*');
+      });
+    await frage('subscribe', null, 'abo-scan');
+    return frage('setHostCapabilities', { scan: true }, 'faehig');
+  });
+  expect('Antwort hostCapabilities', antwort.type, 'hostCapabilities');
+  expect('… mit scan: true', antwort.payload?.scan, true);
+  const rahmen = p.frameLocator('#cad');
+  await rahmen.locator('aside').getByRole('button', { name: 'Referenz', exact: true }).click().catch(() => {});
+  await rahmen.locator('[data-pruef="scan-starten"]').click({ timeout: 8000 }).catch(() => {});
+  await p.waitForTimeout(400);
+  expect('Wirt bekommt scanRequested', await p.evaluate(() => window.__scanAngefordert), 1);
+  expect('CAD Light zeigt nur den Hinweis', await rahmen.locator('[data-pruef="scan-beim-wirt"]').count(), 1);
+  expect('… keinen eigenen Dialog', await rahmen.locator('[data-pruef="scan-dialog"]').count(), 0);
+  // Zurücksetzen, damit die folgenden Abschnitte den Ausgangszustand sehen.
+  await p.evaluate(() => {
+    const cad = document.getElementById('cad').contentWindow;
+    cad.postMessage({ channel: 'ravia-cad', type: 'setHostCapabilities', id: 'aus', payload: { scan: false } }, '*');
+  });
+}
+
 console.log('\n▸ Gebäudescan aus RaVia Scan über die Nachrichtenbrücke (loadBuilding)');
 {
   const { readFileSync } = await import('node:fs');
@@ -737,7 +782,7 @@ console.log('\n▸ Zweiter Aufruf mit warmem Zwischenspeicher');
   await p.goto(BASIS + 'einbettung-beispiel.html', { waitUntil: 'networkidle' });
   await p.locator('#status').filter({ hasText: 'verbunden' }).waitFor({ timeout: 20000 }).catch(() => {});
   expect('Auch mit warmem Zwischenspeicher verbunden', await p.locator('#status').innerText(), 'verbunden');
-  expect('… mit Version', await p.locator('#version').innerText(), '1.8.0');
+  expect('… mit Version', await p.locator('#version').innerText(), '1.9.0');
 }
 
 console.log('\nERRORS:', errs.length ? errs.join('\n') : 'keine');

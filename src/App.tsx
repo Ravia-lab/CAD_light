@@ -40,6 +40,9 @@ import SchemaView from './components/SchemaView';
 import SkizzenSeite from './components/SkizzenSeite';
 import ToolRail, { TopBar } from './components/Toolbar';
 import ProjektDialog from './components/ProjektDialog';
+import ScanDialog from './components/ScanDialog';
+import { scanStarten, useScanDialog } from './store/scanDialog';
+import { sitzungAusUrl } from './lib/scanDienst';
 import Pruefansicht from './components/Pruefansicht';
 import { geraeteprofil, geraetemerkmale } from './lib/geraeteprofil';
 import { RaumnamenListe } from './components/RaumnameFeld';
@@ -159,6 +162,25 @@ export default function App() {
     startpruefungGelaufen = true;
 
     const entry = loadAutosave();
+    /*
+     * **Rücksprung aus RaVia Scan** (seit 1.74.0): Die App öffnet diese
+     * Seite nach dem Hochladen mit `?scan=<Sitzung>`. iOS hat sie während des
+     * Scans meist aus dem Speicher geworfen; der letzte Stand ist dann der
+     * eigene von vor ein paar Minuten. Ihn ungefragt zurückzuholen ist hier
+     * richtig — gefragt wird gleich danach, ob der Scan ihn ersetzt oder
+     * als Geschoss dazukommt. Eine Rückfrage „Stand fortsetzen?" davor
+     * stünde über dem Scan-Dialog und hielte die Übernahme auf.
+     */
+    const scanSitzung = sitzungAusUrl(window.location.href);
+    if (scanSitzung) {
+      if (entry) {
+        replaceDocument(entry.doc, `Letzter Stand von ${relativeTime(entry.savedAt)} wiederhergestellt`);
+        setProjektId(entry.projektId ?? null);
+        setzeAktivesProjekt(entry.projektId ?? null);
+      }
+      useScanDialog.getState().oeffnen(scanSitzung);
+      return;
+    }
     if (entry) {
       setRestore(entry);
       return;
@@ -184,7 +206,7 @@ export default function App() {
    * Die Rolle wird gesetzt, bevor das Modell geladen wird: Sonst sähe der
    * Monteur den Beispielgrundriss für einen Augenblick mit dreizehn Reitern.
    */
-  const closeWelcome = (dann: 'assistent' | 'skizze' | 'demo' | 'leer' | 'bild', rolle: UiModus) => {
+  const closeWelcome = (dann: 'assistent' | 'skizze' | 'demo' | 'leer' | 'bild' | 'scan', rolle: UiModus) => {
     setUiMode(rolle);
     try {
       localStorage.setItem(WELCOME_KEY, '1');
@@ -196,6 +218,10 @@ export default function App() {
     if (dann === 'bild') setTab('reference');
     if (dann === 'assistent') setzeAssistent(true);
     if (dann === 'skizze') setzeVollbildSkizze(true);
+    if (dann === 'scan') {
+      setTab('reference');
+      scanStarten();
+    }
   };
 
   /*
@@ -493,6 +519,7 @@ export default function App() {
       {welcome && <Einfuehrung onChoose={closeWelcome} />}
 
       <Skizzenblatt />
+      <ScanDialog />
       <AufnahmeAssistent onFertig={() => setTab('check')} />
 
       {restore && (
@@ -674,7 +701,7 @@ function ViewerFallback() {
 function Einfuehrung({
   onChoose,
 }: {
-  onChoose: (dann: 'assistent' | 'skizze' | 'demo' | 'leer' | 'bild', rolle: UiModus) => void;
+  onChoose: (dann: 'assistent' | 'skizze' | 'demo' | 'leer' | 'bild' | 'scan', rolle: UiModus) => void;
 }) {
   const [rolle, setRolle] = useState<UiModus | null>(null);
 
@@ -763,6 +790,16 @@ function Einfuehrung({
                 </div>
               </button>
             </div>
+            <button
+              className="mt-2 w-full rounded-lg bg-accent/12 px-3 py-2.5 text-left transition hover:bg-accent/20"
+              data-pruef="start-scan"
+              onClick={() => onChoose('scan', rolle)}
+            >
+              <div className="text-[12px] text-accent">Mit RaVia Scan scannen</div>
+              <div className="mt-0.5 text-[10px] leading-snug text-slate-500">
+                iPhone oder iPad mit LiDAR: QR-Code scannen, Räume ablaufen — der Grundriss kommt von selbst hierher.
+              </div>
+            </button>
             <div className="mt-2 grid grid-cols-3 gap-2">
               <button
                 className="rounded-lg bg-accent/12 px-3 py-2.5 text-left transition hover:bg-accent/20"

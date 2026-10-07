@@ -517,7 +517,10 @@ export function pruefeEinbettung(check: CheckFn): void {
      * `changed` bei jeder Änderung, `netzgelegt` nach einem Auslegungslauf.
      * Alles andere muss als Befehl dort ankommen.
      */
-    const abonnements = ['onChange', 'onNetzGelegt'];
+    // Seit 1.9.0 auch `onScanRequested`: über die Brücke bekommt ein
+    // angemeldetes Fenster `scanRequested`, sobald es `scan` als Fähigkeit
+    // gemeldet hat und der Knopf gedrückt wird.
+    const abonnements = ['onChange', 'onNetzGelegt', 'onScanRequested'];
     const fehlend = vertrag.filter((m) => !abonnements.includes(m) && !bruecke.includes(m));
     check('Kein Befehl fehlt in der Nachrichtenbrücke', fehlend.join(', '), '');
     /*
@@ -528,6 +531,7 @@ export function pruefeEinbettung(check: CheckFn): void {
      */
     check('Änderungen gehen über die Brücke', /'changed'/.test(quelle), true);
     check('Der Auslegungsstand auch', /'netzgelegt'/.test(quelle), true);
+    check('Die Scan-Anforderung auch', /'scanRequested'/.test(quelle) && /registriereWirtMelder\(/.test(quelle), true);
     check('Beide über denselben Verteiler', /sendeAnAlle\(/.test(quelle), true);
     check('getDocument ist über die Brücke erreichbar', bruecke.includes('getDocument'), true);
     check('ping, subscribe und unsubscribe kommen dazu',

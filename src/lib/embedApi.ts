@@ -30,6 +30,7 @@ import { validateModel } from './validation';
 import { writableFields } from './hostPatch';
 import type { HostPatch, HostPatchReport } from './hostPatch';
 import { geraetemerkmale, geraeteprofil, type Geraeteprofil } from './geraeteprofil';
+import { registriereWirtMelder, setzeWirtFaehigkeiten } from './wirt';
 
 /**
  * 1.1.0 — der Rückweg ist dazugekommen: `applyPatch` und
@@ -67,7 +68,14 @@ import { geraetemerkmale, geraeteprofil, type Geraeteprofil } from './geraetepro
  * das Gerät ein zweites Mal selbst zu raten — siehe `lib/geraeteprofil.ts`.
  * Reiner Zuwachs.
  */
-export const EMBED_API_VERSION = '1.8.0';
+/*
+ * 1.9.0 — `setHostCapabilities`: Der Wirt meldet, was er selbst übernimmt
+ * (`{ scan: true }`). Dann schickt der Knopf „Mit RaVia Scan scannen" das
+ * Ereignis `scanRequested` an die angemeldeten Wirte, und RaVia öffnet
+ * seinen eigenen Dialog — siehe `lib/wirt.ts`. Ohne Meldung zeigt CAD Light
+ * seinen eigenen Dialog (`lib/scanDienst.ts`). Reiner Zuwachs.
+ */
+export const EMBED_API_VERSION = '1.9.0';
 
 /** Kurzfassung des Modells — das, was eine Gegenstelle meistens wissen will. */
 export interface RaviaSummary {
@@ -172,6 +180,14 @@ export interface RaviaCadApi {
    * — in der Nutzlast steht die Kurzfassung des Laufs, nicht das Netz selbst.
    */
   onNetzGelegt(listener: (stand: NetzStand) => void): () => void;
+  /**
+   * **Was der Wirt selbst übernimmt** — seit 1.9.0. `{ scan: true }` heißt:
+   * Der Knopf „Mit RaVia Scan scannen" öffnet den Dialog des Wirts statt des
+   * eigenen. Siehe `lib/wirt.ts`.
+   */
+  setHostCapabilities(faehigkeiten: { scan?: boolean }): { scan: boolean };
+  /** Auf die Scan-Anforderung hören (Wirt im selben Dokument) — seit 1.9.0. */
+  onScanRequested(listener: () => void): () => void;
 }
 
 /**
@@ -279,6 +295,7 @@ export function installEmbedApi(store: StoreLike, target: Window = window): () =
    * 250 ms später noch einmal.
    */
   const netzHoerer = new Set<(stand: NetzStand) => void>();
+  const scanHoerer = new Set<() => void>();
   const meldeNetz = (stand: NetzStand) => {
     for (const l of [...netzHoerer]) {
       try {
@@ -321,6 +338,11 @@ export function installEmbedApi(store: StoreLike, target: Window = window): () =
     onNetzGelegt: (listener) => {
       netzHoerer.add(listener);
       return () => netzHoerer.delete(listener);
+    },
+    setHostCapabilities: (f) => setzeWirtFaehigkeiten(f),
+    onScanRequested: (listener) => {
+      scanHoerer.add(listener);
+      return () => scanHoerer.delete(listener);
     },
   };
 
@@ -402,9 +424,17 @@ export function installEmbedApi(store: StoreLike, target: Window = window): () =
       case 'getDeviceProfile':
         reply(event, 'deviceProfile', data.id, api.getDeviceProfile());
         break;
+      case 'setHostCapabilities':
+        reply(event, 'hostCapabilities', data.id, setzeWirtFaehigkeiten(data.payload));
+        break;
       case 'subscribe': {
         const source = event.source;
         if (source) {
+          // Ein Fenster, das sich zweimal anmeldet, bekommt jedes Ereignis
+          // trotzdem nur einmal (gefunden in 1.74.0: `scanRequested` kam
+          // doppelt an, weil die Gegenstelle nach einem Neuaufbau erneut
+          // abonnierte).
+          for (const s of [...subscribers]) if (s.source === source) subscribers.delete(s);
           subscribers.add({ source, origin: event.origin });
           reply(event, 'subscribed', data.id, { version: EMBED_API_VERSION });
         }
@@ -426,7 +456,8 @@ export function installEmbedApi(store: StoreLike, target: Window = window): () =
    * Dieselbe Nachricht über die Fensterbrücke — für eine Gegenstelle, die
    * nicht im selben Dokument sitzt, sondern im Rahmen darüber.
    */
-  const sendeAnAlle = (type: string, payload: unknown) => {
+  const sendeAnAlle = (type: string, payload: unknown): number => {
+    let erreicht = 0;
     for (const s of [...subscribers]) {
       const win = s.source as Window;
       try {
@@ -439,11 +470,27 @@ export function installEmbedApi(store: StoreLike, target: Window = window): () =
           { channel: 'ravia-cad', type, id: null, payload },
           { targetOrigin: s.origin && s.origin !== 'null' ? s.origin : '*' },
         );
+        erreicht++;
       } catch {
         subscribers.delete(s);
       }
     }
+    return erreicht;
   };
+  registriereWirtMelder((type, payload) => {
+    let erreicht = sendeAnAlle(type, payload);
+    if (type === 'scanRequested') {
+      for (const h of [...scanHoerer]) {
+        try {
+          h();
+          erreicht++;
+        } catch {
+          // Ein fehlerhafter Hörer darf die anderen nicht aufhalten.
+        }
+      }
+    }
+    return erreicht;
+  });
 
   const unsubscribeNetz = api.onNetzGelegt((stand) => sendeAnAlle('netzgelegt', stand));
 
@@ -457,7 +504,9 @@ export function installEmbedApi(store: StoreLike, target: Window = window): () =
     if (debounce) clearTimeout(debounce);
     listeners.clear();
     netzHoerer.clear();
+    scanHoerer.clear();
     subscribers.clear();
+    registriereWirtMelder(null);
     delete (target as Window & { RaViaCAD?: RaviaCadApi }).RaViaCAD;
   };
 }

@@ -753,7 +753,7 @@
 
 <h4 id="k17-4-5">17.4.5 Die Fassung der Schnittstelle</h4>
 
-<p>Die Schnittstelle trägt eine eigene Fassungsnummer, unabhängig von der des Programms und der des Exportformats. Sie steht auf <b>1.8.0</b>.</p>
+<p>Die Schnittstelle trägt eine eigene Fassungsnummer, unabhängig von der des Programms und der des Exportformats. Sie steht auf <b>1.9.0</b>.</p>
 
 <table class="tab">
 <caption>Was jede Fassung der Schnittstelle gebracht hat</caption>
@@ -768,6 +768,7 @@
 <tr><td>1.6.0</td><td><b>Verworfene Räume melden</b> — die Gegenstelle sagt zurück, welche Räume sie nicht übernommen hat.</td></tr>
 <tr><td>1.7.0</td><td><b>„Rohrnetz wurde neu gelegt"</b> als eigenes Ereignis — damit ein hydraulischer Abgleich auf dem abgeschlossenen Auslegungsstand rechnet und nicht auf jeder Zwischenänderung. Auf Anforderung der RaVia-Seite vom 01.10.2026.</td></tr>
 <tr><td>1.8.0</td><td><b>Geräteprofil</b> (<code>getDeviceProfile</code>) — CAD Light sagt der RaVia-Seite, ob es auf Telefon, Tablet oder Rechner läuft und ob das Gerät Berührung kann. Damit zeigt die Seite den Knopf „Gebäude scannen" passend zum Gerät, ohne selbst noch einmal zu raten. Auftrag vom 02.10.2026.</td></tr>
+<tr><td>1.9.0</td><td><b>Was der Wirt selbst kann</b> (<code>setHostCapabilities</code>, Ereignis <code>scanRequested</code>) — meldet RaVia <code>{ scan: true }</code>, öffnet der Knopf „Mit RaVia Scan scannen" in CAD Light RaVias eigenen Dialog. Siehe <a href="#k17-4-9">Abschnitt 17.4.9</a>.</td></tr>
 </tbody>
 </table>
 
@@ -854,6 +855,25 @@
 <p><b>Maße am Gerät.</b> Unter Berührung ist jedes Tippziel mindestens <b>44 Punkte</b> groß, in beiden Richtungen; der Hauptknopf der Prüfansicht <b>56</b>. Inhalt hält Abstand zu Kamerausschnitt, abgerundeten Ecken und Home-Leiste. Die Höhe folgt der Adressleiste. Gedreht wird ohne Verlust: Ob Prüfansicht und welche Ansicht, bleibt stehen. Ein Rauchtest (<code>smoke:geraete</code>) prüft das bei 375 und 430 Punkten Breite (iPhone, hoch und quer), bei 768, 834, 1024 und 1366 (iPad hoch und quer) und in der geteilten Ansicht bei 320 und 694.</p>
 
 <div class="baustelle"><b>Was der Rauchtest nicht sieht</b><p>Er misst, was nach der Übernahme auf dem Bildschirm steht. Dialoge und die Reiter des Inspektors, die erst auf einen Tipp hin aufgehen, misst er nicht. Ein echtes iPhone hat er auch nicht in der Hand — die Geräte sind im Browser nachgebildet.</p></div>
+
+<h4 id="k17-4-9">17.4.9 Mit RaVia Scan scannen — ohne Datei, auch ohne RaVia daneben (seit 1.74.0)</h4>
+
+<p>Bis 1.73.0 kam ein Scan auf zwei Wegen herein: als Datei oder über RaVia, das ihn in der Testumgebung mit eigenem Dialog abholt. <b>Anstoßen</b> konnte ihn das eigenständige Programm nicht. Seit 1.74.0 gibt es dafür den Knopf <span class="zeichen">Mit RaVia Scan scannen (QR)</span> im Reiter <span class="pfad">Referenz</span>, Block „LiDAR-Scan übernehmen", und als eigenen Weg in der Einführung.</p>
+
+<ol>
+<li><b>Am Rechner</b> erscheint ein QR-Code mit dem Kopplungscode darunter. Die Kamera des iPhone oder iPad liest ihn, RaVia Scan öffnet sich und koppelt.</li>
+<li><b>Am iPhone oder iPad selbst</b> steht statt des QR-Codes <span class="zeichen">In RaVia Scan öffnen</span>. Der Link trägt die Rücksprungadresse dieser Seite. Geht die App nicht auf, sagt das Programm das nach zwei Sekunden und verweist auf TestFlight. Der QR-Code für ein anderes Gerät liegt einen Fingertipp entfernt.</li>
+<li>Das Programm fragt alle zwei Sekunden den Stand ab: <i>wartet</i>, <i>verbunden</i>, <i>angekommen</i>. Liegt schon ein Grundriss im Plan, nennt es zuerst, was gescannt wurde (etwa „1 Geschoss · 111,3 m² · 39 Wände · 10 Fenster · 5 Türen · 4 Heizkörper · Satteldach 36,5°"), und fragt dann: <span class="zeichen">Ersetzen</span> oder <span class="zeichen">Als Geschoss hinzufügen</span>. Beides nimmt <kbd>Strg</kbd>+<kbd>Z</kbd> zurück.</li>
+<li><b>Der Rücksprung.</b> Nach dem Hochladen springt die App auf diese Seite zurück, mit <code>?scan=…</code> in der Adresse. iOS hat die Seite während des Scans meist aus dem Speicher geworfen. Das Programm holt dann den eigenen letzten Stand zurück und lädt den Scan ohne weiteren Handgriff.</li>
+</ol>
+
+<p><b>Wie das abgesichert ist.</b> Beim Anlegen bekommt der Browser ein <b>Lesetoken</b>. Es steht nicht im QR-Code und nicht im Rücksprunglink, und der Server kennt nur seinen Hash. Wer den QR-Code abfotografiert, kann koppeln und scannen, denn dafür ist er da. Den Scan abholen kann er nicht. Springt die App in einen anderen Browser zurück, kennt dieser das Token nicht und sagt das: Der Scan liegt sicher auf dem Server und lässt sich in RaVia übernehmen. Ein QR-Code wird nur für einen Kopplungslink auf <code>ravia-tech.de</code> oder <code>test.ravia-tech.de</code> gezeigt, über https und ohne Port. Dieselbe Liste nimmt die App an.</p>
+
+<p><b>Woher der Dienst kommt.</b> Das Programm spricht nur mit dem eigenen Server, unter <code>scan-dienst/</code> neben der Anwendung. Die Inhaltsrichtlinie bleibt <code>connect-src 'self'</code>. Der Server reicht die Anfragen an die Scan-Schnittstelle der RaVia-Testumgebung weiter (<code>server/nginx/ravia-cad-scan-dienst.conf</code>). Solange diese Weiterleitung fehlt, sagt der Dialog „noch nicht eingerichtet" und nennt die beiden anderen Wege. Die Einzeldatei hat keinen Server; dort gibt es den Weg nicht, und auch das steht im Dialog.</p>
+
+<p><b>Eingebettet in RaVia</b> übernimmt RaVia den Knopf, sobald es <code>setHostCapabilities({ scan: true })</code> meldet (Schnittstelle 1.9.0). RaVia hat Anmeldung und Projekt, legt die Sitzung im Projekt an und reicht den Scan wie seit Update 309 mit <code>loadBuilding</code> herein. CAD Light zeigt dann nur den Hinweis, dass RaVia den Dialog öffnet.</p>
+
+<div class="merke"><b>Merke</b><p>Der Weg ist geprüft gegen einen <b>nachgebauten</b> Dienst (<code>smoke:scandienst</code>, Prüfblock <code>scandienst</code>). Dabei wird der QR-Code am Bildschirm fotografiert und gelesen, und er muss genau den Kopplungslink ergeben. Den echten Durchlauf mit iPhone und RaVia-Testumgebung gibt es erst, wenn die RaVia-Seite den Relay eingerichtet hat.</p></div>
 
 <h3 id="k17-5">17.5 Der Rückweg: wenn RaVia ins Modell schreibt</h3>
 

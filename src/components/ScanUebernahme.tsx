@@ -24,6 +24,7 @@
 
 import { useRef, useState } from 'react';
 import { useBimStore } from '../store/useBimStore';
+import { scanStarten } from '../store/scanDialog';
 
 const BEISPIEL = 'beispiele/lidar-scan-beispiel.json';
 
@@ -83,9 +84,16 @@ export default function ScanUebernahme() {
         <p className="text-[10.5px] leading-relaxed text-slate-400">
           Aufnahme aus <b className="text-slate-300">RaVia Scan</b> (iPhone, LiDAR). Übernommen werden Wände,
           Öffnungen, Geschosse, die Dachschätzung und gemessene Heizkörper — samt der Liste dessen, was die App
-          dabei geschätzt hat.
+          dabei geschätzt hat. Direkt per QR-Code ohne Datei, oder eine Scan-Datei öffnen.
         </p>
         <div className="mt-2.5 flex flex-wrap gap-2">
+          <button
+            className="chip bg-accent/25 text-accent"
+            data-pruef="scan-starten"
+            onClick={() => scanStarten()}
+          >
+            Mit RaVia Scan scannen (QR)
+          </button>
           <button
             className="chip bg-accent/15 text-accent"
             data-pruef="scan-datei"

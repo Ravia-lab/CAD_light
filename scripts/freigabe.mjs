@@ -46,7 +46,7 @@ const fassung = JSON.parse(readFileSync(new URL('../package.json', import.meta.u
  */
 const RAUCHTESTS = [
   'ui', 'feat', 'export', 'griffe', 'ebenen', 'scan', 'ux', 'handwerker',
-  'tablet', 'geraete', 'wp', 'raum', 'anlage', 'rohrnetz', 'rohrlaengen', 'schema', 'uebersicht', 'fragen', 'anlagendialog', 'entfernen', 'spiegeln',
+  'tablet', 'geraete', 'wp', 'raum', 'anlage', 'rohrnetz', 'rohrlaengen', 'scandienst', 'schema', 'uebersicht', 'fragen', 'anlagendialog', 'entfernen', 'spiegeln',
   'tueren', 'mappe', 'leisten', 'sprache', 'loeschen', 'ring', 'bestand',
   'geschosse', 'embed', 'round2', 'druck', 'fbh3d', 'bild', 'aufnahme', 'fbh', 'blatt', 'einheiten',
 ];
