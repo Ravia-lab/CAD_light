@@ -370,7 +370,7 @@ console.log('\n▸ Feldscan 02.10.2026 — Dach nur über belegten Räumen');
   pruefe('… Herkunft „geschätzt" am Dach', st.herkunft, 'geschaetzt');
   pruefe('ein Raum ohne Dach — der Flügel, 15,5 m² brutto (licht kleiner)', st.ohneRoof.length, 1);
   pruefe('ein Hinweis „Dach nicht erfasst" in der Prüfung', st.nichtErfasst, 1);
-  pruefe('eine Prüfpunkt-Fahne im Plan', st.fahnen, 1);
+  pruefe('keine Prüfpunkt-Fahne im Plan (kein Text beim Import, 07.10.2026)', st.fahnen, 0);
   pruefe('Meldung: Toleranz', st.meldung, 'Toleranz ± 3,0 % (angenommen, kein Kontrollmaß)');
   pruefe('Meldung: Dach über 10 Räumen, 1 mit gerader Decke', st.meldung, 'Dach über 10 Räumen, 1 mit gerader Decke');
   pruefe('Meldung: „Manu" als Bereich benannt', st.meldung, '„Manu" galt für das ganze Geschoss');

@@ -182,7 +182,7 @@ import {
 } from '../lib/nutzungseinheiten';
 import type { RaumplanImportErgebnis } from '../lib/raumplanImport';
 import { importBuildingModel, type BuildingImportErgebnis } from '../lib/buildingModelImport';
-import { benenneRaeume, pruefpunkteAlsHinweise, scanDachZuordnen, uebernimmBeheizung, type ScanDachZuordnung } from '../lib/scanUebernahme';
+import { benenneRaeume, scanDachZuordnen, uebernimmBeheizung, type ScanDachZuordnung } from '../lib/scanUebernahme';
 import { begradige } from '../lib/begradigen';
 import { befundSatz, hoehenbefund } from '../lib/wandhoehen';
 import { SPRACHEN, spracheSetzen, type Sprache } from '../lib/sprache';
@@ -6334,7 +6334,14 @@ export const useBimStore = create<BimState>()((set, get) => {
         zuordnung = scanDachZuordnen(fresh.levels, Object.values(fresh.rooms), ergebnis);
         recomputeRooms(fresh);
       }
-      for (const a of pruefpunkteAlsHinweise(ergebnis, (i) => `sc-pp${i}`)) fresh.annotations[a.id] = a;
+      /*
+       * Die Prüfpunkte der App kommen nicht mehr als Textfahnen in den Plan
+       * (Wunsch Manuel, 07.10.2026: „wenn ich nach CAD importiere, brauche
+       * ich keinen Text“). Bei einem Ganzscan waren es Dutzende Fahnen, die
+       * den Grundriss überdeckten. Die Prüfliste steht in der App; dort
+       * werden die Stellen auch nachgescannt. `pruefpunkteAlsHinweise`
+       * bleibt für den Fall, dass die Fahnen wieder zuschaltbar werden.
+       */
 
       /*
        * Hinzufügen statt ersetzen.
