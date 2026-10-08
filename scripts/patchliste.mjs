@@ -28,7 +28,7 @@ const ZIEL = process.argv[2] ?? 'patchliste-cad-light.html';
 
 // --- Von Hand: Überschrift je Zehnerblock ----------------------------------
 const BLOeCKE = {
-  70: 'Dachschnitt, Rohrlängen, Praxisprüfung, Abgleich mit RaVia und RaVia Scan',
+  70: 'Dachschnitt, Rohrlängen, Praxisprüfung, Abgleich mit RaVia, Scannen per QR-Code, Prüfrunden',
   60: 'Verbrauchsabgleich, Baugrube, Scan als Datei, Aufnahme ohne Zeichnen, Fußbodenheizung',
   50: 'Anlagenschema, Normsymbole, Mehrgeschossigkeit, Schutzbereich',
   40: 'Steigleitung, Hüllflächenbilanz, Freigabelauf, Übersichtsschema',
@@ -50,7 +50,13 @@ const SCHNITT = [
   ['1.60.0', 'Export 2.7.0', '<code>project.verbrauch</code>, <code>project.baualter</code>, <code>totals.heatLoadCrosscheck</code> — die Gegenprobe zur Heizlast'],
   ['1.64.0', 'Export 2.8.0', '<code>project.annahmen</code> — was angenommen wurde, weil nichts vorlag'],
   ['1.65.0', 'Export 2.9.0', '<code>pipeGraph</code> — das Rohrnetz als Netz mit Knoten, Vorgängern und Verzweigungen, dazu die Flächenheizkreise und die gemischt beheizten Räume'],
+  ['1.66.0', 'Export 2.10.0 · Einbettung 1.7.0', '<code>occupancyUnits</code>/<code>occupancy</code> — Nutzungseinheiten nach § 60c Abs. 1 GModG; Ereignis <code>onNetzGelegt</code> einmal je Auslegungslauf'],
+  ['1.67.0', 'Export 2.11.0 · 2.12.0', 'Heizkreis ↔ Nutzungseinheit (<code>circuits[].occupancyUnitId</code>, <code>occupancyUnits[].circuitIds</code>); <code>plant.bivalence</code> — Deckungsanteile nach Bivalenzpunkt und Jahresdauerlinie'],
+  ['1.70.0', 'Einbettung 1.8.0', '<code>getDeviceProfile</code> — auf welchem Gerät CAD Light läuft'],
+  ['1.71.0', 'Export 2.13.0', '<code>pipeFittings</code> — Bögen, T-Stücke, Reduzierungen aus der Geometrie; je Verbraucher Weg-, Zuleitungs-, Kreis- und Steigleitungslänge'],
+  ['1.72.0', 'Export 2.14.0', '<code>project.atticTemperature</code> — der Dachraum über der obersten Decke'],
   ['1.73.0', 'Export 2.15.0', '<code>raviaRoomId</code>, Randbedingung <code>neighbour</code>, Heizkörper mit <code>ratedPower</code> bei 75/65/20 °C, <code>levels[].order</code>; dazu ein JSON-Schema, gegen das jeder Export geprüft wird'],
+  ['1.74.0', 'Einbettung 1.9.0', '<code>setHostCapabilities</code> — der Wirt meldet, dass er den Scan-Dialog selbst übernimmt'],
 ];
 
 // --- Die Fassungen aus dem Handbuch ---------------------------------------
@@ -305,9 +311,8 @@ const seite = `<!doctype html>
     Abnahme —, und sie wird für jede fertige Fassung gefahren. Es gibt deshalb keinen
     Rückstand zwischen dem, was hier steht, und dem, was unter
     <code>ravia-tech.de/Cad_light/</code> läuft: Was in dieser Liste oben steht, ist live.
-    <b>Nicht davon betroffen ist die bei RaVia eingebettete Kopie</b> — die liegt auf einem
-    eigenen Server und wird von dort nachgezogen; ihr Stand ist nach unserer letzten
-    Rückmeldung 1.44.0.
+    <b>RaVia greift unmittelbar auf diese Adresse zu</b> — was hier live geht, ist dort
+    in Betrieb; ein gesondertes Übergabepaket gibt es nicht mehr.
   </div>
 </header>
 
@@ -329,9 +334,10 @@ ${reihen}
 ${schnittZeilen}
 </table></div>
 
-<p class="unter">Jeder dieser Schritte ist <b>additiv</b>: Kein Feld ist weggefallen, keines hat
-seine Bedeutung geändert. Eine Gegenstelle, die gegen 2.0.0 gebaut hat, liest eine
-2.8.0-Datei unverändert. Die Schritte 2.0.0 und 2.1.0 sind hier nicht aufgeführt, weil sich
+<p class="unter">Kein Schritt hat ein Feld entfernt. Bis 2.14.0 kamen nur neue Felder dazu.
+<b>2.15.0 bringt außerdem einen neuen Wert</b> für eine vorhandene Angabe: die Randbedingung
+<code>neighbour</code> (fremde Nutzungseinheit oder Nachbargebäude). Eine Gegenstelle, die
+diesen Wert nicht kennt, muss ihn mindestens als unbekannt ablehnen können. Die Schritte 2.0.0 und 2.1.0 sind hier nicht aufgeführt, weil sich
 nicht mehr eindeutig belegen lässt, mit welcher Programmfassung sie kamen.</p>
 
 <footer>
