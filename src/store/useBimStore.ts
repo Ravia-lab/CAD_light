@@ -191,6 +191,8 @@ import { planeGeschosszuordnung } from '../lib/importgeschoss';
 import type { SpiegelAchse } from '../lib/spiegeln';
 import type { BegradigenOptionen } from '../lib/begradigen';
 import { findeLuecken, oeffnungFuerLuecke } from '../lib/luecken';
+import { berichtSatz, kleineRaeume, planeKorrektur, wendeKorrekturAn } from '../lib/autokorrektur';
+import type { KorrekturAuswahl, KorrekturBericht, Korrekturplan } from '../lib/autokorrektur';
 import type { LueckenSchluss } from '../lib/luecken';
 import { benenneGeschosse, erdgeschossIndex, levelBaseHeights } from '../lib/levelGeometry';
 import { treppenmasse } from '../lib/treppenlogik';
@@ -1208,6 +1210,15 @@ interface BimState {
   ) => { ok: boolean; message: string };
   /** Ein loses Wandende bis zum Gegenüber schließen — als Wand oder Öffnung. */
   schliesseLuecke: (knotenId: string, art: LueckenSchluss) => { ok: boolean; message: string };
+  /**
+   * Grundriss prüfen — alles suchen, nichts ändern. Siehe `lib/autokorrektur.ts`.
+   */
+  planeAutokorrektur: () => Korrekturplan;
+  /**
+   * Die angehakten Korrekturen ausführen, als **ein** Schritt in der
+   * Historie: Strg+Z nimmt alles zusammen zurück.
+   */
+  autokorrigiere: (auswahl: KorrekturAuswahl) => { ok: boolean; message: string; bericht: KorrekturBericht };
   /**
    * Geschätzte Wandstärken bestätigen — für eine Wandart oder alle, wahlweise
    * mit neuem Wert. Danach gilt die Zahl als gesetzt, nicht mehr als geschätzt.
@@ -6727,6 +6738,49 @@ export const useBimStore = create<BimState>()((set, get) => {
         : `Lücke geschlossen, aber ${wort} passte nicht hinein`;
       set({ statusMessage: message });
       return { ok: true, message };
+    },
+
+    planeAutokorrektur: () => planeKorrektur(get().doc),
+
+    /*
+     * Ein einziges `mutate`, damit Rückgängig alles auf einmal zurücknimmt.
+     * Die Räume werden darin selbst neu erkannt, weil die kleinen Räume erst
+     * danach feststehen: Ein Raum, der durch eine eben geschlossene Lücke
+     * entsteht, gibt es vorher nicht. Darum `skipRooms` — sonst liefe die
+     * Erkennung ein zweites Mal.
+     */
+    autokorrigiere: (auswahl) => {
+      const ausgang = { doc: get().doc, past: get().past, future: get().future };
+      const raeumeVorher = Object.keys(ausgang.doc.rooms).length;
+      let bericht: KorrekturBericht | null = null;
+      const namen: string[] = [];
+      mutate(
+        (d) => {
+          bericht = wendeKorrekturAn(d, auswahl, uid);
+          recomputeRooms(d);
+          if (auswahl.kleineRaeume) {
+            for (const r of kleineRaeume(Object.values(d.rooms))) {
+              d.rooms[r.id] = { ...r, isHeated: false };
+              namen.push(r.name);
+            }
+          }
+        },
+        { skipRooms: true },
+      );
+      const b: KorrekturBericht = { ...(bericht as unknown as KorrekturBericht), kleineRaeume: namen };
+      const raeumeNachher = Object.keys(get().doc.rooms).length;
+      const satz = berichtSatz(b);
+      const geaendert = satz !== 'Nichts geändert.';
+      const message = geaendert
+        ? `${satz} Räume: ${raeumeVorher} → ${raeumeNachher}. Strg+Z nimmt alles zusammen zurück.`
+        : satz;
+      if (!geaendert) {
+        // Nichts getan — dann auch kein Schritt in der Historie, den man
+        // zurücknehmen müsste, um zum selben Stand zu kommen.
+        set(ausgang);
+      }
+      set({ statusMessage: message });
+      return { ok: geaendert, message, bericht: b };
     },
 
     neuesDokument: (name) => {

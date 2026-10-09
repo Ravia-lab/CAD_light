@@ -655,4 +655,36 @@
 <p>Die Blätter gehören zum Projekt und werden mit ihm gespeichert — in der Projektdatei unter <code>project.skizzen</code>. Eine Handskizze, die beim Speichern verloren geht, zeichnet niemand ein zweites Mal.</p>
 
 <div class="baustelle"><b>Auf der Baustelle heißt das</b><p>Das <b>Skizzenblatt über dem Plan</b> (der Knopf in der Skizzenleiste) und die <b>Skizzenseite</b> sind zwei verschiedene Dinge. Das Blatt über dem Plan ist eine Folie <em>auf</em> dem Grundriss: Sie zeichnen dort in das Gebäude, jeder Strich hat sofort Meter. Die Skizzenseite ist ein eigenes Papier <em>neben</em> dem Projekt; sie braucht erst ein Maß, und dafür braucht sie keinen Plan dahinter. <b>In der Wohnung</b> ist meist die Seite der bessere Anfang: aufzeichnen, eine Wand messen, Maß eintippen, übernehmen — dann steht der Umriss, und das Aufmaß geht Raum für Raum darüber.</p></div>
+
+<h3 id="k4-12">4.12 Grundriss prüfen und korrigieren</h3>
+
+<p class="lead">Ein aufgemessener oder eingelesener Grundriss hat fast immer dieselbe Handvoll Mängel: eine Ecke, die zwei Zentimeter offen steht, ein Wandstummel von wenigen Millimetern, ein paar Grad Schieflage, eine Lücke, an der das Messgerät keine Wand gesehen hat. Jeder ist mit einem Handgriff zu beheben — nur muss man ihn erst finden. Seit 1.76.0 findet ihn ein Durchlauf, fragt und korrigiert in <b>einem</b> Schritt.</p>
+
+<p class="wo">Im Programm: Reiter <b>Prüfung</b> → Abschnitt <b>Aufmaß nachziehen</b> → <b>„Grundriss prüfen und korrigieren …"</b>. Am Telefon in der Prüfansicht über der Prüfliste.</p>
+
+<p>Der Dialog zeigt die Funde nach Art, jede Gruppe mit Haken und Anzahl. <b>Stellen zeigen</b> klappt die Liste auf; ein Tipp auf eine Stelle rückt sie in den Blick und markiert sie, auch in einem anderen Geschoss. Der Dialog steht dafür rechts und lässt den Plan daneben frei. <b>Korrigieren</b> führt alles Angehakte zusammen aus; <kbd>Strg</kbd> + <kbd>Z</kbd> nimmt es als <b>einen</b> Schritt zurück. Danach rechnet der Dialog neu und zeigt, was übrig ist — im Regelfall nur noch die Lücken, auf die eine Antwort fehlt.</p>
+
+<table class="tab">
+<caption>Was der Durchlauf findet und was er tut</caption>
+<thead><tr><th>Gruppe</th><th>Was gefunden wird</th><th>Was passiert</th><th>Vorbelegt</th></tr></thead>
+<tbody>
+<tr><td>Offene Ecken und Anschlüsse</td><td>Zwei Wandpunkte, die sich um höchstens 5 cm verfehlen, oder ein Wandende bis 5 cm neben einer Wand</td><td>Die Punkte werden einer; das Wandende kommt auf die Wand, die dort geteilt wird (echter T-Stoß)</td><td>ja</td></tr>
+<tr><td>Wandstummel und Überstände</td><td>Wände unter 5 cm; lose Wandenden bis 15 cm, die über eine Ecke hinausragen</td><td>Der Stummel geht in seinem Nachbarpunkt auf, der Überstand wird entfernt</td><td>ja</td></tr>
+<tr><td>Doppelte Wände</td><td>Zwei Wände zwischen denselben Punkten</td><td>Zusammengelegt, Öffnungen wandern auf die bleibende — <b>immer</b>, ohne Haken</td><td>immer</td></tr>
+<tr><td>Schiefe Wände</td><td>Wände bis 8° neben der Achse</td><td>Auf die Achse gezogen wie mit dem Knopf <b>Begradigen</b> im selben Abschnitt; kein Punkt wandert weiter als 30 cm</td><td>ja</td></tr>
+<tr><td>Leitungen</td><td>Leitungen ohne Länge, deckungsgleich doppelte Leitungen</td><td>Entfernt; Armaturen einer doppelten wandern auf die bleibende</td><td>ja</td></tr>
+<tr><td>Kleine Räume</td><td>Beheizte Räume unter 1 m²</td><td>Als unbeheizt geführt</td><td>nein</td></tr>
+<tr><td>Lücken</td><td>Lose Wandenden mit einem Gegenüber zwischen 5 cm und 3 m</td><td>Je Lücke eine Frage: offen lassen, Wand, Tür, Durchgang, Fenster</td><td>offen lassen</td></tr>
+</tbody>
+</table>
+
+<p><b>Warum 5 cm.</b> Es ist dieselbe Zahl, bis zu der die Raumerkennung Wandenden ohnehin zusammenschweißt (Abschnitt 4.4). Ein Raum wird deshalb meist auch mit offener Ecke erkannt — das Modell selbst bleibt aber offen: Im Plan und im 3D-Modell steht die Ecke offen, die Wandlänge fehlt um den Spalt, und in die Übergabe und den IFC-Export gehen zwei Enden, die sich nicht berühren. Der Durchlauf schließt im Modell, was die Raumerkennung ohnehin als geschlossen behandelt — nicht mehr und nicht weniger. Darüber beginnt die Lücke, und die ist eine Frage an den Menschen.</p>
+
+<p><b>Warum Lücken nie ohne Antwort geschlossen werden.</b> Eine Lücke von 90 cm kann eine Tür sein, ein Durchgang oder eine Wand hinter einem Schrank. Das weiß nur, wer vor Ort war. Raten wäre hier besonders teuer: Eine Tür, die keine ist, kostet in der Heizlast ein Vielfaches der Wand, die sie ersetzt. Neben jeder Lücke steht deshalb nur ein Hinweis zur Breite („Türbreite", „schmaler als jede Tür", „breiter als eine Tür") — entschieden wird im Dialog, und ohne Entscheidung bleibt die Lücke offen.</p>
+
+<p><b>Was nie angefasst wird.</b> Eine Wand, an der eine Öffnung, ein Durchbruch oder ein Einbau hängt, ist nie ein Stummel. Eine Wandschale, die parallel neben einer anderen Wand liegt, wird nicht als T-Stoß angeschlossen. Fenster und Türen an seltsamer Stelle bleiben, wo sie sind — das kann Absicht sein. Über eine Lücke von mehr als 3 m wird nichts vorgeschlagen: Dort fehlt kein Stück Wand, sondern ein Raum.</p>
+
+<p><b>Die Reihenfolge.</b> Erst Anschlüsse, dann Stummel, dann doppelte Wände, dann die beantworteten Lücken, zuletzt das Begradigen — damit auch die eben gezogenen Wände mit auf die Achse kommen. Jeder Schritt sucht dabei auf dem Stand, den der vorige hinterlassen hat. Die Meldung nennt deshalb, was wirklich geschah, und dazu die größte Strecke, um die ein Wandpunkt gewandert ist.</p>
+
+<div class="baustelle"><b>Auf der Baustelle heißt das</b><p>Nach jedem Scan oder eingelesenen Plan einmal durchlaufen lassen, bevor gerechnet wird. Die Gruppen, die nur Geometrie richten, sind angehakt und können so bleiben. Für die Lücken lohnt der Blick: Stelle antippen, im Plan nachsehen, dann <b>Tür</b>, <b>Durchgang</b> oder <b>Wand</b> wählen. Was Sie nicht wissen, bleibt offen — und steht beim nächsten Durchlauf wieder da.</p></div>
 </section>

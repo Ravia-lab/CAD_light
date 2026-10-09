@@ -31,6 +31,7 @@ import { begradige } from '../lib/begradigen';
 import { findeLuecken } from '../lib/luecken';
 import type { LueckenSchluss } from '../lib/luecken';
 import { useBimStore } from '../store/useBimStore';
+import { useKorrekturDialog } from '../store/korrekturDialog';
 import { AUSNAHME_LABELS, befundSatz, type Hoehenbefund } from '../lib/wandhoehen';
 
 const SCHLUSS: { art: LueckenSchluss; label: string; titel: string }[] = [
@@ -68,6 +69,7 @@ export default function AufmassPanel() {
   const setViewport = useBimStore((s) => s.setViewport);
   const viewport = useBimStore((s) => s.viewport);
   const [meldung, setMeldung] = useState<string | null>(null);
+  const oeffneKorrektur = useKorrekturDialog((s) => s.oeffnen);
   /*
    * **Warum der Umfang vorbelegt ist und nicht gefragt wird.**
    *
@@ -140,6 +142,19 @@ export default function AufmassPanel() {
   return (
     <div className="space-y-2.5 rounded-lg border border-white/[0.07] bg-white/[0.02] p-3">
       <div className="label-xs">Aufmaß nachziehen</div>
+
+      {/* Alles in einem Durchlauf: findet, fragt und korrigiert in einem
+          Schritt. Die Einzelknöpfe darunter bleiben für den gezielten Griff. */}
+      <button
+        className="w-full rounded-md bg-accent/15 px-2.5 py-2 text-left text-[11.5px] text-accent transition hover:bg-accent/25"
+        onClick={() => oeffneKorrektur()}
+        data-pruef="korrektur-oeffnen"
+      >
+        Grundriss prüfen und korrigieren …
+        <span className="mt-0.5 block text-[10.5px] text-slate-500">
+          Offene Ecken, Stummel, doppelte Wände, schiefe Wände, Lücken, Leitungen — alles in einem Durchlauf, mit Rückfrage.
+        </span>
+      </button>
 
       {/* --------------------------------------------- Wandhöhen angleichen */}
       <Wandhoehen

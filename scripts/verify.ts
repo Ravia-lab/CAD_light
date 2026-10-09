@@ -192,6 +192,7 @@ import { pruefeErzeugerhydraulik } from './pruefungen/erzeugerhydraulik';
 import { pruefeRaumscan } from './pruefungen/raumscan';
 import { pruefeGebaeudescan } from './pruefungen/gebaeudescan';
 import { pruefeAufmass } from './pruefungen/aufmass';
+import { pruefeAutokorrektur } from './pruefungen/autokorrektur';
 import { pruefeWerkzeugkiste } from './pruefungen/werkzeugkiste';
 import { pruefeBeschriftung3d } from './pruefungen/beschriftung';
 import { pruefeWandquerung } from './pruefungen/wandquerung';
@@ -4021,6 +4022,7 @@ pruefeSchemabeschriftung(check);
 pruefeRaumscan(check);
 pruefeGebaeudescan(check);
 pruefeAufmass(check);
+pruefeAutokorrektur(check);
 
 console.log('\n▸ Systemtemperatur — eine Anlage, eine Auslegungstemperatur');
 pruefeSystemtemperatur(check);

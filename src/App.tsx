@@ -41,6 +41,7 @@ import SkizzenSeite from './components/SkizzenSeite';
 import ToolRail, { TopBar } from './components/Toolbar';
 import ProjektDialog from './components/ProjektDialog';
 import ScanDialog from './components/ScanDialog';
+import KorrekturDialog from './components/KorrekturDialog';
 import { scanStarten, useScanDialog } from './store/scanDialog';
 import { sitzungAusUrl } from './lib/scanDienst';
 import Pruefansicht from './components/Pruefansicht';
@@ -520,6 +521,7 @@ export default function App() {
 
       <Skizzenblatt />
       <ScanDialog />
+      <KorrekturDialog />
       <AufnahmeAssistent onFertig={() => setTab('check')} />
 
       {restore && (

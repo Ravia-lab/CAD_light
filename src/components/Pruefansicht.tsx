@@ -33,6 +33,7 @@ import Editor2D from './Editor2D';
 import ValidationPanel from './ValidationPanel';
 import { validateModel } from '../lib/validation';
 import { useBimStore } from '../store/useBimStore';
+import { useKorrekturDialog } from '../store/korrekturDialog';
 
 const Viewer3D = lazy(() => import('./Viewer3D'));
 
@@ -107,8 +108,20 @@ export default function Pruefansicht() {
 
   const bearbeiten = () => setPruefansicht(false);
 
+  const oeffneKorrektur = useKorrekturDialog((s) => s.oeffnen);
   const liste = (
     <div className="min-h-0 flex-1 overflow-y-auto" data-pruefansicht-liste>
+      {/* Vor der Liste, nicht darunter: Was sich mit einem Durchlauf richten
+          lässt, soll man nicht erst nach zwanzig Befunden finden. */}
+      <div className="px-3 pt-3">
+        <button
+          className="min-h-[44px] w-full rounded-lg bg-accent/15 px-3 text-left text-[14px] text-accent"
+          onClick={oeffneKorrektur}
+          data-pruef="korrektur-oeffnen"
+        >
+          Grundriss prüfen und korrigieren …
+        </button>
+      </div>
       <ValidationPanel />
     </div>
   );
