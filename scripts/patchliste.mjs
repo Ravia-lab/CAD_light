@@ -28,7 +28,7 @@ const ZIEL = process.argv[2] ?? 'patchliste-cad-light.html';
 
 // --- Von Hand: Überschrift je Zehnerblock ----------------------------------
 const BLOeCKE = {
-  70: 'Dachschnitt, Rohrlängen, Praxisprüfung, Abgleich mit RaVia, Scannen per QR-Code, Prüfrunden',
+  70: 'Dachschnitt, Rohrlängen, Praxisprüfung, Abgleich mit RaVia, Scannen per QR-Code, Prüfrunden, Autokorrektur, Fußbodenkreise',
   60: 'Verbrauchsabgleich, Baugrube, Scan als Datei, Aufnahme ohne Zeichnen, Fußbodenheizung',
   50: 'Anlagenschema, Normsymbole, Mehrgeschossigkeit, Schutzbereich',
   40: 'Steigleitung, Hüllflächenbilanz, Freigabelauf, Übersichtsschema',
@@ -57,6 +57,7 @@ const SCHNITT = [
   ['1.72.0', 'Export 2.14.0', '<code>project.atticTemperature</code> — der Dachraum über der obersten Decke'],
   ['1.73.0', 'Export 2.15.0', '<code>raviaRoomId</code>, Randbedingung <code>neighbour</code>, Heizkörper mit <code>ratedPower</code> bei 75/65/20 °C, <code>levels[].order</code>; dazu ein JSON-Schema, gegen das jeder Export geprüft wird'],
   ['1.74.0', 'Einbettung 1.9.0', '<code>setHostCapabilities</code> — der Wirt meldet, dass er den Scan-Dialog selbst übernimmt'],
+  ['1.77.0', 'Export 2.16.0', 'Fußbodenheizung je Kreis: <code>floorCircuits[].circuits[]</code> mit Kennung, Abgang, Länge, Leistung und Strom; <code>maxLoopLength</code>, <code>splitFrom</code>, Zuleitung <code>feedLength</code>'],
 ];
 
 // --- Die Fassungen aus dem Handbuch ---------------------------------------
