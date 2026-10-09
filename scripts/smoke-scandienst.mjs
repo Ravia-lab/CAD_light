@@ -231,7 +231,19 @@ console.log('\nC · iPhone: „In RaVia Scan öffnen" statt QR-Code');
     await p.evaluate(() => window.__appLink ?? ''),
     'raviascan://pair?code=K7QX-M2PA-9RTF&host=test.ravia-tech.de',
   );
-  pruefe('… return auf http://localhost nicht angehängt', (await p.evaluate(() => window.__appLink ?? '')).includes('return='), false);
+  /*
+   * Gegen den Live-Server (RAVIA_PROBE, https auf ravia-tech.de) ist der
+   * Rücksprung erlaubt und muss dran sein — gegen localhost darf er es nicht.
+   * Beides ist dieselbe Sperre, nur von zwei Seiten gesehen.
+   */
+  const httpsErlaubt = /^https:\/\/(www\.|test\.)?ravia-tech\.de\//i.test(BASIS);
+  const link = await p.evaluate(() => window.__appLink ?? '');
+  if (httpsErlaubt) {
+    pruefe('… return auf die https-Seite angehängt', link.includes('return='), true);
+    pruefe('… return trägt ?scan= der Sitzung', decodeURIComponent(link.split('return=')[1] ?? ''), 'scan=s-smoke-c');
+  } else {
+    pruefe('… return auf http://localhost nicht angehängt', link.includes('return='), false);
+  }
   pruefe('Adresse trägt ?scan= für den Rücksprung', p.url(), 'scan=s-smoke-c');
   await p.locator('[data-pruef="scan-app-fehlt"]').waitFor({ timeout: 5000 }).catch(() => {});
   pruefe('Hinweis, wenn die App nicht aufgeht', await p.locator('[data-pruef="scan-app-fehlt"]').innerText().catch(() => ''), 'TestFlight');

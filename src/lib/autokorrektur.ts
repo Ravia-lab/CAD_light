@@ -102,7 +102,14 @@ export type KorrekturDokument = Pick<
 /** Zwei Wandknoten, die zusammengehören, oder ein Knoten, der auf eine Wand gehört. */
 export type Anschluss =
   | { art: 'knoten'; levelId: string; weg: string; bleibt: string; abstand: number; stelle: Vec2 }
-  | { art: 'wand'; levelId: string; knotenId: string; wandId: string; ziel: Vec2; abstand: number; stelle: Vec2 };
+  | { art: 'wand'; levelId: string; knotenId: string; wandId: string; ziel: Vec2; abstand: number; stelle: Vec2 }
+  /**
+   * Zwei lose Enden, die eine Ecke bilden sollen, aber weiter als die Toleranz
+   * auseinanderliegen — die Raumerkennung schweißt sie trotzdem, weil das
+   * eine Ende nah genug an der **Wand** des anderen liegt. Geschlossen wird
+   * im Schnittpunkt der beiden Wandachsen, damit beide Wände gerade bleiben.
+   */
+  | { art: 'ecke'; levelId: string; knotenId: string; zielKnotenId: string; ecke: Vec2; abstand: number; stelle: Vec2 };
 
 export interface Stummel {
   art: 'stummel' | 'ueberstand';
@@ -197,6 +204,8 @@ export interface KorrekturBericht {
   kleineRaeume: string[];
   /** Größte Strecke, um die ein Wandknoten insgesamt gewandert ist [m]. */
   maxBewegung: number;
+  /** Öffnungen, die auf ihre kürzer gewordene Wand gekürzt wurden. */
+  oeffnungenGekuerzt: number;
 }
 
 // --------------------------------------------------------------- Werkzeuge
@@ -321,7 +330,8 @@ export function findeAnschluesse(doc: KorrekturDokument, levelId: string): Ansch
       const f = lotfuss(k, a, b);
       if (f.t <= 0 || f.t >= 1) continue;
       if (f.abstand > ANSCHLUSS_TOLERANZ) continue;
-      // Liegt der Fußpunkt am Wandende, ist es ein Knotenpaar und kein T-Stoß.
+      // Liegt der Fußpunkt am Wandende, ist es kein T-Stoß, sondern eine Ecke
+      // — darum kümmert sich die Eckensuche unten.
       if (abstand(f.punkt, a) <= ANSCHLUSS_TOLERANZ || abstand(f.punkt, b) <= ANSCHLUSS_TOLERANZ) continue;
       // Alle eigenen Wände parallel zur Zielwand: Vorsatzschale, kein T-Stoß.
       const parallel = eigene.every((e) => {
@@ -344,7 +354,66 @@ export function findeAnschluesse(doc: KorrekturDokument, levelId: string): Ansch
       });
     }
   }
+  /*
+   * **Ecken knapp über der Toleranz.** Gefunden im Belastungstest am Feldscan:
+   * zwei lose Enden 5,6 cm auseinander — kein Knotenpaar mehr —, aber das
+   * eine liegt 4,8 cm neben der Wand des anderen, und die Raumerkennung
+   * schweißt das zu einer Ecke. Ließe der Durchlauf es offen, risse das
+   * Begradigen die beiden um ein paar Zentimeter weiter auseinander, und der
+   * Raum ginge verloren. Was die Raumerkennung als Ecke liest, wird deshalb
+   * auch hier zur Ecke: Bilden die beiden Wände einen Winkel, im Schnittpunkt
+   * ihrer Achsen; sonst im Knoten der Zielwand. Jeder Punkt darf dabei
+   * höchstens doppelt so weit wandern wie die Toleranz.
+   */
+  for (const k of knoten) {
+    if (angefasst.has(k.id)) continue;
+    const eigene = waende.filter((w) => w.a === k.id || w.b === k.id);
+    let beste: { ziel: BimNode; ecke: Vec2; d: number } | null = null;
+    for (const w of waende) {
+      if (w.a === k.id || w.b === k.id) continue;
+      const a = doc.nodes[w.a];
+      const b = doc.nodes[w.b];
+      const f = lotfuss(k, a, b);
+      if (f.t < 0 || f.t > 1 || f.abstand > ANSCHLUSS_TOLERANZ) continue;
+      const ende = abstand(f.punkt, a) <= ANSCHLUSS_TOLERANZ ? a : abstand(f.punkt, b) <= ANSCHLUSS_TOLERANZ ? b : null;
+      if (!ende || angefasst.has(ende.id) || verbunden.has(`${k.id}|${ende.id}`)) continue;
+      const d = abstand(k, ende);
+      if (d > 2 * ANSCHLUSS_TOLERANZ) continue;
+      let ecke: Vec2 = { x: ende.x, y: ende.y };
+      const eigeneWand = eigene.length === 1 ? eigene[0] : undefined;
+      if (eigeneWand && (grad.get(ende.id) ?? 0) === 1) {
+        const p = doc.nodes[eigeneWand.a === k.id ? eigeneWand.b : eigeneWand.a];
+        const q = ende === a ? b : a;
+        const x = schnittpunkt(p, k, q, ende);
+        if (x && zwischenwinkel(p, k, q, ende) >= PARALLEL_GRAD
+          && abstand(x, k) <= 2 * ANSCHLUSS_TOLERANZ && abstand(x, ende) <= 2 * ANSCHLUSS_TOLERANZ) ecke = x;
+      }
+      if (!beste || d < beste.d) beste = { ziel: ende, ecke, d };
+    }
+    if (beste) {
+      angefasst.add(k.id);
+      angefasst.add(beste.ziel.id);
+      raus.push({
+        art: 'ecke',
+        levelId,
+        knotenId: k.id,
+        zielKnotenId: beste.ziel.id,
+        ecke: { x: roundMm(beste.ecke.x), y: roundMm(beste.ecke.y) },
+        abstand: beste.d,
+        stelle: { x: k.x, y: k.y },
+      });
+    }
+  }
   return raus;
+}
+
+/** Schnittpunkt der Geraden durch p1–p2 und q1–q2, oder `null` bei Parallelen. */
+function schnittpunkt(p1: Vec2, p2: Vec2, q1: Vec2, q2: Vec2): Vec2 | null {
+  const d1x = p2.x - p1.x, d1y = p2.y - p1.y, d2x = q2.x - q1.x, d2y = q2.y - q1.y;
+  const n = d1x * d2y - d1y * d2x;
+  if (Math.abs(n) < 1e-12) return null;
+  const s = ((q1.x - p1.x) * d2y - (q1.y - p1.y) * d2x) / n;
+  return { x: p1.x + s * d1x, y: p1.y + s * d1y };
 }
 
 /**
@@ -430,6 +499,9 @@ export function planeKorrektur(doc: KorrekturDokument): Korrekturplan {
       if (a.art === 'knoten') {
         schonErledigt.add(a.weg);
         schonErledigt.add(a.bleibt);
+      } else if (a.art === 'ecke') {
+        schonErledigt.add(a.knotenId);
+        schonErledigt.add(a.zielKnotenId);
       } else schonErledigt.add(a.knotenId);
     }
     const stummelWaende = new Set(stummel.map((s) => s.wandId));
@@ -572,15 +644,31 @@ function raeumeKnoten(doc: KorrekturDokument): void {
  * und verschwände beim nächsten Zeichnen. Geschoben wird nur so weit wie
  * nötig.
  */
-function haltOeffnungen(doc: KorrekturDokument): void {
+function haltOeffnungen(doc: KorrekturDokument): number {
+  let gekuerzt = 0;
   for (const o of Object.values(doc.openings)) {
     const w = doc.walls[o.wallId];
     if (!w) continue;
     const l = wandLaenge(doc, w);
-    if (l <= o.width) continue;
+    /*
+     * Ist die Wand kürzer geworden als die Öffnung — beim Begradigen eines
+     * Scans, in dem ein Durchgang die ganze Wand füllt —, wird die Öffnung
+     * auf die Wand gekürzt, 1 cm an jeder Seite. Gefunden im Belastungstest:
+     * Vorher blieb sie stehen und ragte über die Wand hinaus. Gekürzt wird
+     * nur um das, was die Wand verloren hat, und der Bericht nennt es.
+     */
+    if (l <= o.width + 0.02) {
+      const breite = roundMm(Math.max(0.2, l - 0.02));
+      if (breite < o.width && l > 0.22) {
+        doc.openings[o.id] = { ...o, width: breite, distance: roundMm(l / 2) };
+        gekuerzt++;
+      }
+      continue;
+    }
     const d = Math.min(Math.max(o.distance, o.width / 2), l - o.width / 2);
     if (Math.abs(d - o.distance) > 1e-6) doc.openings[o.id] = { ...o, distance: roundMm(d) };
   }
+  return gekuerzt;
 }
 
 function schliesse(
@@ -658,7 +746,7 @@ function entferneLeitung(doc: KorrekturDokument, id: string, zubehoerNach?: stri
  * (Anschlüsse), dann wegnehmen, was übrig ist (Stummel), dann doppelt
  * Liegendes zusammenlegen — erst danach stehen die Lücken fest, die wirklich
  * offen sind. Begradigt wird zuletzt, damit auch die eben gezogenen Wände
- * mit auf die Achse kommen.
+ * mit auf die Achse kommen — und danach wird noch einmal aufgeräumt.
  *
  * Kleine Räume werden **nicht** hier umgestellt: Ein Raum, der erst durch
  * eine geschlossene Lücke entsteht, gibt es auf dem Entwurf noch nicht. Der
@@ -683,51 +771,69 @@ export function wendeKorrekturAn(
     leitungenEntfernt: 0,
     kleineRaeume: [],
     maxBewegung: 0,
+    oeffnungenGekuerzt: 0,
   };
   const ausgang = new Map(Object.values(doc.nodes).map((n) => [n.id, { x: n.x, y: n.y }]));
   const wohin = new Map<string, string>(); // Knoten, die in einem anderen aufgingen
 
-  for (const levelId of geschosse(doc)) {
-    if (auswahl.anschluesse) {
-      for (const a of findeAnschluesse(doc, levelId)) {
-        if (a.art === 'knoten') {
-          if (!doc.nodes[a.weg] || !doc.nodes[a.bleibt]) continue;
-          ersetzeKnoten(doc, a.weg, a.bleibt);
-          wohin.set(a.weg, a.bleibt);
-          bericht.zusammengefuehrt++;
-        } else {
-          const k = doc.nodes[a.knotenId];
-          if (!k) continue;
-          doc.nodes[k.id] = { ...k, x: a.ziel.x, y: a.ziel.y };
-          teileAn(doc, doc.nodes[k.id], neueId);
-          bericht.angeschlossen++;
+  /*
+   * Anschlüsse, Stummel und doppelte Wände als ein Arbeitsgang — er läuft
+   * zweimal: vor den Lücken und **nach dem Begradigen**. Gefunden im
+   * Belastungstest: Das Begradigen schiebt Wandpunkte um Zentimeter, und
+   * dabei können zwei Punkte so nah zusammenrücken, dass ein neuer Stummel
+   * entsteht. Ein Durchlauf, der beim zweiten Mal wieder etwas findet, hat
+   * seine Arbeit nicht zu Ende gemacht.
+   */
+  const aufraeumen = (): void => {
+    for (const levelId of geschosse(doc)) {
+      if (auswahl.anschluesse) {
+        for (const a of findeAnschluesse(doc, levelId)) {
+          if (a.art === 'knoten') {
+            if (!doc.nodes[a.weg] || !doc.nodes[a.bleibt]) continue;
+            ersetzeKnoten(doc, a.weg, a.bleibt);
+            wohin.set(a.weg, a.bleibt);
+            bericht.zusammengefuehrt++;
+          } else if (a.art === 'ecke') {
+            const ziel = doc.nodes[a.zielKnotenId];
+            if (!ziel || !doc.nodes[a.knotenId]) continue;
+            doc.nodes[ziel.id] = { ...ziel, x: a.ecke.x, y: a.ecke.y };
+            ersetzeKnoten(doc, a.knotenId, ziel.id);
+            wohin.set(a.knotenId, ziel.id);
+            bericht.zusammengefuehrt++;
+          } else {
+            const k = doc.nodes[a.knotenId];
+            if (!k) continue;
+            doc.nodes[k.id] = { ...k, x: a.ziel.x, y: a.ziel.y };
+            teileAn(doc, doc.nodes[k.id], neueId);
+            bericht.angeschlossen++;
+          }
+        }
+      }
+
+      if (auswahl.stummel) {
+        for (const s of findeStummel(doc, levelId)) {
+          const w = doc.walls[s.wandId];
+          if (!w) continue;
+          if (s.art === 'stummel') {
+            // Das Ende mit mehr Anschlüssen bleibt, das andere geht darin auf.
+            const g = grade(waendeIm(doc, levelId));
+            const [bleibt, weg] = (g.get(w.a) ?? 0) >= (g.get(w.b) ?? 0) ? [w.a, w.b] : [w.b, w.a];
+            ersetzeKnoten(doc, weg, bleibt);
+            wohin.set(weg, bleibt);
+            bericht.stummelEntfernt++;
+          } else {
+            delete doc.walls[w.id];
+            bericht.ueberstaendeEntfernt++;
+          }
         }
       }
     }
-
-    if (auswahl.stummel) {
-      for (const s of findeStummel(doc, levelId)) {
-        const w = doc.walls[s.wandId];
-        if (!w) continue;
-        if (s.art === 'stummel') {
-          // Das Ende mit mehr Anschlüssen bleibt, das andere geht darin auf.
-          const g = grade(waendeIm(doc, levelId));
-          const [bleibt, weg] = (g.get(w.a) ?? 0) >= (g.get(w.b) ?? 0) ? [w.a, w.b] : [w.b, w.a];
-          ersetzeKnoten(doc, weg, bleibt);
-          wohin.set(weg, bleibt);
-          bericht.stummelEntfernt++;
-        } else {
-          delete doc.walls[w.id];
-          bericht.ueberstaendeEntfernt++;
-        }
-      }
-    }
-  }
-
-  // Zwei Wände an derselben Stelle sind nie gewollt — auch dann nicht, wenn
-  // sie erst durch das Zusammenführen entstehen. Deshalb immer.
-  bericht.doppelwaendeEntfernt = verschmelzeDoppelte(doc);
-  raeumeKnoten(doc);
+    // Zwei Wände an derselben Stelle sind nie gewollt — auch dann nicht, wenn
+    // sie erst durch das Zusammenführen entstehen. Deshalb immer.
+    bericht.doppelwaendeEntfernt += verschmelzeDoppelte(doc);
+    raeumeKnoten(doc);
+  };
+  aufraeumen();
 
   const gewuenscht = Object.entries(auswahl.luecken);
   if (gewuenscht.length) {
@@ -767,9 +873,10 @@ export function wendeKorrekturAn(
       bericht.begradigt += e.bewegt;
       bericht.groessterVersatz = Math.max(bericht.groessterVersatz, e.groessterVersatz);
     }
+    if (bericht.begradigt) aufraeumen();
   }
 
-  haltOeffnungen(doc);
+  bericht.oeffnungenGekuerzt = haltOeffnungen(doc);
 
   if (auswahl.leitungen) {
     const runs = Object.values(doc.pipes ?? {});
@@ -811,6 +918,7 @@ export function berichtSatz(b: KorrekturBericht): string {
   }
   if (b.lueckenEntfallen > 0) teile.push(zahl(b.lueckenEntfallen, 'Lücke war schon zu', 'Lücken waren schon zu'));
   if (b.begradigt) teile.push(`${zahl(b.begradigt, 'Knoten', 'Knoten')} gerade gezogen`);
+  if (b.oeffnungenGekuerzt) teile.push(zahl(b.oeffnungenGekuerzt, 'Öffnung auf die Wandlänge gekürzt', 'Öffnungen auf die Wandlänge gekürzt'));
   if (b.leitungenEntfernt) teile.push(zahl(b.leitungenEntfernt, 'Leitung entfernt', 'Leitungen entfernt'));
   if (b.kleineRaeume.length) teile.push(zahl(b.kleineRaeume.length, 'kleiner Raum unbeheizt', 'kleine Räume unbeheizt'));
   if (!teile.length) return 'Nichts geändert.';

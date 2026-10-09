@@ -6752,27 +6752,50 @@ export const useBimStore = create<BimState>()((set, get) => {
     autokorrigiere: (auswahl) => {
       const ausgang = { doc: get().doc, past: get().past, future: get().future };
       const raeumeVorher = Object.keys(ausgang.doc.rooms).length;
-      let bericht: KorrekturBericht | null = null;
-      const namen: string[] = [];
-      mutate(
-        (d) => {
-          bericht = wendeKorrekturAn(d, auswahl, uid);
-          recomputeRooms(d);
-          if (auswahl.kleineRaeume) {
-            for (const r of kleineRaeume(Object.values(d.rooms))) {
-              d.rooms[r.id] = { ...r, isHeated: false };
-              namen.push(r.name);
+      const lauf = (a: KorrekturAuswahl) => {
+        let bericht: KorrekturBericht | null = null;
+        const namen: string[] = [];
+        mutate(
+          (d) => {
+            bericht = wendeKorrekturAn(d, a, uid);
+            recomputeRooms(d);
+            if (a.kleineRaeume) {
+              for (const r of kleineRaeume(Object.values(d.rooms))) {
+                d.rooms[r.id] = { ...r, isHeated: false };
+                namen.push(r.name);
+              }
             }
-          }
-        },
-        { skipRooms: true },
-      );
-      const b: KorrekturBericht = { ...(bericht as unknown as KorrekturBericht), kleineRaeume: namen };
+          },
+          { skipRooms: true },
+        );
+        return { ...(bericht as unknown as KorrekturBericht), kleineRaeume: namen } as KorrekturBericht;
+      };
+      let b = lauf(auswahl);
+      let hinweis = '';
+      /*
+       * Sicherheitsnetz: Eine Korrektur darf keinen Raum kosten. Fällt die
+       * Raumzahl, wird ohne Begradigen neu angesetzt (das Begradigen ist der
+       * einzige Schritt, der Punkte über Zentimeter verschiebt). Fällt sie
+       * dann immer noch, bleibt der Plan, wie er war.
+       */
+      if (Object.keys(get().doc.rooms).length < raeumeVorher) {
+        set(ausgang);
+        if (auswahl.begradigen) {
+          b = lauf({ ...auswahl, begradigen: false });
+          hinweis = ' Begradigen ausgelassen, weil dabei ein Raum verloren ginge.';
+        }
+        if (!auswahl.begradigen || Object.keys(get().doc.rooms).length < raeumeVorher) {
+          set(ausgang);
+          const message = 'Korrektur nicht ausgeführt: Danach wären weniger Räume erkannt worden als vorher. Der Plan bleibt unverändert.';
+          set({ statusMessage: message });
+          return { ok: false, message, bericht: b };
+        }
+      }
       const raeumeNachher = Object.keys(get().doc.rooms).length;
       const satz = berichtSatz(b);
       const geaendert = satz !== 'Nichts geändert.';
       const message = geaendert
-        ? `${satz} Räume: ${raeumeVorher} → ${raeumeNachher}. Strg+Z nimmt alles zusammen zurück.`
+        ? `${satz}${hinweis} Räume: ${raeumeVorher} → ${raeumeNachher}. Strg+Z nimmt alles zusammen zurück.`
         : satz;
       if (!geaendert) {
         // Nichts getan — dann auch kein Schritt in der Historie, den man

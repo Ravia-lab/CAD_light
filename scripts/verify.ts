@@ -193,6 +193,7 @@ import { pruefeRaumscan } from './pruefungen/raumscan';
 import { pruefeGebaeudescan } from './pruefungen/gebaeudescan';
 import { pruefeAufmass } from './pruefungen/aufmass';
 import { pruefeAutokorrektur } from './pruefungen/autokorrektur';
+import { pruefeAutokorrekturBelastung } from './pruefungen/autokorrektur-belastung';
 import { pruefeWerkzeugkiste } from './pruefungen/werkzeugkiste';
 import { pruefeBeschriftung3d } from './pruefungen/beschriftung';
 import { pruefeWandquerung } from './pruefungen/wandquerung';
@@ -4023,6 +4024,7 @@ pruefeRaumscan(check);
 pruefeGebaeudescan(check);
 pruefeAufmass(check);
 pruefeAutokorrektur(check);
+pruefeAutokorrekturBelastung(check);
 
 console.log('\n▸ Systemtemperatur — eine Anlage, eine Auslegungstemperatur');
 pruefeSystemtemperatur(check);

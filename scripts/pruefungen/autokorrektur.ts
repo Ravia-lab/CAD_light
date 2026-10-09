@@ -330,7 +330,7 @@ export function pruefeAutokorrektur(check: CheckFn): void {
     const satz = berichtSatz({
       zusammengefuehrt: 1, angeschlossen: 2, stummelEntfernt: 0, ueberstaendeEntfernt: 0, doppelwaendeEntfernt: 0,
       lueckenGeschlossen: 1, oeffnungenGesetzt: 1, lueckenEntfallen: 0, begradigt: 0, groessterVersatz: 0,
-      leitungenEntfernt: 0, kleineRaeume: [], maxBewegung: 0.023,
+      leitungenEntfernt: 0, kleineRaeume: [], maxBewegung: 0.023, oeffnungenGekuerzt: 0,
     });
     check(
       'M · Satz',
@@ -338,6 +338,69 @@ export function pruefeAutokorrektur(check: CheckFn): void {
       '1 Wandecke zusammengeführt · 2 Wandenden angeschlossen · 1 Lücke geschlossen, davon 1 mit Öffnung. Größte Bewegung eines Wandpunkts: 2,3 cm.',
     );
     check('M · Toleranz 5 cm, wie die Raumerkennung', ANSCHLUSS_TOLERANZ, 0.05);
+  }
+
+  // ============ O · Ecke mit zwei losen Enden, 5,4 cm auseinander (Belastungstest)
+  {
+    /*
+     * Gefunden im Belastungstest 1.76.0: Zwei lose Enden liegen etwas mehr als
+     * 5 cm auseinander, das eine aber unter 5 cm neben der Nachbarwand, kurz
+     * vor deren Ende. Die Raumerkennung schweißt das und findet den Raum; die
+     * Korrektur ließ es liegen, und das Begradigen zog die Enden dann
+     * auseinander — der Raum war weg.
+     *
+     * Ende B = (0,03 | −0,045), Ende A = (0 | 0): Abstand √(0,03² + 0,045²)
+     * = 0,0541 m. Die Achse von (0 | 3) nach B schneidet y = 0 bei
+     * x = 0,03 · 3 / 3,045 = 0,02956 — dort ist die Ecke.
+     */
+    const d = dok();
+    zug(d, [[0, 0], [4, 0], [4, 3], [0, 3], [0.03, -0.045]], false);
+    check('O · vorher erkennt die Raumerkennung den Raum', raeume(d).anzahl, 1);
+    const p = planeKorrektur(d);
+    check('O · eine Ecke angeboten', p.anschluesse.map((a) => a.art).join(','), 'ecke');
+    const b = wendeKorrekturAn(d, { ...NICHTS, anschluesse: true }, neueId);
+    check('O · zusammengeführt', b.zusammengefuehrt, 1);
+    const ecke = Object.values(d.nodes).find((n) => Math.abs(n.y) < 1e-6 && n.x < 0.1);
+    check('O · Ecke im Schnitt der Achsen, x [m]', ecke?.x ?? -1, 0.03 * 3 / 3.045, 1e-3);
+    check('O · danach kein loses Ende', loseEnden(d), 0);
+    check('O · größte Bewegung höchstens 2 × 5 cm [m]', b.maxBewegung <= 2 * ANSCHLUSS_TOLERANZ, true);
+    const r = raeume(d);
+    check('O · danach genau ein Raum', r.anzahl, 1);
+    check('O · Fläche wie der saubere Raum (± 0,15 m²)', r.flaeche, FLAECHE_4x3, 0.15);
+    const e = dok();
+    zug(e, [[0, 0], [4, 0], [4, 3], [0, 3], [0.03, -0.045]], false);
+    wendeKorrekturAn(e, ALLES, neueId);
+    check('O · mit Begradigen: Raum bleibt', raeume(e).anzahl, 1);
+    check('O · mit Begradigen: zweiter Durchlauf findet nichts mehr', planeKorrektur(e).summe, 0);
+  }
+
+  // ===================== P · Öffnung breiter als ihre Wand → gekürzt, gemeldet
+  {
+    /*
+     * Eine Wand von 0,95 m mit einer 1,00 m breiten Tür — so liefert es ein
+     * Scan, wenn ein Durchgang die ganze Wand füllt. Sollwert: Breite
+     * 0,95 − 0,02 = 0,93 m, mittig bei 0,475 m.
+     */
+    const d = dok();
+    const ids = zug(d, [[0, 0], [0.95, 0], [4, 0], [4, 3], [0, 3]], true);
+    const w = Object.values(d.walls).find((x) => x.a === ids[0] && x.b === ids[1])!;
+    d.openings['o1'] = { id: 'o1', wallId: w.id, kind: 'door', distance: 0.5, width: 1.0, height: 2, sillHeight: 0 } as Opening;
+    const b = wendeKorrekturAn(d, ALLES, neueId);
+    const o = d.openings['o1'];
+    const wl = o ? Math.hypot(d.nodes[d.walls[o.wallId].b].x - d.nodes[d.walls[o.wallId].a].x, d.nodes[d.walls[o.wallId].b].y - d.nodes[d.walls[o.wallId].a].y) : 0;
+    check('P · Öffnung bleibt erhalten', o !== undefined, true);
+    check('P · gekürzt auf Wandlänge − 2 cm [m]', o?.width ?? -1, wl - 0.02, 1e-3);
+    check('P · liegt ganz in der Wand', (o?.distance ?? 0) - (o?.width ?? 0) / 2 >= -1e-6 && (o?.distance ?? 0) + (o?.width ?? 0) / 2 <= wl + 1e-6, true);
+    check('P · Bericht zählt sie', b.oeffnungenGekuerzt, 1);
+    check('P · und nennt sie', berichtSatz(b).includes('Öffnung auf die Wandlänge gekürzt'), true);
+    // Gegenprobe: Eine Tür, die passt, wird nicht angefasst.
+    const e = dok();
+    const jd = zug(e, [[0, 0], [4, 0], [4, 3], [0, 3]], true);
+    const we = Object.values(e.walls).find((x) => x.a === jd[0] && x.b === jd[1])!;
+    e.openings['o2'] = { id: 'o2', wallId: we.id, kind: 'door', distance: 2, width: 1.0, height: 2, sillHeight: 0 } as Opening;
+    const g = wendeKorrekturAn(e, ALLES, neueId);
+    check('P · Gegenprobe: passende Tür bleibt 1,00 m breit', e.openings['o2'].width, 1.0, 1e-9);
+    check('P · Gegenprobe: nichts gekürzt', g.oeffnungenGekuerzt, 0);
   }
 
   // =========================================== N · echte Aufnahmen

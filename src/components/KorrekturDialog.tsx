@@ -197,7 +197,7 @@ function Dialog({ onSchliessen }: { onSchliessen: () => void }) {
             `Wandenden, die einen anderen Wandpunkt oder eine Wand um weniger als ${cm(0.05)} verfehlen, werden angeschlossen. Die Raumerkennung überbrückt das zwar, im Plan, im 3D-Modell und in der Übergabe bleibt die Ecke aber offen.`,
             anzahl.anschluesse,
             plan.anschluesse.map((a, i) =>
-              zeile(`a${i}`, `${a.art === 'knoten' ? 'Ecke' : 'Anschluss an Wand'} · ${cm(a.abstand)} Spalt`, a.levelId, a.stelle),
+              zeile(`a${i}`, `${a.art === 'wand' ? 'Anschluss an Wand' : 'Ecke'} · ${cm(a.abstand)} Spalt`, a.levelId, a.stelle),
             ),
           )}
           {gruppe(
