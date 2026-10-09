@@ -33,6 +33,7 @@ import {
   FLOOR_OBSTACLE_TYPES,
   fixtureFootprint,
   planFloorLoops,
+  type FloorCircuit,
   type FloorLoopLayout,
 } from './floorLoopLayout';
 import { pointInPolygon } from './geometry';
@@ -96,6 +97,7 @@ export function sammleVerlegekurven(doc: BimDocument, levelId: LevelId): Verlege
       layout: planFloorLoops(room.innerPolygon, {
         spacing: f.params.loopSpacing ?? 0.15,
         loops: f.params.loopCount ?? 1,
+        autoSplit: true,
         edgeClearance: f.params.loopEdgeClearance ?? DEFAULT_EDGE_CLEARANCE,
         obstacles: [...einbauten, ...mauerwerk],
         obstacleClearance: DEFAULT_OBSTACLE_CLEARANCE,
@@ -148,6 +150,12 @@ export interface Verlegebilanz {
   amVerteiler: boolean;
   /** Ließ sich jeder Kreis als ein Zug legen? */
   vollstaendig: boolean;
+  /** Die Kreise einzeln (seit 1.77.0). */
+  kreisListe: FloorCircuit[];
+  /** Angeforderte Kreiszahl, wenn wegen der Länge geteilt wurde (seit 1.77.0). */
+  geteiltVon?: number;
+  /** Größte Kreislänge, gegen die geteilt wurde [m]. */
+  maxKreislaenge: number;
 }
 
 /** Umfang eines geschlossenen Polygonzugs [m]. */
@@ -191,6 +199,9 @@ export function verlegebilanz(doc: BimDocument, levelId?: LevelId): Verlegebilan
         umfang: umfangVon(room.innerPolygon),
         amVerteiler: k.layout.manifoldConnected,
         vollstaendig: k.layout.complete,
+        kreisListe: k.layout.circuits,
+        ...(k.layout.splitFrom !== undefined ? { geteiltVon: k.layout.splitFrom } : {}),
+        maxKreislaenge: k.layout.maxCircuitLength,
       });
     }
   }

@@ -622,7 +622,7 @@ export function pruefeAbgleich2026(check: CheckFn): void {
     const r0 = Object.values(doc.rooms).find((r) => r.name === 'Wohnen EG')!;
     const mitId: BimDocument = { ...doc, rooms: { ...doc.rooms, [r0.id]: { ...r0, raviaRoomId: 'ravia-17' } } };
     const exp = buildRaviaExport(mitId);
-    check('2.15.0 · Fassung', exp.version, '2.15.0');
+    check('2.15.0 · Fassung', exp.version, '2.16.0');
     check('2.15.0 · rooms[].raviaRoomId (F5)', exp.rooms.find((r) => r.id === r0.id)?.raviaRoomId ?? '', 'ravia-17');
     check('2.15.0 · ohne Kennung kein leeres Feld', exp.rooms.filter((r) => r.id !== r0.id).every((r) => !('raviaRoomId' in r)), true);
     const hk = exp.rooms.flatMap((r) => r.fixtures).filter((f) => f.type === 'radiator');
@@ -631,7 +631,7 @@ export function pruefeAbgleich2026(check: CheckFn): void {
     check('2.15.0 · Heizkörper mit ratedPowerSource', hk.every((f) => typeof f.params.ratedPowerSource === 'string'), true);
     check('2.15.0 · panelType = radiatorType',
       hk.every((f) => f.params.panelType === f.params.radiatorType), true);
-    const schema = JSON.parse(quelle('ravia-vertrag/schema/ravia.bim.light-2.15.0.schema.json')) as {
+    const schema = JSON.parse(quelle('ravia-vertrag/schema/ravia.bim.light-2.16.0.schema.json')) as {
       $defs: Record<string, { properties?: Record<string, { enum?: string[] }> }>;
     };
     check('2.15.0 · Schema kennt neighbour (F4)',

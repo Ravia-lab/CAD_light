@@ -86,7 +86,7 @@ export function pruefePraxispruefung(check: CheckFn): void {
     );
     const exp = buildRaviaExport(ref);
     check('Export trägt project.atticTemperature', exp.project.atticTemperature ?? NaN, dachraumTemperatur(ref.meta), 1e-9);
-    check('Exportvertrag 2.15.0', exp.version, '2.15.0');
+    check('Exportvertrag 2.16.0', exp.version, '2.16.0');
   }
 
   // =========================================================================

@@ -160,6 +160,47 @@ export interface NetzFlaechenkreis {
   manifoldConnected: boolean;
   /** Ließ sich jeder Kreis als ein Zug legen? */
   complete: boolean;
+  /**
+   * Die Kreise einzeln (seit 2.16.0). `loopLength` oben ist der Mittelwert;
+   * für den Abgleich am Verteiler und das Strangschema zählt jeder Kreis mit
+   * seiner eigenen Länge.
+   */
+  circuits: NetzEinzelkreis[];
+  /** Größte Kreislänge [m], gegen die geteilt wurde (seit 2.16.0). */
+  maxLoopLength: number;
+  /**
+   * Angeforderte Kreiszahl, wenn wegen der Länge automatisch geteilt wurde —
+   * z. B. 1, wenn aus 200 m zwei Kreise zu je 100 m wurden (seit 2.16.0).
+   */
+  splitFrom?: number;
+  /** Einfache Länge Erzeuger → Verteiler [m] (seit 2.16.0); fehlt ohne verrohrte Zuleitung. */
+  feedLength?: number;
+  /** Davon Steigleitung (einfach) [m] (seit 2.16.0). */
+  riserLength?: number;
+  /** Erzeuger, der den Verteiler speist (seit 2.16.0). */
+  generatorId?: string;
+}
+
+/** Ein einzelner Heizkreis einer Fußbodenheizung (seit 2.16.0). */
+export interface NetzEinzelkreis {
+  /** Stabile Kennung `<fixtureId>#<loop>` — dieselbe bei jedem Export desselben Stands. */
+  id: string;
+  /** Nummer im Raum (1-basiert). */
+  loop: number;
+  /** Abgang am Verteiler, 1-basiert, fortlaufend über alle Kreise des Verteilers. */
+  manifoldPort?: number;
+  /** Rohr in der Fläche [m], einschließlich Kehren. */
+  fieldLength: number;
+  /** Anbindeleitung zum Verteiler [m], Vor- und Rücklauf. */
+  supplyLength: number;
+  /** Kreislänge [m] = Fläche + Anbindung — Vor- und Rücklauf ab Verteiler. */
+  loopLength: number;
+  /** Belegte Fläche [m²]. */
+  servedArea: number;
+  /** Anteil an der Leistung [W] — nach Fläche aufgeteilt. */
+  powerW: number;
+  /** Volumenstrom [m³/h] — nach Fläche aufgeteilt. */
+  flow: number;
 }
 
 export interface NetzExport {
@@ -319,7 +360,7 @@ export function baueNetzExport(
   return {
     nodes: knoten,
     segments: [...abschnitte.values()],
-    floorCircuits: baueFlaechenkreise(doc),
+    floorCircuits: baueFlaechenkreise(doc, netz),
     mixedHeating: gemischteRaeume(doc),
   };
 }
@@ -332,7 +373,7 @@ export function baueNetzExport(
  * Spreizung des Kreises mit den Stoffwerten des Heizwassers; das ist dieselbe
  * Rechnung, die die Trassenauslegung für jeden Heizkörper fährt.
  */
-export function baueFlaechenkreise(doc: BimDocument): NetzFlaechenkreis[] {
+export function baueFlaechenkreise(doc: BimDocument, netz?: PipeNetworkReport): NetzFlaechenkreis[] {
   const bilanz = verlegebilanz(doc);
   if (!bilanz.length) return [];
 
@@ -355,12 +396,30 @@ export function baueFlaechenkreise(doc: BimDocument): NetzFlaechenkreis[] {
 
     const verteiler = fixture.params.manifoldId
       ?? Object.values(doc.fixtures).find((f: Fixture) => f.type === 'manifold' && f.levelId === b.levelId)?.id;
-    let abgang: number | undefined;
-    if (verteiler) {
-      const naechste = (abgangZaehler.get(verteiler) ?? 0) + 1;
-      abgangZaehler.set(verteiler, naechste);
-      abgang = naechste;
-    }
+    /*
+     * Jeder Kreis belegt einen eigenen Abgang. Bis 2.15.0 wurde je
+     * Heizfläche gezählt — ein Raum mit zwei Kreisen belegte im Export einen
+     * Abgang, und der nächste Raum bekam die Nummer seines zweiten Kreises.
+     */
+    const ersterAbgang = verteiler ? (abgangZaehler.get(verteiler) ?? 0) + 1 : undefined;
+    if (verteiler) abgangZaehler.set(verteiler, (abgangZaehler.get(verteiler) ?? 0) + Math.max(1, b.kreisListe.length));
+    const abgang = ersterAbgang;
+    const flaecheGesamt = b.kreisListe.reduce((s, k) => s + k.area, 0);
+    const einzel: NetzEinzelkreis[] = b.kreisListe.map((k, i) => {
+      const anteil = flaecheGesamt > 0 ? k.area / flaecheGesamt : 1 / b.kreisListe.length;
+      return {
+        id: `${fixture.id}#${k.loop}`,
+        loop: k.loop,
+        ...(ersterAbgang !== undefined ? { manifoldPort: ersterAbgang + i } : {}),
+        fieldLength: r(k.length, 2),
+        supplyLength: r(k.supplyLength, 2),
+        loopLength: r(k.circuitLength, 2),
+        servedArea: r(k.area, 2),
+        powerW: Math.round(leistung * anteil),
+        flow: r(durchfluss * anteil, 4),
+      };
+    });
+    const zuleitung = verteiler ? netz?.manifoldFeeds?.find((m) => m.manifoldId === verteiler) : undefined;
 
     raus.push({
       fixtureId: fixture.id,
@@ -382,6 +441,10 @@ export function baueFlaechenkreise(doc: BimDocument): NetzFlaechenkreis[] {
       ...(verteiler ? { manifoldId: verteiler, manifoldPort: abgang } : {}),
       manifoldConnected: b.amVerteiler,
       complete: b.vollstaendig,
+      circuits: einzel,
+      maxLoopLength: b.maxKreislaenge,
+      ...(b.geteiltVon !== undefined ? { splitFrom: b.geteiltVon } : {}),
+      ...(zuleitung ? { feedLength: zuleitung.routeLength, riserLength: zuleitung.riserLength, generatorId: zuleitung.generatorId } : {}),
     });
   }
   return raus;

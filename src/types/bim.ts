@@ -2204,6 +2204,8 @@ export interface PipeNetworkReport {
   worstPath?: { fixtureId: string; label: string; circuitLength: number };
   /** Verbundene Geschosse über Steigstränge. */
   risers: number;
+  /** Zuleitung Erzeuger → Verteiler je Verteiler im Netz eines Erzeugers (seit 1.77.0). */
+  manifoldFeeds?: { manifoldId: string; generatorId: string; routeLength: number; riserLength: number }[];
 }
 
 // ===========================================================================
@@ -4291,6 +4293,14 @@ export type ExportLevel = Omit<Level, 'floorUValue' | 'ceilingUValue'> & {
 export interface RaviaExport {
   schema: 'ravia.bim.light';
   /**
+   * **2.16.0** (09.10.2026) ergänzt an `pipeGraph.floorCircuits[]` die Kreise
+   * einzeln (`circuits[]`: Kennung `<fixtureId>#<n>`, Abgang, Flächen- und
+   * Anbindelänge, Kreislänge, Fläche, Leistung, Strom), die Grenze
+   * `maxLoopLength`, `splitFrom`, wenn ein zu langer Kreis automatisch geteilt
+   * wurde (200 m → 2 × 100 m), und die Zuleitung Erzeuger → Verteiler
+   * (`feedLength`, `riserLength`, `generatorId`). `manifoldPort` zählt je
+   * Kreis statt je Heizfläche. Reiner Zuwachs.
+   *
    * **2.15.0** (Abgleich 2026-10, Festlegungen F2, F4, F5, F6) ergänzt
    * `rooms[].raviaRoomId`, die Randbedingung `neighbour` (fremde
    * Nutzungseinheit oder Nachbargebäude) mit `project.neighbourTemperature`,
@@ -4407,7 +4417,7 @@ export interface RaviaExport {
    * nichts; wer prüfen will, ob Boden, Decke und Dach angekommen sind, hat
    * jetzt eine Zahl statt einer Liste (Punkt 13).
    */
-  version: '2.15.0';
+  version: '2.16.0';
   generator: string;
   exportedAt: string;
   /** Einheiten explizit im Dokument — keine Konvention, die verloren gehen kann. */

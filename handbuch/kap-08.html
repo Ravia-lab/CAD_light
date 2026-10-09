@@ -312,11 +312,13 @@
 <thead><tr><th>Eintrag</th><th>Bedeutung</th></tr></thead>
 <tbody>
 <tr><td>VA 15 cm</td><td>Verlegeabstand</td></tr>
-<tr><td>2 Kreise</td><td>Zahl der Heizkreise in diesem Raum</td></tr>
+<tr><td>2 Kreise</td><td>Zahl der gelegten Heizkreise in diesem Raum — seit 1.77.0 nach dem Teilen zu langer Kreise, nicht die eingetragene Zahl</td></tr>
 <tr><td>1.240 W</td><td>Ausgelegte Leistung der Fläche</td></tr>
-<tr><td>84 m</td><td>Kreislänge — <b>nur</b>, wenn ein Verteiler steht</td></tr>
+<tr><td>84 m bzw. 96 + 99 m</td><td>Kreislänge — <b>nur</b>, wenn ein Verteiler steht; bei mehreren Kreisen jeder einzeln (ab fünf Kreisen „bis … m je Kreis“)</td></tr>
 </tbody>
 </table>
+
+<p id="k8-5-6a"><b>Zu lange Kreise werden geteilt (seit 1.77.0).</b> Gemeldet am 09.10.2026: „Ab bestimmten Verlegelängen gibt es weitere Heizkreise, z. B. 200 m, ergo 2 × 100.“ Würde ein Kreis — Anbindeleitung eingerechnet — länger als die größte Kreislänge (Vorgabe 100 m, siehe <a href="#k13-6">13.6</a>), nimmt das Programm einen Kreis hinzu und legt neu, bis jeder Kreis darunter bleibt. Die eingetragene Kreiszahl ist dabei die Untergrenze; verringert wird sie nie. Ein Raum, der nur eine Schnecke trug, wird dabei zum Mäander in Streifen, weil sich eine Schnecke nicht teilen lässt. Die Hinweise sagen, wie lang der eine Kreis geworden wäre und wie lang die Kreise jetzt sind. Reicht selbst die größte mögliche Zahl nicht — meist, weil die Anbindung zum Verteiler allein schon zu lang ist —, bleibt die Warnung stehen: Verteiler näher setzen oder größere Nennweite.</p>
 
 <p>Die Kreislänge steht ausdrücklich nur dort, wo sie vollständig ist. Ohne Verteiler fehlt die Anbindeleitung, und eine Länge, die zu kurz ist, ist im Plan schlimmer als gar keine. Der fehlende Verteiler steht dann in den Hinweisen. Das Schild erscheint ab einer Zoomstufe von 22 Bildpunkten je Meter.</p>
 

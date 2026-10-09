@@ -143,7 +143,7 @@ expect('Die Zuordnung steht auch am Raum', mit.amRaum, 3);
  * zwei verschiedenen Wegen, aus `occupancyUnits` und aus `rooms`.
  */
 expect('Einheitsfläche = Summe ihrer Räume', mit.flaecheEins, mit.summeIhrerRaeume, 0.02);
-expect('Exportfassung 2.15.0', mit.fassung, '2.15.0');
+expect('Exportfassung 2.16.0', mit.fassung, '2.16.0');
 
 console.log('\n▸ Der Widerspruch zur getippten Zahl');
 /*

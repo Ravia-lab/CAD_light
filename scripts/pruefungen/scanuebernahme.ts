@@ -49,7 +49,7 @@ import { validateModel } from '../../src/lib/validation';
 import { pointInPolygon, polygonArea } from '../../src/lib/geometry';
 import { emptyPlant, emptySite } from '../../src/lib/plantDefaults';
 
-const SCHEMA = join(process.cwd(), 'ravia-vertrag', 'schema', 'ravia.bim.light-2.15.0.schema.json');
+const SCHEMA = join(process.cwd(), 'ravia-vertrag', 'schema', 'ravia.bim.light-2.16.0.schema.json');
 const schema = (): Schema => JSON.parse(readFileSync(SCHEMA, 'utf8')) as Schema;
 /** Geprüft wird die Datei, wie sie geschrieben wird — `undefined` fällt dabei weg. */
 const alsDatei = (e: unknown): unknown => JSON.parse(JSON.stringify(e));
@@ -270,7 +270,7 @@ export function pruefeScanUebernahme(check: CheckFn): void {
     const ohne = dokument(zweite);
     check('Abnahme · Feldscan ohne heated: keine Angabe übernommen', uebernimmBeheizung(ohne, r.raumBeheizung), 0);
     const e0 = buildRaviaExport(ohne);
-    check('Abnahme · Export-Fassung 2.15.0', e0.version, '2.15.0');
+    check('Abnahme · Export-Fassung 2.16.0', e0.version, '2.16.0');
     check('Abnahme · Export des Feldscans schemagültig', pruefeGegenSchema(schema(), alsDatei(e0)).join(' | '), '');
 
     {

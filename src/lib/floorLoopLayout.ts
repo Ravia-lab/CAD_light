@@ -272,6 +272,60 @@ export interface FloorLoopOptions {
    * die Auslegung, nicht die Zeichnung.
    */
   maxCircuitLength?: number;
+  /**
+   * Kreise automatisch teilen, wenn ein Kreis länger würde als
+   * `maxCircuitLength` (seit 1.77.0).
+   *
+   * Gemeldet am 09.10.2026: „Ab bestimmten Verlegelängen gibt es weitere
+   * Heizkreise, z. B. 200 m, ergo 2 × 100." Die angeforderte Kreiszahl ist
+   * dann die Untergrenze: Es wird so lange ein Kreis hinzugenommen, bis jeder
+   * Kreis — Anbindeleitung eingerechnet — unter der Grenze bleibt oder die
+   * Fläche keine weitere Bahn für einen eigenen Kreis hergibt. Was geteilt
+   * wurde, steht in `notes` und in `splitFrom`.
+   */
+  autoSplit?: boolean;
+}
+
+/**
+ * Ein Heizkreis für sich — Länge, Anbindung, Fläche (seit 1.77.0).
+ *
+ * Bis 1.76 gab es nur die Summe über alle Kreise eines Raums; wer die Länge
+ * eines einzelnen Kreises brauchte (Druckverlust, Abgleich am Verteiler,
+ * Strangschema in RaVia), musste teilen und bekam einen Mittelwert. Die
+ * Kreise sind aber nicht gleich lang: Gleich ist nur ihr Anteil an den Bahnen,
+ * die Anbindung zum Verteiler ist es nicht.
+ */
+export interface FloorCircuit {
+  /** Nummer des Kreises im Raum (1-basiert). */
+  loop: number;
+  /** Rohr in der Fläche [m], einschließlich Kehren. */
+  length: number;
+  /** Davon gerade Bahnen [m]. */
+  fieldLength: number;
+  /** Anbindeleitung zum Verteiler [m], Vor- und Rücklauf; 0 ohne Verteiler. */
+  supplyLength: number;
+  /** Kreislänge [m] = Fläche + Anbindung — die Zahl für den Druckverlust. */
+  circuitLength: number;
+  /** Belegte Fläche dieses Kreises [m²]. */
+  area: number;
+}
+
+/** Die Kreise einzeln aus Kurven und Anbindeleitungen. */
+export function kreiseEinzeln(curves: readonly FloorLoopCurve[], supplyLines: readonly FloorSupplyLine[]): FloorCircuit[] {
+  const nummern = [...new Set(curves.map((c) => c.loop))].sort((a, b) => a - b);
+  return nummern.map((loop) => {
+    const eigene = curves.filter((c) => c.loop === loop);
+    const length = eigene.reduce((s, c) => s + c.length, 0);
+    const supplyLength = supplyLines.filter((s) => s.loop === loop).reduce((s, l) => s + l.length, 0);
+    return {
+      loop,
+      length: round(length, 2),
+      fieldLength: round(eigene.reduce((s, c) => s + c.fieldLength, 0), 2),
+      supplyLength: round(supplyLength, 2),
+      circuitLength: round(length + supplyLength, 2),
+      area: round(eigene.reduce((s, c) => s + c.area, 0), 2),
+    };
+  });
 }
 
 /**
@@ -359,6 +413,13 @@ export interface FloorLoopLayout {
   circuitLength: number;
   /** Angesetzte größte Kreislänge [m]. */
   maxCircuitLength: number;
+  /** Die Kreise einzeln (seit 1.77.0). */
+  circuits: FloorCircuit[];
+  /**
+   * Angeforderte Kreiszahl vor dem automatischen Teilen — nur gesetzt, wenn
+   * wegen der Kreislänge geteilt wurde (seit 1.77.0).
+   */
+  splitFrom?: number;
   /** Stand ein Verteiler zur Verfügung? */
   manifoldConnected: boolean;
   /**
@@ -904,6 +965,7 @@ const leerErgebnis = (
   supplyLength: 0,
   circuitLength: 0,
   maxCircuitLength,
+  circuits: [],
   manifoldConnected,
   complete: false,
   notes,
@@ -1079,6 +1141,47 @@ function anbindeHinweise(
  *   Randabstand wird davon aus gemessen
  */
 export function planFloorLoops(polygon: readonly Vec2[], options: FloorLoopOptions = {}): FloorLoopLayout {
+  const erst = planeEinmal(polygon, options);
+  const grenze = erst.maxCircuitLength;
+  const zuLang = (l: FloorLoopLayout): boolean => l.circuits.some((c) => c.circuitLength > grenze + 0.01);
+  if (!options.autoSplit || !(grenze > 0) || erst.loops === 0 || !zuLang(erst)) return erst;
+
+  /*
+   * Teilen, bis jeder Kreis passt. Höchstens 20 Kreise je Raum — dieselbe
+   * Grenze wie für eine eingetragene Kreiszahl (hostPatch); mehr Abgänge hat
+   * kein handelsüblicher Verteiler, und ein Raum, der sie braucht, braucht
+   * einen zweiten Verteiler, nicht einen 21. Kreis.
+   */
+  let bestes = erst;
+  for (let n = erst.loops + 1; n <= 20; n++) {
+    const versuch = planeEinmal(polygon, { ...options, loops: n });
+    if (versuch.loops <= bestes.loops) break; // die Fläche gibt keinen weiteren Kreis her
+    bestes = versuch;
+    if (!zuLang(versuch)) break;
+  }
+  const vorher = Math.max(1, Math.round(options.loops ?? 1));
+  const laengen = bestes.circuits.map((c) => zahl(round(c.circuitLength, 1))).join(' + ');
+  const passt = !zuLang(bestes);
+  const notes: FloorLoopNote[] = [
+    ...bestes.notes.filter((n) => !n.text.includes('überschreiten die angesetzten')),
+    passt
+      ? {
+          severity: 'info',
+          text:
+            `Ein Kreis wäre ${zahl(round(Math.max(...erst.circuits.map((c) => c.circuitLength)), 1))} m lang geworden — mehr als ` +
+            `${zahl(grenze)} m je Kreis. Deshalb ${bestes.loops} statt ${vorher} ${vorher === 1 ? 'Kreis' : 'Kreise'}: ${laengen} m.`,
+        }
+      : {
+          severity: 'warn',
+          text:
+            `Auch mit ${bestes.loops} Kreisen bleibt ein Kreis über ${zahl(grenze)} m (${laengen} m) — die Anbindung zum ` +
+            'Verteiler ist zu lang. Verteiler näher setzen oder eine größere Nennweite wählen.',
+        },
+  ];
+  return { ...bestes, notes, splitFrom: vorher };
+}
+
+function planeEinmal(polygon: readonly Vec2[], options: FloorLoopOptions = {}): FloorLoopLayout {
   const spacing = options.spacing ?? 0.15;
   const edge = Math.max(0, options.edgeClearance ?? DEFAULT_EDGE_CLEARANCE);
   const obstacleClearance = Math.max(0, options.obstacleClearance ?? DEFAULT_OBSTACLE_CLEARANCE);
@@ -1230,6 +1333,7 @@ export function planFloorLoops(polygon: readonly Vec2[], options: FloorLoopOptio
           supplyLength: round(anschluss.supplyLength, 2),
           circuitLength: round(kreislaenge, 2),
           maxCircuitLength,
+          circuits: kreiseEinzeln(schneckenKurven, anschluss.supplyLines),
           manifoldConnected: manifold !== undefined,
           complete: true,
           notes,
@@ -1369,6 +1473,7 @@ export function planFloorLoops(polygon: readonly Vec2[], options: FloorLoopOptio
     supplyLength: round(anschluss.supplyLength, 2),
     circuitLength: round(circuitLength, 2),
     maxCircuitLength,
+    circuits: kreiseEinzeln(curves, anschluss.supplyLines),
     manifoldConnected: manifold !== undefined,
     complete: complete && angelegt === requestedLoops,
     notes,

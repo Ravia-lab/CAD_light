@@ -759,14 +759,19 @@ export function drawFloorLoops(
  */
 export function floorLoopBadge(fixture: Fixture, layout: FloorLoopLayout): string {
   const abstand = Math.round((fixture.params.loopSpacing ?? layout.spacing) * 100);
-  const kreise = fixture.params.loopCount ?? layout.loops;
+  // Die gelegte Zahl, nicht die eingetragene: Seit 1.77.0 wird ein Kreis
+  // geteilt, wenn er länger würde als die Grenze — dann sind es mehr.
+  const kreise = layout.loops || (fixture.params.loopCount ?? 0);
   const teile: string[] = [`VA ${abstand} cm`, `${kreise} ${kreise === 1 ? 'Kreis' : 'Kreise'}`];
   if (fixture.params.powerW) teile.push(`${fixture.params.powerW.toLocaleString('de-DE')} W`);
   // Die Kreislänge steht nur dort, wo sie vollständig ist: ohne Verteiler
   // fehlt die Anbindeleitung, und eine Länge, die zu kurz ist, ist im Plan
   // schlimmer als gar keine. Der fehlende Verteiler steht in den Hinweisen.
   if (layout.manifoldConnected && layout.circuitLength > 0) {
-    teile.push(`${Math.round(layout.circuitLength)} m`);
+    // Je Kreis, nicht die Summe: „200 m" an einem Raum mit zwei Kreisen
+    // läse sich wie ein zu langer Kreis.
+    const einzeln = layout.circuits.map((c) => Math.round(c.circuitLength));
+    teile.push(einzeln.length > 1 && einzeln.length <= 4 ? `${einzeln.join(' + ')} m` : einzeln.length > 4 ? `bis ${Math.max(...einzeln)} m je Kreis` : `${Math.round(layout.circuitLength)} m`);
   }
   return teile.join(' · ');
 }

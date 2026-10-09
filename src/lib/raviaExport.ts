@@ -214,7 +214,7 @@ function baueEinheiten(
 }
 
 /** Fassung des Exportvertrags; das Schema dazu liegt unter `ravia-vertrag/schema/`. */
-export const EXPORT_FASSUNG = '2.15.0' as const;
+export const EXPORT_FASSUNG = '2.16.0' as const;
 
 /**
  * Die Flächen je Raum, genau wie der Export sie bildet (Festlegung F1).
@@ -359,6 +359,11 @@ export function buildRaviaExport(doc: BimDocument): RaviaExport {
     //         (75/65/20), `exponentN`, `ratedPowerSource`, `panelType`;
     //         `project.unheatedTemperatureSource`. Schema in
     //         `ravia-vertrag/schema/ravia.bim.light-2.15.0.schema.json`.
+    // 2.16.0: `pipeGraph.floorCircuits[].circuits[]` — jeder FBH-Kreis mit
+    //         eigener Länge, Abgang, Fläche, Leistung und Strom; dazu
+    //         `maxLoopLength`, `splitFrom` (automatisch geteilt),
+    //         `feedLength`/`riserLength`/`generatorId` (Erzeuger → Verteiler).
+    //         `manifoldPort` zählt jetzt je Kreis. Reiner Zuwachs.
     version: EXPORT_FASSUNG,
     generator: GENERATOR,
     exportedAt: new Date().toISOString(),

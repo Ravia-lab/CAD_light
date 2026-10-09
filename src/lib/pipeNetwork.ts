@@ -762,7 +762,28 @@ export function buildPipeNetwork(doc: BimDocument): PipeNetworkReport {
 
   paths.sort((a, b) => b.circuitLength - a.circuitLength);
 
+  /*
+   * Zuleitung jedes Verteilers (seit 1.77.0) — auch dann, wenn an ihm kein
+   * verrohrter Verbraucher hängt. Die Kreise einer raumfüllenden
+   * Fußbodenheizung sind keine Leitungen im Netz, sondern Verlegekurven; ihr
+   * Verteiler stand deshalb in keinem Fließweg, und die Strecke Erzeuger →
+   * Verteiler fehlte den FBH-Kreisen im Export.
+   */
+  const manifoldFeeds: NonNullable<PipeNetworkReport['manifoldFeeds']> = [];
+  for (const m of sourceFixtures) {
+    if (m.type !== 'manifold') continue;
+    const mNode = nodeOf.get(m.id);
+    const vp = mNode !== undefined ? primaerBesuche.get(mNode) : undefined;
+    if (mNode === undefined || !vp || vp.source === m.id) continue;
+    const zu = abrollen(graph, primaerBesuche, mNode);
+    const steig = zu
+      .filter((s) => s.runId.startsWith('riser-') || s.runId.includes('steig'))
+      .reduce((sum, s) => sum + s.length, 0);
+    manifoldFeeds.push({ manifoldId: m.id, generatorId: vp.source, routeLength: round(vp.distance), riserLength: round(steig) });
+  }
+
   return {
+    manifoldFeeds,
     paths,
     unconnected,
     sources: sourceFixtures.map((f) => ({

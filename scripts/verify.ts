@@ -194,6 +194,7 @@ import { pruefeGebaeudescan } from './pruefungen/gebaeudescan';
 import { pruefeAufmass } from './pruefungen/aufmass';
 import { pruefeAutokorrektur } from './pruefungen/autokorrektur';
 import { pruefeAutokorrekturBelastung } from './pruefungen/autokorrektur-belastung';
+import { pruefeFbhKreise } from './pruefungen/fbhkreise';
 import { pruefeWerkzeugkiste } from './pruefungen/werkzeugkiste';
 import { pruefeBeschriftung3d } from './pruefungen/beschriftung';
 import { pruefeWandquerung } from './pruefungen/wandquerung';
@@ -772,7 +773,7 @@ console.log('\n▸ Export für die Heizlastberechnung');
   };
 
   const ex = buildRaviaExport(doc as never);
-  check('Schema-Version', ex.version, '2.15.0');
+  check('Schema-Version', ex.version, '2.16.0');
   check('Einheiten dokumentiert', ex.units.uValue, 'W/(m2K)');
 
   const room = ex.rooms.find((r) => r.polygon.some((p) => p.x < 4))!;
@@ -4025,6 +4026,7 @@ pruefeGebaeudescan(check);
 pruefeAufmass(check);
 pruefeAutokorrektur(check);
 pruefeAutokorrekturBelastung(check);
+pruefeFbhKreise(check);
 
 console.log('\n▸ Systemtemperatur — eine Anlage, eine Auslegungstemperatur');
 pruefeSystemtemperatur(check);

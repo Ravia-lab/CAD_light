@@ -2,7 +2,7 @@
 <h2 id="k17">17 · Schnittstellen: Export, IFC, Einbettung in RaVia</h2>
 <p class="lead">Alles, was dieses Programm tut, läuft auf eine Datei zu: die Übergabe an die Heizlastberechnung. Dieses Kapitel sagt, was in dieser Datei steht, welche anderen Wege es daneben gibt — IFC4 hin und zurück, Einbettung in RaVia, der Rückweg von dort — und was der Betrieb davon merkt.</p>
 
-<h3 id="k17-1">17.1 Der Export <code>ravia.bim.light</code> 2.15.0</h3>
+<h3 id="k17-1">17.1 Der Export <code>ravia.bim.light</code> 2.16.0</h3>
 
 <p class="wo">Im Programm: Werkzeugleiste oben rechts → blauer Knopf <b>RaVia JSON</b>. Der Knopf trägt den Hinweis „Gebäudedaten als RaVia-BIM-JSON exportieren (DIN EN 12831) — dient zugleich als Projektdatei".</p>
 
@@ -386,7 +386,7 @@
 <ul>
 <li><code>pipeGraph.nodes</code> — die Knoten des Netzes, jeder mit seiner Art: <code>source</code>, <code>branch</code>, <code>consumer</code>, <code>passage</code>, und der Zahl seiner Abgänge.</li>
 <li><code>pipeGraph.segments</code> — jeder Abschnitt <b>genau einmal</b>, mit <code>fromNode</code>, <code>toNode</code>, <code>parentId</code> (der Abschnitt davor in Fließrichtung), <code>length</code>, <code>innerDiameter</code>, <code>nominalDiameter</code>, <code>material</code>, <code>insulation</code>, <code>flow</code>, <code>velocity</code>, <code>lossPa</code>, <code>consumers</code> (wer dahinter hängt), <code>source</code> und <code>riser</code>.</li>
-<li><code>pipeGraph.floorCircuits</code> — je Flächenheizkreis <code>loopLength</code>, <code>fieldLength</code>, <code>supplyLength</code>, <code>servedArea</code>, <code>roomArea</code>, <code>spacing</code>, <code>flowTemperature</code>, <code>spread</code>, <code>flow</code>, <code>loops</code>, <code>manifoldId</code>, <code>manifoldPort</code>, <code>roomId</code>, <code>complete</code>.</li>
+<li><code>pipeGraph.floorCircuits</code> — je Flächenheizkreis <code>loopLength</code>, <code>fieldLength</code>, <code>supplyLength</code>, <code>servedArea</code>, <code>roomArea</code>, <code>spacing</code>, <code>flowTemperature</code>, <code>spread</code>, <code>flow</code>, <code>loops</code>, <code>manifoldId</code>, <code>manifoldPort</code>, <code>roomId</code>, <code>complete</code>; seit 2.16.0 dazu <code>circuits[]</code> je Kreis, <code>maxLoopLength</code>, <code>splitFrom</code> und die Zuleitung <code>feedLength</code>.</li>
 <li><code>pipeGraph.mixedHeating</code> — Räume mit Heizkörper <b>und</b> Flächenheizung, mit der Zahl beider.</li>
 </ul>
 
@@ -435,7 +435,7 @@
 <ul>
 <li><code>hydraulics.consumers[].routeLength</code> — einfache Weglänge von der Quelle (meist der Verteiler) bis zum Verbraucher [m].</li>
 <li><code>hydraulics.consumers[].feedLength</code> — die Zuleitung vom Wärmeerzeuger oder Speicher bis zu diesem Verteiler [m]; 0, wenn der Verbraucher direkt am Erzeuger hängt.</li>
-<li><code>hydraulics.consumers[].circuitLength</code> — Vor- und Rücklauf zusammen: 2 × (Weg + Zuleitung) [m]. Die Rohrlänge eines Flächenkreises im Raum ist <b>nicht</b> darin; sie steht in <code>pipeGraph.floorCircuits[].loopLength</code>.</li>
+<li><code>hydraulics.consumers[].circuitLength</code> — Vor- und Rücklauf zusammen: 2 × (Weg + Zuleitung) [m]. Die Rohrlänge eines Flächenkreises im Raum ist <b>nicht</b> darin; sie steht in <code>pipeGraph.floorCircuits[].circuits[].loopLength</code> (je Kreis, seit 2.16.0; <code>loopLength</code> eine Ebene höher ist der Mittelwert).</li>
 <li><code>hydraulics.consumers[].riserLength</code> — davon in Steigleitungen und Deckendurchgängen [m].</li>
 <li><code>hydraulics.consumers[].generatorId</code> — der Erzeuger oder Speicher am Anfang des Wegs.</li>
 <li><code>hydraulics.consumers[].fittings</code> — die Formteile und Armaturen auf dem Weg, gezählt als <code>{ id, count }</code> mit denselben Kennungen wie <code>pipeGraph.segments[].fittings</code> (<code>bogen-90</code>, <code>t-abzweig</code>, Armaturen). Bögen und T-Abzweige sind <b>einmal je Trasse</b> gezählt — Vor- und Rücklauf haben je dieselben, für den Kreis also doppelt; Armaturen stehen so oft da, wie sie gesetzt sind.</li>
@@ -455,13 +455,24 @@
 <p><b>2.15.0</b> (1.73.0) gleicht den Export mit RaVia ab und legt ihm ein Schema bei:</p>
 
 <ul>
-<li>Ein JSON-Schema <code>ravia-vertrag/schema/ravia.bim.light-2.15.0.schema.json</code>, aus den Typen erzeugt (<code>npm run vertrag:schema</code>). Der Prüflauf validiert jeden Export, den er baut, dagegen.</li>
+<li>Ein JSON-Schema <code>ravia-vertrag/schema/ravia.bim.light-&lt;Fassung&gt;.schema.json</code> (heute 2.16.0), aus den Typen erzeugt (<code>npm run vertrag:schema</code>). Der Prüflauf validiert jeden Export, den er baut, dagegen.</li>
 <li><code>project.unheatedTemperature</code> mit Herkunft (<code>unheatedTemperatureSource</code>): ohne Eintrag aus dem Temperatur-Korrekturfaktor b<sub>u</sub> der Raumart und θ<sub>e</sub> statt fest 10 °C.</li>
 <li>Neue Randbedingung <code>boundary: "neighbour"</code> für eine Wand zu einem fremden beheizten Gebäude mit <code>project.neighbourTemperature</code> (Vorgabe 15 °C).</li>
 <li><code>rooms[].raviaRoomId</code>, an Heizkörpern <code>panelType</code>, <code>levels[].order</code>; Wärmebrückenzuschläge nur noch für beheizte Räume und nur auf Hüllflächen.</li>
 </ul>
 
-<div class="merke"><b>Merke</b><p>Alle fünfzehn Schritte sind <b>additiv</b> — bis auf die Korrekturen in 2.14.0 und 2.15.0, die bewusst andere Zahlen liefern, weil die alten falsch waren. Eine Gegenstelle, die gegen 2.0.0 gebaut hat, liest eine 2.15.0-Datei ohne Änderung und rechnet dasselbe wie vorher. Sie bekommt nur weniger Auskunft. Wer die neuen <code>kind</code>-Werte nicht kennt, behandelt sie wie bisher jede Verletzung.</p></div>
+<p><b>2.16.0</b> (1.77.0) gibt die Kreise einer Fußbodenheizung einzeln heraus. Gemeldet am 09.10.2026: „Ab bestimmten Verlegelängen gibt es weitere Heizkreise, z. B. 200 m, ergo 2 × 100." Bis 2.15.0 stand je Raum nur der Mittelwert <code>loopLength</code> da, und ein zu langer Kreis wurde nur gemeldet. Jetzt:</p>
+
+<ul>
+<li><code>pipeGraph.floorCircuits[].circuits[]</code> — je Kreis <code>id</code> (<code>&lt;fixtureId&gt;#&lt;n&gt;</code>, stabil), <code>loop</code>, <code>manifoldPort</code>, <code>fieldLength</code> (Fläche mit Kehren), <code>supplyLength</code> (Anbindung, Vor- und Rücklauf), <code>loopLength</code> (Kreislänge = beides), <code>servedArea</code>, <code>powerW</code> und <code>flow</code> (nach Fläche aufgeteilt).</li>
+<li><code>maxLoopLength</code> — die Grenze je Kreis (Vorgabe 100 m, Anbindung eingerechnet), und <code>splitFrom</code>, wenn wegen der Länge automatisch geteilt wurde: Die eingetragene Kreiszahl ist die Untergrenze; es kommt ein Kreis hinzu, bis jeder unter der Grenze bleibt.</li>
+<li><code>feedLength</code>, <code>riserLength</code>, <code>generatorId</code> — die Zuleitung Erzeuger → Verteiler, einfach, auch wenn am Verteiler kein verrohrter Verbraucher hängt.</li>
+<li><code>manifoldPort</code> zählt je Kreis. Bis 2.15.0 bekam ein Raum mit zwei Kreisen einen Abgang, und der nächste Raum die Nummer seines zweiten Kreises.</li>
+</ul>
+
+<p>Für das Strangschema eines FBH-Kreises zählt damit: 2 × <code>feedLength</code> (Erzeuger bis Verteiler, Vor- und Rücklauf) plus <code>circuits[].loopLength</code>.</p>
+
+<div class="merke"><b>Merke</b><p>Alle sechzehn Schritte sind <b>additiv</b> — bis auf die Korrekturen in 2.14.0 und 2.15.0, die bewusst andere Zahlen liefern, weil die alten falsch waren. Eine Gegenstelle, die gegen 2.0.0 gebaut hat, liest eine 2.16.0-Datei ohne Änderung und rechnet dasselbe wie vorher. Sie bekommt nur weniger Auskunft. Wer die neuen <code>kind</code>-Werte nicht kennt, behandelt sie wie bisher jede Verletzung.</p></div>
 
 <h4 id="k17-1-7">17.1.7 Der Wächter über dem Format</h4>
 

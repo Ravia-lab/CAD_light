@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "urn:ravia-vertrag:schema:ravia.bim.light-2.15.0",
-  "title": "RaVia CAD Light Export 2.15.0 (ravia.bim.light)",
+  "$id": "urn:ravia-vertrag:schema:ravia.bim.light-2.16.0",
+  "title": "RaVia CAD Light Export 2.16.0 (ravia.bim.light)",
   "description": "Erzeugt aus RaviaExport in src/types/bim.ts (npm run vertrag:schema). Festlegung F6: ein Feld, das hier nicht steht, gibt es nicht. Leistungen in W, außer wo der Feldname oder die Beschreibung kW nennt.",
   "$ref": "#/$defs/RaviaExport",
   "$defs": {
@@ -4121,6 +4121,59 @@
       ],
       "additionalProperties": false
     },
+    "NetzEinzelkreis": {
+      "description": "Ein einzelner Heizkreis einer Fußbodenheizung (seit 2.16.0).",
+      "type": "object",
+      "properties": {
+        "id": {
+          "description": "Stabile Kennung `<fixtureId>#<loop>` — dieselbe bei jedem Export desselben Stands.",
+          "type": "string"
+        },
+        "loop": {
+          "description": "Nummer im Raum (1-basiert).",
+          "type": "number"
+        },
+        "manifoldPort": {
+          "description": "Abgang am Verteiler, 1-basiert, fortlaufend über alle Kreise des Verteilers.",
+          "type": "number"
+        },
+        "fieldLength": {
+          "description": "Rohr in der Fläche [m], einschließlich Kehren.",
+          "type": "number"
+        },
+        "supplyLength": {
+          "description": "Anbindeleitung zum Verteiler [m], Vor- und Rücklauf.",
+          "type": "number"
+        },
+        "loopLength": {
+          "description": "Kreislänge [m] = Fläche + Anbindung — Vor- und Rücklauf ab Verteiler.",
+          "type": "number"
+        },
+        "servedArea": {
+          "description": "Belegte Fläche [m²].",
+          "type": "number"
+        },
+        "powerW": {
+          "description": "Anteil an der Leistung [W] — nach Fläche aufgeteilt.",
+          "type": "number"
+        },
+        "flow": {
+          "description": "Volumenstrom [m³/h] — nach Fläche aufgeteilt.",
+          "type": "number"
+        }
+      },
+      "required": [
+        "id",
+        "loop",
+        "fieldLength",
+        "supplyLength",
+        "loopLength",
+        "servedArea",
+        "powerW",
+        "flow"
+      ],
+      "additionalProperties": false
+    },
     "NetzExport": {
       "type": "object",
       "properties": {
@@ -4257,6 +4310,33 @@
         "complete": {
           "description": "Ließ sich jeder Kreis als ein Zug legen?",
           "type": "boolean"
+        },
+        "circuits": {
+          "description": "Die Kreise einzeln (seit 2.16.0). `loopLength` oben ist der Mittelwert; für den Abgleich am Verteiler und das Strangschema zählt jeder Kreis mit seiner eigenen Länge.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/NetzEinzelkreis"
+          }
+        },
+        "maxLoopLength": {
+          "description": "Größte Kreislänge [m], gegen die geteilt wurde (seit 2.16.0).",
+          "type": "number"
+        },
+        "splitFrom": {
+          "description": "Angeforderte Kreiszahl, wenn wegen der Länge automatisch geteilt wurde — z. B. 1, wenn aus 200 m zwei Kreise zu je 100 m wurden (seit 2.16.0).",
+          "type": "number"
+        },
+        "feedLength": {
+          "description": "Einfache Länge Erzeuger → Verteiler [m] (seit 2.16.0); fehlt ohne verrohrte Zuleitung.",
+          "type": "number"
+        },
+        "riserLength": {
+          "description": "Davon Steigleitung (einfach) [m] (seit 2.16.0).",
+          "type": "number"
+        },
+        "generatorId": {
+          "description": "Erzeuger, der den Verteiler speist (seit 2.16.0).",
+          "type": "string"
         }
       },
       "required": [
@@ -4277,7 +4357,9 @@
         "powerW",
         "flow",
         "manifoldConnected",
-        "complete"
+        "complete",
+        "circuits",
+        "maxLoopLength"
       ],
       "additionalProperties": false
     },
@@ -4592,6 +4674,34 @@
         "risers": {
           "description": "Verbundene Geschosse über Steigstränge.",
           "type": "number"
+        },
+        "manifoldFeeds": {
+          "description": "Zuleitung Erzeuger → Verteiler je Verteiler im Netz eines Erzeugers (seit 1.77.0).",
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "manifoldId": {
+                "type": "string"
+              },
+              "generatorId": {
+                "type": "string"
+              },
+              "routeLength": {
+                "type": "number"
+              },
+              "riserLength": {
+                "type": "number"
+              }
+            },
+            "required": [
+              "manifoldId",
+              "generatorId",
+              "routeLength",
+              "riserLength"
+            ],
+            "additionalProperties": false
+          }
         }
       },
       "required": [
@@ -5194,8 +5304,8 @@
           "const": "ravia.bim.light"
         },
         "version": {
-          "description": "2.15.0 (Abgleich 2026-10, Festlegungen F2, F4, F5, F6) ergänzt `rooms[].raviaRoomId`, die Randbedingung `neighbour` (fremde Nutzungseinheit oder Nachbargebäude) mit `project.neighbourTemperature`, an Heizkörpern `params.ratedPower` (Normleistung 75/65/20 °C), `params.exponentN`, `params.ratedPowerSource` und `params.panelType`, dazu `project.unheatedTemperatureSource` und `project.unheatedKind`…",
-          "const": "2.15.0"
+          "description": "2.16.0 (09.10.2026) ergänzt an `pipeGraph.floorCircuits[]` die Kreise einzeln (`circuits[]`: Kennung `<fixtureId>#<n>`, Abgang, Flächen- und Anbindelänge, Kreislänge, Fläche, Leistung, Strom), die Grenze `maxLoopLength`, `splitFrom`, wenn ein zu langer Kreis automatisch geteilt wurde (200 m → 2 × 100 m), und die Zuleitung Erzeuger → Verteiler (`feedLength`, `riserLength`, `generatorId`). `manif…",
+          "const": "2.16.0"
         },
         "generator": {
           "type": "string"

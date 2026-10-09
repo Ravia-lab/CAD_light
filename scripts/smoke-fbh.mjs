@@ -164,7 +164,7 @@ const laengen = await p.evaluate(() => {
     k,
   };
 });
-expect('Exportfassung 2.15.0', laengen.version, '2.15.0');
+expect('Exportfassung 2.16.0', laengen.version, '2.16.0');
 expect('Ein Flächenheizkreis in der Übergabe', laengen.kreise, 1);
 expect('Rohr in der Fläche über 40 m', laengen.k.fieldLength > 40, true);
 /*
@@ -182,6 +182,20 @@ expect('Verlegeabstand steht dabei', laengen.k.spacing > 0, true);
 expect('Volumenstrom gerechnet', laengen.k.flow > 0, true);
 expect('Am Verteiler mit Abgangsnummer', laengen.k.manifoldPort, 1);
 expect('Vorlauf und Spreizung', [laengen.k.flowTemperature, laengen.k.spread], [35, 7]);
+// 1.77.0 / Export 2.16.0: die Kreise einzeln, jeder unter der Grenze.
+expect('Je Kreis ein Eintrag in circuits[]', laengen.k.circuits.length, laengen.k.loops);
+expect('Kennung <fixtureId>#1', laengen.k.circuits[0].id, `${laengen.k.fixtureId}#1`);
+expect('Jeder Kreis höchstens maxLoopLength', laengen.k.circuits.every((c) => c.loopLength <= laengen.k.maxLoopLength + 0.01), true);
+expect('Summe der Kreise = Fläche + Anbindung',
+  Math.round(laengen.k.circuits.reduce((s, c) => s + c.loopLength, 0) * 100) / 100,
+  Math.round((laengen.k.fieldLength + laengen.k.supplyLength) * 100) / 100, 0.05);
+expect('Summe der Kreisleistungen = Leistung der Fläche', laengen.k.circuits.reduce((s, c) => s + c.powerW, 0), laengen.k.powerW, laengen.k.circuits.length);
+expect('Abgänge fortlaufend ab 1', laengen.k.circuits.map((c) => c.manifoldPort).join(','), laengen.k.circuits.map((_, i) => i + 1).join(','));
+console.log(`    Kreise: ${laengen.k.circuits.map((c) => c.loopLength).join(' + ')} m, Zuleitung ${laengen.k.feedLength ?? '—'} m`);
+// Im Demohaus steht kein Wärmeerzeuger — dann gibt es keine Strecke
+// Erzeuger → Verteiler, und es wird keine erfunden. Mit Erzeuger prüft der
+// Prüfblock „Fußbodenheizung — Kreise einzeln" die Zuleitung an einem Handmaß.
+expect('Ohne Erzeuger keine erfundene Zuleitung', laengen.k.feedLength === undefined, true);
 
 console.log('\n▸ Die Topologie — das, was RaVia braucht');
 expect('Abschnitte im Netz', laengen.abschnitte > 0, true);
