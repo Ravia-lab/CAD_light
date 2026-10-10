@@ -1,0 +1,1306 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ravia-tech.de/schema/ravia.building-1.13.0.schema.json",
+  "title": "RaVia Building Model 1.13.0",
+  "description": "Abgeleitet aus RaViaScanCore/Model/BuildingModel.swift auf Ravia-lab/scan main (f9cf190). Einheiten: m, m², m³, °. Azimut: Grad im Uhrzeigersinn ab Nord. Planwinkel (rotationDeg, headingDeg, northPlanAngleDeg): Grad gegen den Uhrzeigersinn ab +x. Zusätzliche Felder sind erlaubt (Schema wächst nur additiv); Leser müssen unbekannte Felder ignorieren.",
+  "properties": {
+    "format": {
+      "const": "ravia.building"
+    },
+    "schemaVersion": {
+      "const": "1.13.0"
+    },
+    "id": {
+      "type": "string"
+    },
+    "createdAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "source": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "const": "roomplan"
+        },
+        "captureId": {
+          "type": "string"
+        },
+        "capturedAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "app": {
+          "type": "object",
+          "properties": {
+            "name": {
+              "type": "string"
+            },
+            "version": {
+              "type": "string"
+            },
+            "build": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "name",
+            "version"
+          ]
+        },
+        "device": {
+          "type": "object",
+          "properties": {
+            "model": {
+              "type": "string"
+            },
+            "osVersion": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "model",
+            "osVersion"
+          ]
+        },
+        "engineVersion": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "captureId",
+        "capturedAt",
+        "app",
+        "device",
+        "engineVersion"
+      ]
+    },
+    "project": {
+      "type": "object",
+      "properties": {
+        "raviaProjectId": {
+          "type": "integer"
+        },
+        "sessionId": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "address": {
+          "type": "string"
+        },
+        "location": {
+          "$ref": "#/$defs/GeoPoint"
+        }
+      },
+      "required": []
+    },
+    "orientation": {
+      "type": "object",
+      "properties": {
+        "planRotationDeg": {
+          "type": "number",
+          "description": "Drehung des Scans auf achsparallele Wände [°, gegen Uhrzeigersinn]"
+        },
+        "northSource": {
+          "enum": [
+            "compass",
+            "manual",
+            "none"
+          ]
+        },
+        "northPlanAngleDeg": {
+          "type": "number",
+          "description": "Richtung Norden im Plan [°, gegen Uhrzeigersinn ab +x]; fehlt = unbekannt"
+        },
+        "northAccuracyDeg": {
+          "type": "number"
+        }
+      },
+      "required": [
+        "planRotationDeg",
+        "northSource"
+      ]
+    },
+    "levels": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/Level"
+      }
+    },
+    "walls": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/Wall"
+      }
+    },
+    "openings": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/Opening"
+      }
+    },
+    "rooms": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/Room"
+      }
+    },
+    "roomHints": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/RoomHint"
+      }
+    },
+    "summary": {
+      "$ref": "#/$defs/Summary"
+    },
+    "quality": {
+      "$ref": "#/$defs/QualityReport"
+    },
+    "emitters": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/Emitter"
+      }
+    },
+    "photos": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/Photo"
+      }
+    },
+    "stairs": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/Stair"
+      }
+    },
+    "measurements": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/Measurement"
+      }
+    },
+    "calibration": {
+      "$ref": "#/$defs/Calibration"
+    },
+    "accuracy": {
+      "$ref": "#/$defs/AccuracyReport"
+    },
+    "checklist": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/ChecklistItem"
+      }
+    }
+  },
+  "required": [
+    "format",
+    "schemaVersion",
+    "id",
+    "createdAt",
+    "source",
+    "project",
+    "orientation",
+    "levels",
+    "walls",
+    "openings",
+    "rooms",
+    "roomHints",
+    "summary",
+    "quality"
+  ],
+  "type": "object",
+  "$defs": {
+    "Vec2": {
+      "type": "object",
+      "properties": {
+        "x": {
+          "type": "number"
+        },
+        "y": {
+          "type": "number"
+        }
+      },
+      "required": [
+        "x",
+        "y"
+      ],
+      "description": "Planpunkt bzw. Planvektor [m]. Grundriss von oben, x rechts, y oben (rechtshändig), Ursprung beliebig. Dasselbe System für walls, rooms, openings, emitters, roof."
+    },
+    "GeoPoint": {
+      "type": "object",
+      "properties": {
+        "latitude": {
+          "type": "number"
+        },
+        "longitude": {
+          "type": "number"
+        },
+        "accuracyM": {
+          "type": "number"
+        }
+      },
+      "required": [
+        "latitude",
+        "longitude"
+      ]
+    },
+    "RoofEstimate": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "enum": [
+            "gable",
+            "monopitch",
+            "unknown"
+          ],
+          "description": "gable = zwei gegenläufige Schrägen, monopitch = eine Richtung"
+        },
+        "pitchDeg": {
+          "type": "number",
+          "description": "Neigung gegen die Horizontale [°]"
+        },
+        "pitchSpreadDeg": {
+          "type": "number",
+          "description": "Interquartilsabstand der Einzelmessungen [°]"
+        },
+        "slopeAzimuthsDeg": {
+          "type": "array",
+          "items": {
+            "type": "number"
+          },
+          "description": "Fallrichtungen der Dachflächen [° Azimut, im Uhrzeigersinn ab Nord]; leer ohne Nordrichtung"
+        },
+        "sampleCount": {
+          "type": "integer"
+        },
+        "kneeWallIds": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "kneeHeight": {
+          "type": "number",
+          "description": "Lichte Höhe an der Traufe [m]"
+        },
+        "collarHeight": {
+          "type": "number",
+          "description": "Höhe der Kehlbalkenlage [m]; fehlt = Schräge bis zum First"
+        },
+        "ridgeHeight": {
+          "type": "number",
+          "description": "Lichte Höhe unter dem First [m], nur wenn angezielt (seit 1.10.0)"
+        },
+        "azimuthDeg": {
+          "type": "number",
+          "description": "Mittlere Fallrichtung [° Azimut]; fehlt ohne Nordrichtung (seit 1.4.0)"
+        },
+        "sampleLength": {
+          "type": "number",
+          "description": "Gesamtlänge der Schrägkanten [m] (seit 1.4.0)"
+        },
+        "source": {
+          "enum": [
+            "scan",
+            "user"
+          ],
+          "description": "Herkunft von Kniestock- und Firsthöhe (seit 1.10.0)"
+        },
+        "userDelta": {
+          "type": "number",
+          "description": "Abweichung gesetzter Punkt zu Schätzung [m] (seit 1.10.0)"
+        },
+        "footprint": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Vec2"
+          },
+          "minItems": 4,
+          "maxItems": 4,
+          "description": "Seit 1.12.0, nur an levels[].roof (nicht an roofSegments). Rechteck, über dem die Schräge liegt: genau 4 Planpunkte [m] im selben System wie walls, gegen den Uhrzeigersinn (y oben), offen (der erste Punkt wird nicht wiederholt). Zwei Seiten liegen auf den Traufen (quer zu fallDirection), die anderen zwei begrenzen die Räume innerhalb des Streifens. Räume, deren labelPoint außerhalb liegt, haben eine waagerechte Decke."
+        },
+        "fallDirection": {
+          "$ref": "#/$defs/Vec2",
+          "description": "Seit 1.12.0, nur an levels[].roof. Einheitsvektor in Planrichtung (KEIN Winkel, keine Einheit), auf 3 Stellen gerundet, unabhängig von der Nordrichtung. Steht senkrecht auf den Traufen. monopitch: zeigt bergab (vom First zur Traufe) – in Fassungen bis Build 18 kann das Vorzeichen falsch sein, behoben in 1.13.0 (Befund B3). gable: Achse quer zum First; das Vorzeichen ist ohne Bedeutung, beide Hälften fallen gegenläufig. Umrechnung in Azimut: az = (orientation.northPlanAngleDeg - atan2(y,x)·180/π) mod 360."
+        }
+      },
+      "required": [
+        "kind",
+        "pitchDeg",
+        "pitchSpreadDeg",
+        "slopeAzimuthsDeg",
+        "sampleCount",
+        "kneeWallIds"
+      ],
+      "description": "Aus dem Scan geschätzte Dachgeometrie (seit 1.1.0)"
+    },
+    "Level": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "index": {
+          "type": "integer"
+        },
+        "name": {
+          "type": "string"
+        },
+        "elevation": {
+          "type": "number",
+          "description": "Fußbodenoberkante relativ zum untersten Geschoss [m]"
+        },
+        "height": {
+          "type": "number",
+          "description": "Lichte Raumhöhe [m]"
+        },
+        "elevationSource": {
+          "enum": [
+            "lidar",
+            "barometer",
+            "user"
+          ]
+        },
+        "roof": {
+          "$ref": "#/$defs/RoofEstimate"
+        },
+        "roofSegments": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/RoofEstimate"
+          }
+        }
+      },
+      "required": [
+        "id",
+        "index",
+        "name",
+        "elevation",
+        "height"
+      ]
+    },
+    "Wall": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "levelId": {
+          "type": "string"
+        },
+        "start": {
+          "$ref": "#/$defs/Vec2",
+          "description": "Wandachse (Mittellinie)"
+        },
+        "end": {
+          "$ref": "#/$defs/Vec2"
+        },
+        "length": {
+          "type": "number"
+        },
+        "height": {
+          "type": "number"
+        },
+        "thickness": {
+          "type": "number"
+        },
+        "thicknessSource": {
+          "enum": [
+            "measuredFacePair",
+            "measuredJamb",
+            "fromJambSample",
+            "estimated"
+          ]
+        },
+        "type": {
+          "enum": [
+            "exterior",
+            "interior"
+          ]
+        },
+        "grossArea": {
+          "type": "number",
+          "description": "Aufmaß-Fläche Länge × Höhe bzw. Umrissfläche [m²]"
+        },
+        "confidence": {
+          "type": "number"
+        },
+        "curved": {
+          "type": "boolean"
+        },
+        "sourceIds": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "azimuthDeg": {
+          "type": "number",
+          "description": "Nur Außenwände: Azimut der Außennormalen [°]"
+        },
+        "orientation": {
+          "enum": [
+            "N",
+            "NO",
+            "O",
+            "SO",
+            "S",
+            "SW",
+            "W",
+            "NW"
+          ]
+        },
+        "netArea": {
+          "type": "number",
+          "description": "Abzüglich Öffnungen [m²] (seit 1.9.0)"
+        },
+        "lengthUncertainty": {
+          "type": "number"
+        },
+        "thicknessMeasured": {
+          "type": "number"
+        },
+        "thicknessSpread": {
+          "type": "number"
+        },
+        "profile": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Vec2"
+          },
+          "description": "Wandumriss bei nicht rechteckigen Wänden: x = Abstand ab start [m], y = Höhe über Fußboden [m] (seit 1.1.0)"
+        },
+        "kneeWall": {
+          "type": "boolean"
+        },
+        "boundary": {
+          "enum": [
+            "exterior",
+            "unheated",
+            "neighbour",
+            "ground",
+            "interior"
+          ],
+          "description": "Was hinter der Wand liegt (seit 1.4.0, in 1.12.0 unverändert). Vorbelegt aus type (exterior→exterior, interior→interior), im Scan überschreibbar."
+        },
+        "boundarySource": {
+          "enum": [
+            "scan",
+            "user"
+          ]
+        },
+        "suspect": {
+          "type": "boolean",
+          "description": "Verdacht auf Scanfehler (seit 1.11.0)"
+        },
+        "shiftedBy": {
+          "type": "number",
+          "description": "Von Hand verschoben [m] (seit 1.11.0)"
+        },
+        "drawn": {
+          "type": "boolean",
+          "description": "Von Hand gezeichnet (seit 1.12.0)"
+        },
+        "confirmed": {
+          "type": "boolean",
+          "description": "Schräge Wand als echt bestätigt (seit 1.12.0)"
+        }
+      },
+      "required": [
+        "id",
+        "levelId",
+        "start",
+        "end",
+        "length",
+        "height",
+        "thickness",
+        "thicknessSource",
+        "type",
+        "grossArea",
+        "confidence",
+        "curved",
+        "sourceIds"
+      ]
+    },
+    "Opening": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "wallId": {
+          "type": "string"
+        },
+        "levelId": {
+          "type": "string"
+        },
+        "kind": {
+          "enum": [
+            "door",
+            "window",
+            "passage"
+          ]
+        },
+        "centerOffset": {
+          "type": "number"
+        },
+        "width": {
+          "type": "number"
+        },
+        "height": {
+          "type": "number"
+        },
+        "sillHeight": {
+          "type": "number"
+        },
+        "area": {
+          "type": "number"
+        },
+        "confidence": {
+          "type": "number"
+        },
+        "sourceId": {
+          "type": "string"
+        },
+        "azimuthDeg": {
+          "type": "number"
+        },
+        "orientation": {
+          "type": "string"
+        },
+        "isOpen": {
+          "type": "boolean"
+        },
+        "leaves": {
+          "type": "integer"
+        },
+        "leavesSource": {
+          "enum": [
+            "scan",
+            "estimated",
+            "user"
+          ]
+        },
+        "source": {
+          "enum": [
+            "scan",
+            "user"
+          ]
+        },
+        "sizeUncertainty": {
+          "type": "number"
+        }
+      },
+      "required": [
+        "id",
+        "wallId",
+        "levelId",
+        "kind",
+        "centerOffset",
+        "width",
+        "height",
+        "sillHeight",
+        "area",
+        "confidence",
+        "sourceId"
+      ]
+    },
+    "Room": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "levelId": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "usage": {
+          "enum": [
+            "living",
+            "bedroom",
+            "kitchen",
+            "bath",
+            "wc",
+            "hallway",
+            "office",
+            "storage",
+            "technical",
+            "other"
+          ]
+        },
+        "kind": {
+          "enum": [
+            "room",
+            "scanArea"
+          ]
+        },
+        "polygon": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Vec2"
+          },
+          "description": "Bodenumriss gegen den Uhrzeigersinn, offen"
+        },
+        "area": {
+          "type": "number"
+        },
+        "perimeter": {
+          "type": "number"
+        },
+        "height": {
+          "type": "number"
+        },
+        "volume": {
+          "type": "number"
+        },
+        "boundaryWallIds": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "areaUncertainty": {
+          "type": "number"
+        },
+        "volumeSource": {
+          "enum": [
+            "flatCeiling",
+            "roofModel"
+          ]
+        },
+        "volumeFlat": {
+          "type": "number"
+        },
+        "meanHeight": {
+          "type": "number"
+        },
+        "lowAreaPct": {
+          "type": "number"
+        },
+        "nameSource": {
+          "enum": [
+            "user",
+            "scan"
+          ]
+        },
+        "raviaRoomId": {
+          "type": "string"
+        },
+        "heated": {
+          "type": "boolean",
+          "description": "Seit 1.4.0, in 1.12.0 unverändert. Fehlt = Rechnung nimmt beheizt an."
+        },
+        "heatedSource": {
+          "enum": [
+            "scan",
+            "user"
+          ]
+        },
+        "areaSource": {
+          "enum": [
+            "floor",
+            "split"
+          ],
+          "description": "seit 1.11.0"
+        },
+        "labelPoint": {
+          "$ref": "#/$defs/Vec2",
+          "description": "Punkt sicher im Raum (seit 1.12.0); für die Zuordnung zu roof.footprint"
+        }
+      },
+      "required": [
+        "id",
+        "levelId",
+        "name",
+        "usage",
+        "kind",
+        "polygon",
+        "area",
+        "perimeter",
+        "height",
+        "volume",
+        "boundaryWallIds"
+      ]
+    },
+    "RoomHint": {
+      "type": "object",
+      "properties": {
+        "levelId": {
+          "type": "string"
+        },
+        "point": {
+          "$ref": "#/$defs/Vec2"
+        },
+        "usage": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "sourceLabel": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "levelId",
+        "point",
+        "usage",
+        "name",
+        "sourceLabel"
+      ]
+    },
+    "EmitterSuggestion": {
+      "type": "object",
+      "properties": {
+        "source": {
+          "enum": [
+            "via",
+            "user"
+          ]
+        },
+        "confirmed": {
+          "type": "boolean"
+        },
+        "panelType": {
+          "enum": [
+            "10",
+            "11",
+            "20",
+            "21",
+            "22",
+            "30",
+            "33"
+          ]
+        },
+        "manufacturer": {
+          "type": "string"
+        },
+        "model": {
+          "type": "string"
+        },
+        "confidence": {
+          "type": "number"
+        },
+        "note": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "source",
+        "confirmed"
+      ]
+    },
+    "Emitter": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "levelId": {
+          "type": "string"
+        },
+        "kind": {
+          "enum": [
+            "panel",
+            "tube",
+            "towel",
+            "convector",
+            "unknown"
+          ]
+        },
+        "position": {
+          "$ref": "#/$defs/Vec2"
+        },
+        "rotationDeg": {
+          "type": "number"
+        },
+        "width": {
+          "type": "number"
+        },
+        "height": {
+          "type": "number"
+        },
+        "depth": {
+          "type": "number"
+        },
+        "bottomHeight": {
+          "type": "number"
+        },
+        "measured": {
+          "type": "boolean"
+        },
+        "photoIds": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "roomId": {
+          "type": "string"
+        },
+        "wallId": {
+          "type": "string"
+        },
+        "centerOffset": {
+          "type": "number"
+        },
+        "depthSource": {
+          "enum": [
+            "measured",
+            "type"
+          ]
+        },
+        "suggestion": {
+          "$ref": "#/$defs/EmitterSuggestion"
+        },
+        "note": {
+          "type": "string"
+        },
+        "ratedPower": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Normwärmeleistung nach EN 442 bei 75/65/20 °C [W] (seit 1.13.0, Festlegung F2). Kommt aus der Antwort von RaVia auf POST …/heizkoerper/leistung; die App rechnet sie nicht selbst."
+        },
+        "exponentN": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Heizkörperexponent n nach EN 442 (seit 1.13.0), falls RaVia ihn liefert."
+        },
+        "ratedPowerSource": {
+          "type": "string",
+          "description": "Woher ratedPower stammt (seit 1.13.0), z. B. \"catalog\" (RaVia-Katalog) oder was RaVia als Quelle angibt."
+        }
+      },
+      "required": [
+        "id",
+        "levelId",
+        "kind",
+        "position",
+        "rotationDeg",
+        "width",
+        "height",
+        "depth",
+        "bottomHeight",
+        "measured",
+        "photoIds"
+      ]
+    },
+    "Photo": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "kind": {
+          "enum": [
+            "front",
+            "side",
+            "typeplate",
+            "room",
+            "other"
+          ]
+        },
+        "mimeType": {
+          "type": "string"
+        },
+        "emitterId": {
+          "type": "string"
+        },
+        "roomId": {
+          "type": "string"
+        },
+        "capturedAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "point": {
+          "$ref": "#/$defs/Vec2"
+        },
+        "headingDeg": {
+          "type": "number"
+        }
+      },
+      "required": [
+        "id",
+        "kind",
+        "mimeType"
+      ]
+    },
+    "Stair": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "levelId": {
+          "type": "string"
+        },
+        "position": {
+          "$ref": "#/$defs/Vec2"
+        },
+        "width": {
+          "type": "number"
+        },
+        "run": {
+          "type": "number"
+        },
+        "rotationDeg": {
+          "type": "number"
+        },
+        "confidence": {
+          "type": "number"
+        },
+        "sourceId": {
+          "type": "string"
+        },
+        "roomId": {
+          "type": "string"
+        },
+        "rise": {
+          "type": "number"
+        }
+      },
+      "required": [
+        "id",
+        "levelId",
+        "position",
+        "width",
+        "run",
+        "rotationDeg",
+        "confidence",
+        "sourceId"
+      ]
+    },
+    "Measurement": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "levelId": {
+          "type": "string"
+        },
+        "a": {
+          "$ref": "#/$defs/Vec2"
+        },
+        "b": {
+          "$ref": "#/$defs/Vec2"
+        },
+        "aHeight": {
+          "type": "number"
+        },
+        "bHeight": {
+          "type": "number"
+        },
+        "length": {
+          "type": "number"
+        },
+        "planLength": {
+          "type": "number"
+        },
+        "kind": {
+          "type": "string"
+        },
+        "roomId": {
+          "type": "string"
+        },
+        "label": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "levelId",
+        "a",
+        "b",
+        "aHeight",
+        "bHeight",
+        "length",
+        "planLength",
+        "kind"
+      ]
+    },
+    "Calibration": {
+      "type": "object",
+      "properties": {
+        "scaleFactor": {
+          "type": "number"
+        },
+        "applied": {
+          "type": "boolean"
+        },
+        "sampleCount": {
+          "type": "integer"
+        },
+        "deviationPct": {
+          "type": "number"
+        },
+        "maxDeviationPct": {
+          "type": "number"
+        },
+        "residualPct": {
+          "type": "number"
+        },
+        "note": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "scaleFactor",
+        "applied",
+        "sampleCount",
+        "deviationPct",
+        "maxDeviationPct",
+        "residualPct"
+      ]
+    },
+    "AccuracyReport": {
+      "type": "object",
+      "properties": {
+        "basis": {
+          "enum": [
+            "measured",
+            "assumed"
+          ]
+        },
+        "pointNoise": {
+          "type": "number"
+        },
+        "scaleChecked": {
+          "type": "boolean"
+        },
+        "scaleResidualPct": {
+          "type": "number"
+        },
+        "scaleAssumedPct": {
+          "type": "number"
+        },
+        "driftM": {
+          "type": "number"
+        },
+        "driftPct": {
+          "type": "number"
+        },
+        "roomAreaUncertaintyPct": {
+          "type": "number"
+        },
+        "wallLengthUncertainty": {
+          "type": "number"
+        },
+        "openingUncertainty": {
+          "type": "number"
+        },
+        "measuredPointNoise": {
+          "type": "number"
+        },
+        "thicknessSnapped": {
+          "type": "integer"
+        },
+        "axisSnapped": {
+          "type": "integer"
+        },
+        "measuredPointNoiseSamples": {
+          "type": "integer"
+        },
+        "selfChecked": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "basis",
+        "pointNoise",
+        "scaleChecked"
+      ]
+    },
+    "ChecklistItem": {
+      "type": "object",
+      "properties": {
+        "code": {
+          "type": "string"
+        },
+        "severity": {
+          "enum": [
+            "info",
+            "warning",
+            "error"
+          ]
+        },
+        "text": {
+          "type": "string"
+        },
+        "count": {
+          "type": "integer"
+        },
+        "points": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Vec2"
+          }
+        },
+        "roomIds": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "wallIds": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "code",
+        "severity",
+        "text",
+        "count"
+      ]
+    },
+    "Summary": {
+      "type": "object",
+      "properties": {
+        "levelCount": {
+          "type": "integer"
+        },
+        "roomCount": {
+          "type": "integer"
+        },
+        "wallCount": {
+          "type": "integer"
+        },
+        "exteriorWallCount": {
+          "type": "integer"
+        },
+        "doorCount": {
+          "type": "integer"
+        },
+        "windowCount": {
+          "type": "integer"
+        },
+        "passageCount": {
+          "type": "integer"
+        },
+        "netFloorArea": {
+          "type": "number"
+        },
+        "volume": {
+          "type": "number"
+        },
+        "exteriorWallGrossArea": {
+          "type": "number"
+        },
+        "windowAreaByOrientation": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "number"
+          }
+        },
+        "exteriorWallNetArea": {
+          "type": "number"
+        },
+        "emitterCount": {
+          "type": "integer"
+        },
+        "stairCount": {
+          "type": "integer"
+        },
+        "twoLeafOpeningCount": {
+          "type": "integer"
+        }
+      },
+      "required": [
+        "levelCount",
+        "roomCount",
+        "wallCount",
+        "exteriorWallCount",
+        "doorCount",
+        "windowCount",
+        "passageCount",
+        "netFloorArea",
+        "volume",
+        "exteriorWallGrossArea",
+        "windowAreaByOrientation"
+      ]
+    },
+    "QualityReport": {
+      "type": "object",
+      "properties": {
+        "score": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "lowConfidenceElements": {
+          "type": "integer"
+        },
+        "assumptions": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "code": {
+                "type": "string"
+              },
+              "text": {
+                "type": "string"
+              },
+              "count": {
+                "type": "integer"
+              }
+            },
+            "required": [
+              "code",
+              "text",
+              "count"
+            ]
+          }
+        },
+        "issues": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "code": {
+                "type": "string"
+              },
+              "severity": {
+                "enum": [
+                  "info",
+                  "warning",
+                  "error"
+                ]
+              },
+              "text": {
+                "type": "string"
+              },
+              "count": {
+                "type": "integer"
+              }
+            },
+            "required": [
+              "code",
+              "severity",
+              "text",
+              "count"
+            ]
+          }
+        }
+      },
+      "required": [
+        "score",
+        "lowConfidenceElements",
+        "assumptions",
+        "issues"
+      ]
+    }
+  }
+}
