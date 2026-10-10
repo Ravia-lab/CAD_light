@@ -31,6 +31,7 @@ import { writableFields } from './hostPatch';
 import type { HostPatch, HostPatchReport } from './hostPatch';
 import { geraetemerkmale, geraeteprofil, type Geraeteprofil } from './geraeteprofil';
 import { registriereWirtMelder, setzeWirtFaehigkeiten } from './wirt';
+import { createRoom, type CreateRoomResult, type RaumVorlageAnlegen } from './hostRaum';
 
 /**
  * 1.1.0 — der Rückweg ist dazugekommen: `applyPatch` und
@@ -75,7 +76,13 @@ import { registriereWirtMelder, setzeWirtFaehigkeiten } from './wirt';
  * seinen eigenen Dialog — siehe `lib/wirt.ts`. Ohne Meldung zeigt CAD Light
  * seinen eigenen Dialog (`lib/scanDienst.ts`). Reiner Zuwachs.
  */
-export const EMBED_API_VERSION = '1.9.0';
+/*
+ * 1.10.0 — `createRoom`: legt einen Raum aus der Raumliste des Wirts an
+ * (`{ name, usage?, areaHint? }` → `{ ok, roomId?, area?, message? }`),
+ * siehe `lib/hostRaum.ts`. RaVia schickte den Befehl schon, die Brücke
+ * kannte ihn nicht. Reiner Zuwachs.
+ */
+export const EMBED_API_VERSION = '1.10.0';
 
 /** Kurzfassung des Modells — das, was eine Gegenstelle meistens wissen will. */
 export interface RaviaSummary {
@@ -119,6 +126,11 @@ export interface RaviaCadApi {
    * an keinen gezeichneten Raum hängen.
    */
   reportDiscardedRooms(antwort: unknown): { hinweise: number; ohneRaum: number; message: string };
+  /**
+   * Einen Raum aus der Raumliste des Wirts anlegen (seit 1.10.0). Die Lage
+   * bestimmt CAD Light, siehe `lib/hostRaum.ts`.
+   */
+  createRoom(anfrage: unknown): CreateRoomResult;
   /**
    * Fachdaten zurückschreiben — Solltemperaturen, Luftwechsel, U-Werte,
    * Norm-Heizlasten, Randbedingungen des Projekts.
@@ -230,6 +242,7 @@ interface StoreLike {
     loadBuilding: RaviaCadApi['loadBuilding'];
     applyHostPatch: (patch: HostPatch) => HostPatchReport;
     meldeVerworfeneRaeume: RaviaCadApi['reportDiscardedRooms'];
+    addRoomTemplate: RaumVorlageAnlegen;
   };
   subscribe: (
     listener: (
@@ -364,6 +377,8 @@ export function installEmbedApi(
     validate: () => validateModel(store.getState().doc),
     getDocument: () => store.getState().doc,
     reportDiscardedRooms: (antwort) => store.getState().meldeVerworfeneRaeume(antwort),
+    createRoom: (anfrage) =>
+      createRoom(() => store.getState().doc, (...a) => store.getState().addRoomTemplate(...a), anfrage),
     loadProject: (data) => store.getState().loadProject(data),
     loadIfc: (text) => store.getState().loadIfc(text),
     loadBuilding: (data, optionen) => store.getState().loadBuilding(data, optionen),
@@ -427,6 +442,9 @@ export function installEmbedApi(
         break;
       case 'reportDiscardedRooms':
         reply(event, 'discardedRoomsReported', data.id, api.reportDiscardedRooms(data.payload));
+        break;
+      case 'createRoom':
+        reply(event, 'roomCreated', data.id, api.createRoom(data.payload));
         break;
       case 'getIfc':
         reply(event, 'ifc', data.id, api.getIfc());
