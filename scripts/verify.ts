@@ -5,6 +5,7 @@
  */
 
 import { unbeheizteTemperatur } from '../src/lib/unbeheizt';
+import { leistungsQuelle } from '../src/lib/buildingModelImport';
 import { pruefeGegenSchema } from './vertrag/pruefeSchema';
 import { readFileSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
@@ -4114,6 +4115,16 @@ console.log('\n▸ Exportvertrag — jeder gebaute Export gegen ravia-vertrag/sc
   for (const [m, n] of [...meldungen].slice(0, 80)) console.log(`      ${m} (${n}×)`);
   check('Prüfläufe haben Exporte gebaut', gebauteExporte.length > 20, true);
   check(`Alle ${gebauteExporte.length} Exporte schemagültig`, ungueltig, 0);
+}
+
+console.log('\n▸ Scan-Import: Leistungsquelle (B4)');
+{
+  check('catalog aus der Scan-App wird katalog', leistungsQuelle('catalog'), 'katalog');
+  check('nameplate wird typenschild', leistungsQuelle('nameplate'), 'typenschild');
+  check('estimate wird schaetzung', leistungsQuelle('estimate'), 'schaetzung');
+  check('deutscher Wert bleibt', leistungsQuelle('typenschild'), 'typenschild');
+  check('unbekannt fällt auf datenblatt', leistungsQuelle('irgendwas'), 'datenblatt');
+  check('fehlend fällt auf datenblatt', leistungsQuelle(undefined), 'datenblatt');
 }
 
 console.log('\n▸ Mit RaVia Scan scannen — QR-Code, Abfrage, Rücksprung');
