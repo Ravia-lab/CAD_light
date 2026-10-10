@@ -716,6 +716,26 @@ export function importBuildingModel(data: unknown): BuildingImportErgebnis {
   }
 
   /*
+   * B12 (Modellbrüche, docs/models/README.md in RaVia): Ein Dach mit
+   * `kind: unknown` (oder ohne Neigung) legt der Import nicht an. Still
+   * fehlende Dachflächen sieht man dem Plan nicht an; deshalb ein Hinweis,
+   * der sagt, wo von Hand nachzutragen ist.
+   */
+  const ohneDach = levels.filter((l) => {
+    const roh = rbmLevels.find((x) => x?.id === l.id);
+    return !!roh?.roof && !daecher[l.id];
+  });
+  if (ohneDach.length) {
+    pruefhinweise.push({
+      text:
+        `Dachform im Scan nicht erkannt — für ${ohneDach.map((l) => l.name).join(', ')} wurde kein Dach angelegt. ` +
+        'Dachform und Neigung von Hand eintragen, sonst fehlen die Dachflächen im Plan.',
+      schwere: 'warning',
+      code: 'import.dachUnbekannt',
+    });
+  }
+
+  /*
    * Die Herkunft der Dachmaße steht seit Schema 1.10.0 in `roof.source`. Der
    * Feldscan vom 02.10.2026 hat das Feld nicht — sagt es aber in der
    * Prüfliste: „roof.notAimed" heißt, Kniestock und First sind geschätzt.
