@@ -273,7 +273,11 @@ const round2 = (v: number): number => Math.round(v * 100) / 100;
 export function parseHerkunftListe(text: string | undefined | null): string[] | null {
   const liste = String(text ?? '')
     .split(',')
-    .map((h) => h.trim().replace(/\/+$/, ''))
+    .map((h) => {
+      let t = h.trim();
+      while (t.endsWith('/')) t = t.slice(0, -1);
+      return t;
+    })
     .filter(Boolean);
   return liste.length ? liste : null;
 }
