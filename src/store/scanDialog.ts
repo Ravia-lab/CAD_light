@@ -7,8 +7,17 @@
  * Einführung und der Rücksprung aus der App mit `?scan=…`.
  */
 
+import { useSyncExternalStore } from 'react';
 import { create } from 'zustand';
-import { scanBeimWirtAnfordern } from '../lib/wirt';
+import { abonniereWirt } from '../lib/wirt';
+import { SCAN_DIENST_AKTIV, scanVerfuegbar, scanWeg } from '../lib/scanZugang';
+
+export { SCAN_DIENST_AKTIV };
+
+/** Wie `scanVerfuegbar`, aber neu gerendert, wenn der Wirt seine Fähigkeit meldet. */
+export function useScanVerfuegbar(): boolean {
+  return useSyncExternalStore(abonniereWirt, () => scanVerfuegbar());
+}
 
 interface ScanDialogZustand {
   offen: boolean;
@@ -30,13 +39,12 @@ export const useScanDialog = create<ScanDialogZustand>((set) => ({
 
 /**
  * Den Scan anstoßen. Eingebettet in einen Wirt, der den Scan selbst kann,
- * geht die Anforderung an ihn; sonst öffnet der eigene Dialog.
+ * geht die Anforderung an ihn; sonst öffnet der eigene Dialog, falls der
+ * Scan-Dienst eingeschaltet ist. Sonst passiert nichts (`'aus'`).
  */
-export function scanStarten(): 'wirt' | 'eigen' {
-  if (scanBeimWirtAnfordern()) {
-    useScanDialog.setState({ offen: true, sitzungId: null, beimWirt: true });
-    return 'wirt';
-  }
-  useScanDialog.getState().oeffnen(null);
-  return 'eigen';
+export function scanStarten(dienstAktiv: boolean = SCAN_DIENST_AKTIV): 'wirt' | 'eigen' | 'aus' {
+  const weg = scanWeg(dienstAktiv);
+  if (weg === 'wirt') useScanDialog.setState({ offen: true, sitzungId: null, beimWirt: true });
+  if (weg === 'eigen') useScanDialog.getState().oeffnen(null);
+  return weg;
 }

@@ -17,6 +17,9 @@
  *      schreibt `?scan=` in die Adresse (damit B greift) und meldet nach
  *      2,5 s, wenn die App nicht aufging.
  *  D · Dienst fehlt (404 als Seite): ein Satz, der sagt, was stattdessen geht.
+ *
+ * Der QR-Weg ist seit TD-32 standardmäßig aus. Für diesen Test die Anwendung
+ * mit `VITE_SCAN_DIENST=1` bauen, sonst fehlt der Knopf „scan-starten".
  */
 import { chromium, devices } from 'playwright';
 import { readFileSync, writeFileSync, mkdtempSync } from 'node:fs';
