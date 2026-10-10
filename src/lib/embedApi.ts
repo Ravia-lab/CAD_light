@@ -265,10 +265,45 @@ export function buildSummary(doc: BimDocument): RaviaSummary {
 const round2 = (v: number): number => Math.round(v * 100) / 100;
 
 /**
+ * Liest die erlaubten Herkünfte für die Nachrichtenbrücke aus einer
+ * kommagetrennten Liste (`VITE_EMBED_HERKUNFT`, z. B.
+ * `https://app.example.de,https://test.example.de`). Leer oder nicht gesetzt
+ * ergibt `null`: keine Einschränkung, wie bis 1.x.
+ */
+export function parseHerkunftListe(text: string | undefined | null): string[] | null {
+  const liste = String(text ?? '')
+    .split(',')
+    .map((h) => h.trim().replace(/\/+$/, ''))
+    .filter(Boolean);
+  return liste.length ? liste : null;
+}
+
+/**
+ * Darf eine Nachricht dieser Herkunft Befehle geben?
+ *
+ * Ohne Liste antwortet die Brücke jedem Fenster — jede fremde Seite, die
+ * CAD Light einbettet, könnte dann Modelle laden, lesen und patchen. Mit
+ * Liste zählt nur ein exakter Treffer; `null` (Datei, Sandbox) nie.
+ */
+export function herkunftErlaubt(origin: string, erlaubt: readonly string[] | null): boolean {
+  if (!erlaubt) return true;
+  if (!origin || origin === 'null') return false;
+  return erlaubt.includes(origin);
+}
+
+/**
  * Hängt die Schnittstelle an das Fenster und richtet die Nachrichtenbrücke
  * ein. Liefert eine Abbaufunktion — im Test wichtig, im Betrieb nie nötig.
+ *
+ * `erlaubteHerkunft` begrenzt, welche Fenster über `postMessage` Befehle
+ * geben dürfen (siehe `herkunftErlaubt`). Nachrichten anderer Herkunft
+ * bleiben unbeantwortet.
  */
-export function installEmbedApi(store: StoreLike, target: Window = window): () => void {
+export function installEmbedApi(
+  store: StoreLike,
+  target: Window = window,
+  erlaubteHerkunft: readonly string[] | null = null,
+): () => void {
   const listeners = new Set<(summary: RaviaSummary) => void>();
   let debounce: ReturnType<typeof setTimeout> | undefined;
 
@@ -363,6 +398,7 @@ export function installEmbedApi(store: StoreLike, target: Window = window): () =
   const onMessage = (event: MessageEvent) => {
     const data = event.data as { channel?: string; type?: string; id?: unknown; payload?: unknown };
     if (!data || data.channel !== 'ravia-cad' || typeof data.type !== 'string') return;
+    if (!herkunftErlaubt(event.origin, erlaubteHerkunft)) return;
 
     switch (data.type) {
       case 'ping':

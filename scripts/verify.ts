@@ -34,7 +34,7 @@ import { diffExports, isRaviaExport } from '../src/lib/exportDiff';
 import { buildIfc } from '../src/lib/ifcExport';
 import { importIfc, parseStep, type StepValue } from '../src/lib/ifcImport';
 import { stairPath, stairRunLength } from '../src/lib/verticalSymbols';
-import { buildSummary } from '../src/lib/embedApi';
+import { buildSummary, herkunftErlaubt, installEmbedApi, parseHerkunftListe } from '../src/lib/embedApi';
 import { bridgeLengths, documentBridgeHeatLoss, envelopeArea, roomBridgeHeatLoss, roomThermalBridges } from '../src/lib/thermalBridges';
 import { buildPipeNetwork } from '../src/lib/pipeNetwork';
 import {
@@ -4114,6 +4114,37 @@ console.log('\n▸ Exportvertrag — jeder gebaute Export gegen ravia-vertrag/sc
   for (const [m, n] of [...meldungen].slice(0, 80)) console.log(`      ${m} (${n}×)`);
   check('Prüfläufe haben Exporte gebaut', gebauteExporte.length > 20, true);
   check(`Alle ${gebauteExporte.length} Exporte schemagültig`, ungueltig, 0);
+}
+
+console.log('\n▸ Einbettung: erlaubte Herkunft der Nachrichtenbrücke (R-12)');
+{
+  check('Leere Liste = keine Einschränkung', parseHerkunftListe('') === null, true);
+  check('Liste wird getrennt, Schrägstrich entfernt',
+    JSON.stringify(parseHerkunftListe(' https://a.example/ , https://b.example ')),
+    JSON.stringify(['https://a.example', 'https://b.example']));
+  const liste = ['https://a.example'];
+  check('Ohne Liste ist jede Herkunft erlaubt', herkunftErlaubt('https://x.example', null), true);
+  check('Erlaubte Herkunft', herkunftErlaubt('https://a.example', liste), true);
+  check('Fremde Herkunft abgewiesen', herkunftErlaubt('https://x.example', liste), false);
+  check('Herkunft "null" abgewiesen', herkunftErlaubt('null', liste), false);
+
+  // Durch die echte Brücke: ein ping aus fremder Herkunft bleibt unbeantwortet.
+  let handler: ((e: MessageEvent) => void) | undefined;
+  const fenster = {
+    addEventListener: (_t: string, h: (e: MessageEvent) => void) => { handler = h; },
+    removeEventListener: () => {},
+  } as unknown as Window;
+  const fakeStore = { getState: () => ({}), subscribe: () => () => {} } as unknown as Parameters<typeof installEmbedApi>[0];
+  const abbau = installEmbedApi(fakeStore, fenster, liste);
+  const antworten: string[] = [];
+  const absender = { postMessage: (m: { type: string }) => antworten.push(m.type) };
+  const sende = (origin: string) =>
+    handler?.({ data: { channel: 'ravia-cad', type: 'ping', id: 1 }, origin, source: absender } as unknown as MessageEvent);
+  sende('https://x.example');
+  check('Brücke: fremder ping ohne Antwort', antworten.length, 0);
+  sende('https://a.example');
+  check('Brücke: erlaubter ping bekommt pong', antworten.join(','), 'pong');
+  abbau();
 }
 
 console.log('\n▸ Mit RaVia Scan scannen — QR-Code, Abfrage, Rücksprung');
