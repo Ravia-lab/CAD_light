@@ -5,6 +5,7 @@
  */
 
 import { unbeheizteTemperatur } from '../src/lib/unbeheizt';
+import { leistungsQuelle } from '../src/lib/buildingModelImport';
 import { pruefeGegenSchema } from './vertrag/pruefeSchema';
 import { readFileSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
@@ -4145,6 +4146,16 @@ console.log('\n▸ Einbettung: erlaubte Herkunft der Nachrichtenbrücke (R-12)')
   sende('https://a.example');
   check('Brücke: erlaubter ping bekommt pong', antworten.join(','), 'pong');
   abbau();
+}
+
+console.log('\n▸ Scan-Import: Leistungsquelle (B4)');
+{
+  check('catalog aus der Scan-App wird katalog', leistungsQuelle('catalog'), 'katalog');
+  check('nameplate wird typenschild', leistungsQuelle('nameplate'), 'typenschild');
+  check('estimate wird schaetzung', leistungsQuelle('estimate'), 'schaetzung');
+  check('deutscher Wert bleibt', leistungsQuelle('typenschild'), 'typenschild');
+  check('unbekannt fällt auf datenblatt', leistungsQuelle('irgendwas'), 'datenblatt');
+  check('fehlend fällt auf datenblatt', leistungsQuelle(undefined), 'datenblatt');
 }
 
 console.log('\n▸ Mit RaVia Scan scannen — QR-Code, Abfrage, Rücksprung');
