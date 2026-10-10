@@ -39,7 +39,7 @@
 import type { BimDocument, ExportSurface, Room, RoomHeatLoad as NormRoomHeatLoad, VentilationRole } from '../types/bim';
 import { isMassiveArea } from './roomDetection';
 import { roomBridgeHeatLoss, roomThermalBridges } from './thermalBridges';
-import { raumFlaechen } from './raviaExport';
+import { raumFlaechen } from './raumExport';
 import { BAUTEIL_BEZEICHNUNG } from './uwert';
 
 /**
