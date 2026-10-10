@@ -58,6 +58,7 @@ import { pruefeRohrdaemmung } from './pruefungen/rohrdaemmung';
 import { pruefeRohrbezeichnung } from './pruefungen/rohrbezeichnung';
 import { pruefeWandhoehen } from './pruefungen/wandhoehen';
 import { pruefePlanLeeren } from './pruefungen/planleeren';
+import { pruefeHostRaum } from './pruefungen/hostraum';
 import { pruefeRingleitung } from './pruefungen/ringleitung';
 import { pruefeRaumnamenMitnehmen } from './pruefungen/raumnamenMitnehmen';
 import { pruefeRaumzuordnung } from './pruefungen/raumzuordnung';
@@ -3915,6 +3916,7 @@ pruefeWandhoehen(check);
 
 console.log('\n▸ Alles löschen — was weggeht, was bleibt, wo die Pumpe steht');
 pruefePlanLeeren(check);
+pruefeHostRaum(check);
 
 console.log('\n▸ Ringleitung — Wärmepumpe als Erzeuger, Badheizkörper, Raumnamen');
 pruefeRingleitung(check);
