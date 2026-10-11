@@ -27,10 +27,12 @@ import type { BimDocument, RaviaExport, ValidationReport } from '../types/bim';
 import { buildRaviaExport } from './raviaExport';
 import { buildIfc } from './ifcExport';
 import { validateModel } from './validation';
+import { estimateHeatLoad, type HeatLoadEstimate } from './heatLoadEstimate';
 import { writableFields } from './hostPatch';
 import type { HostPatch, HostPatchReport } from './hostPatch';
 import { geraetemerkmale, geraeteprofil, type Geraeteprofil } from './geraeteprofil';
 import { registriereWirtMelder, setzeWirtFaehigkeiten } from './wirt';
+import { createRoom, type CreateRoomResult, type RaumVorlageAnlegen } from './hostRaum';
 
 /**
  * 1.1.0 — der Rückweg ist dazugekommen: `applyPatch` und
@@ -75,7 +77,20 @@ import { registriereWirtMelder, setzeWirtFaehigkeiten } from './wirt';
  * seinen eigenen Dialog — siehe `lib/wirt.ts`. Ohne Meldung zeigt CAD Light
  * seinen eigenen Dialog (`lib/scanDienst.ts`). Reiner Zuwachs.
  */
-export const EMBED_API_VERSION = '1.9.0';
+/*
+ * 1.10.0 — `createRoom`: legt einen Raum aus der Raumliste des Wirts an
+ * (`{ name, usage?, areaHint? }` → `{ ok, roomId?, area?, message? }`),
+ * siehe `lib/hostRaum.ts`. RaVia schickte den Befehl schon, die Brücke
+ * kannte ihn nicht. Reiner Zuwachs.
+ */
+/*
+ * 1.11.0 — `getHeatLoadEstimate`: der Heizlast-Überschlag von CAD Light
+ * (`lib/heatLoadEstimate.ts`), raumweise und für das Gebäude, so wie ihn
+ * das Anlagenblatt zeigt. Damit kann der Wirt ihn neben seine
+ * Norm-Heizlast legen (TD-24, Prüflauf am Referenzhaus). Reiner Zuwachs,
+ * lesend.
+ */
+export const EMBED_API_VERSION = '1.11.0';
 
 /** Kurzfassung des Modells — das, was eine Gegenstelle meistens wissen will. */
 export interface RaviaSummary {
@@ -110,6 +125,12 @@ export interface RaviaCadApi {
   /** Rohdokument, nur lesend gedacht. */
   getDocument(): BimDocument;
   /**
+   * Heizlast-Überschlag (seit 1.11.0), dieselbe Rechnung wie im
+   * Anlagenblatt. Ausdrücklich keine Norm-Heizlast, siehe
+   * `lib/heatLoadEstimate.ts`.
+   */
+  getHeatLoadEstimate(): HeatLoadEstimate;
+  /**
    * Rückmeldung zum Übernahmelauf: Welche Räume hat die Gegenstelle
    * verworfen?
    *
@@ -119,6 +140,11 @@ export interface RaviaCadApi {
    * an keinen gezeichneten Raum hängen.
    */
   reportDiscardedRooms(antwort: unknown): { hinweise: number; ohneRaum: number; message: string };
+  /**
+   * Einen Raum aus der Raumliste des Wirts anlegen (seit 1.10.0). Die Lage
+   * bestimmt CAD Light, siehe `lib/hostRaum.ts`.
+   */
+  createRoom(anfrage: unknown): CreateRoomResult;
   /**
    * Fachdaten zurückschreiben — Solltemperaturen, Luftwechsel, U-Werte,
    * Norm-Heizlasten, Randbedingungen des Projekts.
@@ -230,6 +256,7 @@ interface StoreLike {
     loadBuilding: RaviaCadApi['loadBuilding'];
     applyHostPatch: (patch: HostPatch) => HostPatchReport;
     meldeVerworfeneRaeume: RaviaCadApi['reportDiscardedRooms'];
+    addRoomTemplate: RaumVorlageAnlegen;
   };
   subscribe: (
     listener: (
@@ -265,10 +292,49 @@ export function buildSummary(doc: BimDocument): RaviaSummary {
 const round2 = (v: number): number => Math.round(v * 100) / 100;
 
 /**
+ * Liest die erlaubten Herkünfte für die Nachrichtenbrücke aus einer
+ * kommagetrennten Liste (`VITE_EMBED_HERKUNFT`, z. B.
+ * `https://app.example.de,https://test.example.de`). Leer oder nicht gesetzt
+ * ergibt `null`: keine Einschränkung, wie bis 1.x.
+ */
+export function parseHerkunftListe(text: string | undefined | null): string[] | null {
+  const liste = String(text ?? '')
+    .split(',')
+    .map((h) => {
+      let t = h.trim();
+      while (t.endsWith('/')) t = t.slice(0, -1);
+      return t;
+    })
+    .filter(Boolean);
+  return liste.length ? liste : null;
+}
+
+/**
+ * Darf eine Nachricht dieser Herkunft Befehle geben?
+ *
+ * Ohne Liste antwortet die Brücke jedem Fenster — jede fremde Seite, die
+ * CAD Light einbettet, könnte dann Modelle laden, lesen und patchen. Mit
+ * Liste zählt nur ein exakter Treffer; `null` (Datei, Sandbox) nie.
+ */
+export function herkunftErlaubt(origin: string, erlaubt: readonly string[] | null): boolean {
+  if (!erlaubt) return true;
+  if (!origin || origin === 'null') return false;
+  return erlaubt.includes(origin);
+}
+
+/**
  * Hängt die Schnittstelle an das Fenster und richtet die Nachrichtenbrücke
  * ein. Liefert eine Abbaufunktion — im Test wichtig, im Betrieb nie nötig.
+ *
+ * `erlaubteHerkunft` begrenzt, welche Fenster über `postMessage` Befehle
+ * geben dürfen (siehe `herkunftErlaubt`). Nachrichten anderer Herkunft
+ * bleiben unbeantwortet.
  */
-export function installEmbedApi(store: StoreLike, target: Window = window): () => void {
+export function installEmbedApi(
+  store: StoreLike,
+  target: Window = window,
+  erlaubteHerkunft: readonly string[] | null = null,
+): () => void {
   const listeners = new Set<(summary: RaviaSummary) => void>();
   let debounce: ReturnType<typeof setTimeout> | undefined;
 
@@ -324,7 +390,10 @@ export function installEmbedApi(store: StoreLike, target: Window = window): () =
     getSummary: () => buildSummary(store.getState().doc),
     validate: () => validateModel(store.getState().doc),
     getDocument: () => store.getState().doc,
+    getHeatLoadEstimate: () => estimateHeatLoad(store.getState().doc),
     reportDiscardedRooms: (antwort) => store.getState().meldeVerworfeneRaeume(antwort),
+    createRoom: (anfrage) =>
+      createRoom(() => store.getState().doc, (...a) => store.getState().addRoomTemplate(...a), anfrage),
     loadProject: (data) => store.getState().loadProject(data),
     loadIfc: (text) => store.getState().loadIfc(text),
     loadBuilding: (data, optionen) => store.getState().loadBuilding(data, optionen),
@@ -363,6 +432,7 @@ export function installEmbedApi(store: StoreLike, target: Window = window): () =
   const onMessage = (event: MessageEvent) => {
     const data = event.data as { channel?: string; type?: string; id?: unknown; payload?: unknown };
     if (!data || data.channel !== 'ravia-cad' || typeof data.type !== 'string') return;
+    if (!herkunftErlaubt(event.origin, erlaubteHerkunft)) return;
 
     switch (data.type) {
       case 'ping':
@@ -385,8 +455,14 @@ export function installEmbedApi(store: StoreLike, target: Window = window): () =
       case 'getDocument':
         reply(event, 'document', data.id, api.getDocument());
         break;
+      case 'getHeatLoadEstimate':
+        reply(event, 'heatLoadEstimate', data.id, api.getHeatLoadEstimate());
+        break;
       case 'reportDiscardedRooms':
         reply(event, 'discardedRoomsReported', data.id, api.reportDiscardedRooms(data.payload));
+        break;
+      case 'createRoom':
+        reply(event, 'roomCreated', data.id, api.createRoom(data.payload));
         break;
       case 'getIfc':
         reply(event, 'ifc', data.id, api.getIfc());

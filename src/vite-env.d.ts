@@ -5,6 +5,10 @@ interface ImportMetaEnv {
   readonly VITE_VISION_PROVIDER?: string;
   /** Abweichender Endpunkt des serverseitigen Vision-Proxys. */
   readonly VITE_VISION_ENDPOINT?: string;
+  /** Kommagetrennte Herkünfte, die CAD Light eingebettet steuern dürfen. */
+  readonly VITE_EMBED_HERKUNFT?: string;
+  /** '1' schaltet den eigenen Scan-Dienst (QR-Weg) ein. Standard: aus. */
+  readonly VITE_SCAN_DIENST?: string;
 }
 
 interface ImportMeta {

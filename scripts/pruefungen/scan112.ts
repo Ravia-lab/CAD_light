@@ -73,6 +73,21 @@ export function pruefeScan112(check: CheckFn): void {
     kaputt.levels[0].roof.footprint.pop();
     check('H3 · Schema fängt einen Umriss mit 3 Punkten', pruefeGegenSchema(schema, kaputt).some((f) => f.includes('mindestens 4')), true);
   }
+  // --- Schema 1.13.0: Normleistung am Heizkörper (Festlegung F2) ----------
+  // Einziger Zuwachs gegenüber 1.12.0 (BuildingModel.swift, „seit 1.13.0“):
+  // emitters[].ratedPower, exponentN, ratedPowerSource.
+  {
+    const schema113 = JSON.parse(readFileSync(join(process.cwd(), 'ravia-vertrag', 'schema', 'ravia.building-1.13.0.schema.json'), 'utf8')) as Schema;
+    const neu = structuredClone(mitHk);
+    neu.schemaVersion = '1.13.0';
+    Object.assign(neu.emitters[0], { ratedPower: 1450, exponentN: 1.3, ratedPowerSource: 'catalog' });
+    check('Scan 1.13.0 · Fassung mit Normleistung gültig', pruefeGegenSchema(schema113, neu).join(' | '), '');
+    neu.emitters[0].ratedPower = -1;
+    check('Scan 1.13.0 · fängt negative Normleistung', pruefeGegenSchema(schema113, neu).some((f) => f.includes('Minimum')), true);
+    const alt = structuredClone(mitHk);
+    alt.schemaVersion = '1.13.0';
+    check('Scan 1.13.0 · ohne die neuen Felder gültig (additiv)', pruefeGegenSchema(schema113, alt).join(' | '), '');
+  }
 
   const { r, raeume, levels, z } = uebernimm(roh);
   check('H3 · Import gelingt', r.ok, true);

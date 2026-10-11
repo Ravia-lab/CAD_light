@@ -76,7 +76,7 @@ function massiveImGeschoss(doc: BimDocument, levelId: LevelId): SolidElement[] {
  */
 export function sammleVerlegekurven(doc: BimDocument, levelId: LevelId): Verlegekurven[] {
   const fixtures = Object.values(doc.fixtures).filter((f) => f.levelId === levelId);
-  const verteiler = fixtures.find((f) => f.type === 'manifold');
+  const alleVerteiler = fixtures.filter((f) => f.type === 'manifold');
   const massiv = massiveImGeschoss(doc, levelId);
   const out: Verlegekurven[] = [];
 
@@ -92,6 +92,11 @@ export function sammleVerlegekurven(doc: BimDocument, levelId: LevelId): Verlege
       .filter((s) => pointInPolygon(s.position, room.innerPolygon))
       .map((s) => solidFootprint(s));
 
+    // Eingetragener Verteiler, sonst der erste im Geschoss — dieselbe Regel
+    // wie Rohrplan (`pipeLayout.ts`, `verteilerVon`), Netz-Export und RaVia
+    // (Festlegung vom 11.10.2026). Bis dahin galt hier immer der erste.
+    const verteiler =
+      alleVerteiler.find((v) => v.id === f.params.manifoldId) ?? alleVerteiler[0];
     out.push({
       fixture: f,
       layout: planFloorLoops(room.innerPolygon, {

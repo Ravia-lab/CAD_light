@@ -42,7 +42,7 @@ import ToolRail, { TopBar } from './components/Toolbar';
 import ProjektDialog from './components/ProjektDialog';
 import ScanDialog from './components/ScanDialog';
 import KorrekturDialog from './components/KorrekturDialog';
-import { scanStarten, useScanDialog } from './store/scanDialog';
+import { SCAN_DIENST_AKTIV, scanStarten, useScanDialog, useScanVerfuegbar } from './store/scanDialog';
 import { sitzungAusUrl } from './lib/scanDienst';
 import Pruefansicht from './components/Pruefansicht';
 import { geraeteprofil, geraetemerkmale } from './lib/geraeteprofil';
@@ -172,7 +172,8 @@ export default function App() {
      * als Geschoss dazukommt. Eine Rückfrage „Stand fortsetzen?" davor
      * stünde über dem Scan-Dialog und hielte die Übernahme auf.
      */
-    const scanSitzung = sitzungAusUrl(window.location.href);
+    // Ohne Scan-Dienst gibt es keine Sitzung, die sich wieder aufnehmen ließe.
+    const scanSitzung = SCAN_DIENST_AKTIV ? sitzungAusUrl(window.location.href) : null;
     if (scanSitzung) {
       if (entry) {
         replaceDocument(entry.doc, `Letzter Stand von ${relativeTime(entry.savedAt)} wiederhergestellt`);
@@ -706,6 +707,7 @@ function Einfuehrung({
   onChoose: (dann: 'assistent' | 'skizze' | 'demo' | 'leer' | 'bild' | 'scan', rolle: UiModus) => void;
 }) {
   const [rolle, setRolle] = useState<UiModus | null>(null);
+  const scanMoeglich = useScanVerfuegbar();
 
   return (
     <div className="absolute inset-0 z-40 flex items-center justify-center bg-graphite-950/80 backdrop-blur-sm">
@@ -792,16 +794,18 @@ function Einfuehrung({
                 </div>
               </button>
             </div>
-            <button
-              className="mt-2 w-full rounded-lg bg-accent/12 px-3 py-2.5 text-left transition hover:bg-accent/20"
-              data-pruef="start-scan"
-              onClick={() => onChoose('scan', rolle)}
-            >
-              <div className="text-[12px] text-accent">Mit RaVia Scan scannen</div>
-              <div className="mt-0.5 text-[10px] leading-snug text-slate-500">
-                iPhone oder iPad mit LiDAR: QR-Code scannen, Räume ablaufen — der Grundriss kommt von selbst hierher.
-              </div>
-            </button>
+            {scanMoeglich && (
+              <button
+                className="mt-2 w-full rounded-lg bg-accent/12 px-3 py-2.5 text-left transition hover:bg-accent/20"
+                data-pruef="start-scan"
+                onClick={() => onChoose('scan', rolle)}
+              >
+                <div className="text-[12px] text-accent">Mit RaVia Scan scannen</div>
+                <div className="mt-0.5 text-[10px] leading-snug text-slate-500">
+                  iPhone oder iPad mit LiDAR: QR-Code scannen, Räume ablaufen — der Grundriss kommt von selbst hierher.
+                </div>
+              </button>
+            )}
             <div className="mt-2 grid grid-cols-3 gap-2">
               <button
                 className="rounded-lg bg-accent/12 px-3 py-2.5 text-left transition hover:bg-accent/20"

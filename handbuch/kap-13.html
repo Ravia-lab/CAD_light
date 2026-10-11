@@ -308,7 +308,7 @@ pauschal ohne Nachweis: 0,10 × 109,44 = 10,94 W/K</p>
 <thead><tr><th>Randbedingung</th><th>Angesetzte Temperatur</th></tr></thead>
 <tbody>
 <tr><td>Außenluft</td><td>Norm-Außentemperatur des Projekts, z. B. −12 °C</td></tr>
-<tr><td>Erdreich</td><td>Erdreichtemperatur des Projekts, üblich 10 °C</td></tr>
+<tr><td>Erdreich</td><td>Seit 11.10.2026 wie RaVia: ΔT = f<sub>g1</sub> · G<sub>w</sub> · (θ<sub>i</sub> − θ<sub>m,e</sub>) mit f<sub>g1</sub> = 1,45, G<sub>w</sub> = 1,0 und θ<sub>m,e</sub> = 9,5 °C; bei 20 °C innen also 15,2 K</td></tr>
 <tr><td>Unbeheizt</td><td>Temperatur unbeheizter Bereiche des Projekts, üblich 10 °C — auch für die Wand zu einem Nachbarraum, der als unbeheizt geführt ist (Treppenhaus, Schacht, Abstellraum)</td></tr>
 <tr><td>Dachraum</td><td>Oberste Decke gegen unbeheizten Dachraum: θ = θ<sub>i</sub> − 0,9 · (θ<sub>i</sub> − θ<sub>e</sub>), bei 20/−12 °C also −8,8 °C; im Eigenschaftenfeld „θ Dachraum" überschreibbar (seit 1.72.0)</td></tr>
 <tr><td>Nachbarraum</td><td>Solltemperatur des angrenzenden Raums; ist keiner zugeordnet, die Raum-Solltemperatur des Projekts</td></tr>
@@ -317,7 +317,7 @@ pauschal ohne Nachweis: 0,10 × 109,44 = 10,94 W/K</p>
 
 <p>Zwei Feinheiten, die im Bestand über die halbe Heizlast entscheiden:</p>
 
-<p><b>Die Geländeoberkante teilt die Wand.</b> Eine Kellerwand steht nicht ganz im Erdreich und nicht ganz in der Luft. Das Programm bestimmt aus der Höhenlage des Geschosses und der Geländeoberkante, welcher Teil der Außenwand gegen Erdreich grenzt, und rechnet die beiden Teile getrennt. Das ist kein Feinschliff: Bei −12 °C außen, 10 °C im Erdreich und 20 °C innen steht über dem freien Teil ein Unterschied von 32 K, über dem eingegrabenen einer von 10 K — nicht einmal ein Drittel. Ohne diese Unterscheidung zeigt das Anlagenblatt bei einem Keller das Dreifache.</p>
+<p><b>Die Geländeoberkante teilt die Wand.</b> Eine Kellerwand steht nicht ganz im Erdreich und nicht ganz in der Luft. Das Programm bestimmt aus der Höhenlage des Geschosses und der Geländeoberkante, welcher Teil der Außenwand gegen Erdreich grenzt, und rechnet die beiden Teile getrennt. Das ist kein Feinschliff: Bei −12 °C außen und 20 °C innen steht über dem freien Teil ein Unterschied von 32 K, über dem eingegrabenen nach der RaVia-Pauschale 1,45 · (20 − 9,5) = 15,2 K — knapp die Hälfte. Ohne diese Unterscheidung zeigt das Anlagenblatt bei einem Keller das Dreifache.</p>
 
 <p><b>Der Dachraum ist kein Keller</b> (seit 1.72.0). Bis 1.71.0 rechnete die oberste Decke zum unbeheizten Dach mit derselben Temperatur wie der Keller, üblich 10 °C. Ein Dachboden liegt aber nicht im Erdreich: Für einen geschlossenen, undichten Dachraum nennt Recknagel (Jagnow/Wolff, Tafel 0-6) einen Temperatur-Korrekturfaktor b = 0,8 bis 0,9, für einen offenen 1,0. Gerechnet wird mit 0,9; an einem Bungalow von 1965 stieg der Überschlag damit von 9,3 auf 11,2 kW. Wer den Dachraum kennt — gedämmt, dicht —, trägt den Wert im Feld „θ Dachraum" ein. Und eine <b>Wand zu einem Nachbarraum, der als unbeheizt geführt ist</b>, verliert jetzt Wärme mit der Temperatur unbeheizter Bereiche; vorher stand der Nachbar mit seiner Solltemperatur in der Rechnung, und die Wand zum Treppenhaus eines Mehrfamilienhauses war verlustfrei.</p>
 
@@ -715,11 +715,11 @@ Spreizung 10 K → 78 l/h → 66 mbar</p>
   <dl class="zeichen">
     <dt>n</dt><dd>Anzahl Heizkreise [-]</dd>
     <dt>⌈ ⌉</dt><dd>Aufrundungszeichen: auf die nächste ganze Zahl nach oben</dd>
-    <dt>L<sub>max</sub></dt><dd>größte Kreislänge [m] — Vorgabe 100 m</dd>
+    <dt>L<sub>max</sub></dt><dd>größte Kreislänge [m] — Vorgabe 120 m</dd>
   </dl>
 </div>
 
-<p class="quelle">Die 100 m stammen aus den Verlegeanleitungen der Systemanbieter für das gängige Rohr 16 × 2 mm, <b>nicht aus einer Norm.</b> Der Wert hängt an der Nennweite — 17er tragen mehr, 20er noch mehr — und ist deshalb ein überschreibbarer Parameter. In der Auslegung begrenzt er nichts, er meldet nur; maßgebend ist der nachgerechnete Druckverlust. In der gelegten Verlegung dagegen werden seit 1.77.0 zu lange Kreise geteilt — dort ist die Anbindung gemessen statt mit 6 m angesetzt (<a href="#k8-5-6a">8.5.6</a>).</p>
+<p class="quelle">Die 120 m sind seit 11.10.2026 derselbe Wert wie in RaVia (vorher 100 m aus den Verlegeanleitungen der Systemanbieter für das Rohr 16 × 2 mm), <b>nicht aus einer Norm.</b> Der Wert hängt an der Nennweite — 17er tragen mehr, 20er noch mehr — und ist deshalb ein überschreibbarer Parameter. In der Auslegung begrenzt er nichts, er meldet nur; maßgebend ist der nachgerechnete Druckverlust. In der gelegten Verlegung dagegen werden seit 1.77.0 zu lange Kreise geteilt — dort ist die Anbindung gemessen statt mit 6 m angesetzt (<a href="#k8-5-6a">8.5.6</a>).</p>
 
 <h4 id="k13-6-5">13.6.5 Volumenstrom und Druckverlust im Kreis</h4>
 
@@ -732,7 +732,7 @@ Spreizung 10 K → 78 l/h → 66 mbar</p>
   <p class="math">Δp<sub>Kreis</sub> = Δp<sub>Rohr</sub> · 1,3</p>
 </div>
 
-<p class="quelle">Der Bogenzuschlag von 1,3 ist ein <b>Erfahrungswert des Programms, keine Norm.</b> Er steht dort, weil ein Schneckenkreis fast nur aus Bögen besteht und es unpraktikabel wäre, sie einzeln als Einzelwiderstände zu zählen. Auch der Höchstdruckverlust von 250 mbar je Kreis ist ein Erfahrungswert und im Programm überschreibbar.</p>
+<p class="quelle">Der Bogenzuschlag von 1,3 ist ein <b>Erfahrungswert des Programms, keine Norm.</b> Er steht dort, weil ein Schneckenkreis fast nur aus Bögen besteht und es unpraktikabel wäre, sie einzeln als Einzelwiderstände zu zählen. Der Höchstdruckverlust je Kreis ist seit 11.10.2026 wie in RaVia 350 mbar, die Grenze aus DIN EN 1264-3, Abschnitt 4.1 (vorher der Herstellerwert 250 mbar); er ist im Programm überschreibbar.</p>
 
 <h4 id="k13-6-6">13.6.6 Das vollständige Beispiel</h4>
 

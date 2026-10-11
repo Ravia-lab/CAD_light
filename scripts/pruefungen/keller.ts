@@ -46,7 +46,7 @@ import type {
 import { emptyPlant, emptySite } from '../../src/lib/plantDefaults';
 import { detectRooms, gradeSplit } from '../../src/lib/roomDetection';
 import { buildRaviaExport } from '../../src/lib/raviaExport';
-import { estimateHeatLoad } from '../../src/lib/heatLoadEstimate';
+import { erdreichDeltaT, estimateHeatLoad } from '../../src/lib/heatLoadEstimate';
 import { validateModel } from '../../src/lib/validation';
 
 // ---------------------------------------------------------------------------
@@ -432,15 +432,18 @@ export function pruefeKeller(check: CheckFn): void {
   // === 8 — Überschlägige Heizlast zieht mit ================================
   // Ein Geschoss, vier Wände, keine Öffnung. Transmission über die Wände:
   //   ganz frei:      50,60 m² × 0,30 × (20 + 12)              = 485,8 W
-  //   halb im Boden:  25,30 × 0,30 × 32 + 25,30 × 0,30 × 10    = 318,8 W
+  //   halb im Boden:  25,30 × 0,30 × 32 + 25,30 × 0,30 × 1,45 × (20 − 9,5)
+  //                                                             = 358,4 W
+  // Der erdberührte Teil rechnet seit 11.10.2026 wie RaVia mit
+  // f_g1 · G_w · (θ_i − θ_m,e) und nicht mehr mit der Erdreichtemperatur.
   // Der Boden liegt in beiden Fällen auf Erdreich und ändert sich nicht;
   // verglichen wird deshalb die Differenz, nicht der Absolutwert.
   const frei = estimateHeatLoad(baueHaus(undefined, [halbKeller])).rooms[0];
   const eingegraben = estimateHeatLoad(halb).rooms[0];
   const wandFrei = UMFANG * 2.3 * 0.3 * (THETA_I - THETA_E);
-  const wandHalb = ((UMFANG * 2.3) / 2) * 0.3 * (THETA_I - THETA_E) + ((UMFANG * 2.3) / 2) * 0.3 * (THETA_I - THETA_G);
+  const wandHalb = ((UMFANG * 2.3) / 2) * 0.3 * (THETA_I - THETA_E) + ((UMFANG * 2.3) / 2) * 0.3 * erdreichDeltaT(THETA_I);
   check(
-    'Der Überschlag rechnet den erdberührten Teil mit der Erdreichtemperatur',
+    'Der Überschlag rechnet den erdberührten Teil mit der RaVia-Pauschale',
     frei.transmission - eingegraben.transmission,
     Math.round(wandFrei) - Math.round(wandHalb),
     1.5,

@@ -39,7 +39,7 @@
 import type { BimDocument, ExportSurface, Room, RoomHeatLoad as NormRoomHeatLoad, VentilationRole } from '../types/bim';
 import { isMassiveArea } from './roomDetection';
 import { roomBridgeHeatLoss, roomThermalBridges } from './thermalBridges';
-import { raumFlaechen } from './raviaExport';
+import { raumFlaechen } from './raumExport';
 import { BAUTEIL_BEZEICHNUNG } from './uwert';
 
 /**
@@ -50,6 +50,22 @@ import { BAUTEIL_BEZEICHNUNG } from './uwert';
  * auf zwei Stellen gerundet.
  */
 export const AIR_CAPACITY = 0.34;
+
+/*
+ * Erdreich wie in RaVia (Festlegung vom 11.10.2026): ΔT = f_g1 · G_w ·
+ * (θ_i − θ_m,e) mit den Pauschalwerten aus `din/din_en12831.py`
+ * (θ_m,e = 9,5 °C, f_g1 = 1,45, G_w = 1,0). RaVia rechnet erdberührte
+ * Flächen aus CAD damit und übernimmt die Erdreichtemperatur des Projekts
+ * nicht; der Überschlag soll dasselbe Ergebnis zeigen. Bis dahin stand hier
+ * θ_i − θ_Erdreich mit der Projektangabe (ohne Angabe 10 °C).
+ */
+export const ERDREICH_THETA_M_E = 9.5;
+export const ERDREICH_F_G1 = 1.45;
+export const ERDREICH_G_W = 1.0;
+
+export function erdreichDeltaT(inside: number): number {
+  return ERDREICH_F_G1 * ERDREICH_G_W * (inside - ERDREICH_THETA_M_E);
+}
 
 /** Wärmeverlust eines Raums, aufgeschlüsselt. */
 export interface RoomHeatLoad {
@@ -234,10 +250,11 @@ function roomLoad(
    * Anlagenblatt eine andere Hülle als in der Übergabe.
    *
    * Hier bleibt nur die Rechnung: A · (U + ΔU_WB) · (θ_i − θ_Nachbar), ohne
-   * die Temperaturkorrekturfaktoren der Norm — die rechnet RaVia.
+   * die Temperaturkorrekturfaktoren der Norm — die rechnet RaVia. Ausnahme
+   * Erdreich: dort gilt dieselbe Pauschale wie in RaVia (`erdreichDeltaT`).
    */
   for (const f of flaechen) {
-    const dt = inside - f.neighbourTemperature;
+    const dt = f.boundary === 'ground' ? erdreichDeltaT(inside) : inside - f.neighbourTemperature;
     if (!(dt > 0)) continue;
     const tb = Number.isFinite(f.thermalBridgeSupplement) ? f.thermalBridgeSupplement : 0;
     if (f.uValueSource === 'annahme' && f.netArea > 1e-6) luecken.add(bauteilVon(f));

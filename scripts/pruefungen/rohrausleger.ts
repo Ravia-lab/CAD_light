@@ -1046,10 +1046,10 @@ export function pruefeRohrausleger(check: CheckFn): void {
     /*
      * Ohne Erzeuger davor versorgt **jeder** Verteiler seine eigenen Kreise.
      * Zwei Verteiler in Reihe zu hängen — die alte Behandlung — baut
-     * niemand. Zugeordnet wird nach Nähe: v-1 steht bei (0,60 | 0,60),
-     * v-2 bei (9,20 | 2,00). fbh-1 bei (9,20 | 0,60) ist 8,60 m von v-1 und
-     * 1,40 m von v-2 entfernt, fbh-2 bei (9,20 | 3,40) 8,99 m von v-1 und
-     * 1,40 m von v-2. Beide gehören also zu v-2.
+     * niemand. Ohne Zuordnung gilt seit 11.10.2026 wie in RaVia der erste
+     * Verteiler (bis dahin der nächstgelegene): v-1 steht bei (0,60 | 0,60),
+     * v-2 bei (9,20 | 2,00). fbh-1 bei (9,20 | 0,60) und fbh-2 bei
+     * (9,20 | 3,40) hängen also beide an v-1, obwohl v-2 näher steht.
      */
     const zweiVerteiler: BimDocument = {
       ...mitFbh,
@@ -1062,15 +1062,15 @@ export function pruefeRohrausleger(check: CheckFn): void {
     check('C · Beide Kreise weiter versorgt', zwei.served, 2);
     check(
       'C · Die Annahme wird gemeldet',
-      zwei.notes.some((n) => n.severity === 'warn' && /nächstgelegenen/.test(n.text)),
+      zwei.notes.some((n) => n.severity === 'warn' && /\*\*ersten\*\*/.test(n.text)),
       true,
     );
-    // Beide hängen am nahen Verteiler: die Trasse ist deutlich kürzer als
-    // die vom fernen aus.
-    check('C · Kurze Wege zum nahen Verteiler', zwei.routeLength < nurVerteiler.routeLength, true);
+    // Beide hängen am ersten Verteiler: die Trasse ist so lang wie mit
+    // diesem einen Verteiler allein.
+    check('C · Ohne Zuordnung gilt der erste Verteiler', zwei.routeLength, nurVerteiler.routeLength, 0.01);
     // Nur der Verteiler, an dem wirklich etwas hängt, bekommt eine
-    // Absperrung — an v-1 entsteht keine Leitung, weil beide Kreise näher
-    // an v-2 liegen. Verschwiegen wird das nicht.
+    // Absperrung — an v-2 entsteht keine Leitung, weil ohne Zuordnung
+    // beide Kreise an v-1 hängen. Verschwiegen wird das nicht.
     check('C · Nur der benutzte Verteiler bekommt eine Absperrung',
       zwei.accessories.filter((a) => a.kind === 'shutoff').length, 1);
     check(
@@ -1079,19 +1079,19 @@ export function pruefeRohrausleger(check: CheckFn): void {
       true,
     );
 
-    // Die ausdrückliche Zuordnung schlägt die Nähe: fbh-1 soll an v-1.
+    // Die ausdrückliche Zuordnung schlägt die Reihenfolge: fbh-1 soll an v-2.
     const zugeordnet: BimDocument = {
       ...zweiVerteiler,
       fixtures: {
         ...zweiVerteiler.fixtures,
         'fbh-1': {
           ...zweiVerteiler.fixtures['fbh-1'],
-          params: { ...zweiVerteiler.fixtures['fbh-1'].params, manifoldId: 'v-1' },
+          params: { ...zweiVerteiler.fixtures['fbh-1'].params, manifoldId: 'v-2' },
         },
       },
     };
     const mitZuordnung = planPipeNetwork(zugeordnet, { mode: 'neubau', levelId: 'eg' });
-    check('C · Mit Zuordnung wird der Weg wieder lang', mitZuordnung.routeLength > zwei.routeLength, true);
+    check('C · Mit Zuordnung zum nahen Verteiler wird der Weg kürzer', mitZuordnung.routeLength < zwei.routeLength, true);
     check(
       'C · Und nur noch der eine Kreis ist geraten',
       mitZuordnung.notes.some((n) => /^1 Heizfläche/.test(n.text)),

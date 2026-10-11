@@ -20,16 +20,36 @@ export interface WirtFaehigkeiten {
 
 let faehigkeiten: WirtFaehigkeiten = { scan: false };
 let melder: ((type: string, payload: unknown) => number) | null = null;
+const hoerer = new Set<() => void>();
+
+function melden(): void {
+  for (const fn of hoerer) fn();
+}
+
+/** Für die Oberfläche: Bescheid geben, wenn sich Fähigkeit oder Melder ändern. */
+export function abonniereWirt(fn: () => void): () => void {
+  hoerer.add(fn);
+  return () => {
+    hoerer.delete(fn);
+  };
+}
+
+/** Ob ein Wirt den Scan übernehmen kann (Fähigkeit gemeldet und Melder da). */
+export function wirtKannScannen(): boolean {
+  return faehigkeiten.scan && melder !== null;
+}
 
 export function setzeWirtFaehigkeiten(f: unknown): WirtFaehigkeiten {
   const o = (f ?? {}) as Record<string, unknown>;
   faehigkeiten = { scan: o.scan === true };
+  melden();
   return { ...faehigkeiten };
 }
 
 /** Die Einbettung hinterlegt hier, wie sie an die Wirte sendet (gibt die Zahl der Empfänger zurück). */
 export function registriereWirtMelder(fn: ((type: string, payload: unknown) => number) | null): void {
   melder = fn;
+  melden();
 }
 
 /**
@@ -46,4 +66,5 @@ export function scanBeimWirtAnfordern(): boolean {
 export function wirtZuruecksetzen(): void {
   faehigkeiten = { scan: false };
   melder = null;
+  melden();
 }

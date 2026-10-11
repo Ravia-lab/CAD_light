@@ -1680,6 +1680,7 @@ interface RaviaCadApi {
   getSummary(): RaviaSummary;               // Kurzfassung ohne die große Datenmenge
   validate(): ValidationReport;             // derselbe Bericht wie im Reiter „Prüfung"
   getDocument(): BimDocument;               // Rohdokument, nur lesend gedacht
+  getHeatLoadEstimate(): HeatLoadEstimate;  // Heizlast-Überschlag wie im Anlagenblatt (1.11.0)
   loadProject(data): { ok, message };       // Projektdatei laden
   loadIfc(text): { ok, message };           // IFC4-Datei laden
   loadBuilding(model, opt?): { ok, message }; // Gebäudescan aus RaVia Scan (1.3.0; opt.merge seit 1.4.0)
@@ -1702,7 +1703,7 @@ window.addEventListener('message', (e) => {
 });
 ```
 
-Befehle: `ping` · `getSummary` · `getExport` · `getIfc` · `validate` ·
+Befehle: `ping` · `getSummary` · `getExport` · `getIfc` · `getHeatLoadEstimate` · `validate` ·
 `loadProject` · `loadIfc` · `loadBuilding` · `applyPatch` · `getWritableFields` · `subscribe` ·
 `unsubscribe`. Nach `subscribe`
 kommt bei jeder Modelländerung ungefragt ein `changed` mit der Kurzfassung —

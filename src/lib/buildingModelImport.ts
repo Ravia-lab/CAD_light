@@ -66,6 +66,24 @@ export const BUILDING_FORMAT = 'ravia.building';
  * ist zunächst nur eine Datei. Ob das Schema mitgelesen werden kann, sagt
  * danach `importBuildingModel` — mit einer Meldung, die die Fassung nennt.
  */
+
+/**
+ * B4: Die Scan-App schreibt die Leistungsquelle englisch (`catalog`, siehe
+ * scan `APIModels.swift`), CAD Light kennt nur die deutschen Werte. Bisher
+ * wurde jeder unbekannte Wert stillschweigend zu `datenblatt`.
+ */
+const LEISTUNGSQUELLE_SYNONYME: Readonly<Record<string, RatedPowerSource>> = {
+  katalog: 'katalog', catalog: 'katalog',
+  typenschild: 'typenschild', nameplate: 'typenschild',
+  datenblatt: 'datenblatt', datasheet: 'datenblatt',
+  schaetzung: 'schaetzung', estimate: 'schaetzung', estimated: 'schaetzung',
+};
+
+export function leistungsQuelle(roh: unknown): RatedPowerSource {
+  const schluessel = typeof roh === 'string' ? roh.trim().toLowerCase() : '';
+  return LEISTUNGSQUELLE_SYNONYME[schluessel] ?? 'datenblatt';
+}
+
 export function istGebaeudescan(text: string): boolean {
   if (!text.trimStart().startsWith('{')) return false;
   return /"format"\s*:\s*"ravia\.building"/.test(text);
@@ -610,15 +628,9 @@ export function importBuildingModel(data: unknown): BuildingImportErgebnis {
         : e.kind === 'tube' ? 'Röhren'
           : e.kind === 'panel' && panelType ? panelType : undefined;
     // H1: Leistungsangaben nach Festlegung F2 übernehmen, nicht verwerfen.
-    const quellen: readonly RatedPowerSource[] = ['katalog', 'typenschild', 'datenblatt', 'schaetzung'];
     const leistung =
       zahl(e.ratedPower) && e.ratedPower! > 0
-        ? {
-            ratedPower: Math.round(e.ratedPower!),
-            ratedPowerSource: (quellen as readonly string[]).includes(e.ratedPowerSource ?? '')
-              ? (e.ratedPowerSource as RatedPowerSource)
-              : ('datenblatt' as const),
-          }
+        ? { ratedPower: Math.round(e.ratedPower!), ratedPowerSource: leistungsQuelle(e.ratedPowerSource) }
         : {};
     const exponent = zahl(e.exponentN) && e.exponentN! > 0 ? { exponentN: e.exponentN! } : {};
     const wand = e.wallId ? teilstueck(e.wallId, e.position) : null;
@@ -701,6 +713,26 @@ export function importBuildingModel(data: unknown): BuildingImportErgebnis {
     } else {
       pruefhinweise.push({ text: c.text.trim(), schwere: schwere(c.severity), code: String(c.code ?? '') });
     }
+  }
+
+  /*
+   * B12 (Modellbrüche, docs/models/README.md in RaVia): Ein Dach mit
+   * `kind: unknown` (oder ohne Neigung) legt der Import nicht an. Still
+   * fehlende Dachflächen sieht man dem Plan nicht an; deshalb ein Hinweis,
+   * der sagt, wo von Hand nachzutragen ist.
+   */
+  const ohneDach = levels.filter((l) => {
+    const roh = rbmLevels.find((x) => x?.id === l.id);
+    return !!roh?.roof && !daecher[l.id];
+  });
+  if (ohneDach.length) {
+    pruefhinweise.push({
+      text:
+        `Dachform im Scan nicht erkannt — für ${ohneDach.map((l) => l.name).join(', ')} wurde kein Dach angelegt. ` +
+        'Dachform und Neigung von Hand eintragen, sonst fehlen die Dachflächen im Plan.',
+      schwere: 'warning',
+      code: 'import.dachUnbekannt',
+    });
   }
 
   /*

@@ -38,7 +38,7 @@ import '@fontsource/jetbrains-mono/latin-400.css';
 import '@fontsource/jetbrains-mono/latin-500.css';
 import './index.css';
 import { useBimStore } from './store/useBimStore';
-import { installEmbedApi } from './lib/embedApi';
+import { installEmbedApi, parseHerkunftListe } from './lib/embedApi';
 import type { RaviaCadApi } from './lib/embedApi';
 
 /**
@@ -106,7 +106,7 @@ declare global {
 }
 
 window.__ravia = useBimStore;
-installEmbedApi(useBimStore);
+installEmbedApi(useBimStore, window, parseHerkunftListe(import.meta.env.VITE_EMBED_HERKUNFT));
 
 /**
  * Die Anwendung, an die Sprache gebunden.

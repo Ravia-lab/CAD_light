@@ -87,6 +87,21 @@ export function pruefeScanUebernahme(check: CheckFn): void {
   check('Import · drei Prüfpunkte ohne Ort', r.pruefhinweise.length, 3);
   check('Import · Prüfpunkt-Codes', r.pruefpunkte.map((p) => p.code).sort().join(','), 'room.noDoor,room.noEmitter');
 
+  check('Import · bekannte Dachform: kein Dach-Hinweis', r.pruefhinweise.some((h) => h.code === 'import.dachUnbekannt'), false);
+  {
+    // B12: kind „unknown" legt kein Dach an — das sagt jetzt ein Hinweis.
+    const unbekannt = importBuildingModel({
+      ...roh,
+      levels: roh.levels.map((l: { id: string; roof?: object }) =>
+        l.id === 'level-0' && l.roof ? { ...l, roof: { ...l.roof, kind: 'unknown' } } : l,
+      ),
+    });
+    check('Dach unbekannt · kein Dach angelegt', unbekannt.daecher['level-0'] === undefined, true);
+    const h = unbekannt.pruefhinweise.find((x) => x.code === 'import.dachUnbekannt');
+    check('Dach unbekannt · Hinweis vorhanden', !!h, true);
+    check('Dach unbekannt · als Warnung', h?.schwere ?? '', 'warning');
+  }
+
   const dach = r.daecher['level-0'];
   check('Dach · Satteldach', dach?.kind ?? '', 'gable');
   check('Dach · 36,2°', dach?.pitch ?? 0, 36.2, 1e-9);

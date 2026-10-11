@@ -390,11 +390,14 @@ const HEIZFLAECHEN = new Set<Fixture['type']>(['radiator', 'radiator-tube', 'tow
  * steht am Objekt, weil nur dort steht, was der Planer wirklich gemeint hat;
  * geraten wird erst, wenn sie fehlt.
  *
- * **Geraten wird auf den nächstgelegenen.** Das ist dieselbe Annahme, die
- * `pipeNetwork.ts` am gezeichneten Netz trifft (kürzester Weg von allen
- * Quellen zugleich), und sie ist die, die ein Installateur auch treffen
- * würde. Sie ist trotzdem eine Annahme — deshalb meldet der Aufrufer sie,
- * sobald es überhaupt etwas zu wählen gab.
+ * **Ohne Zuordnung gilt der erste Verteiler** — dieselbe Regel wie in RaVia
+ * (`rohrnetz/router.py`, `auto_route_pipes`), im Netz-Export
+ * (`netzExport.ts`) und bei den Verlegekurven (`fussbodenkurven.ts`).
+ * Festlegung vom 11.10.2026: RaVia gilt. Bis dahin wurde hier auf den
+ * nächstgelegenen geraten, und Rohrplan, Export und Verlegekurve konnten
+ * bei mehreren Verteilern ohne Zuordnung verschiedene Verteiler ansetzen.
+ * Es bleibt eine Annahme — deshalb meldet der Aufrufer sie, sobald es
+ * überhaupt etwas zu wählen gab.
  *
  * Bei genau einem Verteiler ist nichts geraten: es gibt keine Alternative.
  */
@@ -408,16 +411,8 @@ export function verteilerVon(
       : undefined;
   if (gesetzt) return { verteiler: gesetzt, geraten: false };
 
-  let naechster: Fixture | undefined;
-  let kuerzeste = Infinity;
-  for (const v of verteiler) {
-    const d = Math.hypot(v.position.x - heizflaeche.position.x, v.position.y - heizflaeche.position.y);
-    if (d < kuerzeste) {
-      kuerzeste = d;
-      naechster = v;
-    }
-  }
-  return naechster ? { verteiler: naechster, geraten: verteiler.length > 1 } : undefined;
+  const erster = verteiler[0];
+  return erster ? { verteiler: erster, geraten: verteiler.length > 1 } : undefined;
 }
 
 /**
@@ -829,7 +824,7 @@ export function planPipeNetwork(doc: BimDocument, options: PipeLayoutOptions): P
     notes.push({
       severity: 'warn',
       text:
-        `${geratene.length} Heizfläche(n) sind dem **nächstgelegenen** von ${verteiler.length} Verteilern zugeordnet — ` +
+        `${geratene.length} Heizfläche(n) sind dem **ersten** von ${verteiler.length} Verteilern zugeordnet — ` +
         'welcher wirklich gemeint ist, steht nicht im Modell. Am Objekt lässt sich der Verteiler ausdrücklich setzen.',
     });
   }

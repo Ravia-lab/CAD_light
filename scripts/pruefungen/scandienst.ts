@@ -42,8 +42,10 @@ import {
   registriereWirtMelder,
   scanBeimWirtAnfordern,
   setzeWirtFaehigkeiten,
+  wirtKannScannen,
   wirtZuruecksetzen,
 } from '../../src/lib/wirt';
+import { SCAN_DIENST_AKTIV, scanVerfuegbar, scanWeg } from '../../src/lib/scanZugang';
 import { readFileSync } from 'node:fs';
 
 const LINK = 'https://test.ravia-tech.de/scan/p/K7QX-M2PA-9RTF';
@@ -311,5 +313,29 @@ export async function pruefeScandienst(check: CheckFn): Promise<void> {
     check('Gegenprobe: Wirt meldet Fähigkeit, hört aber nicht zu → eigener Dialog', scanBeimWirtAnfordern(), false);
     check('Gegenprobe: „scan: 1" ist kein true', setzeWirtFaehigkeiten({ scan: 1 }).scan, false);
     wirtZuruecksetzen();
+  }
+
+  // =========================================================================
+  // 8 · Scan-Dienst abgeschaltet (TD-32): ohne Dienst und ohne Wirt kein Dialog
+  // =========================================================================
+  {
+    wirtZuruecksetzen();
+    check('Scan-Dienst ist ohne VITE_SCAN_DIENST aus', SCAN_DIENST_AKTIV, false);
+    check('Ohne Dienst und Wirt: kein Weg zum Scan', scanVerfuegbar(false), false);
+    check('Ohne Dienst und Wirt: Weg „aus" (kein Dialog)', scanWeg(false), 'aus');
+    check('Mit Dienst: eigener Dialog', scanWeg(true), 'eigen');
+    check('Mit Dienst ist der Scan verfügbar', scanVerfuegbar(true), true);
+    let gemeldet = 0;
+    registriereWirtMelder(() => {
+      gemeldet++;
+      return 1;
+    });
+    setzeWirtFaehigkeiten({ scan: true });
+    check('Wirt kann scannen', wirtKannScannen(), true);
+    check('Mit Wirt ist der Scan auch ohne Dienst da', scanVerfuegbar(false), true);
+    check('Mit Wirt und ohne Dienst: der Wirt übernimmt', scanWeg(false), 'wirt');
+    check('… und bekommt die Anforderung', gemeldet, 1);
+    wirtZuruecksetzen();
+    check('Gegenprobe: nach dem Zurücksetzen kein Wirt', wirtKannScannen(), false);
   }
 }
