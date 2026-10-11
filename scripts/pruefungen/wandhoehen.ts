@@ -129,7 +129,8 @@ export function pruefeWandhoehen(check: CheckFn): void {
     check('Die Brüstung wird nicht angefasst', b.aenderungen.length, 0);
     check('Sie steht als Ausnahme da', b.ausnahmen.length, 1);
     check('Mit dem richtigen Grund', b.ausnahmen[0]?.grund ?? '—', 'bruestung');
-    check('Die Grenze liegt bei 1,40 m', BRUESTUNGS_HOEHE, 1.4);
+    // Seit 11.10.2026 dieselbe Grenze wie roomDetection und der Scan-Import.
+    check('Die Grenze liegt bei 1,60 m', BRUESTUNGS_HOEHE, 1.6);
 
     // Gegenprobe: knapp darüber ist es eine Raumwand und wird angeglichen.
     const knapp = haus([2.5, BRUESTUNGS_HOEHE + 0.01, 2.5, 2.5]);

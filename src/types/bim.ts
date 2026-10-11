@@ -825,8 +825,9 @@ export interface FixtureParams {
    * **Wozu das Feld überhaupt da ist.** Bei einem Verteiler je Geschoss ist
    * die Frage beantwortet, bevor sie gestellt wird. Bei zweien nicht — und
    * die Trassierung hängte bis 1.30.0 stillschweigend alles an den ersten.
-   * Ohne Angabe wird jetzt der **nächstgelegene** genommen und die Annahme
-   * gemeldet; wer es besser weiß, trägt es hier ein.
+   * Ohne Angabe gilt der **erste** Verteiler des Geschosses, wie in RaVia
+   * (Festlegung vom 11.10.2026; von 1.30.0 bis dahin der nächstgelegene),
+   * und die Annahme wird gemeldet; wer es besser weiß, trägt es hier ein.
    *
    * Absichtlich keine Pflichtangabe: In den allermeisten Wohngebäuden gibt
    * es einen Verteiler je Geschoss, und ein Pflichtfeld, das fast immer

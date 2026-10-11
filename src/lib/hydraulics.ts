@@ -1678,14 +1678,21 @@ export const DEFAULT_FLOOR_HEAT_FLUX = 60;
  *     Spreizung 10 K →  78 l/h →   66 mbar
  *
  * Die Länge allein sagt also wenig — bei kleiner Spreizung reißt schon ein
- * 100-m-Kreis die üblichen 250 mbar, bei großer Spreizung wäre deutlich mehr
+ * 100-m-Kreis 250 mbar, bei großer Spreizung wäre deutlich mehr
  * möglich. Der Wert wird deshalb im Ergebnis **nachgerechnet** und nicht bloß
  * eingehalten: maßgebend ist `maxLoopPressure`, nicht die Länge.
  */
-export const DEFAULT_MAX_LOOP_LENGTH = 100;
+export const DEFAULT_MAX_LOOP_LENGTH = 120;
 
-/** Vorbelegter Höchstdruckverlust je Heizkreis [Pa] = 250 mbar. Erfahrungswert, keine Norm. */
-export const DEFAULT_MAX_LOOP_PRESSURE = 25000;
+/**
+ * Vorbelegter Höchstdruckverlust je Heizkreis [Pa] = 350 mbar.
+ *
+ * Seit der Festlegung vom 11.10.2026 gelten in CAD Light die Grenzwerte von
+ * RaVia (120 m und 350 mbar je Kreis, `rohrnetz/fussbodenheizung.py`). Die
+ * 350 mbar sind die Grenze aus DIN EN 1264-3, Abschnitt 4.1 (siehe
+ * `wissenKorpus.ts`); bis dahin stand hier der Herstellerwert 250 mbar.
+ */
+export const DEFAULT_MAX_LOOP_PRESSURE = 35000;
 
 export interface FloorHeatingOptions {
   /** Verlegeabstand [m]. Vorgabe 0,15 m. */
