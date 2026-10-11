@@ -27,6 +27,7 @@ import type { BimDocument, RaviaExport, ValidationReport } from '../types/bim';
 import { buildRaviaExport } from './raviaExport';
 import { buildIfc } from './ifcExport';
 import { validateModel } from './validation';
+import { estimateHeatLoad, type HeatLoadEstimate } from './heatLoadEstimate';
 import { writableFields } from './hostPatch';
 import type { HostPatch, HostPatchReport } from './hostPatch';
 import { geraetemerkmale, geraeteprofil, type Geraeteprofil } from './geraeteprofil';
@@ -82,7 +83,14 @@ import { createRoom, type CreateRoomResult, type RaumVorlageAnlegen } from './ho
  * siehe `lib/hostRaum.ts`. RaVia schickte den Befehl schon, die Brücke
  * kannte ihn nicht. Reiner Zuwachs.
  */
-export const EMBED_API_VERSION = '1.10.0';
+/*
+ * 1.11.0 — `getHeatLoadEstimate`: der Heizlast-Überschlag von CAD Light
+ * (`lib/heatLoadEstimate.ts`), raumweise und für das Gebäude, so wie ihn
+ * das Anlagenblatt zeigt. Damit kann der Wirt ihn neben seine
+ * Norm-Heizlast legen (TD-24, Prüflauf am Referenzhaus). Reiner Zuwachs,
+ * lesend.
+ */
+export const EMBED_API_VERSION = '1.11.0';
 
 /** Kurzfassung des Modells — das, was eine Gegenstelle meistens wissen will. */
 export interface RaviaSummary {
@@ -116,6 +124,12 @@ export interface RaviaCadApi {
   validate(): ValidationReport;
   /** Rohdokument, nur lesend gedacht. */
   getDocument(): BimDocument;
+  /**
+   * Heizlast-Überschlag (seit 1.11.0), dieselbe Rechnung wie im
+   * Anlagenblatt. Ausdrücklich keine Norm-Heizlast, siehe
+   * `lib/heatLoadEstimate.ts`.
+   */
+  getHeatLoadEstimate(): HeatLoadEstimate;
   /**
    * Rückmeldung zum Übernahmelauf: Welche Räume hat die Gegenstelle
    * verworfen?
@@ -376,6 +390,7 @@ export function installEmbedApi(
     getSummary: () => buildSummary(store.getState().doc),
     validate: () => validateModel(store.getState().doc),
     getDocument: () => store.getState().doc,
+    getHeatLoadEstimate: () => estimateHeatLoad(store.getState().doc),
     reportDiscardedRooms: (antwort) => store.getState().meldeVerworfeneRaeume(antwort),
     createRoom: (anfrage) =>
       createRoom(() => store.getState().doc, (...a) => store.getState().addRoomTemplate(...a), anfrage),
@@ -439,6 +454,9 @@ export function installEmbedApi(
        */
       case 'getDocument':
         reply(event, 'document', data.id, api.getDocument());
+        break;
+      case 'getHeatLoadEstimate':
+        reply(event, 'heatLoadEstimate', data.id, api.getHeatLoadEstimate());
         break;
       case 'reportDiscardedRooms':
         reply(event, 'discardedRoomsReported', data.id, api.reportDiscardedRooms(data.payload));
