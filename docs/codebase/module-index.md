@@ -1,10 +1,10 @@
 # Modulindex CAD Light
 
-Stand: 09.10.2026 · Quelle: CAD_light@55f5460 (Version 1.77.0) · automatisch aus den Quelltexten erzeugt (Regex über `export`/`import`), danach geprüft
+Stand: 11.10.2026 · Quelle: CAD_light@5200d65 (Version 1.78.0) · automatisch aus den Quelltexten erzeugt (Regex über `export`/`import`), danach geprüft
 
 Je Modul: Verantwortung (Kopfkommentar), exportierte Symbole, Abhängigkeiten (relative Importe) und Aufrufer (Module, die es importieren). Prüf- und Rauchskripte unter `scripts/` zählen als Aufrufer, sind aber getrennt ausgewiesen.
 
-### [`src/App.tsx`](../../src/App.tsx) · 844 Zeilen
+### [`src/App.tsx`](../../src/App.tsx) · 848 Zeilen
 
 **Verantwortung:** App — Layout-Shell im High-End-Dark-Theme. Aufbau: Kopfzeile · Werkzeugleiste links · Zeichenfläche(n) · Inspektor  
 **Abhängigkeiten:** `components/AnlagenPanel.tsx`, `components/AufmassPanel.tsx`, `components/AufnahmeAssistent.tsx`, `components/ConstructionPanel.tsx`, `components/Editor2D.tsx`, `components/ExportDiffPanel.tsx`, `components/GuidePanel.tsx`, `components/HeatPumpPanel.tsx`, `components/ImageUploader.tsx`, `components/KorrekturDialog.tsx`, `components/LayerPanel.tsx`, `components/ProjektDialog.tsx`, `components/PropertiesPanel.tsx`, `components/Pruefansicht.tsx`, `components/RaumnameFeld.tsx`, `components/RoofPanel.tsx`, `components/RoomBook.tsx`, `components/ScanDialog.tsx`, `components/SchemaView.tsx`, `components/SkizzenSeite.tsx`, `components/Skizzenblatt.tsx`, `components/StatusBar.tsx`, `components/TgaPalette.tsx`, `components/ThermalBridgePanel.tsx`, `components/Toolbar.tsx`, `components/ValidationPanel.tsx`, `components/VentilationPanel.tsx`, `lib/autosave.ts`, `lib/geraeteprofil.ts`, `lib/projectStore.ts`, `lib/scanDienst.ts`, `lib/uimodus.ts`, `store/scanDialog.ts`, `store/useBimStore.ts`  
@@ -283,7 +283,7 @@ Exportierte Funktionen/Konstanten: [`RoomBook`](../../src/components/RoomBook.ts
 
 Exportierte Funktionen/Konstanten: [`ScanDialog`](../../src/components/ScanDialog.tsx#L73)
 
-### [`src/components/ScanUebernahme.tsx`](../../src/components/ScanUebernahme.tsx) · 140 Zeilen
+### [`src/components/ScanUebernahme.tsx`](../../src/components/ScanUebernahme.tsx) · 143 Zeilen
 
 **Verantwortung:** Den LiDAR-Scan übernehmen — als Datei. **Warum es diesen Block gibt.** Ein Gebäudescan aus **RaVia Scan** (iPhone,  
 **Abhängigkeiten:** `store/scanDialog.ts`, `store/useBimStore.ts`  
@@ -395,7 +395,7 @@ Exportierte Funktionen/Konstanten: [`Viewer3D`](../../src/components/Viewer3D.ts
 
 **Verantwortung:** Aus sieben Antworten wird eine Anlage. **Was hier passiert.** Der Anwender sagt, was er baut — Bauart des  
 **Abhängigkeiten:** `types/bim.ts`  
-**Aufrufer:** `components/AnlagenDialog.tsx`, `components/AnlagenFragen.tsx`, `components/AnlagenPanel.tsx`, `lib/plantDesign.ts`, `store/useBimStore.ts`  
+**Aufrufer:** `components/AnlagenDialog.tsx`, `components/AnlagenFragen.tsx`, `components/AnlagenPanel.tsx`, `lib/plantDesign.ts`, `store/slices/anlage.ts`  
 **Aufrufer in scripts/:** 2
 
 Exportierte Funktionen/Konstanten: [`kaeltemittelImHaus`](../../src/lib/anlagenFragen.ts#L66), [`hatHeizstab`](../../src/lib/anlagenFragen.ts#L79), [`hatInneneinheit`](../../src/lib/anlagenFragen.ts#L84), [`heizstabImSpeicher`](../../src/lib/anlagenFragen.ts#L97), [`antwortenDes`](../../src/lib/anlagenFragen.ts#L118), [`kaeltemittelHinweis`](../../src/lib/anlagenFragen.ts#L142), [`anlageAusAntworten`](../../src/lib/anlagenFragen.ts#L193), [`abweichungen`](../../src/lib/anlagenFragen.ts#L335), [`antwortenAusAnlage`](../../src/lib/anlagenFragen.ts#L449)
@@ -440,7 +440,7 @@ Exportierte Funktionen/Konstanten: [`RAUMARTEN`](../../src/lib/aufnahme.ts#L55),
 
 **Verantwortung:** Auf welchem Geschoss ein Gerät des Außengeländes angefasst wird. **Das Problem, das dieses Modul löst.** Die Wärmepumpe liegt in  
 **Abhängigkeiten:** `types/bim.ts`  
-**Aufrufer:** `components/Editor2D.tsx`, `lib/gebaeudeNetz.ts`, `lib/pipeLayout.ts`, `store/useBimStore.ts`  
+**Aufrufer:** `components/Editor2D.tsx`, `lib/gebaeudeNetz.ts`, `lib/pipeLayout.ts`, `store/slices/ui.ts`  
 **Aufrufer in scripts/:** 2
 
 Exportierte Funktionen/Konstanten: [`aufstellgeschoss`](../../src/lib/aufstellgeschoss.ts#L40), [`stehtAufGeschoss`](../../src/lib/aufstellgeschoss.ts#L63), [`einfuehrungsgeschoss`](../../src/lib/aufstellgeschoss.ts#L87), [`fuehrtEinAufGeschoss`](../../src/lib/aufstellgeschoss.ts#L105)
@@ -458,7 +458,7 @@ Exportierte Funktionen/Konstanten: [`EMITTER_EXPONENT_ANNAHME`](../../src/lib/au
 
 **Verantwortung:** Außenwände — erkennen und auf das nächste Geschoss übernehmen. **Warum es diese Datei gibt.** Steht der erste Grundriss, ist die  
 **Abhängigkeiten:** `lib/roomDetection.ts`, `types/bim.ts`  
-**Aufrufer:** `components/LevelBar.tsx`, `store/useBimStore.ts`  
+**Aufrufer:** `components/LevelBar.tsx`, `store/slices/geschosse.ts`  
 **Aufrufer in scripts/:** 1
 
 Exportierte Funktionen/Konstanten: [`UEBERNAHME_TOLERANZ`](../../src/lib/aussenwand.ts#L66), [`aussenwaendeVon`](../../src/lib/aussenwand.ts#L112), [`planeUebernahme`](../../src/lib/aussenwand.ts#L219), [`uebernahmeSinnvoll`](../../src/lib/aussenwand.ts#L317)
@@ -476,7 +476,7 @@ Exportierte Funktionen/Konstanten: [`AUSWAHL_NAME`](../../src/lib/auswahlNamen.t
 
 **Verantwortung:** Grundriss prüfen und korrigieren — ein Durchlauf, der vorher fragt. Ein aufgemessener oder eingelesener Grundriss hat immer dieselbe Handvoll  
 **Abhängigkeiten:** `lib/begradigen.ts`, `lib/doppelwaende.ts`, `lib/geometry.ts`, `lib/leitungsbefund.ts`, `lib/luecken.ts`, `lib/roomDetection.ts`, `types/bim.ts`  
-**Aufrufer:** `components/KorrekturDialog.tsx`, `store/useBimStore.ts`  
+**Aufrufer:** `components/KorrekturDialog.tsx`, `store/bimZustand.ts`, `store/slices/laden.ts`  
 **Aufrufer in scripts/:** 2
 
 Exportierte Funktionen/Konstanten: [`ANSCHLUSS_TOLERANZ`](../../src/lib/autokorrektur.ts#L67), [`STUMMEL_LAENGE`](../../src/lib/autokorrektur.ts#L70)⁰, [`UEBERSTAND_LAENGE`](../../src/lib/autokorrektur.ts#L80)⁰, [`KLEINRAUM_FLAECHE`](../../src/lib/autokorrektur.ts#L83)⁰, [`findeAnschluesse`](../../src/lib/autokorrektur.ts#L288)⁰, [`findeStummel`](../../src/lib/autokorrektur.ts#L426)⁰, [`lueckenHinweis`](../../src/lib/autokorrektur.ts#L449)⁰, [`planeKorrektur`](../../src/lib/autokorrektur.ts#L456), [`kleineRaeume`](../../src/lib/autokorrektur.ts#L548), [`wendeKorrekturAn`](../../src/lib/autokorrektur.ts#L755), [`berichtSatz`](../../src/lib/autokorrektur.ts#L905)
@@ -512,7 +512,7 @@ Exportierte Funktionen/Konstanten: [`AUGENHOEHE`](../../src/lib/begehen.ts#L32),
 
 **Verantwortung:** Wände gerade ziehen. Ein aufgemessener Grundriss steht nie ganz gerade. Beim Raumscan sind es  
 **Abhängigkeiten:** `types/bim.ts`  
-**Aufrufer:** `components/AufmassPanel.tsx`, `components/GuidePanel.tsx`, `lib/autokorrektur.ts`, `store/useBimStore.ts`  
+**Aufrufer:** `components/AufmassPanel.tsx`, `components/GuidePanel.tsx`, `lib/autokorrektur.ts`, `store/bimZustand.ts`, `store/slices/laden.ts`  
 **Aufrufer in scripts/:** 2
 
 Exportierte Funktionen/Konstanten: [`achsAbweichung`](../../src/lib/begradigen.ts#L83), [`begradige`](../../src/lib/begradigen.ts#L115)
@@ -521,7 +521,7 @@ Exportierte Funktionen/Konstanten: [`achsAbweichung`](../../src/lib/begradigen.t
 
 **Verantwortung:** Beschriften in der begehbaren Ansicht. Wer im Haus steht und einen Heizkörper anschaut, will „2000 W" daneben  
 **Abhängigkeiten:** `lib/normleistung.ts`, `lib/rohrbezeichnung.ts`, `types/bim.ts`  
-**Aufrufer:** `components/PropertiesPanel.tsx`, `components/Viewer3D.tsx`, `lib/annotationSymbols.ts`, `lib/werkzeugkiste.ts`, `store/useBimStore.ts`  
+**Aufrufer:** `components/PropertiesPanel.tsx`, `components/Viewer3D.tsx`, `lib/annotationSymbols.ts`, `lib/werkzeugkiste.ts`, `store/slices/anlage.ts`  
 **Aufrufer in scripts/:** 1
 
 Exportierte Funktionen/Konstanten: [`hoehenText`](../../src/lib/beschriftung3d.ts#L65), [`beschriftungsVorschlaege`](../../src/lib/beschriftung3d.ts#L78), [`modellwert`](../../src/lib/beschriftung3d.ts#L165), [`beschriftungVeraltet`](../../src/lib/beschriftung3d.ts#L178), [`planText`](../../src/lib/beschriftung3d.ts#L191)
@@ -548,25 +548,25 @@ Exportierte Funktionen/Konstanten: [`gebaeudelast`](../../src/lib/bivalenz.ts#L6
 
 **Verantwortung:** Wärmedurchlasswiderstand üblicher Bodenbeläge. **Wozu die Liste.** Der Belagswiderstand R_λB ist einer der drei Eingänge  
 **Abhängigkeiten:** –  
-**Aufrufer:** `components/Editor2D.tsx`, `components/PropertiesPanel.tsx`, `components/Viewer3D.tsx`, `lib/materialSchedule.ts`, `store/useBimStore.ts`  
+**Aufrufer:** `components/Editor2D.tsx`, `components/PropertiesPanel.tsx`, `components/Viewer3D.tsx`, `lib/materialSchedule.ts`, `store/bimZustand.ts`  
 **Aufrufer in scripts/:** 1
 
 Exportierte Funktionen/Konstanten: [`BODENBELAEGE`](../../src/lib/bodenbelag.ts#L60), [`belagNach`](../../src/lib/bodenbelag.ts#L72), [`belagsWiderstand`](../../src/lib/bodenbelag.ts#L84), [`BELAG_WIDERSTAND`](../../src/lib/bodenbelag.ts#L89), [`BELAG_GRENZE`](../../src/lib/bodenbelag.ts#L98)
 
-### [`src/lib/buildingModelImport.ts`](../../src/lib/buildingModelImport.ts) · 788 Zeilen
+### [`src/lib/buildingModelImport.ts`](../../src/lib/buildingModelImport.ts) · 820 Zeilen
 
 **Verantwortung:** Import des „RaVia Building Model" (Format `ravia.building`, Schema 1.x). Das Gegenstück zur App **RaVia Scan**: Das iPhone scannt mit **LiDAR**  
 **Abhängigkeiten:** `lib/raumplanImport.ts`, `lib/uwert.ts`, `types/bim.ts`  
-**Aufrufer:** `components/Toolbar.tsx`, `lib/scanUebernahme.ts`, `store/useBimStore.ts`  
-**Aufrufer in scripts/:** 8
+**Aufrufer:** `components/Toolbar.tsx`, `lib/scanUebernahme.ts`, `store/bimZustand.ts`, `store/slices/laden.ts`  
+**Aufrufer in scripts/:** 9
 
-Exportierte Funktionen/Konstanten: [`BUILDING_FORMAT`](../../src/lib/buildingModelImport.ts#L54)⁰, [`istGebaeudescan`](../../src/lib/buildingModelImport.ts#L69), [`randAusScan`](../../src/lib/buildingModelImport.ts#L229), [`istBuildingModel`](../../src/lib/buildingModelImport.ts#L251), [`importBuildingModel`](../../src/lib/buildingModelImport.ts#L255)
+Exportierte Funktionen/Konstanten: [`BUILDING_FORMAT`](../../src/lib/buildingModelImport.ts#L54)⁰, [`leistungsQuelle`](../../src/lib/buildingModelImport.ts#L82), [`istGebaeudescan`](../../src/lib/buildingModelImport.ts#L87), [`randAusScan`](../../src/lib/buildingModelImport.ts#L247), [`istBuildingModel`](../../src/lib/buildingModelImport.ts#L269), [`importBuildingModel`](../../src/lib/buildingModelImport.ts#L273)
 
 ### [`src/lib/dachlandschaft.ts`](../../src/lib/dachlandschaft.ts) · 385 Zeilen
 
 **Verantwortung:** Mehrere Dächer über einem Geschoss — die Dachlandschaft. **Der Befund, auf den dieses Modul antwortet.** Bis 1.35.0 trug ein  
 **Abhängigkeiten:** `lib/geometry.ts`, `lib/roofGeometry.ts`, `lib/roomDetection.ts`, `types/bim.ts`  
-**Aufrufer:** `components/Editor2D.tsx`, `components/RoofPanel.tsx`, `components/Viewer3D.tsx`, `lib/ifcExport.ts`, `lib/raviaExport.ts`, `lib/spiegeln.ts`, `lib/thermalBridges.ts`, `lib/validation.ts`, `store/useBimStore.ts`  
+**Aufrufer:** `components/Editor2D.tsx`, `components/RoofPanel.tsx`, `components/Viewer3D.tsx`, `lib/dokumentPflege.ts`, `lib/ifcExport.ts`, `lib/raumExport.ts`, `lib/spiegeln.ts`, `lib/thermalBridges.ts`, `lib/validation.ts`, `store/slices/dach.ts`  
 **Aufrufer in scripts/:** 5
 
 Exportierte Funktionen/Konstanten: [`daecherVon`](../../src/lib/dachlandschaft.ts#L79), [`baueDachlandschaft`](../../src/lib/dachlandschaft.ts#L154), [`dachteilAn`](../../src/lib/dachlandschaft.ts#L214), [`frameAn`](../../src/lib/dachlandschaft.ts#L254), [`frameUeberWand`](../../src/lib/dachlandschaft.ts#L270), [`frameFuerRaum`](../../src/lib/dachlandschaft.ts#L296), [`raeumeOhneGeschossDarueber`](../../src/lib/dachlandschaft.ts#L321), [`raeumeMitGeschossDarueber`](../../src/lib/dachlandschaft.ts#L351), [`dachUeberRaum`](../../src/lib/dachlandschaft.ts#L381)
@@ -598,6 +598,15 @@ Exportierte Funktionen/Konstanten: [`REFRIGERANTS`](../../src/lib/deviceCatalog.
 
 Exportierte Funktionen/Konstanten: [`parseCsv`](../../src/lib/deviceImport.ts#L303), [`detectDecimalStyle`](../../src/lib/deviceImport.ts#L428), [`normalizeHeading`](../../src/lib/deviceImport.ts#L613)⁰, [`importDevicesFromCsv`](../../src/lib/deviceImport.ts#L2579)⁰, [`importDevicesFromJson`](../../src/lib/deviceImport.ts#L2682)⁰, [`importDevices`](../../src/lib/deviceImport.ts#L2761), [`mergeIntoCatalog`](../../src/lib/deviceImport.ts#L2814), [`buildCsvTemplate`](../../src/lib/deviceImport.ts#L2922)
 
+### [`src/lib/dokumentPflege.ts`](../../src/lib/dokumentPflege.ts) · 691 Zeilen
+
+**Verantwortung:** Dokumentpflege — die Fachfunktionen hinter dem Store. Aus `store/useBimStore.ts` herausgelöst (TD-22, erster Schritt): IDs,  
+**Abhängigkeiten:** `lib/dachlandschaft.ts`, `lib/doppelwaende.ts`, `lib/geometry.ts`, `lib/roofGeometry.ts`, `lib/roomDetection.ts`, `types/bim.ts`  
+**Aufrufer:** `store/bimZustand.ts`, `store/slices/anlage.ts`, `store/slices/bauteile.ts`, `store/slices/bauteilkatalog.ts`, `store/slices/einheiten.ts`, `store/slices/geschosse.ts`, `store/slices/gruppen.ts`, `store/slices/installation.ts`, `store/slices/laden.ts`, `store/slices/referenzbild.ts`, `store/slices/skizze.ts`, `store/useBimStore.ts`  
+**Aufrufer in scripts/:** 0
+
+Exportierte Funktionen/Konstanten: [`uid`](../../src/lib/dokumentPflege.ts#L36), [`cloneDoc`](../../src/lib/dokumentPflege.ts#L61), [`teileUnveraendertes`](../../src/lib/dokumentPflege.ts#L136), [`nodeAt`](../../src/lib/dokumentPflege.ts#L187), [`splitWallsAtNode`](../../src/lib/dokumentPflege.ts#L215), [`verschmelzeDoppelteWaende`](../../src/lib/dokumentPflege.ts#L269), [`pruneNodes`](../../src/lib/dokumentPflege.ts#L308), [`transferRoomProperties`](../../src/lib/dokumentPflege.ts#L334), [`recomputeRooms`](../../src/lib/dokumentPflege.ts#L501), [`massiveInRoom`](../../src/lib/dokumentPflege.ts#L659), [`dachGeruest`](../../src/lib/dokumentPflege.ts#L680)
+
 ### [`src/lib/domesticWater.ts`](../../src/lib/domesticWater.ts) · 1440 Zeilen
 
 **Verantwortung:** Trinkwassererwärmung und Trinkwasserinstallation. **Warum es dieses Modul gibt.**  
@@ -611,7 +620,7 @@ Exportierte Funktionen/Konstanten: [`HEAT_PER_LITRE_KELVIN`](../../src/lib/domes
 
 **Verantwortung:** Vor- und Rücklauf als ein Bauteil. **Was eine Doppelleitung ist.** Im Plan sind es zwei Linien, im Bau ist es  
 **Abhängigkeiten:** `types/bim.ts`  
-**Aufrufer:** `lib/pipeLayout.ts`, `store/useBimStore.ts`  
+**Aufrufer:** `lib/pipeLayout.ts`, `store/slices/anlage.ts`, `store/slices/gruppen.ts`, `store/slices/installation.ts`, `store/slices/laden.ts`  
 **Aufrufer in scripts/:** 1
 
 Exportierte Funktionen/Konstanten: [`PAARABSTAND`](../../src/lib/doppelleitung.ts#L29), [`versetzeQuer`](../../src/lib/doppelleitung.ts#L55), [`bildePaar`](../../src/lib/doppelleitung.ts#L111), [`partnerVon`](../../src/lib/doppelleitung.ts#L127)
@@ -620,7 +629,7 @@ Exportierte Funktionen/Konstanten: [`PAARABSTAND`](../../src/lib/doppelleitung.t
 
 **Verantwortung:** Doppelte Wände finden — zwei Kanten zwischen denselben beiden Knoten. **Woher sie kommen.** Beim Anlegen einer Raumvorlage wird erst der Ring  
 **Abhängigkeiten:** –  
-**Aufrufer:** `lib/autokorrektur.ts`, `store/useBimStore.ts`  
+**Aufrufer:** `lib/autokorrektur.ts`, `lib/dokumentPflege.ts`  
 **Aufrufer in scripts/:** 1
 
 Exportierte Funktionen/Konstanten: [`doppelteWaende`](../../src/lib/doppelwaende.ts#L71), [`gespiegelt`](../../src/lib/doppelwaende.ts#L95)
@@ -647,7 +656,7 @@ Exportierte Funktionen/Konstanten: [`RUND_SEGMENTE`](../../src/lib/durchbruchSym
 
 **Verantwortung:** Ebenen — was auf welcher liegt, was sichtbar ist, was gesperrt ist. **Die Ebene ist hier eine Eigenschaft des Bauteils, keine Ablage.** Ein  
 **Abhängigkeiten:** `types/bim.ts`  
-**Aufrufer:** `components/Editor2D.tsx`, `components/EntfernenKnopf.tsx`, `components/LayerPanel.tsx`, `components/PlanPrintDialog.tsx`, `components/Viewer3D.tsx`, `lib/planPrint.ts`, `store/useBimStore.ts`  
+**Aufrufer:** `components/Editor2D.tsx`, `components/EntfernenKnopf.tsx`, `components/LayerPanel.tsx`, `components/PlanPrintDialog.tsx`, `components/Viewer3D.tsx`, `lib/planPrint.ts`, `store/bimZustand.ts`, `store/slices/dach.ts`, `store/slices/gruppen.ts`, `store/slices/laden.ts`, `store/slices/ui.ts`  
 **Aufrufer in scripts/:** 1
 
 Exportierte Funktionen/Konstanten: [`EBENE_WAENDE`](../../src/lib/ebenen.ts#L33), [`EBENE_OEFFNUNGEN`](../../src/lib/ebenen.ts#L34), [`EBENE_RAEUME`](../../src/lib/ebenen.ts#L35), [`EBENE_MASSE`](../../src/lib/ebenen.ts#L36), [`EBENE_HEIZUNG`](../../src/lib/ebenen.ts#L37), [`EBENE_SANITAER`](../../src/lib/ebenen.ts#L38), [`EBENE_LUEFTUNG`](../../src/lib/ebenen.ts#L39), [`EBENE_DURCHBRUECHE`](../../src/lib/ebenen.ts#L40), [`EBENE_GELAENDE`](../../src/lib/ebenen.ts#L41), [`EBENE_BILD`](../../src/lib/ebenen.ts#L42), [`ebeneFuerMedium`](../../src/lib/ebenen.ts#L57), [`ebeneFuerObjekt`](../../src/lib/ebenen.ts#L82), [`EBENEN_KATALOG`](../../src/lib/ebenen.ts#L102), [`ebeneFuerAuswahl`](../../src/lib/ebenen.ts#L135), [`istSichtbar`](../../src/lib/ebenen.ts#L173), [`istGesperrt`](../../src/lib/ebenen.ts#L193), [`auswahlGesperrt`](../../src/lib/ebenen.ts#L200), [`BESTANDS_EBENEN`](../../src/lib/ebenen.ts#L212), [`GEWERKESAETZE`](../../src/lib/ebenen.ts#L245), [`sichtbarkeitAus`](../../src/lib/ebenen.ts#L273)
@@ -661,14 +670,14 @@ Exportierte Funktionen/Konstanten: [`EBENE_WAENDE`](../../src/lib/ebenen.ts#L33)
 
 Exportierte Funktionen/Konstanten: [`ECKART_LABELS`](../../src/lib/eckpunkte.ts#L39), [`sammleEckpunkte`](../../src/lib/eckpunkte.ts#L69), [`naechsterEckpunkt`](../../src/lib/eckpunkte.ts#L139)
 
-### [`src/lib/embedApi.ts`](../../src/lib/embedApi.ts) · 513 Zeilen
+### [`src/lib/embedApi.ts`](../../src/lib/embedApi.ts) · 589 Zeilen
 
 **Verantwortung:** Einbettungs-Schnittstelle für RaVia. Der Umweg über eine Exportdatei ist für den Menschen gedacht: herunterladen,  
-**Abhängigkeiten:** `lib/geraeteprofil.ts`, `lib/hostPatch.ts`, `lib/ifcExport.ts`, `lib/normleistung.ts`, `lib/raviaExport.ts`, `lib/validation.ts`, `lib/wirt.ts`, `types/bim.ts`  
+**Abhängigkeiten:** `lib/geraeteprofil.ts`, `lib/heatLoadEstimate.ts`, `lib/hostPatch.ts`, `lib/hostRaum.ts`, `lib/ifcExport.ts`, `lib/normleistung.ts`, `lib/raviaExport.ts`, `lib/validation.ts`, `lib/wirt.ts`, `types/bim.ts`  
 **Aufrufer:** `main.tsx`  
 **Aufrufer in scripts/:** 1
 
-Exportierte Funktionen/Konstanten: [`EMBED_API_VERSION`](../../src/lib/embedApi.ts#L78)⁰, [`buildSummary`](../../src/lib/embedApi.ts#L242), [`installEmbedApi`](../../src/lib/embedApi.ts#L271)
+Exportierte Funktionen/Konstanten: [`EMBED_API_VERSION`](../../src/lib/embedApi.ts#L93)⁰, [`buildSummary`](../../src/lib/embedApi.ts#L269), [`parseHerkunftListe`](../../src/lib/embedApi.ts#L300), [`herkunftErlaubt`](../../src/lib/embedApi.ts#L319), [`installEmbedApi`](../../src/lib/embedApi.ts#L333)
 
 ### [`src/lib/erzeugerHydraulik.ts`](../../src/lib/erzeugerHydraulik.ts) · 975 Zeilen
 
@@ -683,7 +692,7 @@ Exportierte Funktionen/Konstanten: [`ERZEUGER_MARKTWERTE`](../../src/lib/erzeuge
 
 **Verantwortung:** Wo steht der Wärmeerzeuger? — der Vorschlag, wenn noch keiner steht. **Warum es das gibt.** Die Rohrauslegung braucht einen Ausgangspunkt:  
 **Abhängigkeiten:** `lib/geometry.ts`, `types/bim.ts`  
-**Aufrufer:** `components/AnlagenPanel.tsx`, `store/useBimStore.ts`  
+**Aufrufer:** `components/AnlagenPanel.tsx`, `store/slices/installation.ts`, `store/slices/laden.ts`  
 **Aufrufer in scripts/:** 1
 
 Exportierte Funktionen/Konstanten: [`hatAusgangspunkt`](../../src/lib/erzeugerplatz.ts#L70), [`schlageVerteilerVor`](../../src/lib/erzeugerplatz.ts#L100), [`schlageErzeugerVor`](../../src/lib/erzeugerplatz.ts#L149)
@@ -719,7 +728,7 @@ Exportierte Funktionen/Konstanten: [`FIXTURE_COLORS`](../../src/lib/fixtureSymbo
 
 **Verantwortung:** Verlegekurve der Fußbodenheizung — vom Raumpolygon zur Rohrschlange. **Warum es dieses Modul gibt.**  
 **Abhängigkeiten:** `lib/geometry.ts`, `types/bim.ts`  
-**Aufrufer:** `lib/fixtureSymbols.ts`, `lib/fussbodenkurven.ts`, `store/useBimStore.ts`  
+**Aufrufer:** `lib/fixtureSymbols.ts`, `lib/fussbodenkurven.ts`, `store/bimZustand.ts`  
 **Aufrufer in scripts/:** 3
 
 Exportierte Funktionen/Konstanten: [`DEFAULT_EDGE_CLEARANCE`](../../src/lib/floorLoopLayout.ts#L120), [`DEFAULT_OBSTACLE_CLEARANCE`](../../src/lib/floorLoopLayout.ts#L127), [`DEFAULT_MIN_RUN_LENGTH`](../../src/lib/floorLoopLayout.ts#L138), [`DEFAULT_MAX_CIRCUIT_LENGTH`](../../src/lib/floorLoopLayout.ts#L151), [`DEFAULT_LOOP_PATTERN`](../../src/lib/floorLoopLayout.ts#L154), [`FLOOR_OBSTACLE_TYPES`](../../src/lib/floorLoopLayout.ts#L211), [`kreiseEinzeln`](../../src/lib/floorLoopLayout.ts#L314)⁰, [`measureLayableArea`](../../src/lib/floorLoopLayout.ts#L647), [`planFloorLoops`](../../src/lib/floorLoopLayout.ts#L1143), [`fixtureFootprint`](../../src/lib/floorLoopLayout.ts#L1621)
@@ -728,25 +737,25 @@ Exportierte Funktionen/Konstanten: [`DEFAULT_EDGE_CLEARANCE`](../../src/lib/floo
 
 **Verantwortung:** Formteile des Rohrnetzes — Bögen, T-Stücke, Reduzierungen (seit 1.71.0). **Warum es das gibt.** Gemeldet am 02.10.2026: „außerdem müssen auch die  
 **Abhängigkeiten:** `lib/rohrbezeichnung.ts`, `lib/rohrlaenge.ts`, `types/bim.ts`  
-**Aufrufer:** `components/AnlagenPanel.tsx`, `components/RohrnetzDialog.tsx`, `lib/materialSchedule.ts`, `lib/raviaExport.ts`, `store/useBimStore.ts`  
+**Aufrufer:** `components/AnlagenPanel.tsx`, `components/RohrnetzDialog.tsx`, `lib/materialSchedule.ts`, `lib/raviaExport.ts`, `store/slices/installation.ts`  
 **Aufrufer in scripts/:** 1
 
 Exportierte Funktionen/Konstanten: [`FORMTEIL_LABELS`](../../src/lib/formteile.ts#L44), [`formteile`](../../src/lib/formteile.ts#L104), [`formteilSumme`](../../src/lib/formteile.ts#L287)
 
-### [`src/lib/fussbodenkurven.ts`](../../src/lib/fussbodenkurven.ts) · 275 Zeilen
+### [`src/lib/fussbodenkurven.ts`](../../src/lib/fussbodenkurven.ts) · 280 Zeilen
 
 **Verantwortung:** Die Verlegekurven eines Geschosses — einmal gerechnet, zweimal gezeichnet. **Warum es diese Datei gibt.** Die Kurve einer raumfüllenden  
 **Abhängigkeiten:** `lib/floorLoopLayout.ts`, `lib/geometry.ts`, `lib/verticalSymbols.ts`, `types/bim.ts`  
 **Aufrufer:** `components/Editor2D.tsx`, `components/Viewer3D.tsx`, `lib/materialSchedule.ts`, `lib/netzExport.ts`  
 **Aufrufer in scripts/:** 1
 
-Exportierte Funktionen/Konstanten: [`sammleVerlegekurven`](../../src/lib/fussbodenkurven.ts#L77), [`verlegebilanz`](../../src/lib/fussbodenkurven.ts#L180), [`verlegesumme`](../../src/lib/fussbodenkurven.ts#L230), [`verlegelinien`](../../src/lib/fussbodenkurven.ts#L263)
+Exportierte Funktionen/Konstanten: [`sammleVerlegekurven`](../../src/lib/fussbodenkurven.ts#L77), [`verlegebilanz`](../../src/lib/fussbodenkurven.ts#L185), [`verlegesumme`](../../src/lib/fussbodenkurven.ts#L235), [`verlegelinien`](../../src/lib/fussbodenkurven.ts#L268)
 
 ### [`src/lib/gebaeudeNetz.ts`](../../src/lib/gebaeudeNetz.ts) · 468 Zeilen
 
 **Verantwortung:** Das Rohrnetz über **alle** Geschosse — mit Steigleitung. **Die Meldung:** „Wenn der Wärmeerzeuger unten ist und die Abnahme oben,  
 **Abhängigkeiten:** `lib/aufstellgeschoss.ts`, `lib/pipeLayout.ts`, `lib/pipeRouting.ts`, `lib/steigstrang.ts`, `lib/zahl.ts`, `types/bim.ts`  
-**Aufrufer:** `components/AnlagenPanel.tsx`, `store/useBimStore.ts`  
+**Aufrufer:** `components/AnlagenPanel.tsx`, `store/bimZustand.ts`, `store/slices/installation.ts`  
 **Aufrufer in scripts/:** 4
 
 Exportierte Funktionen/Konstanten: [`fasseGeschossmeldungen`](../../src/lib/gebaeudeNetz.ts#L130), [`planeGebaeudeNetz`](../../src/lib/gebaeudeNetz.ts#L167)
@@ -755,7 +764,7 @@ Exportierte Funktionen/Konstanten: [`fasseGeschossmeldungen`](../../src/lib/geba
 
 **Verantwortung:** Geometrie-Kernel — allokationsarme 2D-Mathematik. Bewusst funktional und ohne Klassen: Vec2 ist ein reines Objekt-Literal,  
 **Abhängigkeiten:** `types/bim.ts`  
-**Aufrufer:** `components/CalibrationOverlay.tsx`, `components/Editor2D.tsx`, `components/HeatPumpPanel.tsx`, `components/PropertiesPanel.tsx`, `components/Viewer3D.tsx`, `lib/autokorrektur.ts`, `lib/dachlandschaft.ts`, `lib/dachschnitt.ts`, `lib/eckpunkte.ts`, `lib/erzeugerplatz.ts`, `lib/floorLoopLayout.ts`, `lib/fussbodenkurven.ts`, `lib/hauseinfuehrung.ts`, `lib/heatPump.ts`, `lib/heizkoerperplatz.ts`, `lib/ifcExport.ts`, `lib/notizen.ts`, `lib/pipeLayout.ts`, `lib/pipeRouting.ts`, `lib/planPrint.ts`, `lib/raumZuordnung.ts`, `lib/raumplanImport.ts`, `lib/raumtreffer.ts`, `lib/raviaExport.ts`, `lib/ringStich.ts`, `lib/ringleitung.ts`, `lib/rohrImRaum.ts`, `lib/roofGeometry.ts`, `lib/roomDetection.ts`, `lib/scanUebernahme.ts`, `lib/siteSymbols.ts`, `lib/skizze.ts`, `lib/slabGeometry.ts`, `lib/spiegeln.ts`, `lib/steigstrang.ts`, `lib/thermalBridges.ts`, `lib/tuerseiten.ts`, `lib/validation.ts`, `lib/wallGeometry.ts`, `lib/wandhoehen.ts`, `lib/wandquerung.ts`, `store/useBimStore.ts`  
+**Aufrufer:** `components/CalibrationOverlay.tsx`, `components/Editor2D.tsx`, `components/HeatPumpPanel.tsx`, `components/PropertiesPanel.tsx`, `components/Viewer3D.tsx`, `lib/autokorrektur.ts`, `lib/dachlandschaft.ts`, `lib/dachschnitt.ts`, `lib/dokumentPflege.ts`, `lib/eckpunkte.ts`, `lib/erzeugerplatz.ts`, `lib/floorLoopLayout.ts`, `lib/fussbodenkurven.ts`, `lib/hauseinfuehrung.ts`, `lib/heatPump.ts`, `lib/heizkoerperplatz.ts`, `lib/hostRaum.ts`, `lib/ifcExport.ts`, `lib/notizen.ts`, `lib/pipeLayout.ts`, `lib/pipeRouting.ts`, `lib/planPrint.ts`, `lib/raumExport.ts`, `lib/raumZuordnung.ts`, `lib/raumplanImport.ts`, `lib/raumtreffer.ts`, `lib/raviaExport.ts`, `lib/ringStich.ts`, `lib/ringleitung.ts`, `lib/rohrImRaum.ts`, `lib/roofGeometry.ts`, `lib/roomDetection.ts`, `lib/scanUebernahme.ts`, `lib/siteSymbols.ts`, `lib/skizze.ts`, `lib/slabGeometry.ts`, `lib/spiegeln.ts`, `lib/steigstrang.ts`, `lib/thermalBridges.ts`, `lib/tuerseiten.ts`, `lib/validation.ts`, `lib/wallGeometry.ts`, `lib/wandhoehen.ts`, `lib/wandquerung.ts`, `store/bimZustand.ts`, `store/slices/anlage.ts`, `store/slices/bauteile.ts`, `store/slices/dach.ts`, `store/slices/gruppen.ts`, `store/slices/installation.ts`, `store/slices/laden.ts`, `store/slices/referenzbild.ts`  
 **Aufrufer in scripts/:** 20
 
 Exportierte Funktionen/Konstanten: [`EPS`](../../src/lib/geometry.ts#L13), [`v`](../../src/lib/geometry.ts#L19)⁰, [`add`](../../src/lib/geometry.ts#L20)⁰, [`sub`](../../src/lib/geometry.ts#L21), [`scale`](../../src/lib/geometry.ts#L22)⁰, [`dot`](../../src/lib/geometry.ts#L23)⁰, [`cross`](../../src/lib/geometry.ts#L25)⁰, [`length`](../../src/lib/geometry.ts#L27)⁰, [`distance`](../../src/lib/geometry.ts#L31), [`normalize`](../../src/lib/geometry.ts#L37), [`lerp`](../../src/lib/geometry.ts#L42), [`rotate`](../../src/lib/geometry.ts#L47)⁰, [`almostEqual`](../../src/lib/geometry.ts#L53)⁰, [`clamp`](../../src/lib/geometry.ts#L56), [`projectParam`](../../src/lib/geometry.ts#L64)⁰, [`closestPointOnSegment`](../../src/lib/geometry.ts#L73), [`distanceToSegment`](../../src/lib/geometry.ts#L77), [`segmentIntersection`](../../src/lib/geometry.ts#L85), [`lineIntersection`](../../src/lib/geometry.ts#L112), [`vorzugsrichtung`](../../src/lib/geometry.ts#L145), [`TO_DEG`](../../src/lib/geometry.ts#L159), [`TO_RAD`](../../src/lib/geometry.ts#L160)⁰, [`angleDeg`](../../src/lib/geometry.ts#L163)⁰, [`normalizeDeg`](../../src/lib/geometry.ts#L168), [`snapToAngle`](../../src/lib/geometry.ts#L179), [`snapToGrid`](../../src/lib/geometry.ts#L198), [`roundMm`](../../src/lib/geometry.ts#L203), [`roundCm2`](../../src/lib/geometry.ts#L204), [`signedArea`](../../src/lib/geometry.ts#L211), [`polygonArea`](../../src/lib/geometry.ts#L222), [`polygonPerimeter`](../../src/lib/geometry.ts#L224), [`polygonCentroid`](../../src/lib/geometry.ts#L232), [`pointInPolygon`](../../src/lib/geometry.ts#L260), [`innererPunkt`](../../src/lib/geometry.ts#L298), [`polygonBounds`](../../src/lib/geometry.ts#L334), [`offsetPolygonPerEdge`](../../src/lib/geometry.ts#L364), [`simplifyPolygon`](../../src/lib/geometry.ts#L422), [`azimuthFromNormal`](../../src/lib/geometry.ts#L455), [`orientationFromAzimuth`](../../src/lib/geometry.ts#L460)
@@ -764,7 +773,7 @@ Exportierte Funktionen/Konstanten: [`EPS`](../../src/lib/geometry.ts#L13), [`v`]
 
 **Verantwortung:** Auf welchem Gerät läuft CAD Light? — die eine Antwort für beide Seiten. **Warum CAD Light das der RaVia-Seite sagt.** Die RaVia-Seite zeigt den  
 **Abhängigkeiten:** –  
-**Aufrufer:** `App.tsx`, `lib/embedApi.ts`, `store/useBimStore.ts`  
+**Aufrufer:** `App.tsx`, `lib/embedApi.ts`, `store/slices/laden.ts`  
 **Aufrufer in scripts/:** 1
 
 Exportierte Funktionen/Konstanten: [`TABLET_AB`](../../src/lib/geraeteprofil.ts#L88), [`geraeteprofil`](../../src/lib/geraeteprofil.ts#L93), [`geraetemerkmale`](../../src/lib/geraeteprofil.ts#L118)
@@ -796,14 +805,14 @@ Exportierte Funktionen/Konstanten: [`GRIFF_LABELS`](../../src/lib/griffe.ts#L61)
 
 Exportierte Funktionen/Konstanten: [`ECKABSTAND`](../../src/lib/hauseinfuehrung.ts#L34)⁰, [`OEFFNUNGSABSTAND`](../../src/lib/hauseinfuehrung.ts#L36)⁰, [`INNENVERSATZ`](../../src/lib/hauseinfuehrung.ts#L38)⁰, [`hauseinfuehrung`](../../src/lib/hauseinfuehrung.ts#L60)
 
-### [`src/lib/heatLoadEstimate.ts`](../../src/lib/heatLoadEstimate.ts) · 492 Zeilen
+### [`src/lib/heatLoadEstimate.ts`](../../src/lib/heatLoadEstimate.ts) · 509 Zeilen
 
 **Verantwortung:** Überschlägige Heizlast — die Zahl, ohne die keine Anlage ausgelegt werden kann. **Warum es dieses Modul gibt und was es ausdrücklich nicht ist.**  
-**Abhängigkeiten:** `lib/raviaExport.ts`, `lib/roomDetection.ts`, `lib/thermalBridges.ts`, `lib/uwert.ts`, `types/bim.ts`  
-**Aufrufer:** `lib/heizflaechenAbgleich.ts`, `lib/pipeLayout.ts`, `lib/plantDesign.ts`, `lib/raviaExport.ts`, `lib/validation.ts`, `lib/verbraucherlast.ts`, `store/useBimStore.ts`  
+**Abhängigkeiten:** `lib/raumExport.ts`, `lib/roomDetection.ts`, `lib/thermalBridges.ts`, `lib/uwert.ts`, `types/bim.ts`  
+**Aufrufer:** `lib/embedApi.ts`, `lib/heizflaechenAbgleich.ts`, `lib/pipeLayout.ts`, `lib/plantDesign.ts`, `lib/raviaExport.ts`, `lib/validation.ts`, `lib/verbraucherlast.ts`, `store/bimZustand.ts`, `store/slices/bauteile.ts`  
 **Aufrufer in scripts/:** 6
 
-Exportierte Funktionen/Konstanten: [`AIR_CAPACITY`](../../src/lib/heatLoadEstimate.ts#L52)⁰, [`normHeatLoadCoverage`](../../src/lib/heatLoadEstimate.ts#L360), [`gebaeudeLueftung`](../../src/lib/heatLoadEstimate.ts#L426), [`estimateHeatLoad`](../../src/lib/heatLoadEstimate.ts#L439), [`domesticHotWaterSurcharge`](../../src/lib/heatLoadEstimate.ts#L488)
+Exportierte Funktionen/Konstanten: [`AIR_CAPACITY`](../../src/lib/heatLoadEstimate.ts#L52)⁰, [`ERDREICH_THETA_M_E`](../../src/lib/heatLoadEstimate.ts#L62)⁰, [`ERDREICH_F_G1`](../../src/lib/heatLoadEstimate.ts#L63)⁰, [`ERDREICH_G_W`](../../src/lib/heatLoadEstimate.ts#L64)⁰, [`erdreichDeltaT`](../../src/lib/heatLoadEstimate.ts#L66), [`normHeatLoadCoverage`](../../src/lib/heatLoadEstimate.ts#L377), [`gebaeudeLueftung`](../../src/lib/heatLoadEstimate.ts#L443), [`estimateHeatLoad`](../../src/lib/heatLoadEstimate.ts#L456), [`domesticHotWaterSurcharge`](../../src/lib/heatLoadEstimate.ts#L505)
 
 ### [`src/lib/heatPump.ts`](../../src/lib/heatPump.ts) · 625 Zeilen
 
@@ -818,7 +827,7 @@ Exportierte Funktionen/Konstanten: [`IMMISSION_LIMITS`](../../src/lib/heatPump.t
 
 **Verantwortung:** Halten die Heizflächen noch mit der Heizlast Schritt? **Was dieses Modul entscheidet — und was nicht.** Es rechnet aus, welche  
 **Abhängigkeiten:** `lib/heatLoadEstimate.ts`, `lib/heizflaechenLeistung.ts`, `lib/normleistung.ts`, `lib/systemtemperatur.ts`, `types/bim.ts`  
-**Aufrufer:** `components/PropertiesPanel.tsx`, `store/useBimStore.ts`  
+**Aufrufer:** `components/PropertiesPanel.tsx`, `store/slices/bauteile.ts`, `store/useBimStore.ts`  
 **Aufrufer in scripts/:** 1
 
 Exportierte Funktionen/Konstanten: [`heizflaechenBefunde`](../../src/lib/heizflaechenAbgleich.ts#L97), [`normleistungAusRaumlast`](../../src/lib/heizflaechenAbgleich.ts#L110), [`heizflaechenbefundFuer`](../../src/lib/heizflaechenAbgleich.ts#L238), [`zieheHeizflaechenNach`](../../src/lib/heizflaechenAbgleich.ts#L251), [`unterdeckteHeizflaechen`](../../src/lib/heizflaechenAbgleich.ts#L273)
@@ -827,7 +836,7 @@ Exportierte Funktionen/Konstanten: [`heizflaechenBefunde`](../../src/lib/heizfla
 
 **Verantwortung:** Von der Raumheizlast zur Normleistung des Heizkörpers. **Die Forderung, aus der dieses Modul entstanden ist:** „Bei den  
 **Abhängigkeiten:** `lib/auslegungExport.ts`, `lib/hydraulics.ts`, `lib/normleistung.ts`, `types/bim.ts`  
-**Aufrufer:** `lib/heizflaechenAbgleich.ts`, `store/useBimStore.ts`  
+**Aufrufer:** `lib/heizflaechenAbgleich.ts`, `store/slices/bauteile.ts`, `store/slices/laden.ts`  
 **Aufrufer in scripts/:** 3
 
 Exportierte Funktionen/Konstanten: [`NORM_UEBERTEMPERATUR`](../../src/lib/heizflaechenLeistung.ts#L65), [`normleistungFuerHeizlast`](../../src/lib/heizflaechenLeistung.ts#L80), [`anteilJeHeizflaeche`](../../src/lib/heizflaechenLeistung.ts#L136), [`HEIZFLAECHEN_BAUARTEN`](../../src/lib/heizflaechenLeistung.ts#L142)⁰, [`istHeizflaeche`](../../src/lib/heizflaechenLeistung.ts#L144), [`leistungsBegruendung`](../../src/lib/heizflaechenLeistung.ts#L155)
@@ -836,7 +845,7 @@ Exportierte Funktionen/Konstanten: [`NORM_UEBERTEMPERATUR`](../../src/lib/heizfl
 
 **Verantwortung:** Wohin ein Heizkörper kommt, wenn nur seine Leistung erfasst wird. **Wozu das gebraucht wird.** Im Raumbuch steht je Raum eine Zeile mit  
 **Abhängigkeiten:** `lib/geometry.ts`, `lib/wallGeometry.ts`, `types/bim.ts`  
-**Aufrufer:** `store/useBimStore.ts`  
+**Aufrufer:** `store/slices/bauteile.ts`  
 **Aufrufer in scripts/:** 1
 
 Exportierte Funktionen/Konstanten: [`PLATZ_TEXT`](../../src/lib/heizkoerperplatz.ts#L48), [`heizkoerperplatz`](../../src/lib/heizkoerperplatz.ts#L93)
@@ -845,16 +854,25 @@ Exportierte Funktionen/Konstanten: [`PLATZ_TEXT`](../../src/lib/heizkoerperplatz
 
 **Verantwortung:** Der Rückweg: was die Gegenstelle in dieses Modell schreiben darf. Bis hierher war die Einbettung einseitig. RaVia konnte den Modellstand  
 **Abhängigkeiten:** `lib/normleistung.ts`, `types/bim.ts`  
-**Aufrufer:** `lib/embedApi.ts`, `store/useBimStore.ts`  
+**Aufrufer:** `lib/embedApi.ts`, `store/bimZustand.ts`, `store/slices/laden.ts`  
 **Aufrufer in scripts/:** 4
 
 Exportierte Funktionen/Konstanten: [`PATCH_RANGES`](../../src/lib/hostPatch.ts#L245), [`PROTECTED_FIELDS`](../../src/lib/hostPatch.ts#L269), [`applyHostPatch`](../../src/lib/hostPatch.ts#L364), [`writableFields`](../../src/lib/hostPatch.ts#L826)
+
+### [`src/lib/hostRaum.ts`](../../src/lib/hostRaum.ts) · 102 Zeilen
+
+**Verantwortung:** Embed-Befehl `createRoom` — ein Raum aus der Raumliste des Wirts. Der Wirt (RaVia) zeigt seine bereits erfassten Räume als Vorschlagsliste  
+**Abhängigkeiten:** `lib/geometry.ts`, `types/bim.ts`  
+**Aufrufer:** `lib/embedApi.ts`  
+**Aufrufer in scripts/:** 1
+
+Exportierte Funktionen/Konstanten: [`RAUM_STANDARDFLAECHE`](../../src/lib/hostRaum.ts#L42), [`RAUM_HOECHSTFLAECHE`](../../src/lib/hostRaum.ts#L44)⁰, [`freiesRechteck`](../../src/lib/hostRaum.ts#L60)⁰, [`createRoom`](../../src/lib/hostRaum.ts#L68)
 
 ### [`src/lib/huellflaechenbilanz.ts`](../../src/lib/huellflaechenbilanz.ts) · 183 Zeilen
 
 **Verantwortung:** Hüllflächenbilanz — die Prüfsumme gegen verlorene Bauteile. **Punkt 13.** Die Übernahme auf der Gegenseite berücksichtigt Boden, Decke  
 **Abhängigkeiten:** –  
-**Aufrufer:** `lib/raviaExport.ts`, `types/bim.ts`  
+**Aufrufer:** `lib/raumExport.ts`, `lib/raviaExport.ts`, `types/bim.ts`  
 **Aufrufer in scripts/:** 1
 
 Exportierte Funktionen/Konstanten: [`huellflaechenbilanz`](../../src/lib/huellflaechenbilanz.ts#L121)
@@ -868,14 +886,14 @@ Exportierte Funktionen/Konstanten: [`huellflaechenbilanz`](../../src/lib/huellfl
 
 Exportierte Funktionen/Konstanten: [`dimensionForDn`](../../src/lib/hydraulicBalance.ts#L183), [`HEATING_CONSUMER_TYPES`](../../src/lib/hydraulicBalance.ts#L256)⁰, [`DEFAULT_POWER_BY_TYPE`](../../src/lib/hydraulicBalance.ts#L274)⁰, [`FALLBACK_POWER`](../../src/lib/hydraulicBalance.ts#L289)⁰, [`DEFAULT_SPREAD`](../../src/lib/hydraulicBalance.ts#L299)⁰, [`MIN_PRESET_PRESSURE`](../../src/lib/hydraulicBalance.ts#L314)⁰, [`MAX_PRESET_PRESSURE`](../../src/lib/hydraulicBalance.ts#L328)⁰, [`DEFAULT_SEGMENT_ZETA`](../../src/lib/hydraulicBalance.ts#L341), [`ACCESSORY_FITTING`](../../src/lib/hydraulicBalance.ts#L358), [`PRESET_VERDICT_LABELS`](../../src/lib/hydraulicBalance.ts#L466), [`requiredKv`](../../src/lib/hydraulicBalance.ts#L847), [`balanceNetwork`](../../src/lib/hydraulicBalance.ts#L890)
 
-### [`src/lib/hydraulics.ts`](../../src/lib/hydraulics.ts) · 1930 Zeilen
+### [`src/lib/hydraulics.ts`](../../src/lib/hydraulics.ts) · 1937 Zeilen
 
 **Verantwortung:** Hydraulik — Volumenströme, Rohrdimensionierung, Druckverluste, Pumpe. **Warum es dieses Modul gibt.**  
 **Abhängigkeiten:** `types/bim.ts`  
-**Aufrufer:** `lib/domesticWater.ts`, `lib/heizflaechenLeistung.ts`, `lib/hydraulicBalance.ts`, `lib/netzExport.ts`, `lib/pipeLayout.ts`, `lib/pipeReport.ts`, `lib/plantDesign.ts`, `lib/primaerkreis.ts`, `lib/rohrbezeichnung.ts`, `lib/safetyFittings.ts`, `lib/steigstrang.ts`, `lib/verbraucherlast.ts`, `store/useBimStore.ts`  
+**Aufrufer:** `lib/domesticWater.ts`, `lib/heizflaechenLeistung.ts`, `lib/hydraulicBalance.ts`, `lib/netzExport.ts`, `lib/pipeLayout.ts`, `lib/pipeReport.ts`, `lib/plantDesign.ts`, `lib/primaerkreis.ts`, `lib/rohrbezeichnung.ts`, `lib/safetyFittings.ts`, `lib/steigstrang.ts`, `lib/verbraucherlast.ts`, `store/bimZustand.ts`  
 **Aufrufer in scripts/:** 6
 
-Exportierte Funktionen/Konstanten: [`GRAVITY`](../../src/lib/hydraulics.ts#L46)⁰, [`COPPER_PIPES`](../../src/lib/hydraulics.ts#L138), [`STEEL_PIPES`](../../src/lib/hydraulics.ts#L164)⁰, [`STAINLESS_PIPES`](../../src/lib/hydraulics.ts#L188)⁰, [`PEX_PIPES`](../../src/lib/hydraulics.ts#L206)⁰, [`MULTILAYER_PIPES`](../../src/lib/hydraulics.ts#L223), [`PPR_PIPES`](../../src/lib/hydraulics.ts#L241)⁰, [`PIPE_TABLES`](../../src/lib/hydraulics.ts#L251), [`findDimension`](../../src/lib/hydraulics.ts#L261), [`PIPE_ROUGHNESS`](../../src/lib/hydraulics.ts#L297)⁰, [`STEEL_ROUGHNESS_BY_CONDITION`](../../src/lib/hydraulics.ts#L315)⁰, [`pipeRoughness`](../../src/lib/hydraulics.ts#L322)⁰, [`GLYCOL_LABELS`](../../src/lib/hydraulics.ts#L334), [`WATER_TEMPERATURES`](../../src/lib/hydraulics.ts#L340)⁰, [`WATER_HEAT_CAPACITY`](../../src/lib/hydraulics.ts#L349)⁰, [`WATER_KINEMATIC_VISCOSITY`](../../src/lib/hydraulics.ts#L360)⁰, [`waterDensity`](../../src/lib/hydraulics.ts#L387), [`waterHeatCapacity`](../../src/lib/hydraulics.ts#L403), [`waterKinematicViscosity`](../../src/lib/hydraulics.ts#L408)⁰, [`GLYCOL_FREEZE_POINTS`](../../src/lib/hydraulics.ts#L431), [`glycolFreezePoint`](../../src/lib/hydraulics.ts#L464), [`freezePoint`](../../src/lib/hydraulics.ts#L479), [`GLYCOL_PROPERTIES`](../../src/lib/hydraulics.ts#L498), [`GLYCOL_VISCOSITY_FACTOR`](../../src/lib/hydraulics.ts#L514)⁰, [`fluidProperties`](../../src/lib/hydraulics.ts#L580), [`DEFAULT_FLUID`](../../src/lib/hydraulics.ts#L662), [`massFlow`](../../src/lib/hydraulics.ts#L679)⁰, [`volumeFlow`](../../src/lib/hydraulics.ts#L696), [`SHORT_FORMULA_FACTOR`](../../src/lib/hydraulics.ts#L732)⁰, [`volumeFlowShort`](../../src/lib/hydraulics.ts#L744), [`REYNOLDS_LAMINAR`](../../src/lib/hydraulics.ts#L754)⁰, [`REYNOLDS_TURBULENT`](../../src/lib/hydraulics.ts#L757), [`velocityOf`](../../src/lib/hydraulics.ts#L768), [`reynolds`](../../src/lib/hydraulics.ts#L784)⁰, [`lambdaLaminar`](../../src/lib/hydraulics.ts#L796)⁰, [`colebrookWhite`](../../src/lib/hydraulics.ts#L814)⁰, [`swameeJain`](../../src/lib/hydraulics.ts#L848)⁰, [`frictionFactor`](../../src/lib/hydraulics.ts#L875)⁰, [`flowState`](../../src/lib/hydraulics.ts#L918), [`FITTING_RESISTANCES`](../../src/lib/hydraulics.ts#L982), [`fittingZeta`](../../src/lib/hydraulics.ts#L1011), [`zetaFromKvs`](../../src/lib/hydraulics.ts#L1035)⁰, [`DEFAULT_SIZING_LIMITS`](../../src/lib/hydraulics.ts#L1065), [`sizePipe`](../../src/lib/hydraulics.ts#L1116), [`pressureLoss`](../../src/lib/hydraulics.ts#L1259)⁰, [`evaluatePath`](../../src/lib/hydraulics.ts#L1349), [`DEFAULT_PUMP_EFFICIENCY`](../../src/lib/hydraulics.ts#L1429)⁰, [`MIN_PUMP_ELECTRIC_POWER`](../../src/lib/hydraulics.ts#L1438)⁰, [`designPump`](../../src/lib/hydraulics.ts#L1473), [`surfaceHeatFlux`](../../src/lib/hydraulics.ts#L1591)⁰, [`surfaceTemperatureFor`](../../src/lib/hydraulics.ts#L1598)⁰, [`MAX_SURFACE_TEMPERATURE`](../../src/lib/hydraulics.ts#L1621)⁰, [`logMeanOverTemperature`](../../src/lib/hydraulics.ts#L1642), [`DEFAULT_FLOOR_HEAT_FLUX`](../../src/lib/hydraulics.ts#L1667)⁰, [`DEFAULT_MAX_LOOP_LENGTH`](../../src/lib/hydraulics.ts#L1685)⁰, [`DEFAULT_MAX_LOOP_PRESSURE`](../../src/lib/hydraulics.ts#L1688)⁰, [`designFloorHeating`](../../src/lib/hydraulics.ts#L1798)
+Exportierte Funktionen/Konstanten: [`GRAVITY`](../../src/lib/hydraulics.ts#L46)⁰, [`COPPER_PIPES`](../../src/lib/hydraulics.ts#L138), [`STEEL_PIPES`](../../src/lib/hydraulics.ts#L164)⁰, [`STAINLESS_PIPES`](../../src/lib/hydraulics.ts#L188)⁰, [`PEX_PIPES`](../../src/lib/hydraulics.ts#L206)⁰, [`MULTILAYER_PIPES`](../../src/lib/hydraulics.ts#L223), [`PPR_PIPES`](../../src/lib/hydraulics.ts#L241)⁰, [`PIPE_TABLES`](../../src/lib/hydraulics.ts#L251), [`findDimension`](../../src/lib/hydraulics.ts#L261), [`PIPE_ROUGHNESS`](../../src/lib/hydraulics.ts#L297)⁰, [`STEEL_ROUGHNESS_BY_CONDITION`](../../src/lib/hydraulics.ts#L315)⁰, [`pipeRoughness`](../../src/lib/hydraulics.ts#L322)⁰, [`GLYCOL_LABELS`](../../src/lib/hydraulics.ts#L334), [`WATER_TEMPERATURES`](../../src/lib/hydraulics.ts#L340)⁰, [`WATER_HEAT_CAPACITY`](../../src/lib/hydraulics.ts#L349)⁰, [`WATER_KINEMATIC_VISCOSITY`](../../src/lib/hydraulics.ts#L360)⁰, [`waterDensity`](../../src/lib/hydraulics.ts#L387), [`waterHeatCapacity`](../../src/lib/hydraulics.ts#L403), [`waterKinematicViscosity`](../../src/lib/hydraulics.ts#L408)⁰, [`GLYCOL_FREEZE_POINTS`](../../src/lib/hydraulics.ts#L431), [`glycolFreezePoint`](../../src/lib/hydraulics.ts#L464), [`freezePoint`](../../src/lib/hydraulics.ts#L479), [`GLYCOL_PROPERTIES`](../../src/lib/hydraulics.ts#L498), [`GLYCOL_VISCOSITY_FACTOR`](../../src/lib/hydraulics.ts#L514)⁰, [`fluidProperties`](../../src/lib/hydraulics.ts#L580), [`DEFAULT_FLUID`](../../src/lib/hydraulics.ts#L662), [`massFlow`](../../src/lib/hydraulics.ts#L679)⁰, [`volumeFlow`](../../src/lib/hydraulics.ts#L696), [`SHORT_FORMULA_FACTOR`](../../src/lib/hydraulics.ts#L732)⁰, [`volumeFlowShort`](../../src/lib/hydraulics.ts#L744), [`REYNOLDS_LAMINAR`](../../src/lib/hydraulics.ts#L754)⁰, [`REYNOLDS_TURBULENT`](../../src/lib/hydraulics.ts#L757), [`velocityOf`](../../src/lib/hydraulics.ts#L768), [`reynolds`](../../src/lib/hydraulics.ts#L784)⁰, [`lambdaLaminar`](../../src/lib/hydraulics.ts#L796)⁰, [`colebrookWhite`](../../src/lib/hydraulics.ts#L814)⁰, [`swameeJain`](../../src/lib/hydraulics.ts#L848)⁰, [`frictionFactor`](../../src/lib/hydraulics.ts#L875)⁰, [`flowState`](../../src/lib/hydraulics.ts#L918), [`FITTING_RESISTANCES`](../../src/lib/hydraulics.ts#L982), [`fittingZeta`](../../src/lib/hydraulics.ts#L1011), [`zetaFromKvs`](../../src/lib/hydraulics.ts#L1035)⁰, [`DEFAULT_SIZING_LIMITS`](../../src/lib/hydraulics.ts#L1065), [`sizePipe`](../../src/lib/hydraulics.ts#L1116), [`pressureLoss`](../../src/lib/hydraulics.ts#L1259)⁰, [`evaluatePath`](../../src/lib/hydraulics.ts#L1349), [`DEFAULT_PUMP_EFFICIENCY`](../../src/lib/hydraulics.ts#L1429)⁰, [`MIN_PUMP_ELECTRIC_POWER`](../../src/lib/hydraulics.ts#L1438)⁰, [`designPump`](../../src/lib/hydraulics.ts#L1473), [`surfaceHeatFlux`](../../src/lib/hydraulics.ts#L1591)⁰, [`surfaceTemperatureFor`](../../src/lib/hydraulics.ts#L1598)⁰, [`MAX_SURFACE_TEMPERATURE`](../../src/lib/hydraulics.ts#L1621)⁰, [`logMeanOverTemperature`](../../src/lib/hydraulics.ts#L1642), [`DEFAULT_FLOOR_HEAT_FLUX`](../../src/lib/hydraulics.ts#L1667)⁰, [`DEFAULT_MAX_LOOP_LENGTH`](../../src/lib/hydraulics.ts#L1685)⁰, [`DEFAULT_MAX_LOOP_PRESSURE`](../../src/lib/hydraulics.ts#L1695)⁰, [`designFloorHeating`](../../src/lib/hydraulics.ts#L1805)
 
 ### [`src/lib/ifcExport.ts`](../../src/lib/ifcExport.ts) · 765 Zeilen
 
@@ -890,7 +908,7 @@ Exportierte Funktionen/Konstanten: [`schichtenAusText`](../../src/lib/ifcExport.
 
 **Verantwortung:** IFC4-Import (STEP / ISO-10303-21). Der wertvollste Grundriss ist der, den jemand anderes schon gezeichnet hat.  
 **Abhängigkeiten:** `lib/uwert.ts`, `types/bim.ts`  
-**Aufrufer:** `store/useBimStore.ts`  
+**Aufrufer:** `store/slices/laden.ts`  
 **Aufrufer in scripts/:** 10
 
 Exportierte Funktionen/Konstanten: [`parseStep`](../../src/lib/ifcImport.ts#L101), [`importIfc`](../../src/lib/ifcImport.ts#L1186)
@@ -899,7 +917,7 @@ Exportierte Funktionen/Konstanten: [`parseStep`](../../src/lib/ifcImport.ts#L101
 
 **Verantwortung:** Den eingelesenen Grundriss einem Geschoss zuordnen. **Das Aufmaß beginnt selten im Erdgeschoss.** Wer eine Wohnung im ersten  
 **Abhängigkeiten:** `lib/levelGeometry.ts`, `lib/uwert.ts`, `types/bim.ts`  
-**Aufrufer:** `store/useBimStore.ts`  
+**Aufrufer:** `store/slices/geschosse.ts`  
 **Aufrufer in scripts/:** 1
 
 Exportierte Funktionen/Konstanten: [`planeGeschosszuordnung`](../../src/lib/importgeschoss.ts#L80)
@@ -944,7 +962,7 @@ Exportierte Funktionen/Konstanten: [`DECKUNGSTOLERANZ`](../../src/lib/leitungsbe
 
 **Verantwortung:** Was beim Übernehmen eines Geschosses mitwandert — und was nicht. „Grundriss des aktuellen Geschosses übernehmen" ist eine Geste, aber drei  
 **Abhängigkeiten:** `types/bim.ts`  
-**Aufrufer:** `store/useBimStore.ts`  
+**Aufrufer:** `store/slices/geschosse.ts`  
 **Aufrufer in scripts/:** 2
 
 Exportierte Funktionen/Konstanten: [`copiesWithLevel`](../../src/lib/levelCopy.ts#L96), [`copyLevelContents`](../../src/lib/levelCopy.ts#L107)
@@ -953,7 +971,7 @@ Exportierte Funktionen/Konstanten: [`copiesWithLevel`](../../src/lib/levelCopy.t
 
 **Verantwortung:** Höhenlage der Geschosse. Ein Geschoss trägt eine Höhenlage (`elevation`) — die Oberkante seines  
 **Abhängigkeiten:** `types/bim.ts`  
-**Aufrufer:** `components/PropertiesPanel.tsx`, `components/Viewer3D.tsx`, `lib/importgeschoss.ts`, `lib/slabGeometry.ts`, `store/useBimStore.ts`  
+**Aufrufer:** `components/PropertiesPanel.tsx`, `components/Viewer3D.tsx`, `lib/importgeschoss.ts`, `lib/slabGeometry.ts`, `store/bimZustand.ts`, `store/slices/installation.ts`, `store/slices/laden.ts`  
 **Aufrufer in scripts/:** 6
 
 Exportierte Funktionen/Konstanten: [`DEFAULT_SLAB`](../../src/lib/levelGeometry.ts#L24), [`DEFAULT_LEVEL_HEIGHT`](../../src/lib/levelGeometry.ts#L27), [`levelBaseHeights`](../../src/lib/levelGeometry.ts#L36), [`geschossName`](../../src/lib/levelGeometry.ts#L76), [`erdgeschossIndex`](../../src/lib/levelGeometry.ts#L89), [`benenneGeschosse`](../../src/lib/levelGeometry.ts#L114), [`istLagename`](../../src/lib/levelGeometry.ts#L134)
@@ -962,7 +980,7 @@ Exportierte Funktionen/Konstanten: [`DEFAULT_SLAB`](../../src/lib/levelGeometry.
 
 **Verantwortung:** Lücken im Grundriss finden — und sagen, was man daraus machen kann. Ein loses Wandende ist im Aufmaß fast nie ein Fehler, sondern eine Aussage:  
 **Abhängigkeiten:** `types/bim.ts`  
-**Aufrufer:** `components/AufmassPanel.tsx`, `components/KorrekturDialog.tsx`, `lib/autokorrektur.ts`, `store/useBimStore.ts`  
+**Aufrufer:** `components/AufmassPanel.tsx`, `components/KorrekturDialog.tsx`, `lib/autokorrektur.ts`, `store/bimZustand.ts`, `store/slices/laden.ts`  
 **Aufrufer in scripts/:** 1
 
 Exportierte Funktionen/Konstanten: [`MAX_WEITE`](../../src/lib/luecken.ts#L29)⁰, [`findeLuecken`](../../src/lib/luecken.ts#L79), [`oeffnungFuerLuecke`](../../src/lib/luecken.ts#L172)
@@ -998,7 +1016,7 @@ Exportierte Funktionen/Konstanten: [`baueNetzExport`](../../src/lib/netzExport.t
 
 **Verantwortung:** Normwärmeleistung von Heizkörpern nach DIN EN 442-2 — die eine Stelle. **Festlegung F2 (gemeinsam mit RaVia und RaVia Scan).** Gespeichert und  
 **Abhängigkeiten:** `types/bim.ts`  
-**Aufrufer:** `components/GuidePanel.tsx`, `components/PropertiesPanel.tsx`, `components/RoomBook.tsx`, `components/StatusBar.tsx`, `components/TgaPalette.tsx`, `lib/auslegungExport.ts`, `lib/beschriftung3d.ts`, `lib/embedApi.ts`, `lib/fixtureSymbols.ts`, `lib/heizflaechenAbgleich.ts`, `lib/heizflaechenLeistung.ts`, `lib/hostPatch.ts`, `lib/hydraulicBalance.ts`, `lib/materialSchedule.ts`, `lib/raviaExport.ts`, `lib/validation.ts`, `lib/verbraucherlast.ts`, `store/useBimStore.ts`  
+**Aufrufer:** `components/GuidePanel.tsx`, `components/PropertiesPanel.tsx`, `components/RoomBook.tsx`, `components/StatusBar.tsx`, `components/TgaPalette.tsx`, `lib/auslegungExport.ts`, `lib/beschriftung3d.ts`, `lib/embedApi.ts`, `lib/fixtureSymbols.ts`, `lib/heizflaechenAbgleich.ts`, `lib/heizflaechenLeistung.ts`, `lib/hostPatch.ts`, `lib/hydraulicBalance.ts`, `lib/materialSchedule.ts`, `lib/raumExport.ts`, `lib/validation.ts`, `lib/verbraucherlast.ts`, `store/slices/bauteile.ts`, `store/slices/laden.ts`  
 **Aufrufer in scripts/:** 1
 
 Exportierte Funktionen/Konstanten: [`EN442_TYPEN`](../../src/lib/normleistung.ts#L27), [`istEn442`](../../src/lib/normleistung.ts#L34), [`NORMPUNKT_EN442`](../../src/lib/normleistung.ts#L39), [`NORM_UEBERTEMPERATUR_EN442`](../../src/lib/normleistung.ts#L42), [`ALT_UEBERTEMPERATUR_55_45`](../../src/lib/normleistung.ts#L45)⁰, [`EXPONENT_RICHTWERT`](../../src/lib/normleistung.ts#L51), [`RATED_POWER_SOURCE_LABELS`](../../src/lib/normleistung.ts#L59), [`exponentFuer`](../../src/lib/normleistung.ts#L67), [`ratedPowerAusAlt`](../../src/lib/normleistung.ts#L73), [`heizleistung`](../../src/lib/normleistung.ts#L84), [`migriereParams`](../../src/lib/normleistung.ts#L98), [`migriereFixtures`](../../src/lib/normleistung.ts#L122), [`mitLeistung`](../../src/lib/normleistung.ts#L136)
@@ -1007,7 +1025,7 @@ Exportierte Funktionen/Konstanten: [`EN442_TYPEN`](../../src/lib/normleistung.ts
 
 **Verantwortung:** notizen — die Regel für den Radiergummi der Notizebene. **Warum das hier steht und nicht in der Leinwand.** Radieren sieht nach  
 **Abhängigkeiten:** `lib/geometry.ts`, `types/bim.ts`  
-**Aufrufer:** `components/Editor2D.tsx`, `store/useBimStore.ts`  
+**Aufrufer:** `components/Editor2D.tsx`, `store/slices/referenzbild.ts`  
 **Aufrufer in scripts/:** 1
 
 Exportierte Funktionen/Konstanten: [`RADIER_RADIUS`](../../src/lib/notizen.ts#L27), [`abstandZuZug`](../../src/lib/notizen.ts#L30), [`trifft`](../../src/lib/notizen.ts#L51), [`getroffene`](../../src/lib/notizen.ts#L65)
@@ -1016,7 +1034,7 @@ Exportierte Funktionen/Konstanten: [`RADIER_RADIUS`](../../src/lib/notizen.ts#L2
 
 **Verantwortung:** Nutzungseinheiten — Wohnungen, Gewerbeeinheiten, Gemeinschaftsflächen. **Die Entscheidung, die hier getroffen wurde.** Die Frage stand so im Raum:  
 **Abhängigkeiten:** `types/bim.ts`  
-**Aufrufer:** `components/AnlagenPanel.tsx`, `components/PropertiesPanel.tsx`, `lib/plantDesign.ts`, `lib/raviaExport.ts`, `lib/validation.ts`, `store/useBimStore.ts`, `types/bim.ts`  
+**Aufrufer:** `components/AnlagenPanel.tsx`, `components/PropertiesPanel.tsx`, `lib/plantDesign.ts`, `lib/raviaExport.ts`, `lib/validation.ts`, `store/bimZustand.ts`, `store/slices/einheiten.ts`, `store/slices/laden.ts`, `types/bim.ts`  
 **Aufrufer in scripts/:** 2
 
 Exportierte Funktionen/Konstanten: [`EINHEIT_LABELS`](../../src/lib/nutzungseinheiten.ts#L35), [`ABGLEICHPFLICHT_AB`](../../src/lib/nutzungseinheiten.ts#L45), [`einheitsbilanzen`](../../src/lib/nutzungseinheiten.ts#L81), [`einheitenVonRaeumen`](../../src/lib/nutzungseinheiten.ts#L129), [`einheitVonRaeumen`](../../src/lib/nutzungseinheiten.ts#L146), [`ohneEinheit`](../../src/lib/nutzungseinheiten.ts#L152), [`einheitenstand`](../../src/lib/nutzungseinheiten.ts#L179), [`einheitenAusRaumnamen`](../../src/lib/nutzungseinheiten.ts#L209), [`einheitenAbgleich`](../../src/lib/nutzungseinheiten.ts#L228), [`naechsterName`](../../src/lib/nutzungseinheiten.ts#L245)
@@ -1025,7 +1043,7 @@ Exportierte Funktionen/Konstanten: [`EINHEIT_LABELS`](../../src/lib/nutzungseinh
 
 **Verantwortung:** Der Objektaufnahmebogen (BWP-Vorhaben 4.2). **Woher die Liste kommt.** Der BWP-Praxisratgeber Modernisieren führt die  
 **Abhängigkeiten:** `lib/verbrauchsabgleich.ts`, `types/bim.ts`  
-**Aufrufer:** `components/GuidePanel.tsx`, `lib/projektMappe.ts`, `store/useBimStore.ts`, `types/bim.ts`  
+**Aufrufer:** `components/GuidePanel.tsx`, `lib/projektMappe.ts`, `store/bimZustand.ts`, `types/bim.ts`  
 **Aufrufer in scripts/:** 1
 
 Exportierte Funktionen/Konstanten: [`DAEMMZUSTAND_LABELS`](../../src/lib/objektaufnahme.ts#L35), [`BESTANDSHEIZUNG_LABELS`](../../src/lib/objektaufnahme.ts#L54), [`WARMWASSER_BESTAND_LABELS`](../../src/lib/objektaufnahme.ts#L75), [`aufnahmestand`](../../src/lib/objektaufnahme.ts#L161)
@@ -1043,7 +1061,7 @@ Exportierte Funktionen/Konstanten: [`openingSymbol`](../../src/lib/openingSymbol
 
 **Verantwortung:** Symbolik der Armaturen am Rohrnetz — eine Quelle für Bildschirm und Blatt. Die Geometrie steht hier **einmal**, in lokalen Koordinaten um die  
 **Abhängigkeiten:** `types/bim.ts`  
-**Aufrufer:** `components/PropertiesPanel.tsx`, `lib/planPrint.ts`, `lib/verticalSymbols.ts`, `store/useBimStore.ts`  
+**Aufrufer:** `components/PropertiesPanel.tsx`, `lib/planPrint.ts`, `lib/verticalSymbols.ts`, `store/slices/anlage.ts`  
 **Aufrufer in scripts/:** 1
 
 Exportierte Funktionen/Konstanten: [`ACCESSORY_LABELS`](../../src/lib/pipeAccessorySymbols.ts#L23), [`ACCESSORY_LEGEND`](../../src/lib/pipeAccessorySymbols.ts#L39), [`accessorySymbol`](../../src/lib/pipeAccessorySymbols.ts#L78)
@@ -1057,14 +1075,14 @@ Exportierte Funktionen/Konstanten: [`ACCESSORY_LABELS`](../../src/lib/pipeAccess
 
 Exportierte Funktionen/Konstanten: [`LAMBDA_BEZUG`](../../src/lib/pipeInsulation.ts#L61), [`GEG_ANLAGE_8`](../../src/lib/pipeInsulation.ts#L71), [`GEG_ANLAGE_8_KAELTE`](../../src/lib/pipeInsulation.ts#L86), [`thicknessForLambda`](../../src/lib/pipeInsulation.ts#L226), [`insulationThickness`](../../src/lib/pipeInsulation.ts#L317), [`insulationForDimension`](../../src/lib/pipeInsulation.ts#L626)
 
-### [`src/lib/pipeLayout.ts`](../../src/lib/pipeLayout.ts) · 1759 Zeilen
+### [`src/lib/pipeLayout.ts`](../../src/lib/pipeLayout.ts) · 1754 Zeilen
 
 **Verantwortung:** Rohrausleger — aus dem Grundriss ein fertiges Rohrnetz. Was hier zusammenkommt:  
 **Abhängigkeiten:** `lib/anschlussgroesse.ts`, `lib/aufstellgeschoss.ts`, `lib/deviceCatalog.ts`, `lib/doppelleitung.ts`, `lib/geometry.ts`, `lib/hauseinfuehrung.ts`, `lib/heatLoadEstimate.ts`, `lib/hydraulics.ts`, `lib/pipeInsulation.ts`, `lib/pipeRouting.ts`, `lib/plantDefaults.ts`, `lib/ringleitung.ts`, `lib/rohrbezeichnung.ts`, `lib/rohrlaenge.ts`, `lib/steigstrang.ts`, `lib/systemtemperatur.ts`, `lib/verbraucherlast.ts`, `lib/zahl.ts`, `types/bim.ts`  
 **Aufrufer:** `lib/gebaeudeNetz.ts`  
 **Aufrufer in scripts/:** 6
 
-Exportierte Funktionen/Konstanten: [`SIZING_LIMITS`](../../src/lib/pipeLayout.ts#L80), [`SOCKELLEISTE_MAX_AUSSEN`](../../src/lib/pipeLayout.ts#L99), [`RING_MINDEST_DN`](../../src/lib/pipeLayout.ts#L202), [`RING_HOECHST_DN`](../../src/lib/pipeLayout.ts#L216), [`verteilerVon`](../../src/lib/pipeLayout.ts#L401)⁰, [`planPipeNetwork`](../../src/lib/pipeLayout.ts#L514)
+Exportierte Funktionen/Konstanten: [`SIZING_LIMITS`](../../src/lib/pipeLayout.ts#L80), [`SOCKELLEISTE_MAX_AUSSEN`](../../src/lib/pipeLayout.ts#L99), [`RING_MINDEST_DN`](../../src/lib/pipeLayout.ts#L202), [`RING_HOECHST_DN`](../../src/lib/pipeLayout.ts#L216), [`verteilerVon`](../../src/lib/pipeLayout.ts#L404)⁰, [`planPipeNetwork`](../../src/lib/pipeLayout.ts#L509)
 
 ### [`src/lib/pipeNetwork.ts`](../../src/lib/pipeNetwork.ts) · 837 Zeilen
 
@@ -1106,7 +1124,7 @@ Exportierte Funktionen/Konstanten: [`TUER_ZUSCHLAG`](../../src/lib/pipeRouting.t
 
 **Verantwortung:** „Alles löschen" — den Plan leeren, ohne das Projekt aufzugeben. **Was hier falsch war.** Der Papierkorb in der Werkzeugleiste hieß „Alle  
 **Abhängigkeiten:** `lib/plantDefaults.ts`, `types/bim.ts`  
-**Aufrufer:** `components/Toolbar.tsx`, `store/useBimStore.ts`  
+**Aufrufer:** `components/Toolbar.tsx`, `store/bimZustand.ts`, `store/slices/laden.ts`  
 **Aufrufer in scripts/:** 1
 
 Exportierte Funktionen/Konstanten: [`loeschbilanz`](../../src/lib/planLeeren.ts#L59), [`bilanzSatz`](../../src/lib/planLeeren.ts#L86), [`leerePlan`](../../src/lib/planLeeren.ts#L132)
@@ -1142,7 +1160,7 @@ Exportierte Funktionen/Konstanten: [`buildPlantBook`](../../src/lib/plantBook.ts
 
 **Verantwortung:** Vorbelegung der Anlagentechnik. Die Werte sind die, die in einem Einfamilienhaus mit Wärmepumpe am  
 **Abhängigkeiten:** `types/bim.ts`  
-**Aufrufer:** `components/AnlagenDialog.tsx`, `components/AnlagenPanel.tsx`, `components/RohrnetzDialog.tsx`, `components/Toolbar.tsx`, `lib/materialSchedule.ts`, `lib/pipeLayout.ts`, `lib/pipeReport.ts`, `lib/planLeeren.ts`, `lib/plantDesign.ts`, `lib/projektMappe.ts`, `lib/systemtemperatur.ts`, `store/useBimStore.ts`  
+**Aufrufer:** `components/AnlagenDialog.tsx`, `components/AnlagenPanel.tsx`, `components/RohrnetzDialog.tsx`, `components/Toolbar.tsx`, `lib/materialSchedule.ts`, `lib/pipeLayout.ts`, `lib/pipeReport.ts`, `lib/planLeeren.ts`, `lib/plantDesign.ts`, `lib/projektMappe.ts`, `lib/systemtemperatur.ts`, `store/bimZustand.ts`, `store/slices/anlage.ts`  
 **Aufrufer in scripts/:** 31
 
 Exportierte Funktionen/Konstanten: [`emptyPlant`](../../src/lib/plantDefaults.ts#L18), [`plantOf`](../../src/lib/plantDefaults.ts#L63), [`emptySite`](../../src/lib/plantDefaults.ts#L82), [`VORHABEN_VORBELEGUNG`](../../src/lib/plantDefaults.ts#L118), [`verlegeartAus`](../../src/lib/plantDefaults.ts#L193)
@@ -1187,16 +1205,25 @@ Exportierte Funktionen/Konstanten: [`blattBereich`](../../src/lib/projektMappe.t
 
 **Verantwortung:** Prüfsummen für den Export — damit die Gegenstelle erkennt, *was* sich geändert hat, und nicht nur *dass* sich etwas geändert hat.  
 **Abhängigkeiten:** –  
-**Aufrufer:** `lib/raviaExport.ts`  
+**Aufrufer:** `lib/raumExport.ts`  
 **Aufrufer in scripts/:** 1
 
 Exportierte Funktionen/Konstanten: [`hash64`](../../src/lib/pruefsumme.ts#L52), [`kanonisch`](../../src/lib/pruefsumme.ts#L89), [`pruefsumme`](../../src/lib/pruefsumme.ts#L106)
+
+### [`src/lib/raumExport.ts`](../../src/lib/raumExport.ts) · 1176 Zeilen
+
+**Verantwortung:** Raum-Flächen des RaVia-Exports — die Hülle je Raum. Aus `raviaExport.ts` herausgelöst (TD-23): `buildRoom` bildet je Raum die  
+**Abhängigkeiten:** `lib/dachlandschaft.ts`, `lib/geometry.ts`, `lib/huellflaechenbilanz.ts`, `lib/normleistung.ts`, `lib/pruefsumme.ts`, `lib/rohrImRaum.ts`, `lib/roofGeometry.ts`, `lib/roomDetection.ts`, `lib/thermalBridges.ts`, `lib/unbeheizt.ts`, `lib/uwert.ts`, `lib/wallGeometry.ts`, `types/bim.ts`  
+**Aufrufer:** `lib/heatLoadEstimate.ts`, `lib/raviaExport.ts`  
+**Aufrufer in scripts/:** 0
+
+Exportierte Funktionen/Konstanten: [`raumFlaechen`](../../src/lib/raumExport.ts#L90), [`neighbourTemperature`](../../src/lib/raumExport.ts#L102)⁰, [`heatedTemperatureByLevel`](../../src/lib/raumExport.ts#L147), [`raumPruefsumme`](../../src/lib/raumExport.ts#L269), [`buildRoom`](../../src/lib/raumExport.ts#L409)
 
 ### [`src/lib/raumZuordnung.ts`](../../src/lib/raumZuordnung.ts) · 167 Zeilen
 
 **Verantwortung:** Gespeicherte Raumangaben wieder ihrem Raum zuordnen — geschossweise. **Der Fehler, der dieses Modul nötig gemacht hat.** Beim Öffnen einer  
 **Abhängigkeiten:** `lib/geometry.ts`, `types/bim.ts`  
-**Aufrufer:** `store/useBimStore.ts`  
+**Aufrufer:** `store/slices/laden.ts`  
 **Aufrufer in scripts/:** 1
 
 Exportierte Funktionen/Konstanten: [`geschossVon`](../../src/lib/raumZuordnung.ts#L74), [`ordneRaeumeZu`](../../src/lib/raumZuordnung.ts#L116)
@@ -1205,7 +1232,7 @@ Exportierte Funktionen/Konstanten: [`geschossVon`](../../src/lib/raumZuordnung.t
 
 **Verantwortung:** Von einem Raumnamen auf seine Nutzung schließen. Ein Raum, der „Bad" heißt, wird nach DIN EN 12831 mit 24 °C gerechnet,  
 **Abhängigkeiten:** `types/bim.ts`  
-**Aufrufer:** `components/RaumnameFeld.tsx`, `store/useBimStore.ts`  
+**Aufrufer:** `components/RaumnameFeld.tsx`, `store/slices/laden.ts`  
 **Aufrufer in scripts/:** 3
 
 Exportierte Funktionen/Konstanten: [`normalisiere`](../../src/lib/raumnutzung.ts#L49), [`nutzungAusName`](../../src/lib/raumnutzung.ts#L125), [`ordneRaumnamenZu`](../../src/lib/raumnutzung.ts#L254), [`STANDARD_RAUMNAMEN`](../../src/lib/raumnutzung.ts#L313), [`istStandardraumname`](../../src/lib/raumnutzung.ts#L347)
@@ -1214,7 +1241,7 @@ Exportierte Funktionen/Konstanten: [`normalisiere`](../../src/lib/raumnutzung.ts
 
 **Verantwortung:** Import eines Raumscans aus Apple RoomPlan. Wer mit dem iPhone durch die Wohnung geht, bekommt keine Punktwolke,  
 **Abhängigkeiten:** `lib/geometry.ts`, `lib/uwert.ts`, `types/bim.ts`  
-**Aufrufer:** `components/Toolbar.tsx`, `lib/buildingModelImport.ts`, `lib/scanUebernahme.ts`, `store/useBimStore.ts`  
+**Aufrufer:** `components/Toolbar.tsx`, `lib/buildingModelImport.ts`, `lib/scanUebernahme.ts`, `store/bimZustand.ts`, `store/slices/laden.ts`  
 **Aufrufer in scripts/:** 5
 
 Exportierte Funktionen/Konstanten: [`istRaumplanDatei`](../../src/lib/raumplanImport.ts#L422), [`importRaumplan`](../../src/lib/raumplanImport.ts#L489), [`bauart`](../../src/lib/raumplanImport.ts#L912), [`teileAnStoessen`](../../src/lib/raumplanImport.ts#L1116)
@@ -1228,14 +1255,14 @@ Exportierte Funktionen/Konstanten: [`istRaumplanDatei`](../../src/lib/raumplanIm
 
 Exportierte Funktionen/Konstanten: [`WANDZUSCHLAG`](../../src/lib/raumtreffer.ts#L54), [`deuteTreffer`](../../src/lib/raumtreffer.ts#L63), [`szeneZuModell`](../../src/lib/raumtreffer.ts#L107)
 
-### [`src/lib/raviaExport.ts`](../../src/lib/raviaExport.ts) · 2324 Zeilen
+### [`src/lib/raviaExport.ts`](../../src/lib/raviaExport.ts) · 1196 Zeilen
 
 **Verantwortung:** RaVia-Export — das Übergabeformat an die Heizlastberechnung. Leitgedanke: die Gegenstelle soll **rechnen können, ohne nachzufragen**.  
-**Abhängigkeiten:** `lib/auslegungExport.ts`, `lib/dachlandschaft.ts`, `lib/durchbruchSymbols.ts`, `lib/fassung.ts`, `lib/formteile.ts`, `lib/geometry.ts`, `lib/heatLoadEstimate.ts`, `lib/heatPump.ts`, `lib/huellflaechenbilanz.ts`, `lib/hydraulicBalance.ts`, `lib/kaeltemittel.ts`, `lib/netzExport.ts`, `lib/normleistung.ts`, `lib/nutzungseinheiten.ts`, `lib/pipeNetwork.ts`, `lib/plantDesign.ts`, `lib/pruefsumme.ts`, `lib/rohrImRaum.ts`, `lib/rohrlaenge.ts`, `lib/roofGeometry.ts`, `lib/roomDetection.ts`, `lib/thermalBridges.ts`, `lib/unbeheizt.ts`, `lib/uwert.ts`, `lib/validation.ts`, `lib/verbraucherlast.ts`, `lib/verbrauchsabgleich.ts`, `lib/verticalSymbols.ts`, `lib/wallGeometry.ts`, `types/bim.ts`  
-**Aufrufer:** `components/AnlagenPanel.tsx`, `components/ExportDiffPanel.tsx`, `components/ProjektDialog.tsx`, `components/PropertiesPanel.tsx`, `components/RoomBook.tsx`, `components/Toolbar.tsx`, `lib/embedApi.ts`, `lib/heatLoadEstimate.ts`, `lib/projektMappe.ts`  
+**Abhängigkeiten:** `lib/auslegungExport.ts`, `lib/durchbruchSymbols.ts`, `lib/fassung.ts`, `lib/formteile.ts`, `lib/geometry.ts`, `lib/heatLoadEstimate.ts`, `lib/heatPump.ts`, `lib/huellflaechenbilanz.ts`, `lib/hydraulicBalance.ts`, `lib/kaeltemittel.ts`, `lib/netzExport.ts`, `lib/nutzungseinheiten.ts`, `lib/pipeNetwork.ts`, `lib/plantDesign.ts`, `lib/raumExport.ts`, `lib/rohrImRaum.ts`, `lib/rohrlaenge.ts`, `lib/roomDetection.ts`, `lib/thermalBridges.ts`, `lib/unbeheizt.ts`, `lib/validation.ts`, `lib/verbraucherlast.ts`, `lib/verbrauchsabgleich.ts`, `lib/verticalSymbols.ts`, `lib/wallGeometry.ts`, `types/bim.ts`  
+**Aufrufer:** `components/AnlagenPanel.tsx`, `components/ExportDiffPanel.tsx`, `components/ProjektDialog.tsx`, `components/PropertiesPanel.tsx`, `components/RoomBook.tsx`, `components/Toolbar.tsx`, `lib/embedApi.ts`, `lib/projektMappe.ts`  
 **Aufrufer in scripts/:** 20
 
-Exportierte Funktionen/Konstanten: [`GENERATOR`](../../src/lib/raviaExport.ts#L147), [`EXPORT_FASSUNG`](../../src/lib/raviaExport.ts#L217), [`raumFlaechen`](../../src/lib/raviaExport.ts#L226), [`buildRaviaExport`](../../src/lib/raviaExport.ts#L237), [`downloadJson`](../../src/lib/raviaExport.ts#L2301), [`exportFilename`](../../src/lib/raviaExport.ts#L2315)
+Exportierte Funktionen/Konstanten: [`GENERATOR`](../../src/lib/raviaExport.ts#L113), [`EXPORT_FASSUNG`](../../src/lib/raviaExport.ts#L183), [`buildRaviaExport`](../../src/lib/raviaExport.ts#L185), [`downloadJson`](../../src/lib/raviaExport.ts#L1173), [`exportFilename`](../../src/lib/raviaExport.ts#L1187)
 
 ### [`src/lib/ringStich.ts`](../../src/lib/ringStich.ts) · 369 Zeilen
 
@@ -1259,7 +1286,7 @@ Exportierte Funktionen/Konstanten: [`WANDABSTAND`](../../src/lib/ringleitung.ts#
 
 **Verantwortung:** Wie viele Rohrmeter liegen in welchem Raum? **Warum diese Frage überhaupt gestellt wird.** Ein Heizkreisverteiler in der  
 **Abhängigkeiten:** `lib/geometry.ts`, `types/bim.ts`  
-**Aufrufer:** `components/RoomBook.tsx`, `lib/raviaExport.ts`  
+**Aufrufer:** `components/RoomBook.tsx`, `lib/raumExport.ts`, `lib/raviaExport.ts`  
 **Aufrufer in scripts/:** 0
 
 Exportierte Funktionen/Konstanten: [`rohrmeterJeRaum`](../../src/lib/rohrImRaum.ts#L96)
@@ -1268,7 +1295,7 @@ Exportierte Funktionen/Konstanten: [`rohrmeterJeRaum`](../../src/lib/rohrImRaum.
 
 **Verantwortung:** Wie eine Leitung im Plan heißt — und warum nicht „DN 12". **Der Befund.** Im Plan stand am Heizkörper „DN 12". Ein Heizungsbauer  
 **Abhängigkeiten:** `lib/hydraulics.ts`, `lib/rohrlaenge.ts`, `types/bim.ts`  
-**Aufrufer:** `components/PropertiesPanel.tsx`, `components/Viewer3D.tsx`, `lib/beschriftung3d.ts`, `lib/formteile.ts`, `lib/materialSchedule.ts`, `lib/pipeLayout.ts`, `lib/planPrint.ts`, `lib/verticalSymbols.ts`, `store/useBimStore.ts`  
+**Aufrufer:** `components/PropertiesPanel.tsx`, `components/Viewer3D.tsx`, `lib/beschriftung3d.ts`, `lib/formteile.ts`, `lib/materialSchedule.ts`, `lib/pipeLayout.ts`, `lib/planPrint.ts`, `lib/verticalSymbols.ts`, `store/slices/installation.ts`  
 **Aufrufer in scripts/:** 2
 
 Exportierte Funktionen/Konstanten: [`WERKSTOFF_KUERZEL`](../../src/lib/rohrbezeichnung.ts#L50), [`handelsmass`](../../src/lib/rohrbezeichnung.ts#L80), [`rohrbezeichnung`](../../src/lib/rohrbezeichnung.ts#L99), [`rohrbezeichnungLang`](../../src/lib/rohrbezeichnung.ts#L115), [`leitungsbeschriftung`](../../src/lib/rohrbezeichnung.ts#L132)
@@ -1277,7 +1304,7 @@ Exportierte Funktionen/Konstanten: [`WERKSTOFF_KUERZEL`](../../src/lib/rohrbezei
 
 **Verantwortung:** Wie lang ist eine Leitung wirklich? **Warum das ein eigenes Modul ist.** Bis 1.23.0 rechnete jede Stelle, die  
 **Abhängigkeiten:** `types/bim.ts`  
-**Aufrufer:** `components/AnlagenPanel.tsx`, `components/Viewer3D.tsx`, `lib/formteile.ts`, `lib/leitungsbefund.ts`, `lib/materialSchedule.ts`, `lib/pipeLayout.ts`, `lib/pipeNetwork.ts`, `lib/pipeReport.ts`, `lib/raviaExport.ts`, `lib/rohrbezeichnung.ts`, `lib/verticalSymbols.ts`, `lib/wandquerung.ts`, `store/useBimStore.ts`  
+**Aufrufer:** `components/AnlagenPanel.tsx`, `components/Viewer3D.tsx`, `lib/formteile.ts`, `lib/leitungsbefund.ts`, `lib/materialSchedule.ts`, `lib/pipeLayout.ts`, `lib/pipeNetwork.ts`, `lib/pipeReport.ts`, `lib/raviaExport.ts`, `lib/rohrbezeichnung.ts`, `lib/verticalSymbols.ts`, `lib/wandquerung.ts`, `store/slices/installation.ts`  
 **Aufrufer in scripts/:** 3
 
 Exportierte Funktionen/Konstanten: [`trassenlaenge`](../../src/lib/rohrlaenge.ts#L24), [`hoehenversatz`](../../src/lib/rohrlaenge.ts#L40), [`rohrlaenge`](../../src/lib/rohrlaenge.ts#L55), [`steiganteil`](../../src/lib/rohrlaenge.ts#L70), [`istStrang`](../../src/lib/rohrlaenge.ts#L87), [`hoeheAnPunkt`](../../src/lib/rohrlaenge.ts#L101)
@@ -1286,7 +1313,7 @@ Exportierte Funktionen/Konstanten: [`trassenlaenge`](../../src/lib/rohrlaenge.ts
 
 **Verantwortung:** Dachgeometrie — die ortsabhängige Raumhöhe unter einer Schräge. Im Dachgeschoss stimmt nichts mehr, was im Regelgeschoss selbstverständlich  
 **Abhängigkeiten:** `lib/geometry.ts`, `types/bim.ts`  
-**Aufrufer:** `components/Editor2D.tsx`, `components/PropertiesPanel.tsx`, `components/RoofPanel.tsx`, `components/Viewer3D.tsx`, `lib/dachlandschaft.ts`, `lib/dachschnitt.ts`, `lib/planPrint.ts`, `lib/raviaExport.ts`, `lib/roomDetection.ts`, `lib/wandhoehen.ts`, `store/useBimStore.ts`  
+**Aufrufer:** `components/Editor2D.tsx`, `components/PropertiesPanel.tsx`, `components/RoofPanel.tsx`, `components/Viewer3D.tsx`, `lib/dachlandschaft.ts`, `lib/dachschnitt.ts`, `lib/dokumentPflege.ts`, `lib/planPrint.ts`, `lib/raumExport.ts`, `lib/roomDetection.ts`, `lib/wandhoehen.ts`, `store/slices/anlage.ts`  
 **Aufrufer in scripts/:** 7
 
 Exportierte Funktionen/Konstanten: [`ROOF_SAMPLE_STEP`](../../src/lib/roofGeometry.ts#L29)⁰, [`MANSARD_OBEN_VORGABE`](../../src/lib/roofGeometry.ts#L388), [`MANSARD_KNICK_VORGABE`](../../src/lib/roofGeometry.ts#L390), [`KRUEPPELWALM_VORGABE`](../../src/lib/roofGeometry.ts#L392), [`mansardKnick`](../../src/lib/roofGeometry.ts#L407), [`buildRoofFrame`](../../src/lib/roofGeometry.ts#L434), [`baseRoofHeightAt`](../../src/lib/roofGeometry.ts#L617), [`dormerFrontHeightAt`](../../src/lib/roofGeometry.ts#L753)⁰, [`defaultGableRise`](../../src/lib/roofGeometry.ts#L760), [`dormerSide`](../../src/lib/roofGeometry.ts#L769), [`dormerFrontBack`](../../src/lib/roofGeometry.ts#L778)⁰, [`roofHeightAt`](../../src/lib/roofGeometry.ts#L804), [`neigungAn`](../../src/lib/roofGeometry.ts#L841)⁰, [`roofFaceAzimuthAt`](../../src/lib/roofGeometry.ts#L872), [`measureRoomUnderRoof`](../../src/lib/roofGeometry.ts#L930), [`wallProfileUnderRoof`](../../src/lib/roofGeometry.ts#L1151), [`roofContourLines`](../../src/lib/roofGeometry.ts#L1215), [`ridgeLine`](../../src/lib/roofGeometry.ts#L1285), [`roofOpeningCorners`](../../src/lib/roofGeometry.ts#L1320), [`hitTestRoofOpening`](../../src/lib/roofGeometry.ts#L1335)
@@ -1295,7 +1322,7 @@ Exportierte Funktionen/Konstanten: [`ROOF_SAMPLE_STEP`](../../src/lib/roofGeomet
 
 **Verantwortung:** Automatische Raumerkennung über planare Facetten-Traversierung. Warum kein Flood-Fill auf Pixeln? Ein rasterbasierter Fill ist auflösungs-  
 **Abhängigkeiten:** `lib/geometry.ts`, `lib/roofGeometry.ts`, `lib/uwert.ts`, `lib/verticalSymbols.ts`, `lib/zahl.ts`, `types/bim.ts`  
-**Aufrufer:** `components/AufnahmeAssistent.tsx`, `components/RoofPanel.tsx`, `lib/aussenwand.ts`, `lib/autokorrektur.ts`, `lib/dachlandschaft.ts`, `lib/heatLoadEstimate.ts`, `lib/planPrint.ts`, `lib/raviaExport.ts`, `lib/ringleitung.ts`, `lib/validation.ts`, `store/useBimStore.ts`  
+**Aufrufer:** `components/AufnahmeAssistent.tsx`, `components/RoofPanel.tsx`, `lib/aussenwand.ts`, `lib/autokorrektur.ts`, `lib/dachlandschaft.ts`, `lib/dokumentPflege.ts`, `lib/heatLoadEstimate.ts`, `lib/planPrint.ts`, `lib/raumExport.ts`, `lib/raviaExport.ts`, `lib/ringleitung.ts`, `lib/validation.ts`, `lib/wandhoehen.ts`, `store/slices/anlage.ts`, `store/slices/bauteile.ts`, `store/slices/laden.ts`  
 **Aufrufer in scripts/:** 41
 
 Exportierte Funktionen/Konstanten: [`gradeSplit`](../../src/lib/roomDetection.ts#L115), [`BRUESTUNGS_HOEHE`](../../src/lib/roomDetection.ts#L147), [`WELD_TOLERANCE`](../../src/lib/roomDetection.ts#L168), [`usageDefaults`](../../src/lib/roomDetection.ts#L197), [`findOpenEnds`](../../src/lib/roomDetection.ts#L445), [`gebaeudeUmriss`](../../src/lib/roomDetection.ts#L773), [`detectRooms`](../../src/lib/roomDetection.ts#L1031), [`applyVerticalDeductions`](../../src/lib/roomDetection.ts#L1531), [`MASSIVE_SHARE`](../../src/lib/roomDetection.ts#L1631), [`isMassiveArea`](../../src/lib/roomDetection.ts#L1640), [`MAX_GAP`](../../src/lib/roomDetection.ts#L1695), [`diagnoseClosure`](../../src/lib/roomDetection.ts#L1718)
@@ -1304,7 +1331,7 @@ Exportierte Funktionen/Konstanten: [`gradeSplit`](../../src/lib/roomDetection.ts
 
 **Verantwortung:** Raumvorlagen — fertige Grundformen zum Aufziehen. Wände einzeln zu ziehen ist der ehrliche Weg und der langsamste. Die  
 **Abhängigkeiten:** `types/bim.ts`  
-**Aufrufer:** `components/Editor2D.tsx`, `store/useBimStore.ts`  
+**Aufrufer:** `components/Editor2D.tsx`, `store/bimZustand.ts`, `store/slices/bauteile.ts`, `store/slices/ui.ts`, `store/useBimStore.ts`  
 **Aufrufer in scripts/:** 1
 
 Exportierte Funktionen/Konstanten: [`ROOM_TEMPLATES`](../../src/lib/roomTemplates.ts#L45), [`ROOM_TEMPLATE_BY_KIND`](../../src/lib/roomTemplates.ts#L92), [`DEFAULT_TEMPLATE_OPTIONS`](../../src/lib/roomTemplates.ts#L109), [`templatePolygon`](../../src/lib/roomTemplates.ts#L129), [`ROOM_SIZE_PRESETS`](../../src/lib/roomTemplates.ts#L293)
@@ -1331,10 +1358,19 @@ Exportierte Funktionen/Konstanten: [`SCAN_DIENST_PFAD`](../../src/lib/scanDienst
 
 **Verantwortung:** Was nach der Raumerkennung mit einem Gebäudescan geschieht. Der Import (`buildingModelImport.ts`) übersetzt Wände, Öffnungen und das  
 **Abhängigkeiten:** `lib/buildingModelImport.ts`, `lib/geometry.ts`, `lib/raumplanImport.ts`, `types/bim.ts`  
-**Aufrufer:** `store/useBimStore.ts`  
+**Aufrufer:** `store/bimZustand.ts`, `store/slices/laden.ts`  
 **Aufrufer in scripts/:** 4
 
 Exportierte Funktionen/Konstanten: [`SCAN_DACH_ID`](../../src/lib/scanUebernahme.ts#L28)⁰, [`scanDachZuordnen`](../../src/lib/scanUebernahme.ts#L83), [`benenneRaeume`](../../src/lib/scanUebernahme.ts#L145), [`uebernimmBeheizung`](../../src/lib/scanUebernahme.ts#L194), [`pruefpunkteAlsHinweise`](../../src/lib/scanUebernahme.ts#L233)
+
+### [`src/lib/scanZugang.ts`](../../src/lib/scanZugang.ts) · 32 Zeilen
+
+**Verantwortung:** Welcher Weg zum Scan offensteht — Wirt, eigener Dienst oder keiner. **TD-32.** Die Gegenstelle in RaVia (der Relay hinter `scan-dienst/`,  
+**Abhängigkeiten:** `lib/wirt.ts`  
+**Aufrufer:** `store/scanDialog.ts`  
+**Aufrufer in scripts/:** 1
+
+Exportierte Funktionen/Konstanten: [`SCAN_DIENST_AKTIV`](../../src/lib/scanZugang.ts#L16), [`scanVerfuegbar`](../../src/lib/scanZugang.ts#L19), [`scanWeg`](../../src/lib/scanZugang.ts#L28)
 
 ### [`src/lib/schemaAuswahl.ts`](../../src/lib/schemaAuswahl.ts) · 546 Zeilen
 
@@ -1358,7 +1394,7 @@ Exportierte Funktionen/Konstanten: [`zaehleUeberlappungen`](../../src/lib/schema
 
 **Verantwortung:** Schemakatalog — die benannten Hydraulikschemata, aus denen vorgeschlagen wird. WAS DIESE DATEI IST  
 **Abhängigkeiten:** `types/bim.ts`  
-**Aufrufer:** `components/GuidePanel.tsx`, `lib/schemaAuswahl.ts`, `lib/schemaZuordnung.ts`, `store/useBimStore.ts`  
+**Aufrufer:** `components/GuidePanel.tsx`, `lib/schemaAuswahl.ts`, `lib/schemaZuordnung.ts`, `store/slices/anlage.ts`  
 **Aufrufer in scripts/:** 2
 
 Exportierte Funktionen/Konstanten: [`SCHEMA_KATALOG`](../../src/lib/schemaKatalog.ts#L326), [`schemaVorlage`](../../src/lib/schemaKatalog.ts#L2063), [`vorlagenNachAnbindung`](../../src/lib/schemaKatalog.ts#L2068), [`ANBINDUNG_LABELS`](../../src/lib/schemaKatalog.ts#L2072)
@@ -1430,7 +1466,7 @@ Exportierte Funktionen/Konstanten: [`SITE_COLORS`](../../src/lib/siteSymbols.ts#
 
 **Verantwortung:** Aus einem Freihandstrich werden Wände. **Der Anlass.** Auf dem Tablet liegt der Stift schon in der Hand. Wer vor  
 **Abhängigkeiten:** `lib/geometry.ts`, `types/bim.ts`  
-**Aufrufer:** `store/useBimStore.ts`  
+**Aufrufer:** `store/slices/referenzbild.ts`  
 **Aufrufer in scripts/:** 1
 
 Exportierte Funktionen/Konstanten: [`SKIZZE_LEER`](../../src/lib/skizze.ts#L127)⁰, [`glaette`](../../src/lib/skizze.ts#L147), [`vereinfache`](../../src/lib/skizze.ts#L173), [`erkenneSkizze`](../../src/lib/skizze.ts#L222)
@@ -1439,7 +1475,7 @@ Exportierte Funktionen/Konstanten: [`SKIZZE_LEER`](../../src/lib/skizze.ts#L127)
 
 **Verantwortung:** Die Skizzenseite — ein Blatt Papier, kein Grundriss. **Warum es sie gibt.** Seit 1.64.0 gibt es das *Skizzenblatt*: eine Fläche  
 **Abhängigkeiten:** `types/bim.ts`  
-**Aufrufer:** `components/SkizzenSeite.tsx`, `store/useBimStore.ts`, `types/bim.ts`  
+**Aufrufer:** `components/SkizzenSeite.tsx`, `store/bimZustand.ts`, `store/slices/skizze.ts`, `types/bim.ts`  
 **Aufrufer in scripts/:** 1
 
 Exportierte Funktionen/Konstanten: [`BLATT`](../../src/lib/skizzenseite.ts#L30), [`STRICHSTAERKEN`](../../src/lib/skizzenseite.ts#L33), [`STIFTFARBEN`](../../src/lib/skizzenseite.ts#L43), [`MESSSTRECKE_MIN`](../../src/lib/skizzenseite.ts#L105), [`meterJeMm`](../../src/lib/skizzenseite.ts#L107), [`nachWelt`](../../src/lib/skizzenseite.ts#L124), [`neueSeite`](../../src/lib/skizzenseite.ts#L136), [`naechsterBlattname`](../../src/lib/skizzenseite.ts#L147), [`strichZurueck`](../../src/lib/skizzenseite.ts#L156), [`istLeer`](../../src/lib/skizzenseite.ts#L160), [`umriss`](../../src/lib/skizzenseite.ts#L170), [`duenneAus`](../../src/lib/skizzenseite.ts#L199), [`punktzahl`](../../src/lib/skizzenseite.ts#L228)
@@ -1457,7 +1493,7 @@ Exportierte Funktionen/Konstanten: [`GROUND_SLAB`](../../src/lib/slabGeometry.ts
 
 **Verantwortung:** Den Grundriss spiegeln — seitenverkehrt eingelesene Pläne geraderücken. Ein Grundriss kommt oft seitenverkehrt herein: ein abfotografierter Plan von  
 **Abhängigkeiten:** `lib/dachlandschaft.ts`, `lib/geometry.ts`, `types/bim.ts`  
-**Aufrufer:** `store/useBimStore.ts`  
+**Aufrufer:** `store/bimZustand.ts`, `store/slices/laden.ts`  
 **Aufrufer in scripts/:** 1
 
 Exportierte Funktionen/Konstanten: [`spiegleWinkel`](../../src/lib/spiegeln.ts#L122), [`spiegleAzimut`](../../src/lib/spiegeln.ts#L136), [`spiegleDokument`](../../src/lib/spiegeln.ts#L163)
@@ -1466,7 +1502,7 @@ Exportierte Funktionen/Konstanten: [`spiegleWinkel`](../../src/lib/spiegeln.ts#L
 
 **Verantwortung:** Sprachen — und warum die deutschen Fachbegriffe stehen bleiben. **Wen das betrifft.** Nicht andere Märkte, sondern **Deutschland**. Rund  
 **Abhängigkeiten:** `lib/sprachen/katalog.ts`  
-**Aufrufer:** `components/Flaggen.tsx`, `components/GuidePanel.tsx`, `components/Toolbar.tsx`, `lib/sprachen/katalog.ts`, `store/useBimStore.ts`  
+**Aufrufer:** `components/Flaggen.tsx`, `components/GuidePanel.tsx`, `components/Toolbar.tsx`, `lib/sprachen/katalog.ts`, `store/bimZustand.ts`, `store/slices/ui.ts`  
 **Aufrufer in scripts/:** 1
 
 Exportierte Funktionen/Konstanten: [`SPRACHEN`](../../src/lib/sprache.ts#L113), [`RECHTS_NACH_LINKS`](../../src/lib/sprache.ts#L144), [`FACHBEGRIFFE`](../../src/lib/sprache.ts#L159), [`spracheSetzen`](../../src/lib/sprache.ts#L190), [`spracheHolen`](../../src/lib/sprache.ts#L194), [`schluessel`](../../src/lib/sprache.ts#L199), [`t`](../../src/lib/sprache.ts#L217), [`fach`](../../src/lib/sprache.ts#L235), [`istFachbegriff`](../../src/lib/sprache.ts#L240)
@@ -1502,7 +1538,7 @@ Exportierte Funktionen/Konstanten: [`HEIZKOERPER_MINDESTVORLAUF`](../../src/lib/
 
 **Verantwortung:** Wärmebrücken — längenbezogen statt pauschal. Bisher trug jedes Bauteil einen pauschalen Zuschlag ΔU_WB auf seinen U-Wert.  
 **Abhängigkeiten:** `lib/dachlandschaft.ts`, `lib/geometry.ts`, `lib/wallGeometry.ts`, `types/bim.ts`  
-**Aufrufer:** `components/ThermalBridgePanel.tsx`, `lib/heatLoadEstimate.ts`, `lib/raviaExport.ts`, `lib/validation.ts`  
+**Aufrufer:** `components/ThermalBridgePanel.tsx`, `lib/heatLoadEstimate.ts`, `lib/raumExport.ts`, `lib/raviaExport.ts`, `lib/validation.ts`  
 **Aufrufer in scripts/:** 3
 
 Exportierte Funktionen/Konstanten: [`FLAT_SUPPLEMENT`](../../src/lib/thermalBridges.ts#L43), [`BRIDGE_TYPES`](../../src/lib/thermalBridges.ts#L64), [`DEFAULT_BRIDGE_CATALOGUE`](../../src/lib/thermalBridges.ts#L76)⁰, [`bridgeLengths`](../../src/lib/thermalBridges.ts#L95), [`roomThermalBridges`](../../src/lib/thermalBridges.ts#L220), [`roomBridgeHeatLoss`](../../src/lib/thermalBridges.ts#L247), [`beheizteGeschosse`](../../src/lib/thermalBridges.ts#L255)⁰, [`roomEnvelopeArea`](../../src/lib/thermalBridges.ts#L281), [`envelopeArea`](../../src/lib/thermalBridges.ts#L320), [`roomEquivalentSupplement`](../../src/lib/thermalBridges.ts#L343), [`documentBridgeHeatLoss`](../../src/lib/thermalBridges.ts#L352), [`documentBridgeLengths`](../../src/lib/thermalBridges.ts#L363)
@@ -1511,7 +1547,7 @@ Exportierte Funktionen/Konstanten: [`FLAT_SUPPLEMENT`](../../src/lib/thermalBrid
 
 **Verantwortung:** Treppenlogik — Steigung, Auftritt und das Loch in der Decke. **Der Anlass.** Im 3D-Modell war eine Treppe nur in dem Geschoss zu sehen,  
 **Abhängigkeiten:** `lib/verticalSymbols.ts`, `types/bim.ts`  
-**Aufrufer:** `components/PropertiesPanel.tsx`, `components/Viewer3D.tsx`, `lib/slabGeometry.ts`, `store/useBimStore.ts`  
+**Aufrufer:** `components/PropertiesPanel.tsx`, `components/Viewer3D.tsx`, `lib/slabGeometry.ts`, `store/slices/installation.ts`  
 **Aufrufer in scripts/:** 1
 
 Exportierte Funktionen/Konstanten: [`TREPPE_GRENZEN`](../../src/lib/treppenlogik.ts#L52), [`DURCHGANGSHOEHE`](../../src/lib/treppenlogik.ts#L73), [`treppenmasse`](../../src/lib/treppenlogik.ts#L147), [`oeffnungAb`](../../src/lib/treppenlogik.ts#L261), [`treppenoeffnung`](../../src/lib/treppenlogik.ts#L284)
@@ -1538,7 +1574,7 @@ Exportierte Funktionen/Konstanten: [`UEBERSICHT_MASSE`](../../src/lib/uebersicht
 
 **Verantwortung:** Wie viel von diesem Programm jemand sehen will. **Drei Stufen, nicht zwei.** Bisher gab es „Einfach" und „Fachplaner". Das  
 **Abhängigkeiten:** –  
-**Aufrufer:** `App.tsx`, `components/AnlagenPanel.tsx`, `components/GuidePanel.tsx`, `components/Toolbar.tsx`, `components/ValidationPanel.tsx`, `store/useBimStore.ts`  
+**Aufrufer:** `App.tsx`, `components/AnlagenPanel.tsx`, `components/GuidePanel.tsx`, `components/Toolbar.tsx`, `components/ValidationPanel.tsx`, `store/bimZustand.ts`, `store/useBimStore.ts`  
 **Aufrufer in scripts/:** 1
 
 Exportierte Funktionen/Konstanten: [`UI_STUFE`](../../src/lib/uimodus.ts#L32), [`mindestens`](../../src/lib/uimodus.ts#L47), [`UI_MODUS_LABELS`](../../src/lib/uimodus.ts#L51), [`UI_MODUS_AUSKUNFT`](../../src/lib/uimodus.ts#L57), [`HANDWERKER_WERKZEUGE`](../../src/lib/uimodus.ts#L81), [`HANDWERKER_REITER`](../../src/lib/uimodus.ts#L104), [`HANDWERKER_KOPF`](../../src/lib/uimodus.ts#L130), [`zeigtKopfknopf`](../../src/lib/uimodus.ts#L133), [`zeigtAnsicht`](../../src/lib/uimodus.ts#L145), [`zeigtWerkzeug`](../../src/lib/uimodus.ts#L151), [`zeigtReiter`](../../src/lib/uimodus.ts#L158), [`UEBERGABE_SCHRITTE`](../../src/lib/uimodus.ts#L174)
@@ -1547,7 +1583,7 @@ Exportierte Funktionen/Konstanten: [`UI_STUFE`](../../src/lib/uimodus.ts#L32), [
 
 **Verantwortung:** Temperaturen unbeheizter Nachbarbereiche (seit 1.72.0). **Warum es das gibt.** Bis 1.71.0 kannte das Programm genau eine  
 **Abhängigkeiten:** `types/bim.ts`  
-**Aufrufer:** `components/PropertiesPanel.tsx`, `lib/raviaExport.ts`, `store/useBimStore.ts`  
+**Aufrufer:** `components/PropertiesPanel.tsx`, `lib/raumExport.ts`, `lib/raviaExport.ts`, `store/slices/laden.ts`  
 **Aufrufer in scripts/:** 3
 
 Exportierte Funktionen/Konstanten: [`DACHRAUM_FAKTOR`](../../src/lib/unbeheizt.ts#L49), [`dachraumTemperatur`](../../src/lib/unbeheizt.ts#L52), [`istUnbeheizterNachbar`](../../src/lib/unbeheizt.ts#L60), [`B_U`](../../src/lib/unbeheizt.ts#L68)⁰, [`UNBEHEIZT_ART_LABELS`](../../src/lib/unbeheizt.ts#L77), [`UNBEHEIZT_ART_VORGABE`](../../src/lib/unbeheizt.ts#L87), [`temperaturAusBu`](../../src/lib/unbeheizt.ts#L90)⁰, [`unbeheiztEingetragen`](../../src/lib/unbeheizt.ts#L97), [`unbeheizteTemperatur`](../../src/lib/unbeheizt.ts#L106), [`unbeheizteArtVonRaum`](../../src/lib/unbeheizt.ts#L116), [`unbeheizterRaumTemperatur`](../../src/lib/unbeheizt.ts#L132), [`migriereUnbeheizt`](../../src/lib/unbeheizt.ts#L143), [`NACHBAR_TEMPERATUR_VORGABE`](../../src/lib/unbeheizt.ts#L164)⁰, [`nachbarTemperatur`](../../src/lib/unbeheizt.ts#L167)
@@ -1556,7 +1592,7 @@ Exportierte Funktionen/Konstanten: [`DACHRAUM_FAKTOR`](../../src/lib/unbeheizt.t
 
 **Verantwortung:** Der U-Wert eines Bauteils — und woher er kommt. **Warum es diese Datei gibt.** Die Frage „welchen U-Wert hat diese Wand?"  
 **Abhängigkeiten:** `types/bim.ts`  
-**Aufrufer:** `components/PropertiesPanel.tsx`, `lib/buildingModelImport.ts`, `lib/heatLoadEstimate.ts`, `lib/ifcExport.ts`, `lib/ifcImport.ts`, `lib/importgeschoss.ts`, `lib/materialSchedule.ts`, `lib/raumplanImport.ts`, `lib/raviaExport.ts`, `lib/roomDetection.ts`, `lib/validation.ts`, `store/useBimStore.ts`  
+**Aufrufer:** `components/PropertiesPanel.tsx`, `lib/buildingModelImport.ts`, `lib/heatLoadEstimate.ts`, `lib/ifcExport.ts`, `lib/ifcImport.ts`, `lib/importgeschoss.ts`, `lib/materialSchedule.ts`, `lib/raumExport.ts`, `lib/raumplanImport.ts`, `lib/roomDetection.ts`, `lib/validation.ts`, `store/useBimStore.ts`  
 **Aufrufer in scripts/:** 2
 
 Exportierte Funktionen/Konstanten: [`VORGABE_U`](../../src/lib/uwert.ts#L98), [`U_FENSTER_BESTAND`](../../src/lib/uwert.ts#L123), [`U_TUER_BESTAND`](../../src/lib/uwert.ts#L124), [`U_SOHLE_NEUES_GESCHOSS`](../../src/lib/uwert.ts#L131), [`U_GESCHOSSDECKE`](../../src/lib/uwert.ts#L132), [`BAUTEIL_BEZEICHNUNG`](../../src/lib/uwert.ts#L135), [`istErfasst`](../../src/lib/uwert.ts#L153), [`uWertWand`](../../src/lib/uwert.ts#L201), [`uWertOeffnung`](../../src/lib/uwert.ts#L225), [`uWertBoden`](../../src/lib/uwert.ts#L250), [`herkunftText`](../../src/lib/uwert.ts#L270)
@@ -1601,7 +1637,7 @@ Exportierte Funktionen/Konstanten: [`BRENNSTOFF_LABELS`](../../src/lib/verbrauch
 
 **Verantwortung:** Darstellung von Treppen, Schächten und Leitungen im Grundriss. Eine Treppe im Plan ist nicht einfach ein Rechteck: sie braucht die  
 **Abhängigkeiten:** `lib/beschriftungsLage.ts`, `lib/pipeAccessorySymbols.ts`, `lib/rohrbezeichnung.ts`, `lib/rohrlaenge.ts`, `lib/zahl.ts`, `types/bim.ts`  
-**Aufrufer:** `components/Editor2D.tsx`, `components/PropertiesPanel.tsx`, `components/Viewer3D.tsx`, `lib/eckpunkte.ts`, `lib/fussbodenkurven.ts`, `lib/planPrint.ts`, `lib/raviaExport.ts`, `lib/roomDetection.ts`, `lib/slabGeometry.ts`, `lib/treppenlogik.ts`, `store/useBimStore.ts`  
+**Aufrufer:** `components/Editor2D.tsx`, `components/PropertiesPanel.tsx`, `components/Viewer3D.tsx`, `lib/eckpunkte.ts`, `lib/fussbodenkurven.ts`, `lib/planPrint.ts`, `lib/raviaExport.ts`, `lib/roomDetection.ts`, `lib/slabGeometry.ts`, `lib/treppenlogik.ts`, `store/bimZustand.ts`  
 **Aufrufer in scripts/:** 3
 
 Exportierte Funktionen/Konstanten: [`VERTICAL_COLORS`](../../src/lib/verticalSymbols.ts#L36)⁰, [`verticalCorners`](../../src/lib/verticalSymbols.ts#L44), [`hitTestVertical`](../../src/lib/verticalSymbols.ts#L58), [`drawVertical`](../../src/lib/verticalSymbols.ts#L67), [`stairPath`](../../src/lib/verticalSymbols.ts#L121), [`stairRunLength`](../../src/lib/verticalSymbols.ts#L162), [`stairLayout`](../../src/lib/verticalSymbols.ts#L190), [`drawPipe`](../../src/lib/verticalSymbols.ts#L381), [`drawPipeAccessory`](../../src/lib/verticalSymbols.ts#L542), [`distanceToPipe`](../../src/lib/verticalSymbols.ts#L608), [`ROOF_OPENING_COLORS`](../../src/lib/verticalSymbols.ts#L628)⁰, [`drawRoofOpening`](../../src/lib/verticalSymbols.ts#L640), [`SOLID_COLORS`](../../src/lib/verticalSymbols.ts#L735)⁰, [`solidFootprint`](../../src/lib/verticalSymbols.ts#L751), [`solidsOnLevel`](../../src/lib/verticalSymbols.ts#L777), [`hitTestSolid`](../../src/lib/verticalSymbols.ts#L802), [`drawSolid`](../../src/lib/verticalSymbols.ts#L827), [`drawCeilingOpening`](../../src/lib/verticalSymbols.ts#L907)
@@ -1610,7 +1646,7 @@ Exportierte Funktionen/Konstanten: [`VERTICAL_COLORS`](../../src/lib/verticalSym
 
 **Verantwortung:** Räume, die RaVia beim Übernehmen verworfen hat — sichtbar machen. **Der Anlass.** RaVias Schnittstelle `raeume-uebernehmen` lässt Räume unter  
 **Abhängigkeiten:** –  
-**Aufrufer:** `store/useBimStore.ts`  
+**Aufrufer:** `store/bimZustand.ts`, `store/slices/laden.ts`  
 **Aufrufer in scripts/:** 1
 
 Exportierte Funktionen/Konstanten: [`GRUND_TEXT`](../../src/lib/verworfeneRaeume.ts#L55), [`leseVerworfene`](../../src/lib/verworfeneRaeume.ts#L76), [`hinweisFuer`](../../src/lib/verworfeneRaeume.ts#L120), [`hinweiseZuRaeumen`](../../src/lib/verworfeneRaeume.ts#L143)
@@ -1619,7 +1655,7 @@ Exportierte Funktionen/Konstanten: [`GRUND_TEXT`](../../src/lib/verworfeneRaeume
 
 **Verantwortung:** Abgeleitete Wandgeometrie — die *eine* Wahrheit für 2D und 3D. Beide Renderer konsumieren dieselben Funktionen. Dadurch kann eine  
 **Abhängigkeiten:** `lib/geometry.ts`, `types/bim.ts`  
-**Aufrufer:** `components/Editor2D.tsx`, `components/PropertiesPanel.tsx`, `components/Viewer3D.tsx`, `lib/baugrube.ts`, `lib/begehen.ts`, `lib/dachschnitt.ts`, `lib/durchbruchSymbols.ts`, `lib/griffe.ts`, `lib/hauseinfuehrung.ts`, `lib/heatPump.ts`, `lib/heizkoerperplatz.ts`, `lib/ifcExport.ts`, `lib/openingSymbols.ts`, `lib/pipeRouting.ts`, `lib/planPrint.ts`, `lib/raumtreffer.ts`, `lib/raviaExport.ts`, `lib/ringStich.ts`, `lib/ringleitung.ts`, `lib/slabGeometry.ts`, `lib/thermalBridges.ts`, `lib/tuerseiten.ts`, `lib/wandfuehrung.ts`, `lib/wandquerung.ts`, `lib/werkzeugkiste.ts`  
+**Aufrufer:** `components/Editor2D.tsx`, `components/PropertiesPanel.tsx`, `components/Viewer3D.tsx`, `lib/baugrube.ts`, `lib/begehen.ts`, `lib/dachschnitt.ts`, `lib/durchbruchSymbols.ts`, `lib/griffe.ts`, `lib/hauseinfuehrung.ts`, `lib/heatPump.ts`, `lib/heizkoerperplatz.ts`, `lib/ifcExport.ts`, `lib/openingSymbols.ts`, `lib/pipeRouting.ts`, `lib/planPrint.ts`, `lib/raumExport.ts`, `lib/raumtreffer.ts`, `lib/raviaExport.ts`, `lib/ringStich.ts`, `lib/ringleitung.ts`, `lib/slabGeometry.ts`, `lib/thermalBridges.ts`, `lib/tuerseiten.ts`, `lib/wandfuehrung.ts`, `lib/wandquerung.ts`, `lib/werkzeugkiste.ts`  
 **Aufrufer in scripts/:** 7
 
 Exportierte Funktionen/Konstanten: [`getWallGeometry`](../../src/lib/wallGeometry.ts#L28), [`junctionExtension`](../../src/lib/wallGeometry.ts#L51), [`openingCenter`](../../src/lib/wallGeometry.ts#L67), [`openingSpan`](../../src/lib/wallGeometry.ts#L73), [`wallSolidParts`](../../src/lib/wallGeometry.ts#L100), [`wallLocalToWorld`](../../src/lib/wallGeometry.ts#L144), [`indexWallsByNode`](../../src/lib/wallGeometry.ts#L170), [`planWallPieces`](../../src/lib/wallGeometry.ts#L196), [`modelToScene`](../../src/lib/wallGeometry.ts#L242), [`flachGekippt`](../../src/lib/wallGeometry.ts#L262), [`flacheStuetzpunkte`](../../src/lib/wallGeometry.ts#L283), [`sceneRotationY`](../../src/lib/wallGeometry.ts#L307), [`wallLocalToScene`](../../src/lib/wallGeometry.ts#L312), [`wallBoxPlacement`](../../src/lib/wallGeometry.ts#L340), [`pickWallForOpening`](../../src/lib/wallGeometry.ts#L360), [`openingsOfWall`](../../src/lib/wallGeometry.ts#L386), [`indexOpeningsByWall`](../../src/lib/wallGeometry.ts#L400), [`openingsOf`](../../src/lib/wallGeometry.ts#L414)
@@ -1633,20 +1669,20 @@ Exportierte Funktionen/Konstanten: [`getWallGeometry`](../../src/lib/wallGeometr
 
 Exportierte Funktionen/Konstanten: [`wandfuehrung`](../../src/lib/wandfuehrung.ts#L47), [`fuehrungsText`](../../src/lib/wandfuehrung.ts#L80), [`umsetzungsMeldung`](../../src/lib/wandfuehrung.ts#L93)
 
-### [`src/lib/wandhoehen.ts`](../../src/lib/wandhoehen.ts) · 238 Zeilen
+### [`src/lib/wandhoehen.ts`](../../src/lib/wandhoehen.ts) · 240 Zeilen
 
 **Verantwortung:** Wandhöhen angleichen — eine Deckenhöhe je Geschoss. **Warum das eine eigene Funktion braucht.** Die Raumhöhe wird in  
-**Abhängigkeiten:** `lib/geometry.ts`, `lib/roofGeometry.ts`, `types/bim.ts`  
-**Aufrufer:** `components/AufmassPanel.tsx`, `store/useBimStore.ts`  
+**Abhängigkeiten:** `lib/geometry.ts`, `lib/roofGeometry.ts`, `lib/roomDetection.ts`, `types/bim.ts`  
+**Aufrufer:** `components/AufmassPanel.tsx`, `store/bimZustand.ts`, `store/slices/laden.ts`  
 **Aufrufer in scripts/:** 1
 
-Exportierte Funktionen/Konstanten: [`TOTZONE`](../../src/lib/wandhoehen.ts#L46), [`BRUESTUNGS_HOEHE`](../../src/lib/wandhoehen.ts#L57), [`AUSNAHME_LABELS`](../../src/lib/wandhoehen.ts#L62), [`hoehenbefund`](../../src/lib/wandhoehen.ts#L156), [`befundSatz`](../../src/lib/wandhoehen.ts#L219)
+Exportierte Funktionen/Konstanten: [`TOTZONE`](../../src/lib/wandhoehen.ts#L47), [`AUSNAHME_LABELS`](../../src/lib/wandhoehen.ts#L64), [`hoehenbefund`](../../src/lib/wandhoehen.ts#L158), [`befundSatz`](../../src/lib/wandhoehen.ts#L221)
 
 ### [`src/lib/wandquerung.ts`](../../src/lib/wandquerung.ts) · 382 Zeilen
 
 **Verantwortung:** Wo eine Leitung durch eine Wand geht. **Warum es diese Datei gibt.** Eine ausgelegte Trasse läuft durch das  
 **Abhängigkeiten:** `lib/geometry.ts`, `lib/rohrlaenge.ts`, `lib/wallGeometry.ts`, `types/bim.ts`  
-**Aufrufer:** `store/useBimStore.ts`  
+**Aufrufer:** `store/slices/installation.ts`  
 **Aufrufer in scripts/:** 1
 
 Exportierte Funktionen/Konstanten: [`QUERUNG_ZUSAMMEN`](../../src/lib/wandquerung.ts#L53), [`QUERUNG_HOEHENFENSTER`](../../src/lib/wandquerung.ts#L55), [`QUERUNG_LUFT`](../../src/lib/wandquerung.ts#L57), [`QUERUNG_MINDESTMASS`](../../src/lib/wandquerung.ts#L59), [`aussenmass`](../../src/lib/wandquerung.ts#L110), [`wandquerungen`](../../src/lib/wandquerung.ts#L116), [`querungsstellen`](../../src/lib/wandquerung.ts#L191), [`kernbohrungFuer`](../../src/lib/wandquerung.ts#L246), [`durchbruchAusStelle`](../../src/lib/wandquerung.ts#L266), [`durchbruecheFuerTrassen`](../../src/lib/wandquerung.ts#L329)
@@ -1660,14 +1696,14 @@ Exportierte Funktionen/Konstanten: [`QUERUNG_ZUSAMMEN`](../../src/lib/wandquerun
 
 Exportierte Funktionen/Konstanten: [`WERKZEUGE`](../../src/lib/werkzeugkiste.ts#L87), [`WERKZEUG_BY_ID`](../../src/lib/werkzeugkiste.ts#L113), [`ANSCHLUSS_AUSWAHL`](../../src/lib/werkzeugkiste.ts#L124), [`VENTIL_AUSWAHL`](../../src/lib/werkzeugkiste.ts#L127), [`anschlussKurz`](../../src/lib/werkzeugkiste.ts#L129), [`deuteZiel`](../../src/lib/werkzeugkiste.ts#L175), [`zielAuskunft`](../../src/lib/werkzeugkiste.ts#L225), [`darfSetzen`](../../src/lib/werkzeugkiste.ts#L262), [`zielAuswahl`](../../src/lib/werkzeugkiste.ts#L339), [`rohrLaenge`](../../src/lib/werkzeugkiste.ts#L349), [`rohrHoehe`](../../src/lib/werkzeugkiste.ts#L366), [`aufputz`](../../src/lib/werkzeugkiste.ts#L379), [`durchbruchPreset`](../../src/lib/werkzeugkiste.ts#L390), [`sturzAusZiel`](../../src/lib/werkzeugkiste.ts#L403), [`durchbruchAmRand`](../../src/lib/werkzeugkiste.ts#L416), [`durchbruchMeldung`](../../src/lib/werkzeugkiste.ts#L440), [`rohrMeldung`](../../src/lib/werkzeugkiste.ts#L456), [`mediumName`](../../src/lib/werkzeugkiste.ts#L472)
 
-### [`src/lib/wirt.ts`](../../src/lib/wirt.ts) · 50 Zeilen
+### [`src/lib/wirt.ts`](../../src/lib/wirt.ts) · 71 Zeilen
 
 **Verantwortung:** Was der Wirt kann — RaVia, wenn CAD Light eingebettet ist. Seit Embed-API 1.9.0 (CAD Light 1.74.0) teilt der Wirt mit, was er selbst  
 **Abhängigkeiten:** –  
-**Aufrufer:** `lib/embedApi.ts`, `store/scanDialog.ts`  
+**Aufrufer:** `lib/embedApi.ts`, `lib/scanZugang.ts`, `store/scanDialog.ts`  
 **Aufrufer in scripts/:** 1
 
-Exportierte Funktionen/Konstanten: [`setzeWirtFaehigkeiten`](../../src/lib/wirt.ts#L24), [`registriereWirtMelder`](../../src/lib/wirt.ts#L31), [`scanBeimWirtAnfordern`](../../src/lib/wirt.ts#L40), [`wirtZuruecksetzen`](../../src/lib/wirt.ts#L46)
+Exportierte Funktionen/Konstanten: [`abonniereWirt`](../../src/lib/wirt.ts#L30), [`wirtKannScannen`](../../src/lib/wirt.ts#L38), [`setzeWirtFaehigkeiten`](../../src/lib/wirt.ts#L42), [`registriereWirtMelder`](../../src/lib/wirt.ts#L50), [`scanBeimWirtAnfordern`](../../src/lib/wirt.ts#L60), [`wirtZuruecksetzen`](../../src/lib/wirt.ts#L66)
 
 ### [`src/lib/wissenKorpus.ts`](../../src/lib/wissenKorpus.ts) · 3753 Zeilen
 
@@ -1691,7 +1727,7 @@ Exportierte Funktionen/Konstanten: [`KORPUS_LABELS`](../../src/lib/wissensbasis.
 
 **Verantwortung:** Zahlen für deutschen Text — Komma statt Punkt, echtes Minuszeichen. `toFixed` liefert „12.37" und „-12"; in einem deutschsprachigen  
 **Abhängigkeiten:** –  
-**Aufrufer:** `components/AnlagenPanel.tsx`, `components/AufnahmeAssistent.tsx`, `components/CalibrationOverlay.tsx`, `components/ConstructionPanel.tsx`, `components/ExportDiffPanel.tsx`, `components/ImageUploader.tsx`, `components/KorrekturDialog.tsx`, `components/LayerPanel.tsx`, `components/LevelBar.tsx`, `components/MappeDialog.tsx`, `components/PlanPrintDialog.tsx`, `components/PropertiesPanel.tsx`, `components/RohrnetzDialog.tsx`, `components/RoofPanel.tsx`, `components/RoomBook.tsx`, `components/SchemaView.tsx`, `components/SkizzenSeite.tsx`, `components/StatusBar.tsx`, `components/TgaPalette.tsx`, `components/Toolbar.tsx`, `components/Viewer3D.tsx`, `lib/deviceCatalog.ts`, `lib/gebaeudeNetz.ts`, `lib/pipeLayout.ts`, `lib/pipeReport.ts`, `lib/planPrint.ts`, `lib/planScaleBar.ts`, `lib/plantDesign.ts`, `lib/roomDetection.ts`, `lib/schemaPruefung.ts`, `lib/validation.ts`, `lib/verticalSymbols.ts`, `store/useBimStore.ts`  
+**Aufrufer:** `components/AnlagenPanel.tsx`, `components/AufnahmeAssistent.tsx`, `components/CalibrationOverlay.tsx`, `components/ConstructionPanel.tsx`, `components/ExportDiffPanel.tsx`, `components/ImageUploader.tsx`, `components/KorrekturDialog.tsx`, `components/LayerPanel.tsx`, `components/LevelBar.tsx`, `components/MappeDialog.tsx`, `components/PlanPrintDialog.tsx`, `components/PropertiesPanel.tsx`, `components/RohrnetzDialog.tsx`, `components/RoofPanel.tsx`, `components/RoomBook.tsx`, `components/SchemaView.tsx`, `components/SkizzenSeite.tsx`, `components/StatusBar.tsx`, `components/TgaPalette.tsx`, `components/Toolbar.tsx`, `components/Viewer3D.tsx`, `lib/deviceCatalog.ts`, `lib/gebaeudeNetz.ts`, `lib/pipeLayout.ts`, `lib/pipeReport.ts`, `lib/planPrint.ts`, `lib/planScaleBar.ts`, `lib/plantDesign.ts`, `lib/roomDetection.ts`, `lib/schemaPruefung.ts`, `lib/validation.ts`, `lib/verticalSymbols.ts`, `store/slices/anlage.ts`, `store/slices/bauteile.ts`, `store/slices/dach.ts`, `store/slices/installation.ts`, `store/slices/referenzbild.ts`  
 **Aufrufer in scripts/:** 1
 
 Exportierte Funktionen/Konstanten: [`dez`](../../src/lib/zahl.ts#L9), [`wie`](../../src/lib/zahl.ts#L21), [`deDatum`](../../src/lib/zahl.ts#L30)
@@ -1721,6 +1757,15 @@ Exportierte Funktionen/Konstanten: [`eingabeart`](../../src/lib/zeigereingabe.ts
 
 Exportierte Funktionen/Konstanten: [`qrMatrix`](../../src/services/qrBild.ts#L16), [`qrSvgPfad`](../../src/services/qrBild.ts#L36)
 
+### [`src/store/bimZustand.ts`](../../src/store/bimZustand.ts) · 1468 Zeilen
+
+**Verantwortung:** Grundlagen des Stores `useBimStore`: Zustandstyp, Vorgaben und Helfer. TD-22: Aus `useBimStore.ts` herausgelöst, damit die Slices unter  
+**Abhängigkeiten:** `lib/autokorrektur.ts`, `lib/begradigen.ts`, `lib/bodenbelag.ts`, `lib/buildingModelImport.ts`, `lib/dokumentPflege.ts`, `lib/ebenen.ts`, `lib/floorLoopLayout.ts`, `lib/gebaeudeNetz.ts`, `lib/geometry.ts`, `lib/heatLoadEstimate.ts`, `lib/hostPatch.ts`, `lib/hydraulics.ts`, `lib/levelGeometry.ts`, `lib/luecken.ts`, `lib/nutzungseinheiten.ts`, `lib/objektaufnahme.ts`, `lib/planLeeren.ts`, `lib/plantDefaults.ts`, `lib/raumplanImport.ts`, `lib/roomTemplates.ts`, `lib/scanUebernahme.ts`, `lib/skizzenseite.ts`, `lib/spiegeln.ts`, `lib/sprache.ts`, `lib/uimodus.ts`, `lib/verticalSymbols.ts`, `lib/verworfeneRaeume.ts`, `lib/wandhoehen.ts`, `types/bim.ts`  
+**Aufrufer:** `store/slices/anlage.ts`, `store/slices/bauteile.ts`, `store/slices/bauteilkatalog.ts`, `store/slices/dach.ts`, `store/slices/einheiten.ts`, `store/slices/geschosse.ts`, `store/slices/gruppen.ts`, `store/slices/installation.ts`, `store/slices/laden.ts`, `store/slices/referenzbild.ts`, `store/slices/skizze.ts`, `store/slices/ui.ts`, `store/useBimStore.ts`  
+**Aufrufer in scripts/:** 0
+
+Exportierte Funktionen/Konstanten: [`pipeLength`](../../src/store/bimZustand.ts#L80)⁰, [`DEFAULT_ROOF`](../../src/store/bimZustand.ts#L89), [`DEFAULT_LAYERS`](../../src/store/bimZustand.ts#L146)⁰, [`ergaenzeEbenen`](../../src/store/bimZustand.ts#L161), [`DEFAULT_LEVEL`](../../src/store/bimZustand.ts#L167)⁰, [`POLYGON_KINDS`](../../src/store/bimZustand.ts#L185), [`LINE_KINDS`](../../src/store/bimZustand.ts#L186), [`SITE_DEFAULTS`](../../src/store/bimZustand.ts#L189), [`emptyDocument`](../../src/store/bimZustand.ts#L203), [`DEFAULT_SNAP`](../../src/store/bimZustand.ts#L248), [`dokumentAusScan`](../../src/store/bimZustand.ts#L1211), [`belegeRaum`](../../src/store/bimZustand.ts#L1294), [`SPRACH_SCHLUESSEL`](../../src/store/bimZustand.ts#L1403), [`SPRACH_ENTSPERRT`](../../src/store/bimZustand.ts#L1409)⁰, [`geladeneSprache`](../../src/store/bimZustand.ts#L1420)
+
 ### [`src/store/korrekturDialog.ts`](../../src/store/korrekturDialog.ts) · 21 Zeilen
 
 **Verantwortung:** Ob der Dialog „Grundriss prüfen und korrigieren" offen ist. Ein eigener kleiner Zustand wie beim Scan-Dialog: Der Dialog gehört nicht  
@@ -1730,34 +1775,142 @@ Exportierte Funktionen/Konstanten: [`qrMatrix`](../../src/services/qrBild.ts#L16
 
 Exportierte Funktionen/Konstanten: [`useKorrekturDialog`](../../src/store/korrekturDialog.ts#L16)
 
-### [`src/store/scanDialog.ts`](../../src/store/scanDialog.ts) · 43 Zeilen
+### [`src/store/scanDialog.ts`](../../src/store/scanDialog.ts) · 51 Zeilen
 
 **Verantwortung:** Ob der Dialog „Mit RaVia Scan scannen" offen ist — und für welche Sitzung. Ein eigener kleiner Zustand statt eines Felds im Modellzustand: Der Dialog  
-**Abhängigkeiten:** `lib/wirt.ts`  
+**Abhängigkeiten:** `lib/scanZugang.ts`, `lib/wirt.ts`  
 **Aufrufer:** `App.tsx`, `components/ScanDialog.tsx`, `components/ScanUebernahme.tsx`  
 **Aufrufer in scripts/:** 0
 
-Exportierte Funktionen/Konstanten: [`useScanDialog`](../../src/store/scanDialog.ts#L23), [`scanStarten`](../../src/store/scanDialog.ts#L35)
+Exportierte Funktionen/Konstanten: [`useScanVerfuegbar`](../../src/store/scanDialog.ts#L18), [`useScanDialog`](../../src/store/scanDialog.ts#L32), [`scanStarten`](../../src/store/scanDialog.ts#L45)
 
-### [`src/store/useBimStore.ts`](../../src/store/useBimStore.ts) · 7528 Zeilen
+### [`src/store/slices/anlage.ts`](../../src/store/slices/anlage.ts) · 792 Zeilen
+
+**Verantwortung:** Store-Slice „Außenanlage, Wärmepumpe, Anlagenschema, Dachöffnungen und Anmerkungen". TD-22: Aus `useBimStore.ts` herausgelöst; die Aktionen sind unverändert.  
+**Abhängigkeiten:** `lib/anlagenFragen.ts`, `lib/beschriftung3d.ts`, `lib/dokumentPflege.ts`, `lib/doppelleitung.ts`, `lib/geometry.ts`, `lib/pipeAccessorySymbols.ts`, `lib/plantDefaults.ts`, `lib/roofGeometry.ts`, `lib/roomDetection.ts`, `lib/schemaKatalog.ts`, `lib/zahl.ts`, `store/bimZustand.ts`, `types/bim.ts`  
+**Aufrufer:** `store/useBimStore.ts`  
+**Aufrufer in scripts/:** 0
+
+Exportierte Funktionen/Konstanten: [`anlageSlice`](../../src/store/slices/anlage.ts#L69)
+
+### [`src/store/slices/bauteile.ts`](../../src/store/slices/bauteile.ts) · 874 Zeilen
+
+**Verantwortung:** Store-Slice „Wände, Öffnungen, Räume, Heizflächen und Fußbodenheizung". TD-22: Aus `useBimStore.ts` herausgelöst; die Aktionen sind unverändert.  
+**Abhängigkeiten:** `lib/dokumentPflege.ts`, `lib/geometry.ts`, `lib/heatLoadEstimate.ts`, `lib/heizflaechenAbgleich.ts`, `lib/heizflaechenLeistung.ts`, `lib/heizkoerperplatz.ts`, `lib/normleistung.ts`, `lib/roomDetection.ts`, `lib/roomTemplates.ts`, `lib/zahl.ts`, `store/bimZustand.ts`, `types/bim.ts`  
+**Aufrufer:** `store/useBimStore.ts`  
+**Aufrufer in scripts/:** 0
+
+Exportierte Funktionen/Konstanten: [`bauteileSlice`](../../src/store/slices/bauteile.ts#L66)
+
+### [`src/store/slices/bauteilkatalog.ts`](../../src/store/slices/bauteilkatalog.ts) · 99 Zeilen
+
+**Verantwortung:** Store-Slice „Bauteilkatalog (Konstruktionen)". TD-22: Aus `useBimStore.ts` herausgelöst; die Aktionen sind unverändert.  
+**Abhängigkeiten:** `lib/dokumentPflege.ts`, `store/bimZustand.ts`, `types/bim.ts`  
+**Aufrufer:** `store/useBimStore.ts`  
+**Aufrufer in scripts/:** 0
+
+Exportierte Funktionen/Konstanten: [`bauteilkatalogSlice`](../../src/store/slices/bauteilkatalog.ts#L19)
+
+### [`src/store/slices/dach.ts`](../../src/store/slices/dach.ts) · 225 Zeilen
+
+**Verantwortung:** Store-Slice „Dächer, Geschossdaten und Ebenen". TD-22: Aus `useBimStore.ts` herausgelöst; die Aktionen sind unverändert.  
+**Abhängigkeiten:** `lib/dachlandschaft.ts`, `lib/ebenen.ts`, `lib/geometry.ts`, `lib/zahl.ts`, `store/bimZustand.ts`, `types/bim.ts`  
+**Aufrufer:** `store/useBimStore.ts`  
+**Aufrufer in scripts/:** 0
+
+Exportierte Funktionen/Konstanten: [`dachSlice`](../../src/store/slices/dach.ts#L28)
+
+### [`src/store/slices/einheiten.ts`](../../src/store/slices/einheiten.ts) · 159 Zeilen
+
+**Verantwortung:** Store-Slice „Nutzungseinheiten". TD-22: Aus `useBimStore.ts` herausgelöst; die Aktionen sind unverändert.  
+**Abhängigkeiten:** `lib/dokumentPflege.ts`, `lib/nutzungseinheiten.ts`, `store/bimZustand.ts`  
+**Aufrufer:** `store/useBimStore.ts`  
+**Aufrufer in scripts/:** 0
+
+Exportierte Funktionen/Konstanten: [`einheitenSlice`](../../src/store/slices/einheiten.ts#L27)
+
+### [`src/store/slices/geschosse.ts`](../../src/store/slices/geschosse.ts) · 393 Zeilen
+
+**Verantwortung:** Store-Slice „Geschosse, Grundrisse und Außenwand-Übernahme". TD-22: Aus `useBimStore.ts` herausgelöst; die Aktionen sind unverändert.  
+**Abhängigkeiten:** `lib/aussenwand.ts`, `lib/dokumentPflege.ts`, `lib/importgeschoss.ts`, `lib/levelCopy.ts`, `store/bimZustand.ts`, `types/bim.ts`  
+**Aufrufer:** `store/useBimStore.ts`  
+**Aufrufer in scripts/:** 0
+
+Exportierte Funktionen/Konstanten: [`geschosseSlice`](../../src/store/slices/geschosse.ts#L32)
+
+### [`src/store/slices/gruppen.ts`](../../src/store/slices/gruppen.ts) · 306 Zeilen
+
+**Verantwortung:** Store-Slice „Gruppenoperationen auf der Auswahl, Projektdaten und Aufnahme". TD-22: Aus `useBimStore.ts` herausgelöst; die Aktionen sind unverändert.  
+**Abhängigkeiten:** `lib/dokumentPflege.ts`, `lib/doppelleitung.ts`, `lib/ebenen.ts`, `lib/geometry.ts`, `store/bimZustand.ts`, `types/bim.ts`  
+**Aufrufer:** `store/useBimStore.ts`  
+**Aufrufer in scripts/:** 0
+
+Exportierte Funktionen/Konstanten: [`gruppenSlice`](../../src/store/slices/gruppen.ts#L30)
+
+### [`src/store/slices/installation.ts`](../../src/store/slices/installation.ts) · 522 Zeilen
+
+**Verantwortung:** Store-Slice „Vertikale Elemente, Körper, Durchbrüche und Rohrnetz". TD-22: Aus `useBimStore.ts` herausgelöst; die Aktionen sind unverändert.  
+**Abhängigkeiten:** `lib/dokumentPflege.ts`, `lib/doppelleitung.ts`, `lib/erzeugerplatz.ts`, `lib/formteile.ts`, `lib/gebaeudeNetz.ts`, `lib/geometry.ts`, `lib/levelGeometry.ts`, `lib/rohrbezeichnung.ts`, `lib/rohrlaenge.ts`, `lib/treppenlogik.ts`, `lib/wandquerung.ts`, `lib/zahl.ts`, `store/bimZustand.ts`, `types/bim.ts`  
+**Aufrufer:** `store/useBimStore.ts`  
+**Aufrufer in scripts/:** 0
+
+Exportierte Funktionen/Konstanten: [`installationSlice`](../../src/store/slices/installation.ts#L47)
+
+### [`src/store/slices/laden.ts`](../../src/store/slices/laden.ts) · 1445 Zeilen
+
+**Verantwortung:** Store-Slice „Löschen, Laden, Importe, Korrekturen und Projektwechsel". TD-22: Aus `useBimStore.ts` herausgelöst; die Aktionen sind unverändert.  
+**Abhängigkeiten:** `lib/autokorrektur.ts`, `lib/begradigen.ts`, `lib/buildingModelImport.ts`, `lib/dokumentPflege.ts`, `lib/doppelleitung.ts`, `lib/ebenen.ts`, `lib/erzeugerplatz.ts`, `lib/geometry.ts`, `lib/geraeteprofil.ts`, `lib/heizflaechenLeistung.ts`, `lib/hostPatch.ts`, `lib/ifcImport.ts`, `lib/levelGeometry.ts`, `lib/luecken.ts`, `lib/normleistung.ts`, `lib/nutzungseinheiten.ts`, `lib/planLeeren.ts`, `lib/raumZuordnung.ts`, `lib/raumnutzung.ts`, `lib/raumplanImport.ts`, `lib/roomDetection.ts`, `lib/scanUebernahme.ts`, `lib/spiegeln.ts`, `lib/unbeheizt.ts`, `lib/verworfeneRaeume.ts`, `lib/wandhoehen.ts`, `store/bimZustand.ts`, `types/bim.ts`  
+**Aufrufer:** `store/useBimStore.ts`  
+**Aufrufer in scripts/:** 0
+
+Exportierte Funktionen/Konstanten: [`ladenSlice`](../../src/store/slices/laden.ts#L93)
+
+### [`src/store/slices/referenzbild.ts`](../../src/store/slices/referenzbild.ts) · 336 Zeilen
+
+**Verantwortung:** Store-Slice „Referenzbild". TD-22: Aus `useBimStore.ts` herausgelöst; die Aktionen sind unverändert.  
+**Abhängigkeiten:** `lib/dokumentPflege.ts`, `lib/geometry.ts`, `lib/notizen.ts`, `lib/skizze.ts`, `lib/zahl.ts`, `store/bimZustand.ts`, `types/bim.ts`  
+**Aufrufer:** `store/useBimStore.ts`  
+**Aufrufer in scripts/:** 0
+
+Exportierte Funktionen/Konstanten: [`referenzbildSlice`](../../src/store/slices/referenzbild.ts#L40)
+
+### [`src/store/slices/skizze.ts`](../../src/store/slices/skizze.ts) · 264 Zeilen
+
+**Verantwortung:** Store-Slice „Skizzenseiten, Vollbild-Skizze und Annahmen". TD-22: Aus `useBimStore.ts` herausgelöst; die Aktionen sind unverändert.  
+**Abhängigkeiten:** `lib/dokumentPflege.ts`, `lib/skizzenseite.ts`, `store/bimZustand.ts`, `types/bim.ts`  
+**Aufrufer:** `store/useBimStore.ts`  
+**Aufrufer in scripts/:** 0
+
+Exportierte Funktionen/Konstanten: [`skizzeSlice`](../../src/store/slices/skizze.ts#L54)
+
+### [`src/store/slices/ui.ts`](../../src/store/slices/ui.ts) · 320 Zeilen
+
+**Verantwortung:** Store-Slice „Oberfläche: Werkzeug, Auswahl, Ansicht, Voreinstellungen". TD-22: Aus `useBimStore.ts` herausgelöst; die Aktionen sind unverändert.  
+**Abhängigkeiten:** `lib/aufstellgeschoss.ts`, `lib/ebenen.ts`, `lib/roomTemplates.ts`, `lib/sprache.ts`, `store/bimZustand.ts`, `types/bim.ts`  
+**Aufrufer:** `store/useBimStore.ts`  
+**Aufrufer in scripts/:** 0
+
+Exportierte Funktionen/Konstanten: [`uiSlice`](../../src/store/slices/ui.ts#L67)
+
+### [`src/store/useBimStore.ts`](../../src/store/useBimStore.ts) · 261 Zeilen
 
 **Verantwortung:** Zentraler Anwendungszustand (Zustand-Store). Aufteilung mit Absicht:  
-**Abhängigkeiten:** `lib/anlagenFragen.ts`, `lib/aufstellgeschoss.ts`, `lib/aussenwand.ts`, `lib/autokorrektur.ts`, `lib/begradigen.ts`, `lib/beschriftung3d.ts`, `lib/bodenbelag.ts`, `lib/buildingModelImport.ts`, `lib/dachlandschaft.ts`, `lib/doppelleitung.ts`, `lib/doppelwaende.ts`, `lib/ebenen.ts`, `lib/erzeugerplatz.ts`, `lib/floorLoopLayout.ts`, `lib/formteile.ts`, `lib/gebaeudeNetz.ts`, `lib/geometry.ts`, `lib/geraeteprofil.ts`, `lib/heatLoadEstimate.ts`, `lib/heizflaechenAbgleich.ts`, `lib/heizflaechenLeistung.ts`, `lib/heizkoerperplatz.ts`, `lib/hostPatch.ts`, `lib/hydraulics.ts`, `lib/ifcImport.ts`, `lib/importgeschoss.ts`, `lib/levelCopy.ts`, `lib/levelGeometry.ts`, `lib/luecken.ts`, `lib/normleistung.ts`, `lib/notizen.ts`, `lib/nutzungseinheiten.ts`, `lib/objektaufnahme.ts`, `lib/pipeAccessorySymbols.ts`, `lib/planLeeren.ts`, `lib/plantDefaults.ts`, `lib/raumZuordnung.ts`, `lib/raumnutzung.ts`, `lib/raumplanImport.ts`, `lib/rohrbezeichnung.ts`, `lib/rohrlaenge.ts`, `lib/roofGeometry.ts`, `lib/roomDetection.ts`, `lib/roomTemplates.ts`, `lib/scanUebernahme.ts`, `lib/schemaKatalog.ts`, `lib/skizze.ts`, `lib/skizzenseite.ts`, `lib/spiegeln.ts`, `lib/sprache.ts`, `lib/treppenlogik.ts`, `lib/uimodus.ts`, `lib/unbeheizt.ts`, `lib/uwert.ts`, `lib/verticalSymbols.ts`, `lib/verworfeneRaeume.ts`, `lib/wandhoehen.ts`, `lib/wandquerung.ts`, `lib/zahl.ts`, `types/bim.ts`  
+**Abhängigkeiten:** `lib/dokumentPflege.ts`, `lib/heizflaechenAbgleich.ts`, `lib/roomTemplates.ts`, `lib/uimodus.ts`, `lib/uwert.ts`, `store/bimZustand.ts`, `store/slices/anlage.ts`, `store/slices/bauteile.ts`, `store/slices/bauteilkatalog.ts`, `store/slices/dach.ts`, `store/slices/einheiten.ts`, `store/slices/geschosse.ts`, `store/slices/gruppen.ts`, `store/slices/installation.ts`, `store/slices/laden.ts`, `store/slices/referenzbild.ts`, `store/slices/skizze.ts`, `store/slices/ui.ts`, `types/bim.ts`  
 **Aufrufer:** `App.tsx`, `components/AnlagenDialog.tsx`, `components/AnlagenPanel.tsx`, `components/AufmassPanel.tsx`, `components/AufnahmeAssistent.tsx`, `components/CalibrationOverlay.tsx`, `components/ConstructionPanel.tsx`, `components/Editor2D.tsx`, `components/EntfernenKnopf.tsx`, `components/ExportDiffPanel.tsx`, `components/GuidePanel.tsx`, `components/HeatPumpPanel.tsx`, `components/ImageUploader.tsx`, `components/KorrekturDialog.tsx`, `components/LayerPanel.tsx`, `components/LevelBar.tsx`, `components/MappeDialog.tsx`, `components/NotizLeiste.tsx`, `components/PlanPrintDialog.tsx`, `components/ProjektDialog.tsx`, `components/PropertiesPanel.tsx`, `components/Pruefansicht.tsx`, `components/RohrnetzDialog.tsx`, `components/RoofPanel.tsx`, `components/RoomBook.tsx`, `components/ScanDialog.tsx`, `components/ScanUebernahme.tsx`, `components/SchemaView.tsx`, `components/SkizzenLeiste.tsx`, `components/SkizzenSeite.tsx`, `components/Skizzenblatt.tsx`, `components/StatusBar.tsx`, `components/TgaPalette.tsx`, `components/ThermalBridgePanel.tsx`, `components/Toolbar.tsx`, `components/ValidationPanel.tsx`, `components/VentilationPanel.tsx`, `components/Viewer3D.tsx`, `main.tsx`  
 **Aufrufer in scripts/:** 0
 
-Exportierte Funktionen/Konstanten: [`pipeLength`](../../src/store/useBimStore.ts#L99)⁰, [`DEFAULT_LAYERS`](../../src/store/useBimStore.ts#L230)⁰, [`ergaenzeEbenen`](../../src/store/useBimStore.ts#L245)⁰, [`useBimStore`](../../src/store/useBimStore.ts#L2201)
+Exportierte Funktionen/Konstanten: [`useBimStore`](../../src/store/useBimStore.ts#L50)
 
-### [`src/types/bim.ts`](../../src/types/bim.ts) · 6005 Zeilen
+### [`src/types/bim.ts`](../../src/types/bim.ts) · 6006 Zeilen
 
 **Verantwortung:** RaVia CAD Light — BIM-Datenmodell Einheiten-Konvention (projektweit verbindlich):  
 **Abhängigkeiten:** `lib/domesticWater.ts`, `lib/huellflaechenbilanz.ts`, `lib/netzExport.ts`, `lib/nutzungseinheiten.ts`, `lib/objektaufnahme.ts`, `lib/skizzenseite.ts`  
-**Aufrufer:** `components/AnlagenDialog.tsx`, `components/AnlagenFragen.tsx`, `components/AnlagenPanel.tsx`, `components/AufmassPanel.tsx`, `components/AufnahmeAssistent.tsx`, `components/CalibrationOverlay.tsx`, `components/ConstructionPanel.tsx`, `components/Editor2D.tsx`, `components/ExportDiffPanel.tsx`, `components/GuidePanel.tsx`, `components/HeatPumpPanel.tsx`, `components/ImageUploader.tsx`, `components/KorrekturDialog.tsx`, `components/PropertiesPanel.tsx`, `components/RaumnameFeld.tsx`, `components/RohrnetzDialog.tsx`, `components/RoofPanel.tsx`, `components/RoomBook.tsx`, `components/SchemaView.tsx`, `components/SkizzenLeiste.tsx`, `components/SkizzenSeite.tsx`, `components/TgaPalette.tsx`, `components/ThermalBridgePanel.tsx`, `components/Toolbar.tsx`, `components/ValidationPanel.tsx`, `components/VentilationPanel.tsx`, `components/Viewer3D.tsx`, `lib/anlagenFragen.ts`, `lib/annotationSymbols.ts`, `lib/aufnahme.ts`, `lib/aufstellgeschoss.ts`, `lib/auslegungExport.ts`, `lib/aussenwand.ts`, `lib/auswahlNamen.ts`, `lib/autokorrektur.ts`, `lib/autosave.ts`, `lib/baugrube.ts`, `lib/begehen.ts`, `lib/begradigen.ts`, `lib/beschriftung3d.ts`, `lib/bivalenz.ts`, `lib/buildingModelImport.ts`, `lib/dachlandschaft.ts`, `lib/dachschnitt.ts`, `lib/deviceCatalog.ts`, `lib/deviceImport.ts`, `lib/domesticWater.ts`, `lib/doppelleitung.ts`, `lib/durchbruchSymbols.ts`, `lib/ebenen.ts`, `lib/eckpunkte.ts`, `lib/embedApi.ts`, `lib/erzeugerHydraulik.ts`, `lib/erzeugerplatz.ts`, `lib/exportDiff.ts`, `lib/fixtureSymbols.ts`, `lib/floorLoopLayout.ts`, `lib/formteile.ts`, `lib/fussbodenkurven.ts`, `lib/gebaeudeNetz.ts`, `lib/geometry.ts`, `lib/griffe.ts`, `lib/hauseinfuehrung.ts`, `lib/heatLoadEstimate.ts`, `lib/heatPump.ts`, `lib/heizflaechenAbgleich.ts`, `lib/heizflaechenLeistung.ts`, `lib/heizkoerperplatz.ts`, `lib/hostPatch.ts`, `lib/hydraulicBalance.ts`, `lib/hydraulics.ts`, `lib/ifcExport.ts`, `lib/ifcImport.ts`, `lib/importgeschoss.ts`, `lib/kompass.ts`, `lib/leitungsbefund.ts`, `lib/levelCopy.ts`, `lib/levelGeometry.ts`, `lib/luecken.ts`, `lib/materialSchedule.ts`, `lib/netzExport.ts`, `lib/normleistung.ts`, `lib/notizen.ts`, `lib/nutzungseinheiten.ts`, `lib/objektaufnahme.ts`, `lib/openingSymbols.ts`, `lib/pipeAccessorySymbols.ts`, `lib/pipeInsulation.ts`, `lib/pipeLayout.ts`, `lib/pipeNetwork.ts`, `lib/pipeReport.ts`, `lib/pipeReportPrint.ts`, `lib/pipeRouting.ts`, `lib/planLeeren.ts`, `lib/planPrint.ts`, `lib/plantBook.ts`, `lib/plantDefaults.ts`, `lib/plantDesign.ts`, `lib/projectStore.ts`, `lib/projektMappe.ts`, `lib/raumZuordnung.ts`, `lib/raumnutzung.ts`, `lib/raumplanImport.ts`, `lib/raumtreffer.ts`, `lib/raviaExport.ts`, `lib/ringStich.ts`, `lib/ringleitung.ts`, `lib/rohrImRaum.ts`, `lib/rohrbezeichnung.ts`, `lib/rohrlaenge.ts`, `lib/roofGeometry.ts`, `lib/roomDetection.ts`, `lib/roomTemplates.ts`, `lib/safetyFittings.ts`, `lib/scanUebernahme.ts`, `lib/schemaAuswahl.ts`, `lib/schemaKatalog.ts`, `lib/schemaLeitung.ts`, `lib/schemaPruefung.ts`, `lib/schemaUebersicht.ts`, `lib/schemaZuordnung.ts`, `lib/schematicPrint.ts`, `lib/schematicSymbols.ts`, `lib/siteSymbols.ts`, `lib/skizze.ts`, `lib/skizzenseite.ts`, `lib/slabGeometry.ts`, `lib/spiegeln.ts`, `lib/steigstrang.ts`, `lib/systemtemperatur.ts`, `lib/thermalBridges.ts`, `lib/treppenlogik.ts`, `lib/tuerseiten.ts`, `lib/uebersichtZeichnen.ts`, `lib/unbeheizt.ts`, `lib/uwert.ts`, `lib/validation.ts`, `lib/verbraucherlast.ts`, `lib/verbrauchsabgleich.ts`, `lib/verticalSymbols.ts`, `lib/wallGeometry.ts`, `lib/wandfuehrung.ts`, `lib/wandhoehen.ts`, `lib/wandquerung.ts`, `lib/werkzeugkiste.ts`, `lib/zeigereingabe.ts`, `store/useBimStore.ts`  
-**Aufrufer in scripts/:** 94
+**Aufrufer:** `components/AnlagenDialog.tsx`, `components/AnlagenFragen.tsx`, `components/AnlagenPanel.tsx`, `components/AufmassPanel.tsx`, `components/AufnahmeAssistent.tsx`, `components/CalibrationOverlay.tsx`, `components/ConstructionPanel.tsx`, `components/Editor2D.tsx`, `components/ExportDiffPanel.tsx`, `components/GuidePanel.tsx`, `components/HeatPumpPanel.tsx`, `components/ImageUploader.tsx`, `components/KorrekturDialog.tsx`, `components/PropertiesPanel.tsx`, `components/RaumnameFeld.tsx`, `components/RohrnetzDialog.tsx`, `components/RoofPanel.tsx`, `components/RoomBook.tsx`, `components/SchemaView.tsx`, `components/SkizzenLeiste.tsx`, `components/SkizzenSeite.tsx`, `components/TgaPalette.tsx`, `components/ThermalBridgePanel.tsx`, `components/Toolbar.tsx`, `components/ValidationPanel.tsx`, `components/VentilationPanel.tsx`, `components/Viewer3D.tsx`, `lib/anlagenFragen.ts`, `lib/annotationSymbols.ts`, `lib/aufnahme.ts`, `lib/aufstellgeschoss.ts`, `lib/auslegungExport.ts`, `lib/aussenwand.ts`, `lib/auswahlNamen.ts`, `lib/autokorrektur.ts`, `lib/autosave.ts`, `lib/baugrube.ts`, `lib/begehen.ts`, `lib/begradigen.ts`, `lib/beschriftung3d.ts`, `lib/bivalenz.ts`, `lib/buildingModelImport.ts`, `lib/dachlandschaft.ts`, `lib/dachschnitt.ts`, `lib/deviceCatalog.ts`, `lib/deviceImport.ts`, `lib/dokumentPflege.ts`, `lib/domesticWater.ts`, `lib/doppelleitung.ts`, `lib/durchbruchSymbols.ts`, `lib/ebenen.ts`, `lib/eckpunkte.ts`, `lib/embedApi.ts`, `lib/erzeugerHydraulik.ts`, `lib/erzeugerplatz.ts`, `lib/exportDiff.ts`, `lib/fixtureSymbols.ts`, `lib/floorLoopLayout.ts`, `lib/formteile.ts`, `lib/fussbodenkurven.ts`, `lib/gebaeudeNetz.ts`, `lib/geometry.ts`, `lib/griffe.ts`, `lib/hauseinfuehrung.ts`, `lib/heatLoadEstimate.ts`, `lib/heatPump.ts`, `lib/heizflaechenAbgleich.ts`, `lib/heizflaechenLeistung.ts`, `lib/heizkoerperplatz.ts`, `lib/hostPatch.ts`, `lib/hostRaum.ts`, `lib/hydraulicBalance.ts`, `lib/hydraulics.ts`, `lib/ifcExport.ts`, `lib/ifcImport.ts`, `lib/importgeschoss.ts`, `lib/kompass.ts`, `lib/leitungsbefund.ts`, `lib/levelCopy.ts`, `lib/levelGeometry.ts`, `lib/luecken.ts`, `lib/materialSchedule.ts`, `lib/netzExport.ts`, `lib/normleistung.ts`, `lib/notizen.ts`, `lib/nutzungseinheiten.ts`, `lib/objektaufnahme.ts`, `lib/openingSymbols.ts`, `lib/pipeAccessorySymbols.ts`, `lib/pipeInsulation.ts`, `lib/pipeLayout.ts`, `lib/pipeNetwork.ts`, `lib/pipeReport.ts`, `lib/pipeReportPrint.ts`, `lib/pipeRouting.ts`, `lib/planLeeren.ts`, `lib/planPrint.ts`, `lib/plantBook.ts`, `lib/plantDefaults.ts`, `lib/plantDesign.ts`, `lib/projectStore.ts`, `lib/projektMappe.ts`, `lib/raumExport.ts`, `lib/raumZuordnung.ts`, `lib/raumnutzung.ts`, `lib/raumplanImport.ts`, `lib/raumtreffer.ts`, `lib/raviaExport.ts`, `lib/ringStich.ts`, `lib/ringleitung.ts`, `lib/rohrImRaum.ts`, `lib/rohrbezeichnung.ts`, `lib/rohrlaenge.ts`, `lib/roofGeometry.ts`, `lib/roomDetection.ts`, `lib/roomTemplates.ts`, `lib/safetyFittings.ts`, `lib/scanUebernahme.ts`, `lib/schemaAuswahl.ts`, `lib/schemaKatalog.ts`, `lib/schemaLeitung.ts`, `lib/schemaPruefung.ts`, `lib/schemaUebersicht.ts`, `lib/schemaZuordnung.ts`, `lib/schematicPrint.ts`, `lib/schematicSymbols.ts`, `lib/siteSymbols.ts`, `lib/skizze.ts`, `lib/skizzenseite.ts`, `lib/slabGeometry.ts`, `lib/spiegeln.ts`, `lib/steigstrang.ts`, `lib/systemtemperatur.ts`, `lib/thermalBridges.ts`, `lib/treppenlogik.ts`, `lib/tuerseiten.ts`, `lib/uebersichtZeichnen.ts`, `lib/unbeheizt.ts`, `lib/uwert.ts`, `lib/validation.ts`, `lib/verbraucherlast.ts`, `lib/verbrauchsabgleich.ts`, `lib/verticalSymbols.ts`, `lib/wallGeometry.ts`, `lib/wandfuehrung.ts`, `lib/wandhoehen.ts`, `lib/wandquerung.ts`, `lib/werkzeugkiste.ts`, `lib/zeigereingabe.ts`, `store/bimZustand.ts`, `store/slices/anlage.ts`, `store/slices/bauteile.ts`, `store/slices/bauteilkatalog.ts`, `store/slices/dach.ts`, `store/slices/geschosse.ts`, `store/slices/gruppen.ts`, `store/slices/installation.ts`, `store/slices/laden.ts`, `store/slices/referenzbild.ts`, `store/slices/skizze.ts`, `store/slices/ui.ts`, `store/useBimStore.ts`  
+**Aufrufer in scripts/:** 95
 
-Exportierte Funktionen/Konstanten: [`BOUNDARY_LABELS`](../../src/types/bim.ts#L79), [`BOUNDARY_CONDITIONS`](../../src/types/bim.ts#L89), [`DEFAULT_CONSTRUCTIONS`](../../src/types/bim.ts#L127), [`WALL_THICKNESS_PRESETS`](../../src/types/bim.ts#L167), [`OPENING_LABELS`](../../src/types/bim.ts#L241), [`OPENING_PRESETS`](../../src/types/bim.ts#L295), [`RADIATOR_CONNECTION_LABELS`](../../src/types/bim.ts#L662), [`VENTILSEITE_LABELS`](../../src/types/bim.ts#L691), [`LEISTUNG_HERKUNFT_LABELS`](../../src/types/bim.ts#L725), [`leistungNachziehbar`](../../src/types/bim.ts#L733), [`FIXTURE_LIBRARY`](../../src/types/bim.ts#L914), [`FIXTURE_BY_TYPE`](../../src/types/bim.ts#L994), [`FIXTURE_CATEGORY_LABELS`](../../src/types/bim.ts#L998), [`DACH_VORGABE`](../../src/types/bim.ts#L1101), [`ROOF_KIND_LABELS`](../../src/types/bim.ts#L1111), [`DACHFORMEN_AUS_UMRISS`](../../src/types/bim.ts#L1145), [`ROOF_OPENING_LABELS`](../../src/types/bim.ts#L1316), [`pixelsPerMeter`](../../src/types/bim.ts#L1456), [`VERTICAL_LABELS`](../../src/types/bim.ts#L1549), [`SHAFT_SERVICE_LABELS`](../../src/types/bim.ts#L1559), [`SOLID_LABELS`](../../src/types/bim.ts#L1617), [`DURCHBRUCH_LABELS`](../../src/types/bim.ts#L1698), [`durchbruchWirt`](../../src/types/bim.ts#L1708), [`BRANDSCHUTZ_LABELS`](../../src/types/bim.ts#L1723), [`DURCHBRUCH_PRESETS`](../../src/types/bim.ts#L1849), [`PIPE_SERVICE_LABELS`](../../src/types/bim.ts#L1894), [`PIPE_SERVICE_COLORS`](../../src/types/bim.ts#L1906), [`AREA_CATEGORY_LABELS`](../../src/types/bim.ts#L2221), [`MOUNTING_LABELS`](../../src/types/bim.ts#L2237), [`HEAT_SOURCE_LABELS`](../../src/types/bim.ts#L2247), [`SOIL_LABELS`](../../src/types/bim.ts#L2257), [`SITE_ELEMENT_LABELS`](../../src/types/bim.ts#L2424), [`IGNITION_LABELS`](../../src/types/bim.ts#L2473), [`ANNOTATION_LABELS`](../../src/types/bim.ts#L2527), [`ANNOTATION_QUELLE_LABELS`](../../src/types/bim.ts#L2617), [`VORHABEN_LABELS`](../../src/types/bim.ts#L2800), [`VENTILATION_ROLE_LABELS`](../../src/types/bim.ts#L3062), [`PUMP_FORM_LABELS`](../../src/types/bim.ts#L4837), [`STORAGE_KIND_LABELS`](../../src/types/bim.ts#L5198), [`PIPE_MATERIAL_LABELS`](../../src/types/bim.ts#L5240), [`ZWEITERZEUGER_LABELS`](../../src/types/bim.ts#L5642), [`INNENEINHEIT_LABELS`](../../src/types/bim.ts#L5826), [`ANTWORTEN_VORGABE`](../../src/types/bim.ts#L5843)
+Exportierte Funktionen/Konstanten: [`BOUNDARY_LABELS`](../../src/types/bim.ts#L79), [`BOUNDARY_CONDITIONS`](../../src/types/bim.ts#L89), [`DEFAULT_CONSTRUCTIONS`](../../src/types/bim.ts#L127), [`WALL_THICKNESS_PRESETS`](../../src/types/bim.ts#L167), [`OPENING_LABELS`](../../src/types/bim.ts#L241), [`OPENING_PRESETS`](../../src/types/bim.ts#L295), [`RADIATOR_CONNECTION_LABELS`](../../src/types/bim.ts#L662), [`VENTILSEITE_LABELS`](../../src/types/bim.ts#L691), [`LEISTUNG_HERKUNFT_LABELS`](../../src/types/bim.ts#L725), [`leistungNachziehbar`](../../src/types/bim.ts#L733), [`FIXTURE_LIBRARY`](../../src/types/bim.ts#L915), [`FIXTURE_BY_TYPE`](../../src/types/bim.ts#L995), [`FIXTURE_CATEGORY_LABELS`](../../src/types/bim.ts#L999), [`DACH_VORGABE`](../../src/types/bim.ts#L1102), [`ROOF_KIND_LABELS`](../../src/types/bim.ts#L1112), [`DACHFORMEN_AUS_UMRISS`](../../src/types/bim.ts#L1146), [`ROOF_OPENING_LABELS`](../../src/types/bim.ts#L1317), [`pixelsPerMeter`](../../src/types/bim.ts#L1457), [`VERTICAL_LABELS`](../../src/types/bim.ts#L1550), [`SHAFT_SERVICE_LABELS`](../../src/types/bim.ts#L1560), [`SOLID_LABELS`](../../src/types/bim.ts#L1618), [`DURCHBRUCH_LABELS`](../../src/types/bim.ts#L1699), [`durchbruchWirt`](../../src/types/bim.ts#L1709), [`BRANDSCHUTZ_LABELS`](../../src/types/bim.ts#L1724), [`DURCHBRUCH_PRESETS`](../../src/types/bim.ts#L1850), [`PIPE_SERVICE_LABELS`](../../src/types/bim.ts#L1895), [`PIPE_SERVICE_COLORS`](../../src/types/bim.ts#L1907), [`AREA_CATEGORY_LABELS`](../../src/types/bim.ts#L2222), [`MOUNTING_LABELS`](../../src/types/bim.ts#L2238), [`HEAT_SOURCE_LABELS`](../../src/types/bim.ts#L2248), [`SOIL_LABELS`](../../src/types/bim.ts#L2258), [`SITE_ELEMENT_LABELS`](../../src/types/bim.ts#L2425), [`IGNITION_LABELS`](../../src/types/bim.ts#L2474), [`ANNOTATION_LABELS`](../../src/types/bim.ts#L2528), [`ANNOTATION_QUELLE_LABELS`](../../src/types/bim.ts#L2618), [`VORHABEN_LABELS`](../../src/types/bim.ts#L2801), [`VENTILATION_ROLE_LABELS`](../../src/types/bim.ts#L3063), [`PUMP_FORM_LABELS`](../../src/types/bim.ts#L4838), [`STORAGE_KIND_LABELS`](../../src/types/bim.ts#L5199), [`PIPE_MATERIAL_LABELS`](../../src/types/bim.ts#L5241), [`ZWEITERZEUGER_LABELS`](../../src/types/bim.ts#L5643), [`INNENEINHEIT_LABELS`](../../src/types/bim.ts#L5827), [`ANTWORTEN_VORGABE`](../../src/types/bim.ts#L5844)
 
-### [`src/vite-env.d.ts`](../../src/vite-env.d.ts) · 24 Zeilen
+### [`src/vite-env.d.ts`](../../src/vite-env.d.ts) · 28 Zeilen
 
 **Verantwortung:** <reference types="vite/client" />  
 **Abhängigkeiten:** –  

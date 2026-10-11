@@ -1,7 +1,7 @@
 # Typindex CAD Light (Interfaces, Typen, Klassen, Enums)
 
-Stand: 09.10.2026 · Quelle: CAD_light@55f5460 (Version 1.77.0) · automatisch aus den Quelltexten erzeugt (Regex über `export`/`import`), danach geprüft
-**640 exportierte Typen.** Das fachliche Datenmodell steht fast vollständig in `src/types/bim.ts`; Beschreibung der Modelle: `ravia_heizlast/docs/models/`.
+Stand: 11.10.2026 · Quelle: CAD_light@5200d65 (Version 1.78.0) · automatisch aus den Quelltexten erzeugt (Regex über `export`/`import`), danach geprüft
+**659 exportierte Typen.** Das fachliche Datenmodell steht fast vollständig in `src/types/bim.ts`; Beschreibung der Modelle: `ravia_heizlast/docs/models/`.
 
 
 | Typ | Art | Ort | Importiert von |
@@ -33,9 +33,9 @@ Stand: 09.10.2026 · Quelle: CAD_light@55f5460 (Version 1.77.0) · automatisch a
 | `LueckenFund` | interface | [`src/lib/autokorrektur.ts:140`](../../src/lib/autokorrektur.ts#L140) | – |
 | `LeitungsFund` | interface | [`src/lib/autokorrektur.ts:147`](../../src/lib/autokorrektur.ts#L147) | – |
 | `KleinraumFund` | interface | [`src/lib/autokorrektur.ts:157`](../../src/lib/autokorrektur.ts#L157) | – |
-| `Korrekturplan` | interface | [`src/lib/autokorrektur.ts:165`](../../src/lib/autokorrektur.ts#L165) | `components/KorrekturDialog.tsx`, `store/useBimStore.ts` |
-| `KorrekturAuswahl` | interface | [`src/lib/autokorrektur.ts:180`](../../src/lib/autokorrektur.ts#L180) | `scripts/pruefungen/autokorrektur.ts`, `components/KorrekturDialog.tsx`, `store/useBimStore.ts` |
-| `KorrekturBericht` | interface | [`src/lib/autokorrektur.ts:190`](../../src/lib/autokorrektur.ts#L190) | `store/useBimStore.ts` |
+| `Korrekturplan` | interface | [`src/lib/autokorrektur.ts:165`](../../src/lib/autokorrektur.ts#L165) | `components/KorrekturDialog.tsx`, `store/bimZustand.ts` |
+| `KorrekturAuswahl` | interface | [`src/lib/autokorrektur.ts:180`](../../src/lib/autokorrektur.ts#L180) | `scripts/pruefungen/autokorrektur.ts`, `components/KorrekturDialog.tsx`, `store/bimZustand.ts`, `store/slices/laden.ts` |
+| `KorrekturBericht` | interface | [`src/lib/autokorrektur.ts:190`](../../src/lib/autokorrektur.ts#L190) | `store/bimZustand.ts`, `store/slices/laden.ts` |
 | `AutosaveEntry` | interface | [`src/lib/autosave.ts:40`](../../src/lib/autosave.ts#L40) | `App.tsx` |
 | `SicherungsErgebnis` | type | [`src/lib/autosave.ts:59`](../../src/lib/autosave.ts#L59) | `App.tsx` |
 | `Baugrube` | interface | [`src/lib/baugrube.ts:57`](../../src/lib/baugrube.ts#L57) | `components/Viewer3D.tsx` |
@@ -43,7 +43,7 @@ Stand: 09.10.2026 · Quelle: CAD_light@55f5460 (Version 1.77.0) · automatisch a
 | `Hindernis` | interface | [`src/lib/begehen.ts:51`](../../src/lib/begehen.ts#L51) | `components/Viewer3D.tsx` |
 | `Treppenlauf` | interface | [`src/lib/begehen.ts:385`](../../src/lib/begehen.ts#L385) | `scripts/pruefungen/begehen.ts`, `components/Viewer3D.tsx` |
 | `Tritt` | interface | [`src/lib/begehen.ts:402`](../../src/lib/begehen.ts#L402) | – |
-| `BegradigenOptionen` | interface | [`src/lib/begradigen.ts:37`](../../src/lib/begradigen.ts#L37) | `store/useBimStore.ts` |
+| `BegradigenOptionen` | interface | [`src/lib/begradigen.ts:37`](../../src/lib/begradigen.ts#L37) | `store/bimZustand.ts` |
 | `BegradigenErgebnis` | interface | [`src/lib/begradigen.ts:55`](../../src/lib/begradigen.ts#L55) | – |
 | `Beschriftungsvorschlag` | interface | [`src/lib/beschriftung3d.ts:44`](../../src/lib/beschriftung3d.ts#L44) | `components/Viewer3D.tsx` |
 | `Beschriftungspunkt` | interface | [`src/lib/beschriftungsLage.ts:32`](../../src/lib/beschriftungsLage.ts#L32) | – |
@@ -56,9 +56,9 @@ Stand: 09.10.2026 · Quelle: CAD_light@55f5460 (Version 1.77.0) · automatisch a
 | `BivalenzHindernis` | type | [`src/lib/bivalenz.ts:124`](../../src/lib/bivalenz.ts#L124) | `lib/plantDesign.ts` |
 | `BodenbelagId` | type | [`src/lib/bodenbelag.ts:25`](../../src/lib/bodenbelag.ts#L25) | – |
 | `Bodenbelag` | interface | [`src/lib/bodenbelag.ts:35`](../../src/lib/bodenbelag.ts#L35) | – |
-| `DachVorschlag` | interface | [`src/lib/buildingModelImport.ts:75`](../../src/lib/buildingModelImport.ts#L75) | – |
-| `ScanPruefpunkt` | interface | [`src/lib/buildingModelImport.ts:92`](../../src/lib/buildingModelImport.ts#L92) | – |
-| `BuildingImportErgebnis` | interface | [`src/lib/buildingModelImport.ts:100`](../../src/lib/buildingModelImport.ts#L100) | `lib/scanUebernahme.ts`, `store/useBimStore.ts` |
+| `DachVorschlag` | interface | [`src/lib/buildingModelImport.ts:93`](../../src/lib/buildingModelImport.ts#L93) | – |
+| `ScanPruefpunkt` | interface | [`src/lib/buildingModelImport.ts:110`](../../src/lib/buildingModelImport.ts#L110) | – |
+| `BuildingImportErgebnis` | interface | [`src/lib/buildingModelImport.ts:118`](../../src/lib/buildingModelImport.ts#L118) | `lib/scanUebernahme.ts`, `store/bimZustand.ts` |
 | `Dachteil` | interface | [`src/lib/dachlandschaft.ts:45`](../../src/lib/dachlandschaft.ts#L45) | `components/Viewer3D.tsx` |
 | `LandschaftEingabe` | interface | [`src/lib/dachlandschaft.ts:116`](../../src/lib/dachlandschaft.ts#L116) | – |
 | `Gerade` | interface | [`src/lib/dachschnitt.ts:48`](../../src/lib/dachschnitt.ts#L48) | – |
@@ -105,12 +105,12 @@ Stand: 09.10.2026 · Quelle: CAD_light@55f5460 (Version 1.77.0) · automatisch a
 | `WandKante` | interface | [`src/lib/doppelwaende.ts:34`](../../src/lib/doppelwaende.ts#L34) | `scripts/pruefungen/doppelwaende.ts` |
 | `Verschmelzung` | interface | [`src/lib/doppelwaende.ts:45`](../../src/lib/doppelwaende.ts#L45) | – |
 | `GewerkesatzId` | type | [`src/lib/ebenen.ts:220`](../../src/lib/ebenen.ts#L220) | `components/PlanPrintDialog.tsx` |
-| `Gewerkesatz` | interface | [`src/lib/ebenen.ts:222`](../../src/lib/ebenen.ts#L222) | `store/useBimStore.ts` |
+| `Gewerkesatz` | interface | [`src/lib/ebenen.ts:222`](../../src/lib/ebenen.ts#L222) | `store/bimZustand.ts` |
 | `Eckart` | type | [`src/lib/eckpunkte.ts:29`](../../src/lib/eckpunkte.ts#L29) | – |
 | `Eckpunkt` | interface | [`src/lib/eckpunkte.ts:50`](../../src/lib/eckpunkte.ts#L50) | – |
-| `RaviaSummary` | interface | [`src/lib/embedApi.ts:81`](../../src/lib/embedApi.ts#L81) | – |
-| `RaviaCadApi` | interface | [`src/lib/embedApi.ts:100`](../../src/lib/embedApi.ts#L100) | `main.tsx` |
-| `NetzStand` | interface | [`src/lib/embedApi.ts:200`](../../src/lib/embedApi.ts#L200) | – |
+| `RaviaSummary` | interface | [`src/lib/embedApi.ts:96`](../../src/lib/embedApi.ts#L96) | – |
+| `RaviaCadApi` | interface | [`src/lib/embedApi.ts:115`](../../src/lib/embedApi.ts#L115) | `main.tsx` |
+| `NetzStand` | interface | [`src/lib/embedApi.ts:226`](../../src/lib/embedApi.ts#L226) | – |
 | `Marktwert` | interface | [`src/lib/erzeugerHydraulik.ts:64`](../../src/lib/erzeugerHydraulik.ts#L64) | – |
 | `EinbauteilTyp` | interface | [`src/lib/erzeugerHydraulik.ts:652`](../../src/lib/erzeugerHydraulik.ts#L652) | `scripts/pruefungen/erzeugerhydraulik.ts` |
 | `FliesswegPosten` | interface | [`src/lib/erzeugerHydraulik.ts:767`](../../src/lib/erzeugerHydraulik.ts#L767) | – |
@@ -130,12 +130,12 @@ Stand: 09.10.2026 · Quelle: CAD_light@55f5460 (Version 1.77.0) · automatisch a
 | `FormteilArt` | type | [`src/lib/formteile.ts:42`](../../src/lib/formteile.ts#L42) | – |
 | `Formteil` | interface | [`src/lib/formteile.ts:50`](../../src/lib/formteile.ts#L50) | – |
 | `Verlegekurven` | interface | [`src/lib/fussbodenkurven.ts:42`](../../src/lib/fussbodenkurven.ts#L42) | – |
-| `Verlegebilanz` | interface | [`src/lib/fussbodenkurven.ts:127`](../../src/lib/fussbodenkurven.ts#L127) | – |
-| `Verlegesumme` | interface | [`src/lib/fussbodenkurven.ts:212`](../../src/lib/fussbodenkurven.ts#L212) | – |
-| `Verlegelinie` | interface | [`src/lib/fussbodenkurven.ts:258`](../../src/lib/fussbodenkurven.ts#L258) | `components/Viewer3D.tsx` |
+| `Verlegebilanz` | interface | [`src/lib/fussbodenkurven.ts:132`](../../src/lib/fussbodenkurven.ts#L132) | – |
+| `Verlegesumme` | interface | [`src/lib/fussbodenkurven.ts:217`](../../src/lib/fussbodenkurven.ts#L217) | – |
+| `Verlegelinie` | interface | [`src/lib/fussbodenkurven.ts:263`](../../src/lib/fussbodenkurven.ts#L263) | `components/Viewer3D.tsx` |
 | `GeschossNetz` | interface | [`src/lib/gebaeudeNetz.ts:42`](../../src/lib/gebaeudeNetz.ts#L42) | – |
 | `Strangabschnitt` | interface | [`src/lib/gebaeudeNetz.ts:52`](../../src/lib/gebaeudeNetz.ts#L52) | – |
-| `GebaeudeNetzErgebnis` | interface | [`src/lib/gebaeudeNetz.ts:61`](../../src/lib/gebaeudeNetz.ts#L61) | `components/AnlagenPanel.tsx`, `store/useBimStore.ts` |
+| `GebaeudeNetzErgebnis` | interface | [`src/lib/gebaeudeNetz.ts:61`](../../src/lib/gebaeudeNetz.ts#L61) | `components/AnlagenPanel.tsx`, `store/bimZustand.ts` |
 | `Geraeteform` | type | [`src/lib/geraeteprofil.ts:49`](../../src/lib/geraeteprofil.ts#L49) | – |
 | `Erkennungsgrund` | type | [`src/lib/geraeteprofil.ts:56`](../../src/lib/geraeteprofil.ts#L56) | – |
 | `Geraeteprofil` | interface | [`src/lib/geraeteprofil.ts:64`](../../src/lib/geraeteprofil.ts#L64) | `lib/embedApi.ts` |
@@ -146,9 +146,9 @@ Stand: 09.10.2026 · Quelle: CAD_light@55f5460 (Version 1.77.0) · automatisch a
 | `GriffAenderung` | type | [`src/lib/griffe.ts:117`](../../src/lib/griffe.ts#L117) | `scripts/pruefungen/griffe.ts` |
 | `Gleichartige` | interface | [`src/lib/griffe.ts:664`](../../src/lib/griffe.ts#L664) | `scripts/pruefungen/griffe.ts` |
 | `Hauseinfuehrung` | interface | [`src/lib/hauseinfuehrung.ts:40`](../../src/lib/hauseinfuehrung.ts#L40) | – |
-| `RoomHeatLoad` | interface | [`src/lib/heatLoadEstimate.ts:55`](../../src/lib/heatLoadEstimate.ts#L55) | – |
-| `NormHeatLoadCoverage` | interface | [`src/lib/heatLoadEstimate.ts:118`](../../src/lib/heatLoadEstimate.ts#L118) | `lib/plantDesign.ts` |
-| `HeatLoadEstimate` | interface | [`src/lib/heatLoadEstimate.ts:147`](../../src/lib/heatLoadEstimate.ts#L147) | `lib/plantDesign.ts` |
+| `RoomHeatLoad` | interface | [`src/lib/heatLoadEstimate.ts:71`](../../src/lib/heatLoadEstimate.ts#L71) | – |
+| `NormHeatLoadCoverage` | interface | [`src/lib/heatLoadEstimate.ts:134`](../../src/lib/heatLoadEstimate.ts#L134) | `lib/plantDesign.ts` |
+| `HeatLoadEstimate` | interface | [`src/lib/heatLoadEstimate.ts:163`](../../src/lib/heatLoadEstimate.ts#L163) | `lib/embedApi.ts`, `lib/plantDesign.ts` |
 | `AcousticCheck` | interface | [`src/lib/heatPump.ts:134`](../../src/lib/heatPump.ts#L134) | – |
 | `AcousticReport` | interface | [`src/lib/heatPump.ts:150`](../../src/lib/heatPump.ts#L150) | – |
 | `ProtectionIssue` | interface | [`src/lib/heatPump.ts:321`](../../src/lib/heatPump.ts#L321) | – |
@@ -161,11 +161,14 @@ Stand: 09.10.2026 · Quelle: CAD_light@55f5460 (Version 1.77.0) · automatisch a
 | `FixturePatch` | interface | [`src/lib/hostPatch.ts:101`](../../src/lib/hostPatch.ts#L101) | – |
 | `ConstructionPatch` | interface | [`src/lib/hostPatch.ts:147`](../../src/lib/hostPatch.ts#L147) | – |
 | `ProjectPatch` | interface | [`src/lib/hostPatch.ts:166`](../../src/lib/hostPatch.ts#L166) | – |
-| `HostPatch` | interface | [`src/lib/hostPatch.ts:181`](../../src/lib/hostPatch.ts#L181) | `scripts/pruefungen/einbettung.ts`, `lib/embedApi.ts`, `store/useBimStore.ts` |
+| `HostPatch` | interface | [`src/lib/hostPatch.ts:181`](../../src/lib/hostPatch.ts#L181) | `scripts/pruefungen/einbettung.ts`, `lib/embedApi.ts`, `store/bimZustand.ts` |
 | `PatchVerdict` | type | [`src/lib/hostPatch.ts:200`](../../src/lib/hostPatch.ts#L200) | – |
 | `PatchEntry` | interface | [`src/lib/hostPatch.ts:202`](../../src/lib/hostPatch.ts#L202) | – |
-| `HostPatchReport` | interface | [`src/lib/hostPatch.ts:214`](../../src/lib/hostPatch.ts#L214) | `scripts/pruefungen/einbettung.ts`, `scripts/pruefungen/raumkennung.ts`, `lib/embedApi.ts`, `store/useBimStore.ts` |
+| `HostPatchReport` | interface | [`src/lib/hostPatch.ts:214`](../../src/lib/hostPatch.ts#L214) | `scripts/pruefungen/einbettung.ts`, `scripts/pruefungen/raumkennung.ts`, `lib/embedApi.ts`, `store/bimZustand.ts` |
 | `HostPatchResult` | interface | [`src/lib/hostPatch.ts:225`](../../src/lib/hostPatch.ts#L225) | – |
+| `CreateRoomRequest` | interface | [`src/lib/hostRaum.ts:24`](../../src/lib/hostRaum.ts#L24) | – |
+| `CreateRoomResult` | interface | [`src/lib/hostRaum.ts:33`](../../src/lib/hostRaum.ts#L33) | `lib/embedApi.ts` |
+| `RaumVorlageAnlegen` | type | [`src/lib/hostRaum.ts:52`](../../src/lib/hostRaum.ts#L52) | `scripts/pruefungen/hostraum.ts`, `lib/embedApi.ts` |
 | `BilanzArt` | type | [`src/lib/huellflaechenbilanz.ts:35`](../../src/lib/huellflaechenbilanz.ts#L35) | – |
 | `BilanzRand` | type | [`src/lib/huellflaechenbilanz.ts:38`](../../src/lib/huellflaechenbilanz.ts#L38) | – |
 | `BilanzPosten` | interface | [`src/lib/huellflaechenbilanz.ts:40`](../../src/lib/huellflaechenbilanz.ts#L40) | – |
@@ -194,8 +197,8 @@ Stand: 09.10.2026 · Quelle: CAD_light@55f5460 (Version 1.77.0) · automatisch a
 | `PumpDesign` | interface | [`src/lib/hydraulics.ts:1375`](../../src/lib/hydraulics.ts#L1375) | `lib/hydraulicBalance.ts`, `lib/pipeReport.ts`, `lib/plantDesign.ts` |
 | `PumpOptions` | interface | [`src/lib/hydraulics.ts:1440`](../../src/lib/hydraulics.ts#L1440) | – |
 | `FloorZone` | type | [`src/lib/hydraulics.ts:1630`](../../src/lib/hydraulics.ts#L1630) | – |
-| `FloorHeatingOptions` | interface | [`src/lib/hydraulics.ts:1690`](../../src/lib/hydraulics.ts#L1690) | – |
-| `FloorHeatingDesign` | interface | [`src/lib/hydraulics.ts:1733`](../../src/lib/hydraulics.ts#L1733) | `lib/plantDesign.ts` |
+| `FloorHeatingOptions` | interface | [`src/lib/hydraulics.ts:1697`](../../src/lib/hydraulics.ts#L1697) | – |
+| `FloorHeatingDesign` | interface | [`src/lib/hydraulics.ts:1740`](../../src/lib/hydraulics.ts#L1740) | `lib/plantDesign.ts` |
 | `IfcExportOptions` | interface | [`src/lib/ifcExport.ts:193`](../../src/lib/ifcExport.ts#L193) | – |
 | `StepValue` | type | [`src/lib/ifcImport.ts:77`](../../src/lib/ifcImport.ts#L77) | `scripts/verify.ts` |
 | `StepRef` | interface | [`src/lib/ifcImport.ts:80`](../../src/lib/ifcImport.ts#L80) | – |
@@ -221,7 +224,7 @@ Stand: 09.10.2026 · Quelle: CAD_light@55f5460 (Version 1.77.0) · automatisch a
 | `LevelCopySkip` | interface | [`src/lib/levelCopy.ts:52`](../../src/lib/levelCopy.ts#L52) | – |
 | `LevelCopyInput` | interface | [`src/lib/levelCopy.ts:58`](../../src/lib/levelCopy.ts#L58) | – |
 | `LevelCopyResult` | interface | [`src/lib/levelCopy.ts:79`](../../src/lib/levelCopy.ts#L79) | – |
-| `LueckenSchluss` | type | [`src/lib/luecken.ts:40`](../../src/lib/luecken.ts#L40) | `components/AufmassPanel.tsx`, `components/KorrekturDialog.tsx`, `lib/autokorrektur.ts`, `store/useBimStore.ts` |
+| `LueckenSchluss` | type | [`src/lib/luecken.ts:40`](../../src/lib/luecken.ts#L40) | `components/AufmassPanel.tsx`, `components/KorrekturDialog.tsx`, `lib/autokorrektur.ts`, `store/bimZustand.ts` |
 | `Luecke` | interface | [`src/lib/luecken.ts:42`](../../src/lib/luecken.ts#L42) | `lib/autokorrektur.ts` |
 | `Satzmass` | interface | [`src/lib/mappenUmbruch.ts:39`](../../src/lib/mappenUmbruch.ts#L39) | – |
 | `Umbruchmass` | interface | [`src/lib/mappenUmbruch.ts:307`](../../src/lib/mappenUmbruch.ts#L307) | – |
@@ -238,14 +241,14 @@ Stand: 09.10.2026 · Quelle: CAD_light@55f5460 (Version 1.77.0) · automatisch a
 | `NetzFlaechenkreis` | interface | [`src/lib/netzExport.ts:126`](../../src/lib/netzExport.ts#L126) | – |
 | `NetzEinzelkreis` | interface | [`src/lib/netzExport.ts:185`](../../src/lib/netzExport.ts#L185) | – |
 | `NetzExport` | interface | [`src/lib/netzExport.ts:206`](../../src/lib/netzExport.ts#L206) | `types/bim.ts` |
-| `EinheitArt` | type | [`src/lib/nutzungseinheiten.ts:33`](../../src/lib/nutzungseinheiten.ts#L33) | `scripts/pruefungen/nutzungseinheiten.ts`, `components/AnlagenPanel.tsx`, `components/PropertiesPanel.tsx`, `store/useBimStore.ts` |
-| `Nutzungseinheit` | interface | [`src/lib/nutzungseinheiten.ts:47`](../../src/lib/nutzungseinheiten.ts#L47) | `store/useBimStore.ts`, `types/bim.ts` |
+| `EinheitArt` | type | [`src/lib/nutzungseinheiten.ts:33`](../../src/lib/nutzungseinheiten.ts#L33) | `scripts/pruefungen/nutzungseinheiten.ts`, `components/AnlagenPanel.tsx`, `components/PropertiesPanel.tsx`, `store/bimZustand.ts`, `store/slices/laden.ts` |
+| `Nutzungseinheit` | interface | [`src/lib/nutzungseinheiten.ts:47`](../../src/lib/nutzungseinheiten.ts#L47) | `store/slices/einheiten.ts`, `store/slices/laden.ts`, `types/bim.ts` |
 | `Einheitsbilanz` | interface | [`src/lib/nutzungseinheiten.ts:57`](../../src/lib/nutzungseinheiten.ts#L57) | – |
 | `Einheitenstand` | interface | [`src/lib/nutzungseinheiten.ts:156`](../../src/lib/nutzungseinheiten.ts#L156) | – |
 | `Daemmzustand` | type | [`src/lib/objektaufnahme.ts:33`](../../src/lib/objektaufnahme.ts#L33) | `components/GuidePanel.tsx` |
 | `BestandsheizungArt` | type | [`src/lib/objektaufnahme.ts:43`](../../src/lib/objektaufnahme.ts#L43) | `components/GuidePanel.tsx` |
 | `WarmwasserBestand` | type | [`src/lib/objektaufnahme.ts:67`](../../src/lib/objektaufnahme.ts#L67) | `components/GuidePanel.tsx` |
-| `Objektaufnahme` | interface | [`src/lib/objektaufnahme.ts:90`](../../src/lib/objektaufnahme.ts#L90) | `store/useBimStore.ts`, `types/bim.ts` |
+| `Objektaufnahme` | interface | [`src/lib/objektaufnahme.ts:90`](../../src/lib/objektaufnahme.ts#L90) | `store/bimZustand.ts`, `types/bim.ts` |
 | `Aufnahmezeile` | interface | [`src/lib/objektaufnahme.ts:119`](../../src/lib/objektaufnahme.ts#L119) | `lib/projektMappe.ts` |
 | `Aufnahmegruppe` | interface | [`src/lib/objektaufnahme.ts:137`](../../src/lib/objektaufnahme.ts#L137) | – |
 | `Aufnahmestand` | interface | [`src/lib/objektaufnahme.ts:142`](../../src/lib/objektaufnahme.ts#L142) | – |
@@ -270,7 +273,7 @@ Stand: 09.10.2026 · Quelle: CAD_light@55f5460 (Version 1.77.0) · automatisch a
 | `RoutingRequest` | interface | [`src/lib/pipeRouting.ts:100`](../../src/lib/pipeRouting.ts#L100) | – |
 | `RoutedLeg` | interface | [`src/lib/pipeRouting.ts:125`](../../src/lib/pipeRouting.ts#L125) | – |
 | `RoutedNetwork` | interface | [`src/lib/pipeRouting.ts:137`](../../src/lib/pipeRouting.ts#L137) | `lib/pipeLayout.ts` |
-| `Loeschposten` | interface | [`src/lib/planLeeren.ts:41`](../../src/lib/planLeeren.ts#L41) | `store/useBimStore.ts` |
+| `Loeschposten` | interface | [`src/lib/planLeeren.ts:41`](../../src/lib/planLeeren.ts#L41) | `store/bimZustand.ts` |
 | `PaperFormat` | type | [`src/lib/planPrint.ts:168`](../../src/lib/planPrint.ts#L168) | `components/PlanPrintDialog.tsx`, `components/RohrnetzDialog.tsx`, `lib/pipeReportPrint.ts` |
 | `PaperOrientation` | type | [`src/lib/planPrint.ts:169`](../../src/lib/planPrint.ts#L169) | `components/PlanPrintDialog.tsx`, `lib/pipeReportPrint.ts` |
 | `PlanPrintOptions` | interface | [`src/lib/planPrint.ts:171`](../../src/lib/planPrint.ts#L171) | `scripts/pruefungen/beschriftungslage.ts` |
@@ -307,7 +310,7 @@ Stand: 09.10.2026 · Quelle: CAD_light@55f5460 (Version 1.77.0) · automatisch a
 | `RaumplanGeschoss` | interface | [`src/lib/raumplanImport.ts:125`](../../src/lib/raumplanImport.ts#L125) | `lib/buildingModelImport.ts` |
 | `RaumHinweis` | interface | [`src/lib/raumplanImport.ts:138`](../../src/lib/raumplanImport.ts#L138) | `lib/buildingModelImport.ts`, `lib/scanUebernahme.ts` |
 | `Annahme` | interface | [`src/lib/raumplanImport.ts:157`](../../src/lib/raumplanImport.ts#L157) | `lib/buildingModelImport.ts` |
-| `RaumplanImportErgebnis` | interface | [`src/lib/raumplanImport.ts:163`](../../src/lib/raumplanImport.ts#L163) | `lib/buildingModelImport.ts`, `store/useBimStore.ts` |
+| `RaumplanImportErgebnis` | interface | [`src/lib/raumplanImport.ts:163`](../../src/lib/raumplanImport.ts#L163) | `lib/buildingModelImport.ts`, `store/bimZustand.ts` |
 | `Trefferart` | type | [`src/lib/raumtreffer.ts:30`](../../src/lib/raumtreffer.ts#L30) | – |
 | `Raumtreffer` | interface | [`src/lib/raumtreffer.ts:32`](../../src/lib/raumtreffer.ts#L32) | – |
 | `StichErgebnis` | interface | [`src/lib/ringStich.ts:67`](../../src/lib/ringStich.ts#L67) | – |
@@ -316,16 +319,16 @@ Stand: 09.10.2026 · Quelle: CAD_light@55f5460 (Version 1.77.0) · automatisch a
 | `RingAbschnitt` | interface | [`src/lib/ringleitung.ts:93`](../../src/lib/ringleitung.ts#L93) | – |
 | `RingPlan` | interface | [`src/lib/ringleitung.ts:100`](../../src/lib/ringleitung.ts#L100) | – |
 | `RingErgebnis` | type | [`src/lib/ringleitung.ts:118`](../../src/lib/ringleitung.ts#L118) | – |
-| `RohrAnteil` | interface | [`src/lib/rohrImRaum.ts:54`](../../src/lib/rohrImRaum.ts#L54) | `lib/raviaExport.ts` |
+| `RohrAnteil` | interface | [`src/lib/rohrImRaum.ts:54`](../../src/lib/rohrImRaum.ts#L54) | `lib/raumExport.ts` |
 | `Rohrangabe` | interface | [`src/lib/rohrbezeichnung.ts:60`](../../src/lib/rohrbezeichnung.ts#L60) | – |
 | `RoofFrame` | interface | [`src/lib/roofGeometry.ts:337`](../../src/lib/roofGeometry.ts#L337) | `scripts/pruefungen/dachschnitt.ts`, `components/Editor2D.tsx`, `lib/dachlandschaft.ts`, `lib/dachschnitt.ts`, `lib/roomDetection.ts` (+1) |
 | `WallRoofProfile` | interface | [`src/lib/roofGeometry.ts:1133`](../../src/lib/roofGeometry.ts#L1133) | – |
 | `GradeSplit` | interface | [`src/lib/roomDetection.ts:91`](../../src/lib/roomDetection.ts#L91) | – |
 | `DetectRoomsInput` | interface | [`src/lib/roomDetection.ts:786`](../../src/lib/roomDetection.ts#L786) | – |
 | `DiagnoseClosureInput` | interface | [`src/lib/roomDetection.ts:1703`](../../src/lib/roomDetection.ts#L1703) | – |
-| `RoomTemplateKind` | type | [`src/lib/roomTemplates.ts:24`](../../src/lib/roomTemplates.ts#L24) | `store/useBimStore.ts` |
+| `RoomTemplateKind` | type | [`src/lib/roomTemplates.ts:24`](../../src/lib/roomTemplates.ts#L24) | `store/bimZustand.ts` |
 | `RoomTemplate` | interface | [`src/lib/roomTemplates.ts:34`](../../src/lib/roomTemplates.ts#L34) | – |
-| `TemplateOptions` | interface | [`src/lib/roomTemplates.ts:96`](../../src/lib/roomTemplates.ts#L96) | `store/useBimStore.ts` |
+| `TemplateOptions` | interface | [`src/lib/roomTemplates.ts:96`](../../src/lib/roomTemplates.ts#L96) | `store/bimZustand.ts` |
 | `RoomSizePreset` | interface | [`src/lib/roomTemplates.ts:285`](../../src/lib/roomTemplates.ts#L285) | – |
 | `GlycolProperties` | interface | [`src/lib/safetyFittings.ts:77`](../../src/lib/safetyFittings.ts#L77) | – |
 | `GlycolMixture` | interface | [`src/lib/safetyFittings.ts:202`](../../src/lib/safetyFittings.ts#L202) | – |
@@ -343,7 +346,7 @@ Stand: 09.10.2026 · Quelle: CAD_light@55f5460 (Version 1.77.0) · automatisch a
 | `ScanDienstFehler` | class | [`src/lib/scanDienst.ts:89`](../../src/lib/scanDienst.ts#L89) | `scripts/pruefungen/scandienst.ts`, `components/ScanDialog.tsx` |
 | `Ablage` | interface | [`src/lib/scanDienst.ts:213`](../../src/lib/scanDienst.ts#L213) | `scripts/pruefungen/scandienst.ts`, `components/ScanDialog.tsx` |
 | `Schritt` | type | [`src/lib/scanDienst.ts:424`](../../src/lib/scanDienst.ts#L424) | – |
-| `ScanDachZuordnung` | interface | [`src/lib/scanUebernahme.ts:30`](../../src/lib/scanUebernahme.ts#L30) | `store/useBimStore.ts` |
+| `ScanDachZuordnung` | interface | [`src/lib/scanUebernahme.ts:30`](../../src/lib/scanUebernahme.ts#L30) | `store/slices/laden.ts` |
 | `AnlagenMerkmale` | interface | [`src/lib/schemaAuswahl.ts:45`](../../src/lib/schemaAuswahl.ts#L45) | `scripts/pruefungen/schemavorschlag.ts` |
 | `Passung` | type | [`src/lib/schemaAuswahl.ts:191`](../../src/lib/schemaAuswahl.ts#L191) | `scripts/pruefungen/schemavorschlag.ts`, `lib/schemaZuordnung.ts` |
 | `Abweichung` | interface | [`src/lib/schemaAuswahl.ts:199`](../../src/lib/schemaAuswahl.ts#L199) | `lib/schemaZuordnung.ts` |
@@ -387,16 +390,16 @@ Stand: 09.10.2026 · Quelle: CAD_light@55f5460 (Version 1.77.0) · automatisch a
 | `PumpOverlay` | interface | [`src/lib/siteSymbols.ts:297`](../../src/lib/siteSymbols.ts#L297) | – |
 | `Skizzenstrecke` | interface | [`src/lib/skizze.ts:105`](../../src/lib/skizze.ts#L105) | – |
 | `Skizzenergebnis` | interface | [`src/lib/skizze.ts:114`](../../src/lib/skizze.ts#L114) | – |
-| `StiftfarbeId` | type | [`src/lib/skizzenseite.ts:50`](../../src/lib/skizzenseite.ts#L50) | `components/SkizzenSeite.tsx`, `store/useBimStore.ts` |
-| `Strich` | interface | [`src/lib/skizzenseite.ts:52`](../../src/lib/skizzenseite.ts#L52) | `store/useBimStore.ts` |
-| `Massstab` | interface | [`src/lib/skizzenseite.ts:71`](../../src/lib/skizzenseite.ts#L71) | `store/useBimStore.ts` |
+| `StiftfarbeId` | type | [`src/lib/skizzenseite.ts:50`](../../src/lib/skizzenseite.ts#L50) | `components/SkizzenSeite.tsx`, `store/bimZustand.ts` |
+| `Strich` | interface | [`src/lib/skizzenseite.ts:52`](../../src/lib/skizzenseite.ts#L52) | `store/slices/skizze.ts` |
+| `Massstab` | interface | [`src/lib/skizzenseite.ts:71`](../../src/lib/skizzenseite.ts#L71) | `store/bimZustand.ts` |
 | `Skizzenseite` | interface | [`src/lib/skizzenseite.ts:79`](../../src/lib/skizzenseite.ts#L79) | `scripts/pruefungen/skizzenseite.ts`, `types/bim.ts` |
 | `SlabPlan` | interface | [`src/lib/slabGeometry.ts:45`](../../src/lib/slabGeometry.ts#L45) | `scripts/pruefungen/geschossdecken.ts`, `scripts/pruefungen/treppenlogik.ts`, `components/Viewer3D.tsx` |
 | `SlabInput` | interface | [`src/lib/slabGeometry.ts:129`](../../src/lib/slabGeometry.ts#L129) | – |
-| `SpiegelAchse` | type | [`src/lib/spiegeln.ts:74`](../../src/lib/spiegeln.ts#L74) | `store/useBimStore.ts` |
+| `SpiegelAchse` | type | [`src/lib/spiegeln.ts:74`](../../src/lib/spiegeln.ts#L74) | `store/bimZustand.ts` |
 | `SpiegelAuftrag` | interface | [`src/lib/spiegeln.ts:76`](../../src/lib/spiegeln.ts#L76) | – |
 | `SpiegelErgebnis` | interface | [`src/lib/spiegeln.ts:94`](../../src/lib/spiegeln.ts#L94) | – |
-| `Sprache` | type | [`src/lib/sprache.ts:67`](../../src/lib/sprache.ts#L67) | `scripts/pruefungen/sprache.ts`, `components/Flaggen.tsx`, `lib/sprachen/katalog.ts`, `store/useBimStore.ts` |
+| `Sprache` | type | [`src/lib/sprache.ts:67`](../../src/lib/sprache.ts#L67) | `scripts/pruefungen/sprache.ts`, `components/Flaggen.tsx`, `lib/sprachen/katalog.ts`, `store/bimZustand.ts`, `store/slices/ui.ts` |
 | `Sprachangabe` | interface | [`src/lib/sprache.ts:87`](../../src/lib/sprache.ts#L87) | – |
 | `Katalog` | type | [`src/lib/sprachen/katalog.ts:27`](../../src/lib/sprachen/katalog.ts#L27) | – |
 | `SteigGrund` | type | [`src/lib/steigstrang.ts:57`](../../src/lib/steigstrang.ts#L57) | `lib/gebaeudeNetz.ts` |
@@ -416,9 +419,9 @@ Stand: 09.10.2026 · Quelle: CAD_light@55f5460 (Version 1.77.0) · automatisch a
 | `Tueranschlag` | interface | [`src/lib/tuerseiten.ts:86`](../../src/lib/tuerseiten.ts#L86) | – |
 | `UebersichtMasse` | interface | [`src/lib/uebersichtZeichnen.ts:26`](../../src/lib/uebersichtZeichnen.ts#L26) | – |
 | `UebersichtFarben` | interface | [`src/lib/uebersichtZeichnen.ts:33`](../../src/lib/uebersichtZeichnen.ts#L33) | – |
-| `UiModus` | type | [`src/lib/uimodus.ts:29`](../../src/lib/uimodus.ts#L29) | `scripts/pruefungen/uimodus.ts`, `App.tsx`, `components/Toolbar.tsx`, `store/useBimStore.ts` |
+| `UiModus` | type | [`src/lib/uimodus.ts:29`](../../src/lib/uimodus.ts#L29) | `scripts/pruefungen/uimodus.ts`, `App.tsx`, `components/Toolbar.tsx`, `store/bimZustand.ts`, `store/useBimStore.ts` |
 | `UWertHerkunft` | type | [`src/lib/uwert.ts:65`](../../src/lib/uwert.ts#L65) | – |
-| `UWertAuskunft` | interface | [`src/lib/uwert.ts:68`](../../src/lib/uwert.ts#L68) | `components/PropertiesPanel.tsx`, `lib/materialSchedule.ts`, `lib/raviaExport.ts` |
+| `UWertAuskunft` | interface | [`src/lib/uwert.ts:68`](../../src/lib/uwert.ts#L68) | `components/PropertiesPanel.tsx`, `lib/materialSchedule.ts`, `lib/raumExport.ts` |
 | `WandArtig` | interface | [`src/lib/uwert.ts:187`](../../src/lib/uwert.ts#L187) | – |
 | `OeffnungArtig` | interface | [`src/lib/uwert.ts:210`](../../src/lib/uwert.ts#L210) | – |
 | `ValveRole` | type | [`src/lib/valveCatalog.ts:79`](../../src/lib/valveCatalog.ts#L79) | – |
@@ -435,18 +438,18 @@ Stand: 09.10.2026 · Quelle: CAD_light@55f5460 (Version 1.77.0) · automatisch a
 | `Abgleich` | interface | [`src/lib/verbrauchsabgleich.ts:269`](../../src/lib/verbrauchsabgleich.ts#L269) | – |
 | `StairLayout` | interface | [`src/lib/verticalSymbols.ts:179`](../../src/lib/verticalSymbols.ts#L179) | – |
 | `VerworfenerRaum` | interface | [`src/lib/verworfeneRaeume.ts:37`](../../src/lib/verworfeneRaeume.ts#L37) | – |
-| `RaumverlustHinweis` | interface | [`src/lib/verworfeneRaeume.ts:128`](../../src/lib/verworfeneRaeume.ts#L128) | `store/useBimStore.ts` |
+| `RaumverlustHinweis` | interface | [`src/lib/verworfeneRaeume.ts:128`](../../src/lib/verworfeneRaeume.ts#L128) | `store/bimZustand.ts`, `store/slices/laden.ts` |
 | `WallGeometry` | interface | [`src/lib/wallGeometry.ts:12`](../../src/lib/wallGeometry.ts#L12) | `scripts/pruefungen/dachschnitt.ts`, `components/Editor2D.tsx`, `components/Viewer3D.tsx`, `lib/dachschnitt.ts`, `lib/openingSymbols.ts` (+1) |
 | `WallSolidPart` | interface | [`src/lib/wallGeometry.ts:84`](../../src/lib/wallGeometry.ts#L84) | – |
 | `PlanWallPiece` | interface | [`src/lib/wallGeometry.ts:162`](../../src/lib/wallGeometry.ts#L162) | `components/Editor2D.tsx` |
 | `ScenePoint` | interface | [`src/lib/wallGeometry.ts:235`](../../src/lib/wallGeometry.ts#L235) | `scripts/verify.ts` |
 | `WallBoxPlacement` | interface | [`src/lib/wallGeometry.ts:317`](../../src/lib/wallGeometry.ts#L317) | – |
 | `Wandfuehrung` | interface | [`src/lib/wandfuehrung.ts:19`](../../src/lib/wandfuehrung.ts#L19) | – |
-| `Ausnahmegrund` | type | [`src/lib/wandhoehen.ts:60`](../../src/lib/wandhoehen.ts#L60) | – |
-| `Hoehenaenderung` | interface | [`src/lib/wandhoehen.ts:68`](../../src/lib/wandhoehen.ts#L68) | – |
-| `Hoehenausnahme` | interface | [`src/lib/wandhoehen.ts:74`](../../src/lib/wandhoehen.ts#L74) | – |
-| `Hoehenbefund` | interface | [`src/lib/wandhoehen.ts:80`](../../src/lib/wandhoehen.ts#L80) | `components/AufmassPanel.tsx` |
-| `Hoehenbefundeingabe` | interface | [`src/lib/wandhoehen.ts:93`](../../src/lib/wandhoehen.ts#L93) | – |
+| `Ausnahmegrund` | type | [`src/lib/wandhoehen.ts:62`](../../src/lib/wandhoehen.ts#L62) | – |
+| `Hoehenaenderung` | interface | [`src/lib/wandhoehen.ts:70`](../../src/lib/wandhoehen.ts#L70) | – |
+| `Hoehenausnahme` | interface | [`src/lib/wandhoehen.ts:76`](../../src/lib/wandhoehen.ts#L76) | – |
+| `Hoehenbefund` | interface | [`src/lib/wandhoehen.ts:82`](../../src/lib/wandhoehen.ts#L82) | `components/AufmassPanel.tsx` |
+| `Hoehenbefundeingabe` | interface | [`src/lib/wandhoehen.ts:95`](../../src/lib/wandhoehen.ts#L95) | – |
 | `Wandquerung` | interface | [`src/lib/wandquerung.ts:62`](../../src/lib/wandquerung.ts#L62) | – |
 | `Querungsstelle` | interface | [`src/lib/wandquerung.ts:79`](../../src/lib/wandquerung.ts#L79) | – |
 | `WerkzeugArt` | type | [`src/lib/werkzeugkiste.ts:61`](../../src/lib/werkzeugkiste.ts#L61) | – |
@@ -467,182 +470,198 @@ Stand: 09.10.2026 · Quelle: CAD_light@55f5460 (Version 1.77.0) · automatisch a
 | `Ausschnitt` | interface | [`src/lib/zeigereingabe.ts:281`](../../src/lib/zeigereingabe.ts#L281) | – |
 | `Feldgroesse` | interface | [`src/lib/zeigereingabe.ts:289`](../../src/lib/zeigereingabe.ts#L289) | – |
 | `Fingerpaar` | interface | [`src/lib/zeigereingabe.ts:295`](../../src/lib/zeigereingabe.ts#L295) | `components/Editor2D.tsx` |
-| `ClipboardContent` | interface | [`src/store/useBimStore.ts:361`](../../src/store/useBimStore.ts#L361) | – |
-| `FloorLoopBatchSkip` | interface | [`src/store/useBimStore.ts:383`](../../src/store/useBimStore.ts#L383) | – |
-| `FloorLoopBatchResult` | interface | [`src/store/useBimStore.ts:389`](../../src/store/useBimStore.ts#L389) | – |
-| `FloorLoopBatchReport` | interface | [`src/store/useBimStore.ts:399`](../../src/store/useBimStore.ts#L399) | `components/TgaPalette.tsx` |
-| `WallDefaults` | interface | [`src/store/useBimStore.ts:408`](../../src/store/useBimStore.ts#L408) | – |
-| `OpeningDefaults` | interface | [`src/store/useBimStore.ts:415`](../../src/store/useBimStore.ts#L415) | – |
+| `ClipboardContent` | interface | [`src/store/bimZustand.ts:266`](../../src/store/bimZustand.ts#L266) | – |
+| `FloorLoopBatchSkip` | interface | [`src/store/bimZustand.ts:288`](../../src/store/bimZustand.ts#L288) | `store/slices/bauteile.ts` |
+| `FloorLoopBatchResult` | interface | [`src/store/bimZustand.ts:294`](../../src/store/bimZustand.ts#L294) | `store/slices/bauteile.ts` |
+| `FloorLoopBatchReport` | interface | [`src/store/bimZustand.ts:304`](../../src/store/bimZustand.ts#L304) | – |
+| `WallDefaults` | interface | [`src/store/bimZustand.ts:313`](../../src/store/bimZustand.ts#L313) | – |
+| `OpeningDefaults` | interface | [`src/store/bimZustand.ts:320`](../../src/store/bimZustand.ts#L320) | – |
+| `BimState` | interface | [`src/store/bimZustand.ts:328`](../../src/store/bimZustand.ts#L328) | `store/slices/anlage.ts`, `store/slices/bauteile.ts`, `store/slices/bauteilkatalog.ts`, `store/slices/dach.ts`, `store/slices/einheiten.ts` (+8) |
+| `StoreSet` | type | [`src/store/bimZustand.ts:1460`](../../src/store/bimZustand.ts#L1460) | `store/slices/anlage.ts`, `store/slices/bauteile.ts`, `store/slices/bauteilkatalog.ts`, `store/slices/dach.ts`, `store/slices/einheiten.ts` (+7) |
+| `StoreGet` | type | [`src/store/bimZustand.ts:1462`](../../src/store/bimZustand.ts#L1462) | `store/slices/anlage.ts`, `store/slices/bauteile.ts`, `store/slices/bauteilkatalog.ts`, `store/slices/dach.ts`, `store/slices/einheiten.ts` (+7) |
+| `Mutate` | type | [`src/store/bimZustand.ts:1464`](../../src/store/bimZustand.ts#L1464) | `store/slices/anlage.ts`, `store/slices/bauteile.ts`, `store/slices/bauteilkatalog.ts`, `store/slices/dach.ts`, `store/slices/einheiten.ts` (+7) |
+| `AnlageSchluessel` | type | [`src/store/slices/anlage.ts:41`](../../src/store/slices/anlage.ts#L41) | – |
+| `BauteileSchluessel` | type | [`src/store/slices/bauteile.ts:45`](../../src/store/slices/bauteile.ts#L45) | – |
+| `BauteilkatalogSchluessel` | type | [`src/store/slices/bauteilkatalog.ts:13`](../../src/store/slices/bauteilkatalog.ts#L13) | – |
+| `DachSchluessel` | type | [`src/store/slices/dach.ts:17`](../../src/store/slices/dach.ts#L17) | – |
+| `EinheitenSchluessel` | type | [`src/store/slices/einheiten.ts:18`](../../src/store/slices/einheiten.ts#L18) | – |
+| `GeschosseSchluessel` | type | [`src/store/slices/geschosse.ts:24`](../../src/store/slices/geschosse.ts#L24) | – |
+| `GruppenSchluessel` | type | [`src/store/slices/gruppen.ts:19`](../../src/store/slices/gruppen.ts#L19) | – |
+| `InstallationSchluessel` | type | [`src/store/slices/installation.ts:36`](../../src/store/slices/installation.ts#L36) | – |
+| `LadenSchluessel` | type | [`src/store/slices/laden.ts:71`](../../src/store/slices/laden.ts#L71) | – |
+| `ReferenzbildSchluessel` | type | [`src/store/slices/referenzbild.ts:23`](../../src/store/slices/referenzbild.ts#L23) | – |
+| `SkizzeSchluessel` | type | [`src/store/slices/skizze.ts:39`](../../src/store/slices/skizze.ts#L39) | – |
+| `UiSchluessel` | type | [`src/store/slices/ui.ts:28`](../../src/store/slices/ui.ts#L28) | – |
 | `NodeId` | type | [`src/types/bim.ts:33`](../../src/types/bim.ts#L33) | – |
 | `WallId` | type | [`src/types/bim.ts:34`](../../src/types/bim.ts#L34) | – |
 | `OpeningId` | type | [`src/types/bim.ts:35`](../../src/types/bim.ts#L35) | – |
 | `RoomId` | type | [`src/types/bim.ts:36`](../../src/types/bim.ts#L36) | – |
 | `LevelId` | type | [`src/types/bim.ts:37`](../../src/types/bim.ts#L37) | `lib/aufstellgeschoss.ts`, `lib/begehen.ts`, `lib/eckpunkte.ts`, `lib/fussbodenkurven.ts`, `lib/raumtreffer.ts` (+1) |
 | `LayerId` | type | [`src/types/bim.ts:38`](../../src/types/bim.ts#L38) | `scripts/pruefungen/ebenen.ts`, `lib/ebenen.ts` |
-| `Vec2` | interface | [`src/types/bim.ts:41`](../../src/types/bim.ts#L41) | `scripts/pruefungen/begehen.ts`, `scripts/pruefungen/beschriftungslage.ts`, `scripts/pruefungen/dachformen.ts`, `scripts/pruefungen/dachschnitt.ts`, `scripts/pruefungen/dachumriss.ts` (+87) |
+| `Vec2` | interface | [`src/types/bim.ts:41`](../../src/types/bim.ts#L41) | `scripts/pruefungen/begehen.ts`, `scripts/pruefungen/beschriftungslage.ts`, `scripts/pruefungen/dachformen.ts`, `scripts/pruefungen/dachschnitt.ts`, `scripts/pruefungen/dachumriss.ts` (+95) |
 | `Bounds` | interface | [`src/types/bim.ts:47`](../../src/types/bim.ts#L47) | `lib/geometry.ts` |
-| `Orientation` | type | [`src/types/bim.ts:55`](../../src/types/bim.ts#L55) | `lib/geometry.ts`, `lib/raviaExport.ts`, `lib/tuerseiten.ts` |
+| `Orientation` | type | [`src/types/bim.ts:55`](../../src/types/bim.ts#L55) | `lib/geometry.ts`, `lib/raumExport.ts`, `lib/tuerseiten.ts` |
 | `BoundaryCondition` | type | [`src/types/bim.ts:67`](../../src/types/bim.ts#L67) | `scripts/pruefungen/keller.ts`, `components/AufnahmeAssistent.tsx`, `components/PropertiesPanel.tsx`, `lib/buildingModelImport.ts`, `lib/importgeschoss.ts` (+2) |
 | `ConstructionCategory` | type | [`src/types/bim.ts:102`](../../src/types/bim.ts#L102) | `components/ConstructionPanel.tsx`, `lib/hostPatch.ts` |
-| `Construction` | interface | [`src/types/bim.ts:110`](../../src/types/bim.ts#L110) | `scripts/pruefungen/uwert.ts`, `scripts/pruefungen/uwertquelle.ts`, `components/ConstructionPanel.tsx`, `lib/hostPatch.ts`, `lib/materialSchedule.ts` (+3) |
-| `BimNode` | interface | [`src/types/bim.ts:154`](../../src/types/bim.ts#L154) | `scripts/bench.ts`, `scripts/handbuch-symbole.ts`, `scripts/pruefungen/anschlussgroesse.ts`, `scripts/pruefungen/aufmass.ts`, `scripts/pruefungen/aussenwand.ts` (+61) |
+| `Construction` | interface | [`src/types/bim.ts:110`](../../src/types/bim.ts#L110) | `scripts/pruefungen/uwert.ts`, `scripts/pruefungen/uwertquelle.ts`, `components/ConstructionPanel.tsx`, `lib/hostPatch.ts`, `lib/materialSchedule.ts` (+5) |
+| `BimNode` | interface | [`src/types/bim.ts:154`](../../src/types/bim.ts#L154) | `scripts/bench.ts`, `scripts/handbuch-symbole.ts`, `scripts/pruefungen/anschlussgroesse.ts`, `scripts/pruefungen/aufmass.ts`, `scripts/pruefungen/aussenwand.ts` (+65) |
 | `WallThicknessPreset` | type | [`src/types/bim.ts:168`](../../src/types/bim.ts#L168) | – |
-| `WallType` | type | [`src/types/bim.ts:170`](../../src/types/bim.ts#L170) | `components/PropertiesPanel.tsx`, `components/SkizzenLeiste.tsx`, `components/Toolbar.tsx`, `lib/buildingModelImport.ts`, `lib/ifcImport.ts` (+4) |
-| `Wall` | interface | [`src/types/bim.ts:172`](../../src/types/bim.ts#L172) | `scripts/bench.ts`, `scripts/handbuch-symbole.ts`, `scripts/pruefungen/anschlussgroesse.ts`, `scripts/pruefungen/aufmass.ts`, `scripts/pruefungen/aussenwand.ts` (+62) |
+| `WallType` | type | [`src/types/bim.ts:170`](../../src/types/bim.ts#L170) | `components/PropertiesPanel.tsx`, `components/SkizzenLeiste.tsx`, `components/Toolbar.tsx`, `lib/buildingModelImport.ts`, `lib/ifcImport.ts` (+5) |
+| `Wall` | interface | [`src/types/bim.ts:172`](../../src/types/bim.ts#L172) | `scripts/bench.ts`, `scripts/handbuch-symbole.ts`, `scripts/pruefungen/anschlussgroesse.ts`, `scripts/pruefungen/aufmass.ts`, `scripts/pruefungen/aussenwand.ts` (+67) |
 | `OpeningKind` | type | [`src/types/bim.ts:223`](../../src/types/bim.ts#L223) | `scripts/pruefungen/griffe.ts`, `components/Toolbar.tsx`, `lib/buildingModelImport.ts`, `lib/ifcImport.ts`, `lib/raumplanImport.ts` (+1) |
 | `UnbeheizteArt` | type | [`src/types/bim.ts:226`](../../src/types/bim.ts#L226) | `components/PropertiesPanel.tsx`, `lib/unbeheizt.ts` |
 | `WindowType` | type | [`src/types/bim.ts:252`](../../src/types/bim.ts#L252) | `components/PropertiesPanel.tsx` |
 | `DoorType` | type | [`src/types/bim.ts:261`](../../src/types/bim.ts#L261) | `components/PropertiesPanel.tsx` |
 | `PassageType` | type | [`src/types/bim.ts:269`](../../src/types/bim.ts#L269) | `components/PropertiesPanel.tsx` |
-| `OpeningTypePreset` | interface | [`src/types/bim.ts:274`](../../src/types/bim.ts#L274) | `store/useBimStore.ts` |
-| `Opening` | interface | [`src/types/bim.ts:322`](../../src/types/bim.ts#L322) | `scripts/bench.ts`, `scripts/handbuch-symbole.ts`, `scripts/pruefungen/aufmass.ts`, `scripts/pruefungen/aussenwand.ts`, `scripts/pruefungen/autokorrektur.ts` (+40) |
+| `OpeningTypePreset` | interface | [`src/types/bim.ts:274`](../../src/types/bim.ts#L274) | `store/bimZustand.ts` |
+| `Opening` | interface | [`src/types/bim.ts:322`](../../src/types/bim.ts#L322) | `scripts/bench.ts`, `scripts/handbuch-symbole.ts`, `scripts/pruefungen/aufmass.ts`, `scripts/pruefungen/aussenwand.ts`, `scripts/pruefungen/autokorrektur.ts` (+43) |
 | `RoomBoundary` | interface | [`src/types/bim.ts:361`](../../src/types/bim.ts#L361) | `lib/roomDetection.ts` |
-| `RoomUsage` | type | [`src/types/bim.ts:389`](../../src/types/bim.ts#L389) | `scripts/pruefungen/flurfuehrung.ts`, `components/PropertiesPanel.tsx`, `components/RaumnameFeld.tsx`, `components/RoomBook.tsx`, `lib/aufnahme.ts` (+6) |
-| `Room` | interface | [`src/types/bim.ts:401`](../../src/types/bim.ts#L401) | `scripts/pruefungen/anlagenschema.ts`, `scripts/pruefungen/autokorrektur.ts`, `scripts/pruefungen/belegstufe.ts`, `scripts/pruefungen/dachlandschaft.ts`, `scripts/pruefungen/dachschnitt.ts` (+45) |
+| `RoomUsage` | type | [`src/types/bim.ts:389`](../../src/types/bim.ts#L389) | `scripts/pruefungen/flurfuehrung.ts`, `scripts/pruefungen/hostraum.ts`, `components/PropertiesPanel.tsx`, `components/RaumnameFeld.tsx`, `components/RoomBook.tsx` (+8) |
+| `Room` | interface | [`src/types/bim.ts:401`](../../src/types/bim.ts#L401) | `scripts/pruefungen/anlagenschema.ts`, `scripts/pruefungen/autokorrektur.ts`, `scripts/pruefungen/belegstufe.ts`, `scripts/pruefungen/dachlandschaft.ts`, `scripts/pruefungen/dachschnitt.ts` (+47) |
 | `RoomHeatLoad` | interface | [`src/types/bim.ts:568`](../../src/types/bim.ts#L568) | `lib/heatLoadEstimate.ts`, `lib/hostPatch.ts`, `lib/plantDesign.ts` |
 | `FixtureCategory` | type | [`src/types/bim.ts:593`](../../src/types/bim.ts#L593) | `scripts/pruefungen/ebenen.ts`, `components/TgaPalette.tsx`, `components/Viewer3D.tsx`, `lib/fixtureSymbols.ts`, `lib/raviaExport.ts` |
-| `FixtureType` | type | [`src/types/bim.ts:600`](../../src/types/bim.ts#L600) | `components/Editor2D.tsx`, `components/GuidePanel.tsx`, `components/PropertiesPanel.tsx`, `components/Viewer3D.tsx`, `lib/auslegungExport.ts` (+8) |
+| `FixtureType` | type | [`src/types/bim.ts:600`](../../src/types/bim.ts#L600) | `components/Editor2D.tsx`, `components/GuidePanel.tsx`, `components/PropertiesPanel.tsx`, `components/Viewer3D.tsx`, `lib/auslegungExport.ts` (+10) |
 | `FloorLoopPattern` | type | [`src/types/bim.ts:640`](../../src/types/bim.ts#L640) | `lib/floorLoopLayout.ts` |
 | `RadiatorConnection` | type | [`src/types/bim.ts:652`](../../src/types/bim.ts#L652) | `components/PropertiesPanel.tsx`, `components/Viewer3D.tsx`, `lib/hostPatch.ts`, `lib/werkzeugkiste.ts` |
 | `VentilSeite` | type | [`src/types/bim.ts:689`](../../src/types/bim.ts#L689) | `components/PropertiesPanel.tsx`, `components/Viewer3D.tsx`, `lib/werkzeugkiste.ts` |
 | `LeistungHerkunft` | type | [`src/types/bim.ts:715`](../../src/types/bim.ts#L715) | `scripts/pruefungen/heizflaeche.ts` |
-| `RatedPowerSource` | type | [`src/types/bim.ts:738`](../../src/types/bim.ts#L738) | `components/PropertiesPanel.tsx`, `lib/buildingModelImport.ts`, `lib/hostPatch.ts`, `lib/normleistung.ts`, `store/useBimStore.ts` |
-| `FixtureParams` | interface | [`src/types/bim.ts:740`](../../src/types/bim.ts#L740) | `lib/hostPatch.ts`, `lib/normleistung.ts`, `lib/raviaExport.ts` |
-| `Fixture` | interface | [`src/types/bim.ts:878`](../../src/types/bim.ts#L878) | `scripts/bench.ts`, `scripts/handbuch-symbole.ts`, `scripts/pruefungen/anlagenschema.ts`, `scripts/pruefungen/anschlussgroesse.ts`, `scripts/pruefungen/auslegungsuebergabe.ts` (+45) |
-| `FixtureDefinition` | interface | [`src/types/bim.ts:900`](../../src/types/bim.ts#L900) | `components/TgaPalette.tsx` |
-| `Level` | interface | [`src/types/bim.ts:1008`](../../src/types/bim.ts#L1008) | `scripts/pruefungen/anschlussgroesse.ts`, `scripts/pruefungen/autokorrektur-belastung.ts`, `scripts/pruefungen/autokorrektur.ts`, `scripts/pruefungen/beschriftungslage.ts`, `scripts/pruefungen/dachlandschaft.ts` (+46) |
-| `RoofKind` | type | [`src/types/bim.ts:1078`](../../src/types/bim.ts#L1078) | `scripts/pruefungen/dachschnitt.ts`, `components/RoofPanel.tsx`, `lib/buildingModelImport.ts` |
-| `ScanDachHerkunft` | interface | [`src/types/bim.ts:1178`](../../src/types/bim.ts#L1178) | `lib/buildingModelImport.ts` |
-| `RoofDefinition` | interface | [`src/types/bim.ts:1203`](../../src/types/bim.ts#L1203) | `scripts/pruefungen/dachformen.ts`, `scripts/pruefungen/dachschnitt.ts`, `scripts/pruefungen/dachumriss.ts`, `components/RoofPanel.tsx`, `lib/dachlandschaft.ts` (+4) |
-| `RoofOpeningKind` | type | [`src/types/bim.ts:1314`](../../src/types/bim.ts#L1314) | `components/RoofPanel.tsx`, `store/useBimStore.ts` |
-| `RoofOpening` | interface | [`src/types/bim.ts:1322`](../../src/types/bim.ts#L1322) | `components/PropertiesPanel.tsx`, `components/Viewer3D.tsx`, `lib/dachlandschaft.ts`, `lib/roofGeometry.ts`, `lib/roomDetection.ts` (+3) |
-| `RoomRoofMetrics` | interface | [`src/types/bim.ts:1355`](../../src/types/bim.ts#L1355) | `lib/roofGeometry.ts` |
-| `Layer` | interface | [`src/types/bim.ts:1394`](../../src/types/bim.ts#L1394) | `scripts/pruefungen/ebenen.ts`, `lib/ebenen.ts`, `store/useBimStore.ts` |
-| `CalibrationLine` | interface | [`src/types/bim.ts:1407`](../../src/types/bim.ts#L1407) | – |
-| `FloorplanImage` | interface | [`src/types/bim.ts:1415`](../../src/types/bim.ts#L1415) | `scripts/pruefungen/spiegeln.ts`, `components/ImageUploader.tsx`, `lib/spiegeln.ts`, `store/useBimStore.ts` |
-| `AiAnalysisState` | type | [`src/types/bim.ts:1467`](../../src/types/bim.ts#L1467) | `store/useBimStore.ts` |
-| `Freihandstrich` | interface | [`src/types/bim.ts:1480`](../../src/types/bim.ts#L1480) | `scripts/pruefungen/notizen.ts`, `lib/notizen.ts`, `lib/spiegeln.ts`, `store/useBimStore.ts` |
-| `SkizzenZug` | interface | [`src/types/bim.ts:1501`](../../src/types/bim.ts#L1501) | – |
-| `SkizzenVorschlag` | interface | [`src/types/bim.ts:1509`](../../src/types/bim.ts#L1509) | `store/useBimStore.ts` |
-| `VerticalKind` | type | [`src/types/bim.ts:1547`](../../src/types/bim.ts#L1547) | `scripts/handbuch-symbole.ts`, `components/Editor2D.tsx`, `components/PropertiesPanel.tsx`, `components/Toolbar.tsx`, `store/useBimStore.ts` |
-| `ShaftService` | type | [`src/types/bim.ts:1557`](../../src/types/bim.ts#L1557) | `components/PropertiesPanel.tsx`, `lib/wandquerung.ts` |
-| `VerticalElement` | interface | [`src/types/bim.ts:1577`](../../src/types/bim.ts#L1577) | `scripts/handbuch-symbole.ts`, `scripts/pruefungen/druckplan.ts`, `scripts/pruefungen/geschossdecken.ts`, `scripts/pruefungen/massivbauteile.ts`, `scripts/pruefungen/treppenlogik.ts` (+11) |
-| `SolidKind` | type | [`src/types/bim.ts:1615`](../../src/types/bim.ts#L1615) | `scripts/handbuch-symbole.ts`, `components/Editor2D.tsx`, `components/PropertiesPanel.tsx`, `components/Toolbar.tsx`, `store/useBimStore.ts` |
-| `SolidElement` | interface | [`src/types/bim.ts:1644`](../../src/types/bim.ts#L1644) | `scripts/handbuch-symbole.ts`, `scripts/pruefungen/druckplan.ts`, `scripts/pruefungen/massivbauteile.ts`, `components/PropertiesPanel.tsx`, `components/Viewer3D.tsx` (+8) |
-| `DurchbruchKind` | type | [`src/types/bim.ts:1692`](../../src/types/bim.ts#L1692) | `components/PropertiesPanel.tsx`, `components/Toolbar.tsx`, `store/useBimStore.ts` |
-| `DurchbruchWirt` | type | [`src/types/bim.ts:1706`](../../src/types/bim.ts#L1706) | – |
-| `DurchbruchForm` | type | [`src/types/bim.ts:1712`](../../src/types/bim.ts#L1712) | – |
-| `Brandschutzklasse` | type | [`src/types/bim.ts:1721`](../../src/types/bim.ts#L1721) | `components/PropertiesPanel.tsx` |
-| `Durchbruch` | interface | [`src/types/bim.ts:1756`](../../src/types/bim.ts#L1756) | `scripts/handbuch-symbole.ts`, `scripts/pruefungen/beschriftung.ts`, `scripts/pruefungen/durchbrueche.ts`, `scripts/pruefungen/werkzeugkiste.ts`, `components/PropertiesPanel.tsx` (+10) |
-| `DurchbruchPreset` | interface | [`src/types/bim.ts:1836`](../../src/types/bim.ts#L1836) | `scripts/handbuch-symbole.ts`, `components/Toolbar.tsx`, `lib/wandquerung.ts`, `lib/werkzeugkiste.ts`, `store/useBimStore.ts` |
-| `PipeService` | type | [`src/types/bim.ts:1874`](../../src/types/bim.ts#L1874) | `scripts/handbuch-symbole.ts`, `scripts/pruefungen/anlagenschema.ts`, `scripts/pruefungen/ebenen.ts`, `scripts/pruefungen/schemapruefung.ts`, `components/Editor2D.tsx` (+16) |
-| `PipeRun` | interface | [`src/types/bim.ts:1928`](../../src/types/bim.ts#L1928) | `scripts/bench.ts`, `scripts/pruefungen/anschlussgroesse.ts`, `scripts/pruefungen/autokorrektur.ts`, `scripts/pruefungen/beschriftung.ts`, `scripts/pruefungen/beschriftungslage.ts` (+32) |
-| `PipeRoutingMode` | type | [`src/types/bim.ts:2027`](../../src/types/bim.ts#L2027) | `scripts/pruefungen/rohrausleger.ts`, `components/RohrnetzDialog.tsx`, `components/Toolbar.tsx`, `lib/pipeLayout.ts`, `lib/pipeRouting.ts` (+2) |
-| `PipeSurrounding` | type | [`src/types/bim.ts:2037`](../../src/types/bim.ts#L2037) | `lib/pipeInsulation.ts`, `lib/pipeLayout.ts`, `lib/pipeReport.ts`, `lib/steigstrang.ts` |
-| `PipeAccessoryKind` | type | [`src/types/bim.ts:2052`](../../src/types/bim.ts#L2052) | `scripts/handbuch-symbole.ts`, `lib/hydraulicBalance.ts`, `lib/pipeAccessorySymbols.ts`, `lib/pipeLayout.ts`, `lib/pipeNetwork.ts` (+3) |
-| `PipeAccessory` | interface | [`src/types/bim.ts:2074`](../../src/types/bim.ts#L2074) | `scripts/pruefungen/ebenen.ts`, `scripts/pruefungen/rohrnetzrechner.ts`, `components/PropertiesPanel.tsx`, `components/Viewer3D.tsx`, `lib/formteile.ts` (+7) |
-| `PipeScheduleEntry` | interface | [`src/types/bim.ts:2094`](../../src/types/bim.ts#L2094) | `lib/materialSchedule.ts`, `lib/raviaExport.ts` |
-| `PipeSegment` | interface | [`src/types/bim.ts:2112`](../../src/types/bim.ts#L2112) | `scripts/pruefungen/rohrnetzrechner.ts`, `lib/hydraulicBalance.ts`, `lib/netzExport.ts`, `lib/pipeNetwork.ts`, `lib/pipeReport.ts` |
-| `PipePath` | interface | [`src/types/bim.ts:2163`](../../src/types/bim.ts#L2163) | `scripts/pruefungen/rohrnetzrechner.ts`, `lib/hydraulicBalance.ts`, `lib/pipeNetwork.ts` |
-| `PipeNetworkReport` | interface | [`src/types/bim.ts:2197`](../../src/types/bim.ts#L2197) | `scripts/pruefungen/rohrnetzrechner.ts`, `lib/hydraulicBalance.ts`, `lib/netzExport.ts`, `lib/pipeNetwork.ts` |
-| `AreaCategory` | type | [`src/types/bim.ts:2219`](../../src/types/bim.ts#L2219) | `components/HeatPumpPanel.tsx`, `lib/heatPump.ts` |
-| `MountingSituation` | type | [`src/types/bim.ts:2235`](../../src/types/bim.ts#L2235) | `components/HeatPumpPanel.tsx`, `lib/heatPump.ts` |
-| `HeatSourceKind` | type | [`src/types/bim.ts:2245`](../../src/types/bim.ts#L2245) | `components/AnlagenPanel.tsx`, `components/HeatPumpPanel.tsx`, `lib/deviceCatalog.ts`, `lib/deviceImport.ts` |
-| `SoilKind` | type | [`src/types/bim.ts:2255`](../../src/types/bim.ts#L2255) | `scripts/pruefungen/uebergabe.ts`, `components/HeatPumpPanel.tsx`, `lib/heatPump.ts` |
-| `WaterProtectionZone` | type | [`src/types/bim.ts:2265`](../../src/types/bim.ts#L2265) | – |
-| `HeatPump` | interface | [`src/types/bim.ts:2274`](../../src/types/bim.ts#L2274) | `scripts/pruefungen/anschlussgroesse.ts`, `scripts/pruefungen/planleeren.ts`, `scripts/pruefungen/ringleitung.ts`, `scripts/pruefungen/schutzbereich.ts`, `scripts/verify.ts` (+5) |
-| `SiteElementKind` | type | [`src/types/bim.ts:2401`](../../src/types/bim.ts#L2401) | `components/Editor2D.tsx`, `store/useBimStore.ts` |
-| `SiteElement` | interface | [`src/types/bim.ts:2447`](../../src/types/bim.ts#L2447) | `lib/siteSymbols.ts`, `lib/spiegeln.ts`, `store/useBimStore.ts` |
-| `IgnitionKind` | type | [`src/types/bim.ts:2471`](../../src/types/bim.ts#L2471) | `components/HeatPumpPanel.tsx` |
-| `SitePlan` | interface | [`src/types/bim.ts:2484`](../../src/types/bim.ts#L2484) | `components/Viewer3D.tsx`, `lib/plantDefaults.ts`, `lib/spiegeln.ts` |
-| `AnnotationKind` | type | [`src/types/bim.ts:2525`](../../src/types/bim.ts#L2525) | `components/Toolbar.tsx`, `store/useBimStore.ts` |
-| `Annotation` | interface | [`src/types/bim.ts:2541`](../../src/types/bim.ts#L2541) | `scripts/handbuch-symbole.ts`, `scripts/pruefungen/beschriftung.ts`, `scripts/pruefungen/eckpunkte.ts`, `components/PropertiesPanel.tsx`, `lib/annotationSymbols.ts` (+5) |
-| `AnnotationAnchor` | interface | [`src/types/bim.ts:2586`](../../src/types/bim.ts#L2586) | `scripts/pruefungen/beschriftung.ts`, `components/PropertiesPanel.tsx`, `lib/beschriftung3d.ts`, `store/useBimStore.ts` |
-| `AnnotationQuelle` | type | [`src/types/bim.ts:2606`](../../src/types/bim.ts#L2606) | `scripts/pruefungen/beschriftung.ts`, `lib/beschriftung3d.ts` |
-| `ToolId` | type | [`src/types/bim.ts:2629`](../../src/types/bim.ts#L2629) | `components/Toolbar.tsx`, `lib/zeigereingabe.ts`, `store/useBimStore.ts` |
-| `ViewMode` | type | [`src/types/bim.ts:2657`](../../src/types/bim.ts#L2657) | `components/Toolbar.tsx`, `store/useBimStore.ts` |
-| `CameraMode` | type | [`src/types/bim.ts:2666`](../../src/types/bim.ts#L2666) | `components/Viewer3D.tsx`, `store/useBimStore.ts` |
-| `SnapSettings` | interface | [`src/types/bim.ts:2668`](../../src/types/bim.ts#L2668) | `store/useBimStore.ts` |
-| `SnapResult` | interface | [`src/types/bim.ts:2706`](../../src/types/bim.ts#L2706) | `components/Editor2D.tsx` |
-| `SelectionKind` | type | [`src/types/bim.ts:2719`](../../src/types/bim.ts#L2719) | `scripts/pruefungen/auswahlnamen.ts`, `scripts/pruefungen/ebenen.ts`, `components/Editor2D.tsx`, `lib/auswahlNamen.ts`, `lib/ebenen.ts` |
-| `Selection` | interface | [`src/types/bim.ts:2737`](../../src/types/bim.ts#L2737) | `scripts/pruefungen/griffe.ts`, `components/Viewer3D.tsx`, `lib/ebenen.ts`, `lib/griffe.ts`, `lib/werkzeugkiste.ts` (+1) |
-| `AuswahlQuelle` | type | [`src/types/bim.ts:2752`](../../src/types/bim.ts#L2752) | `store/useBimStore.ts` |
-| `Viewport` | interface | [`src/types/bim.ts:2755`](../../src/types/bim.ts#L2755) | `store/useBimStore.ts` |
-| `Vorhaben` | type | [`src/types/bim.ts:2798`](../../src/types/bim.ts#L2798) | `scripts/pruefungen/vorhaben.ts`, `components/AnlagenPanel.tsx`, `lib/plantDefaults.ts`, `lib/systemtemperatur.ts`, `store/useBimStore.ts` |
-| `Brennstoff` | type | [`src/types/bim.ts:2808`](../../src/types/bim.ts#L2808) | `lib/verbrauchsabgleich.ts` |
-| `Verbrauchsangabe` | interface | [`src/types/bim.ts:2817`](../../src/types/bim.ts#L2817) | `lib/verbrauchsabgleich.ts` |
-| `ProjectMeta` | interface | [`src/types/bim.ts:2826`](../../src/types/bim.ts#L2826) | `lib/hostPatch.ts` |
-| `Annahme` | interface | [`src/types/bim.ts:3008`](../../src/types/bim.ts#L3008) | `scripts/pruefungen/aufnahme.ts`, `lib/aufnahme.ts` |
-| `HostPatchTrace` | interface | [`src/types/bim.ts:3020`](../../src/types/bim.ts#L3020) | – |
-| `VentilationSystem` | interface | [`src/types/bim.ts:3038`](../../src/types/bim.ts#L3038) | – |
-| `VentilationRole` | type | [`src/types/bim.ts:3060`](../../src/types/bim.ts#L3060) | `components/VentilationPanel.tsx`, `lib/heatLoadEstimate.ts`, `lib/raviaExport.ts`, `lib/roomDetection.ts` |
-| `SetbackOperation` | interface | [`src/types/bim.ts:3076`](../../src/types/bim.ts#L3076) | – |
-| `ThermalBridgeCatalogue` | type | [`src/types/bim.ts:3094`](../../src/types/bim.ts#L3094) | `lib/thermalBridges.ts` |
-| `ThermalBridgeKind` | type | [`src/types/bim.ts:3097`](../../src/types/bim.ts#L3097) | `components/ThermalBridgePanel.tsx`, `lib/raviaExport.ts`, `lib/thermalBridges.ts` |
-| `RoomThermalBridge` | interface | [`src/types/bim.ts:3109`](../../src/types/bim.ts#L3109) | `lib/thermalBridges.ts` |
-| `BimDocument` | interface | [`src/types/bim.ts:3123`](../../src/types/bim.ts#L3123) | `scripts/bench.ts`, `scripts/handbuch-symbole.ts`, `scripts/pruefungen/abgleich2026.ts`, `scripts/pruefungen/anlagenschema.ts`, `scripts/pruefungen/anschlussgroesse.ts` (+100) |
-| `UWertQuelle` | type | [`src/types/bim.ts:3215`](../../src/types/bim.ts#L3215) | `lib/raviaExport.ts` |
-| `ExportOpening` | interface | [`src/types/bim.ts:3225`](../../src/types/bim.ts#L3225) | `lib/raviaExport.ts` |
-| `GroundContact` | interface | [`src/types/bim.ts:3264`](../../src/types/bim.ts#L3264) | – |
-| `ExportSurface` | interface | [`src/types/bim.ts:3287`](../../src/types/bim.ts#L3287) | `scripts/pruefungen/keller.ts`, `lib/heatLoadEstimate.ts`, `lib/raviaExport.ts` |
-| `ExportFixture` | interface | [`src/types/bim.ts:3333`](../../src/types/bim.ts#L3333) | `lib/raviaExport.ts` |
-| `ExportRoom` | interface | [`src/types/bim.ts:3345`](../../src/types/bim.ts#L3345) | `scripts/pruefungen/keller.ts`, `scripts/pruefungen/uebergabe.ts`, `lib/exportDiff.ts`, `lib/plantBook.ts`, `lib/raviaExport.ts` |
-| `ExportRoomPipe` | interface | [`src/types/bim.ts:3562`](../../src/types/bim.ts#L3562) | `lib/raviaExport.ts` |
-| `ExportVertical` | interface | [`src/types/bim.ts:3573`](../../src/types/bim.ts#L3573) | `lib/raviaExport.ts` |
-| `ExportSolidThermalBridge` | interface | [`src/types/bim.ts:3598`](../../src/types/bim.ts#L3598) | – |
-| `ExportSolid` | interface | [`src/types/bim.ts:3608`](../../src/types/bim.ts#L3608) | `lib/raviaExport.ts` |
-| `ExportDurchbruch` | interface | [`src/types/bim.ts:3642`](../../src/types/bim.ts#L3642) | `lib/raviaExport.ts` |
-| `ExportPipe` | interface | [`src/types/bim.ts:3671`](../../src/types/bim.ts#L3671) | `lib/raviaExport.ts` |
-| `ExportBuildingTotals` | interface | [`src/types/bim.ts:3695`](../../src/types/bim.ts#L3695) | `lib/raviaExport.ts` |
-| `VentilationTotals` | interface | [`src/types/bim.ts:3760`](../../src/types/bim.ts#L3760) | `lib/raviaExport.ts` |
-| `ThermalBridgeTotals` | interface | [`src/types/bim.ts:3798`](../../src/types/bim.ts#L3798) | `lib/raviaExport.ts` |
-| `SetbackTotals` | interface | [`src/types/bim.ts:3823`](../../src/types/bim.ts#L3823) | `lib/raviaExport.ts` |
-| `ExportRoomVentilation` | interface | [`src/types/bim.ts:3859`](../../src/types/bim.ts#L3859) | – |
-| `ClosureIssueKind` | type | [`src/types/bim.ts:3911`](../../src/types/bim.ts#L3911) | `lib/roomDetection.ts` |
-| `ClosureIssue` | interface | [`src/types/bim.ts:3914`](../../src/types/bim.ts#L3914) | `components/Editor2D.tsx`, `lib/roomDetection.ts`, `store/useBimStore.ts` |
-| `ValidationIssue` | interface | [`src/types/bim.ts:3949`](../../src/types/bim.ts#L3949) | `components/ValidationPanel.tsx`, `lib/validation.ts` |
-| `ValidationReport` | interface | [`src/types/bim.ts:3972`](../../src/types/bim.ts#L3972) | `lib/embedApi.ts`, `lib/validation.ts` |
-| `ExportSubsoil` | interface | [`src/types/bim.ts:4001`](../../src/types/bim.ts#L4001) | `lib/raviaExport.ts` |
-| `ExportHeatPump` | interface | [`src/types/bim.ts:4034`](../../src/types/bim.ts#L4034) | `lib/raviaExport.ts` |
-| `ExportPlant` | interface | [`src/types/bim.ts:4139`](../../src/types/bim.ts#L4139) | `lib/raviaExport.ts` |
-| `ExportOccupancyUnit` | interface | [`src/types/bim.ts:4224`](../../src/types/bim.ts#L4224) | `lib/raviaExport.ts` |
-| `ExportOccupancy` | interface | [`src/types/bim.ts:4272`](../../src/types/bim.ts#L4272) | `lib/raviaExport.ts` |
-| `ExportLevel` | type | [`src/types/bim.ts:4288`](../../src/types/bim.ts#L4288) | – |
-| `RaviaExport` | interface | [`src/types/bim.ts:4293`](../../src/types/bim.ts#L4293) | `scripts/pruefungen/exportvertrag.ts`, `scripts/pruefungen/uebergabe.ts`, `scripts/pruefungen/uwertquelle.ts`, `components/ExportDiffPanel.tsx`, `lib/embedApi.ts` (+3) |
-| `Herkunft` | type | [`src/types/bim.ts:4618`](../../src/types/bim.ts#L4618) | – |
-| `Auslegungswert` | interface | [`src/types/bim.ts:4633`](../../src/types/bim.ts#L4633) | `lib/auslegungExport.ts` |
-| `ExportEmitter` | interface | [`src/types/bim.ts:4655`](../../src/types/bim.ts#L4655) | `lib/auslegungExport.ts` |
-| `ExportHydraulics` | interface | [`src/types/bim.ts:4718`](../../src/types/bim.ts#L4718) | `lib/auslegungExport.ts` |
-| `ExportConsumerBalance` | interface | [`src/types/bim.ts:4756`](../../src/types/bim.ts#L4756) | `lib/auslegungExport.ts` |
-| `PumpForm` | type | [`src/types/bim.ts:4829`](../../src/types/bim.ts#L4829) | `scripts/pruefungen/schemavorschlag.ts`, `components/AnlagenFragen.tsx`, `components/AnlagenPanel.tsx`, `lib/anlagenFragen.ts`, `lib/deviceCatalog.ts` (+4) |
-| `UnitContents` | interface | [`src/types/bim.ts:4854`](../../src/types/bim.ts#L4854) | `scripts/pruefungen/schemavorschlag.ts`, `lib/deviceCatalog.ts`, `lib/schemaKatalog.ts` |
-| `Refrigerant` | type | [`src/types/bim.ts:4892`](../../src/types/bim.ts#L4892) | `scripts/pruefungen/schutzbereich.ts`, `components/AnlagenFragen.tsx`, `components/HeatPumpPanel.tsx`, `lib/anlagenFragen.ts`, `lib/deviceCatalog.ts` (+1) |
-| `RefrigerantProperties` | interface | [`src/types/bim.ts:4914`](../../src/types/bim.ts#L4914) | `lib/deviceCatalog.ts` |
-| `DeviceRatingPoint` | interface | [`src/types/bim.ts:4940`](../../src/types/bim.ts#L4940) | `lib/deviceCatalog.ts`, `lib/deviceImport.ts` |
-| `WertHerkunft` | type | [`src/types/bim.ts:4959`](../../src/types/bim.ts#L4959) | `lib/erzeugerHydraulik.ts`, `lib/pipeReportPrint.ts`, `lib/projektMappe.ts` |
-| `ErzeugerAngabe` | type | [`src/types/bim.ts:4991`](../../src/types/bim.ts#L4991) | `lib/erzeugerHydraulik.ts` |
-| `ErzeugerUmfang` | type | [`src/types/bim.ts:5001`](../../src/types/bim.ts#L5001) | `lib/erzeugerHydraulik.ts`, `lib/pipeReportPrint.ts` |
-| `GeneratorHydraulics` | interface | [`src/types/bim.ts:5016`](../../src/types/bim.ts#L5016) | `lib/erzeugerHydraulik.ts` |
-| `HeatPumpModel` | interface | [`src/types/bim.ts:5062`](../../src/types/bim.ts#L5062) | `scripts/pruefungen/anlagenbuch.ts`, `scripts/pruefungen/geraeteimport.ts`, `scripts/pruefungen/schemavorschlag.ts`, `components/AnlagenPanel.tsx`, `lib/deviceCatalog.ts` (+4) |
-| `StorageKind` | type | [`src/types/bim.ts:5190`](../../src/types/bim.ts#L5190) | `scripts/pruefungen/schemavorschlag.ts`, `lib/deviceCatalog.ts`, `lib/deviceImport.ts`, `lib/plantDesign.ts`, `lib/schemaAuswahl.ts` (+2) |
-| `StorageModel` | interface | [`src/types/bim.ts:5208`](../../src/types/bim.ts#L5208) | `lib/deviceCatalog.ts`, `lib/deviceImport.ts` |
-| `PipeMaterial` | type | [`src/types/bim.ts:5238`](../../src/types/bim.ts#L5238) | `components/AnlagenPanel.tsx`, `lib/domesticWater.ts`, `lib/hydraulicBalance.ts`, `lib/hydraulics.ts`, `lib/materialSchedule.ts` (+6) |
-| `PipeDimension` | interface | [`src/types/bim.ts:5250`](../../src/types/bim.ts#L5250) | `scripts/pruefungen/rohrdaemmung.ts`, `lib/hydraulicBalance.ts`, `lib/hydraulics.ts`, `lib/pipeInsulation.ts`, `lib/pipeReport.ts` (+1) |
-| `PipeSizing` | interface | [`src/types/bim.ts:5267`](../../src/types/bim.ts#L5267) | `lib/hydraulicBalance.ts`, `lib/hydraulics.ts`, `lib/plantBook.ts`, `lib/plantDesign.ts` |
-| `HeatingCircuit` | interface | [`src/types/bim.ts:5286`](../../src/types/bim.ts#L5286) | `scripts/pruefungen/anlagenfragen.ts`, `scripts/pruefungen/anlagenschema.ts`, `scripts/pruefungen/schemapruefung.ts`, `scripts/pruefungen/schemavorschlag.ts`, `scripts/pruefungen/uebersichtsschema.ts` (+6) |
-| `ExportBivalence` | interface | [`src/types/bim.ts:5329`](../../src/types/bim.ts#L5329) | – |
-| `ExportHeatingCircuit` | interface | [`src/types/bim.ts:5393`](../../src/types/bim.ts#L5393) | – |
-| `SchematicKind` | type | [`src/types/bim.ts:5419`](../../src/types/bim.ts#L5419) | `scripts/handbuch-symbole.ts`, `scripts/pruefungen/anlagenschema.ts`, `scripts/pruefungen/normsymbole.ts`, `scripts/pruefungen/schemapruefung.ts`, `scripts/pruefungen/schemavorschlag.ts` (+15) |
-| `SchematicComponent` | interface | [`src/types/bim.ts:5494`](../../src/types/bim.ts#L5494) | `scripts/pruefungen/anlagenschema.ts`, `scripts/pruefungen/schemabeschriftung.ts`, `scripts/pruefungen/schemapruefung.ts`, `components/SchemaView.tsx`, `lib/materialSchedule.ts` (+5) |
-| `SchematicLink` | interface | [`src/types/bim.ts:5512`](../../src/types/bim.ts#L5512) | `scripts/pruefungen/anlagenschema.ts`, `scripts/pruefungen/schemapruefung.ts`, `components/SchemaView.tsx`, `lib/plantDesign.ts`, `lib/schemaPruefung.ts` (+3) |
-| `SafetyDesign` | interface | [`src/types/bim.ts:5541`](../../src/types/bim.ts#L5541) | `lib/plantBook.ts`, `lib/plantDesign.ts`, `lib/safetyFittings.ts` |
-| `DomesticHotWaterDesign` | interface | [`src/types/bim.ts:5577`](../../src/types/bim.ts#L5577) | `lib/domesticWater.ts` |
-| `BivalenzBetrieb` | type | [`src/types/bim.ts:5626`](../../src/types/bim.ts#L5626) | `components/AnlagenPanel.tsx`, `lib/bivalenz.ts` |
-| `ZweitErzeugerArt` | type | [`src/types/bim.ts:5633`](../../src/types/bim.ts#L5633) | `components/AnlagenPanel.tsx` |
-| `SecondGenerator` | interface | [`src/types/bim.ts:5666`](../../src/types/bim.ts#L5666) | `scripts/pruefungen/bivalenz.ts`, `components/AnlagenPanel.tsx`, `lib/bivalenz.ts` |
-| `CascadeDefinition` | interface | [`src/types/bim.ts:5697`](../../src/types/bim.ts#L5697) | – |
-| `AnlagenAntworten` | interface | [`src/types/bim.ts:5744`](../../src/types/bim.ts#L5744) | `scripts/pruefungen/anlagenfragen.ts`, `scripts/pruefungen/anlagenschema.ts`, `components/AnlagenDialog.tsx`, `components/AnlagenFragen.tsx`, `components/AnlagenPanel.tsx` (+3) |
-| `Inneneinheit` | type | [`src/types/bim.ts:5824`](../../src/types/bim.ts#L5824) | `scripts/pruefungen/anlagenfragen.ts`, `components/AnlagenFragen.tsx`, `lib/anlagenFragen.ts` |
-| `HeizkreisArt` | type | [`src/types/bim.ts:5833`](../../src/types/bim.ts#L5833) | `components/AnlagenFragen.tsx`, `lib/anlagenFragen.ts` |
-| `PlantDefinition` | interface | [`src/types/bim.ts:5853`](../../src/types/bim.ts#L5853) | `scripts/pruefungen/schemapruefung.ts`, `scripts/pruefungen/schemavorschlag.ts`, `lib/anlagenFragen.ts`, `lib/plantDefaults.ts`, `lib/schemaAuswahl.ts` (+3) |
-| `PlantStorage` | interface | [`src/types/bim.ts:5993`](../../src/types/bim.ts#L5993) | `scripts/pruefungen/anlagenfragen.ts`, `scripts/pruefungen/anlagenschema.ts`, `scripts/pruefungen/schemapruefung.ts`, `scripts/pruefungen/schemavorschlag.ts`, `scripts/pruefungen/uebersichtsschema.ts` (+6) |
+| `RatedPowerSource` | type | [`src/types/bim.ts:738`](../../src/types/bim.ts#L738) | `components/PropertiesPanel.tsx`, `lib/buildingModelImport.ts`, `lib/hostPatch.ts`, `lib/normleistung.ts`, `store/bimZustand.ts` |
+| `FixtureParams` | interface | [`src/types/bim.ts:740`](../../src/types/bim.ts#L740) | `lib/hostPatch.ts`, `lib/normleistung.ts`, `lib/raumExport.ts` |
+| `Fixture` | interface | [`src/types/bim.ts:879`](../../src/types/bim.ts#L879) | `scripts/bench.ts`, `scripts/handbuch-symbole.ts`, `scripts/pruefungen/anlagenschema.ts`, `scripts/pruefungen/anschlussgroesse.ts`, `scripts/pruefungen/auslegungsuebergabe.ts` (+48) |
+| `FixtureDefinition` | interface | [`src/types/bim.ts:901`](../../src/types/bim.ts#L901) | `components/TgaPalette.tsx` |
+| `Level` | interface | [`src/types/bim.ts:1009`](../../src/types/bim.ts#L1009) | `scripts/pruefungen/anschlussgroesse.ts`, `scripts/pruefungen/autokorrektur-belastung.ts`, `scripts/pruefungen/autokorrektur.ts`, `scripts/pruefungen/beschriftungslage.ts`, `scripts/pruefungen/dachlandschaft.ts` (+49) |
+| `RoofKind` | type | [`src/types/bim.ts:1079`](../../src/types/bim.ts#L1079) | `scripts/pruefungen/dachschnitt.ts`, `components/RoofPanel.tsx`, `lib/buildingModelImport.ts` |
+| `ScanDachHerkunft` | interface | [`src/types/bim.ts:1179`](../../src/types/bim.ts#L1179) | `lib/buildingModelImport.ts` |
+| `RoofDefinition` | interface | [`src/types/bim.ts:1204`](../../src/types/bim.ts#L1204) | `scripts/pruefungen/dachformen.ts`, `scripts/pruefungen/dachschnitt.ts`, `scripts/pruefungen/dachumriss.ts`, `components/RoofPanel.tsx`, `lib/dachlandschaft.ts` (+4) |
+| `RoofOpeningKind` | type | [`src/types/bim.ts:1315`](../../src/types/bim.ts#L1315) | `components/RoofPanel.tsx`, `store/bimZustand.ts` |
+| `RoofOpening` | interface | [`src/types/bim.ts:1323`](../../src/types/bim.ts#L1323) | `components/PropertiesPanel.tsx`, `components/Viewer3D.tsx`, `lib/dachlandschaft.ts`, `lib/roofGeometry.ts`, `lib/roomDetection.ts` (+5) |
+| `RoomRoofMetrics` | interface | [`src/types/bim.ts:1356`](../../src/types/bim.ts#L1356) | `lib/roofGeometry.ts` |
+| `Layer` | interface | [`src/types/bim.ts:1395`](../../src/types/bim.ts#L1395) | `scripts/pruefungen/ebenen.ts`, `lib/ebenen.ts`, `store/bimZustand.ts` |
+| `CalibrationLine` | interface | [`src/types/bim.ts:1408`](../../src/types/bim.ts#L1408) | – |
+| `FloorplanImage` | interface | [`src/types/bim.ts:1416`](../../src/types/bim.ts#L1416) | `scripts/pruefungen/spiegeln.ts`, `components/ImageUploader.tsx`, `lib/spiegeln.ts`, `store/bimZustand.ts` |
+| `AiAnalysisState` | type | [`src/types/bim.ts:1468`](../../src/types/bim.ts#L1468) | `store/bimZustand.ts` |
+| `Freihandstrich` | interface | [`src/types/bim.ts:1481`](../../src/types/bim.ts#L1481) | `scripts/pruefungen/notizen.ts`, `lib/notizen.ts`, `lib/spiegeln.ts`, `store/slices/laden.ts`, `store/slices/referenzbild.ts` |
+| `SkizzenZug` | interface | [`src/types/bim.ts:1502`](../../src/types/bim.ts#L1502) | – |
+| `SkizzenVorschlag` | interface | [`src/types/bim.ts:1510`](../../src/types/bim.ts#L1510) | `store/bimZustand.ts` |
+| `VerticalKind` | type | [`src/types/bim.ts:1548`](../../src/types/bim.ts#L1548) | `scripts/handbuch-symbole.ts`, `components/Editor2D.tsx`, `components/PropertiesPanel.tsx`, `components/Toolbar.tsx`, `store/bimZustand.ts` |
+| `ShaftService` | type | [`src/types/bim.ts:1558`](../../src/types/bim.ts#L1558) | `components/PropertiesPanel.tsx`, `lib/wandquerung.ts` |
+| `VerticalElement` | interface | [`src/types/bim.ts:1578`](../../src/types/bim.ts#L1578) | `scripts/handbuch-symbole.ts`, `scripts/pruefungen/druckplan.ts`, `scripts/pruefungen/geschossdecken.ts`, `scripts/pruefungen/massivbauteile.ts`, `scripts/pruefungen/treppenlogik.ts` (+13) |
+| `SolidKind` | type | [`src/types/bim.ts:1616`](../../src/types/bim.ts#L1616) | `scripts/handbuch-symbole.ts`, `components/Editor2D.tsx`, `components/PropertiesPanel.tsx`, `components/Toolbar.tsx`, `store/bimZustand.ts` (+1) |
+| `SolidElement` | interface | [`src/types/bim.ts:1645`](../../src/types/bim.ts#L1645) | `scripts/handbuch-symbole.ts`, `scripts/pruefungen/druckplan.ts`, `scripts/pruefungen/massivbauteile.ts`, `components/PropertiesPanel.tsx`, `components/Viewer3D.tsx` (+11) |
+| `DurchbruchKind` | type | [`src/types/bim.ts:1693`](../../src/types/bim.ts#L1693) | `components/PropertiesPanel.tsx`, `components/Toolbar.tsx`, `store/bimZustand.ts` |
+| `DurchbruchWirt` | type | [`src/types/bim.ts:1707`](../../src/types/bim.ts#L1707) | – |
+| `DurchbruchForm` | type | [`src/types/bim.ts:1713`](../../src/types/bim.ts#L1713) | – |
+| `Brandschutzklasse` | type | [`src/types/bim.ts:1722`](../../src/types/bim.ts#L1722) | `components/PropertiesPanel.tsx` |
+| `Durchbruch` | interface | [`src/types/bim.ts:1757`](../../src/types/bim.ts#L1757) | `scripts/handbuch-symbole.ts`, `scripts/pruefungen/beschriftung.ts`, `scripts/pruefungen/durchbrueche.ts`, `scripts/pruefungen/werkzeugkiste.ts`, `components/PropertiesPanel.tsx` (+12) |
+| `DurchbruchPreset` | interface | [`src/types/bim.ts:1837`](../../src/types/bim.ts#L1837) | `scripts/handbuch-symbole.ts`, `components/Toolbar.tsx`, `lib/wandquerung.ts`, `lib/werkzeugkiste.ts`, `store/bimZustand.ts` |
+| `PipeService` | type | [`src/types/bim.ts:1875`](../../src/types/bim.ts#L1875) | `scripts/handbuch-symbole.ts`, `scripts/pruefungen/anlagenschema.ts`, `scripts/pruefungen/ebenen.ts`, `scripts/pruefungen/schemapruefung.ts`, `components/Editor2D.tsx` (+16) |
+| `PipeRun` | interface | [`src/types/bim.ts:1929`](../../src/types/bim.ts#L1929) | `scripts/bench.ts`, `scripts/pruefungen/anschlussgroesse.ts`, `scripts/pruefungen/autokorrektur.ts`, `scripts/pruefungen/beschriftung.ts`, `scripts/pruefungen/beschriftungslage.ts` (+35) |
+| `PipeRoutingMode` | type | [`src/types/bim.ts:2028`](../../src/types/bim.ts#L2028) | `scripts/pruefungen/rohrausleger.ts`, `components/RohrnetzDialog.tsx`, `components/Toolbar.tsx`, `lib/pipeLayout.ts`, `lib/pipeRouting.ts` (+2) |
+| `PipeSurrounding` | type | [`src/types/bim.ts:2038`](../../src/types/bim.ts#L2038) | `lib/pipeInsulation.ts`, `lib/pipeLayout.ts`, `lib/pipeReport.ts`, `lib/steigstrang.ts` |
+| `PipeAccessoryKind` | type | [`src/types/bim.ts:2053`](../../src/types/bim.ts#L2053) | `scripts/handbuch-symbole.ts`, `lib/hydraulicBalance.ts`, `lib/pipeAccessorySymbols.ts`, `lib/pipeLayout.ts`, `lib/pipeNetwork.ts` (+3) |
+| `PipeAccessory` | interface | [`src/types/bim.ts:2075`](../../src/types/bim.ts#L2075) | `scripts/pruefungen/ebenen.ts`, `scripts/pruefungen/rohrnetzrechner.ts`, `components/PropertiesPanel.tsx`, `components/Viewer3D.tsx`, `lib/formteile.ts` (+8) |
+| `PipeScheduleEntry` | interface | [`src/types/bim.ts:2095`](../../src/types/bim.ts#L2095) | `lib/materialSchedule.ts`, `lib/raviaExport.ts` |
+| `PipeSegment` | interface | [`src/types/bim.ts:2113`](../../src/types/bim.ts#L2113) | `scripts/pruefungen/rohrnetzrechner.ts`, `lib/hydraulicBalance.ts`, `lib/netzExport.ts`, `lib/pipeNetwork.ts`, `lib/pipeReport.ts` |
+| `PipePath` | interface | [`src/types/bim.ts:2164`](../../src/types/bim.ts#L2164) | `scripts/pruefungen/rohrnetzrechner.ts`, `lib/hydraulicBalance.ts`, `lib/pipeNetwork.ts` |
+| `PipeNetworkReport` | interface | [`src/types/bim.ts:2198`](../../src/types/bim.ts#L2198) | `scripts/pruefungen/rohrnetzrechner.ts`, `lib/hydraulicBalance.ts`, `lib/netzExport.ts`, `lib/pipeNetwork.ts` |
+| `AreaCategory` | type | [`src/types/bim.ts:2220`](../../src/types/bim.ts#L2220) | `components/HeatPumpPanel.tsx`, `lib/heatPump.ts` |
+| `MountingSituation` | type | [`src/types/bim.ts:2236`](../../src/types/bim.ts#L2236) | `components/HeatPumpPanel.tsx`, `lib/heatPump.ts` |
+| `HeatSourceKind` | type | [`src/types/bim.ts:2246`](../../src/types/bim.ts#L2246) | `components/AnlagenPanel.tsx`, `components/HeatPumpPanel.tsx`, `lib/deviceCatalog.ts`, `lib/deviceImport.ts` |
+| `SoilKind` | type | [`src/types/bim.ts:2256`](../../src/types/bim.ts#L2256) | `scripts/pruefungen/uebergabe.ts`, `components/HeatPumpPanel.tsx`, `lib/heatPump.ts` |
+| `WaterProtectionZone` | type | [`src/types/bim.ts:2266`](../../src/types/bim.ts#L2266) | – |
+| `HeatPump` | interface | [`src/types/bim.ts:2275`](../../src/types/bim.ts#L2275) | `scripts/pruefungen/anschlussgroesse.ts`, `scripts/pruefungen/planleeren.ts`, `scripts/pruefungen/ringleitung.ts`, `scripts/pruefungen/schutzbereich.ts`, `scripts/verify.ts` (+6) |
+| `SiteElementKind` | type | [`src/types/bim.ts:2402`](../../src/types/bim.ts#L2402) | `components/Editor2D.tsx`, `store/bimZustand.ts` |
+| `SiteElement` | interface | [`src/types/bim.ts:2448`](../../src/types/bim.ts#L2448) | `lib/siteSymbols.ts`, `lib/spiegeln.ts`, `store/bimZustand.ts`, `store/slices/anlage.ts`, `store/slices/laden.ts` |
+| `IgnitionKind` | type | [`src/types/bim.ts:2472`](../../src/types/bim.ts#L2472) | `components/HeatPumpPanel.tsx` |
+| `SitePlan` | interface | [`src/types/bim.ts:2485`](../../src/types/bim.ts#L2485) | `components/Viewer3D.tsx`, `lib/plantDefaults.ts`, `lib/spiegeln.ts` |
+| `AnnotationKind` | type | [`src/types/bim.ts:2526`](../../src/types/bim.ts#L2526) | `components/Toolbar.tsx`, `store/bimZustand.ts` |
+| `Annotation` | interface | [`src/types/bim.ts:2542`](../../src/types/bim.ts#L2542) | `scripts/handbuch-symbole.ts`, `scripts/pruefungen/beschriftung.ts`, `scripts/pruefungen/eckpunkte.ts`, `components/PropertiesPanel.tsx`, `lib/annotationSymbols.ts` (+7) |
+| `AnnotationAnchor` | interface | [`src/types/bim.ts:2587`](../../src/types/bim.ts#L2587) | `scripts/pruefungen/beschriftung.ts`, `components/PropertiesPanel.tsx`, `lib/beschriftung3d.ts`, `store/bimZustand.ts` |
+| `AnnotationQuelle` | type | [`src/types/bim.ts:2607`](../../src/types/bim.ts#L2607) | `scripts/pruefungen/beschriftung.ts`, `lib/beschriftung3d.ts` |
+| `ToolId` | type | [`src/types/bim.ts:2630`](../../src/types/bim.ts#L2630) | `components/Toolbar.tsx`, `lib/zeigereingabe.ts`, `store/bimZustand.ts`, `store/slices/skizze.ts` |
+| `ViewMode` | type | [`src/types/bim.ts:2658`](../../src/types/bim.ts#L2658) | `components/Toolbar.tsx`, `store/bimZustand.ts` |
+| `CameraMode` | type | [`src/types/bim.ts:2667`](../../src/types/bim.ts#L2667) | `components/Viewer3D.tsx`, `store/bimZustand.ts` |
+| `SnapSettings` | interface | [`src/types/bim.ts:2669`](../../src/types/bim.ts#L2669) | `store/bimZustand.ts` |
+| `SnapResult` | interface | [`src/types/bim.ts:2707`](../../src/types/bim.ts#L2707) | `components/Editor2D.tsx` |
+| `SelectionKind` | type | [`src/types/bim.ts:2720`](../../src/types/bim.ts#L2720) | `scripts/pruefungen/auswahlnamen.ts`, `scripts/pruefungen/ebenen.ts`, `components/Editor2D.tsx`, `lib/auswahlNamen.ts`, `lib/ebenen.ts` |
+| `Selection` | interface | [`src/types/bim.ts:2738`](../../src/types/bim.ts#L2738) | `scripts/pruefungen/griffe.ts`, `components/Viewer3D.tsx`, `lib/ebenen.ts`, `lib/griffe.ts`, `lib/werkzeugkiste.ts` (+3) |
+| `AuswahlQuelle` | type | [`src/types/bim.ts:2753`](../../src/types/bim.ts#L2753) | `store/bimZustand.ts` |
+| `Viewport` | interface | [`src/types/bim.ts:2756`](../../src/types/bim.ts#L2756) | `store/bimZustand.ts` |
+| `Vorhaben` | type | [`src/types/bim.ts:2799`](../../src/types/bim.ts#L2799) | `scripts/pruefungen/vorhaben.ts`, `components/AnlagenPanel.tsx`, `lib/plantDefaults.ts`, `lib/systemtemperatur.ts`, `store/bimZustand.ts` |
+| `Brennstoff` | type | [`src/types/bim.ts:2809`](../../src/types/bim.ts#L2809) | `lib/verbrauchsabgleich.ts` |
+| `Verbrauchsangabe` | interface | [`src/types/bim.ts:2818`](../../src/types/bim.ts#L2818) | `lib/verbrauchsabgleich.ts` |
+| `ProjectMeta` | interface | [`src/types/bim.ts:2827`](../../src/types/bim.ts#L2827) | `lib/hostPatch.ts` |
+| `Annahme` | interface | [`src/types/bim.ts:3009`](../../src/types/bim.ts#L3009) | `scripts/pruefungen/aufnahme.ts`, `lib/aufnahme.ts` |
+| `HostPatchTrace` | interface | [`src/types/bim.ts:3021`](../../src/types/bim.ts#L3021) | – |
+| `VentilationSystem` | interface | [`src/types/bim.ts:3039`](../../src/types/bim.ts#L3039) | – |
+| `VentilationRole` | type | [`src/types/bim.ts:3061`](../../src/types/bim.ts#L3061) | `components/VentilationPanel.tsx`, `lib/heatLoadEstimate.ts`, `lib/raviaExport.ts`, `lib/roomDetection.ts` |
+| `SetbackOperation` | interface | [`src/types/bim.ts:3077`](../../src/types/bim.ts#L3077) | – |
+| `ThermalBridgeCatalogue` | type | [`src/types/bim.ts:3095`](../../src/types/bim.ts#L3095) | `lib/thermalBridges.ts` |
+| `ThermalBridgeKind` | type | [`src/types/bim.ts:3098`](../../src/types/bim.ts#L3098) | `components/ThermalBridgePanel.tsx`, `lib/raviaExport.ts`, `lib/thermalBridges.ts` |
+| `RoomThermalBridge` | interface | [`src/types/bim.ts:3110`](../../src/types/bim.ts#L3110) | `lib/thermalBridges.ts` |
+| `BimDocument` | interface | [`src/types/bim.ts:3124`](../../src/types/bim.ts#L3124) | `scripts/bench.ts`, `scripts/handbuch-symbole.ts`, `scripts/pruefungen/abgleich2026.ts`, `scripts/pruefungen/anlagenschema.ts`, `scripts/pruefungen/anschlussgroesse.ts` (+106) |
+| `UWertQuelle` | type | [`src/types/bim.ts:3216`](../../src/types/bim.ts#L3216) | `lib/raumExport.ts` |
+| `ExportOpening` | interface | [`src/types/bim.ts:3226`](../../src/types/bim.ts#L3226) | `lib/raumExport.ts` |
+| `GroundContact` | interface | [`src/types/bim.ts:3265`](../../src/types/bim.ts#L3265) | – |
+| `ExportSurface` | interface | [`src/types/bim.ts:3288`](../../src/types/bim.ts#L3288) | `scripts/pruefungen/keller.ts`, `lib/heatLoadEstimate.ts`, `lib/raumExport.ts` |
+| `ExportFixture` | interface | [`src/types/bim.ts:3334`](../../src/types/bim.ts#L3334) | `lib/raumExport.ts` |
+| `ExportRoom` | interface | [`src/types/bim.ts:3346`](../../src/types/bim.ts#L3346) | `scripts/pruefungen/keller.ts`, `scripts/pruefungen/uebergabe.ts`, `lib/exportDiff.ts`, `lib/plantBook.ts`, `lib/raumExport.ts` (+1) |
+| `ExportRoomPipe` | interface | [`src/types/bim.ts:3563`](../../src/types/bim.ts#L3563) | `lib/raumExport.ts` |
+| `ExportVertical` | interface | [`src/types/bim.ts:3574`](../../src/types/bim.ts#L3574) | `lib/raviaExport.ts` |
+| `ExportSolidThermalBridge` | interface | [`src/types/bim.ts:3599`](../../src/types/bim.ts#L3599) | – |
+| `ExportSolid` | interface | [`src/types/bim.ts:3609`](../../src/types/bim.ts#L3609) | `lib/raviaExport.ts` |
+| `ExportDurchbruch` | interface | [`src/types/bim.ts:3643`](../../src/types/bim.ts#L3643) | `lib/raviaExport.ts` |
+| `ExportPipe` | interface | [`src/types/bim.ts:3672`](../../src/types/bim.ts#L3672) | `lib/raviaExport.ts` |
+| `ExportBuildingTotals` | interface | [`src/types/bim.ts:3696`](../../src/types/bim.ts#L3696) | `lib/raviaExport.ts` |
+| `VentilationTotals` | interface | [`src/types/bim.ts:3761`](../../src/types/bim.ts#L3761) | `lib/raviaExport.ts` |
+| `ThermalBridgeTotals` | interface | [`src/types/bim.ts:3799`](../../src/types/bim.ts#L3799) | `lib/raviaExport.ts` |
+| `SetbackTotals` | interface | [`src/types/bim.ts:3824`](../../src/types/bim.ts#L3824) | `lib/raviaExport.ts` |
+| `ExportRoomVentilation` | interface | [`src/types/bim.ts:3860`](../../src/types/bim.ts#L3860) | – |
+| `ClosureIssueKind` | type | [`src/types/bim.ts:3912`](../../src/types/bim.ts#L3912) | `lib/roomDetection.ts` |
+| `ClosureIssue` | interface | [`src/types/bim.ts:3915`](../../src/types/bim.ts#L3915) | `components/Editor2D.tsx`, `lib/dokumentPflege.ts`, `lib/roomDetection.ts` |
+| `ValidationIssue` | interface | [`src/types/bim.ts:3950`](../../src/types/bim.ts#L3950) | `components/ValidationPanel.tsx`, `lib/validation.ts` |
+| `ValidationReport` | interface | [`src/types/bim.ts:3973`](../../src/types/bim.ts#L3973) | `lib/embedApi.ts`, `lib/validation.ts` |
+| `ExportSubsoil` | interface | [`src/types/bim.ts:4002`](../../src/types/bim.ts#L4002) | `lib/raviaExport.ts` |
+| `ExportHeatPump` | interface | [`src/types/bim.ts:4035`](../../src/types/bim.ts#L4035) | `lib/raviaExport.ts` |
+| `ExportPlant` | interface | [`src/types/bim.ts:4140`](../../src/types/bim.ts#L4140) | `lib/raviaExport.ts` |
+| `ExportOccupancyUnit` | interface | [`src/types/bim.ts:4225`](../../src/types/bim.ts#L4225) | `lib/raviaExport.ts` |
+| `ExportOccupancy` | interface | [`src/types/bim.ts:4273`](../../src/types/bim.ts#L4273) | `lib/raviaExport.ts` |
+| `ExportLevel` | type | [`src/types/bim.ts:4289`](../../src/types/bim.ts#L4289) | – |
+| `RaviaExport` | interface | [`src/types/bim.ts:4294`](../../src/types/bim.ts#L4294) | `scripts/pruefungen/exportvertrag.ts`, `scripts/pruefungen/uebergabe.ts`, `scripts/pruefungen/uwertquelle.ts`, `components/ExportDiffPanel.tsx`, `lib/embedApi.ts` (+3) |
+| `Herkunft` | type | [`src/types/bim.ts:4619`](../../src/types/bim.ts#L4619) | – |
+| `Auslegungswert` | interface | [`src/types/bim.ts:4634`](../../src/types/bim.ts#L4634) | `lib/auslegungExport.ts` |
+| `ExportEmitter` | interface | [`src/types/bim.ts:4656`](../../src/types/bim.ts#L4656) | `lib/auslegungExport.ts` |
+| `ExportHydraulics` | interface | [`src/types/bim.ts:4719`](../../src/types/bim.ts#L4719) | `lib/auslegungExport.ts` |
+| `ExportConsumerBalance` | interface | [`src/types/bim.ts:4757`](../../src/types/bim.ts#L4757) | `lib/auslegungExport.ts` |
+| `PumpForm` | type | [`src/types/bim.ts:4830`](../../src/types/bim.ts#L4830) | `scripts/pruefungen/schemavorschlag.ts`, `components/AnlagenFragen.tsx`, `components/AnlagenPanel.tsx`, `lib/anlagenFragen.ts`, `lib/deviceCatalog.ts` (+4) |
+| `UnitContents` | interface | [`src/types/bim.ts:4855`](../../src/types/bim.ts#L4855) | `scripts/pruefungen/schemavorschlag.ts`, `lib/deviceCatalog.ts`, `lib/schemaKatalog.ts` |
+| `Refrigerant` | type | [`src/types/bim.ts:4893`](../../src/types/bim.ts#L4893) | `scripts/pruefungen/schutzbereich.ts`, `components/AnlagenFragen.tsx`, `components/HeatPumpPanel.tsx`, `lib/anlagenFragen.ts`, `lib/deviceCatalog.ts` (+1) |
+| `RefrigerantProperties` | interface | [`src/types/bim.ts:4915`](../../src/types/bim.ts#L4915) | `lib/deviceCatalog.ts` |
+| `DeviceRatingPoint` | interface | [`src/types/bim.ts:4941`](../../src/types/bim.ts#L4941) | `lib/deviceCatalog.ts`, `lib/deviceImport.ts` |
+| `WertHerkunft` | type | [`src/types/bim.ts:4960`](../../src/types/bim.ts#L4960) | `lib/erzeugerHydraulik.ts`, `lib/pipeReportPrint.ts`, `lib/projektMappe.ts` |
+| `ErzeugerAngabe` | type | [`src/types/bim.ts:4992`](../../src/types/bim.ts#L4992) | `lib/erzeugerHydraulik.ts` |
+| `ErzeugerUmfang` | type | [`src/types/bim.ts:5002`](../../src/types/bim.ts#L5002) | `lib/erzeugerHydraulik.ts`, `lib/pipeReportPrint.ts` |
+| `GeneratorHydraulics` | interface | [`src/types/bim.ts:5017`](../../src/types/bim.ts#L5017) | `lib/erzeugerHydraulik.ts` |
+| `HeatPumpModel` | interface | [`src/types/bim.ts:5063`](../../src/types/bim.ts#L5063) | `scripts/pruefungen/anlagenbuch.ts`, `scripts/pruefungen/geraeteimport.ts`, `scripts/pruefungen/schemavorschlag.ts`, `components/AnlagenPanel.tsx`, `lib/deviceCatalog.ts` (+4) |
+| `StorageKind` | type | [`src/types/bim.ts:5191`](../../src/types/bim.ts#L5191) | `scripts/pruefungen/schemavorschlag.ts`, `lib/deviceCatalog.ts`, `lib/deviceImport.ts`, `lib/plantDesign.ts`, `lib/schemaAuswahl.ts` (+2) |
+| `StorageModel` | interface | [`src/types/bim.ts:5209`](../../src/types/bim.ts#L5209) | `lib/deviceCatalog.ts`, `lib/deviceImport.ts` |
+| `PipeMaterial` | type | [`src/types/bim.ts:5239`](../../src/types/bim.ts#L5239) | `components/AnlagenPanel.tsx`, `lib/domesticWater.ts`, `lib/hydraulicBalance.ts`, `lib/hydraulics.ts`, `lib/materialSchedule.ts` (+6) |
+| `PipeDimension` | interface | [`src/types/bim.ts:5251`](../../src/types/bim.ts#L5251) | `scripts/pruefungen/rohrdaemmung.ts`, `lib/hydraulicBalance.ts`, `lib/hydraulics.ts`, `lib/pipeInsulation.ts`, `lib/pipeReport.ts` (+1) |
+| `PipeSizing` | interface | [`src/types/bim.ts:5268`](../../src/types/bim.ts#L5268) | `lib/hydraulicBalance.ts`, `lib/hydraulics.ts`, `lib/plantBook.ts`, `lib/plantDesign.ts` |
+| `HeatingCircuit` | interface | [`src/types/bim.ts:5287`](../../src/types/bim.ts#L5287) | `scripts/pruefungen/anlagenfragen.ts`, `scripts/pruefungen/anlagenschema.ts`, `scripts/pruefungen/schemapruefung.ts`, `scripts/pruefungen/schemavorschlag.ts`, `scripts/pruefungen/uebersichtsschema.ts` (+6) |
+| `ExportBivalence` | interface | [`src/types/bim.ts:5330`](../../src/types/bim.ts#L5330) | – |
+| `ExportHeatingCircuit` | interface | [`src/types/bim.ts:5394`](../../src/types/bim.ts#L5394) | – |
+| `SchematicKind` | type | [`src/types/bim.ts:5420`](../../src/types/bim.ts#L5420) | `scripts/handbuch-symbole.ts`, `scripts/pruefungen/anlagenschema.ts`, `scripts/pruefungen/normsymbole.ts`, `scripts/pruefungen/schemapruefung.ts`, `scripts/pruefungen/schemavorschlag.ts` (+15) |
+| `SchematicComponent` | interface | [`src/types/bim.ts:5495`](../../src/types/bim.ts#L5495) | `scripts/pruefungen/anlagenschema.ts`, `scripts/pruefungen/schemabeschriftung.ts`, `scripts/pruefungen/schemapruefung.ts`, `components/SchemaView.tsx`, `lib/materialSchedule.ts` (+6) |
+| `SchematicLink` | interface | [`src/types/bim.ts:5513`](../../src/types/bim.ts#L5513) | `scripts/pruefungen/anlagenschema.ts`, `scripts/pruefungen/schemapruefung.ts`, `components/SchemaView.tsx`, `lib/plantDesign.ts`, `lib/schemaPruefung.ts` (+4) |
+| `SafetyDesign` | interface | [`src/types/bim.ts:5542`](../../src/types/bim.ts#L5542) | `lib/plantBook.ts`, `lib/plantDesign.ts`, `lib/safetyFittings.ts` |
+| `DomesticHotWaterDesign` | interface | [`src/types/bim.ts:5578`](../../src/types/bim.ts#L5578) | `lib/domesticWater.ts` |
+| `BivalenzBetrieb` | type | [`src/types/bim.ts:5627`](../../src/types/bim.ts#L5627) | `components/AnlagenPanel.tsx`, `lib/bivalenz.ts` |
+| `ZweitErzeugerArt` | type | [`src/types/bim.ts:5634`](../../src/types/bim.ts#L5634) | `components/AnlagenPanel.tsx` |
+| `SecondGenerator` | interface | [`src/types/bim.ts:5667`](../../src/types/bim.ts#L5667) | `scripts/pruefungen/bivalenz.ts`, `components/AnlagenPanel.tsx`, `lib/bivalenz.ts` |
+| `CascadeDefinition` | interface | [`src/types/bim.ts:5698`](../../src/types/bim.ts#L5698) | – |
+| `AnlagenAntworten` | interface | [`src/types/bim.ts:5745`](../../src/types/bim.ts#L5745) | `scripts/pruefungen/anlagenfragen.ts`, `scripts/pruefungen/anlagenschema.ts`, `components/AnlagenDialog.tsx`, `components/AnlagenFragen.tsx`, `components/AnlagenPanel.tsx` (+3) |
+| `Inneneinheit` | type | [`src/types/bim.ts:5825`](../../src/types/bim.ts#L5825) | `scripts/pruefungen/anlagenfragen.ts`, `components/AnlagenFragen.tsx`, `lib/anlagenFragen.ts` |
+| `HeizkreisArt` | type | [`src/types/bim.ts:5834`](../../src/types/bim.ts#L5834) | `components/AnlagenFragen.tsx`, `lib/anlagenFragen.ts` |
+| `PlantDefinition` | interface | [`src/types/bim.ts:5854`](../../src/types/bim.ts#L5854) | `scripts/pruefungen/schemapruefung.ts`, `scripts/pruefungen/schemavorschlag.ts`, `lib/anlagenFragen.ts`, `lib/plantDefaults.ts`, `lib/schemaAuswahl.ts` (+3) |
+| `PlantStorage` | interface | [`src/types/bim.ts:5994`](../../src/types/bim.ts#L5994) | `scripts/pruefungen/anlagenfragen.ts`, `scripts/pruefungen/anlagenschema.ts`, `scripts/pruefungen/schemapruefung.ts`, `scripts/pruefungen/schemavorschlag.ts`, `scripts/pruefungen/uebersichtsschema.ts` (+7) |

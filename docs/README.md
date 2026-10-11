@@ -1,6 +1,6 @@
 # Dokumentation CAD Light
 
-Stand: 09.10.2026 (Commit 55f5460, Version 1.77.0)
+Stand: 11.10.2026 · Quelle: CAD_light@5200d65 (Version 1.78.0, Embed-API 1.11.0 in `src/lib/embedApi.ts`, Store in `src/store/useBimStore.ts` mit Slices unter `src/store/slices/`)
 
 | Dokument | Inhalt |
 |---|---|
