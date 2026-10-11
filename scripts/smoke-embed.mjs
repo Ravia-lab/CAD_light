@@ -70,13 +70,15 @@ await p.addInitScript(() => {
   // 1.1.0: der Rückweg ist dazugekommen, die lesenden Befehle sind
   // unverändert geblieben.
   // 1.3.0: `loadBuilding` (Gebäudemodell aus RaVia Scan) — reiner Zuwachs.
-  // 1.8.0: `getDeviceProfile`; 1.9.0: `setHostCapabilities` — reiner Zuwachs.
-  expect('Version gemeldet', api.version, '1.9.0');
+  // 1.8.0: `getDeviceProfile`; 1.9.0: `setHostCapabilities`; 1.10.0:
+  // `createRoom`; 1.11.0: `getHeatLoadEstimate` — reiner Zuwachs.
+  expect('Version gemeldet', api.version, '1.11.0');
   expect(
     'Alle Methoden da',
     api.methods,
     [
-      'applyPatch', 'getDeviceProfile', 'getDocument', 'getExport', 'getIfc', 'getSummary', 'getWritableFields',
+      'applyPatch', 'createRoom', 'getDeviceProfile', 'getDocument', 'getExport', 'getHeatLoadEstimate', 'getIfc',
+      'getSummary', 'getWritableFields',
       'loadBuilding', 'loadIfc', 'loadProject', 'onChange', 'onNetzGelegt', 'onScanRequested', 'reportDiscardedRooms',
       'setHostCapabilities', 'validate', 'version',
     ],
@@ -198,7 +200,7 @@ console.log('\n▸ Nachrichtenbrücke (postMessage aus dem umgebenden Fenster)')
 
   const status = await p.locator('#status').innerText();
   expect('Verbindung steht', status, 'verbunden');
-  expect('Version angezeigt', await p.locator('#version').innerText(), '1.9.0');
+  expect('Version angezeigt', await p.locator('#version').innerText(), '1.11.0');
 
   const panel = await p.locator('#summary').innerText();
   expect('Kurzfassung angekommen', /Räume/.test(panel), true);
@@ -782,7 +784,7 @@ console.log('\n▸ Zweiter Aufruf mit warmem Zwischenspeicher');
   await p.goto(BASIS + 'einbettung-beispiel.html', { waitUntil: 'networkidle' });
   await p.locator('#status').filter({ hasText: 'verbunden' }).waitFor({ timeout: 20000 }).catch(() => {});
   expect('Auch mit warmem Zwischenspeicher verbunden', await p.locator('#status').innerText(), 'verbunden');
-  expect('… mit Version', await p.locator('#version').innerText(), '1.9.0');
+  expect('… mit Version', await p.locator('#version').innerText(), '1.11.0');
 }
 
 console.log('\nERRORS:', errs.length ? errs.join('\n') : 'keine');
