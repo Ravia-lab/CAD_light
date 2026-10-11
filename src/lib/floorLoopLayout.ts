@@ -140,15 +140,15 @@ export const DEFAULT_MIN_RUN_LENGTH = 0.3;
 /**
  * Größte Kreislänge [m] als Vorbelegung.
  *
- * **Herkunft: Verlegeanleitungen der Systemanbieter, keine Norm.** Für das
- * gängige Rohr 16 × 2 mm nennen sie übereinstimmend eine Größenordnung von
- * 100 m je Heizkreis — darüber wird der Druckverlust unwirtschaftlich und der
- * Kreis lässt sich am Verteiler kaum noch einregulieren. Der Wert hängt an
- * der Nennweite (17er tragen mehr, 20er noch mehr) und ist deshalb ein
- * überschreibbarer Parameter, keine Konstante. Er begrenzt nichts, er meldet
- * nur.
+ * **Herkunft: RaVia (Festlegung vom 11.10.2026).** CAD Light rechnet mit
+ * denselben 120 m je Heizkreis wie RaVia (`rohrnetz/fussbodenheizung.py`) und
+ * wie `DEFAULT_MAX_LOOP_LENGTH` in `hydraulics.ts`. Bis dahin standen hier
+ * 100 m aus den Verlegeanleitungen der Systemanbieter für 16 × 2 mm. Der Wert
+ * hängt an der Nennweite (17er tragen mehr, 20er noch mehr) und ist deshalb
+ * ein überschreibbarer Parameter, keine Konstante. Er begrenzt nichts, er
+ * meldet nur.
  */
-export const DEFAULT_MAX_CIRCUIT_LENGTH = 100;
+export const DEFAULT_MAX_CIRCUIT_LENGTH = 120;
 
 /** Vorgabe-Verlegemuster. Bifilar, weil das die übliche Verlegung ist. */
 export const DEFAULT_LOOP_PATTERN: FloorLoopPattern = 'schnecke';

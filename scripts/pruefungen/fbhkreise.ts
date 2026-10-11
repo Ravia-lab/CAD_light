@@ -188,7 +188,8 @@ export function pruefeFbhKreise(check: CheckFn): void {
   check('Export · A geteilt, splitFrom 1', a?.splitFrom ?? 0, 1);
   check('Export · A: loops = Zahl der Einzelkreise', a?.loops ?? 0, a?.circuits.length ?? -1);
   check('Export · A: jeder Kreis ≤ maxLoopLength', (a?.circuits ?? []).every((c) => c.loopLength <= (a?.maxLoopLength ?? 0) + 0.01), true);
-  check('Export · A: maxLoopLength 100 m', a?.maxLoopLength ?? 0, 100);
+  // Seit 11.10.2026 die RaVia-Grenze (120 m statt 100 m).
+  check('Export · A: maxLoopLength 120 m', a?.maxLoopLength ?? 0, 120);
   check('Export · Kennung <fixtureId>#<n>', a?.circuits.map((c) => c.id).join(',') ?? '',
     (a?.circuits ?? []).map((_, i) => `fA#${i + 1}`).join(','));
   check('Export · B nicht geteilt', b?.splitFrom === undefined && b?.circuits.length === 1, true);

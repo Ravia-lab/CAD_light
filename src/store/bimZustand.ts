@@ -208,12 +208,14 @@ export function emptyDocument(): BimDocument {
       createdAt: now,
       modifiedAt: now,
       northAngle: 0,
-      designOutdoorTemperature: -12,
+      // Ohne Standort wie RaVia bei unbekannter Klimazone (Festlegung vom 11.10.2026).
+      designOutdoorTemperature: -14,
       designIndoorTemperature: 20,
       n50: 3,
       shielding: 'moderate',
       // θ_u bleibt leer: dann gilt θ_i − b_u · (θ_i − θ_e), siehe lib/unbeheizt.ts (Befund B1).
-      groundTemperature: 10,
+      // θ_m,e wie die RaVia-Pauschale (din/din_en12831.py, Festlegung vom 11.10.2026).
+      groundTemperature: 9.5,
       // 0,10 W/(m²·K) ist der Zuschlag ohne Nachweis nach DIN 4108 Beiblatt 2 —
       // die sichere Seite, solange niemand die Anschlüsse betrachtet hat.
       thermalBridgeSupplement: 0.1,

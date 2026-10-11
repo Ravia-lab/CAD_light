@@ -34,6 +34,7 @@ import type { BimNode, Level, Vec2, Wall } from '../types/bim';
 import type { RoofFrame } from './roofGeometry';
 import { roofHeightAt } from './roofGeometry';
 import { pointInPolygon } from './geometry';
+import { BRUESTUNGS_HOEHE } from './roomDetection';
 
 /**
  * Ab welcher Abweichung eine Wand überhaupt als abweichend gilt [m].
@@ -48,13 +49,14 @@ export const TOTZONE = 0.01;
 /**
  * Unterhalb dieser Höhe ist eine Wand keine Raumwand [m].
  *
- * Derselbe Wert, mit dem `roomDetection` die Raumhöhe misst: Eine Brüstung,
+ * Derselbe Wert, mit dem `roomDetection` die Raumhöhe misst (1,60 m, auch
+ * die Grenze beim Scan-Import): Eine Brüstung,
  * ein Sockel oder eine halbhohe Abtrennung soll die Raumhöhe nicht bestimmen
  * — und darf hier folgerichtig auch nicht auf Geschosshöhe gezogen werden.
  * Aus einer 1,10-m-Brüstung eine 2,50-m-Wand zu machen wäre keine Korrektur,
  * sondern eine Bauteiländerung.
  */
-export const BRUESTUNGS_HOEHE = 1.4;
+export { BRUESTUNGS_HOEHE };
 
 /** Warum eine Wand stehen bleibt. */
 export type Ausnahmegrund = 'dachschraege' | 'bruestung' | 'andere-ebene';
