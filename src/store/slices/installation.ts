@@ -437,9 +437,8 @@ export function installationSlice(set: StoreSet, get: StoreGet, mutate: Mutate):
             (fbhRaeume > 0
               ? ` · Fußbodenheizung in ${fbhRaeume} ${fbhRaeume === 1 ? 'Raum' : 'Räumen'} (${fbhFlaeche.toFixed(1).replace('.', ',')} m²)`
               : '') +
-            (fbhVerteiler > 0
-              ? ` · ${fbhVerteiler} ${fbhVerteiler === 1 ? 'Verteiler' : 'Verteiler'} gesetzt`
-              : ''),
+            // „Verteiler" ist Einzahl und Mehrzahl zugleich.
+            (fbhVerteiler > 0 ? ` · ${fbhVerteiler} Verteiler gesetzt` : ''),
       });
       return ergebnis;
     },
