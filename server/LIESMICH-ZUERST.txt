@@ -1,5 +1,5 @@
-RaVia CAD Light 1.17.0 — Serverpaket
-=====================================
+RaVia CAD Light — Serverpaket (Fassung: siehe Datei VERSION)
+==============================================================
 
 Was hier drin ist
 -----------------
@@ -15,7 +15,7 @@ SERVER-EINRICHTUNG.html  im Browser öffnen. Das ist das Handbuch fuer den,
 
 Der schnelle Weg, wenn Sie es eilig haben
 -----------------------------------------
-    tar xzf RaVia-CAD-Light-Server-1.17.0.tar.gz
+    tar xzf RaVia-CAD-Light-Server-<fassung>.tar.gz
     cd ravia-cad-light-server
     sudo bin/einrichten.sh IHRE-ADRESSE.de
     sudo certbot --nginx -d IHRE-ADRESSE.de
@@ -35,7 +35,7 @@ Was im Paket liegt
     bin/pruefen.sh            Abnahme des laufenden Servers von aussen
     einbettung/               Beispielseite fuer die Einbindung in RaVia
     pruefsummen.sha256        Wird von aufspielen.sh geprueft
-    VERSION                   1.17.0
+    VERSION                   Fassung dieses Pakets
 
 Drei Dinge, die Sie wissen sollten
 ----------------------------------
