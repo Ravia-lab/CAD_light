@@ -54,7 +54,7 @@
     "bench": "esbuild scripts/bench.ts --bundle --platform=node --format=esm --outfile=node_modules/.cache/bench.mjs --log-level=warning && node node_modules/.cache/bench.mjs",
     "vertrag:schema": "node scripts/vertrag/erzeuge-schema.mjs",
     "reference:update": "esbuild scripts/update-reference.ts --bundle --platform=node --format=esm --outfile=node_modules/.cache/update-reference.mjs --log-level=warning && node node_modules/.cache/update-reference.mjs",
-    "ifc": "tsx scripts/ifc-lesen.ts",
+    "ifc": "esbuild scripts/ifc-lesen.ts --bundle --platform=node --format=esm --outfile=node_modules/.cache/ifc-lesen.mjs --log-level=warning && node node_modules/.cache/ifc-lesen.mjs",
     "korpus:ifc": "esbuild scripts/ifc-korpus.ts --bundle --platform=node --format=esm --outfile=node_modules/.cache/ifc-korpus.mjs --log-level=warning && node --max-old-space-size=6000 node_modules/.cache/ifc-korpus.mjs",
     "smoke:leisten": "node scripts/smoke-leisten.mjs",
     "sprache:bericht": "node scripts/sprachbericht.mjs",

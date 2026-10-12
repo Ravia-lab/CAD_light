@@ -34,10 +34,10 @@ b788c71c7d768dbeba50cdf7523bae986dc461928c9b5b1460208ed3c9340ab0  ./bin/pruefen.
 1033ace97b56672cba92b2e69c24010b27ff8be9957edab4e8679eb378bbc8d1  ./bin/zuruecknehmen.sh
 9e5eed022397d9d8f4b426604149e579072e3f387d6314d36257baee13f6ed71  ./einbettung/einbettung-beispiel.html
 314c891adc0bcd0dd1a42293c6f55aaa4494c4483cd60389800c2a0256e25579  ./einbettung/einbettung-beispiel.js
-150b93c4d417d58e762bd8a5195113b8e92b3f02fee2b88a3e7d932c837ccf73  ./LIESMICH-ZUERST.txt
+5b5d2b8bcde6781f68fec40df36257cc8629b3c5e8eb2df502a0631d4e7da408  ./LIESMICH-ZUERST.txt
 68a6d40ab5b992d532633aeb052a7d69c7065b3a8388a237ac6d8ee357557fa9  ./nginx/ravia-cad-kopfzeilen.conf
 74d30147b70417e9faba0caef05f4f01c509b0898626a742cdc46035a41e0dd5  ./nginx/ravia-cad-light-basis.conf
-430a93195ab1daeb3f9ce356877ad9cec370091794d626e3d1332e509ded4a50  ./nginx/ravia-cad-light.conf
+6799f24f78e01206734d49d1f8961354ca005081e1185cd3caf04396fc0afc6a  ./nginx/ravia-cad-light.conf
 9c12eb7a8c199cddce8dd19fd85f9f9918f2a87c389eaef61e265256ed0c280b  ./nginx/ravia-cad-scan-dienst.conf
 eed35583a4fa2db239d77d37525751ae2d7ecd20bbf958635663c4d3d068ca73  ./nginx/ravia-cad.conf
 fd2207e25941e686aa775dfc0bd1d50095fc5ff5ac8de2a7d2abed495c47c459  ./SERVER-EINRICHTUNG.html

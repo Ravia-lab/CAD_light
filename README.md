@@ -1674,20 +1674,29 @@ Deshalb gibt es einen **stabilen Vertrag** unter `window.RaViaCAD`:
 
 ```ts
 interface RaviaCadApi {
-  readonly version: string;                 // "1.4.0"
+  readonly version: string;                 // EMBED_API_VERSION in src/lib/embedApi.ts, derzeit "1.11.0"
   getExport(): RaviaExport;                 // vollständiges ravia.bim.light v2
   getIfc(): string;                         // dasselbe Modell als IFC4/STEP
   getSummary(): RaviaSummary;               // Kurzfassung ohne die große Datenmenge
   validate(): ValidationReport;             // derselbe Bericht wie im Reiter „Prüfung"
   getDocument(): BimDocument;               // Rohdokument, nur lesend gedacht
   getHeatLoadEstimate(): HeatLoadEstimate;  // Heizlast-Überschlag wie im Anlagenblatt (1.11.0)
+  reportDiscardedRooms(antwort): { hinweise, ohneRaum, message }; // von RaVia verworfene Räume melden
+  createRoom(anfrage): CreateRoomResult;    // Raum aus RaVia heraus anlegen
   loadProject(data): { ok, message };       // Projektdatei laden
   loadIfc(text): { ok, message };           // IFC4-Datei laden
   loadBuilding(model, opt?): { ok, message }; // Gebäudescan aus RaVia Scan (1.3.0; opt.merge seit 1.4.0)
   applyPatch(patch): HostPatchReport;       // Fachdaten zurückschreiben (siehe unten)
   getWritableFields(): Field[];             // Selbstauskunft: was ist schreibbar
+  getDeviceProfile(): Geraeteprofil;        // Gerät des Anwenders (Bildschirm, Eingabe)
   onChange(fn): () => void;                 // Änderungen abonnieren, entprellt
+  onNetzGelegt(fn): () => void;             // Rohrnetz neu gelegt
+  setHostCapabilities({ scan }): { scan };  // Wirt meldet, was er kann (1.9.0)
+  onScanRequested(fn): () => void;          // Anwender will scannen, der Wirt übernimmt
 }
+
+Maßgeblich ist das Interface `RaviaCadApi` in `src/lib/embedApi.ts`; diese
+Übersicht kann ihm hinterherhinken.
 ```
 
 Läuft der Editor in einem `<iframe>`, tut es dieselbe Schnittstelle über
@@ -1966,7 +1975,8 @@ noch dort, wo es etwas abzustellen gibt.
 
 ## Verifikation
 
-`npm run verify` prüft Rechenkerne und Exporte ohne Browser (574 Prüfungen,
+`npm run verify` prüft Rechenkerne und Exporte ohne Browser (Stand 1.78.0:
+119 Prüfblöcke unter `scripts/pruefungen/`, 8.053 Einzelprüfungen,
 einschließlich des Referenzprojekts oben):
 Polygon-Offset, Azimut/Orientierung, Wandzerlegung (Volumenbilanz Wand −
 Öffnung), lichte Raummaße bei gemischten Wandstärken, Zuordnung der
